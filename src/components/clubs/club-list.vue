@@ -1,0 +1,54 @@
+<template>
+  <v-card tile elevation="1">
+    <v-list>
+      <v-subheader class="d-flex justify-content-between">
+        Clubs
+        <b>{{ clubs ? clubs.length : 'undefined' }}</b>
+      </v-subheader>
+      <v-list-item-group color="primary">
+        <v-list-item v-for="(club, i) in clubs" :key="i" color="#7535ed" link>
+          <v-list-item-avatar>
+            <v-img
+              :src="
+                `http://localhost:3000/img/clubs/logos/${club.ClubCode}.png`
+              "
+              width="40px"
+            ></v-img>
+          </v-list-item-avatar>
+          <v-list-item-content>
+            <v-list-item-title v-text="club.Name"></v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+      </v-list-item-group>
+    </v-list>
+
+    <v-divider></v-divider>
+
+    <v-card-actions v-if="actions">
+      <v-spacer></v-spacer>
+
+      <v-btn text icon color="primary lighten-2">
+        <v-icon small @click="addClub">
+          mdi-plus
+        </v-icon>
+      </v-btn>
+    </v-card-actions>
+  </v-card>
+</template>
+
+<script lang="ts">
+import { Component, Vue, Prop } from 'vue-property-decorator';
+import { Club } from '../../models/club';
+
+@Component
+export default class ClubList extends Vue {
+  @Prop({ required: true }) readonly clubs!: Club[];
+  @Prop({ default: false, required: false }) readonly actions!: boolean;
+
+  private addClub(): void {
+    this.$emit('open-club-modal');
+  }
+}
+</script>
+
+<style></style>

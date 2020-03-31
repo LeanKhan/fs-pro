@@ -9,14 +9,14 @@
               <v-list-item
                 v-for="(club, i) in clubs"
                 :key="i"
-                color="#9c27b0"
+                color="#7535ed"
                 @click="showClub(club.ClubCode)"
                 link
               >
                 <v-list-item-avatar>
                   <v-img
                     :src="
-                      `http://localhost:3000/img/logos/${club.ClubCode}.png`
+                      `http://localhost:3000/img/clubs/logos/${club.ClubCode}.png`
                     "
                     width="40px"
                   ></v-img>
@@ -86,7 +86,6 @@
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
 import { Club } from '../../models/club';
-// import axios from '';
 
 @Component({})
 export default class AllClubs extends Vue {

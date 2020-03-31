@@ -6,6 +6,8 @@ export interface Season {
   SeasonTitle: string;
   Competition: string;
   CompetitionCode: string;
+  EndDate: string;
+  StartDate: string;
   Fixtures: [];
   Standings: [];
   PlayerStats: PlayerSeasonStats[];

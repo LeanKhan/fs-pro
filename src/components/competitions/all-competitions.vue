@@ -9,7 +9,7 @@
               <v-list-item
                 v-for="(competition, i) in competitions"
                 :key="i"
-                color="#9c27b0"
+                color="#7535ed"
                 @click="showCompetition(competition.CompetitionCode)"
                 link
               >
@@ -59,7 +59,7 @@
             <v-list-item-avatar tile size="80">
               <v-img
                 :src="
-                  `http://localhost:3000/img/logos/${selectedCompetition.CompetitionCode}.png`
+                  `http://localhost:3000/img/clubs/logos/${selectedCompetition.CompetitionCode}.png`
                 "
               ></v-img>
             </v-list-item-avatar>

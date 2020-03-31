@@ -2,6 +2,8 @@ import Vue from 'vue';
 import VueRouter from 'vue-router';
 import Home from '../views/Home.vue';
 import CompetitionsHome from '../views/competitions/dashboard.vue';
+import ViewCompetition from '@/views/competitions/view-competition.vue';
+import CompetitionForm from '@/views/competitions/competition-form.vue';
 // import Clubs from '../views/Clubs.vue';
 
 Vue.use(VueRouter);
@@ -26,7 +28,28 @@ const routes = [
       ),
     children: [
       { path: '', name: 'CompetitionsHome', component: CompetitionsHome },
+      {
+        path: 'view/:id/:code',
+        name: 'View Competition',
+        component: ViewCompetition,
+        meta: { title: 'View Component' },
+      },
+      {
+        path: 'update/:id/:code',
+        name: 'Update Competition',
+        component: CompetitionForm,
+        meta: { title: 'Update Competition' },
+        props: { isUpdate: true },
+      },
+      {
+        path: 'new',
+        name: 'Create Competition',
+        component: CompetitionForm,
+        meta: { title: 'Create Competition' },
+        props: { isUpdate: false },
+      },
     ],
+    meta: { title: 'Competitions' },
   },
   {
     path: '/players',

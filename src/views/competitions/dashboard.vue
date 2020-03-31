@@ -6,7 +6,11 @@
           <v-card-title>
             Competitions
             <v-spacer></v-spacer>
-            <v-btn append-icon="mdi-plus" color="success">
+            <v-btn
+              append-icon="mdi-plus"
+              color="success"
+              to="/competitions/new"
+            >
               Add
             </v-btn>
           </v-card-title>
@@ -35,11 +39,24 @@
             class="elevation-1"
           >
             <template v-slot:item.Clubs="{ item }">
-              {{ item.length }}
+              {{ item.Clubs.length }}
             </template>
 
             <template v-slot:item.Seasons="{ item }">
-              {{ item.length }}
+              {{ item.Seasons.length }}
+            </template>
+
+            <template v-slot:item.Actions="{ item }">
+              <v-btn text icon color="success lighten-2">
+                <v-icon small @click="viewCompetition(item)">
+                  mdi-eye
+                </v-icon>
+              </v-btn>
+              <v-btn text icon color="blue lighten-2">
+                <v-icon small @click="updateCompetition(item)">
+                  mdi-pencil
+                </v-icon>
+              </v-btn>
             </template>
           </v-data-table>
         </v-card>
@@ -74,6 +91,7 @@ export default class CompetitionsHome extends Vue {
       filterable: false,
     },
     { text: 'Seasons', value: 'Seasons', filterable: false },
+    { text: 'Actions', value: 'Actions', sortable: false, filterable: false },
   ];
 
   //   TODO: Add a filter by competition type...
@@ -82,6 +100,24 @@ export default class CompetitionsHome extends Vue {
   private competitions: Competition[] = [];
 
   private search = '';
+
+  public viewCompetition(comp: Competition): void {
+    const compCode = comp.CompetitionCode.toLowerCase();
+    const compID = comp._id?.toLowerCase();
+
+    this.$router.push(`/competitions/view/${compID}/${compCode}`);
+  }
+
+  public updateCompetition(comp: Competition): void {
+    const compCode = comp.CompetitionCode.toLowerCase();
+    const compID = comp._id?.toLowerCase();
+
+    this.$router.push(`/competitions/update/${compID}/${compCode}`);
+  }
+
+  public newCompetition(): void {
+    this.$router.push(`/competitions/new`);
+  }
 
   public mounted() {
     this.$axios
@@ -95,4 +131,12 @@ export default class CompetitionsHome extends Vue {
   }
 }
 </script>
-<style scoped></style>
+<style scoped>
+table tr {
+  cursor: pointer !important;
+}
+table tr:active {
+  background-color: #3f51b5 !important;
+  border-color: #3f51b5 !important;
+}
+</style>

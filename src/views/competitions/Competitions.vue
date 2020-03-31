@@ -10,23 +10,26 @@ import { Component, Vue } from 'vue-property-decorator';
 
 @Component({})
 export default class Competitions extends Vue {
-  private routes: any[] = [
-    {
-      text: 'Dashboard',
-      disabled: false,
-      href: 'breadcrumbs_dashboard',
-    },
-    {
-      text: 'Link 1',
-      disabled: false,
-      href: 'breadcrumbs_link_1',
-    },
-    {
-      text: 'Link 2',
-      disabled: true,
-      href: 'breadcrumbs_link_2',
-    },
-  ];
+  private routes: any[] = [];
+
+  private get crumbs(): any[] {
+    const pathArray = this.$route.path.split('/');
+    pathArray.shift();
+    const breadcrumbs = this.$route.matched.map(path => {
+      return {
+        path: path.path,
+        disabled: false,
+        to: path.path,
+        text: path.meta.title || path.name,
+      };
+    });
+    breadcrumbs[breadcrumbs.length - 1].disabled = true;
+    return breadcrumbs;
+  }
+
+  private mounted() {
+    this.routes = this.crumbs;
+  }
 }
 </script>
 
