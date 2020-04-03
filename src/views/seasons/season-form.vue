@@ -15,10 +15,7 @@
             </v-col>
 
             <v-col cols="6">
-              <v-text-field
-                label="Start Date"
-                v-model="form.StartDate"
-              ></v-text-field>
+              <v-date-picker v-model="form.StartDate"></v-date-picker>
             </v-col>
           </v-row>
         </v-container>
@@ -30,8 +27,10 @@
           <v-btn @click="submit" :color="`${isUpdate ? 'warning' : 'success'}`">
             {{ isUpdate ? 'Update' : 'Create Season' }}
           </v-btn>
-
-          <v-btn v-if="isUpdate" @click="deleteSeason" color="danger">
+          <v-btn @click="$router.push('/competitions')" color="secondary">
+            Cancel
+          </v-btn>
+          <v-btn v-if="isUpdate" @click="deleteSeason" color="error">
             Remove
           </v-btn>
         </v-card-actions>
@@ -44,7 +43,7 @@
 import { Component, Vue, Prop } from 'vue-property-decorator';
 
 @Component
-export default class SeasonsForm extends Vue {
+export default class SeasonForm extends Vue {
   @Prop({ required: false }) readonly isUpdate!: boolean;
   private season: {} = {};
 
@@ -56,14 +55,17 @@ export default class SeasonsForm extends Vue {
   };
 
   private submit(): void {
-    const competitionID = this.$route.params['id'];
+    const Competition = this.$route.params['id'];
+    const CompetitionCode = this.$route.params['code'];
+
+    // TODO: find out how you will get the season ID and stuff
 
     const url = this.isUpdate
-      ? `/competitions/update/${competitionID}`
-      : '/competitions/new?model=competition';
+      ? `/${Competition}/seasons/update/`
+      : '/seasons/new?model=season';
 
     this.$axios
-      .post(url, { data: this.form })
+      .post(url, { data: { ...this.form, CompetitionCode, Competition } })
       .then(response => {
         console.log('Response => ', response);
         this.$router.push('/competitions');

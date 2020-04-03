@@ -105,18 +105,24 @@ export default class CompetitionsHome extends Vue {
     const compCode = comp.CompetitionCode.toLowerCase();
     const compID = comp._id?.toLowerCase();
 
-    this.$router.push(`/competitions/view/${compID}/${compCode}`);
+    this.$router.push({
+      name: 'View Competition',
+      params: { id: compID as string, code: compCode },
+    });
   }
 
   public updateCompetition(comp: Competition): void {
     const compCode = comp.CompetitionCode.toLowerCase();
     const compID = comp._id?.toLowerCase();
 
-    this.$router.push(`/competitions/update/${compID}/${compCode}`);
+    this.$router.push({
+      name: 'Update Competition',
+      params: { id: compID as string, code: compCode },
+    });
   }
 
   public newCompetition(): void {
-    this.$router.push(`/competitions/new`);
+    this.$router.push({ name: 'New Competition' });
   }
 
   public mounted() {

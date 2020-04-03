@@ -67,7 +67,11 @@
             </v-col>
 
             <v-col cols="6">
-              <club-list :clubs="competition.Clubs" :actions="true"></club-list>
+              <club-list
+                @open-club-modal="openClubModal = true"
+                :clubs="competition.Clubs"
+                :actions="true"
+              ></club-list>
             </v-col>
           </v-row>
         </v-container>
@@ -80,7 +84,11 @@
             {{ isUpdate ? 'Update' : 'Create Competition' }}
           </v-btn>
 
-          <v-btn v-if="isUpdate" @click="deleteCompetition" color="danger">
+          <v-btn @click="$router.push('/competitions')" color="secondary">
+            Cancel
+          </v-btn>
+
+          <v-btn v-if="isUpdate" @click="deleteCompetition" color="error">
             Remove
           </v-btn>
         </v-card-actions>
@@ -138,6 +146,7 @@ export default class ComponentForm extends Vue {
       this.$axios
         .get(`/competitions/${competitionID}`)
         .then(response => {
+          this.competition = response.data.payload._doc as Competition;
           this.form = response.data.payload._doc as Competition;
         })
         .catch(response => {

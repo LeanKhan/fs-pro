@@ -1,6 +1,6 @@
 <template>
   <div>
-    <v-breadcrumbs :items="routes"></v-breadcrumbs>
+    <v-breadcrumbs :items="crumbs"></v-breadcrumbs>
     <router-view></router-view>
   </div>
 </template>
@@ -10,25 +10,19 @@ import { Component, Vue } from 'vue-property-decorator';
 
 @Component({})
 export default class Competitions extends Vue {
-  private routes: any[] = [];
-
   private get crumbs(): any[] {
-    const pathArray = this.$route.path.split('/');
-    pathArray.shift();
     const breadcrumbs = this.$route.matched.map(path => {
       return {
-        path: path.path,
+        exact: true,
         disabled: false,
-        to: path.path,
-        text: path.meta.title || path.name,
+        to:
+          typeof path.meta == 'function'
+            ? path.meta(this.$route).to()
+            : path.path,
+        text: path.meta.title || path.name || path.meta(this.$route).title,
       };
     });
-    breadcrumbs[breadcrumbs.length - 1].disabled = true;
     return breadcrumbs;
-  }
-
-  private mounted() {
-    this.routes = this.crumbs;
   }
 }
 </script>

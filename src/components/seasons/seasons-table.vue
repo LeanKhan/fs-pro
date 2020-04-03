@@ -3,7 +3,7 @@
     <v-card-title>
       Seasons
       <v-spacer></v-spacer>
-      <v-btn append-icon="mdi-plus" color="success">
+      <v-btn append-icon="mdi-plus" color="success" @click="openSeasonForm">
         Add
       </v-btn>
     </v-card-title>
@@ -18,12 +18,12 @@
     >
       <template v-slot:item.Actions="{ item }">
         <v-btn text icon color="success lighten-2">
-          <v-icon small @click="viewSeason(item)">
+          <v-icon small @click="viewSeason(item._id, item.SeasonCode)">
             mdi-eye
           </v-icon>
         </v-btn>
         <v-btn text icon color="blue lighten-2">
-          <v-icon small @click="editSeason(item)">
+          <v-icon small @click="editSeason(item._id)">
             mdi-pencil
           </v-icon>
         </v-btn>
@@ -39,6 +39,7 @@ import { Season } from '../../models/season';
 @Component({})
 export default class SeasonsTable extends Vue {
   @Prop({ required: true }) readonly seasons!: Season;
+  @Prop({ required: true }) readonly competitionId!: string;
 
   private headers: any[] = [
     {
@@ -50,12 +51,26 @@ export default class SeasonsTable extends Vue {
       text: 'Code',
       value: 'SeasonCode',
     },
-    { text: 'Title', value: 'SeasonTitle' },
+    { text: 'Title', value: 'Title' },
     { text: 'Start Date', value: 'StartDate', filterable: true },
-    { text: 'End Date', value: 'EndDate', filterable: true },
+    { text: 'Actions', value: 'Actions', filterable: false, sortable: false },
   ];
 
   private search = '';
+
+  private openSeasonForm(): void {
+    this.$router.push({
+      name: 'New Season',
+      params: { compId: this.competitionId },
+    });
+  }
+
+  private viewSeason(seasonId: string, seasonCode: string): void {
+    this.$router.push({
+      name: 'View Season',
+      params: { compId: this.competitionId, seasonId, seasonCode },
+    });
+  }
 }
 </script>
 

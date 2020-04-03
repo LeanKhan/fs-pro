@@ -1,60 +1,43 @@
 <template>
   <div>
+    <v-dialog v-model="openClubModal" persistent max-width="800px">
+      <clubs-table @close-club-modal="closeModal"></clubs-table>
+    </v-dialog>
     <v-row>
       <v-col cols="6">
-        <!-- DIALOG -->
-        <v-dialog v-model="openClubModal" persistent max-width="800px">
-          <clubs-table @close-club-modal="closeModal"></clubs-table>
-        </v-dialog>
-        <!-- DIALOG -->
         <!-- Competition Details -->
         <v-card>
-          <v-card-title class="justify-content-between">
-            <v-list-item three-line>
-              <v-list-item-content>
-                <div class="overline mb-4">
-                  {{ competition.CompetitionID }}
-
-                  <v-spacer></v-spacer>
-
-                  <v-btn text icon color="secondary lighten-2">
-                    <v-icon small @click="updateCompetition">
-                      mdi-pencil
-                    </v-icon>
-                  </v-btn>
-
-                  <v-btn text icon color="danger lighten-2">
-                    <v-icon small @click="updateCompetition">
-                      mdi-bin
-                    </v-icon>
-                  </v-btn>
-                </div>
-                <v-list-item-title class="headline mb-1">
-                  {{ competition.Name }}
-                  <v-chip>{{ competition.Type }}</v-chip>
-                </v-list-item-title>
-                <!-- <v-list-item-subtitle>
-                <b>Manager:</b>
-                {{ selectedClub.Manager }}
-                <b>Stadium:</b>
-                {{ selectedClub.Stadium.Name }}
-              </v-list-item-subtitle> -->
-                <!-- TODO: probably add 'Latest Season' -->
-              </v-list-item-content>
-
-              <v-list-item-avatar tile size="80">
-                <v-img
-                  :src="
-                    `http://localhost:3000/img/competitions/logos/${competition.CompetitionCode}.png`
-                  "
-                ></v-img>
-              </v-list-item-avatar>
-            </v-list-item>
-          </v-card-title>
+          <v-list-item>
+            <v-list-item-title class="headline mb-1">
+              <div class="overline mb-4">
+                {{ competition.CompetitionID }}
+              </div>
+              {{ competition.Name }}
+              <v-chip>{{ competition.Type }}</v-chip>
+            </v-list-item-title>
+            <v-list-item-content>
+              <v-btn text icon color="indigo lighten-2">
+                <v-icon small @click="updateCompetition">
+                  mdi-pencil
+                </v-icon>
+              </v-btn>
+            </v-list-item-content>
+          </v-list-item>
 
           <v-card-text>
             Country: {{ competition.Country }} Type: {{ competition.Type }}
           </v-card-text>
+
+          <v-divider></v-divider>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn text small icon color="indigo" to="./seasons">
+              <v-icon color="indigo">
+                mdi-calendar
+              </v-icon>
+              View Seasons
+            </v-btn>
+          </v-card-actions>
         </v-card>
       </v-col>
 
@@ -73,7 +56,10 @@
     <v-row>
       <v-col cols="12">
         <!-- seasons -->
-        <seasons-table :seasons="competition.Seasons"></seasons-table>
+        <seasons-table
+          :seasons="competition.Seasons"
+          :competition-id="competition._id"
+        ></seasons-table>
       </v-col>
     </v-row>
   </div>
@@ -82,7 +68,7 @@
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
 import ClubList from '../../components/clubs/club-list.vue';
-import SeasonsTable from '@/components/competitions/seasons-table.vue';
+import SeasonsTable from '@/components/seasons/seasons-table.vue';
 import ClubsTable from '@/components/clubs/clubs-table.vue';
 import { Competition } from '../../models/competition';
 

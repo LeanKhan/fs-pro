@@ -1,10 +1,11 @@
 <template>
   <v-card tile elevation="1">
     <v-list>
-      <v-subheader class="d-flex justify-content-between">
+      <v-list-item class="d-flex justify-content-between rounded-1">
         Clubs
+        <v-spacer></v-spacer>
         <b>{{ clubs ? clubs.length : 'undefined' }}</b>
-      </v-subheader>
+      </v-list-item>
       <v-list-item-group color="primary">
         <v-list-item v-for="(club, i) in clubs" :key="i" color="#7535ed" link>
           <v-list-item-avatar>
@@ -27,10 +28,11 @@
     <v-card-actions v-if="actions">
       <v-spacer></v-spacer>
 
-      <v-btn text icon color="primary lighten-2">
-        <v-icon small @click="addClub">
+      <v-btn @click="addClub" text icon color="primary lighten-2" class="mr-3">
+        <v-icon small>
           mdi-plus
         </v-icon>
+        Add
       </v-btn>
     </v-card-actions>
   </v-card>
