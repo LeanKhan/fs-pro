@@ -1,6 +1,6 @@
 <template>
   <div>
-    <router-view></router-view>
+    <v-tabs></v-tabs>
   </div>
 </template>
 
@@ -8,5 +8,5 @@
 import { Component, Vue } from 'vue-property-decorator';
 
 @Component({})
-export default class App extends Vue {}
+export default class Auth extends Vue {}
 </script>

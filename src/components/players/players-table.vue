@@ -1,7 +1,7 @@
 <template>
   <v-card>
     <v-card-title>
-      All Players
+      Players
       <v-spacer></v-spacer>
       <v-text-field
         v-model="search"
@@ -10,9 +10,10 @@
         single-line
         hide-details
       ></v-text-field>
-      <v-checkbox v-model="isSigned" label="Signed">
+      <!-- TODO: Add filter for isSigned -->
+      <!-- <v-checkbox v-model="isSigned" label="Signed">
         Signed
-      </v-checkbox>
+      </v-checkbox> -->
     </v-card-title>
     <v-data-table
       :headers="headers"
@@ -36,15 +37,31 @@
           {{ item.isSigned }}
         </v-chip>
       </template>
+
+      <!-- Players actions -->
+      <template v-slot:item.Actions>
+        <v-btn text icon color="success lighten-2">
+          <v-icon small>
+            mdi-eye
+          </v-icon>
+        </v-btn>
+        <v-btn text icon color="blue lighten-2">
+          <v-icon small>
+            mdi-pencil
+          </v-icon>
+        </v-btn>
+      </template>
     </v-data-table>
   </v-card>
 </template>
 <script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+import { Component, Vue, Prop } from 'vue-property-decorator';
 import { Player } from '../../models/player';
 
 @Component({})
 export default class AllPlayers extends Vue {
+  @Prop({ required: true }) readonly players!: Player[];
+
   private headers: any[] = [
     {
       text: 'First Name',
@@ -71,9 +88,8 @@ export default class AllPlayers extends Vue {
       },
     },
     { text: 'Rating', value: 'Rating', filterable: false },
+    { text: 'Actions', value: 'Actions', filterable: false, sortable: false },
   ];
-
-  private players: Player[] = [];
 
   private search = '';
 
@@ -83,17 +99,6 @@ export default class AllPlayers extends Vue {
     if (rating >= 80) return 'green';
     else if (rating >= 50) return 'orange';
     else return 'red';
-  }
-
-  public mounted() {
-    this.$axios
-      .get('/players/all')
-      .then(res => {
-        this.players = res.data.payload;
-      })
-      .catch(err => {
-        console.log('Error! => ', err);
-      });
   }
 }
 </script>

@@ -1,0 +1,49 @@
+<template>
+  <div>
+    <v-row>
+      <v-col cols="12">
+        <v-card>
+          <v-card-title>
+            Players
+            <v-spacer></v-spacer>
+            <v-btn append-icon="mdi-plus" color="success">
+              New
+            </v-btn>
+          </v-card-title>
+        </v-card>
+      </v-col>
+
+      <v-col cols="12">
+        <players-table :players="players"></players-table>
+      </v-col>
+    </v-row>
+  </div>
+</template>
+
+<script lang="ts">
+import { Component, Vue } from 'vue-property-decorator';
+import PlayersTable from '@/components/players/players-table.vue';
+import { Player } from '@/models/player';
+
+@Component({
+  components: {
+    PlayersTable,
+  },
+})
+export default class PlayersDashboard extends Vue {
+  private players: any[] = [];
+
+  public mounted() {
+    this.$axios
+      .get('/players/all')
+      .then(res => {
+        this.players = res.data.payload as Player[];
+      })
+      .catch(err => {
+        console.log('Error! => ', err);
+      });
+  }
+}
+</script>
+
+<style></style>

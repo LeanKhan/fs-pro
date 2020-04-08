@@ -67,10 +67,10 @@
 
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
-import ClubList from '../../components/clubs/club-list.vue';
+import ClubList from '@/components/clubs/club-list.vue';
 import SeasonsTable from '@/components/seasons/seasons-table.vue';
 import ClubsTable from '@/components/clubs/clubs-table.vue';
-import { Competition } from '../../models/competition';
+import { Competition } from '@/models/competition';
 
 @Component({
   components: {
@@ -118,8 +118,11 @@ export default class ViewComponent extends Vue {
     this.$axios
       .get(`/competitions/${compID}`)
       .then(response => {
-        console.log('Stuff => ', response);
-        this.competition = response.data.payload._doc as Competition;
+        console.log('Fetched Competition => ', response.data);
+        // Check for errors here o
+        if (response.data.success) {
+          this.competition = response.data.payload as Competition;
+        }
       })
       .catch(response => {
         console.log('Response => ', response);

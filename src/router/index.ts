@@ -1,18 +1,16 @@
 import Vue from 'vue';
-import VueRouter, { RouteConfig, Route } from 'vue-router';
-import Home from '../views/Home.vue';
-import CompetitionsHome from '../views/competitions/dashboard.vue';
-import CompetitionSeasonsHome from '../views/seasons/dashboard.vue';
-import ViewCompetition from '@/views/competitions/view-competition.vue';
-import CompetitionForm from '@/views/competitions/competition-form.vue';
-import CompetitionHome from '@/views/competitions/competition-home.vue';
-import SeasonForm from '@/views/seasons/season-form.vue';
-import SeasonHome from '@/views/seasons/view-season.vue';
+import VueRouter, { RouteConfig } from 'vue-router';
+import competitionRoutes from './competitions';
+import clubRoutes from './clubs';
+import playerRoutes from './players';
+import AdminHome from '@/views/admin/dashboard.vue';
+import AppView from '@/views/app-view.vue';
+import UserDashboard from '@/views/user/dashboard.vue';
 // import Clubs from '../views/Clubs.vue';
 
 Vue.use(VueRouter);
 
-function replaceParams(
+export function replaceParams(
   path: string,
   replacements: { search: string; replace: string }[]
 ): string {
@@ -26,128 +24,37 @@ function replaceParams(
 const routes: RouteConfig[] = [
   {
     path: '/',
-    name: 'Home',
-    component: Home,
-  },
-  {
-    path: '/clubs',
-    name: 'Clubs',
-    component: () =>
-      import(/* webpackChunkName: "clubs" */ '../views/Clubs.vue'),
-  },
-  {
-    path: '/competitions',
-    component: () =>
-      import(
-        /* webpackChunkName: "competitions" */ '../views/competitions/Competitions.vue'
-      ),
+    component: AppView,
+    name: 'AppView',
+    redirect: 'a',
     children: [
       {
-        path: '',
-        name: 'Competition Home',
-        component: CompetitionsHome,
-        meta: { title: 'Home' },
-      },
-      {
-        path: ':id/:code',
-        component: CompetitionHome,
+        path: 'a',
+        component: () =>
+          import(/* webpackChunkName: "admin" */ '../views/admin/admin.vue'),
         children: [
-          {
-            path: '',
-            name: 'View Competition',
-            component: ViewCompetition,
-            meta: (route: Route) => ({
-              title: route.params.code.toUpperCase(),
-              to: () => {
-                return replaceParams(route.path, [
-                  { search: ':id', replace: route.params.id },
-                  { search: ':code', replace: route.params.code },
-                ]);
-              },
-            }),
-          },
-          {
-            path: 'update',
-            name: 'Update Competition',
-            component: CompetitionForm,
-            meta: (route: Route) => ({
-              title: 'Update',
-              to: () => {
-                return replaceParams(route.path, [
-                  { search: ':id', replace: route.params.id },
-                  { search: ':code', replace: route.params.code },
-                ]);
-              },
-            }),
-            props: { isUpdate: true },
-          },
-          {
-            path: 'seasons',
-            component: () =>
-              import(
-                /* webpackChunkName: "seasons" */ '../views/seasons/seasons-home.vue'
-              ),
-            children: [
-              {
-                path: '',
-                component: CompetitionSeasonsHome,
-                name: 'Seasons Home',
-              },
-              {
-                path: ':seasonId/:seasonCode',
-                component: SeasonHome,
-                name: 'View Season',
-              },
-              {
-                path: 'new',
-                name: 'New Season',
-                component: SeasonForm,
-                meta: (route: Route) => ({
-                  title: 'New Season',
-                  to: () => {
-                    return replaceParams(route.path, [
-                      { search: ':id', replace: route.params.id },
-                      { search: ':code', replace: route.params.code },
-                    ]);
-                  },
-                }),
-              },
-            ],
-            meta: { title: 'Seasons' },
-          },
+          { path: '', component: AdminHome, name: 'Admin Home' },
+          competitionRoutes,
+          clubRoutes,
+          playerRoutes,
         ],
-        meta: (route: Route) => ({
-          title: route.params.code.toUpperCase(),
-          to: () => {
-            return replaceParams(route.path, [
-              { search: ':id', replace: route.params.id },
-              { search: ':code', replace: route.params.code },
-            ]);
-          },
-        }),
+        meta: { title: 'Admin' },
       },
       {
-        path: 'new',
-        name: 'Create Competition',
-        component: CompetitionForm,
-        meta: { title: 'Create Competition' },
-        props: { isUpdate: false },
+        path: 'u',
+        component: () =>
+          import(/* webpackChunkName: "user" */ '../views/user/user.vue'),
+        children: [{ path: '', component: UserDashboard, name: 'User Home' }],
+        meta: { title: 'User' },
       },
     ],
-    meta: { title: 'Competitions' },
-  },
-  {
-    path: '/players',
-    name: 'Players',
-    component: () =>
-      import(/* webpackChunkName: "players" */ '../views/Players.vue'),
   },
 ];
 
 const router = new VueRouter({
   mode: 'history',
   base: process.env.BASE_URL,
-  routes,
+  routes: [...routes],
 });
 
 export default router;

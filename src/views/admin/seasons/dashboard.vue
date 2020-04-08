@@ -25,7 +25,7 @@
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
 import SeasonsTable from '@/components/seasons/seasons-table.vue';
-// import { Season } from '../../models/season';
+import { Season } from '@/models/season';
 
 @Component({
   components: {
@@ -36,7 +36,7 @@ export default class CompetitionSeasonsHome extends Vue {
   //   TODO: Add a filter by competition type...
   // it can be a select menu :)...
 
-  private seasons: any[] = [];
+  private seasons: Season[] = [];
 
   private competitionId = 'undefined';
 
@@ -48,7 +48,7 @@ export default class CompetitionSeasonsHome extends Vue {
     this.$axios
       .get(`/competitions/${compId}/seasons/all`)
       .then(res => {
-        this.seasons = res.data.payload;
+        this.seasons = res.data.payload as Season[];
       })
       .catch(err => {
         console.log('Error! => ', err);

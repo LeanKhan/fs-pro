@@ -100,7 +100,7 @@
 
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
-import { Season } from '../../models/season';
+import { Season } from '@/models/season';
 
 @Component({})
 export default class ViewSeason extends Vue {
@@ -111,7 +111,7 @@ export default class ViewSeason extends Vue {
     this.$axios
       .get(`/seasons/${seasonID}`)
       .then(response => {
-        this.season = response.data.payload._doc as Season;
+        this.season = response.data.payload as Season;
       })
       .catch(response => {
         console.log('Error => ', response);

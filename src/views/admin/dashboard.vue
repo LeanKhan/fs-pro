@@ -1,6 +1,6 @@
 <template>
   <div class="home">
-    <img alt="Vue logo" src="../assets/logo.png" />
+    <img alt="FsPro Logo :)" src="http://localhost:3000/img/logo.png" />
   </div>
 </template>
 
@@ -9,5 +9,5 @@
 import { Component, Vue } from 'vue-property-decorator';
 
 @Component({})
-export default class Home extends Vue {}
+export default class AdminDashboard extends Vue {}
 </script>

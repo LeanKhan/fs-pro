@@ -16,7 +16,7 @@ export default class Competitions extends Vue {
         exact: true,
         disabled: false,
         to:
-          typeof path.meta == 'function'
+          typeof path.meta.to == 'function'
             ? path.meta(this.$route).to()
             : path.path,
         text: path.meta.title || path.name || path.meta(this.$route).title,

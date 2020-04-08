@@ -67,7 +67,7 @@ export default class SeasonForm extends Vue {
     this.$axios
       .post(url, { data: { ...this.form, CompetitionCode, Competition } })
       .then(response => {
-        console.log('Response => ', response);
+        console.log('Response => ', response.data.payload);
         this.$router.push('/competitions');
       })
       .catch(response => {

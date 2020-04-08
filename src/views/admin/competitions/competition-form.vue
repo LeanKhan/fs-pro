@@ -99,7 +99,7 @@
 
 <script lang="ts">
 import { Component, Vue, Prop } from 'vue-property-decorator';
-import { Competition } from '../../models/competition';
+import { Competition } from '@/models/competition';
 import ClubList from '@/components/clubs/club-list.vue';
 import ClubsTable from '@/components/clubs/clubs-table.vue';
 
@@ -146,8 +146,8 @@ export default class ComponentForm extends Vue {
       this.$axios
         .get(`/competitions/${competitionID}`)
         .then(response => {
-          this.competition = response.data.payload._doc as Competition;
-          this.form = response.data.payload._doc as Competition;
+          this.competition = response.data.payload as Competition;
+          this.form = response.data.payload as Competition;
         })
         .catch(response => {
           console.log('Response => ', response);
