@@ -28,7 +28,7 @@
           <v-list-item-avatar>
             <v-img
               :src="
-                `http://localhost:3000/img/clubs/logos/${item.ClubCode}.png`
+                `http://192.168.10.3:3000/img/clubs/logos/${item.ClubCode}.png`
               "
               width="40px"
             ></v-img>
@@ -58,7 +58,7 @@
           </v-icon>
         </v-btn>
         <v-btn text icon color="blue lighten-2">
-          <v-icon small @click="editClub(item._id, item.ClubCode)">
+          <v-icon small @click="updateClub(item._id, item.ClubCode)">
             mdi-pencil
           </v-icon>
         </v-btn>
@@ -91,9 +91,9 @@ export default class ClubsTable extends Vue {
     { text: 'Actions', value: 'Actions', filterable: false, sortable: false },
   ];
 
-  private openClub(clubId: string, clubCode: string): void {
+  private updateClub(clubId: string, clubCode: string): void {
     this.$router.push({
-      name: 'New Club',
+      name: 'Update Club',
       params: { id: clubId, code: clubCode },
     });
   }

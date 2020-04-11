@@ -1,6 +1,8 @@
 import { RouteConfig } from 'vue-router';
 import ClubsDashboard from '@/views/admin/clubs/dashboard.vue';
 import ViewClub from '@/views/admin/clubs/view-club.vue';
+import ClubHome from '@/views/admin/clubs/club-home.vue';
+import ClubForm from '@/views/admin/clubs/club-form.vue';
 
 const routes: RouteConfig = {
   path: 'clubs',
@@ -16,9 +18,30 @@ const routes: RouteConfig = {
       meta: { title: 'Home' },
     },
     {
+      path: 'new',
+      name: 'Create Club',
+      component: ClubForm,
+      meta: { title: 'Create Club' },
+      props: { isUpdate: false },
+    },
+    {
       path: ':id/:code',
-      component: ViewClub,
-      name: 'View Club',
+      component: ClubHome,
+      children: [
+        {
+          path: '',
+          name: 'View Club',
+          component: ViewClub,
+          meta: { title: 'Club Home' },
+        },
+        {
+          path: 'update',
+          name: 'Update Club',
+          component: ClubForm,
+          meta: { title: 'Update Club' },
+          props: { isUpdate: true },
+        },
+      ],
       meta: { title: 'View Club' },
     },
   ],

@@ -6,12 +6,8 @@
           <v-card-title>
             Competitions
             <v-spacer></v-spacer>
-            <v-btn
-              append-icon="mdi-plus"
-              color="success"
-              to="/competitions/new"
-            >
-              Add
+            <v-btn append-icon="mdi-plus" color="success" to="competitions/new">
+              New
             </v-btn>
           </v-card-title>
         </v-card>

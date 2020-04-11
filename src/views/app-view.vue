@@ -62,7 +62,7 @@
           link
         >
           <v-list-item-icon>
-            <v-icon>{{ item.icon }}</v-icon>
+            <v-icon :color="item.color">{{ item.icon }}</v-icon>
           </v-list-item-icon>
 
           <v-list-item-content>
@@ -87,7 +87,7 @@
     </v-content>
 
     <v-footer app>
-      <span>&copy; 2019</span>
+      <span>&copy; 2020</span>
     </v-footer>
   </v-app>
 </template>
@@ -107,10 +107,20 @@ export default class AppView extends Vue {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private items: any[] = [
-    { title: 'Home', icon: 'mdi-soccer', link: '/a' },
-    { title: 'Clubs', icon: 'mdi-security', link: '/a/clubs' },
-    { title: 'Players', icon: 'mdi-account', link: '/a/players' },
-    { title: 'Competitions', icon: 'mdi-trophy', link: '/a/competitions' },
+    { title: 'Home', icon: 'mdi-soccer', link: '/a', color: 'primary' },
+    { title: 'Clubs', icon: 'mdi-security', link: '/a/clubs', color: 'amber' },
+    {
+      title: 'Players',
+      icon: 'mdi-account',
+      link: '/a/players',
+      color: 'indigo',
+    },
+    {
+      title: 'Competitions',
+      icon: 'mdi-trophy',
+      link: '/a/competitions',
+      color: 'pink',
+    },
   ];
 
   private mini = true;

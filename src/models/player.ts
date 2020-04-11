@@ -23,7 +23,7 @@ export interface Player {
   FirstName: string;
   LastName: string;
   Age: string;
-  Player_ID: string;
+  PlayerID: string;
   /** Players Nationality */
   Nationality: string;
   /** overall Player rating */

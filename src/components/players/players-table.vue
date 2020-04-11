@@ -10,6 +10,14 @@
         single-line
         hide-details
       ></v-text-field>
+      <v-btn
+        v-if="viewClub"
+        append-icon="mdi-plus"
+        color="success"
+        @click="$emit('add-player')"
+      >
+        Add
+      </v-btn>
       <!-- TODO: Add filter for isSigned -->
       <!-- <v-checkbox v-model="isSigned" label="Signed">
         Signed
@@ -18,7 +26,9 @@
     <v-data-table
       :headers="headers"
       :items="players"
-      :loading="!players.length > 0"
+      :loading="!players"
+      no-data-text="No Players fetched :?"
+      no-results-text="No Players found :?"
       :search="search"
       loading-text="Fetching Players..."
       class="elevation-1"
@@ -39,8 +49,13 @@
       </template>
 
       <!-- Players actions -->
-      <template v-slot:item.Actions>
-        <v-btn text icon color="success lighten-2">
+      <template v-slot:item.Actions="{ item }">
+        <v-btn
+          @click="viewPlayer(item._id, item.PlayerID)"
+          text
+          icon
+          color="success lighten-2"
+        >
           <v-icon small>
             mdi-eye
           </v-icon>
@@ -61,6 +76,7 @@ import { Player } from '../../models/player';
 @Component({})
 export default class AllPlayers extends Vue {
   @Prop({ required: true }) readonly players!: Player[];
+  @Prop({ required: true, default: false }) readonly viewClub!: boolean;
 
   private headers: any[] = [
     {
@@ -99,6 +115,10 @@ export default class AllPlayers extends Vue {
     if (rating >= 80) return 'green';
     else if (rating >= 50) return 'orange';
     else return 'red';
+  }
+
+  public viewPlayer(id: string, code: string) {
+    this.$router.push({ name: 'View Player', params: { id, code } });
   }
 }
 </script>

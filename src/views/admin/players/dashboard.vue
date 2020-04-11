@@ -3,18 +3,22 @@
     <v-row>
       <v-col cols="12">
         <v-card>
-          <v-card-title>
-            Players
+          <v-toolbar flat color="indigo darken-1">
+            <v-toolbar-title class="ml-1">
+              Dashboard
+            </v-toolbar-title>
+
             <v-spacer></v-spacer>
-            <v-btn append-icon="mdi-plus" color="success">
+
+            <v-btn append-icon="mdi-plus" color="success" to="new">
               New
             </v-btn>
-          </v-card-title>
+          </v-toolbar>
         </v-card>
       </v-col>
 
       <v-col cols="12">
-        <players-table :players="players"></players-table>
+        <players-table :players="players" :viewClub="false"></players-table>
       </v-col>
     </v-row>
   </div>

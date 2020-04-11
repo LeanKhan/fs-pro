@@ -89,7 +89,7 @@ export default class ClubsTable extends Vue {
     { text: 'Manager', value: 'Manager', filterable: true, sortable: false },
     { text: 'Stadium', value: 'Stadium', filterable: true, sortable: false },
     { text: 'League', value: 'LeagueCode', filterable: true, sortable: true },
-    { text: 'Players', value: 'Players', filterable: true, sortable: false },
+    { text: 'Players', value: 'Players', filterable: true, sortable: true },
   ];
 
   private search = '';

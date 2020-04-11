@@ -31,7 +31,7 @@
           <v-divider></v-divider>
           <v-card-actions>
             <v-spacer></v-spacer>
-            <v-btn text small icon color="indigo" to="./seasons">
+            <v-btn text small color="indigo" to="./seasons">
               <v-icon color="indigo">
                 mdi-calendar
               </v-icon>

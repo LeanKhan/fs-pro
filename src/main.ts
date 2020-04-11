@@ -4,10 +4,12 @@ import vuetify from './plugins/vuetify';
 import router from './router';
 import axios, { AxiosStatic } from 'axios';
 
+// baseURL: 'http://localhost:3000/api',
+
 Vue.use({
   install() {
     Vue.prototype.$axios = axios.create({
-      baseURL: 'http://localhost:3000/api',
+      baseURL: 'http://192.168.10.3:3000/api',
     });
   },
 });
