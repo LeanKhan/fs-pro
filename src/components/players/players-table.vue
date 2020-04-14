@@ -6,9 +6,11 @@
       <v-text-field
         v-model="search"
         append-icon="mdi-magnify"
+        color="indigo darken-1"
         label="Search"
         single-line
         hide-details
+        :clearable="true"
       ></v-text-field>
       <v-btn
         v-if="viewClub"
@@ -27,8 +29,8 @@
       :headers="headers"
       :items="players"
       :loading="!players"
-      no-data-text="No Players fetched :?"
-      no-results-text="No Players found :?"
+      no-data-text="No Players fetched"
+      no-results-text="No Players"
       :search="search"
       loading-text="Fetching Players..."
       class="elevation-1"
@@ -57,12 +59,18 @@
           color="success lighten-2"
         >
           <v-icon small>
-            mdi-eye
+            mdi-eye-outline
           </v-icon>
         </v-btn>
         <v-btn text icon color="blue lighten-2">
           <v-icon small>
-            mdi-pencil
+            mdi-pencil-outline
+          </v-icon>
+        </v-btn>
+        <!-- remove player -->
+        <v-btn @click="removePlayer(item._id)" text icon color="red lighten-2">
+          <v-icon small>
+            mdi-delete-outline
           </v-icon>
         </v-btn>
       </template>
@@ -74,7 +82,7 @@ import { Component, Vue, Prop } from 'vue-property-decorator';
 import { Player } from '../../models/player';
 
 @Component({})
-export default class AllPlayers extends Vue {
+export default class PlayersTable extends Vue {
   @Prop({ required: true }) readonly players!: Player[];
   @Prop({ required: true, default: false }) readonly viewClub!: boolean;
 
@@ -119,6 +127,10 @@ export default class AllPlayers extends Vue {
 
   public viewPlayer(id: string, code: string) {
     this.$router.push({ name: 'View Player', params: { id, code } });
+  }
+
+  public removePlayer(id: string) {
+    this.$emit('remove-player', id);
   }
 }
 </script>

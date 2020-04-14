@@ -1,6 +1,16 @@
 <template>
   <div class="home">
-    <img alt="FsPro Logo :)" src="http://localhost:3000/img/logo.png" />
+    <div class="d-flex justify-center align-center" style="height: 400px;">
+      <img
+        alt="FsPro Logo :)"
+        height="200px"
+        src="http://localhost:3000/img/logo-new.png"
+      />
+    </div>
+    <p class="display-2 secondary--text text-center">FSPro</p>
+    <p class="caption secondary--text lighten-3 text-center">
+      thank you Jesus!
+    </p>
   </div>
 </template>
 

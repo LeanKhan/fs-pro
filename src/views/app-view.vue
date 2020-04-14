@@ -74,7 +74,11 @@
 
     <v-app-bar app dense clipped-left>
       <v-app-bar-nav-icon @click.stop="drawer = !drawer" />
-      <img class="mx-4" width="40px" src="http://localhost:3000/img/logo.png" />
+      <img
+        class="mx-4"
+        width="40px"
+        src="http://localhost:3000/img/logo-new.png"
+      />
       <v-toolbar-title class="mr-12 align-center">
         <span class="title">FS Pro</span>
       </v-toolbar-title>

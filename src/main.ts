@@ -2,6 +2,7 @@ import Vue from 'vue';
 import App from './App.vue';
 import vuetify from './plugins/vuetify';
 import router from './router';
+import store, { apiUrl } from './store';
 import axios, { AxiosStatic } from 'axios';
 
 // baseURL: 'http://localhost:3000/api',
@@ -9,7 +10,7 @@ import axios, { AxiosStatic } from 'axios';
 Vue.use({
   install() {
     Vue.prototype.$axios = axios.create({
-      baseURL: 'http://192.168.10.3:3000/api',
+      baseURL: `${apiUrl}/api`,
     });
   },
 });
@@ -25,5 +26,6 @@ Vue.config.productionTip = false;
 new Vue({
   vuetify,
   router,
+  store,
   render: h => h(App),
 }).$mount('#app');

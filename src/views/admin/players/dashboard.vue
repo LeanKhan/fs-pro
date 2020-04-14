@@ -10,7 +10,7 @@
 
             <v-spacer></v-spacer>
 
-            <v-btn append-icon="mdi-plus" color="success" to="new">
+            <v-btn append-icon="mdi-plus" color="success" to="players/new">
               New
             </v-btn>
           </v-toolbar>

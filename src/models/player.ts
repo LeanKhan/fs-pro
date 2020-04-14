@@ -125,3 +125,18 @@ export interface PlayerStats {
   Assists: number;
   CleanSheets: number;
 }
+
+export interface Appearance {
+  head: AppearanceFeature;
+  complexion: string | undefined;
+  hair: AppearanceFeature;
+  eyes: AppearanceFeature;
+  eyebrows: AppearanceFeature;
+  nose: AppearanceFeature;
+  mouth: AppearanceFeature;
+}
+
+interface AppearanceFeature {
+  variant: string | undefined;
+  style: string | undefined;
+}

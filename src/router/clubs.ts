@@ -19,9 +19,9 @@ const routes: RouteConfig = {
     },
     {
       path: 'new',
-      name: 'Create Club',
+      name: 'New Club',
       component: ClubForm,
-      meta: { title: 'Create Club' },
+      meta: { title: 'New Club' },
       props: { isUpdate: false },
     },
     {

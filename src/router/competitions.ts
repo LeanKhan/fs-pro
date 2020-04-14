@@ -103,9 +103,9 @@ const routes: RouteConfig = {
     },
     {
       path: 'new',
-      name: 'Create Competition',
+      name: 'New Competition',
       component: CompetitionForm,
-      meta: { title: 'Create Competition' },
+      meta: { title: 'New Competition' },
       props: { isUpdate: false },
     },
   ],

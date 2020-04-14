@@ -8,8 +8,10 @@
         v-model="search"
         append-icon="mdi-magnify"
         label="Search"
+        color="amber darken-1"
         single-line
         hide-details
+        clearable
       ></v-text-field>
     </v-card-title>
 
@@ -27,9 +29,7 @@
         <v-list-item>
           <v-list-item-avatar>
             <v-img
-              :src="
-                `http://192.168.10.3:3000/img/clubs/logos/${item.ClubCode}.png`
-              "
+              :src="`${apiUrl}/img/clubs/logos/${item.ClubCode}.png`"
               width="40px"
             ></v-img>
           </v-list-item-avatar>
@@ -76,6 +76,10 @@ export default class ClubsTable extends Vue {
   @Prop({ required: true }) readonly clubs!: Club;
 
   private search = '';
+
+  get apiUrl() {
+    return this.$store.getters.apiUrl;
+  }
 
   private headers: any[] = [
     {

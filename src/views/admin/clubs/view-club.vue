@@ -7,6 +7,11 @@
       <v-col cols="12">
         <v-card>
           <v-toolbar flat color="amber darken-1">
+            <v-btn icon @click="goBack">
+              <v-icon>
+                mdi-arrow-left
+              </v-icon>
+            </v-btn>
             <v-toolbar-title class="ml-1">
               Club
             </v-toolbar-title>
@@ -33,9 +38,7 @@
           <v-row>
             <v-col cols="2" class="p-3">
               <v-img
-                :src="
-                  `http://192.168.10.3:3000/img/clubs/logos/${club.ClubCode}.png`
-                "
+                :src="`${apiUrl}/img/clubs/logos/${club.ClubCode}.png`"
                 width="200"
               ></v-img>
             </v-col>
@@ -97,6 +100,7 @@
       <v-col cols="12">
         <players-table
           @add-player="openPlayersModal = true"
+          @remove-player="removePlayer"
           :players="club.Players"
           :viewClub="true"
         ></players-table>
@@ -128,6 +132,10 @@ export default class ViewClub extends Vue {
 
   private value = [5, 0, 0, 0];
 
+  get apiUrl() {
+    return this.$store.getters.apiUrl;
+  }
+
   get clubRating() {
     if (this.club.Rating) {
       return Math.round(this.club.Rating) / 20;
@@ -157,7 +165,7 @@ export default class ViewClub extends Vue {
     const data = { data: { playerId, clubCode, isSigned } };
 
     this.$axios
-      .put(`/clubs/${clubId}/sign-player`, data)
+      .put(`/clubs/${clubId}/add-player`, data)
       .then(response => {
         // this.club = response.data.payload;
         // TODO: add toast o! for feedback to user
@@ -167,6 +175,35 @@ export default class ViewClub extends Vue {
       .catch(response => {
         console.log('Error adding player!', response);
       });
+  }
+
+  private removePlayer(playerId: string) {
+    const clubId = this.$route.params['id'];
+    const clubCode = this.$route.params['code'];
+    const isSigned = true;
+    /**
+     *     req.body.playerId,
+    req.query.player_is_signed,
+    req.query.club_code
+     */
+
+    const data = { data: { playerId, clubCode, isSigned } };
+
+    this.$axios
+      .put(`/clubs/${clubId}/remove-player?remove=true`, data)
+      .then(response => {
+        // this.club = response.data.payload;
+        // TODO: add toast o! for feedback to user
+        this.shouldReload = true;
+        console.log('Player removed successfully', response.data);
+      })
+      .catch(response => {
+        console.log('Error removing player!', response);
+      });
+  }
+
+  private goBack(): void {
+    this.$router.back();
   }
 
   private fetchClub(): void {
