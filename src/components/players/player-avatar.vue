@@ -6,10 +6,13 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { Component, Vue, Prop } from 'vue-property-decorator';
 import { Appearance } from '../../models/player';
+import { apiUrl } from '@/store';
 
 @Component({})
 export default class PlayerAvatar extends Vue {
   @Prop({ required: true }) appearance!: Appearance;
+
+  public api: string = apiUrl;
 
   // TODO: save the position of the facial features in db [?]
 
@@ -24,7 +27,7 @@ export default class PlayerAvatar extends Vue {
     const mouth = document.createElement('img');
     const eyebrows = document.createElement('img');
 
-    const picturesPath = 'http://localhost:3000/img/players/appearance';
+    const picturesPath = `${this.api}/img/players/appearance`;
 
     baseHead.src = `${picturesPath}/head-${this.appearance.head.variant}-${this.appearance.head.style}.png`;
     baseJersey.src = `${picturesPath}/kit-default-front.png`;

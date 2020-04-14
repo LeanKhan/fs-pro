@@ -74,11 +74,7 @@
 
     <v-app-bar app dense clipped-left>
       <v-app-bar-nav-icon @click.stop="drawer = !drawer" />
-      <img
-        class="mx-4"
-        width="40px"
-        src="http://localhost:3000/img/logo-new.png"
-      />
+      <img class="mx-4" width="40px" :src="`${api}/img/logo-new.png`" />
       <v-toolbar-title class="mr-12 align-center">
         <span class="title">FS Pro</span>
       </v-toolbar-title>
@@ -98,12 +94,15 @@
 
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
+import { apiUrl } from '@/store';
 
 @Component({})
 export default class AppView extends Vue {
   private drawer = true;
 
   private show = false;
+
+  public api: string = apiUrl;
 
   // private items(): any[] {
   //   if(this.$route.fullPath.split('/'))

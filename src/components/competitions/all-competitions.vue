@@ -15,9 +15,7 @@
               >
                 <v-list-item-avatar>
                   <v-img
-                    :src="
-                      `http://localhost:3000/img/logos/${competition.CompetitionCode}.png`
-                    "
+                    :src="`${api}/img/logos/${competition.CompetitionCode}.png`"
                     width="40px"
                   ></v-img>
                 </v-list-item-avatar>
@@ -59,7 +57,7 @@
             <v-list-item-avatar tile size="80">
               <v-img
                 :src="
-                  `http://localhost:3000/img/clubs/logos/${selectedCompetition.CompetitionCode}.png`
+                  `${api}/img/clubs/logos/${selectedCompetition.CompetitionCode}.png`
                 "
               ></v-img>
             </v-list-item-avatar>
@@ -94,12 +92,15 @@
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
 import { Competition } from '../../models/competition';
+import { apiUrl } from '@/store';
 
 @Component({})
 export default class AllCompetitions extends Vue {
   private competitions: Competition[] = [];
 
   public selectedCompetition: any = {};
+
+  public api: string = apiUrl;
 
   public showCompetition(compCode: string): void {
     const competition = this.competitions.find(

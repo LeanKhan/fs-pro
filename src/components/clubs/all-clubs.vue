@@ -15,9 +15,7 @@
               >
                 <v-list-item-avatar>
                   <v-img
-                    :src="
-                      `http://localhost:3000/img/clubs/logos/${club.ClubCode}.png`
-                    "
+                    :src="`${api}/img/clubs/logos/${club.ClubCode}.png`"
                     width="40px"
                   ></v-img>
                 </v-list-item-avatar>
@@ -55,9 +53,7 @@
 
             <v-list-item-avatar tile size="80">
               <v-img
-                :src="
-                  `http://localhost:3000/img/logos/${selectedClub.ClubCode}.png`
-                "
+                :src="`${api}/img/logos/${selectedClub.ClubCode}.png`"
               ></v-img>
             </v-list-item-avatar>
           </v-list-item>
@@ -86,10 +82,13 @@
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
 import { Club } from '../../models/club';
+import { apiUrl } from '@/store';
 
 @Component({})
 export default class AllClubs extends Vue {
   private clubs: Club[] = [];
+
+  private api: string = apiUrl;
 
   public selectedClub: any = {};
 

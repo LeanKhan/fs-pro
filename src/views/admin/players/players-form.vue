@@ -261,8 +261,13 @@ export default class PlayerForm extends Vue {
     'Ashter',
     'Bellean',
     'UPP',
+    'Kev',
+    'Simeon',
     'Kiyoto',
     'Ekhastan',
+    'Huntaarland',
+    'Legardio',
+    'Stov',
   ];
 
   public appearances: any[] = [];

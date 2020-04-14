@@ -10,9 +10,7 @@
         <v-list-item v-for="(club, i) in clubs" :key="i" color="#7535ed" link>
           <v-list-item-avatar>
             <v-img
-              :src="
-                `http://localhost:3000/img/clubs/logos/${club.ClubCode}.png`
-              "
+              :src="`${api}/img/clubs/logos/${club.ClubCode}.png`"
               width="40px"
             ></v-img>
           </v-list-item-avatar>
@@ -41,11 +39,14 @@
 <script lang="ts">
 import { Component, Vue, Prop } from 'vue-property-decorator';
 import { Club } from '../../models/club';
+import { apiUrl } from '@/store';
 
 @Component
 export default class ClubList extends Vue {
   @Prop({ required: true }) readonly clubs!: Club[];
   @Prop({ default: false, required: false }) readonly actions!: boolean;
+
+  public api: string = apiUrl;
 
   private addClub(): void {
     this.$emit('open-club-modal');

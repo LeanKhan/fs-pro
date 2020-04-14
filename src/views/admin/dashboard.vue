@@ -4,7 +4,7 @@
       <img
         alt="FsPro Logo :)"
         height="200px"
-        src="http://localhost:3000/img/logo-new.png"
+        :src="`${api}/img/logo-new.png`"
       />
     </div>
     <p class="display-2 secondary--text text-center">FSPro</p>
@@ -17,7 +17,10 @@
 <script lang="ts">
 // @ is an alias to /src
 import { Component, Vue } from 'vue-property-decorator';
+import { apiUrl } from '@/store';
 
 @Component({})
-export default class AdminDashboard extends Vue {}
+export default class AdminDashboard extends Vue {
+  public api: string = apiUrl;
+}
 </script>
