@@ -159,14 +159,16 @@ export default class ComponentForm extends Vue {
     const competitionID = this.$route.params['id'];
 
     const url = this.isUpdate
-      ? `/competitions/update/${competitionID}`
+      ? `/competitions/${competitionID}/update`
       : '/competitions/new?model=competition';
 
     this.$axios
       .post(url, { data: this.form })
       .then(response => {
         console.log('Response => ', response);
-        this.$router.push('/competitions');
+        const id = this.$route.params.id;
+        const code = this.$route.params.code;
+        this.$router.push({ name: 'View Competition', params: { id, code } });
       })
       .catch(response => {
         console.log('Response => ', response);
@@ -206,7 +208,7 @@ export default class ComponentForm extends Vue {
         .delete(`/competitions/${competitionID}`)
         .then(response => {
           console.log('Successfully deleted competition => ', response);
-          this.$router.push('/competitions');
+          this.$router.push('/a/competitions');
         })
         .catch(response => {
           console.log('Error deleting comp =>', response.data);

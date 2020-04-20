@@ -85,10 +85,9 @@ export default class ViewComponent extends Vue {
   private openClubModal = false;
 
   public updateCompetition(): void {
-    const compCode = this.competition.CompetitionCode.toLowerCase();
-    const compID = this.competition._id?.toLowerCase();
-
-    this.$router.push(`/competitions/update/${compID}/${compCode}`);
+    const code = this.competition.CompetitionCode.toLowerCase();
+    const id = this.competition._id?.toLowerCase();
+    this.$router.push({ name: 'Update Competition', params: { id, code } });
   }
 
   public closeModal(event: any): void {

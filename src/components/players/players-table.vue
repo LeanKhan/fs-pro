@@ -54,7 +54,6 @@
       <template v-slot:item.Actions="{ item }">
         <v-btn
           @click="viewPlayer(item._id, item.PlayerID)"
-          text
           icon
           color="success lighten-2"
         >
@@ -62,13 +61,22 @@
             mdi-eye-outline
           </v-icon>
         </v-btn>
-        <v-btn text icon color="blue lighten-2">
+        <v-btn
+          icon
+          color="blue lighten-2"
+          @click="updatePlayer(item._id, item.PlayerID)"
+        >
           <v-icon small>
             mdi-pencil-outline
           </v-icon>
         </v-btn>
         <!-- remove player -->
-        <v-btn @click="removePlayer(item._id)" text icon color="red lighten-2">
+        <v-btn
+          v-if="viewClub"
+          @click="removePlayer(item._id)"
+          icon
+          color="red lighten-2"
+        >
           <v-icon small>
             mdi-delete-outline
           </v-icon>
@@ -129,8 +137,14 @@ export default class PlayersTable extends Vue {
     this.$router.push({ name: 'View Player', params: { id, code } });
   }
 
+  public updatePlayer(id: string, code: string) {
+    this.$router.push({ name: 'Update Player', params: { id, code } });
+  }
+
   public removePlayer(id: string) {
-    this.$emit('remove-player', id);
+    if (this.viewClub) {
+      this.$emit('remove-player', id);
+    }
   }
 }
 </script>

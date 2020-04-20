@@ -15,7 +15,7 @@
 
           <v-card-actions>
             <v-spacer></v-spacer>
-            <v-btn>
+            <v-btn v-if="!season.isStarted" @click="generateFixtures">
               Generate Fixtures
             </v-btn>
           </v-card-actions>
@@ -105,6 +105,23 @@ import { Season } from '@/models/season';
 @Component({})
 export default class ViewSeason extends Vue {
   private season: any = {};
+
+  private generateFixtures(): void {
+    const seasonId = this.$route.params['seasonId'];
+    const leagueCode = this.$route.params['code'];
+    const competitionId = this.$route.params['id'];
+
+    const data = { competitionId, leagueCode, seasonId };
+    this.$axios
+      .post(`/seasons/${seasonId}/generate-fixtures`, { data })
+      .then(response => {
+        this.season = response.data.payload as Season;
+        console.log('Fixtures generated! => ', response.data.payload);
+      })
+      .catch(response => {
+        console.log('Error generating Fixtures=> ', response);
+      });
+  }
 
   private mounted(): void {
     const seasonID = this.$route.params['seasonId'];

@@ -198,7 +198,7 @@ import { calculatePlayerRating } from '@/helpers/players';
   },
 })
 export default class PlayerForm extends Vue {
-  @Prop({ required: false }) readonly isUpdate!: boolean;
+  @Prop({ required: false, default: false }) readonly isUpdate!: boolean;
   private player: {} = {};
 
   private form: any = {
@@ -299,31 +299,6 @@ export default class PlayerForm extends Vue {
     return 'green';
   }
 
-  private mounted(): void {
-    if (this.isUpdate) {
-      const playerId = this.$route.params['id'];
-      // const clubCode = this.$route.params['code'];
-      this.$axios
-        .get(`/players/${playerId}`)
-        .then(response => {
-          this.player = response.data.payload;
-          this.form = response.data.payload;
-        })
-        .catch(response => {
-          console.log('Response => ', response);
-        });
-    }
-
-    this.$axios
-      .get('/players/appearance')
-      .then(response => {
-        this.appearances = response.data.payload;
-      })
-      .catch(err => {
-        console.log('Error fetching appearance', err);
-      });
-  }
-
   private submit(): void {
     const playerId = this.$route.params['id'];
 
@@ -368,6 +343,31 @@ export default class PlayerForm extends Vue {
           console.log('Error deleting Player =>', response.data);
         });
     }
+  }
+
+  private mounted(): void {
+    if (this.isUpdate) {
+      const playerId = this.$route.params['id'];
+      // const clubCode = this.$route.params['code'];
+      this.$axios
+        .get(`/players/${playerId}`)
+        .then(response => {
+          this.player = response.data.payload;
+          this.form = response.data.payload;
+        })
+        .catch(response => {
+          console.log('Response => ', response);
+        });
+    }
+
+    this.$axios
+      .get('/players/appearance')
+      .then(response => {
+        this.appearances = response.data.payload;
+      })
+      .catch(err => {
+        console.log('Error fetching appearance', err);
+      });
   }
 }
 </script>

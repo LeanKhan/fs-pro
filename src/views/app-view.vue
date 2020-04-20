@@ -78,6 +78,30 @@
       <v-toolbar-title class="mr-12 align-center">
         <span class="title">FS Pro</span>
       </v-toolbar-title>
+
+      <v-spacer></v-spacer>
+
+      <v-avatar size="30px">
+        <v-img
+          :src="
+            `${
+              userMode
+                ? 'https://randomuser.me/api/portraits/women/84.jpg'
+                : 'https://randomuser.me/api/portraits/men/85.jpg'
+            }`
+          "
+        ></v-img>
+      </v-avatar>
+
+      <span>
+        {{ user ? user.username : 'User' }}
+      </span>
+
+      <v-btn icon>
+        <v-icon color="yellow ">
+          mdi-account-variant
+        </v-icon>
+      </v-btn>
     </v-app-bar>
 
     <v-content>
@@ -87,7 +111,31 @@
     </v-content>
 
     <v-footer app>
-      <span>&copy; 2020</span>
+      <v-row dir="row">
+        <!-- <v-col cols="12">
+          <v-slide-group multiple show-arrows>
+            <v-slide-item
+              v-for="n in 25"
+              :key="n"
+              v-slot:default="{ active, toggle }"
+            >
+              <v-btn
+                class="mx-2"
+                :input-value="active"
+                active-class="purple white--text"
+                depressed
+                rounded
+                @click="toggle"
+              >
+                Options {{ n }}
+              </v-btn>
+            </v-slide-item>
+          </v-slide-group>
+        </v-col> -->
+        <v-col col="12">
+          <span>&copy; {{ new Date().getFullYear() }} Leankhan &amp; Tobi</span>
+        </v-col>
+      </v-row>
     </v-footer>
   </v-app>
 </template>
@@ -126,17 +174,14 @@ export default class AppView extends Vue {
     },
   ];
 
+  get user() {
+    return JSON.parse(window.localStorage.getItem('fs-pro-user') as string);
+  }
+
   private mini = true;
 
   get userMode(): boolean {
     return this.$route.path.split('/')[1] == 'u';
-  }
-
-  created(): void {
-    this.$vuetify.theme.dark = true;
-    this.$vuetify.theme.currentTheme.primary = '#7535ed';
-    this.$vuetify.theme.currentTheme.accent = '#c23361';
-    this.$vuetify.theme.currentTheme.anchor = '#340f78';
   }
 
   mounted() {

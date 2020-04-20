@@ -68,7 +68,10 @@ export default class SeasonForm extends Vue {
       .post(url, { data: { ...this.form, CompetitionCode, Competition } })
       .then(response => {
         console.log('Response => ', response.data.payload);
-        this.$router.push('/competitions');
+        this.$router.push({
+          name: 'View Competition',
+          params: { Competition, CompetitionCode },
+        });
       })
       .catch(response => {
         console.log('Response => ', response);
