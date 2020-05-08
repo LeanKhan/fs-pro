@@ -36,18 +36,23 @@ export default class Login extends Vue {
 
   private login() {
     this.$axios
-      .post('/users/login', { data: { ...this.form } })
+      .post(
+        '/users/login',
+        { data: { ...this.form } },
+        { withCredentials: true }
+      )
       .then(response => {
         console.log('Response => ', response.data);
         if (response.data.success) {
-          window.localStorage.setItem(
-            'fs-pro-user',
-            JSON.stringify({
-              username: response.data.payload.Username,
-              isAdmin: response.data.payload.isAdmin,
-            })
-          );
+          this.$store.dispatch('SET_USER', {
+            username: response.data.payload.user.Username,
+            id: response.data.payload.user._id,
+            sessionId: response.data.payload.sessionID,
+            isAdmin: response.data.payload.user.isAdmin,
+          });
         }
+
+        this.$socket.client.emit('authenticate');
 
         this.$router.push('/u');
       })

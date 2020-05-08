@@ -81,25 +81,40 @@
 
       <v-spacer></v-spacer>
 
-      <v-avatar size="30px">
-        <v-img
-          :src="
-            `${
-              userMode
-                ? 'https://randomuser.me/api/portraits/women/84.jpg'
-                : 'https://randomuser.me/api/portraits/men/85.jpg'
-            }`
-          "
-        ></v-img>
-      </v-avatar>
+      <v-badge
+        bordered
+        bottom
+        :color="$socket.connected ? 'deep-purple accent-4' : 'grey'"
+        dot
+        offset-x="10"
+        offset-y="10"
+      >
+        <v-avatar size="30">
+          <v-img
+            :src="
+              `${
+                userMode
+                  ? 'https://randomuser.me/api/portraits/women/84.jpg'
+                  : 'https://randomuser.me/api/portraits/men/85.jpg'
+              }`
+            "
+          ></v-img>
+        </v-avatar>
+      </v-badge>
 
-      <span>
+      <span class="ml-2">
         {{ user ? user.username : 'User' }}
       </span>
 
-      <v-btn icon>
-        <v-icon color="yellow ">
-          mdi-account-variant
+      <v-btn class="ml-2" icon>
+        <v-icon color="info" @click="play">
+          mdi-account
+        </v-icon>
+      </v-btn>
+
+      <v-btn class="ml-2" icon>
+        <v-icon color="error" @click="logout">
+          mdi-logout
         </v-icon>
       </v-btn>
     </v-app-bar>
@@ -174,8 +189,35 @@ export default class AppView extends Vue {
     },
   ];
 
+  private logout() {
+    this.$axios
+      .delete(`/users/${this.user.id}/logout`)
+      .then(response => {
+        console.log('Response => ', response.data);
+        if (response.data.success) {
+          this.$socket.client.disconnect();
+          this.$store.dispatch('UNSET_USER');
+          this.$router.push('/auth');
+        }
+      })
+      .catch(response => {
+        console.log('Error logging out! ', response.data);
+      });
+  }
+
+  private play() {
+    this.$axios
+      .post(`/game/play`)
+      .then(response => {
+        console.log('Response => ', response.data);
+      })
+      .catch(response => {
+        console.log('Error logging out! ', response.data);
+      });
+  }
+
   get user() {
-    return JSON.parse(window.localStorage.getItem('fs-pro-user') as string);
+    return JSON.parse(window.localStorage.getItem('fspro-user') as string);
   }
 
   private mini = true;
@@ -185,7 +227,8 @@ export default class AppView extends Vue {
   }
 
   mounted() {
-    console.log('Path => ', this.$route.path.split('/'));
+    // console.log('Path => ', this.$route.path.split('/'));
+    this.$socket.client.open();
   }
 }
 </script>

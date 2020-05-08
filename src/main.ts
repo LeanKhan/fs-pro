@@ -5,6 +5,13 @@ import router from './router';
 import store, { apiUrl } from './store';
 import axios, { AxiosStatic } from 'axios';
 
+import VueSocketIOExt from 'vue-socket.io-extended';
+import io from 'socket.io-client';
+
+const socket = io('http://localhost:3000', { autoConnect: false });
+
+Vue.use(VueSocketIOExt, socket);
+
 // baseURL: 'http://localhost:3000/api',
 
 Vue.use({
@@ -14,7 +21,6 @@ Vue.use({
     });
   },
 });
-
 declare module 'vue/types/vue' {
   interface Vue {
     $axios: AxiosStatic;

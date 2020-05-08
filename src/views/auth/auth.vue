@@ -1,48 +1,46 @@
 <template>
-  <div>
-    <v-app>
-      <v-content>
-        <v-container class="indigo auth-background" fluid>
-          <v-row>
-            <v-col offset="7">
-              <div
-                class="d-flex justify-center align-center"
-                style="height: 100px;"
-              >
-                <img
-                  alt="FsPro Logo :)"
-                  height="100px"
-                  :src="`http://localhost:3000/img/logo-new.png`"
-                />
-              </div>
-              <v-card color="dark">
-                <v-tabs background-color="transparent" color="green" grow>
-                  <v-tab title="Login" to="login">Login</v-tab>
+  <v-app>
+    <v-content>
+      <v-container class="indigo auth-background" fluid>
+        <v-row>
+          <v-col offset="7">
+            <div
+              class="d-flex justify-center align-center"
+              style="height: 100px;"
+            >
+              <img
+                alt="FsPro Logo :)"
+                height="100px"
+                :src="`http://localhost:3000/img/logo-new.png`"
+              />
+            </div>
+            <v-card color="dark">
+              <v-tabs background-color="transparent" color="green" grow>
+                <v-tab title="Login" to="login">Login</v-tab>
 
-                  <v-tab title="Join" to="join">Join</v-tab>
-                </v-tabs>
-                <router-view></router-view>
-              </v-card>
-            </v-col>
-          </v-row>
-        </v-container>
-      </v-content>
-
-      <v-footer class="text-center" dark padless tile>
-        <v-row dir="row" no-gutters class="justify-center">
-          <v-col class="my-2">
-            <v-btn to="/credits" text>credits</v-btn>
-          </v-col>
-          <v-col class="ext-center white--text" cols="12">
-            <v-divider></v-divider>
-
-            {{ new Date().getFullYear() }} —
-            <span>LeanKhan and Tobi</span>
+                <v-tab title="Join" to="join">Join</v-tab>
+              </v-tabs>
+              <router-view></router-view>
+            </v-card>
           </v-col>
         </v-row>
-      </v-footer>
-    </v-app>
-  </div>
+      </v-container>
+    </v-content>
+
+    <v-footer class="text-center" dark padless tile>
+      <v-row dir="row" no-gutters class="justify-center">
+        <v-col class="my-2">
+          <v-btn to="/credits" text>credits</v-btn>
+        </v-col>
+        <v-col class="ext-center white--text" cols="12">
+          <v-divider></v-divider>
+
+          {{ new Date().getFullYear() }} —
+          <span>LeanKhan and Tobi</span>
+        </v-col>
+      </v-row>
+    </v-footer>
+  </v-app>
 </template>
 
 <script lang="ts">

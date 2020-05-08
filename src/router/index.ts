@@ -77,4 +77,14 @@ const router = new VueRouter({
   routes,
 });
 
+router.beforeEach((to, from, next) => {
+  const isAuthenticated = window.localStorage.getItem('fspro-user');
+
+  if (!RegExp(/\/auth/).test(to.path) && !isAuthenticated) {
+    next({ name: 'Auth' });
+  } else {
+    next();
+  }
+});
+
 export default router;
