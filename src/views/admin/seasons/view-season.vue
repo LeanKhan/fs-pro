@@ -113,7 +113,10 @@ export default class ViewSeason extends Vue {
 
     const data = { competitionId, leagueCode, seasonId };
     this.$axios
-      .post(`/seasons/${seasonId}/generate-fixtures`, { data })
+      .post(
+        `/seasons/${seasonId}/${this.season.SeasonCode}/generate-fixtures`,
+        { data }
+      )
       .then(response => {
         this.season = response.data.payload as Season;
         console.log('Fixtures generated! => ', response.data.payload);

@@ -42,13 +42,24 @@
               {{ item.Seasons.length }}
             </template>
 
+            <!-- TODO: Add these titles *everywhere* -->
             <template v-slot:item.Actions="{ item }">
-              <v-btn text icon color="success lighten-2">
+              <v-btn
+                text
+                icon
+                color="success lighten-2"
+                title="View Competition"
+              >
                 <v-icon small @click="viewCompetition(item)">
                   mdi-eye
                 </v-icon>
               </v-btn>
-              <v-btn text icon color="blue lighten-2">
+              <v-btn
+                text
+                icon
+                color="blue lighten-2"
+                title="Update Competition"
+              >
                 <v-icon small @click="updateCompetition(item)">
                   mdi-pencil
                 </v-icon>

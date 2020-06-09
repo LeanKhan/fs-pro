@@ -21,6 +21,7 @@
                 required
                 type="text"
                 label="Full Name"
+                color="green"
                 v-model="form.FullName"
               ></v-text-field>
 
@@ -28,6 +29,7 @@
                 required
                 type="text"
                 label="Username"
+                color="green"
                 v-model="form.Username"
               ></v-text-field>
 
@@ -35,6 +37,7 @@
                 required
                 type="text"
                 label="Password"
+                color="green"
                 v-model="form.Password"
               ></v-text-field>
 
@@ -43,6 +46,7 @@
                 required
                 type="text"
                 label="Confirm Password"
+                color="green"
                 v-model="confirmPassword"
               ></v-text-field>
             </v-card-text>
@@ -168,7 +172,7 @@ export default class Register extends Vue {
   }
   private getClubs() {
     const query = JSON.stringify({ User: null });
-    const select = JSON.stringify('Name ClubCode _id ');
+    const select = JSON.stringify('Name ClubCode _id');
     this.$axios
       .get(`/clubs/fetch?q=${query}&select=${select}`)
       .then(res => {
@@ -186,11 +190,16 @@ export default class Register extends Vue {
         { withCredentials: true }
       )
       .then(response => {
+        console.log('response =>', response);
         if (response.data.success) {
           this.$store.dispatch('SET_USER', {
-            username: response.data._doc.Username,
-            clubs: response.data._doc.Clubs,
-            isAdmin: response.data._doc.isAdmin,
+            userID: response.data.payload._id,
+            username: response.data.payload.Username,
+            clubs: response.data.payload.Clubs,
+            isAdmin: response.data.payload.isAdmin,
+            session: response.data.payload.Session,
+            avatar: response.data.payload.Avatar,
+            fullname: response.data.payload.FullName,
           });
 
           this.$socket.client.emit('authenticate');
@@ -199,7 +208,7 @@ export default class Register extends Vue {
         }
       })
       .catch(response => {
-        console.log('Error logging in! ', response.data);
+        console.log('Error logging in! ', response);
       });
   }
 

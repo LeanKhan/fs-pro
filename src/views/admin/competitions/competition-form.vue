@@ -8,7 +8,7 @@
       <v-card>
         <v-toolbar flat color="primary">
           <v-toolbar-title>
-            Edit Competition
+            {{ isUpdate ? 'Update' : 'Create' }} Competition
           </v-toolbar-title>
         </v-toolbar>
 
@@ -26,12 +26,16 @@
             </v-col>
 
             <v-col cols="6">
-              <v-radio-group label="Type" v-model="form.Type">
+              <v-radio-group
+                label="Type"
+                v-model="form.Type"
+                @change="typeChanged"
+              >
                 <v-radio
                   v-for="(type, i) in types"
                   :key="i"
                   :label="type"
-                  :value="type"
+                  :value="type.toLowerCase()"
                 ></v-radio>
               </v-radio-group>
             </v-col>
@@ -41,6 +45,15 @@
                 label="Country"
                 :items="countries"
                 v-model="form.Country"
+              ></v-select>
+            </v-col>
+
+            <v-col cols="6">
+              <v-select
+                label="Division"
+                :items="divisions"
+                v-model="form.Division"
+                hint="Whether it's in the first division and so on..."
               ></v-select>
             </v-col>
 
@@ -68,10 +81,26 @@
 
             <v-col cols="6">
               <club-list
+                v-if="isUpdate"
                 @open-club-modal="openClubModal = true"
                 :clubs="competition.Clubs"
                 :actions="true"
               ></club-list>
+
+              <v-card v-else>
+                <v-sheet
+                  color="pink lighten-1"
+                  height="100%"
+                  width="100%"
+                  class="px-3 py-2 text-center"
+                  style="white-spaces: no-wrap"
+                >
+                  <div>
+                    For now you can only add clubs to this competition after
+                    creating it. Create the competition then update it :)
+                  </div>
+                </v-sheet>
+              </v-card>
             </v-col>
           </v-row>
         </v-container>
@@ -113,6 +142,7 @@ export default class ComponentForm extends Vue {
   @Prop({ required: false }) readonly isUpdate!: boolean;
   private competition: {} = {};
   private types = ['League', 'Cup', 'Tournament'];
+  private divisions = ['first', 'second', 'third', 'none'];
 
   private openClubModal = false;
 
@@ -126,6 +156,7 @@ export default class ComponentForm extends Vue {
     League: false,
     Cup: false,
     Tournament: false,
+    Division: '',
     Clubs: [],
     Seasons: [],
   };
@@ -166,8 +197,15 @@ export default class ComponentForm extends Vue {
       .post(url, { data: this.form })
       .then(response => {
         console.log('Response => ', response);
-        const id = this.$route.params.id;
-        const code = this.$route.params.code;
+        let id = '';
+        let code = '';
+        if (this.isUpdate) {
+          id = this.$route.params._id;
+          code = this.$route.params.CompetitionCode;
+        } else {
+          id = response.data.payload._doc._id;
+          code = response.data.payload._doc.CompetitionCode;
+        }
         this.$router.push({ name: 'View Competition', params: { id, code } });
       })
       .catch(response => {
@@ -175,7 +213,31 @@ export default class ComponentForm extends Vue {
       });
   }
 
+  public typeChanged(type: string): void {
+    switch (type) {
+      case 'league':
+        this.form.League = true;
+        this.form.Cup = false;
+        this.form.Tournament = false;
+        break;
+      case 'cup':
+        this.form.Cup = true;
+        this.form.League = false;
+        this.form.Tournament = false;
+        break;
+      case 'tournament':
+        this.form.Tournament = true;
+        this.form.League = false;
+        this.form.Cup = false;
+        break;
+      default:
+        break;
+    }
+  }
+
   public closeModal(event: any): void {
+    // SHIIIT Don't add clubs automatically while creating o! lol
+    // TODO: Look into it! Abeg thank you Jesus
     this.openClubModal = false;
     if (event) {
       const competitionID = this.$route.params['id'];

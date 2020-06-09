@@ -55,7 +55,7 @@
 
       <v-list dense>
         <v-list-item
-          v-for="item in items"
+          v-for="item in navItems"
           :key="item.title"
           :to="item.link"
           :exact="true"
@@ -106,14 +106,8 @@
         {{ user ? user.username : 'User' }}
       </span>
 
-      <v-btn class="ml-2" icon>
-        <v-icon color="info" @click="play">
-          mdi-account
-        </v-icon>
-      </v-btn>
-
-      <v-btn class="ml-2" icon>
-        <v-icon color="error" @click="logout">
+      <v-btn class="ml-2" small icon>
+        <v-icon small color="error" @click="logout">
           mdi-logout
         </v-icon>
       </v-btn>
@@ -172,7 +166,7 @@ export default class AppView extends Vue {
   // }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private items: any[] = [
+  private adminNavItems: any[] = [
     { title: 'Home', icon: 'mdi-soccer', link: '/a', color: 'primary' },
     { title: 'Clubs', icon: 'mdi-security', link: '/a/clubs', color: 'amber' },
     {
@@ -183,15 +177,20 @@ export default class AppView extends Vue {
     },
     {
       title: 'Competitions',
-      icon: 'mdi-trophy',
+      icon: '$LU',
       link: '/a/competitions',
       color: 'pink',
     },
   ];
 
+  // private userNavItems: any[] = [
+  //   { title: 'Home', icon: 'mdi-soccer', link: '/u', color: 'primary' },
+  //   { title: 'Clubs', icon: 'mdi-security', link: '/u/clubs', color: 'amber' },
+  // ];
+
   private logout() {
     this.$axios
-      .delete(`/users/${this.user.id}/logout`)
+      .delete(`/users/${this.user.userID}/logout`)
       .then(response => {
         console.log('Response => ', response.data);
         if (response.data.success) {
@@ -217,7 +216,31 @@ export default class AppView extends Vue {
   }
 
   get user() {
-    return JSON.parse(window.localStorage.getItem('fspro-user') as string);
+    return this.$store.getters.user;
+  }
+
+  get userNavItems(): any[] {
+    let routes = [
+      { title: 'Home', icon: 'mdi-soccer', link: '/u', color: 'primary' },
+    ];
+
+    if (typeof this.user.clubs[0] == 'object') {
+      console.log('Clubs dey');
+      const clubRoutes = this.user.clubs.map((club: any) => {
+        return {
+          title: club.Name,
+          icon: 'mdi-shield',
+          link: `/u/clubs/${club._id}/${club.ClubCode}`,
+          color: 'pink darken-2',
+        };
+      });
+
+      routes = [...routes, ...clubRoutes];
+    }
+
+    return routes;
+
+    // { title: 'Clubs', icon: 'mdi-security', link: '/u/clubs', color: 'amber' },
   }
 
   private mini = true;
@@ -226,8 +249,20 @@ export default class AppView extends Vue {
     return this.$route.path.split('/')[1] == 'u';
   }
 
+  get navItems() {
+    if (!this.userMode) {
+      return this.adminNavItems;
+    }
+
+    return this.userNavItems;
+  }
+
   mounted() {
     // console.log('Path => ', this.$route.path.split('/'));
+    // if userMode then fetch User's clubs and stuff...
+
+    this.$store.dispatch('GET_USER');
+
     this.$socket.client.open();
   }
 }

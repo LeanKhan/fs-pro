@@ -1,7 +1,8 @@
 import Vue from 'vue';
 import Vuex from 'vuex';
 import { Club } from '@/models/club';
-import socket, { SocketState } from './socket';
+import { $axios } from '../main';
+import socket, { SocketState, state as socketState } from './socket';
 
 Vue.use(Vuex);
 
@@ -12,17 +13,39 @@ Vue.use(Vuex);
 
 export const apiUrl = 'http://localhost:3000';
 
+// export const apiUrl = 'http://192.168.43.33:3000';
+
 export interface RootState {
   allClubs: Club[];
   apiUrl: string;
-  user: {};
+  user: {
+    username: string;
+    clubs: string[];
+    isAdmin: boolean;
+    userID: string;
+    session: string;
+    avatar: string;
+    fullname: string;
+  };
+  // state: MainState;
   socket: SocketState;
 }
+
+//   socket: SocketState;
 
 const state = {
   allClubs: [] as Club[],
   apiUrl,
-  user: {},
+  user: {
+    username: '',
+    clubs: [],
+    isAdmin: false,
+    userID: '',
+    session: '',
+    avatar: '',
+    fullname: '',
+  },
+  socket: socketState,
 } as RootState;
 
 export default new Vuex.Store({
@@ -42,9 +65,12 @@ export default new Vuex.Store({
     SET_USER: (state, payload) => {
       state.user = payload;
     },
+    SET_USER_CLUBS: (state, payload) => {
+      state.user.clubs = payload;
+    },
   },
   actions: {
-    SET_USER: ({ commit }, payload) => {
+    SET_USER: ({ commit }, payload: RootState['user']) => {
       window.localStorage.setItem('fspro-user', JSON.stringify(payload));
       // this one is being saved as a js object, not string
       commit('SET_USER', payload);
@@ -52,7 +78,15 @@ export default new Vuex.Store({
     UNSET_USER: ({ commit }) => {
       window.localStorage.removeItem('fspro-user');
       // this one is being saved as a js object, not string
-      commit('SET_USER', {});
+      commit('SET_USER', {
+        username: '',
+        clubs: [],
+        isAdmin: null,
+        userID: '',
+        session: '',
+        avatar: '',
+        fullname: '',
+      });
     },
     GET_USER: ({ commit }) => {
       const user = JSON.parse(
@@ -62,6 +96,24 @@ export default new Vuex.Store({
       if (user)
         // this one is saved as a js object
         commit('SET_USER', user);
+    },
+    SET_USER_CLUBS: ({ commit, state }) => {
+      if (state.user.clubs.length == 0) {
+        return 'nah fam';
+      }
+      const query = JSON.stringify({ _id: { $in: state.user.clubs } });
+      const select = JSON.stringify('ClubCode Name _id');
+
+      $axios
+        .get(`/clubs/fetch?q=${query}&select=${select}`)
+        .then(response => {
+          if (response.data.success) {
+            commit('SET_USER_CLUBS', response.data.payload);
+          }
+        })
+        .catch(response => {
+          console.log('error => ', response);
+        });
     },
   },
 });

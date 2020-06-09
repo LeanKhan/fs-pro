@@ -6,6 +6,8 @@
           required
           type="text"
           label="Username"
+          :disabled="loading"
+          color="green"
           v-model="form.Username"
         ></v-text-field>
 
@@ -13,11 +15,13 @@
           required
           type="text"
           label="Password"
+          :disabled="loading"
+          color="green"
           v-model="form.Password"
         ></v-text-field>
       </v-card-text>
       <v-card-actions>
-        <v-btn color="green darken-2" @click="login" block>
+        <v-btn color="green darken-2" @click="login" block :loading="loading">
           Login
         </v-btn>
       </v-card-actions>
@@ -34,7 +38,10 @@ export default class Login extends Vue {
     Password: '',
   };
 
+  public loading = false;
+
   private login() {
+    this.loading = true;
     this.$axios
       .post(
         '/users/login',
@@ -45,10 +52,13 @@ export default class Login extends Vue {
         console.log('Response => ', response.data);
         if (response.data.success) {
           this.$store.dispatch('SET_USER', {
-            username: response.data.payload.user.Username,
-            id: response.data.payload.user._id,
-            sessionId: response.data.payload.sessionID,
-            isAdmin: response.data.payload.user.isAdmin,
+            username: response.data.payload.Username,
+            userID: response.data.payload._id,
+            clubs: response.data.payload.Clubs,
+            session: response.data.payload.Session,
+            isAdmin: response.data.payload.isAdmin,
+            avatar: response.data.payload.Avatar,
+            fullname: response.data.payload.FullName,
           });
         }
 
@@ -58,6 +68,9 @@ export default class Login extends Vue {
       })
       .catch(response => {
         console.log('Error logging in! ', response.data);
+      })
+      .finally(() => {
+        this.loading = false;
       });
   }
 }

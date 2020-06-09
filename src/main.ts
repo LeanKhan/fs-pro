@@ -8,19 +8,22 @@ import axios, { AxiosStatic } from 'axios';
 import VueSocketIOExt from 'vue-socket.io-extended';
 import io from 'socket.io-client';
 
-const socket = io('http://localhost:3000', { autoConnect: false });
+const socket = io(`${apiUrl}`, { autoConnect: false });
 
 Vue.use(VueSocketIOExt, socket);
 
 // baseURL: 'http://localhost:3000/api',
 
+export const $axios = axios.create({
+  baseURL: `${apiUrl}/api`,
+});
+
 Vue.use({
   install() {
-    Vue.prototype.$axios = axios.create({
-      baseURL: `${apiUrl}/api`,
-    });
+    Vue.prototype.$axios = $axios;
   },
 });
+
 declare module 'vue/types/vue' {
   interface Vue {
     $axios: AxiosStatic;

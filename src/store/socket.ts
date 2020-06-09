@@ -5,7 +5,7 @@ export interface SocketState {
   poop: string;
 }
 
-const state: SocketState = {
+export const state: SocketState = {
   poop: '',
 };
 

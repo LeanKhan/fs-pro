@@ -11,7 +11,7 @@
               <img
                 alt="FsPro Logo :)"
                 height="100px"
-                :src="`http://localhost:3000/img/logo-new.png`"
+                :src="`${url}/img/logo-new.png`"
               />
             </div>
             <v-card color="dark">
@@ -45,9 +45,12 @@
 
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
+import { apiUrl } from '@/store';
 
 @Component({})
-export default class Auth extends Vue {}
+export default class Auth extends Vue {
+  private url = apiUrl;
+}
 </script>
 <style scoped>
 .auth-background {
