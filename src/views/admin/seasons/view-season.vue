@@ -129,7 +129,7 @@ export default class ViewSeason extends Vue {
   private mounted(): void {
     const seasonID = this.$route.params['seasonId'];
     this.$axios
-      .get(`/seasons/${seasonID}`)
+      .get(`/seasons/season/${seasonID}`)
       .then(response => {
         this.season = response.data.payload as Season;
       })

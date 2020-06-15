@@ -2,7 +2,8 @@ import Vue from 'vue';
 import Vuex from 'vuex';
 import { Club } from '@/models/club';
 import { $axios } from '../main';
-import socket, { SocketState, state as socketState } from './socket';
+import socket from './socket';
+import { CalendarInterface } from '@/types/calendar';
 
 Vue.use(Vuex);
 
@@ -27,8 +28,8 @@ export interface RootState {
     avatar: string;
     fullname: string;
   };
+  calendar: CalendarInterface;
   // state: MainState;
-  socket: SocketState;
 }
 
 //   socket: SocketState;
@@ -45,7 +46,7 @@ const state = {
     avatar: '',
     fullname: '',
   },
-  socket: socketState,
+  calendar: {} as unknown,
 } as RootState;
 
 export default new Vuex.Store({
@@ -67,6 +68,9 @@ export default new Vuex.Store({
     },
     SET_USER_CLUBS: (state, payload) => {
       state.user.clubs = payload;
+    },
+    SET_CALENDAR: (state, payload) => {
+      state.calendar = payload;
     },
   },
   actions: {
@@ -109,6 +113,18 @@ export default new Vuex.Store({
         .then(response => {
           if (response.data.success) {
             commit('SET_USER_CLUBS', response.data.payload);
+          }
+        })
+        .catch(response => {
+          console.log('error => ', response);
+        });
+    },
+    SET_CALENDAR: ({ commit }) => {
+      $axios
+        .get(`/calendar/current?page=1&limit=14`)
+        .then(response => {
+          if (response.data.success) {
+            commit('SET_CALENDAR', response.data.payload);
           }
         })
         .catch(response => {

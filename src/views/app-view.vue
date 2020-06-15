@@ -119,33 +119,14 @@
       </v-container>
     </v-content>
 
-    <v-footer app>
+    <!-- <v-footer app>
       <v-row dir="row">
-        <!-- <v-col cols="12">
-          <v-slide-group multiple show-arrows>
-            <v-slide-item
-              v-for="n in 25"
-              :key="n"
-              v-slot:default="{ active, toggle }"
-            >
-              <v-btn
-                class="mx-2"
-                :input-value="active"
-                active-class="purple white--text"
-                depressed
-                rounded
-                @click="toggle"
-              >
-                Options {{ n }}
-              </v-btn>
-            </v-slide-item>
-          </v-slide-group>
-        </v-col> -->
+     
         <v-col col="12">
           <span>&copy; {{ new Date().getFullYear() }} Leankhan &amp; Tobi</span>
         </v-col>
       </v-row>
-    </v-footer>
+    </v-footer> -->
   </v-app>
 </template>
 
@@ -229,7 +210,7 @@ export default class AppView extends Vue {
       const clubRoutes = this.user.clubs.map((club: any) => {
         return {
           title: club.Name,
-          icon: 'mdi-shield',
+          icon: `$${club.ClubCode}`,
           link: `/u/clubs/${club._id}/${club.ClubCode}`,
           color: 'pink darken-2',
         };

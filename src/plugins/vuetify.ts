@@ -5,11 +5,9 @@ import DagadaRangersIcon from '../icons/DR.vue';
 import RisingThundersIcon from '../icons/RT.vue';
 import RainbowBoysIcon from '../icons/RB.vue';
 import Khashiru94Icon from '../icons/K94.vue';
-import  BrickwallHadadIcon from '../icons/BWH.vue';
+import BrickwallHadadIcon from '../icons/BWH.vue';
 import EasdenFrydgelandIcon from '../icons/EF.vue';
-import  AlMoomoodIcon from '../icons/AM.vue';
-
-
+import AlMoomoodIcon from '../icons/AM.vue';
 
 Vue.use(Vuetify);
 
@@ -20,26 +18,26 @@ export default new Vuetify({
         component: LasenaUnitedIcon,
       },
       DR: {
-      	component: DagadaRangersIcon
+        component: DagadaRangersIcon,
       },
       RT: {
-      	component: RisingThundersIcon
+        component: RisingThundersIcon,
       },
       RB: {
-      	component: RainbowBoysIcon
+        component: RainbowBoysIcon,
       },
       K94: {
-      	component: Khashiru94Icon
+        component: Khashiru94Icon,
       },
       BWH: {
-      	component: BrickwallHadadIcon
+        component: BrickwallHadadIcon,
       },
       EF: {
-      	component: EasdenFrydgelandIcon
+        component: EasdenFrydgelandIcon,
       },
       AM: {
-      	component: AlMoomoodIcon
-      }
+        component: AlMoomoodIcon,
+      },
     },
   },
 });
