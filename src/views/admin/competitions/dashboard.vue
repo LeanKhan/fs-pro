@@ -73,7 +73,7 @@
 </template>
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
-import { Competition } from '@/models/competition';
+import { Competition } from '@/interfaces/competition';
 
 @Component({})
 export default class CompetitionsHome extends Vue {

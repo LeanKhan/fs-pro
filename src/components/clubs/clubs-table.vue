@@ -65,7 +65,7 @@
 
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
-import { Club } from '../../models/club';
+import { Club } from '@/interfaces/club';
 
 @Component({})
 export default class ClubsTable extends Vue {

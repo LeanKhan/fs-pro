@@ -8,6 +8,18 @@ import Khashiru94Icon from '../icons/K94.vue';
 import BrickwallHadadIcon from '../icons/BWH.vue';
 import EasdenFrydgelandIcon from '../icons/EF.vue';
 import AlMoomoodIcon from '../icons/AM.vue';
+import BinatoneFcIcon from '../icons/BFC.vue';
+import GuttersbergUnitedIcon from '../icons/GU.vue';
+import IvaniaBoysIcon from '../icons/IB.vue';
+import LonenRaidUnited17Icon from '../icons/LRU17.vue';
+import NewSimeoneMirrorsIcon from '../icons/NSM.vue';
+import NorthernUnitedIcon from '../icons/NU.vue';
+import SouthportRangersIcon from '../icons/SPR.vue';
+import VendoorsteinAthleticIcon from '../icons/VAS.vue';
+import ZanderDragonsIcon from '../icons/ZD.vue';
+import AlShalakatIcon from '../icons/AS.vue';
+import ACPhilamentia from '../icons/ACP.vue';
+import RoyalPhilamentia from '../icons/RP.vue';
 
 Vue.use(Vuetify);
 
@@ -37,6 +49,42 @@ export default new Vuetify({
       },
       AM: {
         component: AlMoomoodIcon,
+      },
+      BFC: {
+        component: BinatoneFcIcon,
+      },
+      GU: {
+        component: GuttersbergUnitedIcon,
+      },
+      IB: {
+        component: IvaniaBoysIcon,
+      },
+      LRU17: {
+        component: LonenRaidUnited17Icon,
+      },
+      NSM: {
+        component: NewSimeoneMirrorsIcon,
+      },
+      NU: {
+        component: NorthernUnitedIcon,
+      },
+      SPR: {
+        component: SouthportRangersIcon,
+      },
+      VAS: {
+        component: VendoorsteinAthleticIcon,
+      },
+      ZD: {
+        component: ZanderDragonsIcon,
+      },
+      AS: {
+        component: AlShalakatIcon,
+      },
+      ACP: {
+        component: ACPhilamentia,
+      },
+      RP: {
+        component: RoyalPhilamentia,
       },
     },
   },

@@ -128,7 +128,7 @@
 
 <script lang="ts">
 import { Component, Vue, Prop } from 'vue-property-decorator';
-import { Competition } from '@/models/competition';
+import { Competition } from '@/interfaces/competition';
 import ClubList from '@/components/clubs/club-list.vue';
 import ClubsTable from '@/components/clubs/clubs-table.vue';
 

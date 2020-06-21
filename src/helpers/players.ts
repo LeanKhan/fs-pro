@@ -5,7 +5,7 @@ import {
   GoalkeeperMultipliers,
   Multipliers,
   PlayerAttributes,
-} from '@/models/player';
+} from '@/interfaces/player';
 
 function calculateTotal(multiplier: Multipliers, attributes: PlayerAttributes) {
   const total =

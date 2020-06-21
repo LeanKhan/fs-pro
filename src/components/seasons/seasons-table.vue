@@ -34,7 +34,7 @@
 
 <script lang="ts">
 import { Component, Vue, Prop } from 'vue-property-decorator';
-import { Season } from '../../models/season';
+import { Season } from '@/interfaces/season';
 
 @Component({})
 export default class SeasonsTable extends Vue {

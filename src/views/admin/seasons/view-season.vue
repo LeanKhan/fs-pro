@@ -15,7 +15,7 @@
 
           <v-card-actions>
             <v-spacer></v-spacer>
-            <v-btn v-if="!season.isStarted" @click="generateFixtures">
+            <v-btn v-if="season.Fixtures.length == 0" @click="generateFixtures">
               Generate Fixtures
             </v-btn>
           </v-card-actions>
@@ -58,14 +58,22 @@
         </v-card>
       </v-col>
       <v-col cols="6">
-        <v-card>
-          <v-card-title>
-            Standings (Table)
-          </v-card-title>
-          <v-sheet color="blue blue-lighten-1" height="180">
-            Nothing here...
-          </v-sheet>
-        </v-card>
+        <template v-if="season.Standings.length > 0">
+          <v-card>
+            <v-card-title>
+              Standings (Table)
+            </v-card-title>
+            <v-card-text>
+              <standings-scroller
+                :standings="season.Standings"
+              ></standings-scroller>
+            </v-card-text>
+          </v-card>
+        </template>
+
+        <template v-else>
+          <span>No Standings yet</span>
+        </template>
       </v-col>
     </v-row>
 
@@ -100,9 +108,14 @@
 
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
-import { Season } from '@/models/season';
+import { Season } from '@/interfaces/season';
+import StandingsScroller from '@/components/seasons/standings-scroller.vue';
 
-@Component({})
+@Component({
+  components: {
+    StandingsScroller,
+  },
+})
 export default class ViewSeason extends Vue {
   private season: any = {};
 
@@ -124,6 +137,10 @@ export default class ViewSeason extends Vue {
       .catch(response => {
         console.log('Error generating Fixtures=> ', response);
       });
+  }
+
+  private startSeason(): void {
+    // ... fish ...
   }
 
   private mounted(): void {

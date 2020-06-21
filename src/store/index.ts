@@ -1,16 +1,16 @@
 import Vue from 'vue';
 import Vuex from 'vuex';
-import { Club } from '@/models/club';
+import { Club } from '@/interfaces/club';
 import { $axios } from '../main';
 import socket from './socket';
-import { CalendarInterface } from '@/types/calendar';
+import { ICalendar } from '@/interfaces/calendar';
 
 Vue.use(Vuex);
 
 // 'http://192.168.10.4:3000' - Network server url
 // 'http://localhost:3000' - Local server url
 
-// export const apiUrl = 'http://192.168.10.4:3000';
+// export const apiUrl = 'http://192.168.10.2:3000';
 
 export const apiUrl = 'http://localhost:3000';
 
@@ -28,7 +28,8 @@ export interface RootState {
     avatar: string;
     fullname: string;
   };
-  calendar: CalendarInterface;
+  calendar: ICalendar;
+  seasons: any[];
   // state: MainState;
 }
 
@@ -47,6 +48,7 @@ const state = {
     fullname: '',
   },
   calendar: {} as unknown,
+  seasons: [],
 } as RootState;
 
 export default new Vuex.Store({
@@ -71,6 +73,9 @@ export default new Vuex.Store({
     },
     SET_CALENDAR: (state, payload) => {
       state.calendar = payload;
+    },
+    SET_SEASONS: (state, payload) => {
+      state.seasons = payload;
     },
   },
   actions: {
@@ -129,6 +134,16 @@ export default new Vuex.Store({
         })
         .catch(response => {
           console.log('error => ', response);
+        });
+    },
+    SET_SEASONS: ({ commit }) => {
+      $axios
+        .get('/seasons/current?year=JUN-2020')
+        .then(response => {
+          commit('SET_SEASONS', response.data.payload);
+        })
+        .catch(error => {
+          console.log('Error getting current seasons!', error);
         });
     },
   },

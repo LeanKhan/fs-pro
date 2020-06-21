@@ -26,8 +26,8 @@
 
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
-import { Club } from '../../../models/club';
-import ClubsTable from '../../../components/clubs/allclubs-table.vue';
+import { Club } from '@/interfaces/club';
+import ClubsTable from '@/components/clubs/allclubs-table.vue';
 
 @Component({
   components: {

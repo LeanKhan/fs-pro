@@ -91,7 +91,7 @@
 
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
-import { Competition } from '../../models/competition';
+import { Competition } from '@/interfaces/competition';
 import { apiUrl } from '@/store';
 
 @Component({})

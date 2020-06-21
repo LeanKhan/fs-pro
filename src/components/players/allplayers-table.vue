@@ -46,7 +46,7 @@
 
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
-import { Player } from '../../models/player';
+import { Player } from '@/interfaces/player';
 
 @Component({})
 export default class AllPlayersTable extends Vue {

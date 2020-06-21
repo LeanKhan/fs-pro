@@ -113,7 +113,7 @@
 import { Component, Vue } from 'vue-property-decorator';
 import PlayersTable from '@/components/players/players-table.vue';
 import AllPlayersTable from '@/components/players/allplayers-table.vue';
-import { Club } from '../../../models/club';
+import { Club } from '@/interfaces/club';
 
 @Component({
   components: {

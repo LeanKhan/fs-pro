@@ -72,7 +72,7 @@
       </v-list>
     </v-navigation-drawer>
 
-    <v-app-bar app dense clipped-left>
+    <v-app-bar app dense clipped-left v-model="appBar">
       <v-app-bar-nav-icon @click.stop="drawer = !drawer" />
       <img class="mx-4" width="40px" :src="`${api}/img/logo-new.png`" />
       <v-toolbar-title class="mr-12 align-center">
@@ -132,11 +132,29 @@
 
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
+import { Route, RawLocation } from 'vue-router';
 import { apiUrl } from '@/store';
 
-@Component({})
+@Component({
+  beforeRouteUpdate(
+    to: Route,
+    from: Route,
+    next: (to?: RawLocation | false | ((vm: AppView) => any) | void) => void
+  ): void {
+    if (to.name == 'MatchZone') {
+      this.drawer = false;
+      this.appBar = false;
+    } else {
+      this.drawer = true;
+      this.appBar = true;
+    }
+    next();
+  },
+})
 export default class AppView extends Vue {
   private drawer = true;
+
+  private appBar = true;
 
   private show = false;
 
@@ -228,6 +246,10 @@ export default class AppView extends Vue {
 
   get userMode(): boolean {
     return this.$route.path.split('/')[1] == 'u';
+  }
+
+  get matchZone(): boolean {
+    return this.$route.name == 'MatchZone';
   }
 
   get navItems() {

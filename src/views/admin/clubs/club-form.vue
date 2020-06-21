@@ -186,7 +186,7 @@
 
 <script lang="ts">
 import { Component, Vue, Prop } from 'vue-property-decorator';
-import { Club } from '@/models/club';
+import { Club } from '@/interfaces/club';
 import { apiUrl } from '@/store';
 
 @Component({})

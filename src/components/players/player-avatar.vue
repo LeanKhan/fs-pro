@@ -5,7 +5,7 @@
 <script lang="ts">
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { Component, Vue, Prop } from 'vue-property-decorator';
-import { Appearance } from '../../models/player';
+import { Appearance } from '@/interfaces/player';
 import { apiUrl } from '@/store';
 
 @Component({})

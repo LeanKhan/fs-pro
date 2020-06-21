@@ -27,7 +27,7 @@
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
 import PlayersTable from '@/components/players/players-table.vue';
-import { Player } from '@/models/player';
+import { Player } from '@/interfaces/player';
 
 @Component({
   components: {

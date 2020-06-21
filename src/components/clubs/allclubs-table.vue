@@ -52,12 +52,12 @@
       </template>
 
       <template v-slot:item.Actions="{ item }">
-        <v-btn text icon color="success lighten-2">
+        <v-btn text icon title="View Club" color="success lighten-2">
           <v-icon small @click="viewClub(item._id, item.ClubCode)">
             mdi-eye
           </v-icon>
         </v-btn>
-        <v-btn text icon color="blue lighten-2">
+        <v-btn text icon title="Update Club" color="blue lighten-2">
           <v-icon small @click="updateClub(item._id, item.ClubCode)">
             mdi-pencil
           </v-icon>
@@ -69,7 +69,7 @@
 
 <script lang="ts">
 import { Component, Vue, Prop } from 'vue-property-decorator';
-import { Club } from '../../models/club';
+import { Club } from '@/interfaces/club';
 
 @Component({})
 export default class ClubsTable extends Vue {

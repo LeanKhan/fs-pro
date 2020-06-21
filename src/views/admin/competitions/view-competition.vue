@@ -70,7 +70,7 @@ import { Component, Vue } from 'vue-property-decorator';
 import ClubList from '@/components/clubs/club-list.vue';
 import SeasonsTable from '@/components/seasons/seasons-table.vue';
 import ClubsTable from '@/components/clubs/clubs-table.vue';
-import { Competition } from '@/models/competition';
+import { Competition } from '@/interfaces/competition';
 
 @Component({
   components: {

@@ -25,7 +25,7 @@
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
 import SeasonsTable from '@/components/seasons/seasons-table.vue';
-import { Season } from '@/models/season';
+import { Season } from '@/interfaces/season';
 
 @Component({
   components: {

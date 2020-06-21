@@ -5,7 +5,13 @@
       :key="i"
       v-slot:default="{ active, toggle }"
     >
-      <calendar-day :day="day" :active="active" :toggle="toggle"></calendar-day>
+      <calendar-day
+        :day="day"
+        :active="active"
+        :toggle="toggle"
+        :club="club"
+        :singleLeague="singleLeague"
+      ></calendar-day>
     </v-slide-item>
   </v-slide-group>
 </template>
@@ -20,6 +26,8 @@ import CalendarDay from './day.vue';
 })
 export default class DayScroll extends Vue {
   @Prop({ required: true }) readonly days!: [{}];
+  @Prop({ required: true }) readonly singleLeague!: boolean;
+  @Prop() readonly club?: string;
 
   private selectedDayIndex = 0;
 

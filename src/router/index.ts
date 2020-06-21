@@ -11,6 +11,10 @@ import Login from '@/views/auth/login.vue';
 import Register from '@/views/auth/register.vue';
 import Credits from '@/views/credits.vue';
 
+/** USER ROUTES */
+import userClubRoutes from './user/club';
+/** USER ROUTES */
+
 // import Clubs from '../views/Clubs.vue';
 
 Vue.use(VueRouter);
@@ -46,7 +50,7 @@ const routes: RouteConfig[] = [
     path: '/',
     component: AppView,
     name: 'AppView',
-    redirect: 'a',
+    redirect: 'u',
     children: [
       {
         path: 'a',
@@ -64,8 +68,19 @@ const routes: RouteConfig[] = [
         path: 'u',
         component: () =>
           import(/* webpackChunkName: "user" */ '../views/user/user.vue'),
-        children: [{ path: '', component: UserDashboard, name: 'User Home' }],
+        children: [
+          { path: '', component: UserDashboard, name: 'User Home' },
+          userClubRoutes,
+        ],
         meta: { title: 'User' },
+      },
+      {
+        path: '/matchzone',
+        component: () =>
+          import(
+            /* webpackChunkName: "matchzone" */ '../views/game/matchzone.vue'
+          ),
+        name: 'MatchZone',
       },
     ],
   },
