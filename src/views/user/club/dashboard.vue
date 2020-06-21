@@ -1,0 +1,291 @@
+<template>
+  <div>
+    <v-card>
+      <v-toolbar>
+        <!-- Current day -->
+        <v-toolbar-title>
+          <template v-if="club && season">
+            <v-icon x-large>${{ club.ClubCode }}</v-icon>
+            <v-badge class="subtitle-1 font-weight-bold indigo--text">
+              {{ season.CompetitionCode }}
+            </v-badge>
+          </template>
+        </v-toolbar-title>
+
+        <v-spacer></v-spacer>
+        <template v-if="club">
+          <v-icon x-large>${{ club.ClubCode }}</v-icon>
+          <span class="subtitle-1 font-weight-bold indigo--text">
+            {{ club.Name }}
+          </span>
+        </template>
+      </v-toolbar>
+
+      <!-- Main -->
+      <!-- TABS! -->
+      <v-tabs fixed-tabs v-model="tab">
+        <v-tab>
+          Home
+        </v-tab>
+
+        <v-tab>
+          Squad Zone
+        </v-tab>
+
+        <v-tab>
+          Club Zone
+        </v-tab>
+
+        <v-tab>
+          Transfer Zone
+        </v-tab>
+      </v-tabs>
+    </v-card>
+
+    <v-tabs-items
+      background-color="transparent"
+      color="transparent"
+      v-model="tab"
+    >
+      <v-tab-item>
+        <v-row>
+          <v-col cols="8">
+            <!-- Current Fixture -->
+            <v-card color="primary">
+              <template v-if="!selectedDay.isFree">
+                <v-card
+                  color="transparent"
+                  min-height="180px"
+                  class="text-center"
+                  flat
+                  tile
+                >
+                  <v-card-text>
+                    <v-row>
+                      <v-col cols="9">
+                        <span>HOME</span>
+                        <v-avatar tile size="70px">
+                          <v-icon style="font-size: 70px; height: 70px" x-large>
+                            ${{ selectedDay.Matches[0].Fixture.Home }}
+                          </v-icon>
+                        </v-avatar>
+
+                        vs
+
+                        <v-avatar tile size="70px">
+                          <v-icon style="font-size: 70px; height: 70px" x-large>
+                            ${{ selectedDay.Matches[0].Fixture.Away }}
+                          </v-icon>
+                        </v-avatar>
+                        <span>AWAY</span>
+
+                        <div class="pa-0 text-center">
+                          <p class="mb-2 caption white--text">
+                            {{ selectedDay.Matches[0].Fixture.Title }}
+                          </p>
+
+                          <p class="mb-0 caption">
+                            {{ selectedDay.Matches[0].Fixture.Stadium }}
+                          </p>
+                        </div>
+                      </v-col>
+
+                      <v-col cols="3">
+                        <v-card-subtitle>
+                          {{ selectedDay.Matches[0].Competition }}
+                          <v-icon large color="amber lighten-3">
+                            mdi-trophy
+                          </v-icon>
+                        </v-card-subtitle>
+
+                        <template v-if="season && season.isStarted">
+                          <v-btn to="/matchzone">Play</v-btn>
+                        </template>
+                      </v-col>
+                    </v-row>
+                  </v-card-text>
+                </v-card>
+              </template>
+
+              <template v-else>
+                <v-sheet height="180px" width="100%" color="transparent">
+                  No matches today! :)
+                </v-sheet>
+              </template>
+
+              <!-- Fixtures scroller -->
+              <v-divider class="mx-2"></v-divider>
+              <v-sheet width="100%" color="transparent" tile class="mt-5 pb-3">
+                <!-- <v-subheader>Upcoming Fixtures</v-subheader> -->
+                <day-scroll
+                  :days="clubDays"
+                  :singleLeague="true"
+                  :club="club.ClubCode"
+                  @selected-day-index-changed="selectDay"
+                ></day-scroll>
+              </v-sheet>
+            </v-card>
+
+            <!-- Standings and other stuff -->
+
+            <!-- Standings and other stuff -->
+            <v-card color="deep-purple" class="mt-3">
+              <template v-if="season">
+                <v-card-title>
+                  {{ season.CompetitionCode }}
+                </v-card-title>
+
+                <v-card-text>
+                  <standings-scroller
+                    :standings="season.Standings"
+                  ></standings-scroller>
+                </v-card-text>
+              </template>
+              <template v-else>
+                <span>No season yet :/</span>
+              </template>
+            </v-card>
+          </v-col>
+          <v-col cols="4">
+            <v-card>
+              <v-sheet height="400px" width="100%" color="green darken-2">
+                Yeet beat
+              </v-sheet>
+            </v-card>
+          </v-col>
+        </v-row>
+      </v-tab-item>
+      <v-tab-item>
+        <squad-zone></squad-zone>
+      </v-tab-item>
+      <v-tab-item>
+        <club-zone></club-zone>
+      </v-tab-item>
+      <v-tab-item>
+        <transfer-zone></transfer-zone>
+      </v-tab-item>
+    </v-tabs-items>
+  </div>
+</template>
+
+<script lang="ts">
+import { Component, Vue } from 'vue-property-decorator';
+import { Route, RawLocation } from 'vue-router';
+// Zone Components
+import { ClubZone, SquadZone, TransferZone } from './zones';
+// Other UI components
+import DayScroll from '@/components/calendar/day-scroll.vue';
+import StandingsScroller from '@/components/seasons/standings-scroller.vue';
+import { ICalendar, ICalendarDay } from '@/interfaces/calendar';
+// import { IFixture } from '@/interfaces/fixture';
+@Component({
+  components: {
+    ClubZone,
+    SquadZone,
+    TransferZone,
+    DayScroll,
+    StandingsScroller,
+  },
+  beforeRouteUpdate(
+    to: Route,
+    from: Route,
+    next: (to?: RawLocation | false | ((vm: ClubHome) => any) | void) => void
+  ): void {
+    const clubId = to.params['id'];
+
+    this.fetchClub(clubId);
+    next();
+  },
+})
+export default class ClubHome extends Vue {
+  private club: any = {};
+
+  private selectedDayIndex = 0;
+
+  private tab: any = null;
+
+  private seasonTab = null;
+
+  /** Club calendar */
+  get calendar(): ICalendar {
+    return this.$store.state.calendar;
+  }
+
+  get seasons() {
+    return this.$store.state.seasons;
+  }
+
+  get clubDays() {
+    return this.calendar.Days.map(day => {
+      const Matches = day.Matches.filter(match => {
+        return match.Competition == this.club.LeagueCode;
+      });
+
+      return { ...day, Matches };
+    });
+  }
+
+  /** Club Season */
+  get season() {
+    // find the season the club belongs to
+
+    return this.seasons.find(
+      (s: any) => s.CompetitionCode == this.club.LeagueCode
+    );
+  }
+
+  get selectedDay() {
+    if (this.calendar.Days) {
+      return this.calendar.Days[this.selectedDayIndex];
+    }
+
+    return { isFree: false } as ICalendarDay;
+  }
+
+  /** Calendar day */
+
+  get isClub(): boolean {
+    if (this.club) {
+      return (
+        this.selectedDay.Matches[0].Fixture.Home == this.club ||
+        this.selectedDay.Matches[0].Fixture.Away == this.club
+      );
+    }
+
+    return false;
+  }
+
+  // Methods
+
+  private selectDay(val: number) {
+    this.selectedDayIndex = val;
+  }
+
+  private fetchClub(clubId: string): void {
+    this.$axios
+      .get(`/clubs/${clubId}?populate=Players`)
+      .then(response => {
+        // Check for errors here o
+        if (response.data.success) {
+          this.club = response.data.payload;
+        }
+      })
+      .catch(response => {
+        console.log('Error fetching club!0 => ', response);
+      });
+  }
+
+  private mounted(): void {
+    const clubId = this.$route.params['id'];
+
+    this.fetchClub(clubId);
+  }
+
+  //   private beforeRouteEnter(to: any, from: any, next: any): void {
+  //     console.log('To From', to, from);
+  //     next();
+  //   }
+}
+</script>
+
+<style></style>

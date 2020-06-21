@@ -1,17 +1,15 @@
 <template>
-  <div>
-    <router-view></router-view>
-  </div>
+  <router-view></router-view>
 </template>
 
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
-import { CalendarInterface } from '../../types/calendar';
+import { ICalendar } from '@/interfaces/calendar';
 
 @Component({})
 export default class User extends Vue {
   // get current calendar...
-  private currentCalendar: CalendarInterface | unknown = {};
+  private currentCalendar: ICalendar | unknown = {};
 
   private getCurrentCalendar() {
     this.$axios
@@ -26,6 +24,7 @@ export default class User extends Vue {
 
   private mounted() {
     this.$store.dispatch('SET_CALENDAR');
+    this.$store.dispatch('SET_SEASONS');
 
     this.$nextTick(() => {
       console.log('Inside nextTick at ', new Date());

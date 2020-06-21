@@ -104,9 +104,11 @@
 
           <v-sheet width="100%" color="dark" class="mt-5">
             <v-col cols="12">
+              <v-subheader>Upcoming Fixtures</v-subheader>
               <day-scroll
                 :days="calendar.Days"
-                @selected-day-index-changed="doSomething"
+                :singleLeague="false"
+                @selected-day-index-changed="selectDay"
               ></day-scroll>
             </v-col>
           </v-sheet>
@@ -181,33 +183,31 @@ export default class UserDashboard extends Vue {
 
   private seasonTab = null;
 
-  private seasons: any = {};
-
   get calendar() {
     return this.$store.state.calendar;
   }
 
-  private getSeasons() {
-    this.$axios
-      .get('/seasons/current?year=JUN-2020')
-      .then(response => {
-        this.seasons = response.data.payload;
-      })
-      .catch(error => {
-        console.log('Error getting current seasons!', error);
-      });
+  get seasons() {
+    return this.$store.state.seasons;
   }
 
-  private doSomething(val: number) {
+  // private getSeasons() {
+  //   this.$axios
+  //     .get('/seasons/current?year=JUN-2020')
+  //     .then(response => {
+  //       this.seasons = response.data.payload;
+  //     })
+  //     .catch(error => {
+  //       console.log('Error getting current seasons!', error);
+  //     });
+  // }
+
+  private selectDay(val: number) {
     this.selectedDayIndex = val;
   }
 
   get selectedDay() {
     return this.calendar.Days[this.selectedDayIndex];
-  }
-
-  mounted() {
-    this.getSeasons();
   }
 }
 </script>
