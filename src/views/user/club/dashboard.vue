@@ -99,7 +99,7 @@
                         </v-card-subtitle>
 
                         <template v-if="season && season.isStarted">
-                          <v-btn to="/matchzone">Play</v-btn>
+                          <v-btn :to="'/matchzone/' + selectedDay.Matches[0].Fixture._id.toString()">Play</v-btn>
                         </template>
                       </v-col>
                     </v-row>
@@ -255,7 +255,7 @@ export default class ClubHome extends Vue {
     return false;
   }
 
-  // Methods
+  /* === Methods ===  */
 
   private selectDay(val: number) {
     this.selectedDayIndex = val;
@@ -273,6 +273,12 @@ export default class ClubHome extends Vue {
       .catch(response => {
         console.log('Error fetching club!0 => ', response);
       });
+  }
+
+  private newGame() {
+    // send that event and wait for the result...
+    // if success then go to match zone and send 'join-match' event...
+    // or maybe we should just go to matchzone straight? and wait for the match...
   }
 
   private mounted(): void {

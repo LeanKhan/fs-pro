@@ -75,7 +75,7 @@ const routes: RouteConfig[] = [
         meta: { title: 'User' },
       },
       {
-        path: '/matchzone',
+        path: '/matchzone/:fixture',
         component: () =>
           import(
             /* webpackChunkName: "matchzone" */ '../views/game/matchzone.vue'
