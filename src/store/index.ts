@@ -12,9 +12,9 @@ Vue.use(Vuex);
 
 // export const apiUrl = 'http://192.168.10.2:3000';
 
-export const apiUrl = 'http://localhost:3000';
+// export const apiUrl = 'http://localhost:3000';
 
-// export const apiUrl = 'http://192.168.43.33:3000';
+export const apiUrl = 'http://192.168.43.33:3000';
 
 export interface RootState {
   allClubs: Club[];
@@ -29,6 +29,7 @@ export interface RootState {
     fullname: string;
   };
   calendar: ICalendar;
+  currentYear: string;
   seasons: any[];
   // state: MainState;
 }
@@ -48,6 +49,7 @@ const state = {
     fullname: '',
   },
   calendar: {} as unknown,
+  currentYear: 'JUN-2020',
   seasons: [],
 } as RootState;
 
@@ -124,9 +126,9 @@ export default new Vuex.Store({
           console.log('error => ', response);
         });
     },
-    SET_CALENDAR: ({ commit }) => {
+    SET_CALENDAR: ({ commit, state }) => {
       $axios
-        .get(`/calendar/current?page=1&limit=14`)
+        .get(`/calendar/current?page=1&limit=14&year=${state.currentYear}`)
         .then(response => {
           if (response.data.success) {
             commit('SET_CALENDAR', response.data.payload);
@@ -136,9 +138,9 @@ export default new Vuex.Store({
           console.log('error => ', response);
         });
     },
-    SET_SEASONS: ({ commit }) => {
+    SET_SEASONS: ({ commit, state }) => {
       $axios
-        .get('/seasons/current?year=JUN-2020')
+        .get(`/seasons/current?year=${state.currentYear}`)
         .then(response => {
           commit('SET_SEASONS', response.data.payload);
         })

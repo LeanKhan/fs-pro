@@ -24,17 +24,34 @@
                         </v-avatar>
       </v-badge>
 
+      <template v-if="connected">
+        <v-chip>Match Room Connected!</v-chip>
+      </template>
+
+       <template v-if="!allConnected">
+        <v-chip>Waiting For Second user</v-chip>
+      </template>
+
     </v-app-bar>
 
-    <div class="d-flex justify-center align-center" style="height: 400px;">
-      <p class="display-2 white--text text-center">Match Zone</p>
+    <v-container>
+      <v-row>
+        <v-col cols="2">
+          Match details
+        </v-col>
+        <v-col cols="10">
+          <v-card>
+            <span v-if="allConnected">
+              READY
+            </span>
 
-      <img
-        alt="FsPro Logo :)"
-        height="200px"
-        :src="`${api}/img/logo-new.png`"
-      />
-    </div>
+            <span v-else>
+              Not ready to play yet :(
+            </span>
+          </v-card>
+        </v-col>
+      </v-row>
+    </v-container>
   </div>
 </template>
 
@@ -56,16 +73,27 @@ export default class MatchZone extends Vue {
 
   private currentMatch!: any = {};
 
+  private connected = false;
+
+  private secondUserConnected = false;
+
     /** Sockets */
  @Socket('match-room-joined')
   onMatchRoomJoined(currentMatch: any) {
     console.log('currentMatch', currentMatch);
+    this.connected = true;
     this.currentMatch = currentMatch;
   }
 
   @Socket('starting-match')
   onMatchStarted() {
     console.log('<===== Match Started =====>');
+  }
+
+   @Socket('user-connected')
+  onUserConnected() {
+    console.log('<===== User connected =====>');
+    this.secondUserConnected = true;
   }
   /** Sockets */
 
@@ -74,12 +102,21 @@ export default class MatchZone extends Vue {
   get user() {
     return this.$store.getters.user;
   }
+
+   get allConnected() {
+    if(this.currentMatch.users){
+      // Check is everyone is not connected
+      return this.currentMatch.users.every((u: any) => { return u.connected });
+    }
+
+    return false;
+  }
  
   /** Mathods */
 
   private initiateGame(fixture: string) {
     this.$axios
-      .post(`/game/new-game`, { fixture })
+      .post(`/game/new-game`, { fixture, user: this.user.userID })
       .then(response => {
         // Check for errors here o
         console.log(response.data);
