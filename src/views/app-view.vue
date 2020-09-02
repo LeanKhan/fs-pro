@@ -72,7 +72,7 @@
       </v-list>
     </v-navigation-drawer>
 
-    <v-app-bar app dense clipped-left v-model="appBar">
+    <v-app-bar app dense clipped-left v-if="!MatchZone">
       <v-app-bar-nav-icon @click.stop="drawer = !drawer" />
       <img class="mx-4" width="40px" :src="`${api}/img/logo-new.png`" />
       <v-toolbar-title class="mr-12 align-center">
@@ -152,7 +152,7 @@ import { apiUrl } from '@/store';
   },
 })
 export default class AppView extends Vue {
-  private drawer = true;
+  private drawer = false;
 
   private appBar = true;
 
@@ -176,9 +176,9 @@ export default class AppView extends Vue {
     },
     {
       title: 'Competitions',
-      icon: '$LU',
+      icon: 'mdi-trophy',
       link: '/a/competitions',
-      color: 'pink',
+      color: 'yellow accent-1',
     },
   ];
 
@@ -248,7 +248,7 @@ export default class AppView extends Vue {
     return this.$route.path.split('/')[1] == 'u';
   }
 
-  get matchZone(): boolean {
+  get MatchZone(): boolean {
     return this.$route.name == 'MatchZone';
   }
 
@@ -260,11 +260,33 @@ export default class AppView extends Vue {
     return this.userNavItems;
   }
 
+  private enter() {
+    const { userID, session: sessionID } = this.user;
+
+    console.log('user => ', this.user);
+
+    this.$axios
+      .post(
+        '/users/enter',
+        { user: { userID, sessionID } },
+        { withCredentials: true }
+      )
+      .then(response => {
+        this.$store.dispatch('SET_USER', {...this.user, session: response.data.sessionID})
+      })
+      .catch(response => {
+        console.log('Error entering in! ', response.data.error);
+      });
+  }
+
   mounted() {
     // console.log('Path => ', this.$route.path.split('/'));
     // if userMode then fetch User's clubs and stuff...
 
     this.$store.dispatch('GET_USER');
+
+    // Enter app :p wait for getting user first! XD
+    this.enter();
 
     this.$socket.client.open();
   }

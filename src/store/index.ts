@@ -10,11 +10,11 @@ Vue.use(Vuex);
 // 'http://192.168.10.4:3000' - Network server url
 // 'http://localhost:3000' - Local server url
 
-// export const apiUrl = 'http://192.168.10.2:3000';
+export const apiUrl = 'http://192.168.10.2:3000';
 
 // export const apiUrl = 'http://localhost:3000';
 
-export const apiUrl = 'http://192.168.43.33:3000';
+// export const apiUrl = 'http://192.168.43.33:3000';
 
 export interface RootState {
   allClubs: Club[];
