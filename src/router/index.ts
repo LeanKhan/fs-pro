@@ -13,6 +13,7 @@ import Credits from '@/views/credits.vue';
 
 /** USER ROUTES */
 import userClubRoutes from './user/club';
+import AllFixtures from '@/views/user/seasons/fixtures.vue';
 /** USER ROUTES */
 
 // import Clubs from '../views/Clubs.vue';
@@ -70,6 +71,8 @@ const routes: RouteConfig[] = [
           import(/* webpackChunkName: "user" */ '../views/user/user.vue'),
         children: [
           { path: '', component: UserDashboard, name: 'User Home' },
+          { path: 'fixtures', component: AllFixtures, name: 'All Fixtures' },
+
           userClubRoutes,
         ],
         meta: { title: 'User' },

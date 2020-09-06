@@ -17,7 +17,7 @@
         <!-- Fixtures and next matches -->
         <v-card color="transparent">
           <v-sheet width="100%" color="indigo">
-            <div class="text-center">
+            <div class="text-center" v-if="selectedDay">
               <template v-if="!selectedDay.isFree">
                 <v-row class="px-6">
                   <v-col cols="6">
@@ -52,6 +52,21 @@
                           </p>
                         </div>
                       </v-card-text>
+
+                      <v-card-actions>
+                        <template v-if="seasons">
+                          <v-btn
+                            depressed
+                            :disabled="selectedDay.Matches[0].Fixture.Played"
+                            :to="
+                              '/matchzone/' +
+                                selectedDay.Matches[0].Fixture._id.toString()
+                            "
+                          >
+                            Play
+                          </v-btn>
+                        </template>
+                      </v-card-actions>
                     </v-card>
                   </v-col>
 
@@ -87,15 +102,33 @@
                           </p>
                         </div>
                       </v-card-text>
+
+                      <v-card-actions>
+                        <template v-if="seasons">
+                          <v-btn
+                            depressed
+                            :disabled="selectedDay.Matches[1].Fixture.Played"
+                            :to="
+                              '/matchzone/' +
+                                selectedDay.Matches[1].Fixture._id.toString()
+                            "
+                          >
+                            Play
+                          </v-btn>
+                        </template>
+                      </v-card-actions>
                     </v-card>
                   </v-col>
                 </v-row>
               </template>
 
               <template v-else>
-                <div>
-                  No matches today! :)
-                </div>
+                <v-card color="grey" height="190px">
+                  <v-card-text>
+                    No matches today
+                    <v-icon>mdi-ball</v-icon>
+                  </v-card-text>
+                </v-card>
               </template>
             </div>
           </v-sheet>
@@ -103,10 +136,18 @@
           <!-- Fixtures scroller -->
 
           <v-sheet width="100%" color="dark" class="mt-5">
+            <div>
+              <v-subheader>
+                Upcoming Fixtures
+                <v-spacer></v-spacer>
+                <v-btn depressed text small color="indigo" to="u/fixtures">
+                  View All
+                </v-btn>
+              </v-subheader>
+            </div>
             <v-col cols="12">
-              <v-subheader>Upcoming Fixtures</v-subheader>
               <day-scroll
-                :days="calendar.Days"
+                :days="days"
                 :singleLeague="false"
                 @selected-day-index-changed="selectDay"
               ></day-scroll>
@@ -150,7 +191,6 @@
 
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
-import { Socket } from 'vue-socket.io-extended';
 import DayScroll from '../../components/calendar/day-scroll.vue';
 import StandingsScroller from '@/components/seasons/standings-scroller.vue';
 @Component({
@@ -160,22 +200,10 @@ import StandingsScroller from '@/components/seasons/standings-scroller.vue';
   },
 })
 export default class UserDashboard extends Vue {
-  @Socket('match-event')
-  onMatchEvent(event: any) {
-    this.events.push(event);
-  }
-
-  @Socket('match-started')
-  onMatchStarted() {
-    console.log('<===== Match Started =====>');
-  }
-
-  @Socket('match-ended')
-  onMatchEnded(match: any) {
-    this.match = match;
-  }
-
-  private events: any[] = [];
+  // @Socket('match-event')
+  // onMatchEvent(event: any) {
+  //   this.events.push(event);
+  // }
 
   private match: any = {};
 
@@ -183,12 +211,18 @@ export default class UserDashboard extends Vue {
 
   private seasonTab = null;
 
+  private days: any = [];
+
   get calendar() {
     return this.$store.state.calendar;
   }
 
   get seasons() {
     return this.$store.state.seasons;
+  }
+
+  get selectedDay() {
+    return this.days[this.selectedDayIndex];
   }
 
   // private getSeasons() {
@@ -202,12 +236,25 @@ export default class UserDashboard extends Vue {
   //     });
   // }
 
+  private getDays() {
+    const query =
+      '/calendar/JUN-2020/days?paginate=true&populate=true&week=1&limit=14';
+    this.$axios
+      .get(query)
+      .then(response => {
+        this.days = response.data.payload;
+      })
+      .catch(error => {
+        console.log('Error getting current seasons!', error);
+      });
+  }
+
   private selectDay(val: number) {
     this.selectedDayIndex = val;
   }
 
-  get selectedDay() {
-    return this.calendar.Days[this.selectedDayIndex];
+  mounted() {
+    this.getDays();
   }
 }
 </script>
