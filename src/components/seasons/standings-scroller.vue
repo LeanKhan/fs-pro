@@ -1,12 +1,30 @@
 <template>
   <v-card flat>
-    <v-window v-model="onboarding" reverse>
+    <v-card-subtitle>
+      <v-spacer></v-spacer>
+      <v-switch
+        v-model="showCompiled"
+        dense
+        hide-details
+        label="Show Compiled Table?"
+      ></v-switch>
+    </v-card-subtitle>
+    <v-window v-if="!showCompiled" v-model="onboarding" reverse>
       <v-window-item v-for="(standing, i) in standings" :key="`standing-${i}`">
-        <standings :WeekStandings="standing"></standings>
+        <standings
+          :WeekStandings="standing"
+          :compiled="showCompiled"
+        ></standings>
       </v-window-item>
     </v-window>
 
-    <v-card-actions class="justify-space-between">
+    <standings
+      v-else
+      :WeekStandings="compiledStandings"
+      :compiled="showCompiled"
+    ></standings>
+
+    <v-card-actions v-if="!showCompiled" class="justify-space-between">
       <v-btn text @click="prev">
         <v-icon>mdi-chevron-left</v-icon>
       </v-btn>
@@ -34,6 +52,7 @@
 <script lang="ts">
 import { Component, Vue, Prop } from 'vue-property-decorator';
 import Standings from '@/components/seasons/standings.vue';
+import { WeekStandings } from '@/interfaces/season.ts';
 @Component({
   name: 'StandingsScroller',
   components: {
@@ -42,10 +61,11 @@ import Standings from '@/components/seasons/standings.vue';
   },
 })
 export default class StandingsScroller extends Vue {
-  @Prop({ required: true }) standings!: any[];
+  @Prop({ required: true }) standings!: WeekStandings[];
 
   private length = this.standings.length;
   private onboarding = 0;
+  private showCompiled = false;
 
   private next() {
     this.onboarding =
@@ -55,6 +75,47 @@ export default class StandingsScroller extends Vue {
   private prev() {
     this.onboarding =
       this.onboarding - 1 < 0 ? this.length - 1 : this.onboarding - 1;
+  }
+
+  get total() {
+    return this.standings.reduce(
+      (acc: any, week: WeekStandings) => acc.concat(week.Table),
+      []
+    );
+  }
+
+  get compiledStandings() {
+    const sum: any[] = [];
+
+    Array.from(new Set(this.total.map((x: any) => x.ClubCode))).forEach(x => {
+      sum.push(
+        this.total
+          .filter((y: any) => y.ClubCode === x)
+          .reduce((output: any, item: any) => {
+            const pnts = output['Points'] === undefined ? 0 : output['Points'];
+            const gd = output['GD'] === undefined ? 0 : output['GD'];
+            const ga = output['GA'] === undefined ? 0 : output['GA'];
+            const gf = output['GF'] === undefined ? 0 : output['GF'];
+            const plyd = output['Played'] === undefined ? 0 : output['Played'];
+            const w = output['Wins'] === undefined ? 0 : output['Wins'];
+            const l = output['Losses'] === undefined ? 0 : output['Losses'];
+            const d = output['Draws'] === undefined ? 0 : output['Draws'];
+
+            output['ClubCode'] = x;
+            output['Points'] = item.Points + pnts;
+            output['GD'] = item.GD + gd;
+            output['GA'] = item.GA + ga;
+            output['GF'] = item.GF + gf;
+            output['Played'] = item.Played + plyd;
+            output['Wins'] = item.Wins + w;
+            output['Losses'] = item.Losses + l;
+            output['Draws'] = item.Draws + d;
+
+            return output;
+          }, {})
+      );
+    });
+    return sum;
   }
 }
 </script>

@@ -1,11 +1,11 @@
 <template>
   <v-card>
-    <v-card-title class="subtitle-2">
+    <v-card-title v-if="!compiled" class="subtitle-2">
       Week {{ WeekStandings.Week }}
     </v-card-title>
     <v-data-table
       :headers="headers"
-      :items="WeekStandings.Table"
+      :items="SortedTable"
       item-key="ClubCode"
       no-data-text="No Standings for this week..."
       class="elevation-1"
@@ -22,16 +22,17 @@
 <script lang="ts">
 // import { Component, Vue, }
 import { Component, Vue, Prop } from 'vue-property-decorator';
+import { WeekStandings as IWeek } from '@/interfaces/season.ts';
 
 @Component({
   name: 'Standings',
 })
 export default class Standings extends Vue {
-  @Prop({ required: true }) WeekStandings!: any;
+  @Prop({ required: true }) WeekStandings!: IWeek;
+  @Prop({ required: true, default: false }) compiled!: boolean;
 
-  /**
-   * {"_id":"5ede339735e29f6488edf4e8","ClubCode":"RP","Points":0,"Played":0,"Wins":0,"Losses":0,"Draws":0,"GF":0,"GA":0,"GD":0}
-   */
+  private Table: IWeek['Table'] =
+    this.WeekStandings.Table || this.WeekStandings;
 
   private headers: any[] = [
     {
@@ -42,24 +43,49 @@ export default class Standings extends Vue {
       sortable: false,
     },
     {
-      text: 'Points',
-      value: 'Points',
-      filterable: false,
-      sortable: false,
-    },
-    {
       text: 'Played',
       value: 'Played',
       filterable: false,
-      sortable: false,
+      sortable: true,
     },
-    { text: 'Wins', value: 'Wins', filterable: false, sortable: false },
-    { text: 'Losses', value: 'Losses', filterable: false, sortable: false },
-    { text: 'Draws', value: 'Draws', filterable: false, sortable: false },
-    { text: 'GF', value: 'GF', filterable: false, sortable: false },
-    { text: 'GA', value: 'GA', filterable: false, sortable: false },
-    { text: 'GD', value: 'GD', filterable: false, sortable: false },
+    { text: 'Wins', value: 'Wins', filterable: false, sortable: true },
+    { text: 'Losses', value: 'Losses', filterable: false, sortable: true },
+    { text: 'Draws', value: 'Draws', filterable: false, sortable: true },
+    { text: 'GF', value: 'GF', filterable: false, sortable: true },
+    { text: 'GA', value: 'GA', filterable: false, sortable: true },
+    { text: 'GD', value: 'GD', filterable: false, sortable: true },
+    {
+      text: 'Points',
+      value: 'Points',
+      filterable: false,
+      sortable: true,
+    },
   ];
+
+  get SortedTable() {
+    return this.Table.sort((a, b) => {
+      if (b.Points === a.Points) {
+        if (b.GD === b.GD) {
+          return b.GF - a.GF;
+        } else {
+          return b.GD - a.GD;
+        }
+      }
+      return b.Points - a.Points;
+    });
+  }
+
+  //   get totalTable() {
+  //     let total = [];
+
+  //     Array.from(new Set(this.SortedTable.map(x => x.ClubCode))).forEach(x => {
+  //       total.push(this.SortedTable.filter(y => y.ClubCode === x).reduce((output, item) => {
+  //         let val = output[x] === undefined ? 0 : output[x];
+  //         output[x] = (item.value + val);
+  //         return output;
+  //       }, {}))
+  //     })
+  // }
 }
 </script>
 

@@ -4,6 +4,11 @@
     dense
     two-line
   >
+    <!-- <v-badge>
+    <template v-slot:default>
+      
+    </template>
+  </v-badge> -->
     <v-list-item-avatar tile size="20px" color="transparent" class="caption">
       <span :class="positionColor">
         {{ position }}
@@ -13,8 +18,10 @@
       <v-list-item-subtitle>
         {{ player.FirstName }}
         {{ player.LastName }}
-        -
-        <b class="font-weight-bold primary--text">{{ player.Rating }}</b>
+
+        <b class="font-weight-bold white--text">
+          {{ Math.round(player.Rating) }}
+        </b>
       </v-list-item-subtitle>
     </v-list-item-content>
   </v-list-item>

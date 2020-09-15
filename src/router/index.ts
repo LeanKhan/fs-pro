@@ -8,6 +8,7 @@ import AppView from '@/views/app-view.vue';
 import UserDashboard from '@/views/user/dashboard.vue';
 import Auth from '@/views/auth/auth.vue';
 import Login from '@/views/auth/login.vue';
+import Calendar from '@/views/admin/calendar/calendar.vue';
 import Register from '@/views/auth/register.vue';
 import Credits from '@/views/credits.vue';
 
@@ -59,6 +60,7 @@ const routes: RouteConfig[] = [
           import(/* webpackChunkName: "admin" */ '../views/admin/admin.vue'),
         children: [
           { path: '', component: AdminHome, name: 'Admin Home' },
+          { path: 'calendar', component: Calendar, name: 'Calendar' },
           competitionRoutes,
           clubRoutes,
           playerRoutes,

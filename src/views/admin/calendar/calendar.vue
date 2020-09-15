@@ -22,6 +22,32 @@
         success!
       </v-snackbar>
     </v-card>
+
+    <v-card>
+      <v-card-title>
+        Calendars
+      </v-card-title>
+
+      <v-card-text>
+        <ul>
+          <li v-for="cndr in calendars" :key="cndr._id">
+            {{ cndr.YearString }}
+
+            <v-chip>
+              {{ cndr.isActive ? 'Active' : 'Not Active' }}
+            </v-chip>
+
+            <v-btn text small @click="startCalendarYear(cndr.YearString)">
+              Start Year
+            </v-btn>
+
+            <p>
+              {{ response }}
+            </p>
+          </li>
+        </ul>
+      </v-card-text>
+    </v-card>
   </div>
 </template>
 
@@ -33,6 +59,10 @@ export default class Calendar extends Vue {
   private month = '';
 
   private success = false;
+
+  private calendars: any = [];
+
+  private response: any = '';
 
   private 'competitions' = [
     {
@@ -58,6 +88,49 @@ export default class Calendar extends Vue {
       .catch(response => {
         console.log('Response => ', response);
       });
+  }
+
+  private getCalendars() {
+    this.$axios
+      .get('/calendar/calendars')
+      .then(response => {
+        this.calendars = response.data.payload;
+      })
+      .catch(response => {
+        console.log('Response => ', response);
+      });
+  }
+
+  private getCompetitions() {
+    this.$axios
+      .get('/seasons/all?started=false')
+      .then(response => {
+        this.calendars = response.data.payload;
+      })
+      .catch(response => {
+        console.log('Response => ', response);
+      });
+  }
+
+  // TODO: make this page more usefule and add more feedback for users...
+
+  private startCalendarYear(year: string) {
+    this.$axios
+      .post(`/calendar/${year}/start`)
+      .then(response => {
+        console.log(
+          'Yup! Calendar started successfully!',
+          response.data.payload
+        );
+        this.response = response.data;
+      })
+      .catch(response => {
+        console.log('Response => ', response);
+      });
+  }
+
+  mounted() {
+    this.getCalendars();
   }
 }
 </script>

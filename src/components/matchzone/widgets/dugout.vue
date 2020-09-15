@@ -2,11 +2,11 @@
   <div>
     <v-tabs fixed-tabs v-model="tab">
       <v-tab>
-        Players
+        Squad
       </v-tab>
 
       <v-tab>
-        Squad
+        Setup
       </v-tab>
     </v-tabs>
     <v-tabs-items v-model="tab">
@@ -37,8 +37,61 @@
                 {{ home.Name }}
               </v-list-item-subtitle>
             </v-list-item-content>
+
+            <v-spacer></v-spacer>
+            <v-btn icon @click="showHomeSquad = !showHomeSquad">
+              <v-icon>
+                {{ showHomeSquad ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
+              </v-icon>
+            </v-btn>
           </v-list-item>
-          <squad-list :squad="home.Players"></squad-list>
+          <v-expand-transition>
+            <div v-show="showHomeSquad">
+              <v-divider></v-divider>
+              <squad-list :squad="home.Players"></squad-list>
+            </div>
+          </v-expand-transition>
+          <v-divider></v-divider>
+          <!-- Away Squad -->
+          <v-list-item dense>
+            <v-list-item-avatar tile size="30px">
+              <v-badge
+                bordered
+                bottom
+                color="pink darken-3"
+                dot
+                offset-x="10"
+                offset-y="10"
+              >
+                <v-icon style="font-size: 30px; height: 30px" large>
+                  ${{ away.ClubCode }}
+                </v-icon>
+              </v-badge>
+            </v-list-item-avatar>
+
+            <v-list-item-content>
+              <v-list-item-title>
+                {{ away.Manager }}
+              </v-list-item-title>
+
+              <v-list-item-subtitle>
+                {{ away.Name }}
+              </v-list-item-subtitle>
+            </v-list-item-content>
+
+            <v-spacer></v-spacer>
+            <v-btn icon @click="showAwaySquad = !showAwaySquad">
+              <v-icon>
+                {{ showAwaySquad ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
+              </v-icon>
+            </v-btn>
+          </v-list-item>
+          <v-expand-transition>
+            <div v-show="showAwaySquad">
+              <v-divider></v-divider>
+              <squad-list :squad="away.Players"></squad-list>
+            </div>
+          </v-expand-transition>
         </div>
       </v-tab-item>
       <v-tab-item>
@@ -66,5 +119,8 @@ export default class Dugout extends Vue {
   @Prop({ required: false }) awaySquad!: any;
 
   private tab: any = null;
+
+  private showHomeSquad = false;
+  private showAwaySquad = false;
 }
 </script>

@@ -27,7 +27,7 @@
           <v-btn @click="submit" :color="`${isUpdate ? 'warning' : 'success'}`">
             {{ isUpdate ? 'Update' : 'Create Season' }}
           </v-btn>
-          <v-btn @click="$router.push('/competitions')" color="secondary">
+          <v-btn @click="$router.push('/a/competitions')" color="secondary">
             Cancel
           </v-btn>
           <v-btn v-if="isUpdate" @click="deleteSeason" color="error">

@@ -3,9 +3,9 @@
     <v-toolbar>
       <!-- Current day -->
       <v-toolbar-title>
-        Current year
+        Current Day
         <span class="subtitle-1 font-weight-bold indigo--text">
-          {{ calendar.YearString }}
+          {{ calendar.CurrentDay }} {{ calendar.YearString }}
         </span>
       </v-toolbar-title>
     </v-toolbar>
@@ -21,103 +21,15 @@
               <template v-if="!selectedDay.isFree">
                 <v-row class="px-6">
                   <v-col cols="6">
-                    <v-card>
-                      <v-card-subtitle>
-                        {{ selectedDay.Matches[0].Competition }}
-                        <v-icon small color="amber lighten-3">
-                          mdi-trophy
-                        </v-icon>
-                      </v-card-subtitle>
-
-                      <v-card-text>
-                        <v-avatar>
-                          <v-icon>
-                            ${{ selectedDay.Matches[0].Fixture.Home }}
-                          </v-icon>
-                        </v-avatar>
-                        vs
-                        <v-avatar>
-                          <v-icon>
-                            ${{ selectedDay.Matches[0].Fixture.Away }}
-                          </v-icon>
-                        </v-avatar>
-
-                        <div class="pa-0 text-center">
-                          <p class="mb-2 caption white--text">
-                            {{ selectedDay.Matches[0].Fixture.Title }}
-                          </p>
-
-                          <p class="mb-0 caption">
-                            {{ selectedDay.Matches[0].Fixture.Stadium }}
-                          </p>
-                        </div>
-                      </v-card-text>
-
-                      <v-card-actions>
-                        <template v-if="seasons">
-                          <v-btn
-                            depressed
-                            :disabled="selectedDay.Matches[0].Fixture.Played"
-                            :to="
-                              '/matchzone/' +
-                                selectedDay.Matches[0].Fixture._id.toString()
-                            "
-                          >
-                            Play
-                          </v-btn>
-                        </template>
-                      </v-card-actions>
-                    </v-card>
+                    <fixture-card
+                      :Match="selectedDay.Matches[0]"
+                    ></fixture-card>
                   </v-col>
 
                   <v-col cols="6">
-                    <v-card>
-                      <v-card-subtitle>
-                        {{ selectedDay.Matches[1].Competition }}
-                        <v-icon small color="amber lighten-3">
-                          mdi-trophy
-                        </v-icon>
-                      </v-card-subtitle>
-
-                      <v-card-text>
-                        <v-avatar>
-                          <v-icon>
-                            ${{ selectedDay.Matches[1].Fixture.Home }}
-                          </v-icon>
-                        </v-avatar>
-                        vs
-                        <v-avatar>
-                          <v-icon>
-                            ${{ selectedDay.Matches[1].Fixture.Away }}
-                          </v-icon>
-                        </v-avatar>
-
-                        <div class="pa-0 text-center">
-                          <p class="mb-2 caption white--text">
-                            {{ selectedDay.Matches[1].Fixture.Title }}
-                          </p>
-
-                          <p class="mb-0 caption">
-                            {{ selectedDay.Matches[1].Fixture.Stadium }}
-                          </p>
-                        </div>
-                      </v-card-text>
-
-                      <v-card-actions>
-                        <template v-if="seasons">
-                          <v-btn
-                            depressed
-                            :disabled="selectedDay.Matches[1].Fixture.Played"
-                            :to="
-                              '/matchzone/' +
-                                selectedDay.Matches[1].Fixture._id.toString()
-                            "
-                          >
-                            Play
-                          </v-btn>
-                        </template>
-                      </v-card-actions>
-                    </v-card>
+                    <fixture-card
+                      :Match="selectedDay.Matches[1]"
+                    ></fixture-card>
                   </v-col>
                 </v-row>
               </template>
@@ -193,10 +105,12 @@
 import { Component, Vue } from 'vue-property-decorator';
 import DayScroll from '../../components/calendar/day-scroll.vue';
 import StandingsScroller from '@/components/seasons/standings-scroller.vue';
+import FixtureCard from '@/components/user-dashboard/fixture-card.vue';
 @Component({
   components: {
     DayScroll,
     StandingsScroller,
+    FixtureCard,
   },
 })
 export default class UserDashboard extends Vue {

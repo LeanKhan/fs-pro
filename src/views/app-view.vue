@@ -169,6 +169,12 @@ export default class AppView extends Vue {
     { title: 'Home', icon: 'mdi-soccer', link: '/a', color: 'primary' },
     { title: 'Clubs', icon: 'mdi-security', link: '/a/clubs', color: 'amber' },
     {
+      title: 'Calendar',
+      icon: 'mdi-calendar',
+      link: '/a/calendar',
+      color: 'indigo',
+    },
+    {
       title: 'Players',
       icon: 'mdi-account',
       link: '/a/players',
@@ -272,7 +278,10 @@ export default class AppView extends Vue {
         { withCredentials: true }
       )
       .then(response => {
-        this.$store.dispatch('SET_USER', {...this.user, session: response.data.sessionID})
+        this.$store.dispatch('SET_USER', {
+          ...this.user,
+          session: response.data.sessionID,
+        });
       })
       .catch(response => {
         console.log('Error entering in! ', response.data.error);

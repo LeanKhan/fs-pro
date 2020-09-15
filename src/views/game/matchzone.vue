@@ -35,6 +35,14 @@
       <v-subheader class="mx-auto">
         MATXHZONE
       </v-subheader>
+
+      <v-spacer></v-spacer>
+
+      <v-btn depressed small rounded @click="$router.push('/u')">
+        <v-icon>
+          mdi-close
+        </v-icon>
+      </v-btn>
     </v-app-bar>
 
     <v-container fluid class="pa-0">
@@ -70,7 +78,7 @@
                   >
                     <span class="body-2 cyan--text accent-3">84:00</span>
                     <span class="grey--text">
-                      Epson Bellean League - {{ fixture.LeagueCode }}
+                      {{ fixture.LeagueCode }}
                     </span>
                   </div>
 
@@ -128,7 +136,7 @@
 
                         <div>
                           <v-chip small class="mt-4">
-                            Full Time
+                            Kickoff
                           </v-chip>
                         </div>
                       </div>
@@ -152,21 +160,12 @@
                   <!-- Setup button -->
                   <v-overlay absolute :value="showPlayOverlay">
                     <v-btn
-                      v-if="!imReady"
-                      class="mt-2"
-                      color="green accent-3"
-                      @click="openLobby = true"
-                    >
-                      SETUP
-                    </v-btn>
-
-                    <v-btn
-                      v-else
+                      v-if="!matchStarted"
                       class="mt-2"
                       color="green accent-3"
                       @click="startGame"
                     >
-                      START
+                      SETUP
                     </v-btn>
                   </v-overlay>
 
@@ -278,12 +277,7 @@
 
               <v-spacer></v-spacer>
               <v-toolbar-items>
-                <v-btn
-                  :disabled="imSetup"
-                  class="mt-2"
-                  color="primary"
-                  @click="setupGame"
-                >
+                <v-btn :disabled="imSetup" class="mt-2" color="primary">
                   SETUP
                 </v-btn>
               </v-toolbar-items>
@@ -299,18 +293,17 @@
       </v-row>
     </v-container>
 
-    <game-lobby
+    <!-- <game-lobby
       :show.sync="openLobby"
       :imReady="imReady"
       @ready="ready"
-    ></game-lobby>
+    ></game-lobby> -->
   </div>
 </template>
 
 <script lang="ts">
 // @ is an alias to /src
 import { Component, Vue } from 'vue-property-decorator';
-import { Socket } from 'vue-socket.io-extended';
 import ClubWidget from '@/components/matchzone/club.vue';
 import GameLobby from '@/components/matchzone/game-lobby.vue';
 // Widgets //
@@ -346,6 +339,8 @@ export default class MatchZone extends Vue {
 
   private showPlayOverlay = true;
 
+  private matchStarted = false;
+
   private imSetup = false;
 
   // Match data //
@@ -357,89 +352,10 @@ export default class MatchZone extends Vue {
 
   private awaySquad: any = {};
 
-  /** Sockets */
-  @Socket('match-room-joined')
-  onMatchRoomJoined(currentMatch: any) {
-    console.log('currentMatch', currentMatch);
-    this.connected = true;
-    this.currentMatch = currentMatch;
-  }
-
-  @Socket('starting-match')
-  onMatchStarted() {
-    console.log('<===== Match Started =====>');
-  }
-
-  @Socket('user-connected')
-  onUserConnected() {
-    console.log('<===== User connected =====>');
-    this.secondUserConnected = true;
-  }
-
-  @Socket('player-ready')
-  onPlayerReady(currentMatch: any) {
-    console.log('<===== Player ready =====>');
-    this.currentMatch = currentMatch;
-    // this.startGame();
-  }
-
-  @Socket('game-setup')
-  onGameSetup(game: any) {
-    console.log('<===== Game has been setup :) =====>');
-    this.imSetup = true;
-    console.log(game);
-  }
-
-  @Socket('game-complete')
-  onGameComplete(game: any) {
-    console.log('<===== Game has been played :) =====>');
-    this.showPlayOverlay = false;
-    this.matchFinished = true;
-    this.matchDetails = game.matchDetails;
-    this.matchEvents = game.matchEvents;
-    this.homeSquad = game.homeSquad;
-    this.awaySquad = game.awaySqaud;
-  }
-  /** Sockets */
-
   /** Computed */
 
   get user() {
     return this.$store.getters.user;
-  }
-
-  get allConnected() {
-    if (this.currentMatch.users) {
-      // Check is everyone is not connected
-      return this.currentMatch.users.every((u: any) => {
-        return u.connected;
-      });
-    }
-
-    return false;
-  }
-
-  get allReady() {
-    if (this.currentMatch.users) {
-      // Check is everyone is not connected
-      return this.currentMatch.users.every((u: any) => {
-        return u.ready;
-      });
-    }
-
-    return false;
-  }
-
-  get imReady() {
-    if (this.currentMatch.users) {
-      // Check is everyone is not connected
-      const me = this.currentMatch.users.find(
-        (u: any) => u.id == this.user.userID
-      );
-      return me.ready;
-    }
-
-    return false;
   }
 
   /** Mathods */
@@ -452,30 +368,24 @@ export default class MatchZone extends Vue {
         console.log(response.data);
 
         this.fixture = response.data.fixture;
-
-        // now emit join match event...
-        this.$socket.client.emit('join-match', {
-          user: this.user.userID,
-          match: this.fixture._id,
-        });
       })
       .catch(response => {
         console.log('Error initiating game => ', response);
       });
   }
 
-  private ready() {
-    this.$socket.client.emit('ready', {
-      user: this.user.userID,
-    });
-  }
+  private playGame(fixture: string) {
+    this.$axios
+      .post(`/game/new-game`, { fixture, user: this.user.userID })
+      .then(response => {
+        // Check for errors here o
+        console.log(response.data);
 
-  private setupGame() {
-    this.$socket.client.emit('setup-game');
-  }
-
-  private startGame() {
-    this.$socket.client.emit('start-game');
+        this.fixture = response.data.fixture;
+      })
+      .catch(response => {
+        console.log('Error initiating game => ', response);
+      });
   }
 
   mounted() {

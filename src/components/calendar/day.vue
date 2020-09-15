@@ -82,10 +82,10 @@
 
 <script lang="ts">
 import { Component, Vue, Prop } from 'vue-property-decorator';
-import { ICalendarDay } from '../../interfaces/calendar';
+import { IDay } from '../../interfaces/calendar';
 @Component
 export default class CalendarDay extends Vue {
-  @Prop({ required: true }) readonly day!: ICalendarDay;
+  @Prop({ required: true }) readonly day!: IDay;
   @Prop({ required: true }) readonly toggle!: any;
   @Prop({ required: true }) readonly active!: any;
   @Prop({ required: true }) readonly singleLeague!: boolean;

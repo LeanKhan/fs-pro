@@ -51,7 +51,7 @@
         <v-row>
           <v-col cols="8">
             <!-- Current Fixture -->
-            <v-card color="primary">
+            <v-card v-if="selectedDay" color="primary">
               <template v-if="!selectedDay.isFree">
                 <v-card
                   color="transparent"
@@ -99,7 +99,14 @@
                         </v-card-subtitle>
 
                         <template v-if="season && season.isStarted">
-                          <v-btn :to="'/matchzone/' + selectedDay.Matches[0].Fixture._id.toString()">Play</v-btn>
+                          <v-btn
+                            :to="
+                              '/matchzone/' +
+                                selectedDay.Matches[0].Fixture._id.toString()
+                            "
+                          >
+                            Play
+                          </v-btn>
                         </template>
                       </v-col>
                     </v-row>
@@ -108,9 +115,12 @@
               </template>
 
               <template v-else>
-                <v-sheet height="180px" width="100%" color="transparent">
-                  No matches today! :)
-                </v-sheet>
+                <v-card color="grey" height="190px">
+                  <v-card-text>
+                    No matches today
+                    <v-icon color="green">mdi-football</v-icon>
+                  </v-card-text>
+                </v-card>
               </template>
 
               <!-- Fixtures scroller -->
@@ -176,7 +186,7 @@ import { ClubZone, SquadZone, TransferZone } from './zones';
 // Other UI components
 import DayScroll from '@/components/calendar/day-scroll.vue';
 import StandingsScroller from '@/components/seasons/standings-scroller.vue';
-import { ICalendar, ICalendarDay } from '@/interfaces/calendar';
+import { ICalendar, IDay } from '@/interfaces/calendar';
 // import { IFixture } from '@/interfaces/fixture';
 @Component({
   components: {
@@ -206,6 +216,8 @@ export default class ClubHome extends Vue {
 
   private seasonTab = null;
 
+  private days: IDay[] = [];
+
   /** Club calendar */
   get calendar(): ICalendar {
     return this.$store.state.calendar;
@@ -216,7 +228,7 @@ export default class ClubHome extends Vue {
   }
 
   get clubDays() {
-    return this.calendar.Days.map(day => {
+    return this.days.map(day => {
       const Matches = day.Matches.filter(match => {
         return match.Competition == this.club.LeagueCode;
       });
@@ -235,11 +247,11 @@ export default class ClubHome extends Vue {
   }
 
   get selectedDay() {
-    if (this.calendar.Days) {
-      return this.calendar.Days[this.selectedDayIndex];
+    if (this.days) {
+      return this.days[this.selectedDayIndex];
     }
 
-    return { isFree: false } as ICalendarDay;
+    return { isFree: false } as IDay;
   }
 
   /** Calendar day */
@@ -275,6 +287,19 @@ export default class ClubHome extends Vue {
       });
   }
 
+  private getDays() {
+    const query =
+      '/calendar/JUN-2020/days?paginate=true&populate=true&week=1&limit=14';
+    this.$axios
+      .get(query)
+      .then(response => {
+        this.days = response.data.payload;
+      })
+      .catch(error => {
+        console.log('Error getting current seasons!', error);
+      });
+  }
+
   private newGame() {
     // send that event and wait for the result...
     // if success then go to match zone and send 'join-match' event...
@@ -284,6 +309,7 @@ export default class ClubHome extends Vue {
   private mounted(): void {
     const clubId = this.$route.params['id'];
 
+    this.getDays();
     this.fetchClub(clubId);
   }
 
