@@ -218,15 +218,19 @@ export default class ClubForm extends Vue {
 
   // TODO: upload files to server!
 
-  public countries: string[] = [
-    'Ashter',
-    'Bellean',
-    'UPP',
-    'Kiyoto',
-    'Ekhastan',
-  ];
+  // public countries: string[] = [
+  //   'Ashter',
+  //   'Bellean',
+  //   'UPP',
+  //   'Kiyoto',
+  //   'Ekhastan',
+  // ];
 
   private uploading = false;
+
+  get countries(): string[] {
+    return this.$store.getters.countries;
+  }
 
   private upload() {
     const fileUploader = this.$refs.fileUploader as Vue;

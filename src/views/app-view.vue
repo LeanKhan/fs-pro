@@ -119,6 +119,22 @@
       </v-container>
     </v-content>
 
+    <!-- TODO: add a global snackbar to app -->
+    <!-- <v-snackbar color="dark" timeout="2000" :value="showSnackbar">
+      Hi!
+    </v-snackbar> -->
+
+    <!-- TODO: clean this up! -->
+    <v-overlay v-model="errorOverlay">
+      <v-sheet class="text-center pa-2" width="500px" height="300px">
+        Error!
+        <br />
+        <v-btn color="green" @click="goBackToPreviousState">
+          Go Back
+        </v-btn>
+      </v-sheet>
+    </v-overlay>
+
     <!-- <v-footer app>
       <v-row dir="row">
      
@@ -152,13 +168,15 @@ import { apiUrl } from '@/store';
   },
 })
 export default class AppView extends Vue {
-  private drawer = false;
+  private drawer = true;
 
   private appBar = true;
 
   private show = false;
 
   public api: string = apiUrl;
+
+  // public errorOverlay = false;
 
   // private items(): any[] {
   //   if(this.$route.fullPath.split('/'))
@@ -184,7 +202,13 @@ export default class AppView extends Vue {
       title: 'Competitions',
       icon: 'mdi-trophy',
       link: '/a/competitions',
-      color: 'yellow accent-1',
+      color: 'yellow',
+    },
+    {
+      title: 'Managers',
+      icon: 'mdi-account',
+      link: '/a/managers',
+      color: 'cyan',
     },
   ];
 
@@ -220,8 +244,17 @@ export default class AppView extends Vue {
       });
   }
 
+  private goBackToPreviousState() {
+    this.$store.commit('TOGGLE_ERROR_OVERLAY');
+    this.$router.back();
+  }
+
   get user() {
     return this.$store.getters.user;
+  }
+
+  get errorOverlay() {
+    return this.$store.getters.errorOverlay;
   }
 
   get userNavItems(): any[] {
@@ -293,6 +326,8 @@ export default class AppView extends Vue {
     // if userMode then fetch User's clubs and stuff...
 
     this.$store.dispatch('GET_USER');
+
+    this.$store.dispatch('GET_COUNTRIES');
 
     // Enter app :p wait for getting user first! XD
     this.enter();

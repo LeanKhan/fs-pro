@@ -79,6 +79,7 @@ export default class Calendar extends Vue {
     },
   ];
 
+  // TODO: I don't like the way we are creating calendars...
   private create() {
     this.$axios
       .post('/calendar/new?month=JUN&year=2020', { ...this.competitions })
@@ -103,7 +104,7 @@ export default class Calendar extends Vue {
 
   private getCompetitions() {
     this.$axios
-      .get('/seasons/all?started=false')
+      .get('/seasons?started=false')
       .then(response => {
         this.calendars = response.data.payload;
       })

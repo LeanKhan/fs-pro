@@ -161,13 +161,17 @@ export default class ComponentForm extends Vue {
     Seasons: [],
   };
 
-  public countries: string[] = [
-    'Ashter',
-    'Bellean',
-    'UPP',
-    'Kiyoto',
-    'Ekhastan',
-  ];
+  // public countries: string[] = [
+  //   'Ashter',
+  //   'Bellean',
+  //   'UPP',
+  //   'Kiyoto',
+  //   'Ekhastan',
+  // ];
+
+  get countries(): string[] {
+    return this.$store.getters.countries;
+  }
 
   private mounted(): void {
     if (this.isUpdate) {

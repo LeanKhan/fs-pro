@@ -30,7 +30,17 @@ export interface RootState {
   };
   calendar: ICalendar;
   currentYear: string;
+  countries: string[];
   seasons: any[];
+  toast: {
+    show: boolean;
+    style: '';
+    actionText: '';
+    actionLink: '';
+    message: '';
+    withAction: boolean;
+  };
+  errorOverlay: boolean;
   // state: MainState;
 }
 
@@ -51,6 +61,16 @@ const state = {
   calendar: {} as unknown,
   currentYear: 'JUN-2020',
   seasons: [],
+  countries: [],
+  toast: {
+    show: false,
+    message: '',
+    style: '',
+    actionText: '',
+    actionLink: '',
+    withAction: false,
+  },
+  errorOverlay: false,
 } as RootState;
 
 export default new Vuex.Store({
@@ -65,6 +85,15 @@ export default new Vuex.Store({
     user: state => {
       return state.user;
     },
+    countries: state => {
+      return state.countries;
+    },
+    toast: state => {
+      return state.toast;
+    },
+    errorOverlay: state => {
+      return state.errorOverlay;
+    },
   },
   mutations: {
     SET_USER: (state, payload) => {
@@ -78,6 +107,31 @@ export default new Vuex.Store({
     },
     SET_SEASONS: (state, payload) => {
       state.seasons = payload;
+    },
+    SET_COUNTRIES: (state, payload) => {
+      state.countries = payload;
+    },
+    SHOW_TOAST: (
+      state,
+      { message, style, actionText, actionLink, withAction }
+    ) => {
+      state.toast.show = true;
+      state.toast.message = message;
+      state.toast.style = style;
+      state.toast.actionText = actionText;
+      state.toast.actionLink = actionLink;
+      state.toast.withAction = withAction;
+    },
+    HIDE_TOAST: state => {
+      state.toast.show = false;
+      state.toast.message = '';
+      state.toast.style = '';
+      state.toast.actionText = '';
+      state.toast.actionLink = '';
+      state.toast.withAction = false;
+    },
+    TOGGLE_ERROR_OVERLAY: state => {
+      state.errorOverlay = !state.errorOverlay;
     },
   },
   actions: {
@@ -126,9 +180,9 @@ export default new Vuex.Store({
           console.log('error => ', response);
         });
     },
-    SET_CALENDAR: ({ commit, state }) => {
+    SET_CALENDAR: ({ commit }) => {
       $axios
-        .get(`/calendar/current?page=1&limit=14&year=${state.currentYear}`)
+        .get(`/calendar/current?page=1&limit=14&populate=false`)
         .then(response => {
           if (response.data.success) {
             commit('SET_CALENDAR', response.data.payload);
@@ -147,6 +201,22 @@ export default new Vuex.Store({
         .catch(error => {
           console.log('Error getting current seasons!', error);
         });
+    },
+    GET_COUNTRIES: ({ commit }) => {
+      $axios
+        .get('/countries')
+        .then(res => {
+          commit('SET_COUNTRIES', res.data.payload);
+        })
+        .catch(error => {
+          console.log('Error getting countries!', error);
+        });
+    },
+    SHOW_TOAST: ({ commit }, payload) => {
+      commit('SHOW_TOAST', payload);
+    },
+    HIDE_TOAST: ({ commit }) => {
+      commit('HIDE_TOAST');
     },
   },
 });

@@ -83,7 +83,8 @@
           <v-card-title>
             Fixtures
           </v-card-title>
-          <v-sheet
+          <fixtures-table :fixtures="season.Fixtures"></fixtures-table>
+          <!-- <v-sheet
             class="text-center"
             color="secondary secondary-lighten"
             height="250"
@@ -91,7 +92,7 @@
             <span>
               Season is not activated
             </span>
-          </v-sheet>
+          </v-sheet> -->
         </v-card>
       </v-col>
       <v-col cols="12">
@@ -110,10 +111,12 @@
 import { Component, Vue } from 'vue-property-decorator';
 import { Season } from '@/interfaces/season';
 import StandingsScroller from '@/components/seasons/standings-scroller.vue';
+import FixturesTable from '@/components/seasons/fixtures-table.vue';
 
 @Component({
   components: {
     StandingsScroller,
+    FixturesTable,
   },
 })
 export default class ViewSeason extends Vue {
@@ -146,7 +149,7 @@ export default class ViewSeason extends Vue {
   private mounted(): void {
     const seasonID = this.$route.params['seasonId'];
     this.$axios
-      .get(`/seasons/season/${seasonID}`)
+      .get(`/seasons/${seasonID}`)
       .then(response => {
         this.season = response.data.payload as Season;
       })

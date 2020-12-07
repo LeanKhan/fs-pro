@@ -12,6 +12,8 @@
           </template>
         </v-toolbar-title>
 
+        <!-- TODO: Add backer button, make tabs routable, fix the router function after firing manager -->
+
         <v-spacer></v-spacer>
         <template v-if="club">
           <v-icon x-large>${{ club.ClubCode }}</v-icon>
@@ -169,7 +171,7 @@
         <squad-zone></squad-zone>
       </v-tab-item>
       <v-tab-item>
-        <club-zone></club-zone>
+        <club-zone :club="club" @update-available="refresh"></club-zone>
       </v-tab-item>
       <v-tab-item>
         <transfer-zone></transfer-zone>
@@ -274,8 +276,12 @@ export default class ClubHome extends Vue {
   }
 
   private fetchClub(clubId: string): void {
+    const populate = [
+      { path: 'Players', select: 'FirstName LastName Rating Postition' },
+      { path: 'Manager' },
+    ];
     this.$axios
-      .get(`/clubs/${clubId}?populate=Players`)
+      .get(`/clubs/${clubId}?populate=${JSON.stringify(populate)}`)
       .then(response => {
         // Check for errors here o
         if (response.data.success) {
@@ -298,6 +304,10 @@ export default class ClubHome extends Vue {
       .catch(error => {
         console.log('Error getting current seasons!', error);
       });
+  }
+
+  private refresh() {
+    this.fetchClub(this.club._id);
   }
 
   private newGame() {

@@ -53,7 +53,7 @@
 
               <div class="title">
                 <span class="subtitle-1 grey--text">Manager:</span>
-                {{ club.Manager }}
+                {{ club.Manager.FirstName }} {{ club.Manager.LastName }}
               </div>
 
               <div class="title">
@@ -209,8 +209,9 @@ export default class ViewClub extends Vue {
   private fetchClub(): void {
     const clubId = this.$route.params['id'];
 
+    const populate = JSON.stringify([{ path: 'Players' }, { path: 'Manager' }]);
     this.$axios
-      .get(`/clubs/${clubId}?populate=Players`)
+      .get(`/clubs/${clubId}?populate=${populate}`)
       .then(response => {
         // Check for errors here o
         if (response.data.success) {
@@ -219,6 +220,7 @@ export default class ViewClub extends Vue {
       })
       .catch(response => {
         console.log('Response => ', response);
+        this.$store.commit('TOGGLE_ERROR_OVERLAY');
       })
       .finally(() => {
         this.shouldReload = false;

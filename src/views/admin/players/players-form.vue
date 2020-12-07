@@ -257,20 +257,20 @@ export default class PlayerForm extends Vue {
 
   // TODO: upload files to server!
 
-  public countries: string[] = [
-    'Ashter',
-    'Bellean',
-    'UPP',
-    'Kev',
-    'Simeon',
-    'Kiyoto',
-    'Ekhastan',
-    'Huntaarland',
-    'Legardio',
-    'Stov',
-    'Proland',
-    'Pregge',
-  ];
+  // public countries: string[] = [
+  //   'Ashter',
+  //   'Bellean',
+  //   'UPP',
+  //   'Kev',
+  //   'Simeon',
+  //   'Kiyoto',
+  //   'Ekhastan',
+  //   'Huntaarland',
+  //   'Legardio',
+  //   'Stov',
+  //   'Proland',
+  //   'Pregge',
+  // ];
 
   public appearances: any[] = [];
 
@@ -290,6 +290,10 @@ export default class PlayerForm extends Vue {
     'Strength',
     'Stamina',
   ];
+
+  get countries(): string[] {
+    return this.$store.getters.countries;
+  }
 
   get rating(): number {
     return calculatePlayerRating(this.form.Attributes, this.form.Position);

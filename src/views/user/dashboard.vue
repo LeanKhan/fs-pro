@@ -2,11 +2,8 @@
   <div>
     <v-toolbar>
       <!-- Current day -->
-      <v-toolbar-title>
-        Current Day
-        <span class="subtitle-1 font-weight-bold indigo--text">
-          {{ calendar.CurrentDay }} {{ calendar.YearString }}
-        </span>
+      <v-toolbar-title class="subtitle-1 font-weight-bold indigo--text">
+        {{ calendar.CurrentDay }} {{ calendar.YearString }}
       </v-toolbar-title>
     </v-toolbar>
 
@@ -102,7 +99,7 @@
 </template>
 
 <script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+import { Component, Vue, Watch } from 'vue-property-decorator';
 import DayScroll from '../../components/calendar/day-scroll.vue';
 import StandingsScroller from '@/components/seasons/standings-scroller.vue';
 import FixtureCard from '@/components/user-dashboard/fixture-card.vue';
@@ -127,6 +124,10 @@ export default class UserDashboard extends Vue {
 
   private days: any = [];
 
+  get currentDay() {
+    return this.$store.state.calendar.CurrentDay;
+  }
+
   get calendar() {
     return this.$store.state.calendar;
   }
@@ -137,6 +138,11 @@ export default class UserDashboard extends Vue {
 
   get selectedDay() {
     return this.days[this.selectedDayIndex];
+  }
+
+  @Watch('currentDay', { immediate: true })
+  onCurrentDayChanged(day: number) {
+    this.getDays(day);
   }
 
   // private getSeasons() {
@@ -150,9 +156,14 @@ export default class UserDashboard extends Vue {
   //     });
   // }
 
-  private getDays() {
-    const query =
-      '/calendar/JUN-2020/days?paginate=true&populate=true&week=1&limit=14';
+  private getDays(day: number) {
+    // if the currentDay is greater than 14 get the next page...
+    const limit = 7;
+    const week = Math.ceil(this.calendar.CurrentDay / limit);
+
+    console.log('Current Day =', day);
+
+    const query = `/calendar/JUN-2020/days?paginate=true&populate=true&week=${week}&limit=${limit}`;
     this.$axios
       .get(query)
       .then(response => {
@@ -167,9 +178,9 @@ export default class UserDashboard extends Vue {
     this.selectedDayIndex = val;
   }
 
-  mounted() {
-    this.getDays();
-  }
+  // mounted() {
+  //   this.getDays();
+  // }
 }
 </script>
 

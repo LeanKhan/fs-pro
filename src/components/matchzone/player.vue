@@ -27,6 +27,9 @@
   </v-list-item>
 </template>
 <script lang="ts">
+// TODO: Should show players after the Match rating
+// TODO: Should indicate MOTM also
+// TODO: Should also show who scored and how many goals. How do we add a pitch there?
 import { Component, Vue, Prop } from 'vue-property-decorator';
 
 @Component({})

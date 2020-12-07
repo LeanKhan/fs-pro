@@ -87,7 +87,7 @@ export default class Fixtures extends Vue {
   private getFixtures() {
     this.fixturesLoading = true;
     this.$axios
-      .get(`/seasons/${this.selectedSeason._id}/fixtures/all`)
+      .get(`/seasons/${this.selectedSeason._id}/fixtures`)
       .then(response => {
         this.fixtures = response.data.payload;
         console.log(response.data.payload);
