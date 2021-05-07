@@ -4,9 +4,9 @@
     @input="$emit('update:show', $event)"
     height="500px"
     width="650px"
-    overlay-opactiy="0.6"
+    overlay-opacity="0.6"
   >
-    <v-card height="100%" tile>
+    <v-card height="100%" tile :loading="!allReady">
       <v-toolbar color="green accent-3" dense flat tile>
         <v-toolbar-title class="mx-auto">Get ready to play!</v-toolbar-title>
       </v-toolbar>
@@ -15,18 +15,22 @@
           <v-col>
             <v-card flat tile>
               <v-card-title>
-                You
+                Player 1
               </v-card-title>
               <v-card-text>
-                You game?
+                Are you ready?
               </v-card-text>
               <v-card-actions>
-                <template v-if="!imReady">
-                  <v-btn color="primary" depressed @click="$emit('ready')">
-                    I'm ready!
+                <template>
+                  <v-btn
+                    color="primary darken-3"
+                    depressed
+                    @click="player1Ready = !player1Ready"
+                  >
+                    READY
                   </v-btn>
                 </template>
-                <template v-else>
+                <template v-if="player1Ready">
                   Oya na!
                   <v-icon>
                     mdi-smile
@@ -38,16 +42,27 @@
           <v-col>
             <v-card flat tile>
               <v-card-title>
-                The other player
+                Player 2
               </v-card-title>
               <v-card-text>
-                Their team...
+                Are you ready?
               </v-card-text>
               <v-card-actions>
-                <v-progress-linear
-                  indeterminate
-                  color="yellow darken-2"
-                ></v-progress-linear>
+                <template>
+                  <v-btn
+                    color="pink darken-3"
+                    depressed
+                    @click="player2Ready = !player2Ready"
+                  >
+                    READY
+                  </v-btn>
+                </template>
+                <template v-if="player2Ready">
+                  Oya na!
+                  <v-icon>
+                    mdi-smile
+                  </v-icon>
+                </template>
               </v-card-actions>
             </v-card>
           </v-col>
@@ -57,11 +72,26 @@
   </v-dialog>
 </template>
 <script lang="ts">
-import { Component, Vue, Prop } from 'vue-property-decorator';
+import { Component, Vue, Prop, Watch } from 'vue-property-decorator';
 
 @Component({})
 export default class GameLobby extends Vue {
   @Prop({ required: true, default: false, type: Boolean }) show!: boolean;
-  @Prop({ required: true, default: false, type: Boolean }) imReady!: boolean;
+
+  private player1Ready = false;
+  private player2Ready = false;
+  private skip = false;
+
+  get allReady() {
+    return this.player1Ready && this.player2Ready;
+  }
+
+  @Watch('allReady', { immediate: true })
+  onAllReady(ready: boolean) {
+    if (ready) {
+      console.log('All are ready!');
+      this.$emit('all-ready');
+    }
+  }
 }
 </script>

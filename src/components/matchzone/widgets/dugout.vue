@@ -117,10 +117,21 @@ export default class Dugout extends Vue {
   @Prop({ required: true }) away!: any;
   @Prop({ required: false }) homeSquad!: any;
   @Prop({ required: false }) awaySquad!: any;
+  @Prop({ required: false }) match!: any;
 
   private tab: any = null;
 
   private showHomeSquad = false;
   private showAwaySquad = false;
+
+  get HomeSideDetails() {
+    if (this.match) return this.match.HomeSideDetails;
+    else return false;
+  }
+
+  get AwaySideDetails() {
+    if (this.match) return this.match.AwaySideDetails;
+    else return false;
+  }
 }
 </script>

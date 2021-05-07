@@ -24,16 +24,10 @@
         </v-avatar>
       </v-badge>
 
-      <template v-if="connected">
-        <v-chip>Match Room Connected!</v-chip>
-      </template>
-
-      <template v-if="!allConnected">
-        <v-chip>Waiting For Second user</v-chip>
-      </template>
-
       <v-subheader class="mx-auto">
         MATXHZONE
+
+        <v-chip v-if="fixture.isFinalMatch">LAST MATCH</v-chip>
       </v-subheader>
 
       <v-spacer></v-spacer>
@@ -76,7 +70,7 @@
                   <div
                     class="d-flex justify-center align-center flex-column caption"
                   >
-                    <span class="body-2 cyan--text accent-3">84:00</span>
+                    <span class="body-2 cyan--text accent-3">90:00</span>
                     <span class="grey--text">
                       {{ fixture.LeagueCode }}
                     </span>
@@ -88,6 +82,7 @@
                       <!-- Home team -->
                       <template v-if="fixture.HomeTeam">
                         <club-widget
+                          :winner="winner"
                           :clubName="fixture.HomeTeam.Name"
                           :clubCode="fixture.Home"
                           :isHome="true"
@@ -108,9 +103,12 @@
                           <div>
                             <span>
                               {{
-                                matchFinished ? matchDetails.HomeTeamScore : 0
+                                matchFinished
+                                  ? fixture.match.Details.HomeTeamScore
+                                  : 0
                               }}
                             </span>
+
                             <v-divider
                               style="border-width: 2px !important;border-radius: 2px !important"
                               class="deep-purple darken-3"
@@ -124,7 +122,9 @@
                           <div>
                             <span>
                               {{
-                                matchFinished ? matchDetails.AwayTeamScore : 0
+                                matchFinished
+                                  ? fixture.match.Details.AwayTeamScore
+                                  : 0
                               }}
                             </span>
                             <v-divider
@@ -135,9 +135,17 @@
                         </div>
 
                         <div>
-                          <v-chip small class="mt-4">
+                          <!-- <v-chip small class="mt-4">
                             Kickoff
-                          </v-chip>
+                          </v-chip> -->
+                          <v-btn
+                            v-if="!allReady"
+                            class="mt-2"
+                            color="green accent-3"
+                            @click="openLobby = true"
+                          >
+                            START
+                          </v-btn>
                         </div>
                       </div>
                     </v-col>
@@ -146,6 +154,7 @@
                       <!-- Away team -->
                       <template v-if="fixture.AwayTeam">
                         <club-widget
+                          :won="winner"
                           :clubName="fixture.AwayTeam.Name"
                           :clubCode="fixture.Away"
                           :isHome="false"
@@ -158,15 +167,15 @@
                   </v-row>
 
                   <!-- Setup button -->
-                  <v-overlay absolute :value="showPlayOverlay">
-                    <v-btn
-                      v-if="!matchStarted"
-                      class="mt-2"
-                      color="green accent-3"
-                      @click="startGame"
+                  <v-overlay absolute :value="starting && !matchFinished">
+                    <v-progress-circular
+                      color="success"
+                      size="130"
+                      width="15"
+                      :value="kickoffTimer"
                     >
-                      SETUP
-                    </v-btn>
+                      {{ kickoffTimer }}
+                    </v-progress-circular>
                   </v-overlay>
 
                   <v-row no-gutters class="mt-2">
@@ -190,7 +199,7 @@
 
                 <v-row no-gutters>
                   <v-col cols="8" class="pr-1">
-                    <v-card flat tile height="320px">
+                    <v-card flat tile min-height="320px">
                       <v-toolbar color="green accent-3" dense flat tile>
                         Results
                       </v-toolbar>
@@ -200,17 +209,20 @@
                         </template>
 
                         <results
-                          v-else
+                          v-if="matchFinished"
                           :home="fixture.Home"
                           :away="fixture.Away"
-                          :matchDetails="matchDetails"
+                          :matchDetails="{
+                            Home: fixture.match.HomeSideDetails,
+                            Away: fixture.match.AwaySideDetails,
+                          }"
                         ></results>
                       </v-card-text>
                     </v-card>
                   </v-col>
 
                   <v-col cols="4" class="pl-1">
-                    <v-card flat tile height="320px">
+                    <v-card flat tile min-height="320px">
                       <v-toolbar color="green accent-3" dense flat tile>
                         MOTM
                       </v-toolbar>
@@ -220,7 +232,8 @@
                         </template>
 
                         <template v-else>
-                          <v-badge bottom badge offset-x="10" offset-y="10">
+                          Not working yet :/ sorry! Soon
+                          <!-- <v-badge bottom badge offset-x="10" offset-y="10">
                             <template v-slot:badge>
                               <v-avatar>
                                 <v-icon>
@@ -237,7 +250,7 @@
                                 mdi-ball
                               </v-icon>
                             </v-avatar>
-                          </v-badge>
+                          </v-badge> -->
                         </template>
                       </v-card-text>
                     </v-card>
@@ -284,21 +297,16 @@
               </v-toolbar-items>
             </v-toolbar>
             <dugout
+              v-if="fixture.HomeTeam"
               :home="fixture.HomeTeam"
               :away="fixture.AwayTeam"
-              :homeSquad="homeSquad"
-              :awaySquad="awaySquad"
+              :match="fixture.match"
             ></dugout>
           </v-card>
         </v-col>
       </v-row>
+      <game-lobby :show.sync="openLobby" @all-ready="ready"></game-lobby>
     </v-container>
-
-    <!-- <game-lobby
-      :show.sync="openLobby"
-      :imReady="imReady"
-      @ready="ready"
-    ></game-lobby> -->
   </div>
 </template>
 
@@ -324,23 +332,21 @@ import { apiUrl } from '@/store';
 export default class MatchZone extends Vue {
   public api: string = apiUrl;
 
-  public fixtureId = '';
-
   private fixture: any = {};
 
   private currentMatch: any = {};
 
-  private connected = false;
-
-  private secondUserConnected = false;
+  private allReady = false;
 
   private openLobby = false;
+
+  private kickoffTimer = 0;
+
+  private starting = false;
 
   private matchFinished = false;
 
   private showPlayOverlay = true;
-
-  private matchStarted = false;
 
   private imSetup = false;
 
@@ -359,45 +365,109 @@ export default class MatchZone extends Vue {
     return this.$store.getters.user;
   }
 
+  get winner() {
+    if (this.fixture.match && !this.fixture.match.Draw)
+      return this.fixture.match.HomeSideDetails.Won &&
+        !this.fixture.match.AwaySideDetails.Won
+        ? 'home'
+        : 'away';
+    else return 'draw';
+  }
+
+  get season() {
+    // find the season the club belongs to
+
+    return this.$store.getters.seasons.find(
+      (s: any) => s.CompetitionCode == this.fixture.Season
+    );
+  }
+
+  get fixtureId() {
+    return this.$route.params.fixture;
+  }
+
   /** Mathods */
 
-  private initiateGame(fixture: string) {
+  private ready() {
+    this.openLobby = false;
+
+    this.allReady = true;
+
+    this.starting = true;
+
+    this.playGame();
+  }
+
+  private timer() {
+    let left = 0;
+
+    const t = setInterval(() => {
+      if (left > 3) {
+        clearInterval(t);
+      }
+
+      this.kickoffTimer = 3 - left;
+      left += 1;
+    }, 1000);
+  }
+
+  private getFixture() {
     this.$axios
-      .post(`/game/new-game`, { fixture, user: this.user.userID })
+      .get(`/fixtures/${this.fixtureId}`, {
+        params: {
+          populate: JSON.stringify([
+            { path: 'HomeTeam', populate: { path: 'Players' } },
+            { path: 'AwayTeam', populate: { path: 'Players' } },
+          ]),
+        },
+      })
       .then(response => {
         // Check for errors here o
         console.log(response.data);
 
-        this.fixture = response.data.fixture;
+        this.fixture = response.data.payload;
       })
       .catch(response => {
         console.log('Error initiating game => ', response);
+      })
+      .finally(() => {
+        this.starting = false;
       });
   }
 
-  private playGame(fixture: string) {
+  private endSeason() {
+    const ans = alert('Season is over hurray!\nEnd Season now... you must say okay.');
+
+    if(ans) {
+      // go to Season finishing page...
+      this.$router.push(`/finish/season/${this.fixture.Season}`);
+    }
+  }
+
+  private endSeasonRest() {
+
+  }
+
+  private playGame() {
+    this.timer();
+
     this.$axios
-      .post(`/game/new-game`, { fixture, user: this.user.userID })
+      .get(`/game/kickoff/${this.fixtureId}`)
       .then(response => {
         // Check for errors here o
-        console.log(response.data);
+        // console.log(response.data);
 
-        this.fixture = response.data.fixture;
+        // TODO: please clean this up so you don't repeat stuff!
+        this.fixture = { ...this.fixture, ...response.data.payload };
+        this.matchFinished = true;
       })
       .catch(response => {
-        console.log('Error initiating game => ', response);
+        console.log('Error playing match => ', response);
       });
   }
 
   mounted() {
-    // get match and send request...
-    const fixtureId = this.$route.params.fixture;
-
-    // this.openLobby = true;
-
-    this.fixtureId = fixtureId;
-
-    this.initiateGame(fixtureId);
+    this.getFixture();
   }
 }
 </script>

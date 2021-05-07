@@ -103,6 +103,17 @@
           <v-sheet color="secondary secondary-lighten" height="250"></v-sheet>
         </v-card>
       </v-col>
+
+       <v-col cols="12">
+        <v-card>
+          <v-card-title>
+            Settings
+          </v-card-title>
+          <v-sheet color="secondary secondary-lighten">
+            <v-btn @click="deleteSeason">Delete Season</v-btn>
+          </v-sheet>
+        </v-card>
+      </v-col>
     </v-row>
   </div>
 </template>
@@ -144,6 +155,27 @@ export default class ViewSeason extends Vue {
 
   private startSeason(): void {
     // ... fish ...
+  }
+
+  private deleteSeason(): void {
+        const seasonID = this.$route.params['seasonId'];
+
+    const ans = confirm('Yo, are you ABSOLUTELY SURE ABOUT THIS!\nYou really want to delete this Season and everything about it?\nAll Fixtures will be deleted too.\n Last chance. You can\'t undo this.');
+
+    if(ans) {
+      return this.$axios
+      .delete(`/seasons/${seasonID}`)
+      .then(response => {
+        console.log('Season deleted successfully :)');
+
+        this.$router.back();
+      })
+      .catch(response => {
+        console.log('Error => ', response);
+      });
+    }
+
+    return false;
   }
 
   private mounted(): void {

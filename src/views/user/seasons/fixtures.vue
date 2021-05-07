@@ -99,6 +99,10 @@ export default class Fixtures extends Vue {
         this.fixturesLoading = false;
       });
   }
+
+  private mounted() {
+    this.getFixtures();
+  }
 }
 </script>
 

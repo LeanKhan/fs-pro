@@ -1,7 +1,7 @@
 <template>
   <div>
     <!-- For the stats gan -->
-    <v-simple-table>
+    <v-simple-table v-if="matchDetails">
       <template v-slot:default>
         <tr>
           <td>
@@ -26,7 +26,7 @@
         </tr>
         <tr class="pa-0" v-for="(stat, i) in statLabels" :key="i">
           <td class="pa-0">
-            {{ matchDetails.HomeTeamDetails[stat.key] }}
+            {{ matchDetails.Home[stat.key] }}
           </td>
 
           <td class="font-weight-bold body-2 white--text text-center pa-0">
@@ -34,7 +34,7 @@
           </td>
 
           <td class="pa-0">
-            {{ matchDetails.AwayTeamDetails[stat.key] }}
+            {{ matchDetails.Away[stat.key] }}
           </td>
         </tr>
       </template>

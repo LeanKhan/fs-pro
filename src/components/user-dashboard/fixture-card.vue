@@ -28,11 +28,7 @@
     </v-card-text>
 
     <v-card-actions>
-      <v-btn
-        depressed
-        :disabled="Match.Fixture.Played"
-        :to="'/matchzone/' + Match.Fixture._id.toString()"
-      >
+      <v-btn depressed :to="'/matchzone/' + Match.Fixture._id.toString()">
         Play
       </v-btn>
     </v-card-actions>

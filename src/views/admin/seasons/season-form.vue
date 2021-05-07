@@ -62,7 +62,7 @@ export default class SeasonForm extends Vue {
 
     const url = this.isUpdate
       ? `/${Competition}/seasons/update/`
-      : '/seasons/new?model=season';
+      : '/seasons?model=season';
 
     this.$axios
       .post(url, { data: { ...this.form, CompetitionCode, Competition } })
