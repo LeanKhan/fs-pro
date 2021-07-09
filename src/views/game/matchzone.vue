@@ -240,7 +240,7 @@
                         </template>
 
                         <template v-else>
-                          <motm :motm_id="fixture.Details.MOTM"></motm>
+                          <motm :motm_id="fixture.match.Details.MOTM"></motm>
                         </template>
                       </v-card-text>
                     </v-card>
@@ -270,7 +270,7 @@
                     </template>
                     <!-- TODO: I think this Timeline should be moved to where 'MOTM' widget is and here will be the actual field.  -->
                     <!-- Thank you Jesus! -->
-                    <timeline v-else :Events="fixture.Events"></timeline>
+                    <timeline v-else :Events="fixture.match.Events"></timeline>
                   </v-card-text>
                 </v-card>
               </v-col>
@@ -450,10 +450,10 @@ export default class MatchZone extends Vue {
   }
 
   get mappedHomeSquad() {
-    if (this.matchFinished && this.fixture.HomeSideDetails.PlayerStats) {
+    if (this.matchFinished && this.fixture.match.HomeSideDetails.PlayerStats) {
       return this.fixture.HomeTeam.Players.map((p: any) => ({
         ...p,
-        stats: this.fixture.HomeSideDetails.PlayerStats.find(
+        stats: this.fixture.match.HomeSideDetails.PlayerStats.find(
           (s: any) => p._id == s._id
         ),
       }));
@@ -463,10 +463,10 @@ export default class MatchZone extends Vue {
   }
 
   get mappedAwaySquad() {
-    if (this.matchFinished && this.fixture.AwaySideDetails.PlayerStats) {
+    if (this.matchFinished && this.fixture.match.AwaySideDetails.PlayerStats) {
       return this.fixture.AwayTeam.Players.map((p: any) => ({
         ...p,
-        stats: this.fixture.AwaySideDetails.PlayerStats.find(
+        stats: this.fixture.match.AwaySideDetails.PlayerStats.find(
           (s: any) => p._id == s._id
         ),
       }));
