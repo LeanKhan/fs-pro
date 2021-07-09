@@ -104,7 +104,7 @@
         </v-card>
       </v-col>
 
-       <v-col cols="12">
+      <v-col cols="12">
         <v-card>
           <v-card-title>
             Settings
@@ -155,27 +155,28 @@ export default class ViewSeason extends Vue {
 
   private startSeason(): void {
     // ... fish ...
+    console.log('Starting Season...');
   }
 
-  private deleteSeason(): void {
-        const seasonID = this.$route.params['seasonId'];
+  private deleteSeason() {
+    const seasonID = this.$route.params['seasonId'];
 
-    const ans = confirm('Yo, are you ABSOLUTELY SURE ABOUT THIS!\nYou really want to delete this Season and everything about it?\nAll Fixtures will be deleted too.\n Last chance. You can\'t undo this.');
+    const ans = confirm(
+      "Yo, are you ABSOLUTELY SURE ABOUT THIS!\nYou really want to delete this Season and everything about it?\nAll Fixtures will be deleted too.\n Last chance. You can't undo this."
+    );
 
-    if(ans) {
-      return this.$axios
-      .delete(`/seasons/${seasonID}`)
-      .then(response => {
-        console.log('Season deleted successfully :)');
+    if (ans) {
+      this.$axios
+        .delete(`/seasons/${seasonID}`)
+        .then(res => {
+          console.log('Season deleted successfully :)', res);
 
-        this.$router.back();
-      })
-      .catch(response => {
-        console.log('Error => ', response);
-      });
+          this.$router.back();
+        })
+        .catch(response => {
+          console.log('Error => ', response);
+        });
     }
-
-    return false;
   }
 
   private mounted(): void {

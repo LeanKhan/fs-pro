@@ -15,10 +15,10 @@ const routes: RouteConfig = {
       path: '',
       component: () =>
         import(
-          /* webpackChunkName: "players_home" */ '../views/admin/players/player-home.vue'
+          /* webpackChunkName: "players_home" */ '../views/admin/players/dashboard.vue'
         ),
       name: 'Players Home',
-      meta: { title: 'Home' },
+      meta: { title: 'Players Dashboard' },
     },
     {
       path: 'new',
@@ -33,7 +33,7 @@ const routes: RouteConfig = {
       path: ':id/:code',
       component: () =>
         import(
-          /* webpackChunkName: "player_home" */ '../views/admin/players/dashboard.vue'
+          /* webpackChunkName: "player_home" */ '../views/admin/players/player-home.vue'
         ),
       children: [
         {

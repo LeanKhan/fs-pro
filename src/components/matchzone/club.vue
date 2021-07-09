@@ -1,6 +1,6 @@
 <template>
   <div class="align-center d-flex flex-column " :class="isHome">
-    <v-card-subtitle v-if="!winner">
+    <v-card-subtitle>
       {{ clubName }} -
       <b>{{ clubCode }}</b>
     </v-card-subtitle>
@@ -38,10 +38,10 @@
       ></v-rating>
     </div>
 
-    <div class="caption">
-      <span class="ma-0 pr-2">{{ clubPosition }}</span>
+    <div class="caption" v-if="clubStandings.standing">
+      <span class="ma-0 pr-2">{{ clubStandings.position }} st</span>
       -
-      <span class="ma-0 pl-2">{{ clubPoints }}</span>
+      <span class="ma-0 pl-2">{{ clubStandings.standing.Points }} Pts</span>
     </div>
   </div>
 </template>
@@ -54,8 +54,7 @@ export default class ClubWidget extends Vue {
   @Prop({ required: true }) readonly isHome: any;
   @Prop({ required: true }) readonly rating: any;
   @Prop({ required: true }) readonly clubCode: any;
-  @Prop({ required: true }) readonly clubPosition: any;
-  @Prop({ required: true }) readonly clubPoints: any;
+  @Prop({ required: false }) readonly clubStandings: any;
   @Prop({ required: false }) readonly winner!: string;
 
   get clubRating() {

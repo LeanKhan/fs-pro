@@ -51,9 +51,13 @@
                 <span class="grey--text">{{ club.ClubCode }}</span>
               </div>
 
-              <div class="title">
+              <div v-if="club.Manager" class="title">
                 <span class="subtitle-1 grey--text">Manager:</span>
                 {{ club.Manager.FirstName }} {{ club.Manager.LastName }}
+              </div>
+              <div v-else class="title">
+                <span class="subtitle-1 grey--text">Manager:</span>
+                No Manager
               </div>
 
               <div class="title">

@@ -4,6 +4,7 @@
       v-for="(player, i) in squad"
       :key="i"
       :player="player"
+      :matchFinished="matchFinished"
     ></squad-player>
   </v-list>
 </template>
@@ -18,6 +19,7 @@ import SquadPlayer from './player.vue';
 })
 export default class SquadList extends Vue {
   @Prop({ required: true, type: Array }) squad!: any;
+  @Prop({ required: false, default: false }) matchFinished!: any;
 
   get list() {
     return this.squad.sort();

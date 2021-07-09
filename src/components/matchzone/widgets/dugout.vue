@@ -48,7 +48,10 @@
           <v-expand-transition>
             <div v-show="showHomeSquad">
               <v-divider></v-divider>
-              <squad-list :squad="home.Players"></squad-list>
+              <squad-list
+                :squad="homeSquad"
+                :matchFinished="matchFinished"
+              ></squad-list>
             </div>
           </v-expand-transition>
           <v-divider></v-divider>
@@ -89,14 +92,17 @@
           <v-expand-transition>
             <div v-show="showAwaySquad">
               <v-divider></v-divider>
-              <squad-list :squad="away.Players"></squad-list>
+              <squad-list
+                :squad="awaySquad"
+                :matchFinished="matchFinished"
+              ></squad-list>
             </div>
           </v-expand-transition>
         </div>
       </v-tab-item>
       <v-tab-item>
         <v-card-text>
-          B
+          Coming soon...
         </v-card-text>
       </v-tab-item>
     </v-tabs-items>
@@ -118,6 +124,7 @@ export default class Dugout extends Vue {
   @Prop({ required: false }) homeSquad!: any;
   @Prop({ required: false }) awaySquad!: any;
   @Prop({ required: false }) match!: any;
+  @Prop({ required: false, default: false }) matchFinished!: any;
 
   private tab: any = null;
 

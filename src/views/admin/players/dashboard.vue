@@ -38,10 +38,12 @@ export default class PlayersDashboard extends Vue {
   private players: any[] = [];
 
   public mounted() {
+    console.log('Mounted players!');
     this.$axios
       .get('/players/all')
       .then(res => {
         this.players = res.data.payload as Player[];
+        console.log(res.data);
       })
       .catch(err => {
         console.log('Error! => ', err);

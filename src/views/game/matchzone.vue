@@ -25,17 +25,27 @@
       </v-badge>
 
       <v-subheader class="mx-auto">
-        MATXHZONE
+        MATCHZONE
 
         <v-chip v-if="fixture.isFinalMatch">LAST MATCH</v-chip>
       </v-subheader>
 
       <v-spacer></v-spacer>
 
-      <v-btn depressed small rounded @click="$router.push('/u')">
+      <v-btn
+        v-if="!matchFinished"
+        depressed
+        small
+        icon
+        @click="$router.push('/u')"
+      >
         <v-icon>
           mdi-close
         </v-icon>
+      </v-btn>
+
+      <v-btn v-else color="pink accent-3" @click="$router.push('/u')">
+        FINISH MATCH
       </v-btn>
     </v-app-bar>
 
@@ -70,7 +80,7 @@
                   <div
                     class="d-flex justify-center align-center flex-column caption"
                   >
-                    <span class="body-2 cyan--text accent-3">90:00</span>
+                    <span class="body-2 cyan--text text--accent-3">90:00</span>
                     <span class="grey--text">
                       {{ fixture.LeagueCode }}
                     </span>
@@ -87,8 +97,7 @@
                           :clubCode="fixture.Home"
                           :isHome="true"
                           :rating="fixture.AwayTeam.Rating"
-                          clubPosition="2nd"
-                          clubPoints="20 Pts"
+                          :clubStandings="homeStandings"
                         ></club-widget>
                       </template>
                     </v-col>
@@ -159,8 +168,7 @@
                           :clubCode="fixture.Away"
                           :isHome="false"
                           :rating="fixture.AwayTeam.Rating"
-                          clubPosition="1st"
-                          clubPoints="23 Pts"
+                          :clubStandings="awayStandings"
                         ></club-widget>
                       </template>
                     </v-col>
@@ -190,7 +198,7 @@
                           {{ fixture.Stadium }}
                         </p>
                         <p class="ma-0">
-                          Yeet Club easy
+                          {{ fixture.Week }}
                         </p>
                       </div>
                     </v-col>
@@ -232,25 +240,7 @@
                         </template>
 
                         <template v-else>
-                          Not working yet :/ sorry! Soon
-                          <!-- <v-badge bottom badge offset-x="10" offset-y="10">
-                            <template v-slot:badge>
-                              <v-avatar>
-                                <v-icon>
-                                  ${{ matchDetails.MOTM.clubcode }}
-                                </v-icon>
-                              </v-avatar>
-                            </template>
-
-                            <v-avatar tile size="70">
-                              <v-icon
-                                style="font-size: 70px; height: 70px"
-                                large
-                              >
-                                mdi-ball
-                              </v-icon>
-                            </v-avatar>
-                          </v-badge> -->
+                          <motm :motm_id="fixture.Details.MOTM"></motm>
                         </template>
                       </v-card-text>
                     </v-card>
@@ -259,13 +249,18 @@
               </v-col>
               <!-- Events -->
               <v-col cols="4">
-                <v-card flat tile height="100%" max-height="700px">
+                <v-card
+                  flat
+                  tile
+                  height="100%"
+                  max-height="550px"
+                  style="overflow-y: auto"
+                >
                   <!-- <v-toolbar color="green accent-3" dense flat tile>
                     Timeline
                   </v-toolbar> -->
                   <v-card-subtitle
-                    class="text-center"
-                    color="green--text accent-3"
+                    class="text-center cyan--text text--accent-3"
                   >
                     Timeline
                   </v-card-subtitle>
@@ -275,7 +270,7 @@
                     </template>
                     <!-- TODO: I think this Timeline should be moved to where 'MOTM' widget is and here will be the actual field.  -->
                     <!-- Thank you Jesus! -->
-                    <timeline v-else></timeline>
+                    <timeline v-else :Events="fixture.Events"></timeline>
                   </v-card-text>
                 </v-card>
               </v-col>
@@ -288,19 +283,15 @@
           <v-card tile height="100%">
             <v-toolbar color="green accent-3" dense flat tile>
               Dugout
-
-              <v-spacer></v-spacer>
-              <v-toolbar-items>
-                <v-btn :disabled="imSetup" class="mt-2" color="primary">
-                  SETUP
-                </v-btn>
-              </v-toolbar-items>
             </v-toolbar>
             <dugout
               v-if="fixture.HomeTeam"
               :home="fixture.HomeTeam"
               :away="fixture.AwayTeam"
+              :homeSquad="mappedHomeSquad"
+              :awaySquad="mappedAwaySquad"
               :match="fixture.match"
+              :matchFinished="matchFinished"
             ></dugout>
           </v-card>
         </v-col>
@@ -316,13 +307,19 @@ import { Component, Vue } from 'vue-property-decorator';
 import ClubWidget from '@/components/matchzone/club.vue';
 import GameLobby from '@/components/matchzone/game-lobby.vue';
 // Widgets //
-import { Dugout, Results, Timeline } from '../../components/matchzone/widgets';
+import {
+  Dugout,
+  Results,
+  Timeline,
+  Motm,
+} from '../../components/matchzone/widgets';
 import { apiUrl } from '@/store';
 
 @Component({
   name: 'MatchZone',
   components: {
     ClubWidget,
+    Motm,
     GameLobby,
     Dugout,
     Results,
@@ -358,6 +355,8 @@ export default class MatchZone extends Vue {
   private homeSquad: any = {};
 
   private awaySquad: any = {};
+
+  private standings: any = null;
 
   /** Computed */
 
@@ -423,9 +422,9 @@ export default class MatchZone extends Vue {
       })
       .then(response => {
         // Check for errors here o
-        console.log(response.data);
-
         this.fixture = response.data.payload;
+
+        this.getStandings();
       })
       .catch(response => {
         console.log('Error initiating game => ', response);
@@ -436,16 +435,68 @@ export default class MatchZone extends Vue {
   }
 
   private endSeason() {
-    const ans = alert('Season is over hurray!\nEnd Season now... you must say okay.');
+    const ans = confirm(
+      'Season is over hurray!\nEnd Season now... you must say okay.'
+    );
 
-    if(ans) {
+    if (ans) {
       // go to Season finishing page...
       this.$router.push(`/finish/season/${this.fixture.Season}`);
     }
   }
 
   private endSeasonRest() {
+    console.log('Ending Season...');
+  }
 
+  get mappedHomeSquad() {
+    if (this.matchFinished && this.fixture.HomeSideDetails.PlayerStats) {
+      return this.fixture.HomeTeam.Players.map((p: any) => ({
+        ...p,
+        stats: this.fixture.HomeSideDetails.PlayerStats.find(
+          (s: any) => p._id == s._id
+        ),
+      }));
+    }
+
+    return this.fixture.HomeTeam.Players;
+  }
+
+  get mappedAwaySquad() {
+    if (this.matchFinished && this.fixture.AwaySideDetails.PlayerStats) {
+      return this.fixture.AwayTeam.Players.map((p: any) => ({
+        ...p,
+        stats: this.fixture.AwaySideDetails.PlayerStats.find(
+          (s: any) => p._id == s._id
+        ),
+      }));
+    }
+
+    return this.fixture.AwayTeam.Players;
+  }
+
+  get homeStandings() {
+    // find the clubs position in the league
+
+    if (!this.standings) {
+      return { position: 0, standing: null };
+    }
+
+    const position =
+      this.standings.findIndex((c: any) => this.fixture.Home == c.ClubCode) + 1;
+
+    return { position, standing: this.standings[position - 1] };
+  }
+
+  get awayStandings() {
+    // find the clubs position in the league
+    if (!this.standings) {
+      return { position: 0, standing: null };
+    }
+    const position =
+      this.standings.findIndex((c: any) => this.fixture.Away == c.ClubCode) + 1;
+
+    return { position, standing: this.standings[position - 1] };
   }
 
   private playGame() {
@@ -458,12 +509,29 @@ export default class MatchZone extends Vue {
         // console.log(response.data);
 
         // TODO: please clean this up so you don't repeat stuff!
-        this.fixture = { ...this.fixture, ...response.data.payload };
+        this.fixture = { ...this.fixture, match: response.data.payload.match };
         this.matchFinished = true;
+        this.getStandings();
       })
       .catch(response => {
         console.log('Error playing match => ', response);
       });
+  }
+
+  // TODO: put these network fetching methods separately...
+  private getStandings() {
+    console.log('Fetching Standings');
+    if (this.fixture.Season) {
+      this.$axios
+        .get(`/seasons/${this.fixture.Season}/standings`)
+        .then(response => {
+          console.log(response.data);
+          this.standings = response.data.payload;
+        })
+        .catch(response => {
+          console.log('Error fetching Standings => ', response);
+        });
+    }
   }
 
   mounted() {
