@@ -111,6 +111,7 @@ const routes: RouteConfig[] = [
               ),
             name: 'User Home',
           },
+
           {
             path: 'fixtures',
             component: () =>
@@ -118,6 +119,14 @@ const routes: RouteConfig[] = [
                 /* webpackChunkName: "all_fixtures" */ '../views/user/seasons/fixtures.vue'
               ),
             name: 'All Fixtures',
+          },
+          {
+            path: 'lobby',
+            component: () =>
+              import(
+                /* webpackChunkName: "user_lobby" */ '../views/user/lobby.vue'
+              ),
+            name: 'User Lobby',
           },
 
           userClubRoutes,
@@ -131,6 +140,22 @@ const routes: RouteConfig[] = [
             /* webpackChunkName: "matchzone" */ '../views/game/matchzone.vue'
           ),
         name: 'MatchZone',
+      },
+      {
+        path: '/finish/season/:season_id',
+        component: () =>
+          import(
+            /* webpackChunkName: "finish_season" */ '../views/misc/end-of-season.vue'
+          ),
+        name: 'Finish Season',
+      },
+      {
+        path: '/finish/year/:calendar_id',
+        component: () =>
+          import(
+            /* webpackChunkName: "finish_year" */ '../views/misc/end-of-year.vue'
+          ),
+        name: 'Finish Year',
       },
     ],
   },

@@ -220,11 +220,16 @@ export default class ClubHome extends Vue {
 
   private days: IDay[] = [];
 
+  private limit = 14;
+
   /** Club calendar */
   get calendar(): ICalendar {
     return this.$store.state.calendar;
   }
 
+  get yearString(): string {
+    return this.$store.state.calendar.YearString;
+  }
   get seasons() {
     return this.$store.state.seasons;
   }
@@ -294,15 +299,19 @@ export default class ClubHome extends Vue {
   }
 
   private getDays() {
-    const query =
-      '/calendar/JUN-2020/days?paginate=true&populate=true&week=1&limit=14';
+    const week =
+      this.calendar.CurrentDay == 0
+        ? 1
+        : Math.ceil((this.calendar.CurrentDay as number) / this.limit);
+
+    const query = `/calendar/${this.yearString}/days?paginate=true&populate=true&week=${week}&limit=${this.limit}`;
     this.$axios
       .get(query)
       .then(response => {
         this.days = response.data.payload;
       })
       .catch(error => {
-        console.log('Error getting current seasons!', error);
+        console.log('Error getting Days of Calendar Year!', error);
       });
   }
 

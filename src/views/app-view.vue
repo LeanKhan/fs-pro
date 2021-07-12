@@ -233,17 +233,6 @@ export default class AppView extends Vue {
       });
   }
 
-  private play() {
-    this.$axios
-      .post(`/game/play`)
-      .then(response => {
-        console.log('Response => ', response.data);
-      })
-      .catch(response => {
-        console.log('Error logging out! ', response.data);
-      });
-  }
-
   private goBackToPreviousState() {
     this.$store.commit('TOGGLE_ERROR_OVERLAY');
     this.$router.back();

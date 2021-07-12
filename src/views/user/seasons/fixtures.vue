@@ -41,14 +41,11 @@
 
       <div>
         <template v-if="fixturesLoading">
-          <v-progress-circular
-            indeterminate
-            :value="fixturesLoading"
-          ></v-progress-circular>
+          <v-progress-circular indeterminate></v-progress-circular>
         </template>
 
-        <template>
-          <fixtures-table :fixtures="selectedSeason.Fixtures"></fixtures-table>
+        <template v-if="fixtures">
+          <fixtures-table :fixtures="fixtures"></fixtures-table>
         </template>
       </div>
     </v-card-text>
@@ -82,6 +79,7 @@ export default class Fixtures extends Vue {
   @Watch('tab')
   onTabChanged(val: number) {
     console.log('Tab Changed! =>', val);
+    this.getFixtures();
   }
 
   private getFixtures() {

@@ -14,50 +14,9 @@
         <template v-if="!day.isFree">
           <template v-if="!singleLeague">
             <v-col cols="12">
-              <!-- <v-list-item>
-                <v-list-item-avatar size="20px" color="amber">
-                  {{ day.Matches[0] ? day.Matches[0].Time : 'No Time :P' }}
-                </v-list-item-avatar>
-                <v-list-item-title class="caption">
-                  {{
-                    day.Matches[0]
-                      ? `${day.Matches[0].Fixture.Home} vs ${day.Matches[0].Fixture.Away}`
-                      : 'No Match :P'
-                  }}
-                </v-list-item-title>
-
-                <v-list-item-icon
-                  size="20px"
-                  color="green"
-                  v-if="day.Matches[0].Fixture.Played"
-                >
-                  <v-icon color="success">mdi-football</v-icon>
-                </v-list-item-icon>
-              </v-list-item> -->
               <day-match :match="day.Matches[0]" :home="true"></day-match>
             </v-col>
             <v-col cols="12">
-              <!-- <v-list-item>
-                <v-list-item-avatar size="20px" color="amber">
-                  {{ day.Matches[1] ? day.Matches[1].Time : 'No time :P' }}
-                </v-list-item-avatar>
-
-                <v-list-item-title class="caption">
-                  {{
-                    day.Matches[1]
-                      ? `${day.Matches[1].Fixture.Home} vs ${day.Matches[1].Fixture.Away}`
-                      : 'No Match :p'
-                  }}
-                </v-list-item-title>
-
-                <v-list-item-icon
-                  size="20px"
-                  color="green"
-                  v-if="day.Matches[1].Fixture.Played"
-                >
-                  <v-icon>mdi-check</v-icon>
-                </v-list-item-icon>
-              </v-list-item> -->
               <day-match :match="day.Matches[1]" :home="false"></day-match>
             </v-col>
           </template>

@@ -29,7 +29,7 @@ import { WeekStandings as IWeek } from '@/interfaces/season.ts';
 })
 export default class Standings extends Vue {
   @Prop({ required: true }) WeekStandings!: IWeek;
-  @Prop({ required: true, default: false }) compiled!: boolean;
+  @Prop({ required: false, default: false }) compiled!: boolean;
 
   private Table: IWeek['Table'] =
     this.WeekStandings.Table || this.WeekStandings;

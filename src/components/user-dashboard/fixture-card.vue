@@ -6,6 +6,9 @@
         mdi-trophy
       </v-icon>
     </v-card-subtitle>
+    <v-card-subtitle v-if="Match.Fixture.MatchDay">
+      Matchday {{ Match.Fixture.MatchDay }}
+    </v-card-subtitle>
 
     <v-card-text>
       <v-avatar>
@@ -28,7 +31,11 @@
     </v-card-text>
 
     <v-card-actions>
-      <v-btn depressed :to="'/matchzone/' + Match.Fixture._id.toString()">
+      <v-btn
+        depressed
+        :disabled="Match.Fixture.Played"
+        :to="'/matchzone/' + Match.Fixture._id.toString()"
+      >
         Play
       </v-btn>
     </v-card-actions>

@@ -29,7 +29,6 @@ export interface RootState {
     fullname: string;
   };
   calendar: ICalendar;
-  currentYear: string;
   countries: string[];
   seasons: any[];
   toast: {
@@ -59,7 +58,6 @@ const state = {
     fullname: '',
   },
   calendar: {} as unknown,
-  currentYear: 'JUN-2020',
   seasons: [],
   countries: [],
   toast: {
@@ -180,27 +178,31 @@ export default new Vuex.Store({
           console.log('error => ', response);
         });
     },
-    SET_CALENDAR: ({ commit }) => {
+    SET_CALENDAR: ({ commit, dispatch }) => {
       $axios
         .get(`/calendar/current?page=1&limit=14&populate=false`)
         .then(response => {
           if (response.data.success) {
             commit('SET_CALENDAR', response.data.payload);
+            // Maybe after this, get Current Seasons based on this year?
+            dispatch('SET_SEASONS');
           }
         })
         .catch(response => {
           console.log('error => ', response);
         });
     },
-    SET_SEASONS: ({ commit, state }) => {
-      $axios
-        .get(`/seasons/current?year=${state.currentYear}`)
-        .then(response => {
-          commit('SET_SEASONS', response.data.payload);
-        })
-        .catch(error => {
-          console.log('Error getting current seasons!', error);
-        });
+    SET_SEASONS: ({ commit }) => {
+      if (state.calendar.YearString) {
+        $axios
+          .get(`/seasons/${state.calendar.YearString}/current`)
+          .then(response => {
+            commit('SET_SEASONS', response.data.payload);
+          })
+          .catch(error => {
+            console.log('Error getting current seasons!', error);
+          });
+      }
     },
     GET_COUNTRIES: ({ commit }) => {
       $axios

@@ -3,8 +3,18 @@
     <v-toolbar>
       <!-- Current day -->
       <v-toolbar-title class="subtitle-1 font-weight-bold indigo--text">
-        {{ calendar.CurrentDay }} {{ calendar.YearString }}
+        Day {{ calendar.CurrentDay + 1 }} - Year {{ calendar.YearString }}
       </v-toolbar-title>
+
+      <v-toolbar-items>
+        <v-btn
+          color="warning"
+          v-if="calendar.allSeasonsCompleted"
+          @click="endYear()"
+        >
+          END YEAR
+        </v-btn>
+      </v-toolbar-items>
     </v-toolbar>
 
     <!-- Main -->
@@ -140,37 +150,36 @@ export default class UserDashboard extends Vue {
     return this.days[this.selectedDayIndex];
   }
 
+  get yearString(): string {
+    return this.$store.state.calendar.YearString;
+  }
+
   @Watch('currentDay', { immediate: true })
   onCurrentDayChanged(day: number) {
     this.getDays(day);
   }
 
-  // private getSeasons() {
-  //   this.$axios
-  //     .get('/seasons/current?year=JUN-2020')
-  //     .then(response => {
-  //       this.seasons = response.data.payload;
-  //     })
-  //     .catch(error => {
-  //       console.log('Error getting current seasons!', error);
-  //     });
-  // }
+  private endYear() {
+    this.$router.push(`/finish/year/${this.calendar._id}`);
+  }
 
-  private getDays(day: number) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private getDays(_day: number) {
     // if the currentDay is greater than 14 get the next page...
     const limit = 7;
-    const week = Math.ceil(this.calendar.CurrentDay / limit);
+    const week =
+      this.calendar.CurrentDay == 0
+        ? 1
+        : Math.ceil(this.calendar.CurrentDay / limit);
 
-    console.log('Current Day =', day);
-
-    const query = `/calendar/JUN-2020/days?paginate=true&populate=true&week=${week}&limit=${limit}`;
+    const query = `/calendar/${this.yearString}/days?paginate=true&populate=true&week=${week}&limit=${limit}`;
     this.$axios
       .get(query)
       .then(response => {
         this.days = response.data.payload;
       })
       .catch(error => {
-        console.log('Error getting current seasons!', error);
+        console.log('Error getting days of Calendar Year!', error);
       });
   }
 
@@ -178,9 +187,12 @@ export default class UserDashboard extends Vue {
     this.selectedDayIndex = val;
   }
 
-  // mounted() {
-  //   this.getDays();
-  // }
+  mounted() {
+    if (!this.calendar || !this.calendar.YearStrings) {
+      // If there is no current calendar... redirect to Waiting room lol
+      this.$router.push('/u/lobby');
+    }
+  }
 }
 </script>
 

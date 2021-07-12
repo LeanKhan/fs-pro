@@ -27,7 +27,9 @@
       <v-subheader class="mx-auto">
         MATCHZONE
 
-        <v-chip v-if="fixture.isFinalMatch">LAST MATCH</v-chip>
+        <v-chip v-if="lastMatchOfSeason">LAST MATCH</v-chip>
+
+        Matchday {{ fixture.MatchDay }}
       </v-subheader>
 
       <v-spacer></v-spacer>
@@ -44,8 +46,20 @@
         </v-icon>
       </v-btn>
 
-      <v-btn v-else color="pink accent-3" @click="$router.push('/u')">
+      <v-btn
+        v-else-if="!lastMatchOfSeason"
+        color="pink accent-3"
+        @click="$router.push('/u')"
+      >
         FINISH MATCH
+      </v-btn>
+
+      <v-btn
+        v-else-if="lastMatchOfSeason"
+        color="green accent-3"
+        @click="finishSeason()"
+      >
+        &lt; FINISH SEASON &gt;
       </v-btn>
     </v-app-bar>
 
@@ -343,6 +357,8 @@ export default class MatchZone extends Vue {
 
   private matchFinished = false;
 
+  private lastMatchOfSeason = false;
+
   private showPlayOverlay = true;
 
   private imSetup = false;
@@ -434,19 +450,15 @@ export default class MatchZone extends Vue {
       });
   }
 
-  private endSeason() {
+  private finishSeason() {
     const ans = confirm(
       'Season is over hurray!\nEnd Season now... you must say okay.'
     );
 
-    if (ans) {
-      // go to Season finishing page...
-      this.$router.push(`/finish/season/${this.fixture.Season}`);
-    }
-  }
+    if (!ans) return false;
 
-  private endSeasonRest() {
-    console.log('Ending Season...');
+    // go to Season finishing page...
+    this.$router.push(`/finish/season/${this.fixture.Season}`);
   }
 
   get mappedHomeSquad() {
@@ -511,6 +523,7 @@ export default class MatchZone extends Vue {
         // TODO: please clean this up so you don't repeat stuff!
         this.fixture = { ...this.fixture, match: response.data.payload.match };
         this.matchFinished = true;
+        this.lastMatchOfSeason = response.data.payload.lastMatchOfSeason;
         this.getStandings();
       })
       .catch(response => {

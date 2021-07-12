@@ -28,6 +28,7 @@ export default class User extends Vue {
 
     this.$nextTick(() => {
       console.log('Inside nextTick at ', new Date());
+      // this.$store.dispatch('SET_SEASONS');
       this.$store.dispatch('SET_USER_CLUBS');
     });
   }
