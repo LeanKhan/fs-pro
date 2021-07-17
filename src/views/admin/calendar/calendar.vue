@@ -191,7 +191,7 @@ export default class Calendar extends Vue {
   private setupAndStartCalendarYear(year: string, id: string) {
     this.loading = true;
     this.$axios
-      .post(`/calendar/${year}/${id}/setup`)
+      .post(`/calendar/${year}/${id}/setup-and-start`)
       .then(response => {
         console.log(
           'Yup! Calendar started successfully!',

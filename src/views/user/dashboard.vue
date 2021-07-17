@@ -138,6 +138,10 @@ export default class UserDashboard extends Vue {
     return this.$store.state.calendar.CurrentDay;
   }
 
+  get lobby() {
+    return this.$store.getters.lobby;
+  }
+
   get calendar() {
     return this.$store.state.calendar;
   }
@@ -157,6 +161,13 @@ export default class UserDashboard extends Vue {
   @Watch('currentDay', { immediate: true })
   onCurrentDayChanged(day: number) {
     this.getDays(day);
+  }
+
+  @Watch('lobby', { immediate: true })
+  onLobbyChange(toLobby: boolean) {
+    if (toLobby) {
+      this.$router.push('/u/lobby');
+    }
   }
 
   private endYear() {
@@ -188,10 +199,11 @@ export default class UserDashboard extends Vue {
   }
 
   mounted() {
-    if (!this.calendar || !this.calendar.YearStrings) {
-      // If there is no current calendar... redirect to Waiting room lol
-      this.$router.push('/u/lobby');
-    }
+    this.$nextTick(function() {
+      if (this.lobby) {
+        this.$router.push('/u/lobby');
+      }
+    });
   }
 }
 </script>

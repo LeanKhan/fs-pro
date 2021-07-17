@@ -235,8 +235,8 @@
                           :home="fixture.Home"
                           :away="fixture.Away"
                           :matchDetails="{
-                            Home: fixture.match.HomeSideDetails,
-                            Away: fixture.match.AwaySideDetails,
+                            Home: fixture.HomeSideDetails,
+                            Away: fixture.AwaySideDetails,
                           }"
                         ></results>
                       </v-card-text>
@@ -382,19 +382,11 @@ export default class MatchZone extends Vue {
 
   get winner() {
     if (this.fixture.match && !this.fixture.match.Draw)
-      return this.fixture.match.HomeSideDetails.Won &&
-        !this.fixture.match.AwaySideDetails.Won
+      return this.fixture.HomeSideDetails.Won &&
+        !this.fixture.AwaySideDetails.Won
         ? 'home'
         : 'away';
     else return 'draw';
-  }
-
-  get season() {
-    // find the season the club belongs to
-
-    return this.$store.getters.seasons.find(
-      (s: any) => s.CompetitionCode == this.fixture.Season
-    );
   }
 
   get fixtureId() {
@@ -449,7 +441,6 @@ export default class MatchZone extends Vue {
         this.starting = false;
       });
   }
-
   private finishSeason() {
     const ans = confirm(
       'Season is over hurray!\nEnd Season now... you must say okay.'
@@ -462,11 +453,11 @@ export default class MatchZone extends Vue {
   }
 
   get mappedHomeSquad() {
-    if (this.matchFinished && this.fixture.match.HomeSideDetails.PlayerStats) {
+    if (this.matchFinished && this.fixture.HomeSideDetails.PlayerStats) {
       return this.fixture.HomeTeam.Players.map((p: any) => ({
         ...p,
-        stats: this.fixture.match.HomeSideDetails.PlayerStats.find(
-          (s: any) => p._id == s._id
+        stats: this.fixture.HomeSideDetails.PlayerStats.find(
+          (s: any) => p._id == s.Player
         ),
       }));
     }
@@ -475,11 +466,11 @@ export default class MatchZone extends Vue {
   }
 
   get mappedAwaySquad() {
-    if (this.matchFinished && this.fixture.match.AwaySideDetails.PlayerStats) {
+    if (this.matchFinished && this.fixture.AwaySideDetails.PlayerStats) {
       return this.fixture.AwayTeam.Players.map((p: any) => ({
         ...p,
-        stats: this.fixture.match.AwaySideDetails.PlayerStats.find(
-          (s: any) => p._id == s._id
+        stats: this.fixture.AwaySideDetails.PlayerStats.find(
+          (s: any) => p._id == s.Player
         ),
       }));
     }
@@ -520,8 +511,19 @@ export default class MatchZone extends Vue {
         // Check for errors here o
         // console.log(response.data);
 
+        const {
+          match,
+          HomeSideDetails,
+          AwaySideDetails,
+        } = response.data.payload;
+
         // TODO: please clean this up so you don't repeat stuff!
-        this.fixture = { ...this.fixture, match: response.data.payload.match };
+        this.fixture = {
+          ...this.fixture,
+          match,
+          HomeSideDetails,
+          AwaySideDetails,
+        };
         this.matchFinished = true;
         this.lastMatchOfSeason = response.data.payload.lastMatchOfSeason;
         this.getStandings();

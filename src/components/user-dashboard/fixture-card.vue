@@ -1,14 +1,15 @@
 <template>
   <v-card>
     <v-card-subtitle>
-      {{ Match.Competition }}
+      {{ Match.Fixture.LeagueCode }}
       <v-icon small color="amber lighten-3">
         mdi-trophy
       </v-icon>
     </v-card-subtitle>
-    <v-card-subtitle v-if="Match.Fixture.MatchDay">
-      Matchday {{ Match.Fixture.MatchDay }}
-    </v-card-subtitle>
+    <p class="mb-0 mt-0 caption">
+      Matchday
+      {{ Match.Fixture.FixtureCode.split('-')[3] }}
+    </p>
 
     <v-card-text>
       <v-avatar>

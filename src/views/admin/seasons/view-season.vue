@@ -14,9 +14,8 @@
           </v-card-title>
 
           <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn v-if="season.Fixtures.length == 0" @click="generateFixtures">
-              Generate Fixtures
+            <v-btn :to="`/finish/season/${season._id}`">
+              View Stats
             </v-btn>
           </v-card-actions>
         </v-card>
@@ -58,7 +57,7 @@
         </v-card>
       </v-col>
       <v-col cols="6">
-        <template v-if="season.Standings.length > 0">
+        <template v-if="season.Standings && season.Standings.length > 0">
           <v-card>
             <v-card-title>
               Standings (Table)

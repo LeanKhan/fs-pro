@@ -11,6 +11,7 @@ export interface PlayerAttributes {
   Stamina: number;
   SetPiece: number;
   Dribbling: number;
+  Vision: number;
   PreferredFoot: string;
   AttackingMindset: boolean;
   DefensiveMindset: boolean;

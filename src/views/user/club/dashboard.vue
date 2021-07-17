@@ -6,9 +6,9 @@
         <v-toolbar-title>
           <template v-if="club && season">
             <v-icon x-large>${{ club.ClubCode }}</v-icon>
-            <v-badge class="subtitle-1 font-weight-bold indigo--text">
-              {{ season.CompetitionCode }}
-            </v-badge>
+            <v-chip small class="ml-1 subtitle-1 font-weight-bold indigo--text">
+              {{ club.League.Name }}
+            </v-chip>
           </template>
         </v-toolbar-title>
 
@@ -68,7 +68,9 @@
                         <span>HOME</span>
                         <v-avatar tile size="70px">
                           <v-icon style="font-size: 70px; height: 70px" x-large>
-                            ${{ selectedDay.Matches[0].Fixture.Home }}
+                            ${{
+                              selectedDay.Matches[competitionIndex].Fixture.Home
+                            }}
                           </v-icon>
                         </v-avatar>
 
@@ -76,25 +78,35 @@
 
                         <v-avatar tile size="70px">
                           <v-icon style="font-size: 70px; height: 70px" x-large>
-                            ${{ selectedDay.Matches[0].Fixture.Away }}
+                            ${{
+                              selectedDay.Matches[competitionIndex].Fixture.Away
+                            }}
                           </v-icon>
                         </v-avatar>
                         <span>AWAY</span>
 
                         <div class="pa-0 text-center">
                           <p class="mb-2 caption white--text">
-                            {{ selectedDay.Matches[0].Fixture.Title }}
+                            {{
+                              selectedDay.Matches[competitionIndex].Fixture
+                                .Title
+                            }}
                           </p>
 
                           <p class="mb-0 caption">
-                            {{ selectedDay.Matches[0].Fixture.Stadium }}
+                            {{
+                              selectedDay.Matches[competitionIndex].Fixture
+                                .Stadium
+                            }}
                           </p>
                         </div>
                       </v-col>
 
                       <v-col cols="3">
                         <v-card-subtitle>
-                          {{ selectedDay.Matches[0].Competition }}
+                          {{
+                            selectedDay.Matches[competitionIndex].Competition
+                          }}
                           <v-icon large color="amber lighten-3">
                             mdi-trophy
                           </v-icon>
@@ -102,9 +114,15 @@
 
                         <template v-if="season && season.isStarted">
                           <v-btn
+                            :disabled="
+                              selectedDay.Matches[competitionIndex].Fixture
+                                .Played
+                            "
                             :to="
                               '/matchzone/' +
-                                selectedDay.Matches[0].Fixture._id.toString()
+                                selectedDay.Matches[
+                                  competitionIndex
+                                ].Fixture._id.toString()
                             "
                           >
                             Play
@@ -237,7 +255,7 @@ export default class ClubHome extends Vue {
   get clubDays() {
     return this.days.map(day => {
       const Matches = day.Matches.filter(match => {
-        return match.Competition == this.club.LeagueCode;
+        return match.Fixture.LeagueCode == this.club.LeagueCode;
       });
 
       return { ...day, Matches };
@@ -253,6 +271,21 @@ export default class ClubHome extends Vue {
     );
   }
 
+  get competitionIndex() {
+    // TODO: fetch the competition gan!
+    let index = 0;
+    switch (this.club.LeagueCode) {
+      case 'EFL':
+        index = 0;
+        break;
+      case 'EBSL':
+        index = 1;
+        break;
+    }
+
+    return index;
+  }
+
   get selectedDay() {
     if (this.days) {
       return this.days[this.selectedDayIndex];
@@ -266,8 +299,10 @@ export default class ClubHome extends Vue {
   get isClub(): boolean {
     if (this.club) {
       return (
-        this.selectedDay.Matches[0].Fixture.Home == this.club ||
-        this.selectedDay.Matches[0].Fixture.Away == this.club
+        this.selectedDay.Matches[this.competitionIndex].Fixture.Home ==
+          this.club ||
+        this.selectedDay.Matches[this.competitionIndex].Fixture.Away ==
+          this.club
       );
     }
 
@@ -284,6 +319,7 @@ export default class ClubHome extends Vue {
     const populate = [
       { path: 'Players', select: 'FirstName LastName Rating Postition' },
       { path: 'Manager' },
+      { path: 'League', select: '-Clubs -Seasons' },
     ];
     this.$axios
       .get(`/clubs/${clubId}?populate=${JSON.stringify(populate)}`)

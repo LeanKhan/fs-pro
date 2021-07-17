@@ -12,14 +12,14 @@
         hide-details
         :clearable="true"
       ></v-text-field>
-      <v-btn
-        v-if="viewClub"
+   <!--    <v-btn
+       
         append-icon="mdi-plus"
         color="success"
         @click="$emit('add-manager')"
       >
         Add
-      </v-btn>
+      </v-btn> -->
       <!-- TODO: Add filter for isSigned -->
       <!-- <v-checkbox v-model="isSigned" label="Signed">
         Signed

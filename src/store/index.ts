@@ -10,7 +10,7 @@ Vue.use(Vuex);
 // 'http://192.168.10.4:3000' - Network server url
 // 'http://localhost:3000' - Local server url
 
-// export const apiUrl = 'http://192.168.10.2:3000';
+// export const apiUrl = 'http://192.168.0.137:3000';
 
 export const apiUrl = 'http://localhost:3000';
 
@@ -40,6 +40,7 @@ export interface RootState {
     withAction: boolean;
   };
   errorOverlay: boolean;
+  lobby: boolean;
   // state: MainState;
 }
 
@@ -69,6 +70,7 @@ const state = {
     withAction: false,
   },
   errorOverlay: false,
+  lobby: false,
 } as RootState;
 
 export default new Vuex.Store({
@@ -89,6 +91,9 @@ export default new Vuex.Store({
     toast: state => {
       return state.toast;
     },
+    lobby: state => {
+      return state.lobby;
+    },
     errorOverlay: state => {
       return state.errorOverlay;
     },
@@ -108,6 +113,9 @@ export default new Vuex.Store({
     },
     SET_COUNTRIES: (state, payload) => {
       state.countries = payload;
+    },
+    SET_LOBBY: (state, payload) => {
+      state.lobby = payload;
     },
     SHOW_TOAST: (
       state,
@@ -185,6 +193,8 @@ export default new Vuex.Store({
           if (response.data.success) {
             commit('SET_CALENDAR', response.data.payload);
             // Maybe after this, get Current Seasons based on this year?
+            commit('SET_LOBBY', !response.data.payload.YearString);
+
             dispatch('SET_SEASONS');
           }
         })

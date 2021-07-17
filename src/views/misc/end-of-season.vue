@@ -37,6 +37,99 @@
               >
                 Finish Now
               </v-btn>
+
+              <!-- Show top Players! -->
+              <v-subheader>Best Players by:</v-subheader>
+              <table>
+                <thead>
+                  <th>
+                    Points
+                  </th>
+                  <th>
+                    Goals
+                  </th>
+                  <th>
+                    Assists
+                  </th>
+                  <th>
+                    Saves
+                  </th>
+                </thead>
+
+                <tbody>
+                  <tr>
+                    <!-- TODO: Move these to a component -->
+                    <td>
+                      <v-btn
+                        v-if="!HP_Player.length > 0"
+                        :disabled="loading_player_stats"
+                        :loading="loading_player_stats"
+                        @click="loadHP_Player()"
+                      >
+                        Load
+                      </v-btn>
+
+                      <template v-else-if="HP_Player.length > 0">
+                        <v-list>
+                          <v-list-item v-for="(p, i) in HP_Player" :key="i">
+                            <v-list-item-avatar>
+                              <v-icon
+                                style="font-size: 30px; height: 30px"
+                                large
+                              >
+                                ${{ p.player.ClubCode }}
+                              </v-icon>
+                            </v-list-item-avatar>
+                            <v-list-item-title>
+                              {{ p.player.FirstName }} {{ p.player.LastName }}
+                            </v-list-item-title>
+
+                            <v-list-item-avatar size="40px" color="blue">
+                              <span class="white--text font-weight-bold">
+                                {{ p.points }}
+                              </span>
+                            </v-list-item-avatar>
+                          </v-list-item>
+                        </v-list>
+                      </template>
+                    </td>
+                    <td>
+                      <v-btn
+                        v-if="!HG_Player.length > 0"
+                        :disabled="loading_player_stats"
+                        :loading="loading_player_stats"
+                        @click="loadHG_Player()"
+                      >
+                        Load
+                      </v-btn>
+
+                      <template v-else-if="HG_Player.length > 0">
+                        <v-list>
+                          <v-list-item v-for="(p, i) in HG_Player" :key="i">
+                            <v-list-item-avatar>
+                              <v-icon
+                                style="font-size: 30px; height: 30px"
+                                large
+                              >
+                                ${{ p.player.ClubCode }}
+                              </v-icon>
+                            </v-list-item-avatar>
+                            <v-list-item-title>
+                              {{ p.player.FirstName }} {{ p.player.LastName }}
+                            </v-list-item-title>
+
+                            <v-list-item-avatar size="40px" color="blue">
+                              <span class="white--text font-weight-bold">
+                                {{ p.goals }}
+                              </span>
+                            </v-list-item-avatar>
+                          </v-list-item>
+                        </v-list>
+                      </template>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </v-sheet>
 
             <div
@@ -93,6 +186,7 @@
 </template>
 
 <script lang="ts">
+/* eslint-disable @typescript-eslint/camelcase */
 import { Component, Vue } from 'vue-property-decorator';
 import Standings from '@/components/seasons/standings.vue';
 
@@ -112,6 +206,12 @@ export default class EndOfSeason extends Vue {
   private standings: any = {};
 
   private failToEnd = false;
+
+  private loading_player_stats = false;
+
+  private HP_Player = [];
+
+  private HG_Player = [];
 
   get seasonId() {
     return this.$route.params.season_id;
@@ -139,6 +239,46 @@ export default class EndOfSeason extends Vue {
       })
       .finally(() => {
         this.loading = false;
+      });
+  }
+
+  // eslint-disable-next-line @typescript-eslint/camelcase
+  private loadHP_Player() {
+    this.loading_player_stats = true;
+    this.$axios
+      .get(
+        `/players/stats?match_k=season._id&match_v=${this.seasonId}&sort_k=points&sort_v=-1`
+      )
+      .then(response => {
+        if (response.data.success) {
+          this.HP_Player = response.data.payload;
+        }
+      })
+      .catch(err => {
+        console.log('Error fetching Player points stats => ', err);
+      })
+      .finally(() => {
+        this.loading_player_stats = false;
+      });
+  }
+
+  // TODO: MAKE THIS DYNAMIC SO YOU DON'T HAVE TO BE REPEATING IT O
+  private loadHG_Player() {
+    this.loading_player_stats = true;
+    this.$axios
+      .get(
+        `/players/stats?match_k=season._id&match_v=${this.seasonId}&sort_k=goals&sort_v=-1`
+      )
+      .then(response => {
+        if (response.data.success) {
+          this.HG_Player = response.data.payload;
+        }
+      })
+      .catch(err => {
+        console.log('Error fetching Player goals stats => ', err);
+      })
+      .finally(() => {
+        this.loading_player_stats = false;
       });
   }
 

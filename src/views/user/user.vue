@@ -24,7 +24,6 @@ export default class User extends Vue {
 
   private mounted() {
     this.$store.dispatch('SET_CALENDAR');
-    this.$store.dispatch('SET_SEASONS');
 
     this.$nextTick(() => {
       console.log('Inside nextTick at ', new Date());

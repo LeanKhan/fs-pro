@@ -31,6 +31,11 @@ export default class DayScroll extends Vue {
 
   private selectedDayIndex = 0;
 
+  get currentDay() {
+    return this.$store.getters.calendar.CurrentDay;
+  }
+  // private selectedDayIndex = this.currentDay ? (this.currentDay - 1) % 7 : 0;
+
   @Watch('selectedDayIndex', { immediate: true })
   onSelectedDayIndexChanged(val: number) {
     this.$emit('selected-day-index-changed', val);
