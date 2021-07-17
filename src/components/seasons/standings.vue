@@ -65,7 +65,7 @@ export default class Standings extends Vue {
   get SortedTable() {
     return this.Table.sort((a, b) => {
       if (b.Points === a.Points) {
-        if (b.GD === b.GD) {
+        if (b.GD === a.GD) {
           return b.GF - a.GF;
         } else {
           return b.GD - a.GD;
