@@ -124,6 +124,10 @@
       Hi!
     </v-snackbar> -->
 
+    <v-snackbar v-model="toast.show" :timeout="3000" :color="toast.color">
+      {{ toast.message }}
+    </v-snackbar>
+
     <!-- TODO: clean this up! -->
     <v-overlay v-model="errorOverlay">
       <v-sheet class="text-center pa-2" width="500px" height="300px">
@@ -244,6 +248,10 @@ export default class AppView extends Vue {
 
   get errorOverlay() {
     return this.$store.getters.errorOverlay;
+  }
+
+  get toast() {
+    return this.$store.getters.toast;
   }
 
   get userNavItems(): any[] {

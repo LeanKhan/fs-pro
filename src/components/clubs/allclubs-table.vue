@@ -39,6 +39,10 @@
         </v-list-item>
       </template>
 
+      <template v-slot:item.Manager="{ item }">
+        {{ item.Manager.FirstName.charAt(0) }}. {{ item.Manager.LastName }}
+      </template>
+
       <template v-slot:item.Address="{ item }">
         {{ item.Address.City }}, {{ item.Address.Country }}
       </template>

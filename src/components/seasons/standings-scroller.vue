@@ -3,28 +3,25 @@
     <v-card-subtitle>
       <v-spacer></v-spacer>
       <v-switch
-        v-model="showCompiled"
+        v-model="showWeekly"
         dense
         hide-details
-        label="Show Compiled Table?"
+        label="Show Weekly Standings?"
       ></v-switch>
     </v-card-subtitle>
-    <v-window v-if="!showCompiled" v-model="onboarding" reverse>
+    <v-window v-if="showWeekly" v-model="onboarding" reverse>
       <v-window-item v-for="(standing, i) in standings" :key="`standing-${i}`">
-        <standings
-          :WeekStandings="standing"
-          :compiled="showCompiled"
-        ></standings>
+        <standings :WeekStandings="standing" :compiled="showWeekly"></standings>
       </v-window-item>
     </v-window>
 
     <standings
       v-else
       :WeekStandings="compiledStandings"
-      :compiled="showCompiled"
+      :compiled="showWeekly"
     ></standings>
 
-    <v-card-actions v-if="!showCompiled" class="justify-space-between">
+    <v-card-actions v-if="showWeekly" class="justify-space-between">
       <v-btn text @click="prev">
         <v-icon>mdi-chevron-left</v-icon>
       </v-btn>
@@ -65,7 +62,7 @@ export default class StandingsScroller extends Vue {
 
   private length = this.standings.length;
   private onboarding = 0;
-  private showCompiled = false;
+  private showWeekly = false;
 
   private next() {
     this.onboarding =

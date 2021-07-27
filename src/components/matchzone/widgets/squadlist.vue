@@ -10,7 +10,7 @@
 </template>
 <script lang="ts">
 import { Component, Vue, Prop } from 'vue-property-decorator';
-import SquadPlayer from './player.vue';
+import SquadPlayer from './squadlist-player.vue';
 
 @Component({
   components: {

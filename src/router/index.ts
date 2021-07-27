@@ -121,6 +121,14 @@ const routes: RouteConfig[] = [
             name: 'All Fixtures',
           },
           {
+            path: 'stats/:type/:season_id',
+            component: () =>
+              import(
+                /* webpackChunkName: "season_stats" */ '../views/user/seasons/stats.vue'
+              ),
+            name: 'Season Stats',
+          },
+          {
             path: 'lobby',
             component: () =>
               import(

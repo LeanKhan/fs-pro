@@ -97,11 +97,20 @@
       </v-col>
       <v-col cols="4">
         <v-card>
-          <v-sheet height="400px" width="100%" color="green darken-2">
-            <div class="text-center">
-              Other informational stuff like chats, messages and events
-            </div>
-          </v-sheet>
+          <v-subheader>Season Stats</v-subheader>
+          <v-list>
+            <v-list-item three-line v-for="(s, i) in seasons" :key="i">
+              <v-list-item-title>{{ s.CompetitionCode }}</v-list-item-title>
+              <span>
+                <v-btn :to="`/u/stats/season/${s._id}`">
+                  View Stats
+                  <v-icon class="ml-1" color="primary">
+                    mdi-chart-areaspline
+                  </v-icon>
+                </v-btn>
+              </span>
+            </v-list-item>
+          </v-list>
         </v-card>
       </v-col>
     </v-row>

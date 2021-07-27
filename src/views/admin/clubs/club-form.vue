@@ -20,7 +20,7 @@
     </v-row>
     <v-row>
       <v-col cols="3">
-        <v-card height="300" width="245">
+        <!-- <v-card height="300" width="245">
           <v-card-title>
             {{ form.Name ? form.Name : 'Club Name' }}
           </v-card-title>
@@ -61,7 +61,7 @@
             </v-btn>
 
             <v-file-input
-              accept="image/png, image/jpeg, image/gif, image/bmp"
+              accept="image/png, image/jpeg, image/gif, image/bmp, imge/svg"
               placeholder="Upload Club Logo"
               prepend-icon="mdi-photo"
               ref="fileUploader"
@@ -74,7 +74,38 @@
               </template>
             </v-file-input>
           </v-card-actions>
-        </v-card>
+        </v-card> -->
+
+        <!-- lol sorry! -->
+        <image-uploader
+          v-if="form.ClubCode"
+          v-bind:card="{
+            title: 'Upload Club Logo',
+            class: 'mb-3',
+            height: 'auto',
+          }"
+          v-bind:cardSheet="{ height: 'auto' }"
+          v-bind:previewImage="{
+            src: isUpdate ? `${api}/img/clubs/logos/${form.ClubCode}.png` : '',
+            contain: true,
+          }"
+          :fileName="form.ClubCode"
+          :filePath="'/clubs/logos/'"
+        ></image-uploader>
+
+        <image-uploader
+          v-if="form.ClubCode"
+          v-bind:card="{ title: 'Upload Club Kit', height: 400 }"
+          v-bind:cardSheet="{ height: 400 }"
+          v-bind:previewImage="{
+            src: isUpdate
+              ? `${api}/img/clubs/kits/${form.ClubCode}-kit.png`
+              : '',
+            contain: true,
+          }"
+          :fileName="`${form.ClubCode}-kit`"
+          :filePath="'/clubs/kits/'"
+        ></image-uploader>
       </v-col>
 
       <v-col cols="9">
@@ -105,11 +136,6 @@
                 </v-col>
 
                 <v-col cols="6">
-                  <v-text-field
-                    color="amber darken-1"
-                    label="Manager"
-                    v-model="form.Manager"
-                  ></v-text-field>
                   <div class="subtitle-1">Stadium</div>
                   <div class="d-flex flex-column">
                     <v-text-field
@@ -188,8 +214,13 @@
 import { Component, Vue, Prop } from 'vue-property-decorator';
 import { Club } from '@/interfaces/club';
 import { apiUrl } from '@/store';
+import ImageUploader from '@/components/helpers/image-uploader.vue';
 
-@Component({})
+@Component({
+  components: {
+    ImageUploader,
+  },
+})
 export default class ClubForm extends Vue {
   @Prop({ required: false }) readonly isUpdate!: boolean;
   private club: {} = {};

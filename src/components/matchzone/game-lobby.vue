@@ -13,7 +13,12 @@
       <v-card-text>
         <v-row>
           <v-col>
-            <v-card flat tile>
+            <v-card flat tile light class="justify-center text-center">
+              <v-img
+                v-if="home"
+                :src="`${api}/img/clubs/kits/${home}-kit.png`"
+                width="100px"
+              ></v-img>
               <v-card-title>
                 Player 1
               </v-card-title>
@@ -40,7 +45,12 @@
             </v-card>
           </v-col>
           <v-col>
-            <v-card flat tile>
+            <v-card flat tile light class="justify-center text-center">
+              <v-img
+                v-if="away"
+                :src="`${api}/img/clubs/kits/${away}-kit.png`"
+                width="100px"
+              ></v-img>
               <v-card-title>
                 Player 2
               </v-card-title>
@@ -73,14 +83,18 @@
 </template>
 <script lang="ts">
 import { Component, Vue, Prop, Watch } from 'vue-property-decorator';
+import { apiUrl } from '@/store';
 
 @Component({})
 export default class GameLobby extends Vue {
   @Prop({ required: true, default: false, type: Boolean }) show!: boolean;
+  @Prop({ required: true }) home = '';
+  @Prop({ required: true }) away = '';
 
   private player1Ready = false;
   private player2Ready = false;
   private skip = false;
+  private api = apiUrl;
 
   get allReady() {
     return this.player1Ready && this.player2Ready;

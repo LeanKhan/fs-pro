@@ -22,9 +22,10 @@
     </v-badge>
 
     <v-avatar tile size="100px">
-      <v-icon style="font-size: 100px; height: 100px" x-large>
-        ${{ clubCode }}
-      </v-icon>
+      <v-img
+        :src="`${api}/img/clubs/logos/${clubCode}.png`"
+        width="100px"
+      ></v-img>
     </v-avatar>
 
     <div>
@@ -36,6 +37,7 @@
         :color="isHome ? 'deep-purple darken-3' : 'pink accent-3'"
         background-color="secondary lighten-1"
       ></v-rating>
+      <span class="caption text-muted ml-1">{{ clubRating | roundTo(1) }}</span>
     </div>
 
     <div class="caption" v-if="clubStandings.standing">
@@ -48,6 +50,8 @@
 
 <script lang="ts">
 import { Component, Vue, Prop } from 'vue-property-decorator';
+import { apiUrl } from '@/store';
+
 @Component({})
 export default class ClubWidget extends Vue {
   @Prop({ required: true }) readonly clubName: any;
@@ -56,6 +60,8 @@ export default class ClubWidget extends Vue {
   @Prop({ required: true }) readonly clubCode: any;
   @Prop({ required: false }) readonly clubStandings: any;
   @Prop({ required: false }) readonly winner!: string;
+
+  private api = apiUrl;
 
   get clubRating() {
     if (this.rating) {

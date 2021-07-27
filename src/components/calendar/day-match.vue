@@ -10,7 +10,7 @@
     </v-list-item-title>
 
     <v-list-item-icon size="20px" color="green" v-if="match.Fixture.Played">
-      <v-icon color="success">mdi-football</v-icon>
+      <v-icon color="green accent-3">mdi-check</v-icon>
     </v-list-item-icon>
   </v-list-item>
 </template>

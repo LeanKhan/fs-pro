@@ -310,7 +310,12 @@
           </v-card>
         </v-col>
       </v-row>
-      <game-lobby :show.sync="openLobby" @all-ready="ready"></game-lobby>
+      <game-lobby
+        :show.sync="openLobby"
+        @all-ready="ready"
+        :home="fixture.Home"
+        :away="fixture.Away"
+      ></game-lobby>
     </v-container>
   </div>
 </template>
@@ -423,8 +428,8 @@ export default class MatchZone extends Vue {
       .get(`/fixtures/${this.fixtureId}`, {
         params: {
           populate: JSON.stringify([
-            { path: 'HomeTeam', populate: { path: 'Players' } },
-            { path: 'AwayTeam', populate: { path: 'Players' } },
+            { path: 'HomeTeam', populate: ['Players', 'Manager'] },
+            { path: 'AwayTeam', populate: ['Players', 'Manager'] },
           ]),
         },
       })

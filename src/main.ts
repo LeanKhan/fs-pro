@@ -4,6 +4,7 @@ import vuetify from './plugins/vuetify';
 import router from './router';
 import store, { apiUrl } from './store';
 import axios, { AxiosStatic } from 'axios';
+import { roundTo } from './helpers/misc';
 
 import VueSocketIOExt from 'vue-socket.io-extended';
 import io from 'socket.io-client';
@@ -23,6 +24,8 @@ Vue.use({
     Vue.prototype.$axios = $axios;
   },
 });
+
+Vue.filter('roundTo', roundTo);
 
 declare module 'vue/types/vue' {
   interface Vue {

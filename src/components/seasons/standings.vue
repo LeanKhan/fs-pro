@@ -1,6 +1,6 @@
 <template>
   <v-card>
-    <v-card-title v-if="!compiled" class="subtitle-2">
+    <v-card-title v-if="weekly" class="subtitle-2">
       Week {{ WeekStandings.Week }}
     </v-card-title>
     <v-data-table
@@ -29,7 +29,7 @@ import { WeekStandings as IWeek } from '@/interfaces/season.ts';
 })
 export default class Standings extends Vue {
   @Prop({ required: true }) WeekStandings!: IWeek;
-  @Prop({ required: false, default: false }) compiled!: boolean;
+  @Prop({ required: false, default: false }) weekly!: boolean;
 
   private Table: IWeek['Table'] =
     this.WeekStandings.Table || this.WeekStandings;

@@ -13,6 +13,12 @@
             >
               New Calendar Year
             </v-btn>
+            <br />
+            <v-checkbox
+              v-model="randomMonth"
+              label="Random Month"
+              hint="Random Month like 'CGB'"
+            ></v-checkbox>
           </v-col>
           <v-col cols="6">
             <v-input readonly value="2020"></v-input>
@@ -93,6 +99,8 @@ export default class Calendar extends Vue {
 
   private response: any = '';
 
+  private randomMonth = false;
+
   private showToast = false;
   // TODO: make this a global service!
   private toast = {
@@ -105,7 +113,7 @@ export default class Calendar extends Vue {
     this.loading = true;
 
     this.$axios
-      .post('/calendar/new')
+      .post(`/calendar/new${this.randomMonth ? '?override_month=true' : ''}`)
       .then(response => {
         console.log('Response => ', response);
 
