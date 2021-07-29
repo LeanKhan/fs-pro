@@ -1,24 +1,29 @@
 <template>
-  <v-card elevation="2" class="pa-2">
-    <v-toolbar>Awards</v-toolbar>
-    <v-window v-model="step" reverse>
-      <v-window-item v-for="(award, i) in awards" :key="i">
-        <v-card>
-          <v-img
-            :src="
-              `${api}/img/clubs/kits/${award.Recipient.Club.ClubCode}-kit.png`
-            "
-            width="100px"
-          ></v-img>
-          <v-card-title>
-            {{ award.Name }}
-          </v-card-title>
-          <v-card-subtitle>
-            {{ award.Recipient.FirstName }} {{ award.Recipient.LastName }}
-          </v-card-subtitle>
-        </v-card>
-      </v-window-item>
-    </v-window>
+  <v-card elevation="2" class="pa-2" color="green accent-3">
+    <v-toolbar>
+      Awards
+      <v-icon>mdi-trophy</v-icon>
+    </v-toolbar>
+    <v-card-text class="white">
+      <v-window v-model="step" reverse>
+        <v-window-item v-for="(award, i) in awards" :key="i">
+          <v-card>
+            <v-img
+              :src="
+                `${api}/img/clubs/kits/${award.Recipient.Club.ClubCode}-kit.png`
+              "
+              width="100px"
+            ></v-img>
+            <v-card-title>
+              {{ award.Name }}
+            </v-card-title>
+            <v-card-subtitle>
+              {{ award.Recipient.FirstName }} {{ award.Recipient.LastName }}
+            </v-card-subtitle>
+          </v-card>
+        </v-window-item>
+      </v-window>
+    </v-card-text>
     <v-overlay :value="loading">
       <v-progress-circular indeterminate size="68"></v-progress-circular>
     </v-overlay>

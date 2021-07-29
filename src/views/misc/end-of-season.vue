@@ -25,7 +25,7 @@
               Season
             </v-toolbar>
 
-            <v-sheet v-if="!season.isFinished">
+            <v-sheet class="pa-4 danger" v-if="!season.isFinished">
               Ending Season
               <br />
               <v-btn
@@ -38,23 +38,35 @@
               </v-btn>
             </v-sheet>
 
-            <div
-              class="h1"
+            <v-sheet
+              class="d-flex v-toolbar v-toolbar--prominent justify-center"
               v-else-if="season.CompiledStandings || standings.length > 0"
             >
-              Winner:
-              <template v-if="standings.length > 0">
-                <v-icon x-large>${{ standings[0].ClubCode }}</v-icon>
-                {{ standings[0].ClubCode }}
-              </template>
+              <p>
+                Having Successfully completed
+                {{ season.Fixtures.length }} matches and come out on top,
+                {{ season.Winner.Name }} is thereby crowned champions of the
+                league.
+              </p>
+              <div>
+                <template v-if="standings.length > 0">
+                  <v-icon x-large>${{ standings[0].ClubCode }}</v-icon>
+                  {{ standings[0].ClubCode }}
+                </template>
 
-              <template v-else-if="season.CompiledStandings">
-                <v-icon x-large>
-                  ${{ season.CompiledStandings[0].ClubCode }}
-                </v-icon>
-                {{ season.CompiledStandings[0].ClubCode }}
-              </template>
-            </div>
+                <template v-else-if="season.CompiledStandings">
+                  <v-icon x-large>
+                    ${{ season.CompiledStandings[0].ClubCode }}
+                  </v-icon>
+                  {{ season.CompiledStandings[0].ClubCode }}
+                </template>
+
+                <p class="subtitle-1">
+                  Champions {{ season.CompetitionCode }}
+                  {{ season.Year }} Season
+                </p>
+              </div>
+            </v-sheet>
 
             <div v-else>
               Season is over, but data is not displayed here yet...
@@ -65,7 +77,6 @@
             </template>
 
             <!-- Show top Players! -->
-            <v-subheader>Best Players by:</v-subheader>
             <player-stats :seasonId="seasonId"></player-stats>
           </v-card>
         </v-col>
@@ -159,7 +170,7 @@ export default class EndOfSeason extends Vue {
     this.loading = true;
 
     this.$axios
-      .get(`/seasons/${this.seasonId}`)
+      .get(`/seasons/${this.seasonId}?populate=Fixtures Winner`)
       .then(response => {
         this.season = response.data.payload;
       })

@@ -1,42 +1,52 @@
 <template>
-  <div>
-    <template v-for="(attr, k) in stats_attributes">
-      <v-col cols="3" v-bind:key="k">
-        <v-card>
-          <v-card-title class="capitalize">Highest {{ attr }}</v-card-title>
+  <v-card elevation="2" class="pa-2" color="green accent-2">
+    <v-toolbar>
+      Best Players
+      <v-icon>mdi-chart-areaspline</v-icon>
+    </v-toolbar>
+    <v-card-text class="white">
+      <template v-for="(attr, k) in stats_attributes">
+        <v-col cols="3" v-bind:key="k">
+          <v-card color="green accent-1">
+            <v-card-title class="capitalize subtitle-1">
+              Highest {{ attr }}
+            </v-card-title>
 
-          <v-list v-if="top_players[attr].length > 0">
-            <v-list-item v-for="(p, i) in top_players[attr]" :key="i">
-              <v-list-item-avatar>
-                <v-icon style="font-size: 30px; height: 30px" large>
-                  ${{ p.player.ClubCode }}
-                </v-icon>
-              </v-list-item-avatar>
-              <v-list-item-title>
-                {{ p.player.FirstName }} {{ p.player.LastName }}
-              </v-list-item-title>
+            <v-list v-if="top_players[attr].length > 0">
+              <v-list-item v-for="(p, i) in top_players[attr]" :key="i">
+                <v-list-item-avatar>
+                  <v-icon style="font-size: 30px; height: 30px" large>
+                    ${{ p.player.ClubCode }}
+                  </v-icon>
+                </v-list-item-avatar>
+                <v-list-item-title>
+                  {{ p.player.FirstName }} {{ p.player.LastName }}
+                </v-list-item-title>
 
-              <v-list-item-avatar size="40px" color="blue">
-                <span class="white--text font-weight-bold">
-                  {{ p[attr] | roundTo(2) }}
-                </span>
-              </v-list-item-avatar>
-            </v-list-item>
-          </v-list>
+                <v-list-item-avatar size="40px" color="blue">
+                  <span class="white--text font-weight-bold">
+                    {{ p[attr] | roundTo(2) }}
+                  </span>
+                </v-list-item-avatar>
+              </v-list-item>
+            </v-list>
 
-          <v-sheet v-else>
-            <v-btn
-              :disabled="loading_player_stats"
-              :loading="loading_player_stats"
-              @click="load_stats(attr)"
-            >
-              Load
-            </v-btn>
-          </v-sheet>
-        </v-card>
-      </v-col>
-    </template>
-  </div>
+            <v-sheet class="pa-2" v-else>
+              <v-btn
+                block
+                depressed
+                :disabled="loading_player_stats"
+                :loading="loading_player_stats"
+                @click="load_stats(attr)"
+              >
+                Load
+              </v-btn>
+            </v-sheet>
+          </v-card>
+        </v-col>
+      </template>
+    </v-card-text>
+  </v-card>
 </template>
 
 <script lang="ts">
