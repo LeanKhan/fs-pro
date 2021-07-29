@@ -39,7 +39,7 @@
             </v-sheet>
 
             <v-sheet
-              class="d-flex v-toolbar v-toolbar--prominent justify-center"
+              class="d-flex flex-column pa-3 v-toolbar v-toolbar--prominent justify-center text-center"
               v-else-if="season.CompiledStandings || standings.length > 0"
             >
               <p>
@@ -50,12 +50,14 @@
               </p>
               <div>
                 <template v-if="standings.length > 0">
-                  <v-icon x-large>${{ standings[0].ClubCode }}</v-icon>
+                  <v-icon x-large size="80px">
+                    ${{ standings[0].ClubCode }}
+                  </v-icon>
                   {{ standings[0].ClubCode }}
                 </template>
 
                 <template v-else-if="season.CompiledStandings">
-                  <v-icon x-large>
+                  <v-icon x-large size="80px">
                     ${{ season.CompiledStandings[0].ClubCode }}
                   </v-icon>
                   {{ season.CompiledStandings[0].ClubCode }}
@@ -73,7 +75,10 @@
             </div>
 
             <template v-if="season.isFinished">
-              <player-awards :seasonId="seasonId"></player-awards>
+              <player-awards
+                ref="awardsComponent"
+                :seasonId="seasonId"
+              ></player-awards>
             </template>
 
             <!-- Show top Players! -->
@@ -112,7 +117,7 @@
 
 <script lang="ts">
 /* eslint-disable @typescript-eslint/camelcase */
-import { Component, Vue } from 'vue-property-decorator';
+import { Component, Vue, Ref } from 'vue-property-decorator';
 import Standings from '@/components/seasons/standings.vue';
 import PlayerStats from '@/components/seasons/player-stats.vue';
 import PlayerAwards from '@/components/seasons/player-awards.vue';
@@ -125,6 +130,7 @@ import PlayerAwards from '@/components/seasons/player-awards.vue';
   },
 })
 export default class EndOfSeason extends Vue {
+  @Ref('awardsComponent') readonly awardsComponent!: PlayerAwards;
   // after end of season, check if the Year is alos over (that is, all the seasons are finished...)
   // then go to End Of Year...
 
@@ -153,6 +159,7 @@ export default class EndOfSeason extends Vue {
         if (response.data.success) {
           this.standings = response.data.payload.standings;
           this.season = response.data.payload.season;
+          this.awardsComponent.fetchAwards();
         } else {
           this.failToEnd = true;
         }
@@ -173,6 +180,10 @@ export default class EndOfSeason extends Vue {
       .get(`/seasons/${this.seasonId}?populate=Fixtures Winner`)
       .then(response => {
         this.season = response.data.payload;
+
+        if (this.season.isFinished) {
+          this.awardsComponent.fetchAwards();
+        }
       })
       .catch(err => {
         console.log('Error fetching Season => ', err);

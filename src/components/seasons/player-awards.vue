@@ -1,11 +1,17 @@
 <template>
-  <v-card elevation="2" class="pa-2" color="green accent-3">
+  <v-card elevation="2" class="pa-2 my-4" color="green accent-3">
     <v-toolbar>
       Awards
       <v-icon>mdi-trophy</v-icon>
     </v-toolbar>
     <v-card-text class="white">
-      <v-window v-model="step" reverse>
+      <v-window
+        v-model="step"
+        reverse
+        :continuous="true"
+        :show-arrows="true"
+        show-arrows-on-hover
+      >
         <v-window-item v-for="(award, i) in awards" :key="i">
           <v-card>
             <v-img
@@ -40,15 +46,10 @@ export default class PlayerAwards extends Vue {
   // then go to End Of Year...
   //   @Prop({ required: true }) stats_attributes!: string[];
   @Prop({ required: true }) seasonId!: string;
-
-  private step = 0;
-
-  private loading = false;
-
-  private awards = [];
-
-  private mounted() {
-    //   load awards! Thank you Jesus!
+  /**
+   * Fetch Awards, thank you Jesus!
+   */
+  public fetchAwards() {
     this.loading = true;
 
     this.$axios
@@ -63,6 +64,16 @@ export default class PlayerAwards extends Vue {
         this.loading = false;
       });
   }
+  private step = 0;
+
+  private loading = false;
+
+  private awards = [];
+
+  //   private mounted() {
+  //     //   load awards! Thank you Jesus!
+  //     this.fetchAwards();
+  //   }
 }
 </script>
 
