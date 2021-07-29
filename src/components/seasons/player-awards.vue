@@ -15,9 +15,7 @@
         <v-window-item v-for="(award, i) in awards" :key="i">
           <v-card>
             <v-img
-              :src="
-                `${api}/img/clubs/kits/${award.Recipient.Club.ClubCode}-kit.png`
-              "
+              :src="`${api}/img/clubs/kits/${award.Club.ClubCode}-kit.png`"
               width="100px"
             ></v-img>
             <v-card-title>

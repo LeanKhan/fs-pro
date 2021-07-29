@@ -50,15 +50,19 @@
               </p>
               <div>
                 <template v-if="standings.length > 0">
-                  <v-icon style="font-size: 130px; height: 130px" x-large>
-                    ${{ standings[0].ClubCode }}
-                  </v-icon>
+                  <v-img
+                    :src="`${api}/img/clubs/logos/${standings[0].ClubCode}.png`"
+                    width="140px"
+                  ></v-img>
                 </template>
 
                 <template v-else-if="season.CompiledStandings">
-                  <v-icon style="font-size: 130px; height: 130px" x-large>
-                    ${{ season.CompiledStandings[0].ClubCode }}
-                  </v-icon>
+                  <v-img
+                    :src="
+                      `${api}/img/clubs/logos/${season.CompiledStandings[0].ClubCode}.png`
+                    "
+                    width="140px"
+                  ></v-img>
                 </template>
 
                 <p class="subtitle-1">
@@ -115,10 +119,11 @@
 
 <script lang="ts">
 /* eslint-disable @typescript-eslint/camelcase */
-import { Component, Vue, Ref } from 'vue-property-decorator';
+import { Component, Vue } from 'vue-property-decorator';
 import Standings from '@/components/seasons/standings.vue';
 import PlayerStats from '@/components/seasons/player-stats.vue';
 import PlayerAwards from '@/components/seasons/player-awards.vue';
+import { apiUrl } from '@/store';
 
 @Component({
   components: {
@@ -128,11 +133,13 @@ import PlayerAwards from '@/components/seasons/player-awards.vue';
   },
 })
 export default class EndOfSeason extends Vue {
-  @Ref() readonly awardsComponent2!: PlayerAwards;
+  // @Ref() readonly awardsComponent!: PlayerAwards;
   // after end of season, check if the Year is alos over (that is, all the seasons are finished...)
   // then go to End Of Year...
 
   private loading = false;
+
+  private api = apiUrl;
 
   private season: any = {};
 
@@ -143,11 +150,6 @@ export default class EndOfSeason extends Vue {
   get seasonId() {
     return this.$route.params.season_id;
   }
-
-  get awardsComponent() {
-    return this.$refs.awardsComponent as PlayerAwards;
-  }
-
   private close() {
     this.$router.push('/u');
   }
@@ -162,8 +164,8 @@ export default class EndOfSeason extends Vue {
           this.standings = response.data.payload.standings;
           this.season = response.data.payload.season;
           // this.awardsComponent.fetchAwards();
-          this.awardsComponent.fetchAwards();
-          this.awardsComponent2.fetchAwards();
+          const p = this.$refs.awardsComponent as PlayerAwards;
+          p.fetchAwards();
         } else {
           this.failToEnd = true;
         }
@@ -186,7 +188,8 @@ export default class EndOfSeason extends Vue {
         this.season = response.data.payload;
 
         if (this.season.isFinished) {
-          this.awardsComponent.fetchAwards();
+          const p = this.$refs.awardsComponent as PlayerAwards;
+          p.fetchAwards();
         }
       })
       .catch(err => {
