@@ -121,7 +121,7 @@
 
 <script lang="ts">
 /* eslint-disable @typescript-eslint/camelcase */
-import { Component, Vue } from 'vue-property-decorator';
+import { Component, Vue, Ref } from 'vue-property-decorator';
 import Standings from '@/components/seasons/standings.vue';
 import PlayerStats from '@/components/seasons/player-stats.vue';
 import PlayerAwards from '@/components/seasons/player-awards.vue';
@@ -135,7 +135,7 @@ import { apiUrl } from '@/store';
   },
 })
 export default class EndOfSeason extends Vue {
-  // @Ref() readonly awardsComponent!: PlayerAwards;
+  @Ref('awardsComponent') readonly awardsComponent!: PlayerAwards;
   // after end of season, check if the Year is alos over (that is, all the seasons are finished...)
   // then go to End Of Year...
 
@@ -165,12 +165,13 @@ export default class EndOfSeason extends Vue {
         if (response.data.success) {
           this.standings = response.data.payload.standings;
           this.season = response.data.payload.season;
-          // this.awardsComponent.fetchAwards();
-          const p = this.$refs.awardsComponent as PlayerAwards;
-          console.log(this.$refs);
-          console.log(this);
-          // $vm0.$refs.awardsComponent.fetchAwards()
-          p.fetchAwards();
+
+          this.$nextTick(() => {
+            console.log('Inside nextTick at ', new Date());
+            console.log(this.$refs.awardsComponent);
+
+            this.awardsComponent.fetchAwards();
+          });
         } else {
           this.failToEnd = true;
         }

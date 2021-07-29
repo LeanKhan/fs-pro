@@ -7,8 +7,8 @@
     <v-row>
       <template v-for="(attr, k) in stats_attributes">
         <v-col cols="6" v-bind:key="k">
-          <v-card light color="green accent-1">
-            <v-card-title class="capitalize subtitle-1">
+          <v-card color="green accent-1">
+            <v-card-title class="capitalize subtitle-1 black--text">
               Highest {{ attr }}
             </v-card-title>
 

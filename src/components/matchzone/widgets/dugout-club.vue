@@ -21,8 +21,14 @@
           {{ club.Name }}
         </v-list-item-title>
         <v-list-item-subtitle>
-          {{ club.Manager.FirstName.charAt(0) }}.
-          {{ club.Manager.LastName }}
+          <template v-if="typeof club.Manager == 'object'">
+            {{ club.Manager.FirstName.charAt(0) }}
+            {{ club.Manager.LastName }}
+          </template>
+
+          <template>
+            No Manager
+          </template>
         </v-list-item-subtitle>
       </v-list-item-content>
 
