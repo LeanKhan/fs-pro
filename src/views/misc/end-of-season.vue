@@ -115,7 +115,7 @@
 
 <script lang="ts">
 /* eslint-disable @typescript-eslint/camelcase */
-import { Component, Vue } from 'vue-property-decorator';
+import { Component, Vue, Ref } from 'vue-property-decorator';
 import Standings from '@/components/seasons/standings.vue';
 import PlayerStats from '@/components/seasons/player-stats.vue';
 import PlayerAwards from '@/components/seasons/player-awards.vue';
@@ -128,7 +128,7 @@ import PlayerAwards from '@/components/seasons/player-awards.vue';
   },
 })
 export default class EndOfSeason extends Vue {
-  // @Ref('awardsComponent') readonly awardsComponent!: PlayerAwards;
+  @Ref() readonly awardsComponent2!: PlayerAwards;
   // after end of season, check if the Year is alos over (that is, all the seasons are finished...)
   // then go to End Of Year...
 
@@ -163,6 +163,7 @@ export default class EndOfSeason extends Vue {
           this.season = response.data.payload.season;
           // this.awardsComponent.fetchAwards();
           this.awardsComponent.fetchAwards();
+          this.awardsComponent2.fetchAwards();
         } else {
           this.failToEnd = true;
         }
