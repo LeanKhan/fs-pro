@@ -4,10 +4,10 @@
       Best Players
       <v-icon>mdi-chart-areaspline</v-icon>
     </v-toolbar>
-    <v-row class="white">
+    <v-row>
       <template v-for="(attr, k) in stats_attributes">
         <v-col cols="6" v-bind:key="k">
-          <v-card color="green accent-1">
+          <v-card light color="green accent-1">
             <v-card-title class="capitalize subtitle-1">
               Highest {{ attr }}
             </v-card-title>

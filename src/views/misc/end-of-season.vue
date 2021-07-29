@@ -22,7 +22,7 @@
         <v-col cols="9" class="px-1">
           <v-card tile height="100%">
             <v-toolbar color="pink accent-3" dense flat tile>
-              Season
+              Results
             </v-toolbar>
 
             <v-sheet class="pa-4 danger" v-if="!season.isFinished">
@@ -51,6 +51,7 @@
               <div>
                 <template v-if="standings.length > 0">
                   <v-img
+                    class="mx-auto"
                     :src="`${api}/img/clubs/logos/${standings[0].ClubCode}.png`"
                     width="140px"
                   ></v-img>
@@ -58,6 +59,7 @@
 
                 <template v-else-if="season.CompiledStandings">
                   <v-img
+                    class="mx-auto"
                     :src="
                       `${api}/img/clubs/logos/${season.CompiledStandings[0].ClubCode}.png`
                     "
@@ -165,6 +167,9 @@ export default class EndOfSeason extends Vue {
           this.season = response.data.payload.season;
           // this.awardsComponent.fetchAwards();
           const p = this.$refs.awardsComponent as PlayerAwards;
+          console.log(this.$refs);
+          console.log(this);
+          // $vm0.$refs.awardsComponent.fetchAwards()
           p.fetchAwards();
         } else {
           this.failToEnd = true;
