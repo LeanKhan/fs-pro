@@ -21,7 +21,7 @@
           {{ club.Name }}
         </v-list-item-title>
         <v-list-item-subtitle>
-          <template v-if="typeof club.Manager == 'object'">
+          <template v-if="club.Manager && club.Manager.FirstName">
             {{ club.Manager.FirstName.charAt(0) }}
             {{ club.Manager.LastName }}
           </template>

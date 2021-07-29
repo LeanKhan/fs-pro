@@ -51,7 +51,7 @@
                 <span class="grey--text">{{ club.ClubCode }}</span>
               </div>
 
-              <div v-if="typeof club.Manager == 'object'" class="title">
+              <div v-if="club.Manager && club.Manager.FirstName" class="title">
                 <span class="subtitle-1 grey--text">Manager:</span>
                 {{ club.Manager.FirstName }} {{ club.Manager.LastName }}
               </div>

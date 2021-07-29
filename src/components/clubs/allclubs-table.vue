@@ -40,7 +40,7 @@
       </template>
 
       <template v-slot:item.Manager="{ item }">
-        <template v-if="typeof item.Manager == 'object'">
+        <template v-if="item.Manager && item.Manager.FirstName">
           {{ item.Manager.FirstName.charAt(0) }}. {{ item.Manager.LastName }}
         </template>
 

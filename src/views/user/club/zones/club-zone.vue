@@ -5,7 +5,7 @@
         Manager
       </v-card-title>
       <v-card-text>
-        <template v-if="typeof club.Manager == 'object'">
+        <template v-if="club.Manager && club.Manager.FirstName">
           {{ club.Manager.FirstName }} {{ club.Manager.LastName }}
         </template>
         <template v-else>
