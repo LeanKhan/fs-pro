@@ -50,17 +50,15 @@
               </p>
               <div>
                 <template v-if="standings.length > 0">
-                  <v-icon x-large size="80px">
+                  <v-icon style="font-size: 130px; height: 130px" x-large>
                     ${{ standings[0].ClubCode }}
                   </v-icon>
-                  {{ standings[0].ClubCode }}
                 </template>
 
                 <template v-else-if="season.CompiledStandings">
-                  <v-icon x-large size="80px">
+                  <v-icon style="font-size: 130px; height: 130px" x-large>
                     ${{ season.CompiledStandings[0].ClubCode }}
                   </v-icon>
-                  {{ season.CompiledStandings[0].ClubCode }}
                 </template>
 
                 <p class="subtitle-1">
@@ -160,6 +158,7 @@ export default class EndOfSeason extends Vue {
           this.standings = response.data.payload.standings;
           this.season = response.data.payload.season;
           this.awardsComponent.fetchAwards();
+          // this.$refs.awardsComponent.fetchAwards();
         } else {
           this.failToEnd = true;
         }

@@ -39,13 +39,15 @@
 <script lang="ts">
 /* eslint-disable @typescript-eslint/camelcase */
 import { Component, Vue, Prop } from 'vue-property-decorator';
-
+import { apiUrl } from '@/store';
 @Component({})
 export default class PlayerAwards extends Vue {
   // after end of season, check if the Year is alos over (that is, all the seasons are finished...)
   // then go to End Of Year...
   //   @Prop({ required: true }) stats_attributes!: string[];
   @Prop({ required: true }) seasonId!: string;
+
+  private api = apiUrl;
   /**
    * Fetch Awards, thank you Jesus!
    */
