@@ -1,0 +1,64 @@
+<template>
+  <v-card elevation="2" class="pa-2">
+    <v-toolbar>Awards</v-toolbar>
+    <v-window v-model="step" reverse>
+      <v-window-item v-for="(award, i) in awards" :key="i">
+        <v-card>
+          <v-img
+            :src="
+              `${api}/img/clubs/kits/${award.Recipient.Club.ClubCode}-kit.png`
+            "
+            width="100px"
+          ></v-img>
+          <v-card-title>
+            {{ award.Name }}
+          </v-card-title>
+          <v-card-subtitle>
+            {{ award.Recipient.FirstName }} {{ award.Recipient.LastName }}
+          </v-card-subtitle>
+        </v-card>
+      </v-window-item>
+    </v-window>
+    <v-overlay :value="loading">
+      <v-progress-circular indeterminate size="68"></v-progress-circular>
+    </v-overlay>
+  </v-card>
+</template>
+
+<script lang="ts">
+/* eslint-disable @typescript-eslint/camelcase */
+import { Component, Vue, Prop } from 'vue-property-decorator';
+
+@Component({})
+export default class PlayerAwards extends Vue {
+  // after end of season, check if the Year is alos over (that is, all the seasons are finished...)
+  // then go to End Of Year...
+  //   @Prop({ required: true }) stats_attributes!: string[];
+  @Prop({ required: true }) seasonId!: string;
+
+  private step = 0;
+
+  private loading = false;
+
+  private awards = [];
+
+  private mounted() {
+    //   load awards! Thank you Jesus!
+    this.loading = true;
+
+    this.$axios
+      .get(`/awards/season/${this.seasonId}?recipient=player&populate=club`)
+      .then(response => {
+        this.awards = response.data.payload;
+      })
+      .catch(err => {
+        console.log('Error fetching Season => ', err);
+      })
+      .finally(() => {
+        this.loading = false;
+      });
+  }
+}
+</script>
+
+<style></style>

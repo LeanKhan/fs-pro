@@ -1,6 +1,24 @@
 <template>
   <div>
     <v-card :loading="loading">
+      <!-- // Toolbar -->
+      <v-toolbar>
+        <!-- Current day -->
+        <v-toolbar-title class="subtitle-1 font-weight-bold indigo--text">
+          Current Calendar: {{ calendar.YearString }}
+        </v-toolbar-title>
+
+        <v-toolbar-items>
+          <v-btn
+            color="warning"
+            v-if="calendar.allSeasonsCompleted"
+            @click="endYear()"
+          >
+            END YEAR
+          </v-btn>
+        </v-toolbar-items>
+      </v-toolbar>
+
       <v-card-title>New Calendar...</v-card-title>
       <v-card-text>
         <v-row>
@@ -108,6 +126,14 @@ export default class Calendar extends Vue {
     color: 'success',
     message: 'Inside Calendar!',
   };
+
+  get currentDay() {
+    return this.$store.state.calendar.CurrentDay;
+  }
+
+  get calendar() {
+    return this.$store.state.calendar;
+  }
 
   private createNewYear() {
     this.loading = true;

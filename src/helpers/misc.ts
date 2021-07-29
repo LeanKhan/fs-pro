@@ -18,3 +18,8 @@ export function roundTo(number: number, decimalPlaces: number) {
 
   return Math.round((number + Number.EPSILON) * g) / g;
 }
+
+/** Capitalize te first letter of the text */
+export function capitalize(text: string) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
