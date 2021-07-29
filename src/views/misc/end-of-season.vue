@@ -36,14 +36,6 @@
               >
                 Finish Now
               </v-btn>
-
-              <template v-if="season.isFinished">
-                <player-awards :seasonId="seasonId"></player-awards>
-              </template>
-
-              <!-- Show top Players! -->
-              <v-subheader>Best Players by:</v-subheader>
-              <player-stats :seasonId="seasonId"></player-stats>
             </v-sheet>
 
             <div
@@ -67,6 +59,14 @@
             <div v-else>
               Season is over, but data is not displayed here yet...
             </div>
+
+            <template v-if="season.isFinished">
+              <player-awards :seasonId="seasonId"></player-awards>
+            </template>
+
+            <!-- Show top Players! -->
+            <v-subheader>Best Players by:</v-subheader>
+            <player-stats :seasonId="seasonId"></player-stats>
           </v-card>
         </v-col>
 
