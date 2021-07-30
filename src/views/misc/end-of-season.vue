@@ -194,8 +194,9 @@ export default class EndOfSeason extends Vue {
         this.season = response.data.payload;
 
         if (this.season.isFinished) {
-          const p = this.$refs.awardsComponent as PlayerAwards;
-          p.fetchAwards();
+          this.$nextTick(() => {
+                       this.awardsComponent.fetchAwards();
+          });
         }
       })
       .catch(err => {
