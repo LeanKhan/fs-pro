@@ -10,70 +10,87 @@
       <v-toolbar color="green accent-3" dense flat tile>
         <v-toolbar-title class="mx-auto">Get ready to play!</v-toolbar-title>
       </v-toolbar>
-      <v-card-text>
+      <v-card-text class="pa-0">
         <v-row>
-          <v-col>
-            <v-card flat tile light class="justify-center text-center">
+          <v-col :class="{ yellow: player1Ready }">
+            <v-card flat tile dense class="pa-0 justify-center text-center">
               <v-img
                 v-if="home"
-                :src="`${api}/img/clubs/kits/${home}-kit.png`"
-                width="100px"
+                contain
+                class="mx-auto"
+                :src="`${api}/img/clubs/kits/${home.ClubCode}-kit.png`"
+              
+                max-width="200px"
               ></v-img>
-              <v-card-title>
-                Player 1
-              </v-card-title>
-              <v-card-text>
-                Are you ready?
+              <v-overlay :absolute="true" :value="true" opacity="0.3">
+            
+              <div class="headline">
+                {{ home.Name }}
+              </div>
+              <v-card-text class="pa-0">
+                <span v-if="!player1Ready">Are you ready?</span>
+
+                 
+                <template v-else>
+                  Oya na!
+                  <v-icon>
+                    mdi-check
+                  </v-icon>
+                </template>
               </v-card-text>
-              <v-card-actions>
-                <template>
+              <v-card-actions class="justify-center">
+                
                   <v-btn
-                    color="primary darken-3"
-                    depressed
+                    color="accent"
+                    :depressed="player1Ready"
+                                        :class="{ 'darken-2': player1Ready }"
                     @click="player1Ready = !player1Ready"
                   >
                     READY
                   </v-btn>
-                </template>
-                <template v-if="player1Ready">
-                  Oya na!
-                  <v-icon>
-                    mdi-smile
-                  </v-icon>
-                </template>
+              
               </v-card-actions>
+              </v-overlay>
             </v-card>
           </v-col>
-          <v-col>
-            <v-card flat tile light class="justify-center text-center">
+          <v-col :class="{ yellow: player2Ready }">
+            <v-card flat tile dense class="pa-0 justify-center text-center">
               <v-img
                 v-if="away"
-                :src="`${api}/img/clubs/kits/${away}-kit.png`"
-                width="100px"
+                contain
+                class="mx-auto"
+                :src="`${api}/img/clubs/kits/${away.ClubCode}-kit.png`"
+              
+                max-width="200px"
               ></v-img>
-              <v-card-title>
-                Player 2
-              </v-card-title>
-              <v-card-text>
-                Are you ready?
-              </v-card-text>
-              <v-card-actions>
-                <template>
+              <v-overlay :absolute="true" :value="true" opacity="0.3">
+            
+             <div class="headline">
+                {{ away.Name }}
+              </div>
+              <v-card-text class="pa-0">
+<span v-if="!player2Ready">Are you ready?</span>
+
+                 
+                <template v-else>
+                  Oya na!
+                  <v-icon>
+                    mdi-check
+                  </v-icon>
+                </template>              </v-card-text>
+              <v-card-actions class="justify-center">
+               
                   <v-btn
-                    color="pink darken-3"
-                    depressed
+                    color="accent"
+                    :depressed="player2Ready"
+                    :class="{ 'darken-2': player2Ready }"
                     @click="player2Ready = !player2Ready"
                   >
                     READY
                   </v-btn>
-                </template>
-                <template v-if="player2Ready">
-                  Oya na!
-                  <v-icon>
-                    mdi-smile
-                  </v-icon>
-                </template>
+                
               </v-card-actions>
+              </v-overlay>
             </v-card>
           </v-col>
         </v-row>
@@ -88,8 +105,8 @@ import { apiUrl } from '@/store';
 @Component({})
 export default class GameLobby extends Vue {
   @Prop({ required: true, default: false, type: Boolean }) show!: boolean;
-  @Prop({ required: true }) home = '';
-  @Prop({ required: true }) away = '';
+  @Prop({ required: true }) home!: any;
+  @Prop({ required: true }) away!: any;
 
   private player1Ready = false;
   private player2Ready = false;

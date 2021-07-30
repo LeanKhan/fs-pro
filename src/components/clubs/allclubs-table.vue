@@ -41,7 +41,7 @@
 
       <template v-slot:item.Manager="{ item }">
         <template v-if="item.Manager && item.Manager.FirstName">
-          {{ item.Manager.FirstName.charAt(0) }}. {{ item.Manager.LastName }}
+          {{ item.Manager.FirstName.charAt(0) }} {{ item.Manager.LastName }}
         </template>
 
         <template v-else>

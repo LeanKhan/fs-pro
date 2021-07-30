@@ -35,6 +35,16 @@
       loading-text="Fetching Players..."
       class="elevation-1"
     >
+       <template v-slot:item.Id="{ item }">
+          
+            <v-img
+              position="top"
+              :src="`${api}/img/clubs/kits/${item.ClubCode}-kit.png`"
+              max-height="50px"
+              max-width="120px"
+            ></v-img>
+          
+      </template>
       <template v-slot:item.Rating="{ item }">
         <v-chip :color="getColor(item.Rating)" dark>
           {{ Math.round(item.Rating) }}
@@ -88,16 +98,24 @@
 <script lang="ts">
 import { Component, Vue, Prop } from 'vue-property-decorator';
 import { Player } from '@/interfaces/player';
+import { apiUrl } from '@/store';
 
 @Component({})
 export default class PlayersTable extends Vue {
   @Prop({ required: true }) readonly players!: Player[];
   @Prop({ required: true, default: false }) readonly viewClub!: boolean;
 
+  private api = apiUrl;
+
   private headers: any[] = [
+      {
+      text: 'Id',
+      align: 'start',
+      value: 'Id',
+    },
     {
       text: 'First Name',
-      align: 'start',
+      
       value: 'FirstName',
     },
     {

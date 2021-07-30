@@ -313,8 +313,8 @@
       <game-lobby
         :show.sync="openLobby"
         @all-ready="ready"
-        :home="fixture.Home"
-        :away="fixture.Away"
+        :home="{ Name: fixture.HomeTeam.Name, ClubCode: fixture.Home}"
+        :away="{ Name: fixture.AwayTeam.Name, ClubCode: fixture.Away}"
       ></game-lobby>
     </v-container>
   </div>

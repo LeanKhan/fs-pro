@@ -25,6 +25,15 @@
       no-data-text="No Players"
       class="elevation-1"
     >
+     <template v-slot:item.Id="{ item }">
+          <v-list-item-avatar>
+            <v-img
+              :src="`${api}/img/clubs/kit/${item.ClubCode}-kit.png`"
+              height="40px"
+            ></v-img>
+          </v-list-item-avatar>
+          
+      </template>
       <template v-slot:item.Rating="{ item }">
         <v-chip :color="getColor(item.Rating)" dark>
           {{ Math.round(item.Rating) }}
@@ -47,19 +56,25 @@
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
 import { Player } from '@/interfaces/player';
+import { apiUrl } from '@/store';
 
 @Component({})
 export default class AllPlayersTable extends Vue {
   //   @Prop({ required: true }) readonly clubs!: Club;
-
+  private api = apiUrl;
   private players: any[] = [];
 
   private selectedPlayer: Player[] | [] = [];
 
   private headers: any[] = [
     {
-      text: 'First Name',
+      text: 'Id',
       align: 'start',
+      value: 'FirstName',
+    },
+
+    {
+      text: 'First Name',
       value: 'FirstName',
     },
     {
