@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import { createVuePlugin } from 'vite-plugin-vue2';
+import Components from 'unplugin-vue-components/vite';
+import { VuetifyResolver } from 'unplugin-vue-components/resolvers';
 
 const rollupOptions = {};
 
@@ -58,6 +60,9 @@ export default defineConfig({
           whitespace: 'condense',
         },
       },
+    }),
+    Components({
+      resolvers: [VuetifyResolver()],
     }),
   ],
 });
