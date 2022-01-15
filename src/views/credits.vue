@@ -23,10 +23,10 @@
   </div>
 </template>
 
-<script>
+<script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
 
-@Component
+@Component({})
 export default class Credits extends Vue {}
 </script>
 
