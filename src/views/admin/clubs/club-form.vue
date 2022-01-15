@@ -177,6 +177,8 @@
                       color="amber darken-1"
                       label="Country"
                       :items="countries"
+                      item-text="Name"
+                      item-value="_id"
                       v-model="form.Address.Country"
                     ></v-select>
                   </div>

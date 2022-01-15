@@ -27,7 +27,7 @@
       <v-subheader class="mx-auto">
         MATCHZONE
 
-        <v-chip v-if="lastMatchOfSeason">LAST MATCH</v-chip>
+        <v-chip v-if="lastMatchOfSeason || fixture.isFinalMatch">LAST MATCH</v-chip>
 
         Matchday {{ fixture.MatchDay }}
       </v-subheader>

@@ -12,7 +12,7 @@
         hide-details
         :clearable="true"
       ></v-text-field>
-   <!--    <v-btn
+      <!--    <v-btn
        
         append-icon="mdi-plus"
         color="success"
@@ -35,6 +35,11 @@
       loading-text="Fetching Managers..."
       class="elevation-1"
     >
+      <!-- Manager's Country -->
+      <template v-slot:item.Country="{ item }">
+        {{ item.Country.Name }}
+      </template>
+
       <!-- Players actions -->
       <template v-slot:item.Actions="{ item }">
         <v-btn @click="viewManager(item._id)" icon color="success lighten-2">

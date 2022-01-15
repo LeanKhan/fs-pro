@@ -18,7 +18,7 @@
                     <v-icon>mdi-globe</v-icon>
                     Nationality:
                   </strong>
-                  {{ manager.Nationality || 'Bellean' }}
+                  {{ manager.Nationality.Name || 'Bellean' }}
                 </v-list-item>
                 <v-list-item>
                   <strong>

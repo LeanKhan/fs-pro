@@ -25,6 +25,13 @@ Vue.use({
   },
 });
 
+const formatter = new Intl.NumberFormat('en-US', {
+    style: 'decimal',
+    minimumFractionDigits: 2,
+  });
+
+  Vue.filter('currency', (value: number) => `${formatter.format(value)}`);
+
 Vue.filter('roundTo', roundTo);
 
 declare module 'vue/types/vue' {

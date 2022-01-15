@@ -44,6 +44,8 @@
               <v-select
                 label="Country"
                 :items="countries"
+                item-text="Name"
+                item-value="_id"
                 v-model="form.Country"
               ></v-select>
             </v-col>
@@ -160,14 +162,6 @@ export default class ComponentForm extends Vue {
     Clubs: [],
     Seasons: [],
   };
-
-  // public countries: string[] = [
-  //   'Ashter',
-  //   'Bellean',
-  //   'UPP',
-  //   'Kiyoto',
-  //   'Ekhastan',
-  // ];
 
   get countries(): string[] {
     return this.$store.getters.countries;

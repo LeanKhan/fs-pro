@@ -45,6 +45,8 @@
                     color="cyan darken-1"
                     label="Nationality"
                     :items="countries"
+                    item-text="Name"
+                    item-value="_id"
                     v-model="form.Nationality"
                   ></v-select>
                 </v-col>
