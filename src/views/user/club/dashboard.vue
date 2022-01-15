@@ -186,7 +186,7 @@
         </v-row>
       </v-tab-item>
       <v-tab-item>
-        <squad-zone></squad-zone>
+        <squad-zone :club="club"></squad-zone>
       </v-tab-item>
       <v-tab-item>
         <club-zone :club="club" @update-available="refresh"></club-zone>
@@ -317,7 +317,7 @@ export default class ClubHome extends Vue {
 
   private fetchClub(clubId: string): void {
     const populate = [
-      { path: 'Players', select: 'FirstName LastName Rating Postition' },
+      { path: 'Players', select: 'FirstName LastName Fullname Rating Position Nationality RatingsHistory Age' },
       { path: 'Manager' },
       { path: 'League', select: '-Clubs -Seasons' },
     ];
