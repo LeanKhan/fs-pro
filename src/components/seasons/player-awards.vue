@@ -55,7 +55,10 @@ export default class PlayerAwards extends Vue {
     this.$axios
       .get(`/awards/season/${this.seasonId}?recipient=player&populate=club`)
       .then(response => {
+        const managerIndex = response.data.payload.findIndex((a: any) => !a.Recipient);
+        this.manager = response.data.payload.splice(managerIndex, 1);
         this.awards = response.data.payload;
+        // thank you Jesus!
       })
       .catch(err => {
         console.log('Error fetching Season => ', err);
@@ -69,6 +72,8 @@ export default class PlayerAwards extends Vue {
   private loading = false;
 
   private awards = [];
+
+  private manager = {};
 
   //   private mounted() {
   //     //   load awards! Thank you Jesus!

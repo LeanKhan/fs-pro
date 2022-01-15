@@ -38,6 +38,10 @@
               {{ item.Clubs.length }}
             </template>
 
+            <template v-slot:item.Country="{ item }">
+              {{ item.Country.Name }}
+            </template>
+
             <template v-slot:item.Seasons="{ item }">
               {{ item.Seasons.length }}
             </template>

@@ -25,15 +25,20 @@
       no-data-text="No Players"
       class="elevation-1"
     >
-     <template v-slot:item.Id="{ item }">
-          <v-list-item-avatar>
-            <v-img
-              :src="`${api}/img/clubs/kit/${item.ClubCode}-kit.png`"
-              height="40px"
-            ></v-img>
-          </v-list-item-avatar>
-          
+      <template v-slot:item.Id="{ item }">
+        <v-list-item-avatar>
+          <v-img
+            :src="`${api}/img/clubs/kit/${item.ClubCode}-kit.png`"
+            height="40px"
+          ></v-img>
+        </v-list-item-avatar>
       </template>
+
+      <!-- Player's Country -->
+      <template v-slot:item.Country="{ item }">
+        {{ item.Country.Name }}
+      </template>
+
       <template v-slot:item.Rating="{ item }">
         <v-chip :color="getColor(item.Rating)" dark>
           {{ Math.round(item.Rating) }}

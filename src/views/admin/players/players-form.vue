@@ -68,6 +68,8 @@
                     color="indigo darken-1"
                     label="Nationality"
                     :items="countries"
+                    item-text="Name"
+                    item-value="_id"
                     v-model="form.Nationality"
                   ></v-select>
 
@@ -258,21 +260,7 @@ export default class PlayerForm extends Vue {
 
   // TODO: upload files to server!
 
-  // public countries: string[] = [
-  //   'Ashter',
-  //   'Bellean',
-  //   'UPP',
-  //   'Kev',
-  //   'Simeon',
-  //   'Kiyoto',
-  //   'Ekhastan',
-  //   'Huntaarland',
-  //   'Legardio',
-  //   'Stov',
-  //   'Proland',
-  //   'Pregge',
-  // ];
-
+  // as at 20/08/21 -> Stov does not exist!
   public appearances: any[] = [];
 
   private positions: string[] = ['GK', 'ATT', 'DEF', 'MID'];

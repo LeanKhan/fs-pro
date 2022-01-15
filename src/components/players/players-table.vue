@@ -35,20 +35,22 @@
       loading-text="Fetching Players..."
       class="elevation-1"
     >
-       <template v-slot:item.Id="{ item }">
-          
-            <v-img
-              position="top"
-              :src="`${api}/img/clubs/kits/${item.ClubCode}-kit.png`"
-              max-height="50px"
-              max-width="120px"
-            ></v-img>
-          
+      <template v-slot:item.Id="{ item }">
+        <v-img
+          position="top"
+          :src="`${api}/img/clubs/kits/${item.ClubCode}-kit.png`"
+          max-height="50px"
+          max-width="120px"
+        ></v-img>
       </template>
       <template v-slot:item.Rating="{ item }">
         <v-chip :color="getColor(item.Rating)" dark>
           {{ Math.round(item.Rating) }}
         </v-chip>
+      </template>
+
+      <template v-slot:item.Nationality="{ item }">
+        {{ item.Address.Nationality.Name }}
       </template>
 
       <template v-slot:item.isSigned="{ item }">
@@ -108,14 +110,14 @@ export default class PlayersTable extends Vue {
   private api = apiUrl;
 
   private headers: any[] = [
-      {
+    {
       text: 'Id',
       align: 'start',
       value: 'Id',
     },
     {
       text: 'First Name',
-      
+
       value: 'FirstName',
     },
     {

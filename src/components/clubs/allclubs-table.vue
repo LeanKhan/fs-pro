@@ -50,7 +50,7 @@
       </template>
 
       <template v-slot:item.Address="{ item }">
-        {{ item.Address.City }}, {{ item.Address.Country }}
+        {{ item.Address.City }}, {{ item.Address.Country.Name }}
       </template>
 
       <template v-slot:item.Stadium="{ item }">
