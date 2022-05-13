@@ -10,6 +10,7 @@
     @click="toggle"
   >
     <v-card-text class="pa-0">
+      Your match? {{ isClub }}
       <v-row no-gutters>
         <template v-if="!day.isFree">
           <template v-if="!singleLeague">

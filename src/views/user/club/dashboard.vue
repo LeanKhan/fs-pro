@@ -6,7 +6,7 @@
         <v-toolbar-title>
           <template v-if="club && season">
             <v-icon x-large>${{ club.ClubCode }}</v-icon>
-            <v-chip small class="ml-1 subtitle-1 font-weight-bold indigo--text">
+            <v-chip small class="ml-1 subtitle-1 font-weight-bold white--text">
               {{ club.League.Name }}
             </v-chip>
           </template>
@@ -17,7 +17,7 @@
         <v-spacer></v-spacer>
         <template v-if="club">
           <v-icon x-large>${{ club.ClubCode }}</v-icon>
-          <span class="subtitle-1 font-weight-bold indigo--text">
+          <span class="subtitle-1 font-weight-bold white--text">
             {{ club.Name }}
           </span>
         </template>
@@ -330,17 +330,18 @@ export default class ClubHome extends Vue {
         }
       })
       .catch(response => {
-        console.log('Error fetching club!0 => ', response);
+        console.log('Error fetching club! => ', response);
       });
   }
 
   private getDays() {
-    const week =
-      this.calendar.CurrentDay == 0
-        ? 1
-        : Math.ceil((this.calendar.CurrentDay as number) / this.limit);
+    // const week =
+    //   this.calendar.CurrentDay == 0
+    //     ? 1
+    //     : Math.ceil((this.calendar.CurrentDay as number) / this.limit);
 
-    const query = `/calendar/${this.yearString}/days?paginate=true&populate=true&week=${week}&limit=${this.limit}`;
+        const query = `/calendar/${this.yearString}/days?paginate=true&populate=true&limit=${this.limit}&not_played=true`;
+
     this.$axios
       .get(query)
       .then(response => {

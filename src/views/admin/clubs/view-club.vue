@@ -105,7 +105,7 @@
         <players-table
           @add-player="openPlayersModal = true"
           @remove-player="removePlayer"
-          :players="club.Players"
+          :players="allPlayers"
           :viewClub="true"
         ></players-table>
       </v-col>
@@ -136,6 +136,18 @@ export default class ViewClub extends Vue {
 
   private value = [5, 0, 0, 0];
 
+  get allPlayers() {
+     if (this.club.Players) {
+      return this.club.Players;
+    } else {
+      return [];
+    }
+  };
+
+  set allPlayers(players) {
+    this.club.Players = players;
+  };
+
   get apiUrl() {
     return this.$store.getters.apiUrl;
   }
@@ -148,15 +160,15 @@ export default class ViewClub extends Vue {
     }
   }
 
-  private closeModal(playerId: string) {
+  private closeModal(playerIds: string[]) {
     this.openPlayersModal = false;
     // add player to club :)
-    if (playerId) {
-      this.signPlayer(playerId);
+    if (playerIds) {
+      this.signPlayer(playerIds);
     }
   }
 
-  private signPlayer(playerId: string) {
+  private signPlayer(playerIds: string[]) {
     const clubId = this.$route.params['id'];
     const clubCode = this.$route.params['code'];
     const isSigned = false;
@@ -166,18 +178,30 @@ export default class ViewClub extends Vue {
     req.query.club_code
      */
 
-    const data = { data: { playerId, clubCode, isSigned } };
+    const data = { data: { playerIds, clubCode, isSigned, clubId } };
 
     this.$axios
-      .put(`/clubs/${clubId}/add-player`, data)
+      .put(`/clubs/${clubId}/add-many-players`, data)
       .then(response => {
         // this.club = response.data.payload;
         // TODO: add toast o! for feedback to user
         this.shouldReload = true;
         console.log('Player added successfully', response.data);
+
+            this.$store.dispatch('SHOW_TOAST', {
+          message: 'Player(s) signed successfully',
+          style: 'success',
+        });
+
+        this.fetchPlayers();
       })
       .catch(response => {
         console.log('Error adding player!', response);
+
+            this.$store.dispatch('SHOW_TOAST', {
+          message: 'Error signing Player',
+          style: 'error',
+        });
       });
   }
 
@@ -200,9 +224,21 @@ export default class ViewClub extends Vue {
         // TODO: add toast o! for feedback to user
         this.shouldReload = true;
         console.log('Player removed successfully', response.data);
+
+        this.$store.dispatch('SHOW_TOAST', {
+          message: 'Player removed successfully',
+          style: 'success',
+        });
+
+        this.fetchPlayers();
       })
       .catch(response => {
         console.log('Error removing player!', response);
+
+            this.$store.dispatch('SHOW_TOAST', {
+          message: 'Error removing Player',
+          style: 'error',
+        });
       });
   }
 
@@ -220,6 +256,27 @@ export default class ViewClub extends Vue {
         // Check for errors here o
         if (response.data.success) {
           this.club = response.data.payload;
+        }
+      })
+      .catch(response => {
+        console.log('Response => ', response);
+        this.$store.commit('TOGGLE_ERROR_OVERLAY');
+      })
+      .finally(() => {
+        this.shouldReload = false;
+      });
+  }
+
+    private fetchPlayers(): void {
+    const clubId = this.$route.params['id'];
+
+    const query = JSON.stringify({ ClubCode: this.club.ClubCode });
+    this.$axios
+      .get(`/players/all?options=${query}`)
+      .then(response => {
+        // Check for errors here o
+        if (response.data.success) {
+          this.allPlayers = response.data.payload;
         }
       })
       .catch(response => {

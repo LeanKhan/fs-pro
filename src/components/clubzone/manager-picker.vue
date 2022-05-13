@@ -27,7 +27,7 @@
                     <v-icon>mdi-globe</v-icon>
                     Nationality: &nbsp;
                   </strong>
-                  {{ selectedManager.Nationality.Name || 'Bellean' }}
+                  {{ selectedManager.Nationality ? selectedManager.Nationality.Name : '-' }}
                 </v-list-item>
                 <v-list-item>
                   <strong>
@@ -149,8 +149,9 @@ export default class ManagerPicker extends Vue {
   }
 
   public mounted() {
+  const query = JSON.stringify({isEmployed: false});
     this.$axios
-      .get('/managers')
+      .get(`/managers?options=${query}&populate=Club`)
       .then(res => {
         this.managers = res.data.payload;
       })
@@ -158,5 +159,5 @@ export default class ManagerPicker extends Vue {
         console.log('Error! => ', err);
       });
   }
-}
+  }
 </script>
