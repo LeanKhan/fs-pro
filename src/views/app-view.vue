@@ -113,18 +113,18 @@
       </v-btn>
     </v-app-bar>
 
-    <v-content>
+    <v-main>
       <v-container fluid>
         <router-view></router-view>
       </v-container>
-    </v-content>
+    </v-main>
 
     <!-- TODO: add a global snackbar to app -->
     <!-- <v-snackbar color="dark" timeout="2000" :value="showSnackbar">
       Hi!
     </v-snackbar> -->
 
-    <v-snackbar v-model="toast.show" :timeout="3000" :color="toast.color">
+    <v-snackbar v-model="toast.show" :timeout="3000" :color="toast.style">
       {{ toast.message }}
     </v-snackbar>
 
@@ -141,7 +141,7 @@
 
     <!-- <v-footer app>
       <v-row dir="row">
-     
+
         <v-col col="12">
           <span>&copy; {{ new Date().getFullYear() }} Leankhan &amp; Tobi</span>
         </v-col>

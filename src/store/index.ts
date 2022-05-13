@@ -12,8 +12,8 @@ Vue.use(Vuex);
 
 // export const apiUrl = 'http://192.168.0.137:3000';
 
-// export const apiUrl = 'http://192.168.43.33:3000';
-export const apiUrl = 'http://localhost:3000';
+export const apiUrl = import.meta.env.VITE_APP_API_BASE_URL;
+// export const apiUrl = 'http://localhost:3000';
 
 export interface RootState {
   allClubs: Club[];

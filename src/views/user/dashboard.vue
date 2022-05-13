@@ -192,7 +192,8 @@ export default class UserDashboard extends Vue {
         ? 1
         : Math.ceil(this.calendar.CurrentDay / limit);
 
-    const query = `/calendar/${this.yearString}/days?paginate=true&populate=true&week=${week}&limit=${limit}`;
+// TODO: might put week back - 24/1/22
+    const query = `/calendar/${this.yearString}/days?paginate=true&populate=true&limit=${limit}&week=${week}&not_played=true`;
     this.$axios
       .get(query)
       .then(response => {

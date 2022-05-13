@@ -17,16 +17,24 @@
       :headers="headers"
       :items="players"
       v-model="selectedPlayer"
-      item-key="PlayerID"
+      item-key="_id"
       show-select
-      :single-select="true"
       :search="search"
       loading-text="Fetching Players..."
       no-data-text="No Players"
       class="elevation-1"
     >
+
+ <template v-slot:top>
+      <v-switch
+        v-model="singleSelect"
+        label="Single select"
+        class="pa-3"
+      ></v-switch>
+    </template>
+
       <template v-slot:item.Id="{ item }">
-        <v-list-item-avatar>
+        <v-list-item-avatar v-if="item.ClubCode">
           <v-img
             :src="`${api}/img/clubs/kit/${item.ClubCode}-kit.png`"
             height="40px"
@@ -35,9 +43,9 @@
       </template>
 
       <!-- Player's Country -->
-      <template v-slot:item.Country="{ item }">
-        {{ item.Country.Name }}
-      </template>
+      <!-- <template v-slot:item.Country="{ item }">
+        {{ item.Nationality ? item.Nationality.Name : "-" }}
+      </template> -->
 
       <template v-slot:item.Rating="{ item }">
         <v-chip :color="getColor(item.Rating)" dark>
@@ -71,11 +79,13 @@ export default class AllPlayersTable extends Vue {
 
   private selectedPlayer: Player[] | [] = [];
 
+  private singleSelect = false;
+
   private headers: any[] = [
     {
       text: 'Id',
       align: 'start',
-      value: 'FirstName',
+      value: 'Id'
     },
 
     {
@@ -86,12 +96,13 @@ export default class AllPlayersTable extends Vue {
       text: 'Last Name',
       value: 'LastName',
     },
-    { text: 'Club', value: 'ClubCode' },
-    { text: 'Age', value: 'Age', filterable: false },
-    { text: 'Position', value: 'Position', filterable: false },
-    { text: 'Country', value: 'Nationality', filterable: false },
+    { text: 'Club', value: 'ClubCode', filterable: true },
+    { text: 'Age', value: 'Age', filterable: true },
+    { text: 'Position', value: 'Position', filterable: true },
+    { text: 'Role', value: 'Role', filterable: true },
+    { text: 'Country', value: 'Nationality.Name', filterable: true },
     { text: 'Value', value: 'Value', filterable: false },
-    { text: 'Rating', value: 'Rating', filterable: false },
+    { text: 'Rating', value: 'Rating', filterable: true },
   ];
 
   private search = '';
@@ -107,7 +118,12 @@ export default class AllPlayersTable extends Vue {
   }
 
   private addPlayer(): void {
-    this.$emit('close-players-modal', this.selectedPlayer[0]._id);
+
+  // get array of Ids
+  const playerIds = this.selectedPlayer.map(p => p._id);
+
+    this.$emit('close-players-modal', playerIds);
+    this.selectedPlayer = [];
   }
 
   private close(): void {

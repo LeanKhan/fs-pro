@@ -84,8 +84,9 @@ export default class Fixtures extends Vue {
 
   private getFixtures() {
     this.fixturesLoading = true;
+    const select = JSON.stringify('Title Home Away Details Played');
     this.$axios
-      .get(`/seasons/${this.selectedSeason._id}/fixtures`)
+      .get(`/seasons/${this.selectedSeason._id}/fixtures?select=${select}`)
       .then(response => {
         this.fixtures = response.data.payload;
         console.log(response.data.payload);

@@ -1,7 +1,10 @@
 <template>
-  <v-slide-group show-arrows mandatory v-model="selectedDayIndex" center-active>
+  <v-slide-group show-arrows mandatory v-model="selectedDayIndex"
+   center-active
+   @click:next="nextDay()"
+   >
     <v-slide-item
-      v-for="(day, i) in days"
+      v-for="(day, i) in days$"
       :key="i"
       v-slot:default="{ active, toggle }"
     >
@@ -10,7 +13,7 @@
         :active="active"
         :toggle="toggle"
         :club="club"
-        :singleLeague="singleLeague"
+        :singleLeague="singleLeague$"
       ></calendar-day>
     </v-slide-item>
   </v-slide-group>
@@ -29,7 +32,10 @@ export default class DayScroll extends Vue {
   @Prop({ required: true }) readonly singleLeague!: boolean;
   @Prop() readonly club?: string;
 
-  private selectedDayIndex = 0;
+  public selectedDayIndex = 0;
+
+  public days$ = this.days;
+  public singleLeague$ = this.singleLeague;
 
   get currentDay() {
     return this.$store.getters.calendar.CurrentDay;
@@ -39,6 +45,10 @@ export default class DayScroll extends Vue {
   @Watch('selectedDayIndex', { immediate: true })
   onSelectedDayIndexChanged(val: number) {
     this.$emit('selected-day-index-changed', val);
+  }
+
+  public nextDay() {
+    console.log('Next clicked')
   }
 }
 </script>

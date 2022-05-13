@@ -37,7 +37,14 @@
     >
       <!-- Manager's Country -->
       <template v-slot:item.Country="{ item }">
-        {{ item.Country.Name }}
+        {{ item.Nationality.Name }}
+      </template>
+
+       <!-- Manager's Club Name -->
+      <template v-slot:item.Club="{ item }">
+      <span :title="item.Club.Name">
+        {{ item.Club.ClubCode }}
+      </span>
       </template>
 
       <!-- Players actions -->
@@ -81,8 +88,12 @@ export default class ManagersTable extends Vue {
       text: 'Last Name',
       value: 'LastName',
     },
+     {
+      text: 'League',
+      value: 'Club.LeagueCode',
+    },
     { text: 'Club', value: 'Club' },
-    { text: 'Country', value: 'Nationality', filterable: false },
+    { text: 'Country', value: 'Nationality.Name', filterable: false },
     {
       text: 'Employed',
       value: 'isEmployed',

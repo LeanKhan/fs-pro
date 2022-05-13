@@ -111,6 +111,12 @@ export default class Login extends Vue {
       .then(response => {
         console.log('Response => ', response.data);
         if (response.data.success) {
+
+        this.$store.dispatch('SHOW_TOAST', {
+          message: 'Signed in Successfully!',
+          style: 'success',
+        });
+
           this.$store.dispatch('SET_USER', {
             username: response.data.payload.Username,
             userID: response.data.payload._id,
@@ -120,6 +126,11 @@ export default class Login extends Vue {
             avatar: response.data.payload.Avatar,
             fullname: response.data.payload.FullName,
           });
+        } else {
+        this.$store.dispatch('SHOW_TOAST', {
+          message: response.data.message,
+          style: 'error',
+        });
         }
 
         this.$socket.client.emit('authenticate');
@@ -127,7 +138,7 @@ export default class Login extends Vue {
         this.$router.push('/u');
       })
       .catch(response => {
-        console.log('Error logging in! ', response.data);
+        console.error('Error logging in! ', response);
       })
       .finally(() => {
         this.loading = false;
