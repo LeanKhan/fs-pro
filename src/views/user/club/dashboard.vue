@@ -238,6 +238,8 @@ export default class ClubHome extends Vue {
 
   private days: IDay[] = [];
 
+  private season: any = {};
+
   private limit = 14;
 
   /** Club calendar */
@@ -248,9 +250,9 @@ export default class ClubHome extends Vue {
   get yearString(): string {
     return this.$store.state.calendar.YearString;
   }
-  get seasons() {
-    return this.$store.state.seasons;
-  }
+  // get seasons() {
+  //   return this.$store.state.seasons;
+  // }
 
   get clubDays() {
     return this.days.map(day => {
@@ -262,14 +264,17 @@ export default class ClubHome extends Vue {
     });
   }
 
-  /** Club Season */
+  /** Club Season
   get season() {
     // find the season the club belongs to
+    // use an API call!
 
     return this.seasons.find(
       (s: any) => s.CompetitionCode == this.club.LeagueCode
     );
-  }
+  } 
+
+  */
 
   get competitionIndex() {
     // TODO: fetch the competition gan!
@@ -313,6 +318,22 @@ export default class ClubHome extends Vue {
 
   private selectDay(val: number) {
     this.selectedDayIndex = val;
+  }
+
+  private fetchCurrentSeason() {
+    if(this.calendar && this.calendar.YearString){
+      this.$axios
+      .get(`/seasons?query=${JSON.stringify({Year: this.calendar.YearString, Competition: this.club.League})}`)
+      .then(response => {
+        // Check for errors here o
+        if (response.data.success) {
+          this.season = response.data.payload[0];
+        }
+      })
+      .catch(response => {
+        console.log('Error fetching club current Season! => ', response);
+      });
+    }
   }
 
   private fetchClub(clubId: string): void {
@@ -367,6 +388,7 @@ export default class ClubHome extends Vue {
 
     this.getDays();
     this.fetchClub(clubId);
+    this.fetchCurrentSeason();
   }
 
   //   private beforeRouteEnter(to: any, from: any, next: any): void {

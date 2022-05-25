@@ -68,6 +68,12 @@ export default class Fixtures extends Vue {
 
   private fixturesLoading = false;
 
+  private selectedYear = '';
+
+  get currentYear() {
+     return this.$store.getters.currentYear;
+  }
+
   get seasons() {
     return this.$store.state.seasons;
   }
@@ -82,6 +88,7 @@ export default class Fixtures extends Vue {
     this.getFixtures();
   }
 
+// TODO: paginate this!
   private getFixtures() {
     this.fixturesLoading = true;
     const select = JSON.stringify('Title Home Away Details Played');
@@ -99,8 +106,25 @@ export default class Fixtures extends Vue {
       });
   }
 
+  private fetchCurrentSeasons() {
+    if(this.calendar && this.calendar.YearString){
+      this.$axios
+      .get(`/seasons?query=${JSON.stringify({Year: this.currentYear})}`)
+      .then(response => {
+        // Check for errors here o
+        if (response.data.success) {
+          this.seasons = response.data.payload;
+        }
+      })
+      .catch(response => {
+        console.log('Error fetching current Seasons! => ', response);
+      });
+    }
+  }
+
   private mounted() {
     this.getFixtures();
+    this.fetchCurrentSeasons();
   }
 }
 </script>
