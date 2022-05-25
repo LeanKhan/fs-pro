@@ -1,5 +1,5 @@
 <template>
-  <v-card>
+  <v-card height="300px">
     <v-card-subtitle>
       {{ Match.Fixture.LeagueCode }}
       <v-icon small color="amber lighten-3">
@@ -8,7 +8,7 @@
     </v-card-subtitle>
     <p class="mb-0 mt-0 caption">
       Matchday
-      {{ Match.Fixture.FixtureCode.split('-')[3] }}
+      {{ Match.Week }}
     </p>
 
     <v-card-text>

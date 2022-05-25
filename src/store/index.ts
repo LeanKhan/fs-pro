@@ -40,6 +40,8 @@ export interface RootState {
   };
   errorOverlay: boolean;
   lobby: boolean;
+  /** The Competition._id of selected League */
+  selectedLeague: string;
   // state: MainState;
 }
 
@@ -70,6 +72,8 @@ const state = {
   },
   errorOverlay: false,
   lobby: false,
+  // new
+  selectedLeague: ''
 } as RootState;
 
 export default new Vuex.Store({
@@ -84,6 +88,9 @@ export default new Vuex.Store({
     user: state => {
       return state.user;
     },
+    currentYear: state => {
+      return state.YearString;
+    },
     countries: state => {
       return state.countries;
     },
@@ -96,6 +103,9 @@ export default new Vuex.Store({
     errorOverlay: state => {
       return state.errorOverlay;
     },
+    selectedLeague: state => {
+      return state.selectedLeague;
+    }
   },
   mutations: {
     SET_USER: (state, payload) => {
@@ -112,6 +122,10 @@ export default new Vuex.Store({
     },
     SET_COUNTRIES: (state, payload) => {
       state.countries = payload;
+    },
+    SET_SELECTED_LEAGUE: (state, payload) => {
+      // must be a valid MongoDB ObjectId
+      state.selectedLeague = payload;
     },
     SET_LOBBY: (state, payload) => {
       state.lobby = payload;
@@ -167,6 +181,21 @@ export default new Vuex.Store({
         // this one is saved as a js object
         commit('SET_USER', user);
     },
+    SET_SELECTED_LEAGUE: ({ commit }, payload: string) => {
+      // window.localStorage.setItem('fspro-selected-league', payload);
+      commit('SET_SELECTED_LEAGUE', payload);
+    },
+    UNSET_SELECTED_LEAGUE: ({ commit }, payload: string) => {
+      // window.localStorage.removeItem('fspro-selected-league');
+      commit('SET_SELECTED_LEAGUE', '');
+    },
+    // GET_SELECTED_LEAGUE: ({ commit }, payload: string) => {
+    //  const user = window.localStorage.getItem('fspro-selected-league') as string;
+
+    //   if (league)
+    //     // this one is saved as a js object
+    //     commit('SET_SELECTED_LEAGUE', league);
+    // },
     SET_USER_CLUBS: ({ commit, state }) => {
       if (state.user.clubs.length == 0) {
         return 'nah fam';
@@ -194,7 +223,8 @@ export default new Vuex.Store({
             // Maybe after this, get Current Seasons based on this year?
             commit('SET_LOBBY', !response.data.payload.YearString);
 
-            dispatch('SET_SEASONS');
+            // we should focus on a season at a time!
+            // dispatch('SET_SEASONS');
           }
         })
         .catch(response => {

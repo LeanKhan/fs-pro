@@ -60,9 +60,9 @@ import { WeekStandings } from '@/interfaces/season.ts';
 export default class StandingsScroller extends Vue {
   @Prop({ required: true }) standings!: WeekStandings[];
 
-  private length = this.standings.length;
-  private onboarding = 0;
-  private showWeekly = false;
+//  public length = this.standings.length;
+  public onboarding = 0;
+  public showWeekly = false;
 
   private next() {
     this.onboarding =
@@ -72,6 +72,10 @@ export default class StandingsScroller extends Vue {
   private prev() {
     this.onboarding =
       this.onboarding - 1 < 0 ? this.length - 1 : this.onboarding - 1;
+  }
+
+  get length() {
+  return this.standings.length;
   }
 
   get total() {

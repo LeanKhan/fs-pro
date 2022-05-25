@@ -34,8 +34,16 @@ export default class DayScroll extends Vue {
 
   public selectedDayIndex = 0;
 
-  public days$ = this.days;
+  // public days$ = this.days;
   public singleLeague$ = this.singleLeague;
+
+  get days$() {
+    return this.days;
+  }
+
+   get singleLeague$() {
+    return this.singleLeague;
+  }
 
   get currentDay() {
     return this.$store.getters.calendar.CurrentDay;
