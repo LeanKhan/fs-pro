@@ -6,7 +6,7 @@
         <v-toolbar-title>
           <template v-if="club && season">
             <v-icon x-large>${{ club.ClubCode }}</v-icon>
-            <v-chip small class="ml-1 subtitle-1 font-weight-bold indigo--text">
+            <v-chip small class="ml-1 subtitle-1 font-weight-bold white--text">
               {{ club.League.Name }}
             </v-chip>
           </template>
@@ -17,7 +17,7 @@
         <v-spacer></v-spacer>
         <template v-if="club">
           <v-icon x-large>${{ club.ClubCode }}</v-icon>
-          <span class="subtitle-1 font-weight-bold indigo--text">
+          <span class="subtitle-1 font-weight-bold white--text">
             {{ club.Name }}
           </span>
         </template>
@@ -238,6 +238,8 @@ export default class ClubHome extends Vue {
 
   private days: IDay[] = [];
 
+  private season: any = {};
+
   private limit = 14;
 
   /** Club calendar */
@@ -248,9 +250,9 @@ export default class ClubHome extends Vue {
   get yearString(): string {
     return this.$store.state.calendar.YearString;
   }
-  get seasons() {
-    return this.$store.state.seasons;
-  }
+  // get seasons() {
+  //   return this.$store.state.seasons;
+  // }
 
   get clubDays() {
     return this.days.map(day => {
@@ -262,14 +264,17 @@ export default class ClubHome extends Vue {
     });
   }
 
-  /** Club Season */
+  /** Club Season
   get season() {
     // find the season the club belongs to
+    // use an API call!
 
     return this.seasons.find(
       (s: any) => s.CompetitionCode == this.club.LeagueCode
     );
-  }
+  } 
+
+  */
 
   get competitionIndex() {
     // TODO: fetch the competition gan!
@@ -315,6 +320,22 @@ export default class ClubHome extends Vue {
     this.selectedDayIndex = val;
   }
 
+  private fetchCurrentSeason() {
+    if(this.calendar && this.calendar.YearString){
+      this.$axios
+      .get(`/seasons?query=${JSON.stringify({Year: this.calendar.YearString, Competition: this.club.League})}`)
+      .then(response => {
+        // Check for errors here o
+        if (response.data.success) {
+          this.season = response.data.payload[0];
+        }
+      })
+      .catch(response => {
+        console.log('Error fetching club current Season! => ', response);
+      });
+    }
+  }
+
   private fetchClub(clubId: string): void {
     const populate = [
       { path: 'Players', select: 'FirstName LastName Fullname Rating Position Nationality RatingsHistory Age' },
@@ -330,17 +351,18 @@ export default class ClubHome extends Vue {
         }
       })
       .catch(response => {
-        console.log('Error fetching club!0 => ', response);
+        console.log('Error fetching club! => ', response);
       });
   }
 
   private getDays() {
-    const week =
-      this.calendar.CurrentDay == 0
-        ? 1
-        : Math.ceil((this.calendar.CurrentDay as number) / this.limit);
+    // const week =
+    //   this.calendar.CurrentDay == 0
+    //     ? 1
+    //     : Math.ceil((this.calendar.CurrentDay as number) / this.limit);
 
-    const query = `/calendar/${this.yearString}/days?paginate=true&populate=true&week=${week}&limit=${this.limit}`;
+        const query = `/calendar/${this.yearString}/days?paginate=true&populate=true&limit=${this.limit}&not_played=true`;
+
     this.$axios
       .get(query)
       .then(response => {
@@ -366,6 +388,7 @@ export default class ClubHome extends Vue {
 
     this.getDays();
     this.fetchClub(clubId);
+    this.fetchCurrentSeason();
   }
 
   //   private beforeRouteEnter(to: any, from: any, next: any): void {

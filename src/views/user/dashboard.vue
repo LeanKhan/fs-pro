@@ -7,6 +7,15 @@
       </v-toolbar-title>
 
       <v-toolbar-items>
+
+      <!-- select league -->
+        <select name="select_league" v-model="selectedLeagueId" @change="changeSelectedLeague(selectedLeagueId)">
+        <option disabled value="">Select League</option>
+         <option v-for="league in leagues" v-bind:value="league._id">
+                  {{ league.Name }}
+        </option>
+        </select>
+
         <v-btn
           color="warning"
           v-if="calendar.allSeasonsCompleted"
@@ -26,17 +35,18 @@
           <v-sheet width="100%" color="indigo">
             <div class="text-center" v-if="selectedDay">
               <template v-if="!selectedDay.isFree">
-                <v-row class="px-6">
+                <v-row class="px-2">
                   <v-col cols="6">
                     <fixture-card
-                      :Match="selectedDay.Matches[0]"
+                      :Match="selectedMatch || selectedDay.Matches[0]"
                     ></fixture-card>
                   </v-col>
 
                   <v-col cols="6">
-                    <fixture-card
-                      :Match="selectedDay.Matches[1]"
-                    ></fixture-card>
+                    <v-card style="height: 300px;max-height: 300px;overflow-y: auto">
+                    <day-fixtures-list :Matches="selectedDay.Matches"
+                    @match-selected="matchSelected"></day-fixtures-list>
+                    </v-card>
                   </v-col>
                 </v-row>
               </template>
@@ -122,11 +132,14 @@ import { Component, Vue, Watch } from 'vue-property-decorator';
 import DayScroll from '../../components/calendar/day-scroll.vue';
 import StandingsScroller from '@/components/seasons/standings-scroller.vue';
 import FixtureCard from '@/components/user-dashboard/fixture-card.vue';
+import DayFixturesList from '@/components/user-dashboard/day-fixtures-list.vue';
+
 @Component({
   components: {
     DayScroll,
     StandingsScroller,
     FixtureCard,
+    DayFixturesList
   },
 })
 export default class UserDashboard extends Vue {
@@ -141,7 +154,17 @@ export default class UserDashboard extends Vue {
 
   private seasonTab = null;
 
+  private leagues = [];
+
+// id of the selected League
+  private selectedLeagueId = '';
+  private selectedLeague = {};
+
+  private selectedMatch = '';
+
   private days: any = [];
+
+  private seasons: any = [];
 
   get currentDay() {
     return this.$store.state.calendar.CurrentDay;
@@ -155,12 +178,16 @@ export default class UserDashboard extends Vue {
     return this.$store.state.calendar;
   }
 
-  get seasons() {
-    return this.$store.state.seasons;
-  }
+  // get seasons() {
+  //  return this.$store.state.seasons;
+  //}
 
   get selectedDay() {
     return this.days[this.selectedDayIndex];
+  }
+
+  get $selectedLeague() {
+    return this.$store.getters.selectedLeague;
   }
 
   get yearString(): string {
@@ -183,6 +210,33 @@ export default class UserDashboard extends Vue {
     this.$router.push(`/finish/year/${this.calendar._id}`);
   }
 
+  private changeSelectedLeague(league_id) {
+  if(league_id) {
+  console.log('Selected League is => ', league_id);
+    // fetch the league and populate...
+
+    this.$store.dispatch('SET_SELECTED_LEAGUE', league_id);
+
+    this.getLeagues(league_id);
+    this.fetchCurrentSeason(league_id);
+  }
+  }
+
+  private matchSelected(match) {
+    console.log('Selceted match => ', match);
+    // change slectedLeague
+    this.selectedLeagueId = match.CompetitionId;
+    this.changeSelectedLeague(match.CompetitionId);
+    this.selectedMatch = match;
+  }
+
+  private fetchLeague(league_id: string) {
+  console.log('Selected League is => ', this.selectedLeagueId);
+    // fetch the league and populate...
+
+    this.$router.push(`/finish/year/${this.calendar._id}`);
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private getDays(_day: number) {
     // if the currentDay is greater than 14 get the next page...
@@ -192,7 +246,8 @@ export default class UserDashboard extends Vue {
         ? 1
         : Math.ceil(this.calendar.CurrentDay / limit);
 
-    const query = `/calendar/${this.yearString}/days?paginate=true&populate=true&week=${week}&limit=${limit}`;
+// TODO: might put week back - 24/1/22
+    const query = `/calendar/${this.yearString}/days?paginate=true&populate=true&limit=${limit}&week=${week}&not_played=true`;
     this.$axios
       .get(query)
       .then(response => {
@@ -201,6 +256,51 @@ export default class UserDashboard extends Vue {
       .catch(error => {
         console.log('Error getting days of Calendar Year!', error);
       });
+  }
+
+  private getLeagues(league_id: string) {
+    let query = JSON.stringify({Type: 'league'});
+    let path = `/competitions/all?select=Name+Type+CompetitionCode&query=${query}`;
+
+    if (league_id){
+      query = JSON.stringify({_id: league_id});
+      path = `/competitions/all?query=${query}`;
+
+      this.$axios
+      .get(path)
+      .then(response => {
+        this.selectedLeague = response.data.payload[0];
+      })
+      .catch(error => {
+        console.log('Error getting all Leagues', error);
+      });
+    } else {
+    this.$axios
+      .get(path)
+      .then(response => {
+        this.leagues = response.data.payload;
+      })
+      .catch(error => {
+        console.log('Error getting all Leagues', error);
+      });
+
+      }
+  }
+
+  private fetchCurrentSeason(league_id) {
+    if(this.calendar && this.calendar.YearString){
+      this.$axios
+      .get(`/seasons?query=${JSON.stringify({Year: this.calendar.YearString, Competition: this.selectedLeagueId})}`)
+      .then(response => {
+        // Check for errors here o
+        if (response.data.success) {
+          this.seasons = response.data.payload;
+        }
+      })
+      .catch(response => {
+        console.log('Error fetching current Seasons! => ', response);
+      });
+    }
   }
 
   private selectDay(val: number) {
@@ -213,6 +313,10 @@ export default class UserDashboard extends Vue {
         this.$router.push('/u/lobby');
       }
     });
+
+    // fetch all leagues
+    this.getLeagues();
+
   }
 }
 </script>

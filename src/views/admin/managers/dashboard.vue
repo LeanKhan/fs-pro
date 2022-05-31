@@ -39,7 +39,7 @@ export default class ManagersDashboard extends Vue {
 
   public mounted() {
     this.$axios
-      .get('/managers')
+      .get('/managers?populate=Club')
       .then(res => {
         this.managers = res.data.payload;
       })

@@ -18,7 +18,7 @@
       </v-col>
 
       <v-col cols="12">
-        <clubs-table :clubs="clubs"></clubs-table>
+        <all-clubs-table :clubs="clubs"></all-clubs-table>
       </v-col>
     </v-row>
   </div>
@@ -27,11 +27,11 @@
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator';
 import { Club } from '@/interfaces/club';
-import ClubsTable from '@/components/clubs/allclubs-table.vue';
+import AllClubsTable from '@/components/clubs/allclubs-table.vue';
 
 @Component({
   components: {
-    ClubsTable,
+    AllClubsTable,
   },
 })
 export default class ClubsDashboard extends Vue {

@@ -31,8 +31,8 @@ export default class Standings extends Vue {
   @Prop({ required: true }) WeekStandings!: IWeek;
   @Prop({ required: false, default: false }) weekly!: boolean;
 
-  private Table: IWeek['Table'] =
-    this.WeekStandings.Table || this.WeekStandings;
+  // private Table: IWeek['Table'] =
+   // this.WeekStandings.Table || this.WeekStandings;
 
   private headers: any[] = [
     {
@@ -73,6 +73,10 @@ export default class Standings extends Vue {
       }
       return b.Points - a.Points;
     });
+  }
+
+  get Table() {
+    return this.WeekStandings.Table || this.WeekStandings;
   }
 
   //   get totalTable() {
