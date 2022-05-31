@@ -5,19 +5,24 @@
     active-class="indigo white--text"
     depressed
     rounded
+    height="180px"
     width="200px"
     :color="active ? 'indigo' : 'indigo lighten-2'"
     @click="toggle"
   >
     <v-card-text class="pa-0">
+      <span v-if="$route.name == 'Club Home'">Your match? {{ isClub }}</span>
       <v-row no-gutters>
         <template v-if="!day.isFree">
           <template v-if="!singleLeague">
             <v-col cols="12">
-              <day-match :match="day.Matches[0]" :home="true"></day-match>
-            </v-col>
-            <v-col cols="12">
-              <day-match :match="day.Matches[1]" :home="false"></day-match>
+              <day-match v-if="leagueMatch" :match="leagueMatch" :home="true"></day-match>
+              <v-btn
+                dark
+                icon
+              >
+                <v-icon>mdi-caret-down</v-icon>
+              </v-btn>
             </v-col>
           </template>
 
@@ -53,6 +58,39 @@
       <v-chip small :color="active ? 'indigo darken-2' : 'indigo'">
         Day {{ day.Day }}
       </v-chip>
+      <v-spacer></v-spacer>
+
+    <v-dialog
+      v-model="dialog"
+      scrollable
+      max-width="400px"
+    >
+      <template v-slot:activator="{ on, attrs }">
+        <v-btn
+                dark
+                icon
+                v-bind="attrs"
+                v-on="on"
+              >
+                <v-icon>mdi-dots-vertical</v-icon>
+              </v-btn>
+      </template>
+      <v-card>
+        <v-card-title>Other Matches Today</v-card-title>
+        <v-divider></v-divider>
+        <v-card-text style="height: 300px;">
+          <v-list dense>
+            <v-list-item v-for="(m, i) in day.Matches"">
+              <v-list-item-content>
+                <v-list-item-title>
+                  {{ m.Fixture.Title }}
+                </v-list-item-title>
+              </v-list-item-content>
+            </v-list-item>
+          </v-list>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
     </v-card-actions>
   </v-card>
 </template>
@@ -72,11 +110,25 @@ export default class CalendarDay extends Vue {
   @Prop({ required: true }) readonly singleLeague!: boolean;
   @Prop() readonly club!: string;
 
+  private dialog = false;
+
+  get $selectedLeague() {
+    return this.$store.getters.selectedLeague;
+  }
+
+  get leagueMatch() {
+  // this is just the first Match of the League matches that day. It should
+  // actually be the selected match!
+  if (this.$selectedLeague){
+    return this.day.Matches.find(m => m.CompetitionId == this.$selectedLeague)
+  }
+  }
+
   get isClub(): boolean {
     if (this.club) {
       return (
-        this.day.Matches[0].Fixture.Home == this.club ||
-        this.day.Matches[0].Fixture.Away == this.club
+        this.leagueMatch.Fixture.Home == this.club ||
+        this.leagueMatch.Fixture.Away == this.club
       );
     }
 

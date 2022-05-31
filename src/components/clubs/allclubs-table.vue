@@ -82,9 +82,10 @@ import { Component, Vue, Prop } from 'vue-property-decorator';
 import { Club } from '@/interfaces/club';
 
 @Component({})
-export default class ClubsTable extends Vue {
+export default class AllClubsTable extends Vue {
   @Prop({ required: true }) readonly clubs!: Club;
 
+  // TODO: searches should be navigable. change url
   private search = '';
 
   get apiUrl() {

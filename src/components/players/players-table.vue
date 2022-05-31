@@ -50,7 +50,7 @@
       </template>
 
       <template v-slot:item.Nationality="{ item }">
-        {{ item.Address.Nationality.Name }}
+        {{ item.Nationality ? item.Nationality.Name : "-" }}
       </template>
 
       <template v-slot:item.isSigned="{ item }">
@@ -111,11 +111,6 @@ export default class PlayersTable extends Vue {
 
   private headers: any[] = [
     {
-      text: 'Id',
-      align: 'start',
-      value: 'Id',
-    },
-    {
       text: 'First Name',
 
       value: 'FirstName',
@@ -127,6 +122,7 @@ export default class PlayersTable extends Vue {
     { text: 'Club', value: 'ClubCode' },
     { text: 'Age', value: 'Age', filterable: false },
     { text: 'Position', value: 'Position', filterable: false },
+    { text: 'Role', value: 'Role', filterable: true },
     { text: 'Country', value: 'Nationality', filterable: false },
     { text: 'Value', value: 'Value', filterable: false },
     {

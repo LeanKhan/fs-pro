@@ -1,6 +1,6 @@
 <template>
   <v-app>
-    <v-content>
+    <v-main>
       <v-container class="indigo auth-background" fluid>
         <v-row>
           <v-col offset="7">
@@ -25,7 +25,7 @@
           </v-col>
         </v-row>
       </v-container>
-    </v-content>
+    </v-main>
 
     <v-footer class="text-center" dark padless tile>
       <v-row dir="row" no-gutters class="justify-center">
@@ -49,7 +49,7 @@ import { apiUrl } from '@/store';
 
 @Component({})
 export default class Auth extends Vue {
-  private url = apiUrl;
+  private url = import.meta.env.VITE_APP_API_BASE_URL;
 }
 </script>
 <style scoped>
