@@ -41,7 +41,7 @@
     </div>
 
     <div class="caption" v-if="clubStandings.standing">
-      <span class="ma-0 pr-2">{{ clubStandings.position }} st</span>
+      <span class="ma-0 pr-2">{{ clubStandings.position | ordinal }} </span>
       -
       <span class="ma-0 pl-2">{{ clubStandings.standing.Points }} Pts</span>
     </div>

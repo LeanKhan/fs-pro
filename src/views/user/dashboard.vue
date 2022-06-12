@@ -1,15 +1,17 @@
 <template>
-  <div>
-    <v-toolbar>
+  <v-card background="transparent" color="transparent">
+    <v-toolbar dense>
       <!-- Current day -->
       <v-toolbar-title class="subtitle-1 font-weight-bold indigo--text">
-        Day {{ calendar.CurrentDay + 1 }} - Year {{ calendar.YearString }}
+        Day {{ calendar.CurrentDay }} - Year {{ calendar.YearString }}
       </v-toolbar-title>
+
+      <v-spacer></v-spacer>
 
       <v-toolbar-items>
 
       <!-- select league -->
-        <select name="select_league" v-model="selectedLeagueId" @change="changeSelectedLeague(selectedLeagueId)">
+        <select class="text-indigo indigo-text" name="select_league" v-model="selectedLeagueId" @change="changeSelectedLeague(selectedLeagueId)">
         <option disabled value="">Select League</option>
          <option v-for="league in leagues" v-bind:value="league._id">
                   {{ league.Name }}
@@ -45,6 +47,7 @@
                   <v-col cols="6">
                     <v-card style="height: 300px;max-height: 300px;overflow-y: auto">
                     <day-fixtures-list :Matches="selectedDay.Matches"
+                    Detail="details"
                     @match-selected="matchSelected"></day-fixtures-list>
                     </v-card>
                   </v-col>
@@ -124,7 +127,7 @@
         </v-card>
       </v-col>
     </v-row>
-  </div>
+  </v-card>
 </template>
 
 <script lang="ts">
