@@ -30,6 +30,10 @@
         <v-chip v-if="lastMatchOfSeason || fixture.isFinalMatch">LAST MATCH</v-chip>
 
         Matchday {{ fixture.MatchDay }}
+
+        <v-chip v-if="simulateRest" small color="primary">
+          simulation
+        </v-chip>
       </v-subheader>
 
       <v-spacer></v-spacer>
@@ -79,6 +83,12 @@
           <v-card tile height="100%">
             <v-toolbar color="green accent-3" dense flat tile>
               Field
+              <v-spacer></v-spacer>
+
+              <v-switch
+                v-model="simulateRest"
+                label="Simulate Rest"
+              ></v-switch>
             </v-toolbar>
             <!-- Data -->
 
@@ -110,7 +120,7 @@
                           :clubName="fixture.HomeTeam.Name"
                           :clubCode="fixture.Home"
                           :isHome="true"
-                          :rating="fixture.AwayTeam.Rating"
+                          :rating="fixture.HomeTeam.Rating"
                           :clubStandings="homeStandings"
                         ></club-widget>
                       </template>
@@ -126,9 +136,7 @@
                           <div>
                             <span>
                               {{
-                                matchFinished
-                                  ? fixture.match.Details.HomeTeamScore
-                                  : 0
+                                HomeTeamScore || '0'
                               }}
                             </span>
 
@@ -145,9 +153,7 @@
                           <div>
                             <span>
                               {{
-                                matchFinished
-                                  ? fixture.match.Details.AwayTeamScore
-                                  : 0
+                                AwayTeamScore || '0'
                               }}
                             </span>
                             <v-divider
@@ -194,9 +200,8 @@
                       color="success"
                       size="130"
                       width="15"
-                      :value="kickoffTimer"
+                      indeterminate
                     >
-                      {{ kickoffTimer }}
                     </v-progress-circular>
                   </v-overlay>
 
@@ -254,7 +259,7 @@
                         </template>
 
                         <template v-else>
-                          <motm :motm_id="fixture.match.Details.MOTM"></motm>
+                          <motm :motm_id="MOTM"></motm>
                         </template>
                       </v-card-text>
                     </v-card>
@@ -284,7 +289,7 @@
                     </template>
                     <!-- TODO: I think this Timeline should be moved to where 'MOTM' widget is and here will be the actual field.  -->
                     <!-- Thank you Jesus! -->
-                    <timeline v-else :Events="fixture.match.Events"></timeline>
+                    <timeline v-else :Events="fixture.Events"></timeline>
                   </v-card-text>
                 </v-card>
               </v-col>
@@ -304,18 +309,29 @@
               :away="fixture.AwayTeam"
               :homeSquad="mappedHomeSquad"
               :awaySquad="mappedAwaySquad"
-              :match="fixture.match"
+              :match="fixture"
               :matchFinished="matchFinished"
+              :currentDay="currentDay"
+              :currentFixture="fixture._id"
+              @match-selected="matchSelected"
             ></dugout>
           </v-card>
         </v-col>
       </v-row>
       <game-lobby
+        v-if="fixture.HomeTeam && fixture.AwayTeam"        
         :show.sync="openLobby"
         @all-ready="ready"
         :home="{ Name: fixture.HomeTeam.Name, ClubCode: fixture.Home}"
         :away="{ Name: fixture.AwayTeam.Name, ClubCode: fixture.Away}"
       ></game-lobby>
+
+    <v-skeleton-loader
+      v-else
+      class="mx-auto"
+      max-width="500"
+      type="card"
+    ></v-skeleton-loader>
     </v-container>
   </div>
 </template>
@@ -348,9 +364,13 @@ import { apiUrl } from '@/store';
 export default class MatchZone extends Vue {
   public api: string = apiUrl;
 
+  public whistle: any;
+
   private fixture: any = {};
 
   private currentMatch: any = {};
+
+  private currentDay: any = {};
 
   private allReady = false;
 
@@ -359,8 +379,6 @@ export default class MatchZone extends Vue {
   private kickoffTimer = 0;
 
   private starting = false;
-
-  private matchFinished = false;
 
   private lastMatchOfSeason = false;
 
@@ -377,7 +395,12 @@ export default class MatchZone extends Vue {
 
   private awaySquad: any = {};
 
+  private otherResults: any = [];
+
   private standings: any = null;
+
+  // Simulate rest
+  private simulateRest = false;
 
   /** Computed */
 
@@ -386,7 +409,7 @@ export default class MatchZone extends Vue {
   }
 
   get winner() {
-    if (this.fixture.match && !this.fixture.match.Draw)
+    if (this.fixture && this.fixture.HomeSideDetails && this.fixture.AwaySideDetails)
       return this.fixture.HomeSideDetails.Won &&
         !this.fixture.AwaySideDetails.Won
         ? 'home'
@@ -396,6 +419,42 @@ export default class MatchZone extends Vue {
 
   get fixtureId() {
     return this.$route.params.fixture;
+  }
+
+  get AwayTeamScore() {
+
+    if(!this.fixture.Details){
+      return null;
+    }
+
+    return this.fixture.Details.AwayTeamScore
+  }
+
+  get HomeTeamScore() {
+
+    if(!this.fixture.Details){
+      return null;
+    }
+
+    return this.fixture.Details.HomeTeamScore
+  }
+
+  get MOTM() {
+
+    if(!this.fixture.Details){
+      return null;
+    }
+
+    return this.fixture.Details.MOTM
+  }
+
+  // same as isPlayed
+  get matchFinished() {
+    return this.fixture.Played;
+  }
+
+  get isPlayed() {
+    return this.fixture.Played;
   }
 
   /** Mathods */
@@ -510,32 +569,62 @@ export default class MatchZone extends Vue {
   private playGame() {
     this.timer();
 
+    this.whistle.play();
+
+    const params = {};
+
+    if(this.simulateRest) {
+      params.simulate_rest = true;
+      // don't send the results of other matches...
+      params.send_other_results = false;
+    };
+
     this.$axios
-      .get(`/game/kickoff/${this.fixtureId}`)
+      .get(`/game/kickoff-new/${this.fixtureId}`, { params })
       .then(response => {
         // Check for errors here o
         // console.log(response.data);
+        let main = response.data.payload;
+
+        if(response.data.payload.main) {
+          main = response.data.payload.main;
+        }
 
         const {
           match,
           HomeSideDetails,
           AwaySideDetails,
-        } = response.data.payload;
+        } = main;
 
         // TODO: please clean this up so you don't repeat stuff!
         this.fixture = {
           ...this.fixture,
-          match,
+          ...match,
+          HomeTeam: this.fixture.HomeTeam,
+          AwayTeam: this.fixture.AwayTeam,
           HomeSideDetails,
           AwaySideDetails,
         };
-        this.matchFinished = true;
-        this.lastMatchOfSeason = response.data.payload.lastMatchOfSeason;
+        this.lastMatchOfSeason = main.lastMatchOfSeason;
         this.getStandings();
+        // fetch day again...
+        this.getFixtureDay();
       })
       .catch(response => {
         console.log('Error playing match => ', response);
       });
+  }
+
+  private getFixtureDay() {
+       this.$axios
+        .get(`/calendar/day-of-fixture/${this.fixtureId}`)
+        .then(response => {
+          console.log(response.data);
+          this.currentDay = response.data.payload;
+        })
+        .catch(response => {
+          console.log('Error fetching Day of Fixture => ', response);
+        });
   }
 
   // TODO: put these network fetching methods separately...
@@ -554,8 +643,24 @@ export default class MatchZone extends Vue {
     }
   }
 
-  mounted() {
+  private matchSelected(match) {
+    console.log('Seleceted match => ', match);
+    if(this.fixture.Played){
+      this.$router.push({params: {fixture: match.Fixture._id }});
+      this.initializeGame();
+    }
+  }
+
+  private initializeGame() {
     this.getFixture();
+    this.getFixtureDay();
+  }
+
+  mounted() {
+
+    this.whistle = new Audio("../../assets/sounds/whistle1.mp3");
+
+    this.initializeGame();
   }
 }
 </script>

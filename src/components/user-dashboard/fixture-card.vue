@@ -7,7 +7,7 @@
       </v-icon>
     </v-card-subtitle>
     <p class="mb-0 mt-0 caption">
-      Matchday
+      Week
       {{ Match.Week }}
     </p>
 
@@ -34,6 +34,8 @@
     <v-card-actions>
       <v-btn
         depressed
+        color="success"
+        block
         :disabled="Match.Fixture.Played"
         :to="'/matchzone/' + Match.Fixture._id.toString()"
       >
