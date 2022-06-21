@@ -80,7 +80,7 @@
         <v-divider></v-divider>
         <v-card-text style="height: 300px;">
           <v-list dense>
-            <v-list-item v-for="(m, i) in day.Matches"">
+            <v-list-item v-for="(m, i) in day.Matches" :key="i">
               <v-list-item-content>
                 <v-list-item-title>
                   {{ m.Fixture.Title }}

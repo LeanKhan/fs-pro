@@ -2,7 +2,7 @@
   <v-list>
       <v-list-item-group
         v-model="selectedMatch"
-        mandatory
+        :mandatory="MandatorySelect"
         two-line
         @change="$emit('match-selected', Matches[selectedMatch])"
         color="primary"
@@ -18,11 +18,17 @@
           </v-list-item-icon>
 
           <v-list-item-content>
-            <v-list-item-title>
-            {{ match.Fixture.Title }}
-            </v-list-item-title>
+            <div v-if="Detail == 'details'">
+              <v-list-item-title>
+                {{ match.Fixture.Title }}
+              </v-list-item-title>
 
-          <v-list-item-subtitle v-text="match.Fixture.Competition"></v-list-item-subtitle>
+              <v-list-item-subtitle v-text="match.Fixture.Competition"></v-list-item-subtitle>
+            </div>
+
+            <div v-if="Detail == 'results' && match.Fixture.Details">
+              {{ match.Fixture.Details.HomeTeamScore }} : {{ match.Fixture.Details.AwayTeamScore }}
+            </div>
           </v-list-item-content>
         </v-list-item>
       </v-list-item-group>
@@ -36,8 +42,10 @@ import { Component, Vue, Prop } from 'vue-property-decorator';
 @Component
 export default class DayFixturesList extends Vue {
   @Prop({ required: true }) readonly Matches!: ICalendarMatch[];
+  @Prop({ required: false }) readonly Detail: 'details' | 'results';
+  @Prop({ required: false, default: true }) readonly MandatorySelect;
 
-  private selectedMatch: any = {};
+  private selectedMatch: any = null;
 }
 </script>
 
