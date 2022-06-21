@@ -130,7 +130,7 @@ export default class SeasonStats extends Vue {
     this.loading = true;
 
     this.$axios
-      .get(`/seasons/${this.seasonId}`)
+      .get(`/seasons/${this.seasonId}?populate=false`)
       .then(response => {
         this.season = response.data.payload;
       })

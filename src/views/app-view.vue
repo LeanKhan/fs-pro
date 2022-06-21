@@ -322,6 +322,10 @@ export default class AppView extends Vue {
     // console.log('Path => ', this.$route.path.split('/'));
     // if userMode then fetch User's clubs and stuff...
 
+    if(this.MatchZone){
+      this.drawer = false;
+    }
+
     this.$store.dispatch('GET_USER');
 
     this.$store.dispatch('GET_COUNTRIES');

@@ -4,7 +4,7 @@ import vuetify from './plugins/vuetify';
 import router from './router';
 import store, { apiUrl } from './store';
 import axios, { AxiosStatic } from 'axios';
-import { roundTo } from './helpers/misc';
+import { roundTo, ordinal } from './helpers/misc';
 
 import VueSocketIOExt from 'vue-socket.io-extended';
 import io from 'socket.io-client';
@@ -28,11 +28,14 @@ Vue.use({
 const formatter = new Intl.NumberFormat('en-US', {
     style: 'decimal',
     minimumFractionDigits: 2,
-  });
+});
 
-  Vue.filter('currency', (value: number) => `${formatter.format(value)}`);
+
+Vue.filter('currency', (value: number) => `${formatter.format(value)}`);
 
 Vue.filter('roundTo', roundTo);
+
+Vue.filter('ordinal', ordinal);
 
 declare module 'vue/types/vue' {
   interface Vue {
