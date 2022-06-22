@@ -20,6 +20,30 @@ import ZanderDragonsIcon from '../icons/ZD.vue';
 import AlShalakatIcon from '../icons/AS.vue';
 import ACPhilamentia from '../icons/ACP.vue';
 import RoyalPhilamentia from '../icons/RP.vue';
+import CevivaChiefsIcon from '../icons/CHI.vue';
+import CevivaTorrentsIcon from '../icons/CTR.vue';
+import RedKnightsIcon from '../icons/RED.vue';
+import PaceIcon from '../icons/PAC.vue';
+import FeedheinTridentsIcon from '../icons/TRI.vue';
+import FeedheinUnitedIcon from '../icons/FUN.vue';
+import JacwinthTanksIcon from '../icons/JAC.vue';
+import DominionUnitedIcon from '../icons/DOU.vue';
+import KyteIcon from '../icons/KFV.vue';
+import GreenBlueIcon from '../icons/GBL.vue';
+import SportoMiduIcon from '../icons/SPO.vue';
+import GiantsIcon from '../icons/GFZ.vue';
+import PooventUnitedIcon from '../icons/PUN.vue';
+import DynamiteIcon from '../icons/DYN.vue';
+import PorgreggeIcon from '../icons/PGS.vue';
+import BlazeCityIcon from '../icons/BFZ.vue';
+import FZPreggeIcon from '../icons/FZP.vue';
+import BoruzziaPreggeIcon from '../icons/BPG.vue';
+import SdevSandsIcon from '../icons/SDS.vue';
+import StallionsIcon from '../icons/SFZ.vue';
+import SunnyCityIcon from '../icons/SUN.vue';
+import BatsIcon from '../icons/BAT.vue';
+import NettsIcon from '../icons/NET.vue';
+import StorrLokomotivIcon from '../icons/LKM.vue';
 
 Vue.use(Vuetify);
 
@@ -85,6 +109,78 @@ export default new Vuetify({
       },
       RP: {
         component: RoyalPhilamentia,
+      },
+      CHI: {
+        component: CevivaChiefsIcon,
+      },
+      CTR: {
+        component: CevivaTorrentsIcon,
+      },
+      RED: {
+        component: RedKnightsIcon,
+      },
+      PAC: {
+        component: PaceIcon,
+      },
+      TRI: {
+        component: FeedheinTridentsIcon,
+      },
+      FUN: {
+        component: FeedheinUnitedIcon,
+      },
+      JAC: {
+        component: JacwinthTanksIcon,
+      },
+      DOU: {
+        component: DominionUnitedIcon,
+      },
+      KFV: {
+        component: KyteIcon,
+      },
+      GBL: {
+        component: GreenBlueIcon,
+      },
+      SPO: {
+        component: SportoMiduIcon,
+      },
+      GFZ: {
+        component: GiantsIcon,
+      },
+      PUN: {
+        component: PooventUnitedIcon,
+      },
+      DYN: {
+        component: DynamiteIcon,
+      },
+      PGS: {
+        component: PorgreggeIcon,
+      },
+      BFZ: {
+        component: BlazeCityIcon,
+      },
+      FZP: {
+        component: FZPreggeIcon,
+      },
+      BPG: {
+        component: BoruzziaPreggeIcon,
+      },
+      SDS: {
+        component: SdevSandsIcon,
+      },
+      SFZ: {
+        component: StallionsIcon,
+      },
+      SUN: {
+        component: SunnyCityIcon,
+      },
+      BAT: {
+        component: BatsIcon,
+      },
+      NET: {
+        component: NettsIcon,
+      },
+      LKM: {
+        component: StorrLokomotivIcon,
       },
     },
   },
