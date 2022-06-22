@@ -23,6 +23,7 @@ import RoyalPhilamentia from '../icons/RP.vue';
 <% it.clubs.forEach((c, i) => { %>
 import <%= c.clubName %>Icon from '../icons/<%= c.clubCode %>.vue';
 <% }); %>
+
 Vue.use(Vuetify);
 
 export default new Vuetify({
@@ -88,11 +89,10 @@ export default new Vuetify({
       RP: {
         component: RoyalPhilamentia,
       },
-
       <% it.clubs.forEach((c, i) => { %>
-        <%= c.clubCode %>: {
-            component: <%= c.clubName %>Icon
-        },
+      <%= c.clubCode %>: {
+        component: <%= c.clubName %>Icon,
+      },
       <% }); %>
     },
   },
