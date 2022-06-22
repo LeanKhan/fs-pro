@@ -127,8 +127,20 @@ export default class ImageUploader extends Vue {
   @Prop({ required: true, type: String }) readonly fileName!: string;
 
   private image: File | null = null;
-  private uploadedImage: any = this.previewImage.src || '';
+  private uploadedImageSrc: any = '';
   private uploading = false;
+
+  get uploadedImage() {
+    if(this.uploadedImageSrc){
+    return this.uploadedImageSrc;
+    } else {
+      return this.previewImage.src || '';
+    }
+  }
+
+  set uploadedImage(src) {
+    this.previewImage.src = src;
+  }
 
   private selectImage() {
     const fileUploader = this.$refs.imageUploader as Vue;
@@ -144,8 +156,8 @@ export default class ImageUploader extends Vue {
       const reader = new FileReader();
 
       reader.addEventListener('load', async e => {
-        this.uploadedImage = e.target!.result;
-        this.$emit('uploaded-image-src', this.uploadedImage);
+        this.uploadedImageSrc = e.target!.result as string;
+        this.$emit('uploaded-image-src', this.uploadedImageSrc);
 
         // reader.readAsDataURL(file);
 
