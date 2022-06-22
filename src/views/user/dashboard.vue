@@ -13,7 +13,7 @@
       <!-- select league -->
         <select class="text-indigo indigo-text" name="select_league" v-model="selectedLeagueId" @change="changeSelectedLeague(selectedLeagueId)">
         <option disabled value="">Select League</option>
-         <option v-for="league in leagues" v-bind:value="league._id">
+         <option v-for="(league, i) in leagues" v-bind:value="league._id" :key="i">
                   {{ league.Name }}
         </option>
         </select>

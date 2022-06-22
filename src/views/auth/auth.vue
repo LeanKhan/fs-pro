@@ -49,7 +49,7 @@ import { apiUrl } from '@/store';
 
 @Component({})
 export default class Auth extends Vue {
-  private url = import.meta.env.VITE_APP_API_BASE_URL;
+  private url = apiUrl;
 }
 </script>
 <style scoped>
