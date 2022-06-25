@@ -28,7 +28,7 @@ import FeedheinTridentsIcon from '../icons/TRI.vue';
 import FeedheinUnitedIcon from '../icons/FUN.vue';
 import JacwinthTanksIcon from '../icons/JAC.vue';
 import DominionUnitedIcon from '../icons/DOU.vue';
-import KyteIcon from '../icons/KFV.vue';
+import KyteIcon from '../icons/KFZ.vue';
 import GreenBlueIcon from '../icons/GBL.vue';
 import SportoMiduIcon from '../icons/SPO.vue';
 import GiantsIcon from '../icons/GFZ.vue';
@@ -134,7 +134,7 @@ export default new Vuetify({
       DOU: {
         component: DominionUnitedIcon,
       },
-      KFV: {
+      KFZ: {
         component: KyteIcon,
       },
       GBL: {
