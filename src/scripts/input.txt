@@ -6,7 +6,7 @@ TRI, FeedheinTridents
 FUN, FeedheinUnited
 JAC, JacwinthTanks
 DOU, DominionUnited
-KFV, Kyte
+KFZ, Kyte
 GBL, GreenBlue
 SPO, SportoMidu
 GFZ, Giants
