@@ -74,6 +74,28 @@
               <v-text-field
                 required
                 type="number"
+                label="TeamsPromoted"
+                max="5"
+                min="0"
+                v-model="form.TeamsPromoted"
+              ></v-text-field>
+            </v-col>
+
+            <v-col cols="6">
+              <v-text-field
+                required
+                type="number"
+                label="TeamsRelegated"
+                max="5"
+                min="0"
+                v-model="form.TeamsRelegated"
+              ></v-text-field>
+            </v-col>
+
+            <v-col cols="6">
+              <v-text-field
+                required
+                type="number"
                 max="40"
                 min="1"
                 label="Number of Weeks"
@@ -154,6 +176,8 @@ export default class ComponentForm extends Vue {
     CompetitionCode: '',
     NumberOfTeams: '',
     NumberOfWeeks: '',
+    TeamsPromoted: '',
+    TeamsRelegated: '',
     Country: '',
     League: false,
     Cup: false,
@@ -174,11 +198,11 @@ export default class ComponentForm extends Vue {
 
       this.$axios
         .get(`/competitions/${competitionID}`)
-        .then(response => {
+        .then((response) => {
           this.competition = response.data.payload as Competition;
           this.form = response.data.payload as Competition;
         })
-        .catch(response => {
+        .catch((response) => {
           console.log('Response => ', response);
         });
     }
@@ -193,7 +217,7 @@ export default class ComponentForm extends Vue {
 
     this.$axios
       .post(url, { data: this.form })
-      .then(response => {
+      .then((response) => {
         console.log('Response => ', response);
         let id = '';
         let code = '';
@@ -206,7 +230,7 @@ export default class ComponentForm extends Vue {
         }
         this.$router.push({ name: 'View Competition', params: { id, code } });
       })
-      .catch(response => {
+      .catch((response) => {
         console.log('Response => ', response);
       });
   }
@@ -246,11 +270,11 @@ export default class ComponentForm extends Vue {
           clubId: event.id,
           leagueCode: compCode,
         })
-        .then(response => {
+        .then((response) => {
           console.log('Successfully added club to competition => ', response);
           // this.$router.push('/competitions');
         })
-        .catch(response => {
+        .catch((response) => {
           console.log('Error deleting comp =>', response.data);
         });
     }
@@ -266,11 +290,11 @@ export default class ComponentForm extends Vue {
 
       this.$axios
         .delete(`/competitions/${competitionID}`)
-        .then(response => {
+        .then((response) => {
           console.log('Successfully deleted competition => ', response);
           this.$router.push('/a/competitions');
         })
-        .catch(response => {
+        .catch((response) => {
           console.log('Error deleting comp =>', response.data);
         });
     }
