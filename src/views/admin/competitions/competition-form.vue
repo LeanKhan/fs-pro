@@ -70,7 +70,7 @@
               ></v-text-field>
             </v-col>
 
-            <v-col cols="6">
+            <v-col cols="6" v-if="form.Division != 1">
               <v-text-field
                 required
                 type="number"
@@ -166,7 +166,7 @@ export default class ComponentForm extends Vue {
   @Prop({ required: false }) readonly isUpdate!: boolean;
   private competition: {} = {};
   private types = ['League', 'Cup', 'Tournament'];
-  private divisions = ['first', 'second', 'third', 'none'];
+  private divisions = [1, 2, 3, 4, 0];
 
   private openClubModal = false;
 
@@ -197,7 +197,7 @@ export default class ComponentForm extends Vue {
       // const competitionCode = this.$route.params['code'];
 
       this.$axios
-        .get(`/competitions/${competitionID}`)
+        .get(`/competitions/${competitionID}?populate=false`)
         .then((response) => {
           this.competition = response.data.payload as Competition;
           this.form = response.data.payload as Competition;
