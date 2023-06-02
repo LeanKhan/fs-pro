@@ -19,7 +19,7 @@
 import { Component, Vue, Prop } from 'vue-property-decorator';
 @Component
 export default class DayMatch extends Vue {
-  @Prop({ required: true }) readonly match!: {};
+  @Prop({ required: true }) readonly match!: any;
   @Prop({ required: true }) readonly home!: boolean;
 }
 </script>
