@@ -104,7 +104,7 @@ export default new Vuetify({
       AS: {
         component: AlShalakatIcon,
       },
-      ACP: {
+      AP: {
         component: ACPhilamentia,
       },
       RP: {
