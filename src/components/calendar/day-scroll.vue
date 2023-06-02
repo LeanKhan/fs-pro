@@ -35,7 +35,7 @@ export default class DayScroll extends Vue {
   public selectedDayIndex = 0;
 
   // public days$ = this.days;
-  public singleLeague$ = this.singleLeague;
+  // public singleLeague$ = this.singleLeague;
 
   get days$() {
     return this.days;
@@ -50,13 +50,14 @@ export default class DayScroll extends Vue {
   }
   // private selectedDayIndex = this.currentDay ? (this.currentDay - 1) % 7 : 0;
 
-  @Watch('selectedDayIndex', { immediate: true })
+  @Watch('selectedDayIndex', { immediate: false })
   onSelectedDayIndexChanged(val: number) {
+    console.log('Changed ', val)
     this.$emit('selected-day-index-changed', val);
   }
 
   public nextDay() {
-    console.log('Next clicked')
+    console.log('Next clicked');
   }
 }
 </script>

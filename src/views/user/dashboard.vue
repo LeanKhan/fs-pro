@@ -307,6 +307,7 @@ export default class UserDashboard extends Vue {
   }
 
    selectDay(val: number) {
+    console.log('selectDay called => ', val);
     this.selectedDayIndex = val;
   }
 
