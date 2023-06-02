@@ -151,23 +151,23 @@ export default class UserDashboard extends Vue {
   //   this.events.push(event);
   // }
 
-  private match: any = {};
+   match: any = {};
 
-  private selectedDayIndex = 0;
+   selectedDayIndex = 0;
 
-  private seasonTab = null;
+   seasonTab = null;
 
-  private leagues = [];
+   leagues = [];
 
 // id of the selected League
-  private selectedLeagueId = '';
-  private selectedLeague = {};
+   selectedLeagueId = '';
+   selectedLeague = {};
 
-  private selectedMatch = '';
+   selectedMatch = '';
 
-  private days: any = [];
+   days: any = [];
 
-  private seasons: any = [];
+   seasons: any = [];
 
   get currentDay() {
     return this.$store.state.calendar.CurrentDay;
@@ -209,11 +209,11 @@ export default class UserDashboard extends Vue {
     }
   }
 
-  private endYear() {
+   endYear() {
     this.$router.push(`/finish/year/${this.calendar._id}`);
   }
 
-  private changeSelectedLeague(league_id) {
+   changeSelectedLeague(league_id) {
   if(league_id) {
   console.log('Selected League is => ', league_id);
     // fetch the league and populate...
@@ -225,7 +225,7 @@ export default class UserDashboard extends Vue {
   }
   }
 
-  private matchSelected(match) {
+   matchSelected(match) {
     console.log('Selceted match => ', match);
     // change slectedLeague
     this.selectedLeagueId = match.CompetitionId;
@@ -233,7 +233,7 @@ export default class UserDashboard extends Vue {
     this.selectedMatch = match;
   }
 
-  private fetchLeague(league_id: string) {
+   fetchLeague(league_id: string) {
   console.log('Selected League is => ', this.selectedLeagueId);
     // fetch the league and populate...
 
@@ -241,7 +241,7 @@ export default class UserDashboard extends Vue {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private getDays(_day: number) {
+   getDays(_day: number) {
     // if the currentDay is greater than 14 get the next page...
     const limit = 7;
     const week =
@@ -261,7 +261,7 @@ export default class UserDashboard extends Vue {
       });
   }
 
-  private getLeagues(league_id: string) {
+   getLeagues(league_id: string) {
     let query = JSON.stringify({Type: 'league'});
     let path = `/competitions/all?select=Name+Type+CompetitionCode&query=${query}`;
 
@@ -290,7 +290,7 @@ export default class UserDashboard extends Vue {
       }
   }
 
-  private fetchCurrentSeason(league_id) {
+   fetchCurrentSeason(league_id) {
     if(this.calendar && this.calendar.YearString){
       this.$axios
       .get(`/seasons?query=${JSON.stringify({Year: this.calendar.YearString, Competition: this.selectedLeagueId})}`)
@@ -306,12 +306,14 @@ export default class UserDashboard extends Vue {
     }
   }
 
-  private selectDay(val: number) {
+   selectDay(val: number) {
     this.selectedDayIndex = val;
   }
 
   mounted() {
     this.$nextTick(function() {
+      console.log('Selected Day Index ', this.selectedDay);
+
       if (this.lobby) {
         this.$router.push('/u/lobby');
       }
