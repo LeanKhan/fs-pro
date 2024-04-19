@@ -1,81 +1,41 @@
-# Turborepo starter
+## FS PRO (WIP)
 
-This is an official starter Turborepo.
+FSPro is a football simulation game, still in progress but already you can:
+- create seasons
+- play matches
+- argue with your brother about who _actually_ won the league...
 
-## Using this example
+─=≡Σ((( つ o3o)つ
 
-Run the following command:
+This is a monorepo, combining the old [server](https://github.com/LeanKhan/fs-pro-server) and [client](https://github.com/LeanKhan/fs-pro-client) repos.
 
-```sh
-npx create-turbo@latest
-```
+---
 
-## What's inside?
-
-This Turborepo includes the following packages/apps:
-
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
+### Project top-level directory structure
 
 ```
-cd my-turborepo
-pnpm build
-```
-
-### Develop
-
-To develop all apps and packages, run the following command:
+apps
+    ├── fs-pro-client                #  Webapp
+    ├── fs-pro-server                #  Server and Game Engine
 
 ```
-cd my-turborepo
-pnpm dev
-```
 
-### Remote Caching
+### To get started with FSPro
+- You should have a MongoDB database
+- Clone/Fork the repository locally
+- Create the .env files in server and client root folders following their respective .env.example (include the database connection string here)
+- Create the /assets directory in the root of apps/fs-pro-server and extract the contents of this zip file [FSPro Assets April 2024](https://drive.google.com/file/d/11AyWVmjn4uA0ImA1a3L_7KSR8NPHmlFb/view?usp=sharing) into it
+- Install all dependencies, by running `npm i` in the root. We use npm >16
+- When that's done, you can run `turbo build` then `turbo dev`
+- FSPro should be running! Quick go to localhost:8080
 
-Turborepo can use a technique known as [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup), then enter the following commands:
+## What's next?
+- Migrate fs-pro-client from Vue 2 to Vue 3
+- General refactoring
+- Allow any clubs and any leagues. Right now, clubs and leagues are hardcoded. This should change...
+- Improve the Game Engine. It has a lot of issues. If you notice any please let us know and you can help fix it :D
+- Player Transfers
+- ... lots of other things. I'd like to host this in the medium future. But not sure how that would look from an architectural standpoint, let's discuss if you have ideas.
 
-```
-cd my-turborepo
-npx turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```
-npx turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turbo.build/repo/docs/core-concepts/monorepos/running-tasks)
-- [Caching](https://turbo.build/repo/docs/core-concepts/caching)
-- [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching)
-- [Filtering](https://turbo.build/repo/docs/core-concepts/monorepos/filtering)
-- [Configuration Options](https://turbo.build/repo/docs/reference/configuration)
-- [CLI Usage](https://turbo.build/repo/docs/reference/command-line-reference)
+We are open to any kind of contributions whether it's code, tips, suggestions, designs etc. We dey!
