@@ -45,6 +45,8 @@ const store = new MongoStore(
   }
 );
 
+console.log('ENVIRONMENT VARIABBLES => ', process.env.NODE_ENV);
+
 const cors_whitelist = [
       'http://localhost:8080',
       'http://192.168.208.6:8080',
