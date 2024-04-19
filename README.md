@@ -1,4 +1,10 @@
-## FS PRO (WIP)
+
+<p align="center" width="100%">
+    <img width="33%" src="https://fspro-cdn.sturves.tech/logo-new.png">
+</p>
+
+## FSPro Football Simulator
+Pre general release version
 
 FSPro is a football simulation game, still in progress but already you can:
 - create seasons
