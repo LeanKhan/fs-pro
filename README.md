@@ -45,3 +45,13 @@ apps
 - ... lots of other things. I'd like to host this in the medium future. But not sure how that would look from an architectural standpoint, let's discuss if you have ideas.
 
 We are open to any kind of contributions whether it's code, tips, suggestions, designs etc. We dey!
+
+## Licensing
+
+### Code
+
+The code in this repository is licensed under the [MIT License](LICENSE).
+
+### Images
+
+Images such as club logos, player kits and any FSPro Brand assets are licensed under the [Creative Commons Attribution 4.0 International License](IMAGES_LICENSE.md). Meaning you can use them however you want, but it'll be nice if you point back to us >.<
