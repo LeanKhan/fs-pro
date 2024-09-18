@@ -5,7 +5,10 @@
     "build": {
       "dotEnv": [".env.production.local", ".env.production", ".env.local", ".env"],
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      "outputs": [
+        ".next/**",
+        ".keystone/admin/.next/**"
+      ]
     },
     "lint": {
       "dotEnv": [".env.development.local", ".env.development", ".env.local", ".env"],

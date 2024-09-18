@@ -80,6 +80,20 @@
                     v-model="form.Position"
                   ></v-select>
 
+                  <!-- Dynamically Render Role Radio Group -->
+                  <v-radio-group
+                    v-if="availableRoles.length"
+                    label="Role"
+                    v-model="form.Role"
+                  >
+                    <v-radio
+                      v-for="role in availableRoles"
+                      :key="role"
+                      :label="role"
+                      :value="role"
+                    ></v-radio>
+                  </v-radio-group>
+
                   <v-radio-group
                     label="Preferred Foot"
                     v-model="form.Attributes.PreferredFoot"
@@ -209,6 +223,7 @@ export default class PlayerForm extends Vue {
     Nationality: '',
     Age: '',
     Position: '',
+    Role: '',
     Attributes: {
       Speed: 0,
       Shooting: 0,
@@ -264,6 +279,18 @@ export default class PlayerForm extends Vue {
   public appearances: any[] = [];
 
   private positions: string[] = ['GK', 'ATT', 'DEF', 'MID'];
+
+  private roles = {
+    ATT: ['LW', 'RW', 'ST'],
+    DEF: ['LB', 'RB', 'CB'],
+    MID: ['CM', 'CAM', 'CDM', 'RM', 'LM'],
+    GK: ['GK'],
+  };
+
+  get availableRoles() {
+    // Return the roles based on the selected position
+    return this.form.Position ? this.roles[this.form.Position] : [];
+  }
 
   private attributes: string[] = [
     'Keeping',
