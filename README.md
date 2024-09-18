@@ -55,3 +55,7 @@ The code in this repository is licensed under the [MIT License](LICENSE).
 ### Images
 
 Images such as club logos, player kits and any FSPro Brand assets are licensed under the [Creative Commons Attribution 4.0 International License](IMAGES_LICENSE.md). Meaning you can use them however you want, but it'll be nice if you point back to us >.<
+
+### Club Names, Places, People
+
+Not licensed but attribute :)

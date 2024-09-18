@@ -3,7 +3,6 @@
     "target": "es2019",
     "module": "commonJs",
     "lib": [
-      "ES6",
       "es2019"
     ] /* Specify library files to be included in the compilation. */,
     // "allowJs": true,                       /* Allow javascript files to be compiled. */

@@ -238,6 +238,8 @@ export default class ClubHome extends Vue {
 
   private days: IDay[] = [];
 
+  private competitions: IDay[] = [];
+
   private season: any = {};
 
   private limit = 14;
