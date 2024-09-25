@@ -29,8 +29,10 @@
           <v-data-table
             :headers="headers"
             :items="competitions"
-            :loading="!competitions.length > 0"
+            :loading="!competitions"
             :search="search"
+            no-data-text="No Competitions fetched"
+            no-results-text="No Competitions"
             loading-text="Fetching Competitions..."
             class="elevation-1"
           >

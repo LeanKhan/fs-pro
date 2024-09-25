@@ -508,6 +508,12 @@ export default class MatchZone extends Vue {
         // Check for errors here o
         this.fixture = response.data.payload;
 
+        if (response.data.payload.isFinalMatch && response.data.payload.Played) {
+          console.log('Is Final Match! Finish Season :)');
+
+          this.lastMatchOfSeason = true;
+        }
+
         this.getStandings();
       })
       .catch(response => {

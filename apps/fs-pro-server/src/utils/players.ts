@@ -142,15 +142,11 @@ function calculatePlayerValue(pos: string, rating: number, age: number) {
 
   const basevalue = getBasevalue(Math.round(rating));
 
-  console.log(`Basevalue => ${basevalue}`);
-
   const position_multiplier = basevalue * getPositionMultiplier(pos);
 
-  console.log(`Position mu => ${position_multiplier}`);
+  const age_number = typeof age == "string" ? parseInt(age) : age;
 
-  const age_multiplier = basevalue * getAgeMultiplier(pos, age);
-
-  console.log(`Age mu => ${age_multiplier}`);
+  const age_multiplier = basevalue * getAgeMultiplier(pos, age_number);
 
   return Math.round(basevalue + position_multiplier + age_multiplier);
 }
@@ -437,7 +433,7 @@ export function newAttributeRatings(player: PlayerInterface, pnts: number) {
     // console.log(`Points => ${points}, toIncrease => ${toIncrease.toString()}`);
   }
 
-  // console.log('New Attributes => ', player.Attributes);
+  console.log('Player => ', player);
 
   const new_rating = Math.round(
     calculatePlayerRating(player.Attributes, player.Position, player.Role)
@@ -528,6 +524,8 @@ function generatePlayer({position, firstname, lastname, nationality}:
       attributesToIncrease[obj.Position].forEach(attr => {
         obj.Attributes[attr] = 64;
       });
+
+      console.log('Generated Player payload => ', obj)
 
       // set Rating
       obj.Rating = calculatePlayerRating(obj.Attributes, obj.Position, obj.Role);
