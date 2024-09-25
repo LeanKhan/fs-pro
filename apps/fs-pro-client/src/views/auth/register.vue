@@ -172,7 +172,7 @@ export default class Register extends Vue {
   }
   private getClubs() {
     const query = JSON.stringify({ User: null });
-    const select = JSON.stringify('Name ClubCode _id');
+    const select = JSON.stringify('Name ClubCode LeagueCode _id');
     this.$axios
       .get(`/clubs/fetch?q=${query}&select=${select}`)
       .then(res => {
