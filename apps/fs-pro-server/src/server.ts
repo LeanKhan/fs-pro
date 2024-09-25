@@ -51,7 +51,7 @@ const cors_whitelist = [
       'http://localhost:8080',
       'http://192.168.208.6:8080',
       // get host from env vars
-      'http://' + (process.env.REMOTE_HOST.trim() || 'localhost' ) + ':8080'
+      'http://' + (process.env.REMOTE_HOST!.trim() || 'localhost' ) + ':8080'
       ];
 
 app.use(

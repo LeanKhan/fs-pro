@@ -30,10 +30,6 @@ export class User {
           type: String,
           required: true,
         },
-        Email: {
-          type: String,
-          unique: true,
-        },
         Password: {
           type: String,
           required: true,

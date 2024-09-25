@@ -16,6 +16,7 @@ export const apiUrl = import.meta.env.VITE_APP_API_BASE_URL;
 // export const apiUrl = 'http://localhost:3000';
 
 export interface RootState {
+  YearString: string;
   allClubs: Club[];
   apiUrl: string;
   user: {
@@ -48,6 +49,7 @@ export interface RootState {
 //   socket: SocketState;
 
 const state = {
+  YearString: '',
   allClubs: [] as Club[],
   apiUrl,
   user: {
