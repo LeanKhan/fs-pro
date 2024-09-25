@@ -35,6 +35,8 @@ apps
 - When that's done, you can run `turbo build` then `turbo dev`
 - FSPro should be running! Quick go to localhost:8080
 
+### You can find sample data for your DB and information on how to play on our new docs site: https://fspro.sturves.tech/
+
 
 ## What's next?
 - Migrate fs-pro-client from Vue 2 to Vue 3
