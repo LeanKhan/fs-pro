@@ -51,7 +51,7 @@ export default class ClubZone extends Vue {
   private openFireManager = false;
 
   private hireManager() {
-    // hiring manager, thank you Jesus!
+    // hiring manager
     this.openManagerPicker = !this.openManagerPicker;
   }
 

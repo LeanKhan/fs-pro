@@ -11,7 +11,7 @@ router.get('/season/:season_id/', (req, res) => {
    const { populate, recipient } = req.query;
 
    if(!recipient) {
-     // error! Recipient must be supplied! Thank you Jesus!
+     // error! Recipient must be supplied!
      return       respond.fail(res, 400, 'Award recipient must be indicated!');
 
    }

@@ -1,7 +1,7 @@
 import { Schema, Document, Model, model } from 'mongoose';
 
 export interface PlaceInterface {
-  _id?: string; // Bellean. We are using the current field vals :) thank you Jesus!
+  _id?: string; // Bellean. We are using the current field vals :)
   Fullname: string; // Republic of Bellean
   Name: string; // Bellean
   Code: string; // BELL
@@ -16,7 +16,7 @@ export interface PlaceInterface {
  */
 
 declare interface IPlace extends Document {
-  _id: string; // Bellean. We are using the current field vals :) thank you Jesus!
+  _id: string; // Bellean. We are using the current field vals :)
   Fullname: string; // Republic of Bellean
   Name: string; // Bellean
   Code: string; // BELL

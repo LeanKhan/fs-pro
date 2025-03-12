@@ -1,4 +1,4 @@
-<!-- Upload an Image to the Server. Thank you Jesus! -->
+<!-- Upload an Image to the Server.-->
 <template>
   <div>
     <v-card
