@@ -158,7 +158,7 @@ export async function create(
     }
 
     /**
-     * This is the Updated Season! Thank you Jesus!
+     * This is the Updated Season!
      */
     return findByIdAndUpdate(season_id, { Standings: weeks });
   };
@@ -209,7 +209,7 @@ export function createSeason(req: Request, res: Response, next: NextFunction) {
   // using the Current Calendar...
 
   // TODO: URGENT! AND IMPORTANT! COMPLETE THIS WORK
-  // TEST CREATING A SEASON LIKE THIS, thank you Jesus!
+  // TEST CREATING A SEASON LIKE THIS
   const newSeason = (cal: CalendarInterface) => {
     if (!cal) {
       throw new Error('Calendar does not exist!');

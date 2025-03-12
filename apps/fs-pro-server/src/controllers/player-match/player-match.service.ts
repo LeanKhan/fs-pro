@@ -97,7 +97,7 @@ export function findOneAndUpdate(
 /**
  * Create many Day documents from raw PlayerMatchDetails objects
  * @param {PlayerMatchDetailsInterface} PlayerMatchDetails raw PlayerMatchDetails objects
- * @returns Array of created Document Ids :) thank you Jesus!
+ * @returns Array of created Document Ids :)
  */
 export function createMany(PlayerMatchDetails: PlayerMatchDetailsInterface[]) {
   return DB.Models.PlayerMatch.insertMany(PlayerMatchDetails, {

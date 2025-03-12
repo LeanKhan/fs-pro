@@ -258,7 +258,6 @@ function getAgeMultiplier(pos: string, age: number): number {
 Sort from keeper down
 -Returns the players from GK-DEF-MID-ATT
 
-thank you Jesus!
 **/
 function sortFromKeeperDown(players: PlayerInterface[]) {
   const positions = { GK: 4, DEF: 3, MID: 2, ATT: 1 } as {

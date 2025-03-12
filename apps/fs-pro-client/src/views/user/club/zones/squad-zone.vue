@@ -1,6 +1,6 @@
 <template>
   <div>
-    <!-- Show Players' RatingsHistory. Thank you Jesus! -->
+    <!-- Show Players' RatingsHistory. -->
 
     <v-row>
       <v-col cols="6">

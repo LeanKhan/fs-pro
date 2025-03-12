@@ -1,4 +1,4 @@
-// a function that awards all the awards for that season/year... thank you Jesus!
+// a function that awards all the awards for that season/year...
 
 import { Request, Response } from 'express';
 import { allPlayerStats } from '../players/player.service';
@@ -88,7 +88,7 @@ export async function giveAwards(req: Request, res: Response) {
         responseHandler.success(
           res,
           200,
-          'Season ended successfully! Thank you Jesus!',
+          'Season ended successfully!',
           {awardedPlayers: players,
           standings: req.body.standings,
           season: req.body.updatedSeason}

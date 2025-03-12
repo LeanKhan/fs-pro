@@ -71,7 +71,7 @@ export class MatchSide extends Club {
         currentFormation
       );
 
-      // Sort players by position! Thank you Jesus!
+      // Sort players by position!
 
       // log(
       //   `currentFormation & player =>
@@ -118,7 +118,7 @@ export class MatchSide extends Club {
         currentFormation
       );
 
-      // Sort players by position! Thank you Jesus!
+      // Sort players by position!
 
       // log(
       //   `currentFormation & player =>

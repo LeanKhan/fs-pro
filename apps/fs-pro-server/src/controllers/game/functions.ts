@@ -62,8 +62,6 @@ export async function updateFixture(
   //  Find that particular fixture that has not been played of course...
 
   const savePlayerAndClubStats = async (club: IMatchSideDetails) => {
-    // thank you Jesus!
-
     club.PlayerStats = club.PlayerStats.map((p: any) => ({
       ...p,
       Fixture: fixture_id,
@@ -217,7 +215,6 @@ export function updateStandings(
   /**
    * Update the standings based on the match result :)
    *
-   * Thank you Jesus!
    * @param {number} week
    */
   const updateTable = async ({

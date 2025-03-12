@@ -99,7 +99,7 @@ app.use(express.static(path.join(__dirname, '../assets')));
 app.get('/', (req, res) => {
   res
     .status(200)
-    .send('<p>Welcome to FS-PRO <i>Server</i></p> enjoy! Thank you Jesus!');
+    .send('<p>Welcome to FS-PRO <i>Server</i></p> enjoy!');
 });
 
 app.use('/api', router);
@@ -110,11 +110,9 @@ app.use((req, res, next) => {
   next();
 });
 
-//  ==== THE GAME CLASS GAN GAN! EVERYTHING ABOUT THE GAME STARTS HERE! THnak you Jesus! == //
-//  ==== THE GAME CLASS GAN GAN! EVERYTHING ABOUT THE GAME STARTS HERE! THnak you Jesus! == //
+//  ==== THE GAME CLASS GAN GAN! EVERYTHING ABOUT THE GAME STARTS HERE! == //
 App.create();
-//  ==== THE GAME CLASS GAN GAN! EVERYTHING ABOUT THE GAME STARTS HERE! THnak you Jesus! == //
-//  ==== THE GAME CLASS GAN GAN! EVERYTHING ABOUT THE GAME STARTS HERE! THnak you Jesus! == //
+//  ==== THE GAME CLASS GAN GAN! EVERYTHING ABOUT THE GAME STARTS HERE! == //
 
 http.listen(port, () => {
   console.log('Game Server running successfully! on port ' + port);

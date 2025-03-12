@@ -436,7 +436,7 @@ export class Actions {
             }
       }
     } else {
-      console.log('In the empty else for Actions. No free block around player., thank you Jesus!');
+      console.log('In the empty else for Actions. No free block around player.');
       log(around);
       // situation = { status: false, reason: 'move towards ball successful' };
       // Player should pass now.
@@ -573,7 +573,7 @@ export class Actions {
   public shoot(player: IFieldPlayer, post: IBlock, reason: string) {
     // matchEvents.emit(`${this.match.id}-shot`, { subject: player });
 
-    // Use a reference to the player's team... thank you Jesus!
+    // Use a reference to the player's team...
     const teamIndex = this.teams.findIndex(
       (t) => t.ClubCode === player.ClubCode
     );

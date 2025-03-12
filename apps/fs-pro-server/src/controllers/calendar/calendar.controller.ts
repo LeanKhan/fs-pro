@@ -66,7 +66,7 @@ export function createCalendarYear(req: Request, res: Response) {
 
   return createNew(calendar)
     .then((c) => {
-      console.log('Calendar Year created successfully! Thank you Jesus!');
+      console.log('Calendar Year created successfully!');
       return respond.success(res, 200, 'Calendar Year created succesfully!', c);
     })
     .catch((e) => {
@@ -227,7 +227,7 @@ export function setupDaysInYear(
 
     let completeDays: DayInterface[] = [];
 
-    // TODO: look at the performance of this loop... thank you Jesus!
+    // TODO: look at the performance of this loop...
     firstDivisionDays.forEach((day, i) => {
       if ((i + 1) % 3 === 0 || (i + 1) % 4 === 0) {
         const emptyDay: DayInterface = {
@@ -365,7 +365,6 @@ export function setupDaysInYear2(
 
 // Get all Seasons in this new year that
 // belong to a League and sort by their Competition Code.
-// Thank you Jesus!
     const AllLeagueSeasonsThisYear: SeasonInterface[] = await fetchAllSeasons({
       Year: _calendar.YearString,
       Competition: { $in: AllLeagues },
@@ -494,7 +493,7 @@ export function setupDaysInYear2(
       }
     });
 
-    // at the end of this loop, all_days should be full of Days filled with Fixtures. Thank you Jesus!
+    // at the end of this loop, all_days should be full of Days filled with Fixtures.
     return days;
   };
 
@@ -545,8 +544,6 @@ export function setupDaysInYear2(
 
 /**
  * Change the Current Day to next available day :)
- *
- * Thank you Jesus!
  *
  * @param year Calendar year
  */
@@ -626,7 +623,7 @@ export function startYear(req: Request, res: Response) {
       throw new Error('No seasons found!');
     }
     // Set the rest to false and this one to true...
-    // There should be only ONE active calendar at a time. Thank you Jesus!
+    // There should be only ONE active calendar at a time.
     return updateCalendars({}, [
       { $set: { isActive: { $eq: ['$YearString', year] }, CurrentDay: 0 } },
     ]);
@@ -682,11 +679,11 @@ export async function getCurrentCalendar(req: Request, res: Response) {
       response
     );
   } else {
-    // This actually means that there is no Current Calendar! Thank you Jesus
+    // This actually means that there is no Current Calendar!
     return respond.success(
       res,
       200,
-      'No current Calendar Year! You can start a new one :) Thank you Jesus!',
+      'No current Calendar Year! You can start a new one :)',
       null
     );
   }
@@ -731,7 +728,7 @@ export async function endYear(req: Request, res: Response, next: NextFunction) {
   }
 
   if (all_finished) {
-    // Means all seasons are over! Yay! Thank you Jesus!
+    // Means all seasons are over! Yay!
     // You can tell the Client that the Year is Over!
     // Update Calendar!
     // await fin(season.Calendar, { allSeasonsCompleted: true });
@@ -742,7 +739,7 @@ export async function endYear(req: Request, res: Response, next: NextFunction) {
       .then((r) => {
         console.log('Seasons prolegated Successfully!');
         // No, time to update Calendar!
-        // TODO: This should get Player of the Year etc... thank you Jesus!
+        // TODO: This should get Player of the Year etc...
         updateCalendar({ _id: id }, { isActive: false, isEnded: true })
           .then((c) => {
             console.log('Calendar Year Ended Successfully! :)');
