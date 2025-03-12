@@ -145,8 +145,8 @@ router.post('/new', createCalendarYear);
  * After a Year has been created, we must add Seasons to it and add Days to the Year
  * - Then the Calendar process is complete!
  * - A Calendar Year ends when a new one Starts
- * - Next, Start the Calendar and go and play matches! :) Thank you Jesus
- * This endpoint, setups Year and Activates it ! Thank you Jesus!
+ * - Next, Start the Calendar and go and play matches! :)
+ * This endpoint, setups Year and Activates it !
  */
 // router.post(
 //   '/:year/:id/setup-and-start',

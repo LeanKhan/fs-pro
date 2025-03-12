@@ -1,6 +1,4 @@
-/** ROUGHWORK -> You can keep code you don't want to lose here idk :) thank you Jesus! */
-
-// Thank you Jesus!
+/** ROUGHWORK -> You can keep code you don't want to lose here idk :) */
 
 /**
  * db.getCollection('PlayerMatchDetails').aggregate([

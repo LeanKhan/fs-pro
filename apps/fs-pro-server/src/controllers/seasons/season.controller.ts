@@ -22,7 +22,6 @@ export async function getCurrentSeasons(req: Request, res: Response) {
    * 1. Get the latest seasons of the Competitions involved ...
    * 2. Create Calendar Days by pushing Season fixtures to Calendar with maybe some free days inbetween..
    * 3. Let's gooo!
-   * 4. Thank you Jesus...
    */
 
   const year = req.params.year;
@@ -76,7 +75,7 @@ export async function finishSeason(
   // season.Competition maybe find the competition and do the needful...
 
   try {
-    // TODO: IMPORTANT (!) REVERT THIS O! THANK YOU JESUS!
+    // TODO: IMPORTANT (!) REVERT THIS O!
     const q = { _id: season_id, isStarted: true };
     // const q = { _id: season_id, isStarted: true, isFinished: false };
     // get fixture and its details...
@@ -218,7 +217,6 @@ export async function finishSeason(
  * Prolegate: (Pro)mote or Re(legate)
  *
  * This function promotes or relegates the clubs in the Season...
- * Thank you Jesus
  * @param season_id
  * @returns
  */

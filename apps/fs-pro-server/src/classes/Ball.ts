@@ -98,7 +98,7 @@ export default class Ball implements IBall, BallClass {
   but now we are seeing that the ball is at two different locations! {2,3} and {5,1}. How?
  */
 
-//  UPDATE: I believe this has been fixed! Thank you Jesus!
+//  UPDATE: I believe this has been fixed!
 
 export interface IBall {
   Color: string;

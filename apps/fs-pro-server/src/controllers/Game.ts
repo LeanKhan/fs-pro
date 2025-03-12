@@ -309,7 +309,6 @@ export default class Game implements GameClass {
 
   private async gamePlay() {
     // Anything you want to do to change the game, do it before 'gameLoop' is called :)
-    // thank you Jesus!
     await this.gameLoop();
     matchEvents.emit(`${this.Match.id}-half-end`);
     createMatchEvent(this.Match.id, 'First Half Over', 'match');
@@ -334,7 +333,6 @@ export default class Game implements GameClass {
          // matchEvents.emit(`${this.Match.id}-setting-playing-sides`, playingSides);
 
         // TODO: do error handling here, so throw any error that may arise from here.
-        // thank you Jesus!
 
         this.Match.setCurrentTime(Math.round((i + 1) / 2));
 

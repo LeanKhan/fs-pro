@@ -41,7 +41,7 @@ export function addClubToCompetition(req: Request, res: Response) {
         200,
         'Club has been added to Competition successfully!'
       );
-      // Thank you Jesus
+      
     })
     .catch((err) => {
       respond.fail(res, 400, 'Error adding Club to Competition', err);

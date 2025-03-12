@@ -142,7 +142,7 @@ arrangeAllCountries()
 // arrangeAllCountries()
 // .then(updateCollections)
 // .then((result: any) => {
-//   console.log('All Models updated successfully! Thank you Jesus!', result)
+//   console.log('All Models updated successfully!', result)
 // })
 
 } */

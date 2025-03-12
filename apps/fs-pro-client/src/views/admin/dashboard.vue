@@ -9,7 +9,7 @@
     </div>
     <p class="display-2 secondary--text text-center">FSPro</p>
     <p class="caption secondary--text lighten-3 text-center">
-      thank you Jesus!
+      Let's go!
     </p>
   </div>
 </template>

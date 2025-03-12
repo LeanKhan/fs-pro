@@ -31,7 +31,7 @@ const router = Router();
 
 /** Get all Seasons */
 router.get('/', (req: Request, res: Response) => {
-  // TODO: review all these your service then, async/awaits. Thank you Jesus!
+  // TODO: review all these your service then, async/awaits.
   let {query, select, populate, sort} = req.query;
 
   if(query){
