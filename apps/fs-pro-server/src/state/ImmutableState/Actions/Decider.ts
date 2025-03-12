@@ -3,8 +3,6 @@ import { MatchSide } from '../../../classes/MatchSide';
 import CO from '../../../utils/coordinates';
 import { getResult } from '../../../utils/probability';
 
-// Thank you Jesus!
-
 export class Decider {
   public teams: MatchSide[];
 
@@ -376,7 +374,7 @@ export class Decider {
     // if distance from post is near post...
     const chance = this.gimmeAChance();
 
-    // Get shooter's team shey? THANK YOU JESUS!
+    // Get shooter's team shey?
 
     const teamIndex = this.teams.findIndex(
       (t) => t.ClubCode === shooter.ClubCode

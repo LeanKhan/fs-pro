@@ -188,7 +188,7 @@ async function play(fixture_id: string) {
 
   // [4] Play Match
   log('Here in startGame!');
-  // NOTE: removing static App method. Thank you Jesus!
+  // NOTE: removing static App method.
   return CurrentMatch.App
     .startGame()
     ?.then(async (m) => {
@@ -325,7 +325,7 @@ export async function restPlayGameNew(
            // return responseHandler.success(
            //    res,
            //    200,
-           //    '[New] Match(es) Played successfully! Thank you Jesus!',
+           //    '[New] Match(es) Played successfully!',
            //    results
            //  );
 
@@ -343,7 +343,7 @@ export async function restPlayGameNew(
       return responseHandler.success(
         res,
         200,
-        '[New] Match Played successfully! Thank you Jesus!',
+        '[New] Match Played successfully!',
         send_other_results ? results : results.main
       );
     })
@@ -500,8 +500,6 @@ export function restUpdateStandings(
   next: NextFunction
 ) {
   // Soon we will be getting it from the fixture object...
-  // THANK YOU JESUS!
-
   const { fixture: fixture_id } = req.params;
   const {
     match,
@@ -611,7 +609,7 @@ export function restUpdateStandings(
     .finally(() => {
       // Delete CurrentMatch Instance...
       // Why are we ending the game here? We already end it if the match was successful, so no need.
-      // If it fails, there's no 'game' to end :p Thank you Jesus!
+      // If it fails, there's no 'game' to end :p
       App._app.endGame();
       log('GAME ENDED from App');
     });

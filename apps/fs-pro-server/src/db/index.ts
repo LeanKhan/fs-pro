@@ -46,7 +46,7 @@ declare interface IModels {
   [key: string]: Model<any>;
 }
 
-// Production! Well, sha for Tobi and I. Thank you Jesus!
+// Production!
 let prod_db = '';
 if (process.env.DEV_TEST?.trim()) {
   prod_db = process.env.DEV_MONGO_URL?.trim() as string;

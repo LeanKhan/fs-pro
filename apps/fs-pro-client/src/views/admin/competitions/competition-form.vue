@@ -259,7 +259,7 @@ export default class ComponentForm extends Vue {
 
   public closeModal(event: any): void {
     // SHIIIT Don't add clubs automatically while creating o! lol
-    // TODO: Look into it! Abeg thank you Jesus
+    // TODO: Look into it!
     this.openClubModal = false;
     if (event) {
       const competitionID = this.$route.params['id'];

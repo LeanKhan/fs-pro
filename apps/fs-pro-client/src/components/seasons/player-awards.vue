@@ -47,7 +47,7 @@ export default class PlayerAwards extends Vue {
 
   private api = apiUrl;
   /**
-   * Fetch Awards, thank you Jesus!
+   * Fetch Awards
    */
   public fetchAwards() {
     this.loading = true;
@@ -58,7 +58,6 @@ export default class PlayerAwards extends Vue {
         const managerIndex = response.data.payload.findIndex((a: any) => !a.Recipient);
         this.manager = response.data.payload.splice(managerIndex, 1);
         this.awards = response.data.payload;
-        // thank you Jesus!
       })
       .catch(err => {
         console.log('Error fetching Season => ', err);
@@ -76,7 +75,6 @@ export default class PlayerAwards extends Vue {
   private manager = {};
 
   //   private mounted() {
-  //     //   load awards! Thank you Jesus!
   //     this.fetchAwards();
   //   }
 }

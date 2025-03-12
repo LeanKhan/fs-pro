@@ -81,7 +81,7 @@ export default class App {
     }
   }
 
-  /** [EXPERIMENTAL] Run this last! Thank you Jesus */
+  /** [EXPERIMENTAL] Run this last! */
   public endGame() {
     try {
       this.Game = undefined;

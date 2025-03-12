@@ -16,7 +16,7 @@
 
         <p v-else>
           {{ calendar.YearString }} ended successfully! Admin will start a new
-          year soon :) Thank you Jesus!
+          year soon :)
 
           <v-btn block color="success" @click="$router.push('/u')">
             Continue

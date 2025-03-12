@@ -383,7 +383,7 @@ export class Match implements IMatch, MatchClass {
 
     log(`ball-moved listeners: ${ballMove.listenerCount('ball-moved')}`);
     if (this.getCurrentTime >= 90) {
-      // Only remove the listeners at the end of the match :) Thank you Jesus!
+      // Only remove the listeners at the end of the match :)
       ballMove.removeAllListeners();
       matchEvents.removeAllListeners();
     }
