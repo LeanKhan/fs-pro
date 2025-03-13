@@ -1,53 +1,61 @@
-import Vue from 'vue';
+import { createApp } from 'vue';
+import { createPinia } from 'pinia';
 import App from './App.vue';
-import vuetify from './plugins/vuetify';
 import router from './router';
-import store, { apiUrl } from './store';
-import axios, { AxiosStatic } from 'axios';
-import { roundTo, ordinal } from './helpers/misc';
+import { createVuetify } from 'vuetify';
+import * as components from 'vuetify/components';
+import * as directives from 'vuetify/directives';
+import { io } from 'socket.io-client';
+import axios from 'axios';
+import { apiUrl } from './stores/main';
+import 'vuetify/styles';
 
-import VueSocketIOExt from 'vue-socket.io-extended';
-import io from 'socket.io-client';
-
-const socket = io(`${apiUrl}`, { autoConnect: false });
-
-Vue.use(VueSocketIOExt, socket);
-
-// baseURL: 'http://localhost:3000/api',
+const socket = io(apiUrl, { autoConnect: false });
 
 export const $axios = axios.create({
   baseURL: `${apiUrl}/api`,
 });
 
-Vue.use({
-  install() {
-    Vue.prototype.$axios = $axios;
+const vuetify = createVuetify({
+  components,
+  directives,
+  theme: {
+    defaultTheme: 'dark',
+    themes: {
+      dark: {
+        colors: {
+          primary: '#7535ed',
+          accent: '#c23361',
+          anchor: '#340f78',
+        },
+      },
+    },
   },
 });
 
 const formatter = new Intl.NumberFormat('en-US', {
-    style: 'decimal',
-    minimumFractionDigits: 2,
+  style: 'decimal',
+  minimumFractionDigits: 2,
 });
 
+const app = createApp(App);
 
-Vue.filter('currency', (value: number) => `${formatter.format(value)}`);
+app.config.globalProperties.$socket = socket;
+app.config.globalProperties.$axios = $axios;
 
-Vue.filter('roundTo', roundTo);
+app.use(createPinia());
+app.use(router);
+app.use(vuetify);
 
-Vue.filter('ordinal', ordinal);
-
-declare module 'vue/types/vue' {
-  interface Vue {
-    $axios: AxiosStatic;
+// Global filters
+app.config.globalProperties.$filters = {
+  currency: (value: number) => `${formatter.format(value)}`,
+  roundTo: (value: number, decimals: number) => Number(Math.round(Number(value + 'e' + decimals)) + 'e-' + decimals),
+  ordinal: (n: number) => {
+    const s = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
   }
-}
+};
 
-Vue.config.productionTip = false;
-
-new Vue({
-  vuetify,
-  router,
-  store,
-  render: h => h(App),
-}).$mount('#app');
+app.mount('#app');
