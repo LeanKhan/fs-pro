@@ -2,16 +2,14 @@
   <router-view></router-view>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+<script setup lang="ts">
+import { useTheme } from 'vuetify';
 
-@Component({})
-export default class App extends Vue {
-  created(): void {
-    this.$vuetify.theme.dark = true;
-    this.$vuetify.theme.currentTheme.primary = '#7535ed';
-    this.$vuetify.theme.currentTheme.accent = '#c23361';
-    this.$vuetify.theme.currentTheme.anchor = '#340f78';
-  }
-}
+const theme = useTheme();
+
+// Set dark theme and colors
+theme.global.name.value = 'dark';
+theme.themes.value.dark.colors.primary = '#7535ed';
+theme.themes.value.dark.colors.accent = '#c23361';
+theme.themes.value.dark.colors.anchor = '#340f78';
 </script>
