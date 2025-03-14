@@ -1,25 +1,43 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": ["**/.env.*local", ".env"],
-  "pipeline": {
+  "globalDependencies": [
+    "**/.env.*local",
+    ".env"
+  ],
+  "tasks": {
     "build": {
-      "dotEnv": [".env.production.local", ".env.production", ".env.local", ".env"],
-      "dependsOn": ["^build"],
-      "outputs": [
-        ".next/**",
-        ".keystone/admin/.next/**"
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        ".env.production.local",
+        ".env.production",
+        ".env.local",
+        ".env"
       ]
     },
     "lint": {
-      "dotEnv": [".env.development.local", ".env.development", ".env.local", ".env"],
-      "dependsOn": ["^lint"]
+      "inputs": [
+        ".env.development.local",
+        ".env.development",
+        ".env.local",
+        ".env"
+      ],
+      "dependsOn": [
+        "^lint"
+      ]
     },
     "dev": {
       "cache": false,
       "persistent": true
     },
     "test": {
-      "dotEnv": [".env.test.local", ".env.test", ".env.local", ".env"]
+      "inputs": [
+        ".env.test.local",
+        ".env.test",
+        ".env.local",
+        ".env"
+      ]
     }
   }
 }
