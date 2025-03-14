@@ -30,4 +30,6 @@ export interface ICalendar {
   isActive: boolean;
   /** Array of the ids of Days */
   Days: string[];
+
+  allSeasonsCompleted?: any;
 }

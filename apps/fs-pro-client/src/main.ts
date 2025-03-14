@@ -7,8 +7,9 @@ import * as components from 'vuetify/components';
 import * as directives from 'vuetify/directives';
 import { io } from 'socket.io-client';
 import axios from 'axios';
-import { apiUrl } from './stores/main';
+import { apiUrl } from '@/store';
 import 'vuetify/styles';
+import { ordinal, roundTo } from './helpers/misc';
 
 const socket = io(apiUrl, { autoConnect: false });
 
@@ -50,12 +51,8 @@ app.use(vuetify);
 // Global filters
 app.config.globalProperties.$filters = {
   currency: (value: number) => `${formatter.format(value)}`,
-  roundTo: (value: number, decimals: number) => Number(Math.round(Number(value + 'e' + decimals)) + 'e-' + decimals),
-  ordinal: (n: number) => {
-    const s = ["th", "st", "nd", "rd"];
-    const v = n % 100;
-    return n + (s[(v - 20) % 10] || s[v] || s[0]);
-  }
+  roundTo: roundTo,
+  ordinal: ordinal
 };
 
 app.mount('#app');
