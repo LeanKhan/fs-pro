@@ -2,26 +2,25 @@
   <v-card background="transparent" color="transparent">
     <v-toolbar dense>
       <!-- Current day -->
-      <v-toolbar-title class="subtitle-1 font-weight-bold indigo--text">
+      <v-toolbar-title v-if="calendar" class="subtitle-1 font-weight-bold indigo--text">
         Day {{ calendar.CurrentDay }} - Year {{ calendar.YearString }}
       </v-toolbar-title>
 
       <v-spacer></v-spacer>
 
       <v-toolbar-items>
-
-      <!-- select league -->
+        <!-- select league -->
         <select class="text-indigo indigo-text" name="select_league" v-model="selectedLeagueId" @change="changeSelectedLeague(selectedLeagueId)">
-        <option disabled value="">Select League</option>
-         <option v-for="(league, i) in leagues" v-bind:value="league._id" :key="i">
-                  {{ league.Name }}
-        </option>
+          <option disabled value="">Select League</option>
+          <option v-for="(league, i) in leagues" v-bind:value="league._id" :key="i">
+            {{ league.Name }}
+          </option>
         </select>
 
         <v-btn
           color="warning"
-          v-if="calendar.allSeasonsCompleted"
-          @click="endYear()"
+          v-if="calendar && calendar.allSeasonsCompleted"
+          @click="endYear"
         >
           END YEAR
         </v-btn>
@@ -29,7 +28,6 @@
     </v-toolbar>
 
     <!-- Main -->
-
     <v-row>
       <v-col cols="8">
         <!-- Fixtures and next matches -->
@@ -46,9 +44,11 @@
 
                   <v-col cols="6">
                     <v-card style="height: 300px;max-height: 300px;overflow-y: auto">
-                    <day-fixtures-list :Matches="selectedDay.Matches"
-                    Detail="details"
-                    @match-selected="matchSelected"></day-fixtures-list>
+                      <day-fixtures-list 
+                        :Matches="selectedDay.Matches"
+                        Detail="details"
+                        @match-selected="matchSelected"
+                      ></day-fixtures-list>
                     </v-card>
                   </v-col>
                 </v-row>
@@ -66,7 +66,6 @@
           </v-sheet>
 
           <!-- Fixtures scroller -->
-
           <v-sheet width="100%" color="dark" class="mt-5">
             <div>
               <v-subheader>
@@ -130,201 +129,116 @@
   </v-card>
 </template>
 
-<script lang="ts">
-import { Component, Vue, Watch } from 'vue-property-decorator';
-import DayScroll from '../../components/calendar/day-scroll.vue';
+<script setup lang="ts">
+import { ref, computed, watch, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { useStore } from '@/store';
+import DayScroll from '@/components/calendar/day-scroll.vue';
 import StandingsScroller from '@/components/seasons/standings-scroller.vue';
 import FixtureCard from '@/components/user-dashboard/fixture-card.vue';
 import DayFixturesList from '@/components/user-dashboard/day-fixtures-list.vue';
+import { $axios } from '@/main';
 
-@Component({
-  components: {
-    DayScroll,
-    StandingsScroller,
-    FixtureCard,
-    DayFixturesList
-  },
-})
-export default class UserDashboard extends Vue {
-  // @Socket('match-event')
-  // onMatchEvent(event: any) {
-  //   this.events.push(event);
-  // }
+const router = useRouter();
+const store = useStore();
 
-   match: any = {};
+const match = ref({});
+const selectedDayIndex = ref(0);
+const seasonTab = ref<any>(null);
+const leagues = ref<any>([]);
+const selectedLeagueId = ref('');
+const selectedLeague = ref<any>({});
+const selectedMatch = ref<any>('');
+const days = ref<any>([]);
+const seasons = ref<any>([]);
 
-   selectedDayIndex = 0;
+const calendar = computed(() => store.calendar);
+const currentDay = computed(() => store.calendar?.CurrentDay);
+const lobby = computed(() => store.lobby);
+const yearString = computed(() => store.calendar?.YearString);
 
-   seasonTab = null;
+const selectedDay = computed(() => days.value[selectedDayIndex.value]);
 
-   leagues = [];
+watch(currentDay, (day) => {
+  if (day) getDays(day);
+}, { immediate: true });
 
-// id of the selected League
-   selectedLeagueId = '';
-   selectedLeague = {};
-
-   selectedMatch = '';
-
-   days: any = [];
-
-   seasons: any = [];
-
-  get currentDay() {
-    return this.$store.state.calendar.CurrentDay;
+watch(lobby, (toLobby) => {
+  if (toLobby) {
+    router.push('/u/lobby');
   }
+}, { immediate: true });
 
-  get lobby() {
-    return this.$store.getters.lobby;
-  }
+function endYear() {
+  router.push(`/finish/year/${calendar.value?._id}`);
+}
 
-  get calendar() {
-    return this.$store.state.calendar;
-  }
-
-  // get seasons() {
-  //  return this.$store.state.seasons;
-  //}
-
-  get selectedDay() {
-    return this.days[this.selectedDayIndex];
-  }
-
-  get $selectedLeague() {
-    return this.$store.getters.selectedLeague;
-  }
-
-  get yearString(): string {
-    return this.$store.state.calendar.YearString;
-  }
-
-  @Watch('currentDay', { immediate: true })
-  onCurrentDayChanged(day: number) {
-    this.getDays(day);
-  }
-
-  @Watch('lobby', { immediate: true })
-  onLobbyChange(toLobby: boolean) {
-    if (toLobby) {
-      this.$router.push('/u/lobby');
-    }
-  }
-
-   endYear() {
-    this.$router.push(`/finish/year/${this.calendar._id}`);
-  }
-
-   changeSelectedLeague(league_id) {
-  if(league_id) {
-  console.log('Selected League is => ', league_id);
-    // fetch the league and populate...
-
-    this.$store.dispatch('SET_SELECTED_LEAGUE', league_id);
-
-    this.getLeagues(league_id);
-    this.fetchCurrentSeason(league_id);
-  }
-  }
-
-   matchSelected(match) {
-    console.log('Selceted match => ', match);
-    // change slectedLeague
-    this.selectedLeagueId = match.CompetitionId;
-    this.changeSelectedLeague(match.CompetitionId);
-    this.selectedMatch = match;
-  }
-
-   fetchLeague(league_id: string) {
-  console.log('Selected League is => ', this.selectedLeagueId);
-    // fetch the league and populate...
-
-    this.$router.push(`/finish/year/${this.calendar._id}`);
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-   getDays(_day: number) {
-    // if the currentDay is greater than 14 get the next page...
-    const limit = 7;
-    const week =
-      this.calendar.CurrentDay == 0
-        ? 1
-        : Math.ceil(this.calendar.CurrentDay / limit);
-
-// TODO: might put week back - 24/1/22
-    const query = `/calendar/${this.yearString}/days?paginate=true&populate=true&limit=${limit}&week=${week}&not_played=true`;
-    this.$axios
-      .get(query)
-      .then(response => {
-        this.days = response.data.payload;
-      })
-      .catch(error => {
-        console.log('Error getting days of Calendar Year!', error);
-      });
-  }
-
-   getLeagues(league_id: string) {
-    let query = JSON.stringify({Type: 'league'});
-    let path = `/competitions/all?select=Name+Type+CompetitionCode&query=${query}`;
-
-    if (league_id){
-      query = JSON.stringify({_id: league_id});
-      path = `/competitions/all?query=${query}`;
-
-      this.$axios
-      .get(path)
-      .then(response => {
-        this.selectedLeague = response.data.payload[0];
-      })
-      .catch(error => {
-        console.log('Error getting all Leagues', error);
-      });
-    } else {
-    this.$axios
-      .get(path)
-      .then(response => {
-        this.leagues = response.data.payload;
-      })
-      .catch(error => {
-        console.log('Error getting all Leagues', error);
-      });
-
-      }
-  }
-
-   fetchCurrentSeason(league_id) {
-    if(this.calendar && this.calendar.YearString){
-      this.$axios
-      .get(`/seasons?query=${JSON.stringify({Year: this.calendar.YearString, Competition: this.selectedLeagueId})}`)
-      .then(response => {
-        // Check for errors here o
-        if (response.data.success) {
-          this.seasons = response.data.payload;
-        }
-      })
-      .catch(response => {
-        console.log('Error fetching current Seasons! => ', response);
-      });
-    }
-  }
-
-   selectDay(val: number) {
-    console.log('selectDay called => ', val);
-    this.selectedDayIndex = val;
-  }
-
-  mounted() {
-    this.$nextTick(function() {
-      console.log('Selected Day Index ', this.selectedDay);
-
-      if (this.lobby) {
-        this.$router.push('/u/lobby');
-      }
-    });
-
-    // fetch all leagues
-    this.getLeagues();
-
+function changeSelectedLeague(league_id: string) {
+  if (league_id) {
+    store.setSelectedLeague(league_id);
+    getLeagues(league_id);
+    fetchCurrentSeason(league_id);
   }
 }
-</script>
 
-<style></style>
+function matchSelected(match: any) {
+  selectedLeagueId.value = match.CompetitionId;
+  changeSelectedLeague(match.CompetitionId);
+  selectedMatch.value = match;
+}
+
+async function getDays(day: number) {
+  const limit = 7;
+  const week = calendar.value?.CurrentDay === 0 ? 1 : Math.ceil((calendar.value?.CurrentDay || 0) / limit);
+
+  try {
+    const response = await $axios.get(`/calendar/${yearString.value}/days?paginate=true&populate=true&limit=${limit}&week=${week}&not_played=true`);
+    days.value = response.data.payload;
+  } catch (error) {
+    console.error('Error getting days of Calendar Year:', error);
+  }
+}
+
+async function getLeagues(league_id?: string) {
+  try {
+    if (league_id) {
+      const query = JSON.stringify({ _id: league_id });
+      const response = await $axios.get(`/competitions/all?query=${query}`);
+      selectedLeague.value = response.data.payload[0];
+    } else {
+      const query = JSON.stringify({ Type: 'league' });
+      const response = await $axios.get(`/competitions/all?select=Name+Type+CompetitionCode&query=${query}`);
+      leagues.value = response.data.payload;
+    }
+  } catch (error) {
+    console.error('Error getting leagues:', error);
+  }
+}
+
+async function fetchCurrentSeason(league_id: string) {
+  if (calendar.value?.YearString) {
+    try {
+      const response = await $axios.get(`/seasons?query=${JSON.stringify({
+        Year: calendar.value.YearString,
+        Competition: selectedLeagueId.value
+      })}`);
+      if (response.data.success) {
+        seasons.value = response.data.payload;
+      }
+    } catch (error) {
+      console.error('Error fetching current Seasons:', error);
+    }
+  }
+}
+
+function selectDay(val: number) {
+  selectedDayIndex.value = val;
+}
+
+onMounted(() => {
+  if (lobby.value) {
+    router.push('/u/lobby');
+  }
+  getLeagues();
+});
+</script>

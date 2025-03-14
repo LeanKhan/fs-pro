@@ -8,16 +8,14 @@
 
         <v-spacer></v-spacer>
 
-        <v-btn depressed small icon @click="close()">
-          <v-icon>
-            mdi-close
-          </v-icon>
+        <v-btn depressed small icon @click="close">
+          <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-toolbar>
 
       <v-row>
-        <template v-for="(attr, k) in stats_attributes">
-          <v-col cols="3" v-bind:key="k">
+        <template v-for="(attr, k) in stats_attributes" :key="k">
+          <v-col cols="3">
             <v-card>
               <v-card-title class="capitalize">Highest {{ attr }}</v-card-title>
 
@@ -34,7 +32,7 @@
 
                   <v-list-item-avatar size="40px" color="blue">
                     <span class="white--text font-weight-bold">
-                      {{ p[attr] | roundTo(2) }}
+                      {{ filter(p[attr]) }}
                     </span>
                   </v-list-item-avatar>
                 </v-list-item>
@@ -62,86 +60,68 @@
   </div>
 </template>
 
-<script lang="ts">
-/* eslint-disable @typescript-eslint/camelcase */
-import { Component, Vue } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref, computed, onMounted, getCurrentInstance } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { $axios } from '@/main';
 import Standings from '@/components/seasons/standings.vue';
+const instance = getCurrentInstance();
 
-@Component({
-  components: {
-    Standings,
-  },
-})
-export default class SeasonStats extends Vue {
-  // after end of season, check if the Year is alos over (that is, all the seasons are finished...)
-  // then go to End Of Year...
+const route = useRoute();
+const router = useRouter();
 
-  private loading = false;
+const loading = ref(false);
+const season = ref<any>({});
+const loading_player_stats = ref(false);
+const stats_attributes = ['points', 'goals', 'assists', 'saves'];
+const top_players = ref<any>({
+  points: [],
+  goals: [],
+  assists: [],
+  saves: [],
+});
 
-  private season: any = {};
+const seasonId = computed(() => route.params.season_id);
 
-  private loading_player_stats = false;
+function close() {
+  router.push('/u');
+}
 
-  private stats_attributes = ['points', 'goals', 'assists', 'saves'];
-
-  private top_players: {
-    points: [];
-    goals: [];
-    assists: [];
-    saves: [];
-    [key: string]: [];
-  } = {
-    points: [],
-    goals: [],
-    assists: [],
-    saves: [],
-  };
-
-  get seasonId() {
-    return this.$route.params.season_id;
-  }
-
-  private close() {
-    this.$router.push('/u');
-  }
-
-  // eslint-disable-next-line @typescript-eslint/camelcase
-  private load_stats(attribute: string) {
-    this.loading_player_stats = true;
-    this.$axios
-      .get(
-        `/players/stats?match_k=season._id&match_v=${this.seasonId}&sort_k=${attribute}&sort_v=-1`
-      )
-      .then(response => {
-        if (response.data.success) {
-          this.top_players[attribute] = response.data.payload;
-        }
-      })
-      .catch(err => {
-        console.log(`Error fetching player with most ${attribute} => `, err);
-      })
-      .finally(() => {
-        this.loading_player_stats = false;
-      });
-  }
-
-  mounted() {
-    console.log('Fetching Season...');
-    this.loading = true;
-
-    this.$axios
-      .get(`/seasons/${this.seasonId}?populate=false`)
-      .then(response => {
-        this.season = response.data.payload;
-      })
-      .catch(err => {
-        console.log('Error fetching Season => ', err);
-      })
-      .finally(() => {
-        this.loading = false;
-      });
+function filter(stuff: any) {
+  if (instance) {
+    return instance.appContext.config.globalProperties.$filters.roundTo(stuff);
   }
 }
-</script>
 
-<style></style>
+async function load_stats(attribute: string) {
+  loading_player_stats.value = true;
+  try {
+    const response = await $axios.get(
+      `/players/stats?match_k=season._id&match_v=${seasonId.value}&sort_k=${attribute}&sort_v=-1`
+    );
+    if (response.data.success) {
+      top_players.value[attribute] = response.data.payload;
+    }
+  } catch (error) {
+    console.error(`Error fetching player with most ${attribute}:`, error);
+  } finally {
+    loading_player_stats.value = false;
+  }
+}
+
+onMounted(async () => {
+  console.log('Fetching Season...');
+  loading.value = true;
+
+  try {
+    const response = await $axios.get(
+      `/seasons/${seasonId.value}?populate=false`
+    );
+    season.value = response.data.payload;
+  } catch (error) {
+    console.error('Error fetching Season:', error);
+  } finally {
+    loading.value = false;
+  }
+});
+</script>
