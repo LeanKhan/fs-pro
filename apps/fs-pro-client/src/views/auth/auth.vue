@@ -6,7 +6,7 @@
           <v-col offset="7">
             <div
               class="d-flex justify-center align-center"
-              style="height: 100px;"
+              style="height: 100px"
             >
               <img
                 alt="FsPro Logo :)"
@@ -17,7 +17,6 @@
             <v-card color="dark">
               <v-tabs background-color="transparent" color="green" grow>
                 <v-tab title="Login" to="login">Login</v-tab>
-
                 <v-tab title="Join" to="join">Join</v-tab>
               </v-tabs>
               <router-view></router-view>
@@ -34,7 +33,6 @@
         </v-col>
         <v-col class="ext-center white--text" cols="12">
           <v-divider></v-divider>
-
           {{ new Date().getFullYear() }} —
           <span>LeanKhan and Tobi</span>
         </v-col>
@@ -43,19 +41,19 @@
   </v-app>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
-import { apiUrl } from '@/store';
+<script setup lang="ts">
+import { computed } from 'vue';
+import { apiUrl, useStore } from '@/store';
 
-@Component({})
-export default class Auth extends Vue {
-  private url = apiUrl;
-}
+const store = useStore();
+const url = apiUrl;
 </script>
+
 <style scoped>
 .auth-background {
   height: 100%;
-  background: linear-gradient(80deg, transparent 0%, black 82%),
+  background:
+    linear-gradient(80deg, transparent 0%, black 82%),
     url('https://images.pexels.com/photos/399187/pexels-photo-399187.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940')
       center center border-box no-repeat;
 }
