@@ -4,11 +4,6 @@
   </div>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
-
-@Component
-export default class TransferZone extends Vue {}
+<script setup lang="ts">
+// Empty setup script since this is just a placeholder component
 </script>
-
-<style></style>
