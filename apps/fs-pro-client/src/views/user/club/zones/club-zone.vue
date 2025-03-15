@@ -24,7 +24,7 @@
 
     <manager-picker
       :show.sync="openManagerPicker"
-      @update-available="$emit('update-available')"
+      @update-available="emit('update-available')"
       :club="club._id"
     ></manager-picker>
     <manager-firer
@@ -35,34 +35,26 @@
   </div>
 </template>
 
-<script lang="ts">
-import { Component, Vue, Prop } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref } from 'vue';
 import { ManagerPicker, ManagerFirer } from '@/components/clubzone';
-@Component({
-  components: {
-    ManagerPicker,
-    ManagerFirer,
-  },
-})
-export default class ClubZone extends Vue {
-  @Prop({ required: true }) club!: any;
 
-  private openManagerPicker = false;
-  private openFireManager = false;
+const props = defineProps<{
+  club: any;
+}>();
 
-  private hireManager() {
-    // hiring manager
-    this.openManagerPicker = !this.openManagerPicker;
-  }
+const emit = defineEmits<{
+  (e: 'update-available'): void;
+}>();
 
-  private fireManager() {
-    this.openFireManager = !this.openFireManager;
-  }
+const openManagerPicker = ref(false);
+const openFireManager = ref(false);
 
-  private refresh() {
-    this.$emit('update-available');
-  }
+function hireManager() {
+  openManagerPicker.value = !openManagerPicker.value;
+}
+
+function fireManager() {
+  openFireManager.value = !openFireManager.value;
 }
 </script>
-
-<style></style>
