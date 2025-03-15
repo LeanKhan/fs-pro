@@ -9,14 +9,7 @@
 
       vs
 
-      <v-badge
-        bordered
-        bottom
-        color="green accent-3"
-        dot
-        offset-x="10"
-        offset-y="10"
-      >
+      <v-badge bordered bottom color="green accent-3" dot offset-x="10" offset-y="10">
         <v-avatar tile size="30px">
           <v-icon style="font-size: 30px; height: 30px" large>
             ${{ fixture.Away }}
@@ -38,77 +31,35 @@
 
       <v-spacer></v-spacer>
 
-      <v-btn
-        v-if="!matchFinished"
-        depressed
-        small
-        icon
-        @click="$router.push('/u')"
-      >
+      <v-btn v-if="!matchFinished" depressed small icon @click="router.push('/u')">
         <v-icon>mdi-close</v-icon>
       </v-btn>
 
-      <v-btn
-        v-else-if="!lastMatchOfSeason"
-        color="pink accent-3"
-        @click="$router.push('/u')"
-      >
+      <v-btn v-else-if="!lastMatchOfSeason" color="pink accent-3" @click="router.push('/u')">
         FINISH MATCH
       </v-btn>
 
-      <v-btn
-        v-else-if="lastMatchOfSeason"
-        color="green accent-3"
-        @click="finishSeason()"
-      >
+      <v-btn v-else-if="lastMatchOfSeason" color="green accent-3" @click="finishSeason">
         &lt; FINISH SEASON &gt;
       </v-btn>
     </v-app-bar>
 
     <v-container fluid class="pa-0">
       <v-row no-gutters>
-        <!-- <v-col cols="2" class="pr-2">
-          <v-card tile height="100%">
-            <v-toolbar color="green accent-3" dense flat tile>
-              Press
-            </v-toolbar>
-            <v-sheet>
-              No match?
-            </v-sheet>
-          </v-card>
-        </v-col> -->
         <v-col cols="9" class="px-1">
           <v-card tile height="100%">
             <v-toolbar color="green accent-3" dense flat tile>
               Field
               <v-spacer></v-spacer>
-
               <v-switch v-model="simulateRest" label="Simulate Rest"></v-switch>
             </v-toolbar>
-            <!-- Data -->
 
             <v-row no-gutters>
               <v-col cols="8">
-                <v-card
-                  flat
-                  tile
-                  color="secondary darken-4"
-                  class="py-2"
-                  width="100%"
-                >
-                  <div
-                    class="
-                      d-flex
-                      justify-center
-                      align-center
-                      flex-column
-                      caption
-                    "
-                  >
+                <v-card flat tile color="secondary darken-4" class="py-2" width="100%">
+                  <div class="d-flex justify-center align-center flex-column caption">
                     <span class="body-2 cyan--text text--accent-3">90:00</span>
-                    <span class="grey--text">
-                      {{ fixture.LeagueCode }}
-                    </span>
+                    <span class="grey--text">{{ fixture.LeagueCode }}</span>
                   </div>
 
                   <!-- Match stuff -->
@@ -128,62 +79,22 @@
                     </v-col>
 
                     <!-- Scores and stats -->
-                    <v-col
-                      cols="2"
-                      class="
-                        align-center
-                        d-flex
-                        flex-column
-                        justify-center
-                        text-center
-                        py-4
-                        px-0
-                      "
-                    >
+                    <v-col cols="2" class="align-center d-flex flex-column justify-center text-center py-4 px-0">
                       <div style="width: 100%">
                         <div class="display-2 ma-0 d-flex justify-space-around">
                           <div>
-                            <span>
-                              {{ HomeTeamScore || '0' }}
-                            </span>
-
-                            <v-divider
-                              style="
-                                border-width: 2px !important;
-                                border-radius: 2px !important;
-                              "
-                              class="deep-purple darken-3"
-                            ></v-divider>
+                            <span>{{ HomeTeamScore || '0' }}</span>
+                            <v-divider style="border-width: 2px !important; border-radius: 2px !important;" class="deep-purple darken-3"></v-divider>
                           </div>
-                          <span
-                            class="text-muted secondary--text text--lighten-1"
-                          >
-                            :
-                          </span>
+                          <span class="text-muted secondary--text text--lighten-1">:</span>
                           <div>
-                            <span>
-                              {{ AwayTeamScore || '0' }}
-                            </span>
-                            <v-divider
-                              style="
-                                border-width: 2px !important;
-                                border-radius: 2px !important;
-                              "
-                              class="pink accent-3"
-                            ></v-divider>
+                            <span>{{ AwayTeamScore || '0' }}</span>
+                            <v-divider style="border-width: 2px !important; border-radius: 2px !important;" class="pink accent-3"></v-divider>
                           </div>
                         </div>
 
                         <div>
-                          <!-- <v-chip small class="mt-4">
-                            Kickoff
-                          </v-chip> -->
-                          <v-btn
-                            v-if="!allReady"
-                            class="mt-2"
-                            color="green accent-3"
-                            @click="openLobby = true"
-                          >
+                          <v-btn v-if="!allReady" class="mt-2" color="green accent-3" @click="openLobby = true">
                             START
                           </v-btn>
                         </div>
@@ -207,35 +118,15 @@
 
                   <!-- Setup button -->
                   <v-overlay absolute :value="starting && !matchFinished">
-                    <v-progress-circular
-                      color="success"
-                      size="130"
-                      width="15"
-                      indeterminate
-                    ></v-progress-circular>
+                    <v-progress-circular color="success" size="130" width="15" indeterminate></v-progress-circular>
                   </v-overlay>
 
                   <v-row no-gutters class="mt-2">
-                    <v-col
-                      class="
-                        align-center
-                        caption
-                        d-flex
-                        flex-column
-                        justify-center
-                        text-center
-                      "
-                    >
+                    <v-col class="align-center caption d-flex flex-column justify-center text-center">
                       <div class="caption grey--text">
-                        <span>
-                          {{ fixture.SeasonCode }} - {{ fixture.Title }}
-                        </span>
-                        <p class="ma-0">
-                          {{ fixture.Stadium }}
-                        </p>
-                        <p class="ma-0">
-                          {{ fixture.Week }}
-                        </p>
+                        <span>{{ fixture.SeasonCode }} - {{ fixture.Title }}</span>
+                        <p class="ma-0">{{ fixture.Stadium }}</p>
+                        <p class="ma-0">{{ fixture.Week }}</p>
                       </div>
                     </v-col>
                   </v-row>
@@ -244,35 +135,22 @@
                 <v-row no-gutters>
                   <v-col cols="8" class="pr-1">
                     <v-card flat tile min-height="320px">
-                      <v-toolbar color="green accent-3" dense flat tile>
-                        Results
-                      </v-toolbar>
+                      <v-toolbar color="green accent-3" dense flat tile>Results</v-toolbar>
                       <v-card-text class="d-flex justify-center flex-column">
-                        <template v-if="!matchFinished">
-                          No data yet...
-                        </template>
-
-                        <results
-                          v-if="matchFinished"
-                          :home="fixture.Home"
-                          :away="fixture.Away"
-                          :matchDetails="{
-                            Home: fixture.HomeSideDetails,
-                            Away: fixture.AwaySideDetails,
-                          }"
-                        ></results>
+                        <template v-if="!matchFinished">No data yet...</template>
+                        <results v-if="matchFinished" :home="fixture.Home" :away="fixture.Away" :matchDetails="{
+                          Home: fixture.HomeSideDetails,
+                          Away: fixture.AwaySideDetails,
+                        }"></results>
                       </v-card-text>
                     </v-card>
                   </v-col>
 
                   <v-col cols="4" class="pl-1">
                     <v-card flat tile min-height="320px">
-                      <v-toolbar color="green accent-3" dense flat tile>
-                        MOTM
-                      </v-toolbar>
+                      <v-toolbar color="green accent-3" dense flat tile>MOTM</v-toolbar>
                       <v-card-text>
                         <template v-if="!matchFinished">No data</template>
-
                         <template v-else>
                           <motm :motm_id="MOTM"></motm>
                         </template>
@@ -281,26 +159,13 @@
                   </v-col>
                 </v-row>
               </v-col>
+
               <!-- Events -->
               <v-col cols="4">
-                <v-card
-                  flat
-                  tile
-                  height="100%"
-                  max-height="550px"
-                  style="overflow-y: auto"
-                >
-                  <!-- <v-toolbar color="green accent-3" dense flat tile>
-                    Timeline
-                  </v-toolbar> -->
-                  <v-card-subtitle
-                    class="text-center cyan--text text--accent-3"
-                  >
-                    Timeline
-                  </v-card-subtitle>
+                <v-card flat tile height="100%" max-height="550px" style="overflow-y: auto">
+                  <v-card-subtitle class="text-center cyan--text text--accent-3">Timeline</v-card-subtitle>
                   <v-card-text>
                     <template v-if="!matchFinished">No data yet...</template>
-                    <!-- TODO: I think this Timeline should be moved to where 'MOTM' widget is and here will be the actual field.  -->
                     <timeline v-else :Events="fixture.Events"></timeline>
                   </v-card-text>
                 </v-card>
@@ -328,6 +193,7 @@
           </v-card>
         </v-col>
       </v-row>
+
       <game-lobby
         v-if="fixture.HomeTeam && fixture.AwayTeam"
         :show.sync="openLobby"
@@ -336,342 +202,228 @@
         :away="{ Name: fixture.AwayTeam.Name, ClubCode: fixture.Away }"
       ></game-lobby>
 
-      <v-skeleton-loader
-        v-else
-        class="mx-auto"
-        max-width="500"
-        type="card"
-      ></v-skeleton-loader>
+      <v-skeleton-loader v-else class="mx-auto" max-width="500" type="card"></v-skeleton-loader>
     </v-container>
   </div>
 </template>
 
-<script lang="ts">
-/* eslint-disable @typescript-eslint/camelcase */
-import { Component, Vue } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import { useStore } from '@/store';
 import ClubWidget from '@/components/matchzone/club.vue';
 import GameLobby from '@/components/matchzone/game-lobby.vue';
-// Widgets //
-import {
-  Dugout,
-  Results,
-  Timeline,
-  Motm,
-} from '../../components/matchzone/widgets';
-import { apiUrl } from '@/store';
+import { Dugout, Results, Timeline, Motm } from '@/components/matchzone/widgets';
+import { $axios } from '@/main';
 
-@Component({
-  name: 'MatchZone',
-  components: {
-    ClubWidget,
-    Motm,
-    GameLobby,
-    Dugout,
-    Results,
-    Timeline,
-  },
-})
-export default class MatchZone extends Vue {
-  public api: string = apiUrl;
+const router = useRouter();
+const route = useRoute();
+const store = useStore();
 
-  public whistle: any;
+const whistle = ref<HTMLAudioElement>();
+const fixture = ref<any>({});
+const currentMatch = ref<any>({});
+const currentDay = ref<any>({});
+const allReady = ref(false);
+const openLobby = ref(false);
+const kickoffTimer = ref(0);
+const starting = ref(false);
+const lastMatchOfSeason = ref(false);
+const showPlayOverlay = ref(true);
+const imSetup = ref(false);
+const matchDetails = ref<any>({});
+const matchEvents = ref<any>({});
+const homeSquad = ref<any>({});
+const awaySquad = ref<any>({});
+const otherResults = ref<any[]>([]);
+const standings = ref<any>(null);
+const simulateRest = ref(false);
 
-  private fixture: any = {};
+const user = computed(() => store.user);
 
-  private currentMatch: any = {};
-
-  private currentDay: any = {};
-
-  private allReady = false;
-
-  private openLobby = false;
-
-  private kickoffTimer = 0;
-
-  private starting = false;
-
-  private lastMatchOfSeason = false;
-
-  private showPlayOverlay = true;
-
-  private imSetup = false;
-
-  // Match data //
-  private matchDetails: any = {};
-
-  private matchEvents: any = {};
-
-  private homeSquad: any = {};
-
-  private awaySquad: any = {};
-
-  private otherResults: any = [];
-
-  private standings: any = null;
-
-  // Simulate rest
-  private simulateRest = false;
-
-  /** Computed */
-
-  get user() {
-    return this.$store.getters.user;
+const winner = computed(() => {
+  if (fixture.value && fixture.value.HomeSideDetails && fixture.value.AwaySideDetails) {
+    return fixture.value.HomeSideDetails.Won && !fixture.value.AwaySideDetails.Won ? 'home' : 'away';
   }
+  return 'draw';
+});
 
-  get winner() {
-    if (
-      this.fixture &&
-      this.fixture.HomeSideDetails &&
-      this.fixture.AwaySideDetails
-    )
-      return this.fixture.HomeSideDetails.Won &&
-        !this.fixture.AwaySideDetails.Won
-        ? 'home'
-        : 'away';
-    else return 'draw';
+const fixtureId = computed(() => route.params.fixture);
+
+const AwayTeamScore = computed(() => {
+  if (!fixture.value.Details) return null;
+  return fixture.value.Details.AwayTeamScore;
+});
+
+const HomeTeamScore = computed(() => {
+  if (!fixture.value.Details) return null;
+  return fixture.value.Details.HomeTeamScore;
+});
+
+const MOTM = computed(() => {
+  if (!fixture.value.Details) return null;
+  return fixture.value.Details.MOTM;
+});
+
+const matchFinished = computed(() => fixture.value.Played);
+
+const isPlayed = computed(() => fixture.value.Played);
+
+const mappedHomeSquad = computed(() => {
+  if (matchFinished.value && fixture.value.HomeSideDetails.PlayerStats) {
+    return fixture.value.HomeTeam.Players.map((p: any) => ({
+      ...p,
+      stats: fixture.value.HomeSideDetails.PlayerStats.find((s: any) => p._id == s.Player),
+    }));
   }
+  return fixture.value.HomeTeam.Players;
+});
 
-  get fixtureId() {
-    return this.$route.params.fixture;
+const mappedAwaySquad = computed(() => {
+  if (matchFinished.value && fixture.value.AwaySideDetails.PlayerStats) {
+    return fixture.value.AwayTeam.Players.map((p: any) => ({
+      ...p,
+      stats: fixture.value.AwaySideDetails.PlayerStats.find((s: any) => p._id == s.Player),
+    }));
   }
+  return fixture.value.AwayTeam.Players;
+});
 
-  get AwayTeamScore() {
-    if (!this.fixture.Details) {
-      return null;
+const homeStandings = computed(() => {
+  if (!standings.value) {
+    return { position: 0, standing: null };
+  }
+  const position = standings.value.findIndex((c: any) => fixture.value.Home == c.ClubCode) + 1;
+  return { position, standing: standings.value[position - 1] };
+});
+
+const awayStandings = computed(() => {
+  if (!standings.value) {
+    return { position: 0, standing: null };
+  }
+  const position = standings.value.findIndex((c: any) => fixture.value.Away == c.ClubCode) + 1;
+  return { position, standing: standings.value[position - 1] };
+});
+
+function ready() {
+  openLobby.value = false;
+  allReady.value = true;
+  starting.value = true;
+  playGame();
+}
+
+function timer() {
+  let left = 0;
+  const t = setInterval(() => {
+    if (left > 3) {
+      clearInterval(t);
     }
+    kickoffTimer.value = 3 - left;
+    left += 1;
+  }, 1000);
+}
 
-    return this.fixture.Details.AwayTeamScore;
-  }
-
-  get HomeTeamScore() {
-    if (!this.fixture.Details) {
-      return null;
+async function getFixture() {
+  try {
+    const response = await $axios.get(`/fixtures/${fixtureId.value}`, {
+      params: {
+        populate: JSON.stringify([
+          { path: 'HomeTeam', populate: ['Players', 'Manager'] },
+          { path: 'AwayTeam', populate: ['Players', 'Manager'] },
+        ]),
+      },
+    });
+    
+    fixture.value = response.data.payload;
+    
+    if (response.data.payload.isFinalMatch && response.data.payload.Played) {
+      console.log('Is Final Match! Finish Season :)');
+      lastMatchOfSeason.value = true;
     }
-
-    return this.fixture.Details.HomeTeamScore;
-  }
-
-  get MOTM() {
-    if (!this.fixture.Details) {
-      return null;
-    }
-
-    return this.fixture.Details.MOTM;
-  }
-
-  // same as isPlayed
-  get matchFinished() {
-    return this.fixture.Played;
-  }
-
-  get isPlayed() {
-    return this.fixture.Played;
-  }
-
-  /** Mathods */
-
-  private ready() {
-    this.openLobby = false;
-
-    this.allReady = true;
-
-    this.starting = true;
-
-    this.playGame();
-  }
-
-  private timer() {
-    let left = 0;
-
-    const t = setInterval(() => {
-      if (left > 3) {
-        clearInterval(t);
-      }
-
-      this.kickoffTimer = 3 - left;
-      left += 1;
-    }, 1000);
-  }
-
-  private getFixture() {
-    this.$axios
-      .get(`/fixtures/${this.fixtureId}`, {
-        params: {
-          populate: JSON.stringify([
-            { path: 'HomeTeam', populate: ['Players', 'Manager'] },
-            { path: 'AwayTeam', populate: ['Players', 'Manager'] },
-          ]),
-        },
-      })
-      .then(response => {
-        // Check for errors here o
-        this.fixture = response.data.payload;
-
-        if (response.data.payload.isFinalMatch && response.data.payload.Played) {
-          console.log('Is Final Match! Finish Season :)');
-
-          this.lastMatchOfSeason = true;
-        }
-
-        this.getStandings();
-      })
-      .catch(response => {
-        console.log('Error initiating game => ', response);
-      })
-      .finally(() => {
-        this.starting = false;
-      });
-  }
-  private finishSeason() {
-    const ans = confirm(
-      'Season is over hurray!\nEnd Season now... you must say okay.'
-    );
-
-    if (!ans) return false;
-
-    // go to Season finishing page...
-    this.$router.push(`/finish/season/${this.fixture.Season}`);
-  }
-
-  get mappedHomeSquad() {
-    if (this.matchFinished && this.fixture.HomeSideDetails.PlayerStats) {
-      return this.fixture.HomeTeam.Players.map((p: any) => ({
-        ...p,
-        stats: this.fixture.HomeSideDetails.PlayerStats.find(
-          (s: any) => p._id == s.Player
-        ),
-      }));
-    }
-
-    return this.fixture.HomeTeam.Players;
-  }
-
-  get mappedAwaySquad() {
-    if (this.matchFinished && this.fixture.AwaySideDetails.PlayerStats) {
-      return this.fixture.AwayTeam.Players.map((p: any) => ({
-        ...p,
-        stats: this.fixture.AwaySideDetails.PlayerStats.find(
-          (s: any) => p._id == s.Player
-        ),
-      }));
-    }
-
-    return this.fixture.AwayTeam.Players;
-  }
-
-  get homeStandings() {
-    // find the clubs position in the league
-
-    if (!this.standings) {
-      return { position: 0, standing: null };
-    }
-
-    const position =
-      this.standings.findIndex((c: any) => this.fixture.Home == c.ClubCode) + 1;
-
-    return { position, standing: this.standings[position - 1] };
-  }
-
-  get awayStandings() {
-    // find the clubs position in the league
-    if (!this.standings) {
-      return { position: 0, standing: null };
-    }
-    const position =
-      this.standings.findIndex((c: any) => this.fixture.Away == c.ClubCode) + 1;
-
-    return { position, standing: this.standings[position - 1] };
-  }
-
-  private playGame() {
-    this.timer();
-
-    this.whistle.play();
-
-    const params: { simulate_rest: boolean; send_other_results: boolean } = {};
-
-    if (this.simulateRest) {
-      params.simulate_rest = true;
-      // don't send the results of other matches...
-      params.send_other_results = false;
-    }
-
-    this.$axios
-      .get(`/game/kickoff-new/${this.fixtureId}`, { params })
-      .then(response => {
-        // Check for errors here o
-        // console.log(response.data);
-        let main = response.data.payload;
-
-        if (response.data.payload.main) {
-          main = response.data.payload.main;
-        }
-
-        const { match, HomeSideDetails, AwaySideDetails } = main;
-
-        // TODO: please clean this up so you don't repeat stuff!
-        this.fixture = {
-          ...this.fixture,
-          ...match,
-          HomeTeam: this.fixture.HomeTeam,
-          AwayTeam: this.fixture.AwayTeam,
-          HomeSideDetails,
-          AwaySideDetails,
-        };
-        this.lastMatchOfSeason = main.lastMatchOfSeason;
-        this.getStandings();
-        // fetch day again...
-        this.getFixtureDay();
-      })
-      .catch(response => {
-        console.log('Error playing match => ', response);
-      });
-  }
-
-  private getFixtureDay() {
-    this.$axios
-      .get(`/calendar/day-of-fixture/${this.fixtureId}`)
-      .then(response => {
-        console.log(response.data);
-        this.currentDay = response.data.payload;
-      })
-      .catch(response => {
-        console.log('Error fetching Day of Fixture => ', response);
-      });
-  }
-
-  // TODO: put these network fetching methods separately...
-  private getStandings() {
-    console.log('Fetching Standings');
-    if (this.fixture.Season) {
-      this.$axios
-        .get(`/seasons/${this.fixture.Season}/standings`)
-        .then(response => {
-          console.log(response.data);
-          this.standings = response.data.payload;
-        })
-        .catch(response => {
-          console.log('Error fetching Standings => ', response);
-        });
-    }
-  }
-
-  private matchSelected(match: any) {
-    if (this.fixture.Played) {
-      this.$router.push({ params: { fixture: match.Fixture._id } });
-      this.initializeGame();
-    }
-  }
-
-  private initializeGame() {
-    this.getFixture();
-    this.getFixtureDay();
-  }
-
-  mounted() {
-    this.whistle = new Audio('../../assets/sounds/whistle1.mp3');
-
-    this.initializeGame();
+    
+    getStandings();
+  } catch (error) {
+    console.error('Error initiating game:', error);
+  } finally {
+    starting.value = false;
   }
 }
+
+function finishSeason() {
+  const ans = confirm('Season is over hurray!\nEnd Season now... you must say okay.');
+  if (!ans) return;
+  router.push(`/finish/season/${fixture.value.Season}`);
+}
+
+async function playGame() {
+  timer();
+  whistle.value?.play();
+
+  const params: { simulate_rest?: boolean; send_other_results?: boolean } = {};
+  if (simulateRest.value) {
+    params.simulate_rest = true;
+    params.send_other_results = false;
+  }
+
+  try {
+    const response = await $axios.get(`/game/kickoff-new/${fixtureId.value}`, { params });
+    let main = response.data.payload;
+    if (response.data.payload.main) {
+      main = response.data.payload.main;
+    }
+
+    const { match, HomeSideDetails, AwaySideDetails } = main;
+    fixture.value = {
+      ...fixture.value,
+      ...match,
+      HomeTeam: fixture.value.HomeTeam,
+      AwayTeam: fixture.value.AwayTeam,
+      HomeSideDetails,
+      AwaySideDetails,
+    };
+    lastMatchOfSeason.value = main.lastMatchOfSeason;
+    getStandings();
+    getFixtureDay();
+  } catch (error) {
+    console.error('Error playing match:', error);
+  }
+}
+
+async function getFixtureDay() {
+  try {
+    const response = await $axios.get(`/calendar/day-of-fixture/${fixtureId.value}`);
+    currentDay.value = response.data.payload;
+  } catch (error) {
+    console.error('Error fetching Day of Fixture:', error);
+  }
+}
+
+async function getStandings() {
+  if (fixture.value.Season) {
+    try {
+      const response = await $axios.get(`/seasons/${fixture.value.Season}/standings`);
+      standings.value = response.data.payload;
+    } catch (error) {
+      console.error('Error fetching Standings:', error);
+    }
+  }
+}
+
+function matchSelected(match: any) {
+  if (fixture.value.Played) {
+    router.push({ params: { fixture: match.Fixture._id } });
+    initializeGame();
+  }
+}
+
+function initializeGame() {
+  getFixture();
+  getFixtureDay();
+}
+
+onMounted(() => {
+  whistle.value = new Audio('../../assets/sounds/whistle1.mp3');
+  initializeGame();
+});
 </script>
+```
