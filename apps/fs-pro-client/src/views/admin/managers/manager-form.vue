@@ -1,16 +1,12 @@
 <template>
   <div>
-    <!-- Inset form here!  -->
     <v-row>
       <v-col cols="12">
         <v-card>
           <v-toolbar flat color="cyan darken-2">
             <v-btn icon @click="goBack">
-              <v-icon>
-                mdi-arrow-left
-              </v-icon>
+              <v-icon>mdi-arrow-left</v-icon>
             </v-btn>
-
             <v-toolbar-title class="ml-1">
               {{ isUpdate ? 'Update Manager' : 'Create Manager' }}
             </v-toolbar-title>
@@ -18,6 +14,7 @@
         </v-card>
       </v-col>
     </v-row>
+
     <v-form @submit.prevent="submit">
       <v-row>
         <v-col cols="12">
@@ -72,12 +69,12 @@
                 @click="submit"
                 :loading="submitLoading"
                 :disabled="submitLoading"
-                :color="`${isUpdate ? 'warning' : 'success'}`"
+                :color="isUpdate ? 'warning' : 'success'"
               >
                 {{ isUpdate ? 'Update' : 'Create Manager' }}
               </v-btn>
 
-              <v-btn @click="$router.push('../managers')" color="secondary">
+              <v-btn @click="router.push('../managers')" color="secondary">
                 Cancel
               </v-btn>
 
@@ -92,110 +89,92 @@
   </div>
 </template>
 
-<script lang="ts">
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { Component, Vue, Prop } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import { useStore } from '@/store';
+import { $axios } from '@/main';
 
-@Component({})
-export default class ManagerForm extends Vue {
-  @Prop({ required: false, default: false }) readonly isUpdate!: boolean;
+const props = defineProps<{
+  isUpdate?: boolean;
+}>();
 
-  // TODO: add function to upload pictures of Managers
+const router = useRouter();
+const route = useRoute();
+const store = useStore();
 
-  private manager: any = {};
+const manager = ref<any>({});
+const submitLoading = ref(false);
+const form = ref({
+  FirstName: '',
+  LastName: '',
+  Nationality: '',
+  Age: '',
+});
 
-  private submitLoading = false;
+const countries = computed(() => store.countries as any);
 
-  private form: any = {
-    FirstName: '',
-    LastName: '',
-    Nationality: '',
-    Age: '',
-  };
+function goBack() {
+  router.back();
+}
 
-  /** COMPUTED */
-  get countries(): string[] {
-    return this.$store.getters.countries;
-  }
+async function submit() {
+  const managerId = route.params.id;
+  const url = props.isUpdate
+    ? `/managers/${managerId}`
+    : '/managers?model=manager';
+  const method = props.isUpdate ? 'PUT' : 'POST';
 
-  /** METHODS */
-  private submit(): void {
-    const managerId = this.$route.params['id'];
-    const url = this.isUpdate
-      ? `/managers/${managerId}`
-      : '/managers?model=manager';
+  submitLoading.value = true;
 
-    const method = this.isUpdate ? 'PUT' : 'POST';
+  try {
+    const response = await $axios.request({
+      url,
+      method,
+      data: { data: form.value }
+    });
 
-    this.submitLoading = true;
-
-    this.$axios
-      .request({ url, method, data: { data: this.form } })
-      .then(response => {
-        console.log('Response => ', response);
-        // TODO: show a toast here...
-        if (this.isUpdate) {
-          this.$router.push({
-            name: 'View Manager',
-            params: { id: managerId },
-          });
-        } else {
-          this.$router.push({ name: 'Managers Home' });
-        }
-      })
-      .catch(response => {
-        console.log('Response => ', response);
-        // TODO: also show a toast...
-      })
-      .finally(() => {
-        this.submitLoading = false;
+    if (props.isUpdate) {
+      router.push({
+        name: 'View Manager',
+        params: { id: managerId },
       });
+    } else {
+      router.push({ name: 'Managers Home' });
+    }
+  } catch (error) {
+    console.error('Error submitting manager:', error);
+  } finally {
+    submitLoading.value = false;
   }
+}
 
-  private goBack() {
-    this.$router.back();
-  }
+async function deleteManager() {
+  const answer = confirm(
+    `Are you sure you want to delete ${form.value.FirstName} ${form.value.LastName}?!!`
+  );
 
-  //   private deleteManager() {
-  //     const answer = confirm(
-  //       'Are you sure you want to delete ' +
-  //         this.form.FirstName +
-  //         ' ' +
-  //         this.form.LastName +
-  //         '?!!'
-  //     );
-
-  //     if (answer) {
-  //       const playerId = this.$route.params['id'];
-
-  //       this.$axios
-  //         .delete(`/players/${playerId}`)
-  //         .then(response => {
-  //           console.log('Successfully deleted Player => ', response);
-  //           this.$router.push({ name: 'Players Home' });
-  //         })
-  //         .catch(response => {
-  //           console.log('Error deleting Player =>', response.data);
-  //         });
-  //     }
-  //   }
-
-  private mounted(): void {
-    if (this.isUpdate) {
-      const managerId = this.$route.params['id'];
-      // const clubCode = this.$route.params['code'];
-      this.$axios
-        .get(`/managers/${managerId}`)
-        .then(response => {
-          this.manager = response.data.payload;
-          this.form = response.data.payload;
-        })
-        .catch(response => {
-          console.log('Response => ', response);
-        });
+  if (answer) {
+    const managerId = route.params.id;
+    try {
+      await $axios.delete(`/managers/${managerId}`);
+      router.push({ name: 'Managers Home' });
+    } catch (error) {
+      console.error('Error deleting manager:', error);
     }
   }
 }
-</script>
 
-<style></style>
+onMounted(async () => {
+  if (props.isUpdate) {
+    const managerId = route.params.id;
+    try {
+      const response = await $axios.get(`/managers/${managerId}`);
+      manager.value = response.data.payload;
+      form.value = response.data.payload;
+    } catch (error) {
+      console.error('Error fetching manager:', error);
+    }
+  }
+});
+</script>

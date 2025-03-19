@@ -6,56 +6,41 @@
           <v-card-title>
             Seasons
             <v-spacer></v-spacer>
-            <v-btn append-icon="mdi-plus" color="success">
-              Add
-            </v-btn>
+            <v-btn append-icon="mdi-plus" color="success">Add</v-btn>
           </v-card-title>
         </v-card>
       </v-col>
 
       <v-col cols="12">
-        <seasons-table
-          :seasons="seasons"
-          :competition-id="competitionId"
-        ></seasons-table>
+        <seasons-table :seasons="seasons" :competition-id="competitionId"></seasons-table>
       </v-col>
     </v-row>
   </div>
 </template>
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
+import { $axios } from '@/main';
 import SeasonsTable from '@/components/seasons/seasons-table.vue';
-import { Season } from '@/interfaces/season';
+import type { Season } from '@/interfaces/season';
 
-@Component({
-  components: {
-    SeasonsTable,
-  },
-})
-export default class CompetitionSeasonsHome extends Vue {
-  //   TODO: Add a filter by competition type...
-  // it can be a select menu :)...
+const route = useRoute();
+const seasons = ref<Season[]>([]);
+const competitionId = ref('undefined');
+const search = ref('');
 
-  private seasons: Season[] = [];
-
-  private competitionId = 'undefined';
-
-  private search = '';
-
-  public mounted() {
-    const compId = this.$route.params['id'];
-
-    this.$axios
-      .get(`/competitions/${compId}/seasons/all`)
-      .then(res => {
-        this.seasons = res.data.payload as Season[];
-      })
-      .catch(err => {
-        console.log('Error! => ', err);
-      });
+onMounted(async () => {
+  const compId = route.params.id as string;
+  try {
+    const response = await $axios.get(`/competitions/${compId}/seasons/all`);
+    seasons.value = response.data.payload as Season[];
+  } catch (err) {
+    console.error('Error fetching seasons:', err);
   }
-}
+});
 </script>
+
 <style scoped>
 table tr {
   cursor: pointer !important;

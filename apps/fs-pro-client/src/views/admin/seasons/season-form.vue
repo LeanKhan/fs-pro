@@ -24,10 +24,10 @@
 
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn @click="submit" :color="`${isUpdate ? 'warning' : 'success'}`">
+          <v-btn @click="submit" :color="isUpdate ? 'warning' : 'success'">
             {{ isUpdate ? 'Update' : 'Create Season' }}
           </v-btn>
-          <v-btn @click="$router.push('/a/competitions')" color="secondary">
+          <v-btn @click="router.push('/a/competitions')" color="secondary">
             Cancel
           </v-btn>
           <v-btn v-if="isUpdate" @click="deleteSeason" color="error">
@@ -39,45 +39,53 @@
   </div>
 </template>
 
-<script lang="ts">
-import { Component, Vue, Prop } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { $axios } from '@/main';
 
-@Component
-export default class SeasonForm extends Vue {
-  @Prop({ required: false }) readonly isUpdate!: boolean;
-  private season: {} = {};
+const props = defineProps<{
+  isUpdate?: boolean;
+}>();
 
-  private openClubModal = false;
+const route = useRoute();
+const router = useRouter();
 
-  private form: any = {
-    Title: '',
-    StartDate: '',
-  };
+const season = ref({});
+const openClubModal = ref(false);
+const form = ref({
+  Title: '',
+  StartDate: '',
+});
 
-  private submit(): void {
-    const Competition = this.$route.params['id'];
-    const CompetitionCode = this.$route.params['code'];
+async function deleteSeason() {
+  console.log('Delete Season function not implmeneted??')
+}
 
-    // TODO: find out how you will get the season ID and stuff
+async function submit() {
+  const Competition = route.params.id;
+  const CompetitionCode = route.params.code;
 
-    const url = this.isUpdate
-      ? `/${Competition}/seasons/update/`
-      : '/seasons?model=season';
+  const url = props.isUpdate
+    ? `/${Competition}/seasons/update/`
+    : '/seasons?model=season';
 
-    this.$axios
-      .post(url, { data: { ...this.form, CompetitionCode, Competition } })
-      .then(response => {
-        console.log('Response => ', response.data.payload);
-        this.$router.push({
-          name: 'View Competition',
-          params: { Competition, CompetitionCode },
-        });
-      })
-      .catch(response => {
-        console.log('Response => ', response);
-      });
+  try {
+    const response = await $axios.post(url, { 
+      data: { 
+        ...form.value, 
+        CompetitionCode, 
+        Competition 
+      } 
+    });
+    
+    console.log('Response => ', response.data.payload);
+    router.push({
+      name: 'View Competition',
+      params: { Competition, CompetitionCode },
+    });
+  } catch (error) {
+    console.error('Error submitting season:', error);
   }
 }
 </script>
-
-<style></style>

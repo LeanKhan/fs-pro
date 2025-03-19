@@ -4,15 +4,9 @@
       <v-col cols="12">
         <v-card>
           <v-toolbar flat color="indigo darken-1">
-            <v-toolbar-title class="ml-1">
-              Dashboard
-            </v-toolbar-title>
-
+            <v-toolbar-title class="ml-1">Dashboard</v-toolbar-title>
             <v-spacer></v-spacer>
-
-            <v-btn append-icon="mdi-plus" color="success" to="players/new">
-              New
-            </v-btn>
+            <v-btn append-icon="mdi-plus" color="success" to="players/new">New</v-btn>
           </v-toolbar>
         </v-card>
       </v-col>
@@ -24,32 +18,20 @@
   </div>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
 import PlayersTable from '@/components/players/players-table.vue';
-import { Player } from '@/interfaces/player';
+import type { Player } from '@/interfaces/player';
+import { $axios } from '@/main';
 
-@Component({
-  components: {
-    PlayersTable,
-  },
-})
-export default class PlayersDashboard extends Vue {
-  private players: any[] = [];
+const players = ref<Player[]>([]);
 
-  public mounted() {
-    console.log('Mounted players!');
-    this.$axios
-      .get('/players/all')
-      .then(res => {
-        this.players = res.data.payload as Player[];
-        console.log(res.data);
-      })
-      .catch(err => {
-        console.log('Error! => ', err);
-      });
+onMounted(async () => {
+  try {
+    const response = await $axios.get('/players/all');
+    players.value = response.data.payload as Player[];
+  } catch (error) {
+    console.error('Error fetching players:', error);
   }
-}
+});
 </script>
-
-<style></style>
