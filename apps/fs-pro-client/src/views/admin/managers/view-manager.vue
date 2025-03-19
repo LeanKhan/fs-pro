@@ -3,14 +3,9 @@
     <v-card>
       <v-toolbar flat color="indigo darken-1">
         <v-btn icon @click="goBack">
-          <v-icon>
-            mdi-arrow-left
-          </v-icon>
+          <v-icon>mdi-arrow-left</v-icon>
         </v-btn>
-
-        <v-toolbar-title class="ml-1">
-          View Manager
-        </v-toolbar-title>
+        <v-toolbar-title class="ml-1">View Manager</v-toolbar-title>
       </v-toolbar>
     </v-card>
 
@@ -24,30 +19,26 @@
   </div>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import { $axios } from '@/main';
 
-@Component
-export default class ViewManager extends Vue {
-  private goBack() {
-    this.$router.back();
-  }
+const router = useRouter();
+const route = useRoute();
+const manager = ref<any>({});
 
-  private manager = {};
-
-  private mounted(): void {
-    const managerId = this.$route.params['id'];
-    // const clubCode = this.$route.params['code'];
-    this.$axios
-      .get(`/managers/${managerId}`)
-      .then(response => {
-        this.manager = response.data.payload;
-      })
-      .catch(response => {
-        console.log('Response => ', response);
-      });
-  }
+function goBack() {
+  router.back();
 }
-</script>
 
-<style></style>
+onMounted(async () => {
+  const managerId = route.params.id;
+  try {
+    const response = await $axios.get(`/managers/${managerId}`);
+    manager.value = response.data.payload;
+  } catch (error) {
+    console.error('Error fetching manager:', error);
+  }
+});
+</script>

@@ -1,16 +1,12 @@
 <template>
   <div>
-    <!-- Inset form here!  -->
     <v-row>
       <v-col cols="12">
         <v-card>
           <v-toolbar flat color="indigo darken-1">
             <v-btn icon @click="goBack">
-              <v-icon>
-                mdi-arrow-left
-              </v-icon>
+              <v-icon>mdi-arrow-left</v-icon>
             </v-btn>
-
             <v-toolbar-title class="ml-1">
               {{ isUpdate ? 'Update Player' : 'Create Player' }}
             </v-toolbar-title>
@@ -18,18 +14,15 @@
         </v-card>
       </v-col>
     </v-row>
+
     <v-form @submit.prevent="submit">
       <v-row>
         <v-col cols="3">
           <v-card height="300" width="245" style="position: fixed;">
-            <v-card-title>
-              Player
-            </v-card-title>
-
+            <v-card-title>Player</v-card-title>
             <v-card-text class="d-flex justify-center pb-0 accent">
               <player-avatar :appearance="form.Appearance"></player-avatar>
             </v-card-text>
-
             <v-card-actions>Rating: {{ rating }}</v-card-actions>
           </v-card>
         </v-col>
@@ -80,7 +73,6 @@
                     v-model="form.Position"
                   ></v-select>
 
-                  <!-- Dynamically Render Role Radio Group -->
                   <v-radio-group
                     v-if="availableRoles.length"
                     label="Role"
@@ -139,7 +131,6 @@
                           <v-list-item-subtitle class="pl-2">
                             {{ attr }}
                           </v-list-item-subtitle>
-
                           <v-list-item-subtitle class="px-2">
                             <v-slider
                               dense
@@ -157,7 +148,6 @@
                                   mdi-minus
                                 </v-icon>
                               </template>
-
                               <template v-slot:append>
                                 <v-icon
                                   color="indigo lighten-3"
@@ -180,17 +170,12 @@
 
             <v-card-actions>
               <v-spacer></v-spacer>
-              <v-btn
-                @click="submit"
-                :color="`${isUpdate ? 'warning' : 'success'}`"
-              >
+              <v-btn @click="submit" :color="isUpdate ? 'warning' : 'success'">
                 {{ isUpdate ? 'Update' : 'Create Player' }}
               </v-btn>
-
-              <v-btn @click="$router.push('../players')" color="secondary">
+              <v-btn @click="router.push('../players')" color="secondary">
                 Cancel
               </v-btn>
-
               <v-btn v-if="isUpdate" @click="deletePlayer" color="error">
                 Remove
               </v-btn>
@@ -202,197 +187,137 @@
   </div>
 </template>
 
-<script lang="ts">
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { Component, Vue, Prop } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import { useStore } from '@/store';
+import { $axios } from '@/main';
 import PlayerAvatar from '@/components/players/player-avatar.vue';
 import { calculatePlayerRating } from '@/helpers/players';
 
-@Component({
-  components: {
-    PlayerAvatar,
+const props = defineProps<{
+  isUpdate?: boolean;
+}>();
+
+const router = useRouter();
+const route = useRoute();
+const store = useStore();
+
+const player = ref({});
+const appearances = ref<any>([]);
+const positions = ['GK', 'ATT', 'DEF', 'MID'];
+const roles: any = {
+  ATT: ['LW', 'RW', 'ST'],
+  DEF: ['LB', 'RB', 'CB'],
+  MID: ['CM', 'CAM', 'CDM', 'RM', 'LM'],
+  GK: ['GK'],
+};
+
+const form = ref<any>({
+  FirstName: '',
+  LastName: '',
+  Nationality: '',
+  Age: '',
+  Position: '',
+  Role: '',
+  Attributes: {
+    Speed: 0,
+    Shooting: 0,
+    LongPass: 0,
+    ShortPass: 0,
+    Mental: 0,
+    Control: 0,
+    Tackling: 0,
+    Strength: 0,
+    Stamina: 0,
+    Keeping: 0,
+    Dribbling: 0,
+    SetPiece: 0,
+    Vision: 0,
+    PreferredFoot: '',
+    AttackingMindset: null,
+    DefensiveMindset: null,
   },
-})
-export default class PlayerForm extends Vue {
-  @Prop({ required: false, default: false }) readonly isUpdate!: boolean;
-  private player: {} = {};
+  Appearance: {
+    head: { variant: 'default', style: 'light' },
+    complexion: 'light',
+    hair: { variant: 'default', style: 'brown' },
+    eyes: { variant: 'default', style: 'black' },
+    eyebrows: { variant: 'default', style: 'brown' },
+    nose: { variant: 'default', style: 'light' },
+    mouth: { variant: 'default', style: 'light' },
+  },
+});
 
-  private form: any = {
-    FirstName: '',
-    LastName: '',
-    Nationality: '',
-    Age: '',
-    Position: '',
-    Role: '',
-    Attributes: {
-      Speed: 0,
-      Shooting: 0,
-      LongPass: 0,
-      ShortPass: 0,
-      Mental: 0,
-      Control: 0,
-      Tackling: 0,
-      Strength: 0,
-      Stamina: 0,
-      Keeping: 0,
-      Dribbling: 0,
-      SetPiece: 0,
-      Vision: 0,
-      PreferredFoot: '',
-      AttackingMindset: null,
-      DefensiveMindset: null,
-    },
-    Appearance: {
-      head: {
-        variant: 'default',
-        style: 'light',
-      },
-      complexion: 'light',
-      hair: {
-        variant: 'default',
-        style: 'brown',
-      },
-      eyes: {
-        variant: 'default',
-        style: 'black',
-      },
-      eyebrows: {
-        variant: 'default',
-        style: 'brown',
-      },
-      nose: {
-        variant: 'default',
-        style: 'light',
-      },
-      mouth: {
-        variant: 'default',
-        style: 'light',
-      },
-    },
-  };
+const attributes = [
+  'Keeping', 'Speed', 'Shooting', 'LongPass', 'ShortPass',
+  'SetPiece', 'Dribbling', 'Mental', 'Control', 'Vision',
+  'Tackling', 'Strength', 'Stamina'
+];
 
-  //   TODO: Be able to change Players shirt number from Club -> Edit Player view
+const countries = computed(() => store.countries);
+const availableRoles = computed(() => form.value.Position ? roles[form.value.Position] : []);
+const rating = computed(() => calculatePlayerRating(form.value.Attributes, form.value.Position));
 
-  // TODO: upload files to server!
+function attrColor(value: number): string {
+  if (value <= 50) return 'red';
+  if (value < 80) return 'orange';
+  return 'green';
+}
 
-  // as at 20/08/21 -> Stov does not exist!
-  public appearances: any[] = [];
+function goBack() {
+  router.back();
+}
 
-  private positions: string[] = ['GK', 'ATT', 'DEF', 'MID'];
+async function submit() {
+  const playerId = route.params.id;
+  const url = props.isUpdate
+    ? `/players/${playerId}/update`
+    : '/players/new?model=player';
 
-  private roles = {
-    ATT: ['LW', 'RW', 'ST'],
-    DEF: ['LB', 'RB', 'CB'],
-    MID: ['CM', 'CAM', 'CDM', 'RM', 'LM'],
-    GK: ['GK'],
-  };
-
-  get availableRoles() {
-    // Return the roles based on the selected position
-    return this.form.Position ? this.roles[this.form.Position] : [];
-  }
-
-  private attributes: string[] = [
-    'Keeping',
-    'Speed',
-    'Shooting',
-    'LongPass',
-    'ShortPass',
-    'SetPiece',
-    'Dribbling',
-    'Mental',
-    'Control',
-    'Vision',
-    'Tackling',
-    'Strength',
-    'Stamina',
-  ];
-
-  get countries(): string[] {
-    return this.$store.getters.countries;
-  }
-
-  get rating(): number {
-    return calculatePlayerRating(this.form.Attributes, this.form.Position);
-  }
-
-  private attrColor(value: number): string {
-    if (value <= 50) return 'red';
-    if (value < 80) return 'orange';
-    return 'green';
-  }
-
-  private submit(): void {
-    const playerId = this.$route.params['id'];
-
-    const url = this.isUpdate
-      ? `/players/${playerId}/update`
-      : '/players/new?model=player';
-
-    this.$axios
-      .post(url, { data: { ...this.form, Rating: this.rating } })
-      .then(response => {
-        console.log('Response => ', response);
-        this.$router.push({ name: 'Players Home' });
-      })
-      .catch(response => {
-        console.log('Response => ', response);
-      });
-  }
-
-  private goBack() {
-    this.$router.back();
-  }
-
-  private deletePlayer() {
-    const answer = confirm(
-      'Are you sure you want to delete ' +
-        this.form.FirstName +
-        ' ' +
-        this.form.LastName +
-        '?!!'
-    );
-
-    if (answer) {
-      const playerId = this.$route.params['id'];
-
-      this.$axios
-        .delete(`/players/${playerId}`)
-        .then(response => {
-          console.log('Successfully deleted Player => ', response);
-          this.$router.push({ name: 'Players Home' });
-        })
-        .catch(response => {
-          console.log('Error deleting Player =>', response.data);
-        });
-    }
-  }
-
-  private mounted(): void {
-    if (this.isUpdate) {
-      const playerId = this.$route.params['id'];
-      // const clubCode = this.$route.params['code'];
-      this.$axios
-        .get(`/players/${playerId}`)
-        .then(response => {
-          this.player = response.data.payload;
-          this.form = response.data.payload;
-        })
-        .catch(response => {
-          console.log('Response => ', response);
-        });
-    }
-
-    this.$axios
-      .get('/players/appearance')
-      .then(response => {
-        this.appearances = response.data.payload;
-      })
-      .catch(err => {
-        console.log('Error fetching appearance', err);
-      });
+  try {
+    const response = await $axios.post(url, { 
+      data: { ...form.value, Rating: rating.value } 
+    });
+    router.push({ name: 'Players Home' });
+  } catch (error) {
+    console.error('Error submitting player:', error);
   }
 }
-</script>
 
-<style></style>
+async function deletePlayer() {
+  const answer = confirm(
+    `Are you sure you want to delete ${form.value.FirstName} ${form.value.LastName}?!!`
+  );
+
+  if (answer) {
+    const playerId = route.params.id;
+    try {
+      await $axios.delete(`/players/${playerId}`);
+      router.push({ name: 'Players Home' });
+    } catch (error) {
+      console.error('Error deleting player:', error);
+    }
+  }
+}
+
+onMounted(async () => {
+  if (props.isUpdate) {
+    const playerId = route.params.id;
+    try {
+      const response = await $axios.get(`/players/${playerId}`);
+      player.value = response.data.payload;
+      form.value = response.data.payload;
+    } catch (error) {
+      console.error('Error fetching player:', error);
+    }
+  }
+
+  try {
+    const response = await $axios.get('/players/appearance');
+    appearances.value = response.data.payload;
+  } catch (error) {
+    console.error('Error fetching appearance:', error);
+  }
+});
+</script>

@@ -3,9 +3,7 @@
     <v-row>
       <v-col cols="12">
         <v-card>
-          <div class="overline">
-            {{ season.SeasonCode }}
-          </div>
+          <div class="overline">{{ season.SeasonCode }}</div>
           <v-card-title>
             {{ season.Title }} Season
             <v-chip class="mx-2" :color="season.isStarted ? 'green' : 'orange'">
@@ -14,9 +12,7 @@
           </v-card-title>
 
           <v-card-actions>
-            <v-btn :to="`/finish/season/${season._id}`">
-              View Stats
-            </v-btn>
+            <v-btn :to="`/finish/season/${season._id}`">View Stats</v-btn>
           </v-card-actions>
         </v-card>
       </v-col>
@@ -45,23 +41,21 @@
         </v-card>
       </v-col>
     </v-row>
+
     <v-row>
       <v-col cols="6">
         <v-card>
-          <v-card-title>
-            Calendar
-          </v-card-title>
+          <v-card-title>Calendar</v-card-title>
           <v-sheet color="purple purple-lighten-1" height="180">
             Nothing here...
           </v-sheet>
         </v-card>
       </v-col>
+
       <v-col cols="6">
         <template v-if="season.Standings && season.Standings.length > 0">
           <v-card>
-            <v-card-title>
-              Standings (Table)
-            </v-card-title>
+            <v-card-title>Standings (Table)</v-card-title>
             <v-card-text>
               <standings-scroller
                 :standings="season.Standings"
@@ -69,7 +63,6 @@
             </v-card-text>
           </v-card>
         </template>
-
         <template v-else>
           <span>No Standings yet</span>
         </template>
@@ -79,35 +72,21 @@
     <v-row>
       <v-col cols="12">
         <v-card>
-          <v-card-title>
-            Fixtures
-          </v-card-title>
+          <v-card-title>Fixtures</v-card-title>
           <fixtures-table :fixtures="season.Fixtures"></fixtures-table>
-          <!-- <v-sheet
-            class="text-center"
-            color="secondary secondary-lighten"
-            height="250"
-          >
-            <span>
-              Season is not activated
-            </span>
-          </v-sheet> -->
         </v-card>
       </v-col>
+
       <v-col cols="12">
         <v-card>
-          <v-card-title>
-            Player Stats (Records)
-          </v-card-title>
+          <v-card-title>Player Stats (Records)</v-card-title>
           <v-sheet color="secondary secondary-lighten" height="250"></v-sheet>
         </v-card>
       </v-col>
 
       <v-col cols="12">
         <v-card>
-          <v-card-title>
-            Settings
-          </v-card-title>
+          <v-card-title>Settings</v-card-title>
           <v-sheet color="secondary secondary-lighten">
             <v-btn @click="deleteSeason">Delete Season</v-btn>
           </v-sheet>
@@ -117,79 +96,65 @@
   </div>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
-import { Season } from '@/interfaces/season';
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { $axios } from '@/main';
+import type { Season } from '@/interfaces/season';
 import StandingsScroller from '@/components/seasons/standings-scroller.vue';
 import FixturesTable from '@/components/seasons/fixtures-table.vue';
 
-@Component({
-  components: {
-    StandingsScroller,
-    FixturesTable,
-  },
-})
-export default class ViewSeason extends Vue {
-  private season: any = {};
+const route = useRoute();
+const router = useRouter();
+const season = ref<any>({});
 
-  private generateFixtures(): void {
-    const seasonId = this.$route.params['seasonId'];
-    const leagueCode = this.$route.params['code'];
-    const competitionId = this.$route.params['id'];
+async function generateFixtures() {
+  const seasonId = route.params.seasonId;
+  const leagueCode = route.params.code;
+  const competitionId = route.params.id;
 
-    const data = { competitionId, leagueCode, seasonId };
-    this.$axios
-      .post(
-        `/seasons/${seasonId}/${this.season.SeasonCode}/generate-fixtures`,
-        { data }
-      )
-      .then(response => {
-        this.season = response.data.payload as Season;
-        console.log('Fixtures generated! => ', response.data.payload);
-      })
-      .catch(response => {
-        console.log('Error generating Fixtures=> ', response);
-      });
-  }
+  const data = { competitionId, leagueCode, seasonId };
 
-  private startSeason(): void {
-    // ... fish ...
-    console.log('Starting Season...');
-  }
-
-  private deleteSeason() {
-    const seasonID = this.$route.params['seasonId'];
-
-    const ans = confirm(
-      "Yo, are you ABSOLUTELY SURE ABOUT THIS!\nYou really want to delete this Season and everything about it?\nAll Fixtures will be deleted too.\n Last chance. You can't undo this."
+  try {
+    const response = await $axios.post(
+      `/seasons/${seasonId}/${season.value.SeasonCode}/generate-fixtures`,
+      { data }
     );
-
-    if (ans) {
-      this.$axios
-        .delete(`/seasons/${seasonID}`)
-        .then(res => {
-          console.log('Season deleted successfully :)', res);
-
-          this.$router.back();
-        })
-        .catch(response => {
-          console.log('Error => ', response);
-        });
-    }
-  }
-
-  private mounted(): void {
-    const seasonID = this.$route.params['seasonId'];
-    this.$axios
-      .get(`/seasons/${seasonID}`)
-      .then(response => {
-        this.season = response.data.payload as Season;
-      })
-      .catch(response => {
-        console.log('Error => ', response);
-      });
+    season.value = response.data.payload as Season;
+    console.log('Fixtures generated! => ', response.data.payload);
+  } catch (error) {
+    console.error('Error generating Fixtures:', error);
   }
 }
-</script>
 
-<style></style>
+function startSeason() {
+  console.log('Starting Season...');
+}
+
+async function deleteSeason() {
+  const seasonID = route.params.seasonId;
+  const ans = confirm(
+    "Yo, are you ABSOLUTELY SURE ABOUT THIS!\nYou really want to delete this Season and everything about it?\nAll Fixtures will be deleted too.\nLast chance. You can't undo this."
+  );
+
+  if (ans) {
+    try {
+      const response = await $axios.delete(`/seasons/${seasonID}`);
+      console.log('Season deleted successfully :)', response);
+      router.back();
+    } catch (error) {
+      console.error('Error deleting season:', error);
+    }
+  }
+}
+
+onMounted(async () => {
+  const seasonID = route.params.seasonId;
+  try {
+    const response = await $axios.get(`/seasons/${seasonID}`);
+    season.value = response.data.payload as Season;
+  } catch (error) {
+    console.error('Error fetching season:', error);
+  }
+});
+</script>
