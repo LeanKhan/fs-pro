@@ -78,77 +78,87 @@
   </div>
 </template>
 <script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+import { defineComponent, ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { Competition } from '@/interfaces/competition';
+import axios from 'axios';
 
-@Component({})
-export default class CompetitionsHome extends Vue {
-  private headers: any[] = [
-    { text: 'ID', value: 'CompetitionID', filterable: true },
-    {
-      text: 'Name',
-      align: 'start',
-      value: 'Name',
-    },
-    {
-      text: 'Type',
-      value: 'Type',
-    },
-    { text: 'Code', value: 'CompetitionCode' },
-    { text: 'Teams', value: 'NumberOfTeams' },
-    { text: 'Weeks', value: 'NumberOfWeeks', filterable: false },
-    { text: 'Country', value: 'Country' },
-    {
-      text: 'Clubs',
-      value: 'Clubs',
-      filterable: false,
-    },
-    { text: 'Seasons', value: 'Seasons', filterable: false },
-    { text: 'Actions', value: 'Actions', sortable: false, filterable: false },
-  ];
+export default defineComponent({
+  name: 'CompetitionsHome',
+  setup() {
+    const router = useRouter();
+    const headers = [
+      { text: 'ID', value: 'CompetitionID', filterable: true },
+      {
+        text: 'Name',
+        align: 'start' as const,
+        value: 'Name',
+      },
+      {
+        text: 'Type',
+        value: 'Type',
+      },
+      { text: 'Code', value: 'CompetitionCode' },
+      { text: 'Teams', value: 'NumberOfTeams' },
+      { text: 'Weeks', value: 'NumberOfWeeks', filterable: false },
+      { text: 'Country', value: 'Country' },
+      {
+        text: 'Clubs',
+        value: 'Clubs',
+        filterable: false,
+      },
+      { text: 'Seasons', value: 'Seasons', filterable: false },
+      { text: 'Actions', value: 'Actions', sortable: false, filterable: false },
+    ];
 
-  //   TODO: Add a filter by competition type...
-  // it can be a select menu :)...
+    const competitions = ref<Competition[]>([]);
+    const search = ref('');
 
-  private competitions: Competition[] = [];
+    const viewCompetition = (comp: Competition) => {
+      const compCode = comp.CompetitionCode.toLowerCase();
+      const compID = comp._id?.toLowerCase();
 
-  private search = '';
-
-  public viewCompetition(comp: Competition): void {
-    const compCode = comp.CompetitionCode.toLowerCase();
-    const compID = comp._id?.toLowerCase();
-
-    this.$router.push({
-      name: 'View Competition',
-      params: { id: compID as string, code: compCode },
-    });
-  }
-
-  public updateCompetition(comp: Competition): void {
-    const compCode = comp.CompetitionCode.toLowerCase();
-    const compID = comp._id?.toLowerCase();
-
-    this.$router.push({
-      name: 'Update Competition',
-      params: { id: compID as string, code: compCode },
-    });
-  }
-
-  public newCompetition(): void {
-    this.$router.push({ name: 'New Competition' });
-  }
-
-  public mounted() {
-    this.$axios
-      .get('/competitions/all')
-      .then(res => {
-        this.competitions = res.data.payload;
-      })
-      .catch(err => {
-        console.log('Error! => ', err);
+      router.push({
+        name: 'View Competition',
+        params: { id: compID as string, code: compCode },
       });
-  }
-}
+    };
+
+    const updateCompetition = (comp: Competition) => {
+      const compCode = comp.CompetitionCode.toLowerCase();
+      const compID = comp._id?.toLowerCase();
+
+      router.push({
+        name: 'Update Competition',
+        params: { id: compID as string, code: compCode },
+      });
+    };
+
+    const newCompetition = () => {
+      router.push({ name: 'New Competition' });
+    };
+
+    onMounted(() => {
+      axios
+        .get('/competitions/all')
+        .then(res => {
+          competitions.value = res.data.payload;
+        })
+        .catch(err => {
+          console.log('Error! => ', err);
+        });
+    });
+
+    return {
+      headers,
+      competitions,
+      search,
+      viewCompetition,
+      updateCompetition,
+      newCompetition,
+    };
+  },
+});
 </script>
 <style scoped>
 table tr {
