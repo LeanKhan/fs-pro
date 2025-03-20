@@ -66,68 +66,77 @@
 </template>
 
 <script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+import { defineComponent, ref, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import ClubList from '@/components/clubs/club-list.vue';
 import SeasonsTable from '@/components/seasons/seasons-table.vue';
 import ClubsTable from '@/components/clubs/clubs-table.vue';
 import { Competition } from '@/interfaces/competition';
+import axios from 'axios';
 
-@Component({
+export default defineComponent({
+  name: 'ViewComponent',
   components: {
     ClubList,
     SeasonsTable,
     ClubsTable,
   },
-})
-export default class ViewComponent extends Vue {
-  private competition: any = {};
+  setup() {
+    const route = useRoute();
+    const router = useRouter();
+    const competition = ref<any>({});
+    const openClubModal = ref(false);
 
-  private openClubModal = false;
+    const updateCompetition = () => {
+      const code = competition.value.CompetitionCode.toLowerCase();
+      const id = competition.value._id?.toLowerCase();
+      router.push({ name: 'Update Competition', params: { id, code } });
+    };
 
-  public updateCompetition(): void {
-    const code = this.competition.CompetitionCode.toLowerCase();
-    const id = this.competition._id?.toLowerCase();
-    this.$router.push({ name: 'Update Competition', params: { id, code } });
-  }
+    const closeModal = (event: any) => {
+      openClubModal.value = false;
+      if (event) {
+        const competitionID = route.params['id'];
+        const compCode = (route.params['code'] as string).toUpperCase();
 
-  public closeModal(event: any): void {
-    this.openClubModal = false;
-    if (event) {
-      const competitionID = this.$route.params['id'];
-      const compCode = this.$route.params['code'].toUpperCase();
+        axios
+          .post(`/competitions/${competitionID}/add-club`, {
+            clubId: event.id,
+            leagueCode: compCode,
+          })
+          .then(response => {
+            console.log('Successfully added club to competition => ', response);
+          })
+          .catch(response => {
+            console.log('Error deleting comp =>', response.data);
+          });
+      }
+    };
 
-      this.$axios
-        .post(`/competitions/${competitionID}/add-club`, {
-          clubId: event.id,
-          leagueCode: compCode,
-        })
+    onMounted(() => {
+      const compID = route.params['id'];
+
+      axios
+        .get(`/competitions/${compID}`)
         .then(response => {
-          console.log('Successfully added club to competition => ', response);
-          // this.$router.push('/competitions');
+          console.log('Fetched Competition => ', response.data);
+          if (response.data.success) {
+            competition.value = response.data.payload as Competition;
+          }
         })
         .catch(response => {
-          console.log('Error deleting comp =>', response.data);
+          console.log('Response => ', response);
         });
-    }
-  }
+    });
 
-  private mounted(): void {
-    const compID = this.$route.params['id'];
-
-    this.$axios
-      .get(`/competitions/${compID}`)
-      .then(response => {
-        console.log('Fetched Competition => ', response.data);
-        // Check for errors here o
-        if (response.data.success) {
-          this.competition = response.data.payload as Competition;
-        }
-      })
-      .catch(response => {
-        console.log('Response => ', response);
-      });
-  }
-}
+    return {
+      competition,
+      openClubModal,
+      updateCompetition,
+      closeModal,
+    };
+  },
+});
 </script>
 
 <style></style>
