@@ -24,30 +24,20 @@
   </div>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
-import { Club } from '@/interfaces/club';
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { $axios } from '@/main';
+import type { Club } from '@/interfaces/club';
 import AllClubsTable from '@/components/clubs/allclubs-table.vue';
 
-@Component({
-  components: {
-    AllClubsTable,
-  },
-})
-export default class ClubsDashboard extends Vue {
-  private clubs: any[] = [];
+const clubs = ref<Club[]>([]);
 
-  private mounted() {
-    this.$axios
-      .get('/clubs/all')
-      .then(res => {
-        this.clubs = res.data.payload as Club[];
-      })
-      .catch(err => {
-        console.log('Error! => ', err);
-      });
+onMounted(async () => {
+  try {
+    const response = await $axios.get('/clubs/all');
+    clubs.value = response.data.payload as Club[];
+  } catch (error) {
+    console.error('Error fetching clubs:', error);
   }
-}
+});
 </script>
-
-<style></style>

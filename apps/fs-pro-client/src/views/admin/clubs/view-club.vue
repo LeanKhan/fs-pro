@@ -8,24 +8,13 @@
         <v-card>
           <v-toolbar flat color="amber darken-1">
             <v-btn icon @click="goBack">
-              <v-icon>
-                mdi-arrow-left
-              </v-icon>
+              <v-icon>mdi-arrow-left</v-icon>
             </v-btn>
-            <v-toolbar-title class="ml-1">
-              Club
-            </v-toolbar-title>
+            <v-toolbar-title class="ml-1">Club</v-toolbar-title>
             <v-spacer></v-spacer>
 
-            <v-btn
-              :disabled="!shouldReload"
-              @click="fetchClub"
-              icon
-              color="white"
-            >
-              <v-icon>
-                mdi-reload
-              </v-icon>
+            <v-btn :disabled="!shouldReload" @click="fetchClub" icon color="white">
+              <v-icon>mdi-reload</v-icon>
             </v-btn>
           </v-toolbar>
         </v-card>
@@ -37,17 +26,13 @@
         <v-card class="justify-space-between">
           <v-row>
             <v-col cols="2" class="p-3">
-              <v-img
-                :src="`${apiUrl}/img/clubs/logos/${club.ClubCode}.png`"
-                width="200"
-              ></v-img>
+              <v-img :src="`${apiUrl}/img/clubs/logos/${club.ClubCode}.png`" width="200"></v-img>
             </v-col>
 
             <v-col cols="6">
               <div class="title">
                 <span class="subtitle-1 grey--text">Name:</span>
                 {{ club ? club.Name : 'N/A' }}
-
                 <span class="grey--text">{{ club.ClubCode }}</span>
               </div>
 
@@ -67,9 +52,9 @@
 
               <div class="title">
                 <span class="subtitle-1 grey--text">Stadium:</span>
-                <span>{{ club.Stadium.Name }}</span>
+                <span>{{ club.Stadium?.Name }}</span>
                 &nbsp;
-                <span class="grey--text">{{ club.Stadium.Location }}</span>
+                <span class="grey--text">{{ club.Stadium?.Location }}</span>
               </div>
 
               <div class="title">
@@ -113,185 +98,135 @@
   </div>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import { useStore, apiUrl} from '@/store';
+import { $axios } from '@/main';
 import PlayersTable from '@/components/players/players-table.vue';
 import AllPlayersTable from '@/components/players/allplayers-table.vue';
-import { Club } from '@/interfaces/club';
+import type { Club } from '@/interfaces/club';
 
-@Component({
-  components: {
-    PlayersTable,
-    AllPlayersTable,
-  },
-})
-export default class ViewClub extends Vue {
-  private club: any | Club = {};
+const router = useRouter();
+const route = useRoute();
+const store = useStore();
 
-  private openPlayersModal = false;
+const club = ref<any>({});
+const openPlayersModal = ref(false);
+const shouldReload = ref(false);
+const labels = ref(['GK', 'DEF', 'MID', 'ATT']);
+const value = ref([5, 0, 0, 0]);
 
-  private shouldReload = false;
-
-  private labels = ['GK', 'DEF', 'MID', 'ATT'];
-
-  private value = [5, 0, 0, 0];
-
-  get allPlayers() {
-     if (this.club.Players) {
-      return this.club.Players;
-    } else {
-      return [];
-    }
-  };
-
-  set allPlayers(players) {
-    this.club.Players = players;
-  };
-
-  get apiUrl() {
-    return this.$store.getters.apiUrl;
+const clubRating = computed(() => {
+  if (club.value.Rating) {
+    return Math.round(club.value.Rating) / 20;
   }
+  return 0;
+});
 
-  get clubRating() {
-    if (this.club.Rating) {
-      return Math.round(this.club.Rating) / 20;
-    } else {
-      return 0;
-    }
+const allPlayers = computed(() => {
+  if (club.value.Players) {
+    return club.value.Players;
   }
+  return [];
+});
 
-  private closeModal(playerIds: string[]) {
-    this.openPlayersModal = false;
-    // add player to club :)
-    if (playerIds) {
-      this.signPlayer(playerIds);
-    }
-  }
+function goBack() {
+  router.back();
+}
 
-  private signPlayer(playerIds: string[]) {
-    const clubId = this.$route.params['id'];
-    const clubCode = this.$route.params['code'];
-    const isSigned = false;
-    /**
-     *     req.body.playerId,
-    req.query.player_is_signed,
-    req.query.club_code
-     */
-
-    const data = { data: { playerIds, clubCode, isSigned, clubId } };
-
-    this.$axios
-      .put(`/clubs/${clubId}/add-many-players`, data)
-      .then(response => {
-        // this.club = response.data.payload;
-        // TODO: add toast o! for feedback to user
-        this.shouldReload = true;
-        console.log('Player added successfully', response.data);
-
-            this.$store.dispatch('SHOW_TOAST', {
-          message: 'Player(s) signed successfully',
-          style: 'success',
-        });
-
-        this.fetchPlayers();
-      })
-      .catch(response => {
-        console.log('Error adding player!', response);
-
-            this.$store.dispatch('SHOW_TOAST', {
-          message: 'Error signing Player',
-          style: 'error',
-        });
-      });
-  }
-
-  private removePlayer(playerId: string) {
-    const clubId = this.$route.params['id'];
-    const clubCode = this.$route.params['code'];
-    const isSigned = true;
-    /**
-     *     req.body.playerId,
-    req.query.player_is_signed,
-    req.query.club_code
-     */
-
-    const data = { data: { playerId, clubCode, isSigned } };
-
-    this.$axios
-      .put(`/clubs/${clubId}/remove-player?remove=true`, data)
-      .then(response => {
-        // this.club = response.data.payload;
-        // TODO: add toast o! for feedback to user
-        this.shouldReload = true;
-        console.log('Player removed successfully', response.data);
-
-        this.$store.dispatch('SHOW_TOAST', {
-          message: 'Player removed successfully',
-          style: 'success',
-        });
-
-        this.fetchPlayers();
-      })
-      .catch(response => {
-        console.log('Error removing player!', response);
-
-            this.$store.dispatch('SHOW_TOAST', {
-          message: 'Error removing Player',
-          style: 'error',
-        });
-      });
-  }
-
-  private goBack(): void {
-    this.$router.back();
-  }
-
-  private fetchClub(): void {
-    const clubId = this.$route.params['id'];
-
-    const populate = JSON.stringify([{ path: 'Players' }, { path: 'Manager' }]);
-    this.$axios
-      .get(`/clubs/${clubId}?populate=${populate}`)
-      .then(response => {
-        // Check for errors here o
-        if (response.data.success) {
-          this.club = response.data.payload;
-        }
-      })
-      .catch(response => {
-        console.log('Response => ', response);
-        this.$store.commit('TOGGLE_ERROR_OVERLAY');
-      })
-      .finally(() => {
-        this.shouldReload = false;
-      });
-  }
-
-    private fetchPlayers(): void {
-    const clubId = this.$route.params['id'];
-
-    const query = JSON.stringify({ ClubCode: this.club.ClubCode });
-    this.$axios
-      .get(`/players/all?options=${query}`)
-      .then(response => {
-        // Check for errors here o
-        if (response.data.success) {
-          this.allPlayers = response.data.payload;
-        }
-      })
-      .catch(response => {
-        console.log('Response => ', response);
-        this.$store.commit('TOGGLE_ERROR_OVERLAY');
-      })
-      .finally(() => {
-        this.shouldReload = false;
-      });
-  }
-
-  private mounted(): void {
-    this.fetchClub();
+function closeModal(playerIds: string[]) {
+  openPlayersModal.value = false;
+  if (playerIds) {
+    signPlayer(playerIds);
   }
 }
-</script>
 
-<style></style>
+async function signPlayer(playerIds: string[]) {
+  const clubId = route.params.id;
+  const clubCode = route.params.code;
+  const isSigned = false;
+
+  try {
+    await $axios.put(`/clubs/${clubId}/add-many-players`, {
+      data: { playerIds, clubCode, isSigned, clubId }
+    });
+
+    store.showToast({
+      message: 'Player(s) signed successfully',
+      style: 'success',
+    });
+
+    fetchPlayers();
+  } catch (error) {
+    console.error('Error signing player:', error);
+    store.showToast({
+      message: 'Error signing Player',
+      style: 'error',
+    });
+  }
+}
+
+async function removePlayer(playerId: string) {
+  const clubId = route.params.id;
+  const clubCode = route.params.code;
+  const isSigned = true;
+
+  try {
+    await $axios.put(`/clubs/${clubId}/remove-player?remove=true`, {
+      data: { playerId, clubCode, isSigned }
+    });
+
+    store.showToast({
+      message: 'Player removed successfully',
+      style: 'success',
+    });
+
+    fetchPlayers();
+  } catch (error) {
+    console.error('Error removing player:', error);
+    store.showToast({
+      message: 'Error removing Player',
+      style: 'error',
+    });
+  }
+}
+
+async function fetchClub() {
+  const clubId = route.params.id;
+  const populate = JSON.stringify([{ path: 'Players' }, { path: 'Manager' }]);
+
+  try {
+    const response = await $axios.get(`/clubs/${clubId}?populate=${populate}`);
+    if (response.data.success) {
+      club.value = response.data.payload;
+    }
+  } catch (error) {
+    console.error('Error fetching club:', error);
+    store.toggleErrorOverlay();
+  } finally {
+    shouldReload.value = false;
+  }
+}
+
+async function fetchPlayers() {
+  const clubId = route.params.id;
+  const query = JSON.stringify({ ClubCode: club.value.ClubCode });
+
+  try {
+    const response = await $axios.get(`/players/all?options=${query}`);
+    if (response.data.success) {
+      club.value.Players = response.data.payload;
+    }
+  } catch (error) {
+    console.error('Error fetching players:', error);
+    store.toggleErrorOverlay();
+  } finally {
+    shouldReload.value = false;
+  }
+}
+
+onMounted(() => {
+  fetchClub();
+});
+</script>
