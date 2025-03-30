@@ -4,11 +4,6 @@
   </div>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
-
-@Component({})
-export default class ClubHome extends Vue {}
+<script setup lang="ts">
+// Empty setup script since this is just a router view wrapper
 </script>
-
-<style></style>
