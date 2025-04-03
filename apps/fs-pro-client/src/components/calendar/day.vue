@@ -8,7 +8,7 @@
     height="180px"
     width="200px"
     :color="active ? 'indigo' : 'indigo lighten-2'"
-    @click="toggle"
+    @click="() => toggle()"
   >
     <v-card-text class="pa-0">
       <span v-if="$route.name == 'Club Home'">Your match? {{ isClub }}</span>
@@ -17,10 +17,7 @@
           <template v-if="!singleLeague">
             <v-col cols="12">
               <day-match v-if="leagueMatch" :match="leagueMatch" :home="true"></day-match>
-              <v-btn
-                dark
-                icon
-              >
+              <v-btn dark icon>
                 <v-icon>mdi-caret-down</v-icon>
               </v-btn>
             </v-col>
@@ -60,81 +57,83 @@
       </v-chip>
       <v-spacer></v-spacer>
 
-    <v-dialog
-      v-model="dialog"
-      scrollable
-      max-width="400px"
-    >
-      <template v-slot:activator="{ on, attrs }">
-        <v-btn
-                dark
-                icon
-                v-bind="attrs"
-                v-on="on"
-              >
-                <v-icon>mdi-dots-vertical</v-icon>
-              </v-btn>
-      </template>
-      <v-card>
-        <v-card-title>Other Matches Today</v-card-title>
-        <v-divider></v-divider>
-        <v-card-text style="height: 300px;">
-          <v-list dense>
-            <v-list-item v-for="(m, i) in day.Matches" :key="i">
-              <v-list-item-content>
-                <v-list-item-title>
-                  {{ m.Fixture.Title }}
-                </v-list-item-title>
-              </v-list-item-content>
-            </v-list-item>
-          </v-list>
-        </v-card-text>
-      </v-card>
-    </v-dialog>
+      <v-dialog v-model="dialog" scrollable max-width="400px">
+        <template v-slot:activator="{ isActive, props }">
+          <v-btn dark icon v-bind="props" v-on="isActive">
+            <v-icon>mdi-dots-vertical</v-icon>
+          </v-btn>
+        </template>
+        <v-card>
+          <v-card-title>Other Matches Today</v-card-title>
+          <v-divider></v-divider>
+          <v-card-text style="height: 300px;">
+            <v-list dense>
+              <v-list-item v-for="(m, i) in day.Matches" :key="i">
+                <v-list-item-content>
+                  <v-list-item-title>
+                    {{ m.Fixture.Title }}
+                  </v-list-item-title>
+                </v-list-item-content>
+              </v-list-item>
+            </v-list>
+          </v-card-text>
+        </v-card>
+      </v-dialog>
     </v-card-actions>
   </v-card>
 </template>
 
 <script lang="ts">
-import { Component, Vue, Prop } from 'vue-property-decorator';
-import { IDay } from '../../interfaces/calendar';
+import { defineComponent, computed, ref } from 'vue';
+import { useStore } from '@/store';
 import DayMatch from './day-match.vue';
 
-@Component({
+const store = useStore();
+
+export default defineComponent({
+  name: 'CalendarDay',
   components: { DayMatch },
-})
-export default class CalendarDay extends Vue {
-  @Prop({ required: true }) readonly day!: IDay;
-  @Prop({ required: true }) readonly toggle!: any;
-  @Prop({ required: true }) readonly active!: any;
-  @Prop({ required: true }) readonly singleLeague!: boolean;
-  @Prop() readonly club!: string;
+  props: {
+    day: { type: Object, required: true },
+    toggle: { type: Function, required: true },
+    active: { type: Boolean, required: true },
+    singleLeague: { type: Boolean, required: true },
+    club: { type: String, required: false },
+  },
+  setup(props) {
+    const dialog = ref(false);
 
-  private dialog = false;
+    const $selectedLeague = computed(() => {
+      return store.selectedLeague;
+    });
 
-  get $selectedLeague() {
-    return this.$store.getters.selectedLeague;
-  }
+    const leagueMatch = computed(() => {
+      if ($selectedLeague.value) {
+        return props.day.Matches.find(
+          (m: any) => m.CompetitionId === $selectedLeague.value
+        );
+      }
+      return null;
+    });
 
-  get leagueMatch() {
-  // this is just the first Match of the League matches that day. It should
-  // actually be the selected match!
-  if (this.$selectedLeague){
-    return this.day.Matches.find(m => m.CompetitionId == this.$selectedLeague)
-  }
-  }
+    const isClub = computed(() => {
+      if (props.club) {
+        return (
+          leagueMatch.value?.Fixture.Home === props.club ||
+          leagueMatch.value?.Fixture.Away === props.club
+        );
+      }
+      return false;
+    });
 
-  get isClub(): boolean {
-    if (this.club) {
-      return (
-        this.leagueMatch.Fixture.Home == this.club ||
-        this.leagueMatch.Fixture.Away == this.club
-      );
-    }
-
-    return false;
-  }
-}
+    return {
+      dialog,
+      $selectedLeague,
+      leagueMatch,
+      isClub,
+    };
+  },
+});
 </script>
 
 <style></style>

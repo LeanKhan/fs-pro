@@ -1,5 +1,7 @@
-import Vue from 'vue';
-import Vuetify from 'vuetify/lib';
+import { createApp } from 'vue';
+import { createVuetify } from 'vuetify';
+import * as components from 'vuetify/components';
+import * as directives from 'vuetify/directives';
 import LasenaUnitedIcon from '../icons/LU.vue';
 import DagadaRangersIcon from '../icons/DR.vue';
 import RisingThundersIcon from '../icons/RT.vue';
@@ -45,9 +47,9 @@ import BatsIcon from '../icons/BAT.vue';
 import NettsIcon from '../icons/NET.vue';
 import StorrLokomotivIcon from '../icons/LKM.vue';
 
-Vue.use(Vuetify);
-
-export default new Vuetify({
+const vuetify = createVuetify({
+  components,
+  directives,
   icons: {
     values: {
       LU: {

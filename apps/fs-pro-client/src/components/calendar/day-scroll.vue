@@ -1,10 +1,10 @@
 <template>
   <v-slide-group show-arrows mandatory v-model="selectedDayIndex"
    center-active
-   @click:next="nextDay()"
+   @click:next="nextDay"
    >
     <v-slide-item
-      v-for="(day, i) in days$"
+      v-for="(day, i) in days"
       :key="i"
       v-slot:default="{ active, toggle }"
     >
@@ -13,53 +13,67 @@
         :active="active"
         :toggle="toggle"
         :club="club"
-        :singleLeague="singleLeague$"
+        :singleLeague="singleLeague"
       ></calendar-day>
     </v-slide-item>
   </v-slide-group>
 </template>
 
 <script lang="ts">
-import { Component, Vue, Prop, Watch } from 'vue-property-decorator';
+import { defineComponent, ref, computed, watch } from 'vue';
+import { useStore } from '@/store';
 import CalendarDay from './day.vue';
-@Component({
+
+const store = useStore();
+
+export default defineComponent({
+  name: 'DayScroll',
   components: {
     CalendarDay,
   },
-})
-export default class DayScroll extends Vue {
-  @Prop({ required: true }) readonly days!: [{}];
-  @Prop({ required: true }) readonly singleLeague!: boolean;
-  @Prop() readonly club?: string;
+  props: {
+    days: {
+      type: Array,
+      required: true,
+    },
+    singleLeague: {
+      type: Boolean,
+      required: true,
+    },
+    club: {
+      type: String,
+      required: false,
+    },
+  },
+  setup(props, { emit }) {
+    const selectedDayIndex = ref(0);
 
-  public selectedDayIndex = 0;
+    const days = computed(() => props.days);
+    const singleLeague = computed(() => props.singleLeague);
 
-  // public days$ = this.days;
-  // public singleLeague$ = this.singleLeague;
+    const currentDay = computed(() => {
+      // Assuming `this.$store.getters.calendar.CurrentDay` is replaced with a Vuex 4 getter
+      return store.calendar?.CurrentDay || {};
+    });
 
-  get days$() {
-    return this.days;
-  }
+    watch(selectedDayIndex, (val) => {
+      console.log('Changed ', val);
+      emit('selected-day-index-changed', val);
+    });
 
-   get singleLeague$() {
-    return this.singleLeague;
-  }
+    const nextDay = () => {
+      console.log('Next clicked');
+    };
 
-  get currentDay() {
-    return this.$store.getters.calendar.CurrentDay;
-  }
-  // private selectedDayIndex = this.currentDay ? (this.currentDay - 1) % 7 : 0;
-
-  @Watch('selectedDayIndex', { immediate: false })
-  onSelectedDayIndexChanged(val: number) {
-    console.log('Changed ', val)
-    this.$emit('selected-day-index-changed', val);
-  }
-
-  public nextDay() {
-    console.log('Next clicked');
-  }
-}
+    return {
+      selectedDayIndex,
+      days,
+      singleLeague,
+      currentDay,
+      nextDay,
+    };
+  },
+});
 </script>
 
 <style></style>
