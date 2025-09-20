@@ -83,56 +83,45 @@
   </v-card>
 </template>
 
-<script lang="ts">
-import { defineComponent, computed, ref } from 'vue';
+<script setup lang="ts">
+import { computed, ref } from 'vue';
 import { useStore } from '@/store';
 import DayMatch from './day-match.vue';
 
+interface Props {
+  day: any;
+  toggle: () => void;
+  active: boolean;
+  singleLeague: boolean;
+  club?: string;
+}
+
+const props = defineProps<Props>();
 const store = useStore();
 
-export default defineComponent({
-  name: 'CalendarDay',
-  components: { DayMatch },
-  props: {
-    day: { type: Object, required: true },
-    toggle: { type: Function, required: true },
-    active: { type: Boolean, required: true },
-    singleLeague: { type: Boolean, required: true },
-    club: { type: String, required: false },
-  },
-  setup(props) {
-    const dialog = ref(false);
+const dialog = ref(false);
 
-    const $selectedLeague = computed(() => {
-      return store.selectedLeague;
-    });
+const $selectedLeague = computed(() => {
+  return store.selectedLeague;
+});
 
-    const leagueMatch = computed(() => {
-      if ($selectedLeague.value) {
-        return props.day.Matches.find(
-          (m: any) => m.CompetitionId === $selectedLeague.value
-        );
-      }
-      return null;
-    });
+const leagueMatch = computed(() => {
+  if ($selectedLeague.value) {
+    return props.day.Matches.find(
+      (m: any) => m.CompetitionId === $selectedLeague.value
+    );
+  }
+  return null;
+});
 
-    const isClub = computed(() => {
-      if (props.club) {
-        return (
-          leagueMatch.value?.Fixture.Home === props.club ||
-          leagueMatch.value?.Fixture.Away === props.club
-        );
-      }
-      return false;
-    });
-
-    return {
-      dialog,
-      $selectedLeague,
-      leagueMatch,
-      isClub,
-    };
-  },
+const isClub = computed(() => {
+  if (props.club) {
+    return (
+      leagueMatch.value?.Fixture.Home === props.club ||
+      leagueMatch.value?.Fixture.Away === props.club
+    );
+  }
+  return false;
 });
 </script>
 
