@@ -25,7 +25,7 @@
 
                 <v-list-item-avatar size="40px" color="blue">
                   <span class="white--text font-weight-bold">
-                    {{ p[attr] | roundTo(2) }}
+                    {{ $filters.roundTo(p[attr], 2) }}
                   </span>
                 </v-list-item-avatar>
               </v-list-item>
@@ -49,56 +49,59 @@
   </v-card>
 </template>
 
-<script lang="ts">
+<script setup lang="ts">
 /* eslint-disable @typescript-eslint/camelcase */
-import { Component, Vue, Prop } from 'vue-property-decorator';
+import { ref, getCurrentInstance } from 'vue';
 
-@Component({})
-export default class PlayerStats extends Vue {
-  // after end of season, check if the Year is alos over (that is, all the seasons are finished...)
-  // then go to End Of Year...
-  //   @Prop({ required: true }) stats_attributes!: string[];
-  @Prop({ required: true }) seasonId!: string;
-
-  private loading = false;
-
-  private loading_player_stats = false;
-
-  private stats_attributes = ['points', 'goals', 'assists', 'saves'];
-
-  private top_players: {
-    points: [];
-    goals: [];
-    assists: [];
-    saves: [];
-    [key: string]: [];
-  } = {
-    points: [],
-    goals: [],
-    assists: [],
-    saves: [],
-  };
-
-  // eslint-disable-next-line @typescript-eslint/camelcase
-  private load_stats(attribute: string) {
-    this.loading_player_stats = true;
-    this.$axios
-      .get(
-        `/players/stats?match_k=season._id&match_v=${this.seasonId}&sort_k=${attribute}&sort_v=-1`
-      )
-      .then(response => {
-        if (response.data.success) {
-          this.top_players[attribute] = response.data.payload;
-        }
-      })
-      .catch(err => {
-        console.log(`Error fetching player with most ${attribute} => `, err);
-      })
-      .finally(() => {
-        this.loading_player_stats = false;
-      });
-  }
+interface Props {
+  seasonId: string;
 }
+
+const props = defineProps<Props>();
+
+const instance = getCurrentInstance();
+const $axios = instance?.appContext.config.globalProperties.$axios;
+const $filters = instance?.appContext.config.globalProperties.$filters;
+
+// after end of season, check if the Year is also over (that is, all the seasons are finished...)
+// then go to End Of Year...
+
+const loading = ref(false);
+const loading_player_stats = ref(false);
+const stats_attributes = ref(['points', 'goals', 'assists', 'saves']);
+
+const top_players = ref<{
+  points: any[];
+  goals: any[];
+  assists: any[];
+  saves: any[];
+  [key: string]: any[];
+}>({
+  points: [],
+  goals: [],
+  assists: [],
+  saves: [],
+});
+
+// eslint-disable-next-line @typescript-eslint/camelcase
+const load_stats = (attribute: string) => {
+  loading_player_stats.value = true;
+  $axios
+    .get(
+      `/players/stats?match_k=season._id&match_v=${props.seasonId}&sort_k=${attribute}&sort_v=-1`
+    )
+    .then((response: any) => {
+      if (response.data.success) {
+        top_players.value[attribute] = response.data.payload;
+      }
+    })
+    .catch((err: any) => {
+      console.log(`Error fetching player with most ${attribute} => `, err);
+    })
+    .finally(() => {
+      loading_player_stats.value = false;
+    });
+};
 </script>
 
 <style></style>

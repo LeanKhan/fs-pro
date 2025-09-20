@@ -6,7 +6,8 @@
     </v-toolbar>
     <v-card-text class="white">
       <v-window
-        v-model="step"
+        :model-value="step"
+        @update:model-value="step = $event"
         reverse
         :continuous="true"
         :show-arrows="true"
@@ -28,56 +29,64 @@
         </v-window-item>
       </v-window>
     </v-card-text>
-    <v-overlay :value="loading">
+    <v-overlay :model-value="loading">
       <v-progress-circular indeterminate size="68"></v-progress-circular>
     </v-overlay>
   </v-card>
 </template>
 
-<script lang="ts">
+<script setup lang="ts">
 /* eslint-disable @typescript-eslint/camelcase */
-import { Component, Vue, Prop } from 'vue-property-decorator';
+import { ref, getCurrentInstance } from 'vue';
 import { apiUrl } from '@/store';
-@Component({})
-export default class PlayerAwards extends Vue {
-  // after end of season, check if the Year is alos over (that is, all the seasons are finished...)
-  // then go to End Of Year...
-  //   @Prop({ required: true }) stats_attributes!: string[];
-  @Prop({ required: true }) seasonId!: string;
 
-  private api = apiUrl;
-  /**
-   * Fetch Awards
-   */
-  public fetchAwards() {
-    this.loading = true;
-
-    this.$axios
-      .get(`/awards/season/${this.seasonId}?recipient=player&populate=club`)
-      .then(response => {
-        const managerIndex = response.data.payload.findIndex((a: any) => !a.Recipient);
-        this.manager = response.data.payload.splice(managerIndex, 1);
-        this.awards = response.data.payload;
-      })
-      .catch(err => {
-        console.log('Error fetching Season => ', err);
-      })
-      .finally(() => {
-        this.loading = false;
-      });
-  }
-  private step = 0;
-
-  private loading = false;
-
-  private awards = [];
-
-  private manager = {};
-
-  //   private mounted() {
-  //     this.fetchAwards();
-  //   }
+interface Props {
+  seasonId: string;
 }
+
+const props = defineProps<Props>();
+
+const instance = getCurrentInstance();
+const $axios = instance?.appContext.config.globalProperties.$axios;
+
+// after end of season, check if the Year is also over (that is, all the seasons are finished...)
+// then go to End Of Year...
+
+const api = ref(apiUrl);
+const step = ref(0);
+const loading = ref(false);
+const awards = ref<any[]>([]);
+const manager = ref<any>({});
+
+/**
+ * Fetch Awards
+ */
+const fetchAwards = () => {
+  loading.value = true;
+
+  $axios
+    .get(`/awards/season/${props.seasonId}?recipient=player&populate=club`)
+    .then((response: any) => {
+      const managerIndex = response.data.payload.findIndex((a: any) => !a.Recipient);
+      manager.value = response.data.payload.splice(managerIndex, 1);
+      awards.value = response.data.payload;
+    })
+    .catch((err: any) => {
+      console.log('Error fetching Season => ', err);
+    })
+    .finally(() => {
+      loading.value = false;
+    });
+};
+
+// Expose fetchAwards function so parent components can call it
+defineExpose({
+  fetchAwards
+});
+
+//   onMounted(() => {
+//     fetchAwards();
+//   });
 </script>
 
 <style></style>
