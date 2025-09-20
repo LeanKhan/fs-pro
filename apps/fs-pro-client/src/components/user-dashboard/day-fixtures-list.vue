@@ -1,10 +1,10 @@
 <template>
   <v-list>
       <v-list-item-group
-        v-model="selectedMatch"
+        :model-value="selectedMatch"
+        @update:model-value="onSelectedMatchChange"
         :mandatory="MandatorySelect"
         two-line
-        @change="$emit('match-selected', Matches[selectedMatch])"
         color="primary"
       >
         <v-list-item
@@ -35,18 +35,32 @@
     </v-list>
 </template>
 
-<script lang="ts">
+<script setup lang="ts">
+import { ref } from 'vue';
 import { ICalendarMatch } from '@/interfaces/calendar';
-import { Component, Vue, Prop } from 'vue-property-decorator';
 
-@Component
-export default class DayFixturesList extends Vue {
-  @Prop({ required: true }) readonly Matches!: ICalendarMatch[];
-  @Prop({ required: false }) readonly Detail: 'details' | 'results';
-  @Prop({ required: false, default: true }) readonly MandatorySelect;
-
-  private selectedMatch: any = null;
+interface Props {
+  Matches: ICalendarMatch[];
+  Detail?: 'details' | 'results';
+  MandatorySelect?: boolean;
 }
+
+const props = withDefaults(defineProps<Props>(), {
+  MandatorySelect: true,
+});
+
+const emit = defineEmits<{
+  'match-selected': [match: ICalendarMatch];
+}>();
+
+const selectedMatch = ref<any>(null);
+
+const onSelectedMatchChange = (value: any): void => {
+  selectedMatch.value = value;
+  if (value !== null && props.Matches[value]) {
+    emit('match-selected', props.Matches[value]);
+  }
+};
 </script>
 
 <style scoped></style>
