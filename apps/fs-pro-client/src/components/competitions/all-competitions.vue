@@ -89,40 +89,39 @@
   </div>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref, onMounted, getCurrentInstance } from 'vue';
 import { Competition } from '@/interfaces/competition';
 import { apiUrl } from '@/store';
+import { $axios } from '@/main';
 
-@Component({})
-export default class AllCompetitions extends Vue {
-  private competitions: Competition[] = [];
 
-  public selectedCompetition: any = {};
+const instance = getCurrentInstance();
 
-  public api: string = apiUrl;
+const competitions = ref<Competition[]>([]);
+const selectedCompetition = ref<any>({});
+const api = ref<string>(apiUrl);
 
-  public showCompetition(compCode: string): void {
-    const competition = this.competitions.find(
-      c => c.CompetitionCode == compCode
-    );
+const showCompetition = (compCode: string): void => {
+  const competition = competitions.value.find(
+    c => c.CompetitionCode == compCode
+  );
 
-    if (competition) {
-      this.selectedCompetition = competition;
-    }
+  if (competition) {
+    selectedCompetition.value = competition;
   }
+};
 
-  public mounted() {
-    this.$axios
-      .get('/competitions/all')
-      .then(res => {
-        this.competitions = res.data.payload;
-      })
-      .catch(err => {
-        console.log('Error! => ', err);
-      });
-  }
-}
+onMounted(() => {
+  $axios
+    .get('/competitions/all')
+    .then((res: any) => {
+      competitions.value = res.data.payload;
+    })
+    .catch((err: any) => {
+      console.log('Error! => ', err);
+    });
+});
 </script>
 
 <style></style>
