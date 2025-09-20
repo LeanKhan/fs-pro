@@ -32,46 +32,56 @@
   </v-card>
 </template>
 
-<script lang="ts">
-import { Component, Vue, Prop } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { Season } from '@/interfaces/season';
 
-@Component({})
-export default class SeasonsTable extends Vue {
-  @Prop({ required: true }) readonly seasons!: Season;
-  @Prop({ required: true }) readonly competitionId!: string;
-
-  private headers: any[] = [
-    {
-      text: 'ID',
-      align: 'start',
-      value: 'SeasonID',
-    },
-    {
-      text: 'Code',
-      value: 'SeasonCode',
-    },
-    { text: 'Title', value: 'Title' },
-    { text: 'Start Date', value: 'StartDate', filterable: true },
-    { text: 'Actions', value: 'Actions', filterable: false, sortable: false },
-  ];
-
-  private search = '';
-
-  private openSeasonForm(): void {
-    this.$router.push({
-      name: 'New Season',
-      params: { compId: this.competitionId },
-    });
-  }
-
-  private viewSeason(seasonId: string, seasonCode: string): void {
-    this.$router.push({
-      name: 'View Season',
-      params: { compId: this.competitionId, seasonId, seasonCode },
-    });
-  }
+interface Props {
+  seasons: Season[];
+  competitionId: string;
 }
+
+const props = defineProps<Props>();
+const router = useRouter();
+
+const headers = ref<any[]>([
+  {
+    text: 'ID',
+    align: 'start',
+    value: 'SeasonID',
+  },
+  {
+    text: 'Code',
+    value: 'SeasonCode',
+  },
+  { text: 'Title', value: 'Title' },
+  { text: 'Start Date', value: 'StartDate', filterable: true },
+  { text: 'Actions', value: 'Actions', filterable: false, sortable: false },
+]);
+
+const search = ref('');
+
+const openSeasonForm = (): void => {
+  router.push({
+    name: 'New Season',
+    params: { compId: props.competitionId },
+  });
+};
+
+const viewSeason = (seasonId: string, seasonCode: string): void => {
+  router.push({
+    name: 'View Season',
+    params: { compId: props.competitionId, seasonId, seasonCode },
+  });
+};
+
+const editSeason = (seasonId: string): void => {
+  router.push({
+    name: 'Edit Season',
+    params: { compId: props.competitionId, seasonId },
+  });
+};
 </script>
 
 <style></style>

@@ -21,27 +21,27 @@
   </v-simple-table>
 </template>
 
-<script lang="ts">
-// import { Component, Vue, }
+<script setup lang="ts">
 // TODO: Highlight the winner of the match
 // TODO: Allow filtering, maybe show only played matches?
 // TODO: Should be able to visit the Match page of played matches
 // TODO: Should show Day information...
-import { Component, Vue, Prop } from 'vue-property-decorator';
+import { useRouter } from 'vue-router';
 
-@Component({
-  name: 'Fixtures',
-})
-export default class FixturesTable extends Vue {
-  @Prop({ required: true }) fixtures!: any;
-
-  /**
-   * ID -  Fixture Id
-   */
-  private goToMatch(id: string) {
-    this.$router.push('/matchzone/' + id);
-  }
+interface Props {
+  fixtures: any;
 }
+
+defineProps<Props>();
+
+const router = useRouter();
+
+/**
+ * ID - Fixture Id
+ */
+const goToMatch = (id: string) => {
+  router.push('/matchzone/' + id);
+};
 </script>
 
 <style scoped>
