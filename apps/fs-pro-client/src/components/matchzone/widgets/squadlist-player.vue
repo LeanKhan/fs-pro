@@ -61,46 +61,49 @@
     </v-list-item-avatar>
   </v-list-item>
 </template>
-<script lang="ts">
+<script setup lang="ts">
 // TODO: Should show players after the Match rating
 // TODO: Should indicate MOTM also
 // TODO: Should also show who scored and how many goals. How do we add a pitch there?
-import { Component, Vue, Prop } from 'vue-property-decorator';
+import { computed } from 'vue';
 
-@Component({})
-export default class SquadPlayer extends Vue {
-  @Prop({ required: true, type: Object }) player!: any;
-  @Prop({ required: false, default: false }) matchFinished!: any;
-
-  get position() {
-    return this.player.Position;
-  }
-
-  get positionColor() {
-    switch (this.position) {
-      case 'GK':
-        return 'deep-orange--text text--accent-3';
-      case 'DEF':
-        return 'red--text text--accent-3';
-      case 'MID':
-        return 'green--text text--accent-3';
-      case 'ATT':
-        return 'blue--text text--accent-3';
-      default:
-        return 'secondary';
-    }
-  }
-
-  public ratingColor(rating: number): string {
-    if (rating >= 80) return 'green';
-    else if (rating >= 50) return 'orange';
-    else return 'red';
-  }
-
-  public matchRatingColor(rating: number): string {
-    if (rating >= 8) return 'green';
-    else if (rating >= 5) return 'orange';
-    else return 'red';
-  }
+interface Props {
+  player: any;
+  matchFinished?: any;
 }
+
+const props = withDefaults(defineProps<Props>(), {
+  matchFinished: false,
+});
+
+const position = computed(() => {
+  return props.player.Position;
+});
+
+const positionColor = computed(() => {
+  switch (position.value) {
+    case 'GK':
+      return 'deep-orange--text text--accent-3';
+    case 'DEF':
+      return 'red--text text--accent-3';
+    case 'MID':
+      return 'green--text text--accent-3';
+    case 'ATT':
+      return 'blue--text text--accent-3';
+    default:
+      return 'secondary';
+  }
+});
+
+const ratingColor = (rating: number): string => {
+  if (rating >= 80) return 'green';
+  else if (rating >= 50) return 'orange';
+  else return 'red';
+};
+
+const matchRatingColor = (rating: number): string => {
+  if (rating >= 8) return 'green';
+  else if (rating >= 5) return 'orange';
+  else return 'red';
+};
 </script>

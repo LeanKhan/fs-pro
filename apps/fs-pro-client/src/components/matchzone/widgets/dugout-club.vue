@@ -50,21 +50,20 @@
     </v-expand-transition>
   </div>
 </template>
-<script lang="ts">
-import { Component, Vue, Prop } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref } from 'vue';
 import Squadlist from './squadlist.vue';
 
-@Component({
-  components: {
-    Squadlist,
-  },
-})
-export default class DugoutClub extends Vue {
-  @Prop({ required: true }) club!: any;
-  @Prop({ required: false }) clubSquad!: any;
-  @Prop({ required: false, default: false }) matchFinished!: any;
-  @Prop({ required: true }) isHome!: boolean;
-
-  private showClubSquad = false;
+interface Props {
+  club: any;
+  clubSquad?: any;
+  matchFinished?: any;
+  isHome: boolean;
 }
+
+withDefaults(defineProps<Props>(), {
+  matchFinished: false,
+});
+
+const showClubSquad = ref(false);
 </script>
