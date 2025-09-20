@@ -1,5 +1,4 @@
-import Vue from 'vue';
-import VueRouter, { RouteConfig } from 'vue-router';
+import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
 
 /** ADMIN ROUTES */
 import clubs from './clubs';
@@ -22,7 +21,6 @@ import AppView from '@/views/app-view.vue';
 // import Register from '@/views/auth/register.vue';
 import Credits from '@/views/credits.vue';
 
-Vue.use(VueRouter);
 
 export function replaceParams(
   path: string,
@@ -35,7 +33,7 @@ export function replaceParams(
   return path;
 }
 
-const routes: RouteConfig[] = [
+const routes: RouteRecordRaw[] = [
   {
     path: '/auth',
     component: () =>
@@ -169,9 +167,8 @@ const routes: RouteConfig[] = [
   },
 ];
 
-const router = new VueRouter({
-  mode: 'history',
-  base: process.env.BASE_URL,
+const router = createRouter({
+  history: createWebHistory(process.env.BASE_URL),
   routes,
 });
 
