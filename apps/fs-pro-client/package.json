@@ -11,17 +11,18 @@
   "dependencies": {
     "@vueuse/core": "^10.5.0",
     "axios": "^1.5.1",
+    "eslint-plugin-vuetify": "^2.5.3",
+    "pinia": "^2.1.7",
     "socket.io-client": "^4.7.2",
     "vue": "^3.3.4",
     "vue-router": "^4.2.5",
-    "vuetify": "^3.3.22",
-    "pinia": "^2.1.7"
+    "vuetify": "^3.3.22"
   },
   "devDependencies": {
     "@types/node": "^20.8.6",
     "@typescript-eslint/eslint-plugin": "^6.7.5",
     "@typescript-eslint/parser": "^6.7.5",
-    "@vitejs/plugin-vue": "^4.4.0",
+    "@vitejs/plugin-vue": "^6.0.1",
     "@vue/compiler-sfc": "^3.3.4",
     "@vue/eslint-config-prettier": "^8.0.0",
     "@vue/eslint-config-typescript": "^12.0.0",
@@ -31,7 +32,7 @@
     "prettier": "^3.0.3",
     "sass": "^1.69.3",
     "typescript": "~5.2.2",
-    "vite": "^4.4.11",
-    "vite-plugin-vuetify": "^1.0.2"
+    "vite": "^7.1.6",
+    "vite-plugin-vuetify": "^2.1.2"
   }
 }
