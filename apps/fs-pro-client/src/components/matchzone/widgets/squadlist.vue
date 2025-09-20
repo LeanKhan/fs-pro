@@ -8,21 +8,20 @@
     ></squad-player>
   </v-list>
 </template>
-<script lang="ts">
-import { Component, Vue, Prop } from 'vue-property-decorator';
+<script setup lang="ts">
+import { computed } from 'vue';
 import SquadPlayer from './squadlist-player.vue';
 
-@Component({
-  components: {
-    SquadPlayer,
-  },
-})
-export default class SquadList extends Vue {
-  @Prop({ required: true, type: Array }) squad!: any;
-  @Prop({ required: false, default: false }) matchFinished!: any;
-
-  get list() {
-    return this.squad.sort();
-  }
+interface Props {
+  squad: any[];
+  matchFinished?: any;
 }
+
+const props = withDefaults(defineProps<Props>(), {
+  matchFinished: false,
+});
+
+const list = computed(() => {
+  return props.squad.sort();
+});
 </script>

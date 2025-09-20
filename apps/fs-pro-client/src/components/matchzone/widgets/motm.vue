@@ -42,33 +42,39 @@
     </v-sheet>
   </div>
 </template>
-<script lang="ts">
+<script setup lang="ts">
+import { ref, getCurrentInstance } from 'vue';
 import { Player } from '@/interfaces/player';
-import { Component, Vue, Prop } from 'vue-property-decorator';
-@Component({})
-export default class MOTM extends Vue {
-  @Prop({ required: true, type: String }) motm_id!: string;
+import { $axios } from '@/main';
 
-  private loading = false;
-  private loadMOTM = false;
-  private Player: any | Player = {};
-
-  private getMOTM() {
-    if (this.motm_id) {
-      this.loading = true;
-      this.$axios
-        .get(`/players/${this.motm_id}/`)
-        .then(response => {
-          this.Player = response.data.payload;
-          this.loadMOTM = true;
-        })
-        .catch(response => {
-          console.log('Error fetching MOTM player!', response);
-        })
-        .finally(() => {
-          this.loading = false;
-        });
-    }
-  }
+interface Props {
+  motm_id: string;
 }
+
+const props = defineProps<Props>();
+
+const instance = getCurrentInstance();
+// const $axios = instance?.appContext.config.globalProperties.$axios;
+
+const loading = ref(false);
+const loadMOTM = ref(false);
+const Player = ref<any | Player>({});
+
+const getMOTM = () => {
+  if (props.motm_id) {
+    loading.value = true;
+    $axios
+      .get(`/players/${props.motm_id}/`)
+      .then((response: any) => {
+        Player.value = response.data.payload;
+        loadMOTM.value = true;
+      })
+      .catch((response: any) => {
+        console.log('Error fetching MOTM player!', response);
+      })
+      .finally(() => {
+        loading.value = false;
+      });
+  }
+};
 </script>

@@ -41,25 +41,28 @@
     </v-simple-table>
   </div>
 </template>
-<script lang="ts">
-import { Component, Vue, Prop } from 'vue-property-decorator';
-@Component({})
-export default class Results extends Vue {
-  @Prop({ required: true, type: String }) home!: any;
-  @Prop({ required: true, type: String }) away!: any;
-  @Prop({ required: true, type: Object }) matchDetails!: any;
+<script setup lang="ts">
+import { ref } from 'vue';
 
-  private statLabels = [
-    { label: 'Goals', key: 'Goals' },
-    { label: 'Possession', key: 'Possession' },
-    { label: 'Passes', key: 'Passes' },
-    { label: 'Shots on Target', key: 'ShotsOnTarget' },
-    { label: 'Fouls', key: 'Fouls' },
-    { label: 'Yellow Cards', key: 'YellowCards' },
-    { label: 'Red Cards', key: 'RedCards' },
-  ];
+interface Props {
+  home: string;
+  away: string;
+  matchDetails: any;
+}
 
-  /** MatchSide Details
+defineProps<Props>();
+
+const statLabels = ref([
+  { label: 'Goals', key: 'Goals' },
+  { label: 'Possession', key: 'Possession' },
+  { label: 'Passes', key: 'Passes' },
+  { label: 'Shots on Target', key: 'ShotsOnTarget' },
+  { label: 'Fouls', key: 'Fouls' },
+  { label: 'Yellow Cards', key: 'YellowCards' },
+  { label: 'Red Cards', key: 'RedCards' },
+]);
+
+/** MatchSide Details
  *   Score: 0,
         Possession: 0,
         TimesWithBall: 0,
@@ -73,7 +76,7 @@ export default class Results extends Vue {
         Passes: 0,
 */
 
-  /** Match Details
+/** Match Details
  * Title: string;
   LeagueName: string;
   Draw: boolean;
@@ -91,5 +94,4 @@ export default class Results extends Vue {
   HomeTeamDetails: IMatchSideDetails;
   AwayTeamDetails: IMatchSideDetails;
  */
-}
 </script>
