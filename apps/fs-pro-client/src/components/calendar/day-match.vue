@@ -15,20 +15,11 @@
   </v-list-item>
 </template>
 
-<script lang="ts">
-import { defineComponent, PropType } from 'vue';
+<script setup lang="ts">
+interface Props {
+  match: any;
+  home: boolean;
+}
 
-export default defineComponent({
-  name: 'DayMatch',
-  props: {
-    match: {
-      type: Object as PropType<any>,
-      required: true,
-    },
-    home: {
-      type: Boolean,
-      required: true,
-    },
-  },
-});
+defineProps<Props>();
 </script>

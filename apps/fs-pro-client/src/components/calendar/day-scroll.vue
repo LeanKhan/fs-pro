@@ -19,61 +19,40 @@
   </v-slide-group>
 </template>
 
-<script lang="ts">
-import { defineComponent, ref, computed, watch } from 'vue';
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue';
 import { useStore } from '@/store';
 import CalendarDay from './day.vue';
 
+interface Props {
+  days: any[];
+  singleLeague: boolean;
+  club?: string;
+}
+
+const props = defineProps<Props>();
+const emit = defineEmits<{
+  'selected-day-index-changed': [value: number];
+}>();
+
 const store = useStore();
+const selectedDayIndex = ref(0);
 
-export default defineComponent({
-  name: 'DayScroll',
-  components: {
-    CalendarDay,
-  },
-  props: {
-    days: {
-      type: Array,
-      required: true,
-    },
-    singleLeague: {
-      type: Boolean,
-      required: true,
-    },
-    club: {
-      type: String,
-      required: false,
-    },
-  },
-  setup(props, { emit }) {
-    const selectedDayIndex = ref(0);
+const days = computed(() => props.days);
+const singleLeague = computed(() => props.singleLeague);
 
-    const days = computed(() => props.days);
-    const singleLeague = computed(() => props.singleLeague);
-
-    const currentDay = computed(() => {
-      // Assuming `this.$store.getters.calendar.CurrentDay` is replaced with a Vuex 4 getter
-      return store.calendar?.CurrentDay || {};
-    });
-
-    watch(selectedDayIndex, (val) => {
-      console.log('Changed ', val);
-      emit('selected-day-index-changed', val);
-    });
-
-    const nextDay = () => {
-      console.log('Next clicked');
-    };
-
-    return {
-      selectedDayIndex,
-      days,
-      singleLeague,
-      currentDay,
-      nextDay,
-    };
-  },
+const currentDay = computed(() => {
+  return store.calendar?.CurrentDay || {};
 });
+
+watch(selectedDayIndex, (val) => {
+  console.log('Changed ', val);
+  emit('selected-day-index-changed', val);
+});
+
+const nextDay = () => {
+  console.log('Next clicked');
+};
 </script>
 
 <style></style>
