@@ -45,14 +45,14 @@
   </v-card>
 </template>
 
-<script lang="ts">
+<script setup lang="ts">
 import { ICalendarMatch } from '@/interfaces/calendar';
-import { Component, Vue, Prop } from 'vue-property-decorator';
 
-@Component
-export default class FixtureCard extends Vue {
-  @Prop({ required: true }) readonly Match!: ICalendarMatch;
+interface Props {
+  Match: ICalendarMatch;
 }
+
+defineProps<Props>();
 </script>
 
 <style scoped></style>
