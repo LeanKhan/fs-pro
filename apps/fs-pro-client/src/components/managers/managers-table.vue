@@ -69,59 +69,63 @@
     </v-data-table>
   </v-card>
 </template>
-<script lang="ts">
-import { Component, Vue, Prop } from 'vue-property-decorator';
-// import { Player } from '@/interfaces/player';
+<script setup lang="ts">
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 
-@Component({})
-export default class ManagersTable extends Vue {
-  @Prop({ required: true }) readonly managers!: any[];
-  //   @Prop({ required: true, default: false }) readonly viewClub!: boolean;
-
-  private headers: any[] = [
-    {
-      text: 'First Name',
-      align: 'start',
-      value: 'FirstName',
-    },
-    {
-      text: 'Last Name',
-      value: 'LastName',
-    },
-     {
-      text: 'League',
-      value: 'Club.LeagueCode',
-    },
-    { text: 'Club', value: 'Club' },
-    { text: 'Country', value: 'Nationality.Name', filterable: false },
-    {
-      text: 'Employed',
-      value: 'isEmployed',
-      sortable: false,
-      filter: (value: boolean) => {
-        if (!this.isEmployed) return true;
-
-        return value == this.isEmployed;
-      },
-    },
-    { text: 'Actions', value: 'Actions', filterable: false, sortable: false },
-  ];
-
-  private search = '';
-
-  private isEmployed = null;
-
-  public viewManager(id: string) {
-    this.$router.push({ name: 'View Manager', params: { id } });
-  }
-
-  public updateManager(id: string) {
-    this.$router.push({ name: 'Update Manager', params: { id } });
-  }
-
-  public removePlayer(id: string) {
-    this.$emit('remove-player', id);
-  }
+interface Props {
+  managers: any[];
 }
+
+defineProps<Props>();
+
+const emit = defineEmits<{
+  'remove-manager': [id: string];
+}>();
+
+const router = useRouter();
+
+const search = ref('');
+const isEmployed = ref<boolean | null>(null);
+
+const headers = ref<any[]>([
+  {
+    text: 'First Name',
+    align: 'start',
+    value: 'FirstName',
+  },
+  {
+    text: 'Last Name',
+    value: 'LastName',
+  },
+  {
+    text: 'League',
+    value: 'Club.LeagueCode',
+  },
+  { text: 'Club', value: 'Club' },
+  { text: 'Country', value: 'Nationality.Name', filterable: false },
+  {
+    text: 'Employed',
+    value: 'isEmployed',
+    sortable: false,
+    filter: (value: boolean) => {
+      if (!isEmployed.value) return true;
+      return value == isEmployed.value;
+    },
+  },
+  { text: 'Actions', value: 'Actions', filterable: false, sortable: false },
+]);
+
+const viewManager = (id: string) => {
+  router.push({ name: 'View Manager', params: { id } });
+};
+
+const updateManager = (id: string) => {
+  router.push({ name: 'Update Manager', params: { id } });
+};
+
+const deleteManager = (id: string) => {
+  emit('remove-manager', id);
+};
 </script>
 <style scoped></style>
