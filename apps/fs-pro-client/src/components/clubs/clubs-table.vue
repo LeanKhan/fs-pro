@@ -65,14 +65,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useNuxtApp } from '#app';
 import { Club } from '@/interfaces/club';
+import { $axios } from '@/main';
 
 const clubs = ref<any[]>([]);
 const selectedClub = ref<Club[] | []>([]);
 const search = ref('');
-
-const { $axios } = useNuxtApp();
 
 const emit = defineEmits<{
   'close-club-modal': [payload?: { id: string; name: string }];
