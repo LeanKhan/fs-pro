@@ -36,22 +36,29 @@
   </v-card>
 </template>
 
-<script lang="ts">
-import { Component, Vue, Prop } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref } from 'vue';
 import { Club } from '@/interfaces/club';
 import { apiUrl } from '@/store';
 
-@Component
-export default class ClubList extends Vue {
-  @Prop({ required: true }) readonly clubs!: Club[];
-  @Prop({ default: false, required: false }) readonly actions!: boolean;
-
-  public api: string = apiUrl;
-
-  private addClub(): void {
-    this.$emit('open-club-modal');
-  }
+interface Props {
+  clubs: Club[];
+  actions?: boolean;
 }
+
+const props = withDefaults(defineProps<Props>(), {
+  actions: false
+});
+
+const emit = defineEmits<{
+  'open-club-modal': [];
+}>();
+
+const api = ref<string>(apiUrl);
+
+const addClub = (): void => {
+  emit('open-club-modal');
+};
 </script>
 
 <style></style>

@@ -20,7 +20,7 @@
                   ></v-img>
                 </v-list-item-avatar>
                 <v-list-item-content>
-                  <v-list-item-title v-text="club.Name"></v-list-item-title>
+                  <v-list-item-title>{{ club.Name }}</v-list-item-title>
                 </v-list-item-content>
               </v-list-item>
             </v-list-item-group>
@@ -79,38 +79,34 @@
   </div>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
 import { Club } from '@/interfaces/club';
 import { apiUrl } from '@/store';
+import { $axios } from '@/main';
 
-@Component({})
-export default class AllClubs extends Vue {
-  private clubs: Club[] = [];
+const clubs = ref<Club[]>([]);
+const api = ref<string>(apiUrl);
+const selectedClub = ref<any>({});
 
-  private api: string = apiUrl;
 
-  public selectedClub: any = {};
-
-  public showClub(clubCode: string): void {
-    const club = this.clubs.find(c => c.ClubCode == clubCode);
-
-    if (club) {
-      this.selectedClub = club;
-    }
+const showClub = (clubCode: string): void => {
+  const club = clubs.value.find(c => c.ClubCode == clubCode);
+  if (club) {
+    selectedClub.value = club;
   }
+};
 
-  public mounted() {
-    this.$axios
-      .get('/clubs/all')
-      .then(res => {
-        this.clubs = res.data.payload;
-      })
-      .catch(err => {
-        console.log('Error! => ', err);
-      });
-  }
-}
+onMounted(() => {
+  $axios
+    .get('/clubs/all')
+    .then(res => {
+      clubs.value = res.data.payload;
+    })
+    .catch(err => {
+      console.log('Error! => ', err);
+    });
+});
 </script>
 
 <style></style>
