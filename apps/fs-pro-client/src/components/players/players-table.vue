@@ -97,71 +97,78 @@
     </v-data-table>
   </v-card>
 </template>
-<script lang="ts">
-import { Component, Vue, Prop } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { Player } from '@/interfaces/player';
 import { apiUrl } from '@/store';
 
-@Component({})
-export default class PlayersTable extends Vue {
-  @Prop({ required: true }) readonly players!: Player[];
-  @Prop({ required: true, default: false }) readonly viewClub!: boolean;
-
-  private api = apiUrl;
-
-  private headers: any[] = [
-    {
-      text: 'First Name',
-
-      value: 'FirstName',
-    },
-    {
-      text: 'Last Name',
-      value: 'LastName',
-    },
-    { text: 'Club', value: 'ClubCode' },
-    { text: 'Age', value: 'Age', filterable: false },
-    { text: 'Position', value: 'Position', filterable: false },
-    { text: 'Role', value: 'Role', filterable: true },
-    { text: 'Country', value: 'Nationality', filterable: false },
-    { text: 'Value', value: 'Value', filterable: false },
-    {
-      text: 'Signed',
-      value: 'isSigned',
-      sortable: false,
-      filter: (value: boolean) => {
-        if (!this.isSigned) return true;
-
-        return value == this.isSigned;
-      },
-    },
-    { text: 'Rating', value: 'Rating', filterable: false },
-    { text: 'Actions', value: 'Actions', filterable: false, sortable: false },
-  ];
-
-  private search = '';
-
-  private isSigned = null;
-
-  public getColor(rating: number): string {
-    if (rating >= 80) return 'green';
-    else if (rating >= 50) return 'orange';
-    else return 'red';
-  }
-
-  public viewPlayer(id: string, code: string) {
-    this.$router.push({ name: 'View Player', params: { id, code } });
-  }
-
-  public updatePlayer(id: string, code: string) {
-    this.$router.push({ name: 'Update Player', params: { id, code } });
-  }
-
-  public removePlayer(id: string) {
-    if (this.viewClub) {
-      this.$emit('remove-player', id);
-    }
-  }
+interface Props {
+  players: Player[];
+  viewClub?: boolean;
 }
+
+const props = withDefaults(defineProps<Props>(), {
+  viewClub: false,
+});
+
+const emit = defineEmits<{
+  'add-player': [];
+  'remove-player': [id: string];
+}>();
+
+const router = useRouter();
+
+const api = ref(apiUrl);
+const search = ref('');
+const isSigned = ref<boolean | null>(null);
+
+const headers = ref<any[]>([
+  {
+    text: 'First Name',
+    value: 'FirstName',
+  },
+  {
+    text: 'Last Name',
+    value: 'LastName',
+  },
+  { text: 'Club', value: 'ClubCode' },
+  { text: 'Age', value: 'Age', filterable: false },
+  { text: 'Position', value: 'Position', filterable: false },
+  { text: 'Role', value: 'Role', filterable: true },
+  { text: 'Country', value: 'Nationality', filterable: false },
+  { text: 'Value', value: 'Value', filterable: false },
+  {
+    text: 'Signed',
+    value: 'isSigned',
+    sortable: false,
+    filter: (value: boolean) => {
+      if (!isSigned.value) return true;
+      return value == isSigned.value;
+    },
+  },
+  { text: 'Rating', value: 'Rating', filterable: false },
+  { text: 'Actions', value: 'Actions', filterable: false, sortable: false },
+]);
+
+const getColor = (rating: number): string => {
+  if (rating >= 80) return 'green';
+  else if (rating >= 50) return 'orange';
+  else return 'red';
+};
+
+const viewPlayer = (id: string, code: string) => {
+  router.push({ name: 'View Player', params: { id, code } });
+};
+
+const updatePlayer = (id: string, code: string) => {
+  router.push({ name: 'Update Player', params: { id, code } });
+};
+
+const removePlayer = (id: string) => {
+  if (props.viewClub) {
+    emit('remove-player', id);
+  }
+};
 </script>
 <style scoped></style>

@@ -5,7 +5,8 @@
       <v-spacer></v-spacer>
 
       <v-text-field
-        v-model="search"
+        :model-value="search"
+        @update:model-value="search = $event"
         append-icon="mdi-magnify"
         label="Search"
         single-line
@@ -16,7 +17,8 @@
     <v-data-table
       :headers="headers"
       :items="players"
-      v-model="selectedPlayer"
+      :model-value="selectedPlayer"
+      @update:model-value="selectedPlayer = $event"
       item-key="_id"
       show-select
       :search="search"
@@ -27,7 +29,8 @@
 
  <template v-slot:top>
       <v-switch
-        v-model="singleSelect"
+        :model-value="singleSelect"
+        @update:model-value="singleSelect = $event"
         label="Single select"
         class="pa-3"
       ></v-switch>
@@ -66,82 +69,77 @@
   </v-card>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref, onMounted, getCurrentInstance } from 'vue';
 import { Player } from '@/interfaces/player';
 import { apiUrl } from '@/store';
 
-@Component({})
-export default class AllPlayersTable extends Vue {
-  //   @Prop({ required: true }) readonly clubs!: Club;
-  private api = apiUrl;
-  private players: any[] = [];
+const instance = getCurrentInstance();
+const $axios = instance?.appContext.config.globalProperties.$axios;
 
-  private selectedPlayer: Player[] | [] = [];
+const emit = defineEmits<{
+  'close-players-modal': [playerIds?: string[]];
+}>();
 
-  private singleSelect = false;
+const api = ref(apiUrl);
+const players = ref<any[]>([]);
+const selectedPlayer = ref<Player[] | []>([]);
+const singleSelect = ref(false);
+const search = ref('');
+const ClubCode = ref('');
+const isSigned = ref<boolean | null>(null);
 
-  private headers: any[] = [
-    {
-      text: 'Id',
-      align: 'start',
-      value: 'Id'
-    },
+const headers = ref<any[]>([
+  {
+    text: 'Id',
+    align: 'start',
+    value: 'Id'
+  },
+  {
+    text: 'First Name',
+    value: 'FirstName',
+  },
+  {
+    text: 'Last Name',
+    value: 'LastName',
+  },
+  { text: 'Club', value: 'ClubCode', filterable: true },
+  { text: 'Age', value: 'Age', filterable: true },
+  { text: 'Position', value: 'Position', filterable: true },
+  { text: 'Role', value: 'Role', filterable: true },
+  { text: 'Country', value: 'Nationality.Name', filterable: true },
+  { text: 'Value', value: 'Value', filterable: false },
+  { text: 'Rating', value: 'Rating', filterable: true },
+]);
 
-    {
-      text: 'First Name',
-      value: 'FirstName',
-    },
-    {
-      text: 'Last Name',
-      value: 'LastName',
-    },
-    { text: 'Club', value: 'ClubCode', filterable: true },
-    { text: 'Age', value: 'Age', filterable: true },
-    { text: 'Position', value: 'Position', filterable: true },
-    { text: 'Role', value: 'Role', filterable: true },
-    { text: 'Country', value: 'Nationality.Name', filterable: true },
-    { text: 'Value', value: 'Value', filterable: false },
-    { text: 'Rating', value: 'Rating', filterable: true },
-  ];
+const getColor = (rating: number): string => {
+  if (rating >= 80) return 'green';
+  else if (rating >= 50) return 'orange';
+  else return 'red';
+};
 
-  private search = '';
-
-  private ClubCode = '';
-
-  private isSigned = null;
-
-  public getColor(rating: number): string {
-    if (rating >= 80) return 'green';
-    else if (rating >= 50) return 'orange';
-    else return 'red';
-  }
-
-  private addPlayer(): void {
-
+const addPlayer = (): void => {
   // get array of Ids
-  const playerIds = this.selectedPlayer.map(p => p._id);
+  const playerIds = selectedPlayer.value.map((p: any) => p._id);
+  emit('close-players-modal', playerIds);
+  selectedPlayer.value = [];
+};
 
-    this.$emit('close-players-modal', playerIds);
-    this.selectedPlayer = [];
-  }
+const close = (): void => {
+  emit('close-players-modal');
+};
 
-  private close(): void {
-    this.$emit('close-players-modal');
-  }
-
-  private mounted() {
-    const options = JSON.stringify({ isSigned: false });
-    this.$axios
-      .get(`/players/all?options=${options}`)
-      .then(res => {
-        this.players = res.data.payload as Player[];
-      })
-      .catch(err => {
-        console.log('Error! => ', err);
-      });
-  }
-}
+onMounted(() => {
+  const options = JSON.stringify({ isSigned: false });
+  $axios
+    .get(`/players/all?options=${options}`)
+    .then((res: any) => {
+      players.value = res.data.payload as Player[];
+    })
+    .catch((err: any) => {
+      console.log('Error! => ', err);
+    });
+});
 </script>
 
 <style></style>
