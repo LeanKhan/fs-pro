@@ -1,7 +1,7 @@
 <template>
   <v-dialog
-    :value="show"
-    @input="$emit('update:show', $event)"
+    :model-value="show"
+    @update:model-value="$emit('update:show', $event)"
     height="500px"
     width="650px"
     overlay-opacity="0.6"
@@ -22,7 +22,7 @@
               
                 max-width="200px"
               ></v-img>
-              <v-overlay :absolute="true" :value="true" opacity="0.3">
+              <v-overlay :absolute="true" :model-value="true" opacity="0.3">
             
               <div class="headline">
                 {{ home.Name }}
@@ -63,7 +63,7 @@
               
                 max-width="200px"
               ></v-img>
-              <v-overlay :absolute="true" :value="true" opacity="0.3">
+              <v-overlay :absolute="true" :model-value="true" opacity="0.3">
             
              <div class="headline">
                 {{ away.Name }}
@@ -98,31 +98,38 @@
     </v-card>
   </v-dialog>
 </template>
-<script lang="ts">
-import { Component, Vue, Prop, Watch } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue';
 import { apiUrl } from '@/store';
 
-@Component({})
-export default class GameLobby extends Vue {
-  @Prop({ required: true, default: false, type: Boolean }) show!: boolean;
-  @Prop({ required: true }) home!: any;
-  @Prop({ required: true }) away!: any;
-
-  private player1Ready = false;
-  private player2Ready = false;
-  private skip = false;
-  private api = apiUrl;
-
-  get allReady() {
-    return this.player1Ready && this.player2Ready;
-  }
-
-  @Watch('allReady', { immediate: true })
-  onAllReady(ready: boolean) {
-    if (ready) {
-      console.log('All are ready!');
-      this.$emit('all-ready');
-    }
-  }
+interface Props {
+  show: boolean;
+  home: any;
+  away: any;
 }
+
+const props = withDefaults(defineProps<Props>(), {
+  show: false,
+});
+
+const emit = defineEmits<{
+  'update:show': [value: boolean];
+  'all-ready': [];
+}>();
+
+const player1Ready = ref(false);
+const player2Ready = ref(false);
+const skip = ref(false);
+const api = ref(apiUrl);
+
+const allReady = computed(() => {
+  return player1Ready.value && player2Ready.value;
+});
+
+watch(allReady, (ready: boolean) => {
+  if (ready) {
+    console.log('All are ready!');
+    emit('all-ready');
+  }
+}, { immediate: true });
 </script>
