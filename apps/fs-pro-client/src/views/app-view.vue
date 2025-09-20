@@ -1,6 +1,6 @@
 <template>
   <v-app id="app">
-    <v-navigation-drawer v-model="drawer" app clipped>
+    <v-navigation-drawer :model-value="drawer" @update:model-value="drawer = $event" app clipped>
       <v-list-item class="px-2 mt-2">
         <v-list-item-avatar>
           <v-img
@@ -84,7 +84,7 @@
       <v-badge
         bordered
         bottom
-        :color="$socket.connected ? 'deep-purple accent-4' : 'grey'"
+        :color="socketConnected ? 'deep-purple accent-4' : 'grey'"
         dot
         offset-x="10"
         offset-y="10"
@@ -124,12 +124,12 @@
       Hi!
     </v-snackbar> -->
 
-    <v-snackbar v-model="toast.show" :timeout="3000" :color="toast.style">
+    <v-snackbar :model-value="toast.show" @update:model-value="toast.show = $event" :timeout="3000" :color="toast.style">
       {{ toast.message }}
     </v-snackbar>
 
     <!-- TODO: clean this up! -->
-    <v-overlay v-model="errorOverlay">
+    <v-overlay :model-value="errorOverlay" @update:model-value="errorOverlay = $event">
       <v-sheet class="text-center pa-2" width="500px" height="300px">
         Error!
         <br />
@@ -150,190 +150,176 @@
   </v-app>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
-import { Route, RawLocation } from 'vue-router';
+<script setup lang="ts">
+import { ref, computed, onMounted, getCurrentInstance } from 'vue';
+import { useRouter, useRoute, onBeforeRouteUpdate } from 'vue-router';
 import { apiUrl } from '@/store';
 
-@Component({
-  beforeRouteUpdate(
-    to: Route,
-    from: Route,
-    next: (to?: RawLocation | false | ((vm: AppView) => any) | void) => void
-  ): void {
-    if (to.name == 'MatchZone') {
-      this.drawer = false;
-      this.appBar = false;
-    } else {
-      this.drawer = true;
-      this.appBar = true;
-    }
-    next();
+const router = useRouter();
+const route = useRoute();
+const instance = getCurrentInstance();
+const $axios = instance?.appContext.config.globalProperties.$axios;
+const $store = instance?.appContext.config.globalProperties.$store;
+const $socket = instance?.appContext.config.globalProperties.$socket;
+
+const drawer = ref(true);
+const appBar = ref(true);
+const show = ref(false);
+const api = ref(apiUrl);
+const mini = ref(true);
+
+const adminNavItems = ref<any[]>([
+  { title: 'Home', icon: 'mdi-soccer', link: '/a', color: 'primary' },
+  { title: 'Clubs', icon: 'mdi-security', link: '/a/clubs', color: 'amber' },
+  {
+    title: 'Calendar',
+    icon: 'mdi-calendar',
+    link: '/a/calendar',
+    color: 'indigo',
   },
-})
-export default class AppView extends Vue {
-  private drawer = true;
+  {
+    title: 'Players',
+    icon: 'mdi-account',
+    link: '/a/players',
+    color: 'indigo',
+  },
+  {
+    title: 'Competitions',
+    icon: 'mdi-trophy',
+    link: '/a/competitions',
+    color: 'yellow',
+  },
+  {
+    title: 'Managers',
+    icon: 'mdi-account',
+    link: '/a/managers',
+    color: 'cyan',
+  },
+]);
 
-  private appBar = true;
+const logout = (): void => {
+  $axios
+    .delete(`/users/${user.value.userID}/logout`)
+    .then((response: any) => {
+      console.log('Response => ', response.data);
+      if (response.data.success) {
+        $socket.client.disconnect();
+        $store.dispatch('UNSET_USER');
+        router.push('/auth');
+      }
+    })
+    .catch((response: any) => {
+      console.log('Error logging out! ', response.data);
+    });
+};
 
-  private show = false;
+const goBackToPreviousState = (): void => {
+  $store.commit('TOGGLE_ERROR_OVERLAY');
+  router.back();
+};
 
-  public api: string = apiUrl;
+const user = computed(() => {
+  return $store.getters.user;
+});
 
-  // public errorOverlay = false;
+const errorOverlay = computed(() => {
+  return $store.getters.errorOverlay;
+});
 
-  // private items(): any[] {
-  //   if(this.$route.fullPath.split('/'))
-  // }
+const toast = computed(() => {
+  return $store.getters.toast;
+});
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private adminNavItems: any[] = [
-    { title: 'Home', icon: 'mdi-soccer', link: '/a', color: 'primary' },
-    { title: 'Clubs', icon: 'mdi-security', link: '/a/clubs', color: 'amber' },
-    {
-      title: 'Calendar',
-      icon: 'mdi-calendar',
-      link: '/a/calendar',
-      color: 'indigo',
-    },
-    {
-      title: 'Players',
-      icon: 'mdi-account',
-      link: '/a/players',
-      color: 'indigo',
-    },
-    {
-      title: 'Competitions',
-      icon: 'mdi-trophy',
-      link: '/a/competitions',
-      color: 'yellow',
-    },
-    {
-      title: 'Managers',
-      icon: 'mdi-account',
-      link: '/a/managers',
-      color: 'cyan',
-    },
+const socketConnected = computed(() => {
+  return $socket?.connected || false;
+});
+
+const userNavItems = computed((): any[] => {
+  let routes = [
+    { title: 'Home', icon: 'mdi-soccer', link: '/u', color: 'primary' },
   ];
 
-  // private userNavItems: any[] = [
-  //   { title: 'Home', icon: 'mdi-soccer', link: '/u', color: 'primary' },
-  //   { title: 'Clubs', icon: 'mdi-security', link: '/u/clubs', color: 'amber' },
-  // ];
+  if (user.value && user.value.clubs && typeof user.value.clubs[0] == 'object') {
+    console.log('Clubs dey');
+    const clubRoutes = user.value.clubs.map((club: any) => {
+      return {
+        title: club.Name,
+        icon: `$${club.ClubCode}`,
+        link: `/u/clubs/${club._id}/${club.ClubCode}`,
+        color: 'pink darken-2',
+      };
+    });
 
-  private logout() {
-    this.$axios
-      .delete(`/users/${this.user.userID}/logout`)
-      .then(response => {
-        console.log('Response => ', response.data);
-        if (response.data.success) {
-          this.$socket.client.disconnect();
-          this.$store.dispatch('UNSET_USER');
-          this.$router.push('/auth');
-        }
-      })
-      .catch(response => {
-        console.log('Error logging out! ', response.data);
+    routes = [...routes, ...clubRoutes];
+  }
+
+  return routes;
+});
+
+const userMode = computed((): boolean => {
+  return route.path.split('/')[1] == 'u';
+});
+
+const MatchZone = computed((): boolean => {
+  return route.name == 'MatchZone';
+});
+
+const navItems = computed(() => {
+  if (!userMode.value) {
+    return adminNavItems.value;
+  }
+
+  return userNavItems.value;
+});
+
+const enter = (): void => {
+  if (!user.value) return;
+
+  const { userID, session: sessionID } = user.value;
+
+  console.log('user => ', user.value);
+
+  $axios
+    .post(
+      '/users/enter',
+      { user: { userID, sessionID } },
+      { withCredentials: true }
+    )
+    .then((response: any) => {
+      $store.dispatch('SET_USER', {
+        ...user.value,
+        session: response.data.sessionID,
       });
+    })
+    .catch((response: any) => {
+      console.log('Error entering in! ', response.data.error);
+    });
+};
+
+onBeforeRouteUpdate((to, from, next) => {
+  if (to.name == 'MatchZone') {
+    drawer.value = false;
+    appBar.value = false;
+  } else {
+    drawer.value = true;
+    appBar.value = true;
+  }
+  next();
+});
+
+onMounted(() => {
+  if (MatchZone.value) {
+    drawer.value = false;
   }
 
-  private goBackToPreviousState() {
-    this.$store.commit('TOGGLE_ERROR_OVERLAY');
-    this.$router.back();
+  $store.dispatch('GET_USER');
+  $store.dispatch('GET_COUNTRIES');
+
+  // Enter app :p wait for getting user first! XD
+  enter();
+
+  if ($socket) {
+    $socket.client.open();
   }
-
-  get user() {
-    return this.$store.getters.user;
-  }
-
-  get errorOverlay() {
-    return this.$store.getters.errorOverlay;
-  }
-
-  get toast() {
-    return this.$store.getters.toast;
-  }
-
-  get userNavItems(): any[] {
-    let routes = [
-      { title: 'Home', icon: 'mdi-soccer', link: '/u', color: 'primary' },
-    ];
-
-    if (typeof this.user.clubs[0] == 'object') {
-      console.log('Clubs dey');
-      const clubRoutes = this.user.clubs.map((club: any) => {
-        return {
-          title: club.Name,
-          icon: `$${club.ClubCode}`,
-          link: `/u/clubs/${club._id}/${club.ClubCode}`,
-          color: 'pink darken-2',
-        };
-      });
-
-      routes = [...routes, ...clubRoutes];
-    }
-
-    return routes;
-
-    // { title: 'Clubs', icon: 'mdi-security', link: '/u/clubs', color: 'amber' },
-  }
-
-  private mini = true;
-
-  get userMode(): boolean {
-    return this.$route.path.split('/')[1] == 'u';
-  }
-
-  get MatchZone(): boolean {
-    return this.$route.name == 'MatchZone';
-  }
-
-  get navItems() {
-    if (!this.userMode) {
-      return this.adminNavItems;
-    }
-
-    return this.userNavItems;
-  }
-
-  private enter() {
-    const { userID, session: sessionID } = this.user;
-
-    console.log('user => ', this.user);
-
-    this.$axios
-      .post(
-        '/users/enter',
-        { user: { userID, sessionID } },
-        { withCredentials: true }
-      )
-      .then(response => {
-        this.$store.dispatch('SET_USER', {
-          ...this.user,
-          session: response.data.sessionID,
-        });
-      })
-      .catch(response => {
-        console.log('Error entering in! ', response.data.error);
-      });
-  }
-
-  mounted() {
-    // console.log('Path => ', this.$route.path.split('/'));
-    // if userMode then fetch User's clubs and stuff...
-
-    if(this.MatchZone){
-      this.drawer = false;
-    }
-
-    this.$store.dispatch('GET_USER');
-
-    this.$store.dispatch('GET_COUNTRIES');
-
-    // Enter app :p wait for getting user first! XD
-    this.enter();
-
-    this.$socket.client.open();
-  }
-}
+});
 </script>
