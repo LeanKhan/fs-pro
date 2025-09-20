@@ -77,49 +77,53 @@
   </v-card>
 </template>
 
-<script lang="ts">
-import { Component, Vue, Prop } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
+import { useStore } from '@/store';
 import { Club } from '@/interfaces/club';
 
-@Component({})
-export default class AllClubsTable extends Vue {
-  @Prop({ required: true }) readonly clubs!: Club;
-
-  // TODO: searches should be navigable. change url
-  private search = '';
-
-  get apiUrl() {
-    return this.$store.getters.apiUrl;
-  }
-
-  private headers: any[] = [
-    {
-      text: 'Name',
-      align: 'start',
-      value: 'Name',
-    },
-    { text: 'Address', value: 'Address', filterable: true, sortable: true },
-    { text: 'Manager', value: 'Manager', filterable: true, sortable: false },
-    { text: 'Stadium', value: 'Stadium', filterable: true, sortable: false },
-    { text: 'League', value: 'LeagueCode', filterable: true, sortable: true },
-    { text: 'Players', value: 'Players', filterable: true, sortable: false },
-    { text: 'Actions', value: 'Actions', filterable: false, sortable: false },
-  ];
-
-  private updateClub(clubId: string, clubCode: string): void {
-    this.$router.push({
-      name: 'Update Club',
-      params: { id: clubId, code: clubCode },
-    });
-  }
-
-  private viewClub(clubId: string, clubCode: string): void {
-    this.$router.push({
-      name: 'View Club',
-      params: { id: clubId, code: clubCode },
-    });
-  }
+interface Props {
+  clubs: Club;
 }
+
+defineProps<Props>();
+
+const router = useRouter();
+const store = useStore();
+
+// TODO: searches should be navigable. change url
+const search = ref('');
+
+const apiUrl = computed(() => store.calendar?.YearString ? `${store.calendar.YearString}/api` : '/api');
+
+const headers = ref<any[]>([
+  {
+    text: 'Name',
+    align: 'start',
+    value: 'Name',
+  },
+  { text: 'Address', value: 'Address', filterable: true, sortable: true },
+  { text: 'Manager', value: 'Manager', filterable: true, sortable: false },
+  { text: 'Stadium', value: 'Stadium', filterable: true, sortable: false },
+  { text: 'League', value: 'LeagueCode', filterable: true, sortable: true },
+  { text: 'Players', value: 'Players', filterable: true, sortable: false },
+  { text: 'Actions', value: 'Actions', filterable: false, sortable: false },
+]);
+
+const updateClub = (clubId: string, clubCode: string): void => {
+  router.push({
+    name: 'Update Club',
+    params: { id: clubId, code: clubCode },
+  });
+};
+
+const viewClub = (clubId: string, clubCode: string): void => {
+  router.push({
+    name: 'View Club',
+    params: { id: clubId, code: clubCode },
+  });
+};
 </script>
 
 <style></style>
