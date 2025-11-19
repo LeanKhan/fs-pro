@@ -1,17 +1,11 @@
 <template>
   <div>
     <v-tabs fixed-tabs :model-value="tab" @update:model-value="tab = $event">
-      <v-tab>
-        Squad
-      </v-tab>
+      <v-tab>Squad</v-tab>
 
-      <v-tab>
-        Setup
-      </v-tab>
+      <v-tab>Setup</v-tab>
 
-      <v-tab>
-        Today
-      </v-tab>
+      <v-tab>Today</v-tab>
     </v-tabs>
     <v-tabs-items :model-value="tab" @update:model-value="tab = $event">
       <v-tab-item>
@@ -34,17 +28,17 @@
         </div>
       </v-tab-item>
       <v-tab-item>
-        <v-card-text>
-          Coming soon...
-        </v-card-text>
+        <v-card-text>Coming soon...</v-card-text>
       </v-tab-item>
 
       <v-tab-item>
         <v-card-text>
-           <day-fixtures-list :Matches="currentDay.Matches"
-           Detail="results"
-           :MandatorySelect="false"
-            @match-selected="matchSelected"></day-fixtures-list>
+          <day-fixtures-list
+            :Matches="currentDay.Matches"
+            Detail="results"
+            :MandatorySelect="false"
+            @match-selected="matchSelected"
+          ></day-fixtures-list>
         </v-card-text>
       </v-tab-item>
     </v-tabs-items>

@@ -67,7 +67,9 @@ const fetchAwards = () => {
   $axios
     .get(`/awards/season/${props.seasonId}?recipient=player&populate=club`)
     .then((response: any) => {
-      const managerIndex = response.data.payload.findIndex((a: any) => !a.Recipient);
+      const managerIndex = response.data.payload.findIndex(
+        (a: any) => !a.Recipient
+      );
       manager.value = response.data.payload.splice(managerIndex, 1);
       awards.value = response.data.payload;
     })
@@ -81,7 +83,7 @@ const fetchAwards = () => {
 
 // Expose fetchAwards function so parent components can call it
 defineExpose({
-  fetchAwards
+  fetchAwards,
 });
 
 //   onMounted(() => {

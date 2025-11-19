@@ -1,5 +1,5 @@
 <template>
-  <div class="align-center d-flex flex-column " :class="isHome">
+  <div class="align-center d-flex flex-column" :class="isHome">
     <v-card-subtitle>
       {{ clubName }} -
       <b>{{ clubCode }}</b>
@@ -37,11 +37,15 @@
         :color="isHome ? 'deep-purple darken-3' : 'pink accent-3'"
         background-color="secondary lighten-1"
       ></v-rating>
-      <span class="caption text-muted ml-1">{{ $filters.roundTo(clubRating, 1) }}</span>
+      <span class="caption text-muted ml-1">
+        {{ $filters.roundTo(clubRating, 1) }}
+      </span>
     </div>
 
     <div class="caption" v-if="clubStandings.standing">
-      <span class="ma-0 pr-2">{{ $filters.ordinal(clubStandings.position) }} </span>
+      <span class="ma-0 pr-2">
+        {{ $filters.ordinal(clubStandings.position) }}
+      </span>
       -
       <span class="ma-0 pl-2">{{ clubStandings.standing.Points }} Pts</span>
     </div>

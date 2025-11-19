@@ -23,9 +23,7 @@
           </v-icon>
         </v-btn>
         <v-btn text icon color="blue lighten-2">
-          <v-icon small @click="editSeason(item._id)">
-            mdi-pencil
-          </v-icon>
+          <v-icon small @click="editSeason(item._id)">mdi-pencil</v-icon>
         </v-btn>
       </template>
     </v-data-table>

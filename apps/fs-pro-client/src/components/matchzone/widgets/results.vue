@@ -12,9 +12,7 @@
             </v-avatar>
           </td>
 
-          <td>
-            -
-          </td>
+          <td>-</td>
 
           <td>
             <v-avatar tile size="30px">

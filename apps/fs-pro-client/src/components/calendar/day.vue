@@ -2,7 +2,6 @@
   <v-card
     class="mx-2 pa-1"
     :input-value="active"
-    active-class="indigo white--text"
     depressed
     rounded
     height="180px"
@@ -16,8 +15,12 @@
         <template v-if="!day.isFree">
           <template v-if="!singleLeague">
             <v-col cols="12">
-              <day-match v-if="leagueMatch" :match="leagueMatch" :home="true"></day-match>
-              <v-btn dark icon>
+              <day-match
+                v-if="leagueMatch"
+                :match="leagueMatch"
+                :home="true"
+              ></day-match>
+              <v-btn icon>
                 <v-icon>mdi-caret-down</v-icon>
               </v-btn>
             </v-col>
@@ -26,20 +29,18 @@
           <!-- If not in singleLeague -->
           <template v-else>
             <div v-if="isClub">
-              <v-icon large>
+              <v-icon size="large">
                 ${{ day.Matches[0] ? day.Matches[0].Fixture.Home : 'NA' }}
               </v-icon>
 
               <span>vs</span>
 
-              <v-icon large>
+              <v-icon size="large">
                 ${{ day.Matches[0] ? day.Matches[0].Fixture.Away : 'NA' }}
               </v-icon>
             </div>
 
-            <div v-else>
-              Not your match!
-            </div>
+            <div v-else>Not your match!</div>
           </template>
         </template>
 
@@ -52,28 +53,26 @@
 
     <v-divider></v-divider>
     <v-card-actions class="text-center">
-      <v-chip small :color="active ? 'indigo darken-2' : 'indigo'">
+      <v-chip size="small" :color="active ? 'indigo darken-2' : 'indigo'">
         Day {{ day.Day }}
       </v-chip>
       <v-spacer></v-spacer>
 
       <v-dialog v-model="dialog" scrollable max-width="400px">
         <template v-slot:activator="{ isActive, props }">
-          <v-btn dark icon v-bind="props" v-on="isActive">
+          <v-btn icon v-bind="props" v-on="isActive">
             <v-icon>mdi-dots-vertical</v-icon>
           </v-btn>
         </template>
         <v-card>
           <v-card-title>Other Matches Today</v-card-title>
           <v-divider></v-divider>
-          <v-card-text style="height: 300px;">
-            <v-list dense>
+          <v-card-text style="height: 300px">
+            <v-list density="compact">
               <v-list-item v-for="(m, i) in day.Matches" :key="i">
-                <v-list-item-content>
-                  <v-list-item-title>
-                    {{ m.Fixture.Title }}
-                  </v-list-item-title>
-                </v-list-item-content>
+                <v-list-item-title>
+                  {{ m.Fixture.Title }}
+                </v-list-item-title>
               </v-list-item>
             </v-list>
           </v-card-text>

@@ -2,9 +2,7 @@
   <v-card height="300px">
     <v-card-subtitle>
       {{ Match.Fixture.LeagueCode }}
-      <v-icon small color="amber lighten-3">
-        mdi-trophy
-      </v-icon>
+      <v-icon small color="amber lighten-3">mdi-trophy</v-icon>
     </v-card-subtitle>
     <p class="mb-0 mt-0 caption">
       Week

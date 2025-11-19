@@ -26,9 +26,7 @@
             {{ club.Manager.LastName }}
           </template>
 
-          <template>
-            No Manager
-          </template>
+          <template>No Manager</template>
         </v-list-item-subtitle>
       </v-list-item-content>
 

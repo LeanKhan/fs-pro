@@ -10,7 +10,12 @@
         label="Show Weekly Standings?"
       ></v-switch>
     </v-card-subtitle>
-    <v-window v-if="showWeekly" :model-value="onboarding" @update:model-value="onboarding = $event" reverse>
+    <v-window
+      v-if="showWeekly"
+      :model-value="onboarding"
+      @update:model-value="onboarding = $event"
+      reverse
+    >
       <v-window-item v-for="(standing, i) in standings" :key="`standing-${i}`">
         <standings :WeekStandings="standing" :compiled="showWeekly"></standings>
       </v-window-item>
@@ -26,7 +31,12 @@
       <v-btn text @click="prev">
         <v-icon>mdi-chevron-left</v-icon>
       </v-btn>
-      <v-item-group :model-value="onboarding" @update:model-value="onboarding = $event" class="text-center" mandatory>
+      <v-item-group
+        :model-value="onboarding"
+        @update:model-value="onboarding = $event"
+        class="text-center"
+        mandatory
+      >
         <v-item
           v-for="n in length"
           :key="`btn-${n}`"
@@ -85,7 +95,7 @@ const total = computed(() => {
 const compiledStandings = computed(() => {
   const sum: any[] = [];
 
-  Array.from(new Set(total.value.map((x: any) => x.ClubCode))).forEach(x => {
+  Array.from(new Set(total.value.map((x: any) => x.ClubCode))).forEach((x) => {
     sum.push(
       total.value
         .filter((y: any) => y.ClubCode === x)

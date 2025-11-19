@@ -1,8 +1,11 @@
 <template>
-  <v-slide-group show-arrows mandatory v-model="selectedDayIndex"
-   center-active
-   @click:next="nextDay"
-   >
+  <v-slide-group
+    show-arrows
+    mandatory
+    v-model="selectedDayIndex"
+    center-active
+    @click:next="nextDay"
+  >
     <v-slide-item
       v-for="(day, i) in days"
       :key="i"
@@ -21,7 +24,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { useStore } from '@/store';
+// import { useStore } from '@/store';
 import CalendarDay from './day.vue';
 
 interface Props {
@@ -35,15 +38,15 @@ const emit = defineEmits<{
   'selected-day-index-changed': [value: number];
 }>();
 
-const store = useStore();
+// const store = useStore();
 const selectedDayIndex = ref(0);
 
 const days = computed(() => props.days);
 const singleLeague = computed(() => props.singleLeague);
 
-const currentDay = computed(() => {
-  return store.calendar?.CurrentDay || {};
-});
+// const currentDay = computed(() => {
+//   return store.calendar?.CurrentDay || {};
+// });
 
 watch(selectedDayIndex, (val) => {
   console.log('Changed ', val);
@@ -54,5 +57,3 @@ const nextDay = () => {
   console.log('Next clicked');
 };
 </script>
-
-<style></style>

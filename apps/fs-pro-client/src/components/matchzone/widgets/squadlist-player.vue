@@ -1,6 +1,6 @@
 <template>
   <v-list-item
-    style="min-height: 30px !important;height: 40px !important"
+    style="min-height: 30px !important; height: 40px !important"
     dense
     two-line
   >
@@ -18,7 +18,7 @@
       <v-list-item-subtitle>
         {{ player.FirstName }}
         {{ player.LastName }}
-        
+
         <b class="font-weight-bold pink--text">
           [{{ Math.round(player.Rating) }}]
         </b>
@@ -32,9 +32,7 @@
           </template>
 
           <template v-if="player.stats.Saves > 0">
-            <v-icon class="ml-1" small color="purple accent--3">
-              mdi-pan
-            </v-icon>
+            <v-icon class="ml-1" small color="purple accent--3">mdi-pan</v-icon>
             x {{ player.stats.Saves }}
           </template>
 

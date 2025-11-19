@@ -1,7 +1,11 @@
 <template>
-  <v-dialog :model-value="show" @update:model-value="$emit('update:show', $event)" width="700">
+  <v-dialog
+    :model-value="show"
+    @update:model-value="$emit('update:show', $event)"
+    width="700"
+  >
     <v-card class="pa-0">
-      <v-card-title class="headline grey lighten-2" primary-title>
+      <v-card-title class="text-h5 bg-grey-lighten-2" primary-title>
         Relieve Manager
       </v-card-title>
       <v-card-text>
@@ -12,7 +16,7 @@
               <v-card-title>
                 {{ manager.FirstName }} {{ manager.LastName }}
               </v-card-title>
-              <v-list flat dense>
+              <v-list density="compact">
                 <v-list-item>
                   <strong>
                     <v-icon>mdi-globe</v-icon>

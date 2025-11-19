@@ -40,30 +40,24 @@
         {{ item.Nationality.Name }}
       </template>
 
-       <!-- Manager's Club Name -->
+      <!-- Manager's Club Name -->
       <template v-slot:item.Club="{ item }">
-      <span :title="item.Club.Name">
-        {{ item.Club.ClubCode }}
-      </span>
+        <span :title="item.Club.Name">
+          {{ item.Club.ClubCode }}
+        </span>
       </template>
 
       <!-- Players actions -->
       <template v-slot:item.Actions="{ item }">
         <v-btn @click="viewManager(item._id)" icon color="success lighten-2">
-          <v-icon small>
-            mdi-eye-outline
-          </v-icon>
+          <v-icon small>mdi-eye-outline</v-icon>
         </v-btn>
         <v-btn icon color="blue lighten-2" @click="updateManager(item._id)">
-          <v-icon small>
-            mdi-pencil-outline
-          </v-icon>
+          <v-icon small>mdi-pencil-outline</v-icon>
         </v-btn>
         <!-- remove player -->
         <v-btn @click="deleteManager(item._id)" icon color="red lighten-2">
-          <v-icon small>
-            mdi-delete-outline
-          </v-icon>
+          <v-icon small>mdi-delete-outline</v-icon>
         </v-btn>
       </template>
     </v-data-table>

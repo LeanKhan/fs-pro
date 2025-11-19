@@ -27,9 +27,7 @@
       <v-spacer></v-spacer>
 
       <v-btn @click="addClub" text icon color="primary lighten-2" class="mr-3">
-        <v-icon small>
-          mdi-plus
-        </v-icon>
+        <v-icon small>mdi-plus</v-icon>
         Add
       </v-btn>
     </v-card-actions>
@@ -47,7 +45,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  actions: false
+  actions: false,
 });
 
 const emit = defineEmits<{

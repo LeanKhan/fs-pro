@@ -8,7 +8,7 @@
         v-model="search"
         append-icon="mdi-magnify"
         label="Search"
-        color="amber darken-1"
+        color="amber-darken-1"
         single-line
         hide-details
         clearable
@@ -27,15 +27,15 @@
     >
       <template v-slot:item.Name="{ item }">
         <v-list-item>
-          <v-list-item-avatar>
+          <v-list-item avatar>
             <v-img
               :src="`${apiUrl}/img/clubs/logos/${item.ClubCode}.png`"
               width="40px"
             ></v-img>
-          </v-list-item-avatar>
-          <v-list-item-content>
+          </v-list-item>
+          <template>
             <v-list-item-title v-text="item.Name"></v-list-item-title>
-          </v-list-item-content>
+          </template>
         </v-list-item>
       </template>
 
@@ -44,9 +44,7 @@
           {{ item.Manager.FirstName.charAt(0) }} {{ item.Manager.LastName }}
         </template>
 
-        <template v-else>
-          No Manager :/
-        </template>
+        <template v-else>No Manager :/</template>
       </template>
 
       <template v-slot:item.Address="{ item }">
@@ -62,13 +60,13 @@
       </template>
 
       <template v-slot:item.Actions="{ item }">
-        <v-btn text icon title="View Club" color="success lighten-2">
-          <v-icon small @click="viewClub(item._id, item.ClubCode)">
+        <v-btn variant="text" icon title="View Club" color="success-lighten-2">
+          <v-icon size="small" @click="viewClub(item._id, item.ClubCode)">
             mdi-eye
           </v-icon>
         </v-btn>
-        <v-btn text icon title="Update Club" color="blue lighten-2">
-          <v-icon small @click="updateClub(item._id, item.ClubCode)">
+        <v-btn variant="text" icon title="Update Club" color="blue-lighten-2">
+          <v-icon size="small" @click="updateClub(item._id, item.ClubCode)">
             mdi-pencil
           </v-icon>
         </v-btn>
@@ -95,7 +93,9 @@ const store = useStore();
 // TODO: searches should be navigable. change url
 const search = ref('');
 
-const apiUrl = computed(() => store.calendar?.YearString ? `${store.calendar.YearString}/api` : '/api');
+const apiUrl = computed(() =>
+  store.calendar?.YearString ? `${store.calendar.YearString}/api` : '/api'
+);
 
 const headers = ref<any[]>([
   {
