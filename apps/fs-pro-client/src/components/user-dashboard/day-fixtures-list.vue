@@ -1,41 +1,36 @@
 <template>
-  <v-list>
-    <v-list-item-group
-      :model-value="selectedMatch"
-      @update:model-value="onSelectedMatchChange"
-      :mandatory="MandatorySelect"
-      two-line
+  <v-list lines="two">
+    <v-list-item
+      v-for="(match, i) in Matches"
+      :key="i"
+      :value="i"
+      :active="selectedMatch === i"
+      @click="onSelectedMatchChange(i)"
       color="primary"
     >
-      <v-list-item
-        v-for="(match, i) in Matches"
-        :key="i"
-        :title="match.Fixture.Title + ' -> ' + match.Competition"
-      >
-        <v-list-item-icon>
+      <template v-slot:prepend>
+        <div class="d-flex align-center">
           <v-icon>${{ match.Fixture.Home }}</v-icon>
-          vs
+          <span class="mx-1">vs</span>
           <v-icon>${{ match.Fixture.Away }}</v-icon>
-        </v-list-item-icon>
+        </div>
+      </template>
 
-        <v-list-item-content>
-          <div v-if="Detail == 'details'">
-            <v-list-item-title>
-              {{ match.Fixture.Title }}
-            </v-list-item-title>
+      <div v-if="Detail == 'details'">
+        <v-list-item-title>
+          {{ match.Fixture.Title }}
+        </v-list-item-title>
 
-            <v-list-item-subtitle
-              v-text="match.Fixture.Competition"
-            ></v-list-item-subtitle>
-          </div>
+        <v-list-item-subtitle>
+          {{ match.Competition }}
+        </v-list-item-subtitle>
+      </div>
 
-          <div v-if="Detail == 'results' && match.Fixture.Details">
-            {{ match.Fixture.Details.HomeTeamScore }} :
-            {{ match.Fixture.Details.AwayTeamScore }}
-          </div>
-        </v-list-item-content>
-      </v-list-item>
-    </v-list-item-group>
+      <div v-if="Detail == 'results' && match.Fixture.Details">
+        {{ match.Fixture.Details.HomeTeamScore }} :
+        {{ match.Fixture.Details.AwayTeamScore }}
+      </div>
+    </v-list-item>
   </v-list>
 </template>
 
