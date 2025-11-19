@@ -18,11 +18,18 @@
             </v-col>
 
             <v-col cols="6">
-              <v-text-field label="Code" v-model="form.CompetitionCode"></v-text-field>
+              <v-text-field
+                label="Code"
+                v-model="form.CompetitionCode"
+              ></v-text-field>
             </v-col>
 
             <v-col cols="6">
-              <v-radio-group label="Type" v-model="form.Type" @change="typeChanged">
+              <v-radio-group
+                label="Type"
+                v-model="form.Type"
+                @change="typeChanged"
+              >
                 <v-radio
                   v-for="(type, i) in types"
                   :key="i"
@@ -237,10 +244,10 @@ function closeModal(event: any) {
         clubId: event.id,
         leagueCode: compCode,
       })
-      .then(response => {
+      .then((response) => {
         console.log('Successfully added club to competition:', response);
       })
-      .catch(error => {
+      .catch((error) => {
         console.error('Error adding club:', error);
       });
   }
@@ -266,7 +273,9 @@ onMounted(async () => {
   if (props.isUpdate) {
     const competitionID = route.params.id;
     try {
-      const response = await $axios.get(`/competitions/${competitionID}?populate=false`);
+      const response = await $axios.get(
+        `/competitions/${competitionID}?populate=false`
+      );
       competition.value = response.data.payload as Competition;
       form.value = response.data.payload as any;
     } catch (error) {

@@ -9,9 +9,7 @@
         <v-spacer></v-spacer>
 
         <v-btn depressed small icon @click="close">
-          <v-icon>
-            mdi-close
-          </v-icon>
+          <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-toolbar>
 
@@ -113,7 +111,9 @@ onMounted(async () => {
   loading.value = true;
 
   try {
-    const response = await $axios.get(`/seasons/${route.params.season_id}?populate=false`);
+    const response = await $axios.get(
+      `/seasons/${route.params.season_id}?populate=false`
+    );
     season.value = response.data.payload;
   } catch (error) {
     console.error('Error fetching Season:', error);

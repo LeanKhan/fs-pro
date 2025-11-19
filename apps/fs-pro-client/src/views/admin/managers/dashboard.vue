@@ -6,7 +6,9 @@
           <v-toolbar flat color="indigo darken-1">
             <v-toolbar-title class="ml-1">Dashboard</v-toolbar-title>
             <v-spacer></v-spacer>
-            <v-btn append-icon="mdi-plus" color="success" to="/a/managers/new">New</v-btn>
+            <v-btn append-icon="mdi-plus" color="success" to="/a/managers/new">
+              New
+            </v-btn>
           </v-toolbar>
         </v-card>
       </v-col>

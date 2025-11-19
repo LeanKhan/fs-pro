@@ -59,7 +59,7 @@ const form = ref({
 });
 
 async function deleteSeason() {
-  console.log('Delete Season function not implmeneted??')
+  console.log('Delete Season function not implmeneted??');
 }
 
 async function submit() {
@@ -71,14 +71,14 @@ async function submit() {
     : '/seasons?model=season';
 
   try {
-    const response = await $axios.post(url, { 
-      data: { 
-        ...form.value, 
-        CompetitionCode, 
-        Competition 
-      } 
+    const response = await $axios.post(url, {
+      data: {
+        ...form.value,
+        CompetitionCode,
+        Competition,
+      },
     });
-    
+
     console.log('Response => ', response.data.payload);
     router.push({
       name: 'View Competition',

@@ -18,7 +18,7 @@
     <v-form @submit.prevent="submit">
       <v-row>
         <v-col cols="3">
-          <v-card height="300" width="245" style="position: fixed;">
+          <v-card height="300" width="245" style="position: fixed">
             <v-card-title>Player</v-card-title>
             <v-card-text class="d-flex justify-center pb-0 accent">
               <player-avatar :appearance="form.Appearance"></player-avatar>
@@ -250,14 +250,28 @@ const form = ref<any>({
 });
 
 const attributes = [
-  'Keeping', 'Speed', 'Shooting', 'LongPass', 'ShortPass',
-  'SetPiece', 'Dribbling', 'Mental', 'Control', 'Vision',
-  'Tackling', 'Strength', 'Stamina'
+  'Keeping',
+  'Speed',
+  'Shooting',
+  'LongPass',
+  'ShortPass',
+  'SetPiece',
+  'Dribbling',
+  'Mental',
+  'Control',
+  'Vision',
+  'Tackling',
+  'Strength',
+  'Stamina',
 ];
 
 const countries = computed(() => store.countries);
-const availableRoles = computed(() => form.value.Position ? roles[form.value.Position] : []);
-const rating = computed(() => calculatePlayerRating(form.value.Attributes, form.value.Position));
+const availableRoles = computed(() =>
+  form.value.Position ? roles[form.value.Position] : []
+);
+const rating = computed(() =>
+  calculatePlayerRating(form.value.Attributes, form.value.Position)
+);
 
 function attrColor(value: number): string {
   if (value <= 50) return 'red';
@@ -276,8 +290,8 @@ async function submit() {
     : '/players/new?model=player';
 
   try {
-    const response = await $axios.post(url, { 
-      data: { ...form.value, Rating: rating.value } 
+    const response = await $axios.post(url, {
+      data: { ...form.value, Rating: rating.value },
     });
     router.push({ name: 'Players Home' });
   } catch (error) {

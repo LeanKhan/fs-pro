@@ -36,8 +36,10 @@
                   }}
                   |
                   {{
-                    currency(player.RatingsHistory[player.RatingsHistory.length - 1]
-                      .old_value)
+                    currency(
+                      player.RatingsHistory[player.RatingsHistory.length - 1]
+                        .old_value
+                    )
                   }}
                   VLA
                 </td>

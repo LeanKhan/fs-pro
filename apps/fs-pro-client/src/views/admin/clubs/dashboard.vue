@@ -4,9 +4,7 @@
       <v-col cols="12">
         <v-card>
           <v-toolbar flat color="amber darken-1">
-            <v-toolbar-title class="ml-1">
-              Dashboard
-            </v-toolbar-title>
+            <v-toolbar-title class="ml-1">Dashboard</v-toolbar-title>
 
             <v-spacer></v-spacer>
 

@@ -13,7 +13,12 @@
             <v-toolbar-title class="ml-1">Club</v-toolbar-title>
             <v-spacer></v-spacer>
 
-            <v-btn :disabled="!shouldReload" @click="fetchClub" icon color="white">
+            <v-btn
+              :disabled="!shouldReload"
+              @click="fetchClub"
+              icon
+              color="white"
+            >
               <v-icon>mdi-reload</v-icon>
             </v-btn>
           </v-toolbar>
@@ -26,7 +31,10 @@
         <v-card class="justify-space-between">
           <v-row>
             <v-col cols="2" class="p-3">
-              <v-img :src="`${apiUrl}/img/clubs/logos/${club.ClubCode}.png`" width="200"></v-img>
+              <v-img
+                :src="`${apiUrl}/img/clubs/logos/${club.ClubCode}.png`"
+                width="200"
+              ></v-img>
             </v-col>
 
             <v-col cols="6">
@@ -101,7 +109,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { useStore, apiUrl} from '@/store';
+import { useStore, apiUrl } from '@/store';
 import { $axios } from '@/main';
 import PlayersTable from '@/components/players/players-table.vue';
 import AllPlayersTable from '@/components/players/allplayers-table.vue';
@@ -149,7 +157,7 @@ async function signPlayer(playerIds: string[]) {
 
   try {
     await $axios.put(`/clubs/${clubId}/add-many-players`, {
-      data: { playerIds, clubCode, isSigned, clubId }
+      data: { playerIds, clubCode, isSigned, clubId },
     });
 
     store.showToast({
@@ -174,7 +182,7 @@ async function removePlayer(playerId: string) {
 
   try {
     await $axios.put(`/clubs/${clubId}/remove-player?remove=true`, {
-      data: { playerId, clubCode, isSigned }
+      data: { playerId, clubCode, isSigned },
     });
 
     store.showToast({

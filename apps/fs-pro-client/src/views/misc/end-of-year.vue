@@ -53,7 +53,7 @@ function endYear() {
   loading.value = true;
   $axios
     .post(`/calendar/${route.params.calendar_id}/end`)
-    .then(response => {
+    .then((response) => {
       if (response.data.success) {
         console.log(response.data);
         calendar.value = response.data.payload;
@@ -62,7 +62,7 @@ function endYear() {
         store.setCalendar();
       }
     })
-    .catch(error => {
+    .catch((error) => {
       console.log('Error ending Calendar => ', error);
       calendar.value = error;
     })
@@ -75,10 +75,10 @@ onMounted(() => {
   loading.value = true;
   $axios
     .get('/calendar/current')
-    .then(response => {
+    .then((response) => {
       calendar.value = response.data.payload;
     })
-    .catch(err => {
+    .catch((err) => {
       console.log('Error fetching current Calendar => ', err);
     })
     .finally(() => {
