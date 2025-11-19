@@ -21,12 +21,11 @@ import AppView from '@/views/app-view.vue';
 // import Register from '@/views/auth/register.vue';
 import Credits from '@/views/credits.vue';
 
-
 export function replaceParams(
   path: string,
   replacements: { search: string; replace: string }[]
 ): string {
-  replacements.forEach(r => {
+  replacements.forEach((r) => {
     path.replace(r.search, r.replace);
   });
 

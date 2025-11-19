@@ -13,7 +13,7 @@ export const useMainStore = defineStore('main', () => {
   const toast = ref({
     show: false,
     message: '',
-    style: 'success'
+    style: 'success',
   });
 
   const isAuthenticated = computed(() => !!user.value);
@@ -52,7 +52,7 @@ export const useMainStore = defineStore('main', () => {
     toast.value = {
       show: true,
       message,
-      style
+      style,
     };
   }
 
@@ -73,6 +73,6 @@ export const useMainStore = defineStore('main', () => {
     setCalendar,
     getCountries,
     showToast,
-    toggleErrorOverlay
+    toggleErrorOverlay,
   };
 });
