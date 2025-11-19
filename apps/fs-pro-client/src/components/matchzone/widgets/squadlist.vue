@@ -1,5 +1,5 @@
 <template>
-  <v-list dense two-line>
+  <v-list density="compact" lines="two">
     <squad-player
       v-for="(player, i) in squad"
       :key="i"

@@ -1,41 +1,42 @@
 <template>
   <div>
-    <v-list-item dense>
-      <v-list-item-avatar tile size="30px">
+    <v-list-item density="compact">
+      <template v-slot:prepend>
         <v-badge
           bordered
-          bottom
-          :color="isHome ? 'green accent-3' : 'pink darken-3'"
+          location="bottom"
+          :color="isHome ? 'green-accent-3' : 'pink-darken-3'"
           dot
           offset-x="10"
           offset-y="10"
         >
-          <v-icon style="font-size: 30px; height: 30px" large>
-            ${{ club.ClubCode }}
-          </v-icon>
+          <v-avatar tile size="30">
+            <v-icon style="font-size: 30px; height: 30px" size="large">
+              ${{ club.ClubCode }}
+            </v-icon>
+          </v-avatar>
         </v-badge>
-      </v-list-item-avatar>
+      </template>
 
-      <v-list-item-content>
-        <v-list-item-title>
-          {{ club.Name }}
-        </v-list-item-title>
-        <v-list-item-subtitle>
-          <template v-if="club.Manager && club.Manager.FirstName">
-            {{ club.Manager.FirstName.charAt(0) }}
-            {{ club.Manager.LastName }}
-          </template>
+      <v-list-item-title>
+        {{ club.Name }}
+      </v-list-item-title>
+      <v-list-item-subtitle>
+        <template v-if="club.Manager && club.Manager.FirstName">
+          {{ club.Manager.FirstName.charAt(0) }}
+          {{ club.Manager.LastName }}
+        </template>
 
-          <template>No Manager</template>
-        </v-list-item-subtitle>
-      </v-list-item-content>
+        <template v-else>No Manager</template>
+      </v-list-item-subtitle>
 
-      <v-spacer></v-spacer>
-      <v-btn icon @click="showClubSquad = !showClubSquad">
-        <v-icon>
-          {{ showClubSquad ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
-        </v-icon>
-      </v-btn>
+      <template v-slot:append>
+        <v-btn icon @click="showClubSquad = !showClubSquad">
+          <v-icon>
+            {{ showClubSquad ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
+          </v-icon>
+        </v-btn>
+      </template>
     </v-list-item>
     <v-expand-transition>
       <div v-show="showClubSquad">

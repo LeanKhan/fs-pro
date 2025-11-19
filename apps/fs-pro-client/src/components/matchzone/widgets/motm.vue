@@ -10,27 +10,26 @@
     </v-btn>
 
     <template v-else-if="loadMOTM && Player">
-      <v-list dense flat tile>
+      <v-list density="compact">
         <!-- <v-list-item class="text-center center-text justify-center">
-          <v-list-item-content>
-            <v-avatar color="yellow">
-              <v-icon color="white" large>
-                mdi-star
-              </v-icon>
-            </v-avatar>
-          </v-list-item-content>
+          <v-avatar color="yellow">
+            <v-icon color="white" size="large">
+              mdi-star
+            </v-icon>
+          </v-avatar>
         </v-list-item> -->
 
         <v-list-item>
-          <v-list-item-avatar tile size="50px" color="transparent" class="h3">
-            <span class="green--text font-weight-bold">10</span>
-          </v-list-item-avatar>
-          <v-list-item-content class="pa-0">
-            <v-list-item-title>
-              {{ Player.FirstName }}
-              {{ Player.LastName }}
-            </v-list-item-title>
-          </v-list-item-content>
+          <template v-slot:prepend>
+            <v-avatar tile size="50" color="transparent" class="h3">
+              <span class="text-green font-weight-bold">10</span>
+            </v-avatar>
+          </template>
+
+          <v-list-item-title>
+            {{ Player.FirstName }}
+            {{ Player.LastName }}
+          </v-list-item-title>
         </v-list-item>
       </v-list>
     </template>

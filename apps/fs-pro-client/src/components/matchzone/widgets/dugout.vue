@@ -7,8 +7,8 @@
 
       <v-tab>Today</v-tab>
     </v-tabs>
-    <v-tabs-items :model-value="tab" @update:model-value="tab = $event">
-      <v-tab-item>
+    <v-window :model-value="tab" @update:model-value="tab = $event">
+      <v-window-item>
         <div class="px-0 py-2">
           <dugout-club
             :matchFinished="matchFinished"
@@ -26,12 +26,12 @@
             :isHome="false"
           ></dugout-club>
         </div>
-      </v-tab-item>
-      <v-tab-item>
+      </v-window-item>
+      <v-window-item>
         <v-card-text>Coming soon...</v-card-text>
-      </v-tab-item>
+      </v-window-item>
 
-      <v-tab-item>
+      <v-window-item>
         <v-card-text>
           <day-fixtures-list
             :Matches="currentDay.Matches"
@@ -40,8 +40,8 @@
             @match-selected="matchSelected"
           ></day-fixtures-list>
         </v-card-text>
-      </v-tab-item>
-    </v-tabs-items>
+      </v-window-item>
+    </v-window>
   </div>
 </template>
 
