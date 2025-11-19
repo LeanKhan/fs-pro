@@ -6,7 +6,7 @@
       <v-text-field
         v-model="search"
         append-icon="mdi-magnify"
-        color="indigo darken-1"
+        color="indigo-darken-1"
         label="Search"
         single-line
         hide-details
@@ -49,15 +49,15 @@
 
       <!-- Players actions -->
       <template v-slot:item.Actions="{ item }">
-        <v-btn @click="viewManager(item._id)" icon color="success lighten-2">
-          <v-icon small>mdi-eye-outline</v-icon>
+        <v-btn @click="viewManager(item._id)" icon color="success-lighten-2">
+          <v-icon size="small">mdi-eye-outline</v-icon>
         </v-btn>
-        <v-btn icon color="blue lighten-2" @click="updateManager(item._id)">
-          <v-icon small>mdi-pencil-outline</v-icon>
+        <v-btn icon color="blue-lighten-2" @click="updateManager(item._id)">
+          <v-icon size="small">mdi-pencil-outline</v-icon>
         </v-btn>
         <!-- remove player -->
-        <v-btn @click="deleteManager(item._id)" icon color="red lighten-2">
-          <v-icon small>mdi-delete-outline</v-icon>
+        <v-btn @click="deleteManager(item._id)" icon color="red-lighten-2">
+          <v-icon size="small">mdi-delete-outline</v-icon>
         </v-btn>
       </template>
     </v-data-table>

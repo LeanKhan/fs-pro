@@ -17,7 +17,7 @@
       <v-sheet
         v-if="!uploadedImage"
         :class="cardSheet.class"
-        color="secondary lighten-3"
+        color="secondary-lighten-3"
         :style="cardSheet.style"
         :height="cardSheet.height"
         :width="cardSheet.width"
@@ -35,7 +35,7 @@
       <v-img
         v-else
         :src="uploadedImage"
-        :contain="previewImage.contain"
+        :cover="previewImage.contain"
         :height="previewImage.height"
         :width="previewImage.width"
         :style="previewImage.style"
@@ -44,7 +44,7 @@
     </v-card>
     <v-card-actions>
       <v-btn
-        text
+        variant="text"
         color="pink"
         :loading="uploading"
         :disabled="!image"

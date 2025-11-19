@@ -2,9 +2,9 @@
   <v-card height="300px">
     <v-card-subtitle>
       {{ Match.Fixture.LeagueCode }}
-      <v-icon small color="amber lighten-3">mdi-trophy</v-icon>
+      <v-icon size="small" color="amber-lighten-3">mdi-trophy</v-icon>
     </v-card-subtitle>
-    <p class="mb-0 mt-0 caption">
+    <p class="mb-0 mt-0 text-caption">
       Week
       {{ Match.Week }}
     </p>
@@ -19,11 +19,11 @@
       </v-avatar>
 
       <div class="pa-0 text-center">
-        <p class="mb-2 caption white--text">
+        <p class="mb-2 text-caption text-white">
           {{ Match.Fixture.Title }}
         </p>
 
-        <p class="mb-0 caption">
+        <p class="mb-0 text-caption">
           {{ Match.Fixture.Stadium }}
         </p>
       </div>
@@ -31,7 +31,7 @@
 
     <v-card-actions>
       <v-btn
-        depressed
+        variant="flat"
         color="success"
         block
         :disabled="Match.Fixture.Played"
