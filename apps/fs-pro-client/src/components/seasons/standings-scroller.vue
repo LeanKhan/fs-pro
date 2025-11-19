@@ -5,7 +5,7 @@
       <v-switch
         :model-value="showWeekly"
         @update:model-value="showWeekly = $event"
-        dense
+        density="compact"
         hide-details
         label="Show Weekly Standings?"
       ></v-switch>
@@ -28,7 +28,7 @@
     ></standings>
 
     <v-card-actions v-if="showWeekly" class="justify-space-between">
-      <v-btn text @click="prev">
+      <v-btn variant="text" @click="prev">
         <v-icon>mdi-chevron-left</v-icon>
       </v-btn>
       <v-item-group
@@ -40,17 +40,17 @@
         <v-item
           v-for="n in length"
           :key="`btn-${n}`"
-          v-slot:default="{ active, toggle }"
+          v-slot="{ isSelected, toggle }"
         >
           <!-- <v-avatar>
             {{ onboarding }}
         </v-avatar> -->
-          <v-btn :input-value="active" icon @click="toggle">
+          <v-btn :active="isSelected" icon @click="toggle">
             {{ n }}
           </v-btn>
         </v-item>
       </v-item-group>
-      <v-btn text @click="next">
+      <v-btn variant="text" @click="next">
         <v-icon>mdi-chevron-right</v-icon>
       </v-btn>
     </v-card-actions>
@@ -59,7 +59,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import Standings from '@/components/seasons/standings.vue';
+import Standings from '@/components/seasons/standings-component.vue';
 import { WeekStandings } from '@/interfaces/season';
 
 interface Props {

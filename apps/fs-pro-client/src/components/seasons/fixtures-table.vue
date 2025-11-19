@@ -1,24 +1,22 @@
 <template>
-  <v-simple-table>
-    <template v-slot:default>
-      <thead>
-        <tr>
-          <th class="text-left">Title</th>
-          <th class="text-left">Result</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="fx in fixtures" :key="fx._id" @click="goToMatch(fx._id)">
-          <td>
-            <v-icon large>${{ fx.Home }}</v-icon>
-            {{ fx.Title }}
-            <v-icon large>${{ fx.Away }}</v-icon>
-          </td>
-          <td>{{ fx.Played ? fx.Details.FullTimeScore : '- : -' }}</td>
-        </tr>
-      </tbody>
-    </template>
-  </v-simple-table>
+  <v-table>
+    <thead>
+      <tr>
+        <th class="text-left">Title</th>
+        <th class="text-left">Result</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr v-for="fx in fixtures" :key="fx._id" @click="goToMatch(fx._id)">
+        <td>
+          <v-icon size="large">${{ fx.Home }}</v-icon>
+          {{ fx.Title }}
+          <v-icon size="large">${{ fx.Away }}</v-icon>
+        </td>
+        <td>{{ fx.Played ? fx.Details.FullTimeScore : '- : -' }}</td>
+      </tr>
+    </tbody>
+  </v-table>
 </template>
 
 <script setup lang="ts">

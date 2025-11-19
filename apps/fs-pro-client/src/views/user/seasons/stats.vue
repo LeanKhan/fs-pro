@@ -64,7 +64,7 @@
 import { ref, computed, onMounted, getCurrentInstance } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { $axios } from '@/main';
-import Standings from '@/components/seasons/standings.vue';
+import Standings from '@/components/seasons/standings-component.vue';
 const instance = getCurrentInstance();
 
 const route = useRoute();

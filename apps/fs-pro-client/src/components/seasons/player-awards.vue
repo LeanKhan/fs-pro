@@ -1,5 +1,5 @@
 <template>
-  <v-card elevation="2" class="pa-2 my-4" color="green accent-3">
+  <v-card elevation="2" class="pa-2 my-4" color="green-accent-3">
     <v-toolbar>
       Awards
       <v-icon>mdi-trophy</v-icon>
