@@ -6,7 +6,7 @@
       <v-text-field
         v-model="search"
         append-icon="mdi-magnify"
-        color="indigo darken-1"
+        color="indigo-darken-1"
         label="Search"
         single-line
         hide-details
@@ -44,7 +44,7 @@
         ></v-img>
       </template>
       <template v-slot:item.Rating="{ item }">
-        <v-chip :color="getColor(item.Rating)" dark>
+        <v-chip :color="getColor(item.Rating)">
           {{ Math.round(item.Rating) }}
         </v-chip>
       </template>
@@ -67,25 +67,25 @@
         <v-btn
           @click="viewPlayer(item._id, item.PlayerID)"
           icon
-          color="success lighten-2"
+          color="success-lighten-2"
         >
-          <v-icon small>mdi-eye-outline</v-icon>
+          <v-icon size="small">mdi-eye-outline</v-icon>
         </v-btn>
         <v-btn
           icon
-          color="blue lighten-2"
+          color="blue-lighten-2"
           @click="updatePlayer(item._id, item.PlayerID)"
         >
-          <v-icon small>mdi-pencil-outline</v-icon>
+          <v-icon size="small">mdi-pencil-outline</v-icon>
         </v-btn>
         <!-- remove player -->
         <v-btn
           v-if="viewClub"
           @click="removePlayer(item._id)"
           icon
-          color="red lighten-2"
+          color="red-lighten-2"
         >
-          <v-icon small>mdi-delete-outline</v-icon>
+          <v-icon size="small">mdi-delete-outline</v-icon>
         </v-btn>
       </template>
     </v-data-table>
@@ -119,30 +119,30 @@ const isSigned = ref<boolean | null>(null);
 
 const headers = ref<any[]>([
   {
-    text: 'First Name',
-    value: 'FirstName',
+    title: 'First Name',
+    key: 'FirstName',
   },
   {
-    text: 'Last Name',
-    value: 'LastName',
+    title: 'Last Name',
+    key: 'LastName',
   },
-  { text: 'Club', value: 'ClubCode' },
-  { text: 'Age', value: 'Age', filterable: false },
-  { text: 'Position', value: 'Position', filterable: false },
-  { text: 'Role', value: 'Role', filterable: true },
-  { text: 'Country', value: 'Nationality', filterable: false },
-  { text: 'Value', value: 'Value', filterable: false },
+  { title: 'Club', key: 'ClubCode' },
+  { title: 'Age', key: 'Age', filterable: false },
+  { title: 'Position', key: 'Position', filterable: false },
+  { title: 'Role', key: 'Role', filterable: true },
+  { title: 'Country', key: 'Nationality', filterable: false },
+  { title: 'Value', key: 'Value', filterable: false },
   {
-    text: 'Signed',
-    value: 'isSigned',
+    title: 'Signed',
+    key: 'isSigned',
     sortable: false,
     filter: (value: boolean) => {
       if (!isSigned.value) return true;
       return value == isSigned.value;
     },
   },
-  { text: 'Rating', value: 'Rating', filterable: false },
-  { text: 'Actions', value: 'Actions', filterable: false, sortable: false },
+  { title: 'Rating', key: 'Rating', filterable: false },
+  { title: 'Actions', key: 'Actions', filterable: false, sortable: false },
 ]);
 
 const getColor = (rating: number): string => {

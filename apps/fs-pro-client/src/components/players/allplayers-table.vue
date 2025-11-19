@@ -36,12 +36,11 @@
       </template>
 
       <template v-slot:item.Id="{ item }">
-        <v-list-item-avatar v-if="item.ClubCode">
+        <v-avatar v-if="item.ClubCode" size="40">
           <v-img
             :src="`${api}/img/clubs/kit/${item.ClubCode}-kit.png`"
-            height="40px"
           ></v-img>
-        </v-list-item-avatar>
+        </v-avatar>
       </template>
 
       <!-- Player's Country -->
@@ -50,7 +49,7 @@
       </template> -->
 
       <template v-slot:item.Rating="{ item }">
-        <v-chip :color="getColor(item.Rating)" dark>
+        <v-chip :color="getColor(item.Rating)">
           {{ Math.round(item.Rating) }}
         </v-chip>
       </template>
@@ -88,25 +87,25 @@ const isSigned = ref<boolean | null>(null);
 
 const headers = ref<any[]>([
   {
-    text: 'Id',
+    title: 'Id',
     align: 'start',
-    value: 'Id',
+    key: 'Id',
   },
   {
-    text: 'First Name',
-    value: 'FirstName',
+    title: 'First Name',
+    key: 'FirstName',
   },
   {
-    text: 'Last Name',
-    value: 'LastName',
+    title: 'Last Name',
+    key: 'LastName',
   },
-  { text: 'Club', value: 'ClubCode', filterable: true },
-  { text: 'Age', value: 'Age', filterable: true },
-  { text: 'Position', value: 'Position', filterable: true },
-  { text: 'Role', value: 'Role', filterable: true },
-  { text: 'Country', value: 'Nationality.Name', filterable: true },
-  { text: 'Value', value: 'Value', filterable: false },
-  { text: 'Rating', value: 'Rating', filterable: true },
+  { title: 'Club', key: 'ClubCode', filterable: true },
+  { title: 'Age', key: 'Age', filterable: true },
+  { title: 'Position', key: 'Position', filterable: true },
+  { title: 'Role', key: 'Role', filterable: true },
+  { title: 'Country', key: 'Nationality.Name', filterable: true },
+  { title: 'Value', key: 'Value', filterable: false },
+  { title: 'Rating', key: 'Rating', filterable: true },
 ]);
 
 const getColor = (rating: number): string => {
