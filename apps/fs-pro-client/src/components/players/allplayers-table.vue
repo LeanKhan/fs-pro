@@ -26,15 +26,14 @@
       no-data-text="No Players"
       class="elevation-1"
     >
-
- <template v-slot:top>
-      <v-switch
-        :model-value="singleSelect"
-        @update:model-value="singleSelect = $event"
-        label="Single select"
-        class="pa-3"
-      ></v-switch>
-    </template>
+      <template v-slot:top>
+        <v-switch
+          :model-value="singleSelect"
+          @update:model-value="singleSelect = $event"
+          label="Single select"
+          class="pa-3"
+        ></v-switch>
+      </template>
 
       <template v-slot:item.Id="{ item }">
         <v-list-item-avatar v-if="item.ClubCode">
@@ -59,9 +58,7 @@
     <v-divider></v-divider>
     <v-card-actions>
       <v-spacer></v-spacer>
-      <v-btn color="secondary" @click="close">
-        Close
-      </v-btn>
+      <v-btn color="secondary" @click="close">Close</v-btn>
       <v-btn color="success" v-if="selectedPlayer[0]" @click="addPlayer">
         Add
       </v-btn>
@@ -93,7 +90,7 @@ const headers = ref<any[]>([
   {
     text: 'Id',
     align: 'start',
-    value: 'Id'
+    value: 'Id',
   },
   {
     text: 'First Name',

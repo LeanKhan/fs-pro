@@ -32,9 +32,7 @@
 
       <v-col cols="8">
         <v-card tile elevation="1" v-if="selectedCompetition.CompetitionID">
-          <v-card-title>
-            Selected Competition
-          </v-card-title>
+          <v-card-title>Selected Competition</v-card-title>
 
           <v-list-item three-line>
             <v-list-item-content>
@@ -56,9 +54,7 @@
 
             <v-list-item-avatar tile size="80">
               <v-img
-                :src="
-                  `${api}/img/clubs/logos/${selectedCompetition.CompetitionCode}.png`
-                "
+                :src="`${api}/img/clubs/logos/${selectedCompetition.CompetitionCode}.png`"
               ></v-img>
             </v-list-item-avatar>
           </v-list-item>
@@ -80,9 +76,7 @@
         </v-card>
 
         <v-card v-else>
-          <v-card-text class="text-center">
-            No selected competition
-          </v-card-text>
+          <v-card-text class="text-center">No selected competition</v-card-text>
         </v-card>
       </v-col>
     </v-row>
@@ -95,7 +89,6 @@ import { Competition } from '@/interfaces/competition';
 import { apiUrl } from '@/store';
 import { $axios } from '@/main';
 
-
 const instance = getCurrentInstance();
 
 const competitions = ref<Competition[]>([]);
@@ -104,7 +97,7 @@ const api = ref<string>(apiUrl);
 
 const showCompetition = (compCode: string): void => {
   const competition = competitions.value.find(
-    c => c.CompetitionCode == compCode
+    (c) => c.CompetitionCode == compCode
   );
 
   if (competition) {

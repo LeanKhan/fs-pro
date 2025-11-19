@@ -1,38 +1,42 @@
 <template>
   <v-list>
-      <v-list-item-group
-        :model-value="selectedMatch"
-        @update:model-value="onSelectedMatchChange"
-        :mandatory="MandatorySelect"
-        two-line
-        color="primary"
+    <v-list-item-group
+      :model-value="selectedMatch"
+      @update:model-value="onSelectedMatchChange"
+      :mandatory="MandatorySelect"
+      two-line
+      color="primary"
+    >
+      <v-list-item
+        v-for="(match, i) in Matches"
+        :key="i"
+        :title="match.Fixture.Title + ' -> ' + match.Competition"
       >
-        <v-list-item
-          v-for="(match, i) in Matches"
-          :key="i"
-          :title="match.Fixture.Title + ' -> ' + match.Competition"
-        >
-          <v-list-item-icon>
-             <v-icon>${{ match.Fixture.Home }}</v-icon> vs
-             <v-icon>${{ match.Fixture.Away }}</v-icon>
-          </v-list-item-icon>
+        <v-list-item-icon>
+          <v-icon>${{ match.Fixture.Home }}</v-icon>
+          vs
+          <v-icon>${{ match.Fixture.Away }}</v-icon>
+        </v-list-item-icon>
 
-          <v-list-item-content>
-            <div v-if="Detail == 'details'">
-              <v-list-item-title>
-                {{ match.Fixture.Title }}
-              </v-list-item-title>
+        <v-list-item-content>
+          <div v-if="Detail == 'details'">
+            <v-list-item-title>
+              {{ match.Fixture.Title }}
+            </v-list-item-title>
 
-              <v-list-item-subtitle v-text="match.Fixture.Competition"></v-list-item-subtitle>
-            </div>
+            <v-list-item-subtitle
+              v-text="match.Fixture.Competition"
+            ></v-list-item-subtitle>
+          </div>
 
-            <div v-if="Detail == 'results' && match.Fixture.Details">
-              {{ match.Fixture.Details.HomeTeamScore }} : {{ match.Fixture.Details.AwayTeamScore }}
-            </div>
-          </v-list-item-content>
-        </v-list-item>
-      </v-list-item-group>
-    </v-list>
+          <div v-if="Detail == 'results' && match.Fixture.Details">
+            {{ match.Fixture.Details.HomeTeamScore }} :
+            {{ match.Fixture.Details.AwayTeamScore }}
+          </div>
+        </v-list-item-content>
+      </v-list-item>
+    </v-list-item-group>
+  </v-list>
 </template>
 
 <script setup lang="ts">

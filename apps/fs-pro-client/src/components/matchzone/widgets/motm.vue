@@ -23,9 +23,7 @@
 
         <v-list-item>
           <v-list-item-avatar tile size="50px" color="transparent" class="h3">
-            <span class="green--text font-weight-bold">
-              10
-            </span>
+            <span class="green--text font-weight-bold">10</span>
           </v-list-item-avatar>
           <v-list-item-content class="pa-0">
             <v-list-item-title>
@@ -37,9 +35,7 @@
       </v-list>
     </template>
 
-    <v-sheet v-else>
-      Could not load MOTM Data
-    </v-sheet>
+    <v-sheet v-else>Could not load MOTM Data</v-sheet>
   </div>
 </template>
 <script setup lang="ts">

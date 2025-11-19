@@ -19,37 +19,30 @@
                 contain
                 class="mx-auto"
                 :src="`${api}/img/clubs/kits/${home.ClubCode}-kit.png`"
-              
                 max-width="200px"
               ></v-img>
               <v-overlay :absolute="true" :model-value="true" opacity="0.3">
-            
-              <div class="headline">
-                {{ home.Name }}
-              </div>
-              <v-card-text class="pa-0">
-                <span v-if="!player1Ready">Are you ready?</span>
+                <div class="headline">
+                  {{ home.Name }}
+                </div>
+                <v-card-text class="pa-0">
+                  <span v-if="!player1Ready">Are you ready?</span>
 
-                 
-                <template v-else>
-                  Oya na!
-                  <v-icon>
-                    mdi-check
-                  </v-icon>
-                </template>
-              </v-card-text>
-              <v-card-actions class="justify-center">
-                
+                  <template v-else>
+                    Oya na!
+                    <v-icon>mdi-check</v-icon>
+                  </template>
+                </v-card-text>
+                <v-card-actions class="justify-center">
                   <v-btn
                     color="accent"
                     :depressed="player1Ready"
-                                        :class="{ 'darken-2': player1Ready }"
+                    :class="{ 'darken-2': player1Ready }"
                     @click="player1Ready = !player1Ready"
                   >
                     READY
                   </v-btn>
-              
-              </v-card-actions>
+                </v-card-actions>
               </v-overlay>
             </v-card>
           </v-col>
@@ -60,26 +53,21 @@
                 contain
                 class="mx-auto"
                 :src="`${api}/img/clubs/kits/${away.ClubCode}-kit.png`"
-              
                 max-width="200px"
               ></v-img>
               <v-overlay :absolute="true" :model-value="true" opacity="0.3">
-            
-             <div class="headline">
-                {{ away.Name }}
-              </div>
-              <v-card-text class="pa-0">
-<span v-if="!player2Ready">Are you ready?</span>
+                <div class="headline">
+                  {{ away.Name }}
+                </div>
+                <v-card-text class="pa-0">
+                  <span v-if="!player2Ready">Are you ready?</span>
 
-                 
-                <template v-else>
-                  Oya na!
-                  <v-icon>
-                    mdi-check
-                  </v-icon>
-                </template>              </v-card-text>
-              <v-card-actions class="justify-center">
-               
+                  <template v-else>
+                    Oya na!
+                    <v-icon>mdi-check</v-icon>
+                  </template>
+                </v-card-text>
+                <v-card-actions class="justify-center">
                   <v-btn
                     color="accent"
                     :depressed="player2Ready"
@@ -88,8 +76,7 @@
                   >
                     READY
                   </v-btn>
-                
-              </v-card-actions>
+                </v-card-actions>
               </v-overlay>
             </v-card>
           </v-col>
@@ -126,10 +113,14 @@ const allReady = computed(() => {
   return player1Ready.value && player2Ready.value;
 });
 
-watch(allReady, (ready: boolean) => {
-  if (ready) {
-    console.log('All are ready!');
-    emit('all-ready');
-  }
-}, { immediate: true });
+watch(
+  allReady,
+  (ready: boolean) => {
+    if (ready) {
+      console.log('All are ready!');
+      emit('all-ready');
+    }
+  },
+  { immediate: true }
+);
 </script>

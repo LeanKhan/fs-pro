@@ -50,12 +50,12 @@
       </template>
 
       <template v-slot:item.Nationality="{ item }">
-        {{ item.Nationality ? item.Nationality.Name : "-" }}
+        {{ item.Nationality ? item.Nationality.Name : '-' }}
       </template>
 
       <template v-slot:item.isSigned="{ item }">
         <v-chip
-          style="background-color: transparent;"
+          style="background-color: transparent"
           :color="item.isSigned ? 'green' : 'orange'"
         >
           {{ item.isSigned }}
@@ -69,18 +69,14 @@
           icon
           color="success lighten-2"
         >
-          <v-icon small>
-            mdi-eye-outline
-          </v-icon>
+          <v-icon small>mdi-eye-outline</v-icon>
         </v-btn>
         <v-btn
           icon
           color="blue lighten-2"
           @click="updatePlayer(item._id, item.PlayerID)"
         >
-          <v-icon small>
-            mdi-pencil-outline
-          </v-icon>
+          <v-icon small>mdi-pencil-outline</v-icon>
         </v-btn>
         <!-- remove player -->
         <v-btn
@@ -89,9 +85,7 @@
           icon
           color="red lighten-2"
         >
-          <v-icon small>
-            mdi-delete-outline
-          </v-icon>
+          <v-icon small>mdi-delete-outline</v-icon>
         </v-btn>
       </template>
     </v-data-table>

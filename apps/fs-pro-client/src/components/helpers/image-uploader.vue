@@ -23,9 +23,7 @@
         :width="cardSheet.width"
       >
         <div class="text-center mx-auto">
-          <v-icon color="white">
-            mdi-photo
-          </v-icon>
+          <v-icon color="white">mdi-photo</v-icon>
           <!-- <p class="body mt-2 white--text">
                     Circle Avatar
                   </p> -->

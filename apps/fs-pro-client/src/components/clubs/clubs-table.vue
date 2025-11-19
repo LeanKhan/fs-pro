@@ -53,12 +53,8 @@
     <v-divider></v-divider>
     <v-card-actions>
       <v-spacer></v-spacer>
-      <v-btn color="secondary" @click="close">
-        Close
-      </v-btn>
-      <v-btn color="success" v-if="selectedClub[0]" @click="addClub">
-        Add
-      </v-btn>
+      <v-btn color="secondary" @click="close">Close</v-btn>
+      <v-btn color="success" v-if="selectedClub[0]" @click="addClub">Add</v-btn>
     </v-card-actions>
   </v-card>
 </template>
@@ -107,10 +103,10 @@ const close = (): void => {
 onMounted(() => {
   $axios
     .get('/clubs/all')
-    .then(res => {
+    .then((res) => {
       clubs.value = res.data.payload as Club[];
     })
-    .catch(err => {
+    .catch((err) => {
       console.log('Error! => ', err);
     });
 });
