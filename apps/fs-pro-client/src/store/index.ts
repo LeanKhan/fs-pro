@@ -99,8 +99,10 @@ export const useStore = defineStore('main', () => {
     try {
       const query = JSON.stringify({ _id: { $in: user.value.clubs } });
       const select = JSON.stringify('ClubCode Name _id');
-      const response = await $axios.get(`/clubs/fetch?q=${query}&select=${select}`);
-      
+      const response = await $axios.get(
+        `/clubs/fetch?q=${query}&select=${select}`
+      );
+
       if (response.data.success) {
         user.value.clubs = response.data.payload;
       }
@@ -111,7 +113,9 @@ export const useStore = defineStore('main', () => {
 
   async function setCalendar() {
     try {
-      const response = await $axios.get('/calendar/current?page=1&limit=14&populate=false');
+      const response = await $axios.get(
+        '/calendar/current?page=1&limit=14&populate=false'
+      );
       if (response.data.success) {
         calendar.value = response.data.payload;
         lobby.value = !response.data.payload.YearString;
@@ -124,7 +128,9 @@ export const useStore = defineStore('main', () => {
   async function setSeasons() {
     if (calendar.value?.YearString) {
       try {
-        const response = await $axios.get(`/seasons/${calendar.value.YearString}/current`);
+        const response = await $axios.get(
+          `/seasons/${calendar.value.YearString}/current`
+        );
         seasons.value = response.data.payload;
       } catch (error) {
         console.error('Error fetching seasons:', error);
@@ -196,6 +202,6 @@ export const useStore = defineStore('main', () => {
     getCountries,
     showToast,
     hideToast,
-    toggleErrorOverlay
+    toggleErrorOverlay,
   };
 });
