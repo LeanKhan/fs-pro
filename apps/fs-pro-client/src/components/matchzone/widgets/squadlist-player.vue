@@ -1,62 +1,66 @@
 <template>
   <v-list-item
     style="min-height: 30px !important; height: 40px !important"
-    dense
-    two-line
+    density="compact"
+    lines="two"
   >
     <!-- <v-badge>
     <template v-slot:default>
-      
+
     </template>
   </v-badge> -->
-    <v-list-item-avatar tile size="20px" color="transparent" class="caption">
-      <span :class="positionColor">
-        {{ position }}
-      </span>
-    </v-list-item-avatar>
-    <v-list-item-content class="pa-0">
-      <v-list-item-subtitle>
-        {{ player.FirstName }}
-        {{ player.LastName }}
+    <template v-slot:prepend>
+      <v-avatar tile size="20" color="transparent" class="text-caption">
+        <span :class="positionColor">
+          {{ position }}
+        </span>
+      </v-avatar>
+    </template>
 
-        <b class="font-weight-bold pink--text">
-          [{{ Math.round(player.Rating) }}]
-        </b>
+    <v-list-item-subtitle>
+      {{ player.FirstName }}
+      {{ player.LastName }}
 
-        <template v-if="matchFinished">
-          <template v-if="player.stats.Goals > 0">
-            <v-icon class="ml-1" small color="blue accent--3">
-              mdi-soccer
-            </v-icon>
-            x {{ player.stats.Goals }}
-          </template>
+      <b class="font-weight-bold text-pink">
+        [{{ Math.round(player.Rating) }}]
+      </b>
 
-          <template v-if="player.stats.Saves > 0">
-            <v-icon class="ml-1" small color="purple accent--3">mdi-pan</v-icon>
-            x {{ player.stats.Saves }}
-          </template>
-
-          <template v-if="player.stats.Assists > 0">
-            <v-icon class="ml-1" small color="green accent--3">
-              mdi-fullscreen
-            </v-icon>
-            x {{ player.stats.Assists }}
-          </template>
+      <template v-if="matchFinished">
+        <template v-if="player.stats.Goals > 0">
+          <v-icon class="ml-1" size="small" color="blue-accent-3">
+            mdi-soccer
+          </v-icon>
+          x {{ player.stats.Goals }}
         </template>
-      </v-list-item-subtitle>
-    </v-list-item-content>
 
-    <v-list-item-avatar
-      v-if="matchFinished"
-      tile
-      size="40px"
-      :color="matchRatingColor(Math.round(player.stats.Points))"
-      class="caption"
-    >
-      <span class="white--text font-weight-bold">
-        {{ Math.round(player.stats.Points) }}
-      </span>
-    </v-list-item-avatar>
+        <template v-if="player.stats.Saves > 0">
+          <v-icon class="ml-1" size="small" color="purple-accent-3">
+            mdi-pan
+          </v-icon>
+          x {{ player.stats.Saves }}
+        </template>
+
+        <template v-if="player.stats.Assists > 0">
+          <v-icon class="ml-1" size="small" color="green-accent-3">
+            mdi-fullscreen
+          </v-icon>
+          x {{ player.stats.Assists }}
+        </template>
+      </template>
+    </v-list-item-subtitle>
+
+    <template v-if="matchFinished" v-slot:append>
+      <v-avatar
+        tile
+        size="40"
+        :color="matchRatingColor(Math.round(player.stats.Points))"
+        class="text-caption"
+      >
+        <span class="text-white font-weight-bold">
+          {{ Math.round(player.stats.Points) }}
+        </span>
+      </v-avatar>
+    </template>
   </v-list-item>
 </template>
 <script setup lang="ts">
@@ -81,15 +85,15 @@ const position = computed(() => {
 const positionColor = computed(() => {
   switch (position.value) {
     case 'GK':
-      return 'deep-orange--text text--accent-3';
+      return 'text-deep-orange-accent-3';
     case 'DEF':
-      return 'red--text text--accent-3';
+      return 'text-red-accent-3';
     case 'MID':
-      return 'green--text text--accent-3';
+      return 'text-green-accent-3';
     case 'ATT':
-      return 'blue--text text--accent-3';
+      return 'text-blue-accent-3';
     default:
-      return 'secondary';
+      return 'text-secondary';
   }
 });
 

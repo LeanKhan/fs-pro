@@ -1,12 +1,12 @@
 <template>
   <div>
     <!-- For the stats gan -->
-    <v-simple-table v-if="matchDetails">
-      <template v-slot:default>
+    <v-table v-if="matchDetails">
+      <tbody>
         <tr>
           <td>
-            <v-avatar tile size="30px">
-              <v-icon style="font-size: 30px; height: 30px" large>
+            <v-avatar tile size="30">
+              <v-icon style="font-size: 30px; height: 30px" size="large">
                 ${{ home }}
               </v-icon>
             </v-avatar>
@@ -15,8 +15,8 @@
           <td>-</td>
 
           <td>
-            <v-avatar tile size="30px">
-              <v-icon style="font-size: 30px; height: 30px" large>
+            <v-avatar tile size="30">
+              <v-icon style="font-size: 30px; height: 30px" size="large">
                 ${{ away }}
               </v-icon>
             </v-avatar>
@@ -27,7 +27,7 @@
             {{ matchDetails.Home[stat.key] }}
           </td>
 
-          <td class="font-weight-bold body-2 white--text text-center pa-0">
+          <td class="font-weight-bold text-body-2 text-white text-center pa-0">
             {{ stat.label }}
           </td>
 
@@ -35,8 +35,8 @@
             {{ matchDetails.Away[stat.key] }}
           </td>
         </tr>
-      </template>
-    </v-simple-table>
+      </tbody>
+    </v-table>
   </div>
 </template>
 <script setup lang="ts">

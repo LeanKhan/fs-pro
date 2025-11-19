@@ -37,7 +37,7 @@ const eventColor = (type: string) => {
     case 'miss':
       return 'red';
     case 'goal':
-      return 'green accent-3';
+      return 'green-accent-3';
   }
 };
 
