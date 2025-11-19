@@ -14,7 +14,7 @@ export default defineComponent({
   setup() {
     const route = useRoute();
     const crumbs = computed(() => {
-      return route.matched.map(path => {
+      return route.matched.map((path) => {
         return {
           exact: true,
           disabled: false,

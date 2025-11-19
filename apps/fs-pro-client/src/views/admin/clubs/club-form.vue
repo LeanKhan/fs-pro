@@ -38,7 +38,9 @@
           v-bind:card="{ title: 'Upload Club Kit', height: 400 }"
           v-bind:cardSheet="{ height: 400 }"
           v-bind:previewImage="{
-            src: isUpdate ? `${api}/img/clubs/kits/${form.ClubCode}-kit.png` : '',
+            src: isUpdate
+              ? `${api}/img/clubs/kits/${form.ClubCode}-kit.png`
+              : '',
             contain: true,
           }"
           :fileName="`${form.ClubCode}-kit`"
@@ -194,7 +196,9 @@ async function submit() {
 }
 
 async function deleteClub() {
-  const answer = confirm('Are you sure you want to delete ' + form.value.Name + '?!!');
+  const answer = confirm(
+    'Are you sure you want to delete ' + form.value.Name + '?!!'
+  );
 
   if (answer) {
     const clubID = route.params.id;

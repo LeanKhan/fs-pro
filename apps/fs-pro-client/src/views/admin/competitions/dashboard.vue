@@ -56,9 +56,7 @@
                 color="success lighten-2"
                 title="View Competition"
               >
-                <v-icon small @click="viewCompetition(item)">
-                  mdi-eye
-                </v-icon>
+                <v-icon small @click="viewCompetition(item)">mdi-eye</v-icon>
               </v-btn>
               <v-btn
                 text
@@ -141,10 +139,10 @@ export default defineComponent({
     onMounted(() => {
       axios
         .get('/competitions/all')
-        .then(res => {
+        .then((res) => {
           competitions.value = res.data.payload;
         })
-        .catch(err => {
+        .catch((err) => {
           console.log('Error! => ', err);
         });
     });

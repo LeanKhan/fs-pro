@@ -1,16 +1,19 @@
 <template>
   <v-app id="app">
-    <v-navigation-drawer :model-value="drawer" @update:model-value="drawer = $event" app clipped>
+    <v-navigation-drawer
+      :model-value="drawer"
+      @update:model-value="drawer = $event"
+      app
+      clipped
+    >
       <v-list-item class="px-2 mt-2">
         <v-list-item-avatar>
           <v-img
-            :src="
-              `${
-                userMode
-                  ? 'https://randomuser.me/api/portraits/women/84.jpg'
-                  : 'https://randomuser.me/api/portraits/men/85.jpg'
-              }`
-            "
+            :src="`${
+              userMode
+                ? 'https://randomuser.me/api/portraits/women/84.jpg'
+                : 'https://randomuser.me/api/portraits/men/85.jpg'
+            }`"
           ></v-img>
         </v-list-item-avatar>
 
@@ -34,13 +37,11 @@
           >
             <v-list-item-avatar>
               <v-img
-                :src="
-                  `${
-                    !userMode
-                      ? 'https://randomuser.me/api/portraits/women/84.jpg'
-                      : 'https://randomuser.me/api/portraits/men/85.jpg'
-                  }`
-                "
+                :src="`${
+                  !userMode
+                    ? 'https://randomuser.me/api/portraits/women/84.jpg'
+                    : 'https://randomuser.me/api/portraits/men/85.jpg'
+                }`"
               ></v-img>
             </v-list-item-avatar>
 
@@ -91,13 +92,11 @@
       >
         <v-avatar size="30">
           <v-img
-            :src="
-              `${
-                userMode
-                  ? 'https://randomuser.me/api/portraits/women/84.jpg'
-                  : 'https://randomuser.me/api/portraits/men/85.jpg'
-              }`
-            "
+            :src="`${
+              userMode
+                ? 'https://randomuser.me/api/portraits/women/84.jpg'
+                : 'https://randomuser.me/api/portraits/men/85.jpg'
+            }`"
           ></v-img>
         </v-avatar>
       </v-badge>
@@ -107,9 +106,7 @@
       </span>
 
       <v-btn class="ml-2" small icon>
-        <v-icon small color="error" @click="logout">
-          mdi-logout
-        </v-icon>
+        <v-icon small color="error" @click="logout">mdi-logout</v-icon>
       </v-btn>
     </v-app-bar>
 
@@ -124,18 +121,24 @@
       Hi!
     </v-snackbar> -->
 
-    <v-snackbar :model-value="toast.show" @update:model-value="toast.show = $event" :timeout="3000" :color="toast.style">
+    <v-snackbar
+      :model-value="toast.show"
+      @update:model-value="toast.show = $event"
+      :timeout="3000"
+      :color="toast.style"
+    >
       {{ toast.message }}
     </v-snackbar>
 
     <!-- TODO: clean this up! -->
-    <v-overlay :model-value="errorOverlay" @update:model-value="errorOverlay = $event">
+    <v-overlay
+      :model-value="errorOverlay"
+      @update:model-value="errorOverlay = $event"
+    >
       <v-sheet class="text-center pa-2" width="500px" height="300px">
         Error!
         <br />
-        <v-btn color="green" @click="goBackToPreviousState">
-          Go Back
-        </v-btn>
+        <v-btn color="green" @click="goBackToPreviousState">Go Back</v-btn>
       </v-sheet>
     </v-overlay>
 
@@ -239,7 +242,11 @@ const userNavItems = computed((): any[] => {
     { title: 'Home', icon: 'mdi-soccer', link: '/u', color: 'primary' },
   ];
 
-  if (user.value && user.value.clubs && typeof user.value.clubs[0] == 'object') {
+  if (
+    user.value &&
+    user.value.clubs &&
+    typeof user.value.clubs[0] == 'object'
+  ) {
     console.log('Clubs dey');
     const clubRoutes = user.value.clubs.map((club: any) => {
       return {

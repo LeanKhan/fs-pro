@@ -44,9 +44,7 @@
     </v-card>
 
     <v-card>
-      <v-card-title>
-        Calendars
-      </v-card-title>
+      <v-card-title>Calendars</v-card-title>
 
       <v-card-text>
         <ul>
@@ -57,9 +55,7 @@
               {{ cndr.isActive ? 'Active' : 'Not Active' }}
             </v-chip>
 
-            <v-chip small v-if="cndr.isEnded">
-              Ended
-            </v-chip>
+            <v-chip small v-if="cndr.isEnded">Ended</v-chip>
 
             <v-btn
               v-if="cndr.Days && cndr.Days.length > 0"
@@ -117,8 +113,10 @@ async function createNewYear() {
   loading.value = true;
 
   try {
-    const response = await $axios.post(`/calendar/new${randomMonth.value ? '?override_month=true' : ''}`);
-    
+    const response = await $axios.post(
+      `/calendar/new${randomMonth.value ? '?override_month=true' : ''}`
+    );
+
     toast.value = {
       show: true,
       color: 'success',
@@ -152,7 +150,7 @@ async function startCalendarYear(year: string, id: string) {
 
   try {
     const response = await $axios.post(`/calendar/${year}/${id}/start`);
-    
+
     toast.value = {
       show: true,
       color: 'success',
@@ -176,8 +174,10 @@ async function setupAndStartCalendarYear(year: string, id: string) {
   loading.value = true;
 
   try {
-    const response = await $axios.post(`/calendar/${year}/${id}/setup-and-start`);
-    
+    const response = await $axios.post(
+      `/calendar/${year}/${id}/setup-and-start`
+    );
+
     toast.value = {
       show: true,
       color: 'success',

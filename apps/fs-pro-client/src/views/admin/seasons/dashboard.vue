@@ -12,7 +12,10 @@
       </v-col>
 
       <v-col cols="12">
-        <seasons-table :seasons="seasons" :competition-id="competitionId"></seasons-table>
+        <seasons-table
+          :seasons="seasons"
+          :competition-id="competitionId"
+        ></seasons-table>
       </v-col>
     </v-row>
   </div>

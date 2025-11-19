@@ -148,8 +148,12 @@ async function login() {
 async function submitNewPassword() {
   loading.value = true;
   try {
-    const response = await $axios.post('/users/change-password', newForm.value, { withCredentials: true });
-    
+    const response = await $axios.post(
+      '/users/change-password',
+      newForm.value,
+      { withCredentials: true }
+    );
+
     if (response.data.success) {
       store.setUser({
         username: response.data.payload.Username,

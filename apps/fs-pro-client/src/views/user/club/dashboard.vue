@@ -31,21 +31,33 @@
       </v-tabs>
     </v-card>
 
-    <v-tabs-items background-color="transparent" color="transparent" v-model="tab">
+    <v-tabs-items
+      background-color="transparent"
+      color="transparent"
+      v-model="tab"
+    >
       <v-tab-item>
         <v-row>
           <v-col cols="8">
             <!-- Current Fixture -->
             <v-card v-if="selectedDay" color="primary">
               <template v-if="!selectedDay.isFree">
-                <v-card color="transparent" min-height="180px" class="text-center" flat tile>
+                <v-card
+                  color="transparent"
+                  min-height="180px"
+                  class="text-center"
+                  flat
+                  tile
+                >
                   <v-card-text>
                     <v-row>
                       <v-col cols="9">
                         <span>HOME</span>
                         <v-avatar tile size="70px">
                           <v-icon style="font-size: 70px; height: 70px" x-large>
-                            ${{ selectedDay.Matches[competitionIndex].Fixture.Home }}
+                            ${{
+                              selectedDay.Matches[competitionIndex].Fixture.Home
+                            }}
                           </v-icon>
                         </v-avatar>
 
@@ -53,32 +65,52 @@
 
                         <v-avatar tile size="70px">
                           <v-icon style="font-size: 70px; height: 70px" x-large>
-                            ${{ selectedDay.Matches[competitionIndex].Fixture.Away }}
+                            ${{
+                              selectedDay.Matches[competitionIndex].Fixture.Away
+                            }}
                           </v-icon>
                         </v-avatar>
                         <span>AWAY</span>
 
                         <div class="pa-0 text-center">
                           <p class="mb-2 caption white--text">
-                            {{ selectedDay.Matches[competitionIndex].Fixture.Title }}
+                            {{
+                              selectedDay.Matches[competitionIndex].Fixture
+                                .Title
+                            }}
                           </p>
 
                           <p class="mb-0 caption">
-                            {{ selectedDay.Matches[competitionIndex].Fixture.Stadium }}
+                            {{
+                              selectedDay.Matches[competitionIndex].Fixture
+                                .Stadium
+                            }}
                           </p>
                         </div>
                       </v-col>
 
                       <v-col cols="3">
                         <v-card-subtitle>
-                          {{ selectedDay.Matches[competitionIndex].Competition }}
-                          <v-icon large color="amber lighten-3">mdi-trophy</v-icon>
+                          {{
+                            selectedDay.Matches[competitionIndex].Competition
+                          }}
+                          <v-icon large color="amber lighten-3">
+                            mdi-trophy
+                          </v-icon>
                         </v-card-subtitle>
 
                         <template v-if="season && season.isStarted">
                           <v-btn
-                            :disabled="selectedDay.Matches[competitionIndex].Fixture.Played"
-                            :to="'/matchzone/' + selectedDay.Matches[competitionIndex].Fixture._id.toString()"
+                            :disabled="
+                              selectedDay.Matches[competitionIndex].Fixture
+                                .Played
+                            "
+                            :to="
+                              '/matchzone/' +
+                              selectedDay.Matches[
+                                competitionIndex
+                              ].Fixture._id.toString()
+                            "
                           >
                             Play
                           </v-btn>
@@ -115,7 +147,9 @@
               <template v-if="season">
                 <v-card-title>{{ season.CompetitionCode }}</v-card-title>
                 <v-card-text>
-                  <standings-scroller :standings="season.Standings"></standings-scroller>
+                  <standings-scroller
+                    :standings="season.Standings"
+                  ></standings-scroller>
                 </v-card-text>
               </template>
               <template v-else>
@@ -172,8 +206,8 @@ const calendar = computed<ICalendar>(() => store.calendar!);
 const yearString = computed(() => store.calendar?.YearString);
 
 const clubDays = computed(() => {
-  return days.value.map(day => {
-    const Matches = day.Matches.filter(match => {
+  return days.value.map((day) => {
+    const Matches = day.Matches.filter((match) => {
       return match.Fixture.LeagueCode == club.value.LeagueCode;
     });
     return { ...day, Matches };
@@ -203,8 +237,10 @@ const selectedDay = computed(() => {
 const isClub = computed(() => {
   if (club.value) {
     return (
-      selectedDay.value.Matches[competitionIndex.value].Fixture.Home == club.value ||
-      selectedDay.value.Matches[competitionIndex.value].Fixture.Away == club.value
+      selectedDay.value.Matches[competitionIndex.value].Fixture.Home ==
+        club.value ||
+      selectedDay.value.Matches[competitionIndex.value].Fixture.Away ==
+        club.value
     );
   }
   return false;
@@ -217,10 +253,12 @@ function selectDay(val: number) {
 async function fetchCurrentSeason() {
   if (calendar.value && calendar.value.YearString) {
     try {
-      const response = await $axios.get(`/seasons?query=${JSON.stringify({
-        Year: calendar.value.YearString,
-        Competition: club.value.League
-      })}`);
+      const response = await $axios.get(
+        `/seasons?query=${JSON.stringify({
+          Year: calendar.value.YearString,
+          Competition: club.value.League,
+        })}`
+      );
       if (response.data.success) {
         season.value = response.data.payload[0];
       }
@@ -232,13 +270,19 @@ async function fetchCurrentSeason() {
 
 async function fetchClub(clubId: string) {
   const populate = [
-    { path: 'Players', select: 'FirstName LastName Fullname Rating Position Nationality RatingsHistory Age' },
+    {
+      path: 'Players',
+      select:
+        'FirstName LastName Fullname Rating Position Nationality RatingsHistory Age',
+    },
     { path: 'Manager' },
     { path: 'League', select: '-Clubs -Seasons' },
   ];
-  
+
   try {
-    const response = await $axios.get(`/clubs/${clubId}?populate=${JSON.stringify(populate)}`);
+    const response = await $axios.get(
+      `/clubs/${clubId}?populate=${JSON.stringify(populate)}`
+    );
     if (response.data.success) {
       club.value = response.data.payload;
     }
@@ -249,7 +293,7 @@ async function fetchClub(clubId: string) {
 
 async function getDays() {
   const query = `/calendar/${yearString.value}/days?paginate=true&populate=true&limit=${limit.value}&not_played=true`;
-  
+
   try {
     const response = await $axios.get(query);
     days.value = response.data.payload;

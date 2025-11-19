@@ -17,9 +17,7 @@
             </v-list-item-title>
             <v-list-item-content>
               <v-btn text icon color="indigo lighten-2">
-                <v-icon small @click="updateCompetition">
-                  mdi-pencil
-                </v-icon>
+                <v-icon small @click="updateCompetition">mdi-pencil</v-icon>
               </v-btn>
             </v-list-item-content>
           </v-list-item>
@@ -32,9 +30,7 @@
           <v-card-actions>
             <v-spacer></v-spacer>
             <v-btn text small color="indigo" to="./seasons">
-              <v-icon color="indigo">
-                mdi-calendar
-              </v-icon>
+              <v-icon color="indigo">mdi-calendar</v-icon>
               View Seasons
             </v-btn>
           </v-card-actions>
@@ -104,10 +100,10 @@ export default defineComponent({
             clubId: event.id,
             leagueCode: compCode,
           })
-          .then(response => {
+          .then((response) => {
             console.log('Successfully added club to competition => ', response);
           })
-          .catch(response => {
+          .catch((response) => {
             console.log('Error deleting comp =>', response.data);
           });
       }
@@ -118,13 +114,13 @@ export default defineComponent({
 
       axios
         .get(`/competitions/${compID}`)
-        .then(response => {
+        .then((response) => {
           console.log('Fetched Competition => ', response.data);
           if (response.data.success) {
             competition.value = response.data.payload as Competition;
           }
         })
-        .catch(response => {
+        .catch((response) => {
           console.log('Response => ', response);
         });
     });

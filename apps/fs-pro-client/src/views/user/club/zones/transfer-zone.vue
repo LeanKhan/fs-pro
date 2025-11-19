@@ -1,7 +1,5 @@
 <template>
-  <div>
-    Transfer Zone works! :)
-  </div>
+  <div>Transfer Zone works! :)</div>
 </template>
 
 <script setup lang="ts">

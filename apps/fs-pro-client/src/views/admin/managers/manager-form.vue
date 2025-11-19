@@ -131,7 +131,7 @@ async function submit() {
     const response = await $axios.request({
       url,
       method,
-      data: { data: form.value }
+      data: { data: form.value },
     });
 
     if (props.isUpdate) {

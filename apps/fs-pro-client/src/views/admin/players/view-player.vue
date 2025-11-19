@@ -28,7 +28,11 @@
       <v-col cols="12">
         <v-card>
           <v-card-title>Fixtures</v-card-title>
-          <v-sheet class="text-center" color="secondary secondary-lighten" height="250">
+          <v-sheet
+            class="text-center"
+            color="secondary secondary-lighten"
+            height="250"
+          >
             <span>Season is not activated</span>
           </v-sheet>
         </v-card>

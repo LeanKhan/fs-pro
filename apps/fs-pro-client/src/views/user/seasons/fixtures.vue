@@ -2,13 +2,9 @@
   <v-card>
     <v-toolbar flat color="indigo darken-1">
       <v-btn icon @click="router.back()">
-        <v-icon>
-          mdi-arrow-left
-        </v-icon>
+        <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title class="ml-1">
-        All Fixtures
-      </v-toolbar-title>
+      <v-toolbar-title class="ml-1">All Fixtures</v-toolbar-title>
       <v-spacer></v-spacer>
     </v-toolbar>
 
@@ -68,7 +64,9 @@ async function getFixtures() {
   fixturesLoading.value = true;
   try {
     const select = JSON.stringify('Title Home Away Details Played');
-    const response = await $axios.get(`/seasons/${selectedSeason.value._id}/fixtures?select=${select}`);
+    const response = await $axios.get(
+      `/seasons/${selectedSeason.value._id}/fixtures?select=${select}`
+    );
     fixtures.value = response.data.payload;
   } catch (error) {
     console.error('Error getting fixtures for Season:', error);
@@ -80,7 +78,9 @@ async function getFixtures() {
 async function fetchCurrentSeasons() {
   if (store.calendar?.YearString) {
     try {
-      const response = await $axios.get(`/seasons?query=${JSON.stringify({Year: currentYear.value})}`);
+      const response = await $axios.get(
+        `/seasons?query=${JSON.stringify({ Year: currentYear.value })}`
+      );
       if (response.data.success) {
         store.seasons = response.data.payload;
       }

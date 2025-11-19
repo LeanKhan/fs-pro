@@ -1,9 +1,7 @@
 <template>
   <div>
     <v-card>
-      <v-card-title>
-        Manager
-      </v-card-title>
+      <v-card-title>Manager</v-card-title>
       <v-card-text>
         <template v-if="club.Manager && club.Manager.FirstName">
           {{ club.Manager.FirstName }} {{ club.Manager.LastName }}

@@ -2,7 +2,10 @@
   <v-card background="transparent" color="transparent">
     <v-toolbar dense>
       <!-- Current day -->
-      <v-toolbar-title v-if="calendar" class="subtitle-1 font-weight-bold indigo--text">
+      <v-toolbar-title
+        v-if="calendar"
+        class="subtitle-1 font-weight-bold indigo--text"
+      >
         Day {{ calendar.CurrentDay }} - Year {{ calendar.YearString }}
       </v-toolbar-title>
 
@@ -10,9 +13,18 @@
 
       <v-toolbar-items>
         <!-- select league -->
-        <select class="text-indigo indigo-text" name="select_league" v-model="selectedLeagueId" @change="changeSelectedLeague(selectedLeagueId)">
+        <select
+          class="text-indigo indigo-text"
+          name="select_league"
+          v-model="selectedLeagueId"
+          @change="changeSelectedLeague(selectedLeagueId)"
+        >
           <option disabled value="">Select League</option>
-          <option v-for="(league, i) in leagues" v-bind:value="league._id" :key="i">
+          <option
+            v-for="(league, i) in leagues"
+            v-bind:value="league._id"
+            :key="i"
+          >
             {{ league.Name }}
           </option>
         </select>
@@ -43,8 +55,10 @@
                   </v-col>
 
                   <v-col cols="6">
-                    <v-card style="height: 300px;max-height: 300px;overflow-y: auto">
-                      <day-fixtures-list 
+                    <v-card
+                      style="height: 300px; max-height: 300px; overflow-y: auto"
+                    >
+                      <day-fixtures-list
                         :Matches="selectedDay.Matches"
                         Detail="details"
                         @match-selected="matchSelected"
@@ -159,15 +173,23 @@ const yearString = computed(() => store.calendar?.YearString);
 
 const selectedDay = computed(() => days.value[selectedDayIndex.value]);
 
-watch(currentDay, (day) => {
-  if (day) getDays(day);
-}, { immediate: true });
+watch(
+  currentDay,
+  (day) => {
+    if (day) getDays(day);
+  },
+  { immediate: true }
+);
 
-watch(lobby, (toLobby) => {
-  if (toLobby) {
-    router.push('/u/lobby');
-  }
-}, { immediate: true });
+watch(
+  lobby,
+  (toLobby) => {
+    if (toLobby) {
+      router.push('/u/lobby');
+    }
+  },
+  { immediate: true }
+);
 
 function endYear() {
   router.push(`/finish/year/${calendar.value?._id}`);
@@ -189,10 +211,15 @@ function matchSelected(match: any) {
 
 async function getDays(day: number) {
   const limit = 7;
-  const week = calendar.value?.CurrentDay === 0 ? 1 : Math.ceil((calendar.value?.CurrentDay || 0) / limit);
+  const week =
+    calendar.value?.CurrentDay === 0
+      ? 1
+      : Math.ceil((calendar.value?.CurrentDay || 0) / limit);
 
   try {
-    const response = await $axios.get(`/calendar/${yearString.value}/days?paginate=true&populate=true&limit=${limit}&week=${week}&not_played=true`);
+    const response = await $axios.get(
+      `/calendar/${yearString.value}/days?paginate=true&populate=true&limit=${limit}&week=${week}&not_played=true`
+    );
     days.value = response.data.payload;
   } catch (error) {
     console.error('Error getting days of Calendar Year:', error);
@@ -207,7 +234,9 @@ async function getLeagues(league_id?: string) {
       selectedLeague.value = response.data.payload[0];
     } else {
       const query = JSON.stringify({ Type: 'league' });
-      const response = await $axios.get(`/competitions/all?select=Name+Type+CompetitionCode&query=${query}`);
+      const response = await $axios.get(
+        `/competitions/all?select=Name+Type+CompetitionCode&query=${query}`
+      );
       leagues.value = response.data.payload;
     }
   } catch (error) {
@@ -218,10 +247,12 @@ async function getLeagues(league_id?: string) {
 async function fetchCurrentSeason(league_id: string) {
   if (calendar.value?.YearString) {
     try {
-      const response = await $axios.get(`/seasons?query=${JSON.stringify({
-        Year: calendar.value.YearString,
-        Competition: selectedLeagueId.value
-      })}`);
+      const response = await $axios.get(
+        `/seasons?query=${JSON.stringify({
+          Year: calendar.value.YearString,
+          Competition: selectedLeagueId.value,
+        })}`
+      );
       if (response.data.success) {
         seasons.value = response.data.payload;
       }

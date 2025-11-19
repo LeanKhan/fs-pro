@@ -2,7 +2,11 @@
   <v-card>
     <v-card-title class="title font-weight-regular justify-space-between">
       <span>{{ currentTitle }}</span>
-      <v-avatar color="primary lighten-2" class="subheading white--text" size="40">
+      <v-avatar
+        color="primary lighten-2"
+        class="subheading white--text"
+        size="40"
+      >
         <v-icon color="white">{{ currentIcon }}</v-icon>
       </v-avatar>
     </v-card-title>
@@ -57,7 +61,9 @@
                 <v-list-item
                   v-for="(club, i) in visibleClubs"
                   :value="club._id"
-                  :input-value="form.Clubs.filter(c => c === club._id).length > 0"
+                  :input-value="
+                    form.Clubs.filter((c) => c === club._id).length > 0
+                  "
                   :key="i"
                 >
                   <template v-slot:default="{ isActive, select }">
@@ -72,11 +78,16 @@
 
                     <v-list-item-content>
                       <v-list-item-title>{{ club.ClubCode }}</v-list-item-title>
-                      <v-list-item-subtitle>{{ club.Name }}</v-list-item-subtitle>
+                      <v-list-item-subtitle>
+                        {{ club.Name }}
+                      </v-list-item-subtitle>
                     </v-list-item-content>
 
                     <v-list-item-avatar>
-                      <v-img :src="`${api}/img/clubs/logos/${club.ClubCode}.png`" width="40px"></v-img>
+                      <v-img
+                        :src="`${api}/img/clubs/logos/${club.ClubCode}.png`"
+                        width="40px"
+                      ></v-img>
                     </v-list-item-avatar>
                   </template>
                 </v-list-item>
@@ -163,7 +174,9 @@ async function getClubs() {
   try {
     const query = JSON.stringify({ User: null });
     const select = JSON.stringify('Name ClubCode LeagueCode _id');
-    const response = await $axios.get(`/clubs/fetch?q=${query}&select=${select}`);
+    const response = await $axios.get(
+      `/clubs/fetch?q=${query}&select=${select}`
+    );
     clubs.value = response.data.payload;
   } catch (error) {
     console.error('Error fetching clubs:', error);
