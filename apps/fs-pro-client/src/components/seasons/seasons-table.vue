@@ -17,13 +17,13 @@
       class="elevation-1"
     >
       <template v-slot:item.Actions="{ item }">
-        <v-btn text icon color="success lighten-2">
-          <v-icon small @click="viewSeason(item._id, item.SeasonCode)">
+        <v-btn variant="text" icon color="success-lighten-2">
+          <v-icon size="small" @click="viewSeason(item._id, item.SeasonCode)">
             mdi-eye
           </v-icon>
         </v-btn>
-        <v-btn text icon color="blue lighten-2">
-          <v-icon small @click="editSeason(item._id)">mdi-pencil</v-icon>
+        <v-btn variant="text" icon color="blue-lighten-2">
+          <v-icon size="small" @click="editSeason(item._id)">mdi-pencil</v-icon>
         </v-btn>
       </template>
     </v-data-table>
@@ -45,17 +45,17 @@ const router = useRouter();
 
 const headers = ref<any[]>([
   {
-    text: 'ID',
+    title: 'ID',
     align: 'start',
-    value: 'SeasonID',
+    key: 'SeasonID',
   },
   {
-    text: 'Code',
-    value: 'SeasonCode',
+    title: 'Code',
+    key: 'SeasonCode',
   },
-  { text: 'Title', value: 'Title' },
-  { text: 'Start Date', value: 'StartDate', filterable: true },
-  { text: 'Actions', value: 'Actions', filterable: false, sortable: false },
+  { title: 'Title', key: 'Title' },
+  { title: 'Start Date', key: 'StartDate', filterable: true },
+  { title: 'Actions', key: 'Actions', filterable: false, sortable: false },
 ]);
 
 const search = ref('');

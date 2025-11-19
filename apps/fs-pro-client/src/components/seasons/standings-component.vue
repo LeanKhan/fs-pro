@@ -1,6 +1,6 @@
 <template>
   <v-card>
-    <v-card-title v-if="weekly" class="subtitle-2">
+    <v-card-title v-if="weekly" class="text-subtitle-2">
       Week {{ WeekStandings.Week }}
     </v-card-title>
     <v-data-table
@@ -37,27 +37,27 @@ const props = withDefaults(defineProps<Props>(), {
 
 const headers = ref<any[]>([
   {
-    text: 'Club',
+    title: 'Club',
     align: 'start',
-    value: 'ClubCode',
+    key: 'ClubCode',
     filterable: false,
     sortable: false,
   },
   {
-    text: 'Played',
-    value: 'Played',
+    title: 'Played',
+    key: 'Played',
     filterable: false,
     sortable: true,
   },
-  { text: 'Wins', value: 'Wins', filterable: false, sortable: true },
-  { text: 'Losses', value: 'Losses', filterable: false, sortable: true },
-  { text: 'Draws', value: 'Draws', filterable: false, sortable: true },
-  { text: 'GF', value: 'GF', filterable: false, sortable: true },
-  { text: 'GA', value: 'GA', filterable: false, sortable: true },
-  { text: 'GD', value: 'GD', filterable: false, sortable: true },
+  { title: 'Wins', key: 'Wins', filterable: false, sortable: true },
+  { title: 'Losses', key: 'Losses', filterable: false, sortable: true },
+  { title: 'Draws', key: 'Draws', filterable: false, sortable: true },
+  { title: 'GF', key: 'GF', filterable: false, sortable: true },
+  { title: 'GA', key: 'GA', filterable: false, sortable: true },
+  { title: 'GD', key: 'GD', filterable: false, sortable: true },
   {
-    text: 'Points',
-    value: 'Points',
+    title: 'Points',
+    key: 'Points',
     filterable: false,
     sortable: true,
   },
@@ -68,7 +68,7 @@ const Table = computed(() => {
 });
 
 const SortedTable = computed(() => {
-  return Table.value.sort((a: any, b: any) => {
+  return [...Table.value].sort((a: any, b: any) => {
     if (b.Points === a.Points) {
       if (b.GD === a.GD) {
         return b.GF - a.GF;

@@ -33,7 +33,7 @@ declare module 'vue' {
     SeasonsTable: typeof import('./src/components/seasons/seasons-table.vue')['default']
     Squadlist: typeof import('./src/components/matchzone/widgets/squadlist.vue')['default']
     SquadlistPlayer: typeof import('./src/components/matchzone/widgets/squadlist-player.vue')['default']
-    Standings: typeof import('./src/components/seasons/standings.vue')['default']
+    Standings: typeof import('./src/components/seasons/standings-component.vue')['default']
     StandingsScroller: typeof import('./src/components/seasons/standings-scroller.vue')['default']
     Timeline: typeof import('./src/components/matchzone/widgets/timeline.vue')['default']
     VApp: typeof import('vuetify/components')['VApp']

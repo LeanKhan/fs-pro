@@ -1,40 +1,45 @@
 <template>
-  <v-card elevation="2" class="pa-2" color="green accent-2">
+  <v-card elevation="2" class="pa-2" color="green-accent-2">
     <v-toolbar>
       Best Players
       <v-icon>mdi-chart-areaspline</v-icon>
     </v-toolbar>
     <v-row>
-      <template v-for="(attr, k) in stats_attributes">
-        <v-col cols="6" v-bind:key="k">
-          <v-card color="green accent-1">
-            <v-card-title class="capitalize subtitle-1 black--text">
+      <template v-for="(attr, k) in stats_attributes" v-bind:key="k">
+        <v-col cols="6">
+          <v-card color="green-accent-1">
+            <v-card-title class="capitalize text-subtitle-1 text-black">
               Highest {{ attr }}
             </v-card-title>
 
             <v-list v-if="top_players[attr].length > 0">
               <v-list-item v-for="(p, i) in top_players[attr]" :key="i">
-                <v-list-item-avatar>
-                  <v-icon style="font-size: 30px; height: 30px" large>
-                    ${{ p.player.ClubCode }}
-                  </v-icon>
-                </v-list-item-avatar>
+                <template v-slot:prepend>
+                  <v-avatar>
+                    <v-icon style="font-size: 30px; height: 30px" size="large">
+                      ${{ p.player.ClubCode }}
+                    </v-icon>
+                  </v-avatar>
+                </template>
+
                 <v-list-item-title>
                   {{ p.player.FirstName }} {{ p.player.LastName }}
                 </v-list-item-title>
 
-                <v-list-item-avatar size="40px" color="blue">
-                  <span class="white--text font-weight-bold">
-                    {{ $filters.roundTo(p[attr], 2) }}
-                  </span>
-                </v-list-item-avatar>
+                <template v-slot:append>
+                  <v-avatar size="40" color="blue">
+                    <span class="text-white font-weight-bold">
+                      {{ $filters.roundTo(p[attr], 2) }}
+                    </span>
+                  </v-avatar>
+                </template>
               </v-list-item>
             </v-list>
 
             <v-sheet class="pa-2" v-else>
               <v-btn
                 block
-                depressed
+                :variant="loading_player_stats ? 'elevated' : 'flat'"
                 :disabled="loading_player_stats"
                 :loading="loading_player_stats"
                 @click="load_stats(attr)"
@@ -50,7 +55,6 @@
 </template>
 
 <script setup lang="ts">
-/* eslint-disable @typescript-eslint/camelcase */
 import { ref, getCurrentInstance } from 'vue';
 
 interface Props {
@@ -83,7 +87,6 @@ const top_players = ref<{
   saves: [],
 });
 
-// eslint-disable-next-line @typescript-eslint/camelcase
 const load_stats = (attribute: string) => {
   loading_player_stats.value = true;
   $axios
