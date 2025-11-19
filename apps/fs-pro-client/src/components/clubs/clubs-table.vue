@@ -74,19 +74,19 @@ const emit = defineEmits<{
 
 const headers = ref<any[]>([
   {
-    text: 'Code',
+    title: 'Code',
     align: 'start',
-    value: 'ClubCode',
+    key: 'ClubCode',
   },
   {
-    text: 'Name',
-    value: 'Name',
+    title: 'Name',
+    key: 'Name',
   },
-  { text: 'Address', value: 'Address', filterable: true, sortable: true },
-  { text: 'Manager', value: 'Manager', filterable: true, sortable: false },
-  { text: 'Stadium', value: 'Stadium', filterable: true, sortable: false },
-  { text: 'League', value: 'LeagueCode', filterable: true, sortable: true },
-  { text: 'Players', value: 'Players', filterable: true, sortable: true },
+  { title: 'Address', key: 'Address', filterable: true, sortable: true },
+  { title: 'Manager', key: 'Manager', filterable: true, sortable: false },
+  { title: 'Stadium', key: 'Stadium', filterable: true, sortable: false },
+  { title: 'League', key: 'LeagueCode', filterable: true, sortable: true },
+  { title: 'Players', key: 'Players', filterable: true, sortable: true },
 ]);
 
 const addClub = (): void => {
