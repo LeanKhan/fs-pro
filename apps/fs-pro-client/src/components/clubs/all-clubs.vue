@@ -12,12 +12,14 @@
               @click="showClub(club.ClubCode)"
               link
             >
-              <v-list-item avatar>
-                <v-img
-                  :src="`${api}/img/clubs/logos/${club.ClubCode}.png`"
-                  width="40px"
-                ></v-img>
-              </v-list-item>
+              <template v-slot:prepend>
+                <v-avatar>
+                  <v-img
+                    :src="`${api}/img/clubs/logos/${club.ClubCode}.png`"
+                    width="40px"
+                  ></v-img>
+                </v-avatar>
+              </template>
 
               <v-list-item-title>{{ club.Name }}</v-list-item-title>
             </v-list-item>
@@ -44,11 +46,13 @@
               {{ selectedClub.Stadium.Name }}
             </v-list-item-subtitle>
 
-            <v-list-item avatar tile size="80">
-              <v-img
-                :src="`${api}/img/logos/${selectedClub.ClubCode}.png`"
-              ></v-img>
-            </v-list-item>
+            <template v-slot:append>
+              <v-avatar tile size="80">
+                <v-img
+                  :src="`${api}/img/logos/${selectedClub.ClubCode}.png`"
+                ></v-img>
+              </v-avatar>
+            </template>
           </v-list-item>
 
           <v-divider light />

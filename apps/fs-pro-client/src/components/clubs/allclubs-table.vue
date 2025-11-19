@@ -27,15 +27,15 @@
     >
       <template v-slot:item.Name="{ item }">
         <v-list-item>
-          <v-list-item avatar>
-            <v-img
-              :src="`${apiUrl}/img/clubs/logos/${item.ClubCode}.png`"
-              width="40px"
-            ></v-img>
-          </v-list-item>
-          <template>
-            <v-list-item-title v-text="item.Name"></v-list-item-title>
+          <template v-slot:prepend>
+            <v-avatar>
+              <v-img
+                :src="`${apiUrl}/img/clubs/logos/${item.ClubCode}.png`"
+                width="40px"
+              ></v-img>
+            </v-avatar>
           </template>
+          <v-list-item-title v-text="item.Name"></v-list-item-title>
         </v-list-item>
       </template>
 
@@ -82,7 +82,7 @@ import { useStore } from '@/store';
 import { Club } from '@/interfaces/club';
 
 interface Props {
-  clubs: Club;
+  clubs: Club[];
 }
 
 defineProps<Props>();
@@ -99,16 +99,16 @@ const apiUrl = computed(() =>
 
 const headers = ref<any[]>([
   {
-    text: 'Name',
+    title: 'Name',
     align: 'start',
-    value: 'Name',
+    key: 'Name',
   },
-  { text: 'Address', value: 'Address', filterable: true, sortable: true },
-  { text: 'Manager', value: 'Manager', filterable: true, sortable: false },
-  { text: 'Stadium', value: 'Stadium', filterable: true, sortable: false },
-  { text: 'League', value: 'LeagueCode', filterable: true, sortable: true },
-  { text: 'Players', value: 'Players', filterable: true, sortable: false },
-  { text: 'Actions', value: 'Actions', filterable: false, sortable: false },
+  { title: 'Address', key: 'Address', filterable: true, sortable: true },
+  { title: 'Manager', key: 'Manager', filterable: true, sortable: false },
+  { title: 'Stadium', key: 'Stadium', filterable: true, sortable: false },
+  { title: 'League', key: 'LeagueCode', filterable: true, sortable: true },
+  { title: 'Players', key: 'Players', filterable: true, sortable: false },
+  { title: 'Actions', key: 'Actions', filterable: false, sortable: false },
 ]);
 
 const updateClub = (clubId: string, clubCode: string): void => {

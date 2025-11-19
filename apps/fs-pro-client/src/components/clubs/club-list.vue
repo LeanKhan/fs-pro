@@ -6,19 +6,17 @@
         <v-spacer></v-spacer>
         <b>{{ clubs ? clubs.length : 'undefined' }}</b>
       </v-list-item>
-      <v-list-item-group color="primary">
-        <v-list-item v-for="(club, i) in clubs" :key="i" color="#7535ed" link>
-          <v-list-item-avatar>
+      <v-list-item v-for="(club, i) in clubs" :key="i" color="#7535ed" link>
+        <template v-slot:prepend>
+          <v-avatar>
             <v-img
               :src="`${api}/img/clubs/logos/${club.ClubCode}.png`"
               width="40px"
             ></v-img>
-          </v-list-item-avatar>
-          <v-list-item-content>
-            <v-list-item-title v-text="club.Name"></v-list-item-title>
-          </v-list-item-content>
-        </v-list-item>
-      </v-list-item-group>
+          </v-avatar>
+        </template>
+        <v-list-item-title v-text="club.Name"></v-list-item-title>
+      </v-list-item>
     </v-list>
 
     <v-divider></v-divider>
@@ -26,8 +24,14 @@
     <v-card-actions v-if="actions">
       <v-spacer></v-spacer>
 
-      <v-btn @click="addClub" text icon color="primary lighten-2" class="mr-3">
-        <v-icon small>mdi-plus</v-icon>
+      <v-btn
+        @click="addClub"
+        variant="text"
+        icon
+        color="primary-lighten-2"
+        class="mr-3"
+      >
+        <v-icon size="small">mdi-plus</v-icon>
         Add
       </v-btn>
     </v-card-actions>
