@@ -4,7 +4,7 @@
       <!-- Current day -->
       <v-toolbar-title
         v-if="calendar"
-        class="subtitle-1 font-weight-bold indigo--text"
+        class="text-subtitle-1 font-weight-bold text-indigo"
       >
         Day {{ calendar.CurrentDay }} - Year {{ calendar.YearString }}
       </v-toolbar-title>
@@ -82,13 +82,18 @@
           <!-- Fixtures scroller -->
           <v-sheet width="100%" color="dark" class="mt-5">
             <div>
-              <v-subheader>
+              <v-list-subheader>
                 Upcoming Fixtures
                 <v-spacer></v-spacer>
-                <v-btn depressed text small color="indigo" to="u/fixtures">
+                <v-btn
+                  variant="text"
+                  size="small"
+                  color="indigo"
+                  to="u/fixtures"
+                >
                   View All
                 </v-btn>
-              </v-subheader>
+              </v-list-subheader>
             </div>
             <v-col cols="12">
               <day-scroll
@@ -104,28 +109,28 @@
         <v-card class="mt-3">
           <div class="text-center">
             <template v-if="seasons">
-              <v-tabs fixed-tabs v-model="seasonTab" dark>
+              <v-tabs v-model="seasonTab">
                 <v-tab v-for="(season, i) in seasons" :key="i">
                   {{ season.CompetitionCode }}
                 </v-tab>
               </v-tabs>
 
-              <v-tabs-items v-model="seasonTab">
-                <v-tab-item v-for="(season, i) in seasons" :key="i">
+              <v-window v-model="seasonTab">
+                <v-window-item v-for="(season, i) in seasons" :key="i">
                   <standings-scroller
                     :standings="season.Standings"
                   ></standings-scroller>
-                </v-tab-item>
-              </v-tabs-items>
+                </v-window-item>
+              </v-window>
             </template>
           </div>
         </v-card>
       </v-col>
       <v-col cols="4">
         <v-card>
-          <v-subheader>Season Stats</v-subheader>
+          <v-list-subheader>Season Stats</v-list-subheader>
           <v-list>
-            <v-list-item three-line v-for="(s, i) in seasons" :key="i">
+            <v-list-item lines="three" v-for="(s, i) in seasons" :key="i">
               <v-list-item-title>{{ s.CompetitionCode }}</v-list-item-title>
               <span>
                 <v-btn :to="`/u/stats/season/${s._id}`">

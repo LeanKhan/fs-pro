@@ -26,7 +26,7 @@
     </v-card>
 
     <!-- loading overlay -->
-    <v-overlay :value="loading">
+    <v-overlay :model-value="loading">
       <v-progress-circular indeterminate size="68"></v-progress-circular>
     </v-overlay>
   </div>

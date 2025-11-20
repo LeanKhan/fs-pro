@@ -5,8 +5,11 @@
         <!-- Current day -->
         <v-toolbar-title>
           <template v-if="club && season">
-            <v-icon x-large>${{ club.ClubCode }}</v-icon>
-            <v-chip small class="ml-1 subtitle-1 font-weight-bold white--text">
+            <v-icon size="x-large">${{ club.ClubCode }}</v-icon>
+            <v-chip
+              size="small"
+              class="ml-1 text-subtitle-1 font-weight-bold text-white"
+            >
               {{ club.League.Name }}
             </v-chip>
           </template>
@@ -14,8 +17,8 @@
 
         <v-spacer></v-spacer>
         <template v-if="club">
-          <v-icon x-large>${{ club.ClubCode }}</v-icon>
-          <span class="subtitle-1 font-weight-bold white--text">
+          <v-icon size="x-large">${{ club.ClubCode }}</v-icon>
+          <span class="text-subtitle-1 font-weight-bold text-white">
             {{ club.Name }}
           </span>
         </template>
@@ -31,12 +34,8 @@
       </v-tabs>
     </v-card>
 
-    <v-tabs-items
-      background-color="transparent"
-      color="transparent"
-      v-model="tab"
-    >
-      <v-tab-item>
+    <v-window v-model="tab">
+      <v-window-item>
         <v-row>
           <v-col cols="8">
             <!-- Current Fixture -->
@@ -46,15 +45,16 @@
                   color="transparent"
                   min-height="180px"
                   class="text-center"
-                  flat
-                  tile
                 >
                   <v-card-text>
                     <v-row>
                       <v-col cols="9">
                         <span>HOME</span>
-                        <v-avatar tile size="70px">
-                          <v-icon style="font-size: 70px; height: 70px" x-large>
+                        <v-avatar tile size="70">
+                          <v-icon
+                            style="font-size: 70px; height: 70px"
+                            size="x-large"
+                          >
                             ${{
                               selectedDay.Matches[competitionIndex].Fixture.Home
                             }}
@@ -63,8 +63,11 @@
 
                         vs
 
-                        <v-avatar tile size="70px">
-                          <v-icon style="font-size: 70px; height: 70px" x-large>
+                        <v-avatar tile size="70">
+                          <v-icon
+                            style="font-size: 70px; height: 70px"
+                            size="x-large"
+                          >
                             ${{
                               selectedDay.Matches[competitionIndex].Fixture.Away
                             }}
@@ -73,14 +76,14 @@
                         <span>AWAY</span>
 
                         <div class="pa-0 text-center">
-                          <p class="mb-2 caption white--text">
+                          <p class="mb-2 text-caption text-white">
                             {{
                               selectedDay.Matches[competitionIndex].Fixture
                                 .Title
                             }}
                           </p>
 
-                          <p class="mb-0 caption">
+                          <p class="mb-0 text-caption">
                             {{
                               selectedDay.Matches[competitionIndex].Fixture
                                 .Stadium
@@ -94,7 +97,7 @@
                           {{
                             selectedDay.Matches[competitionIndex].Competition
                           }}
-                          <v-icon large color="amber lighten-3">
+                          <v-icon size="large" color="amber-lighten-3">
                             mdi-trophy
                           </v-icon>
                         </v-card-subtitle>
@@ -132,7 +135,7 @@
 
               <!-- Fixtures scroller -->
               <v-divider class="mx-2"></v-divider>
-              <v-sheet width="100%" color="transparent" tile class="mt-5 pb-3">
+              <v-sheet width="100%" color="transparent" class="mt-5 pb-3">
                 <day-scroll
                   :days="clubDays"
                   :singleLeague="true"
@@ -159,23 +162,23 @@
           </v-col>
           <v-col cols="4">
             <v-card>
-              <v-sheet height="400px" width="100%" color="green darken-2">
+              <v-sheet height="400px" width="100%" color="green-darken-2">
                 Yeet beat
               </v-sheet>
             </v-card>
           </v-col>
         </v-row>
-      </v-tab-item>
-      <v-tab-item>
+      </v-window-item>
+      <v-window-item>
         <squad-zone :club="club"></squad-zone>
-      </v-tab-item>
-      <v-tab-item>
+      </v-window-item>
+      <v-window-item>
         <club-zone :club="club" @update-available="refresh"></club-zone>
-      </v-tab-item>
-      <v-tab-item>
+      </v-window-item>
+      <v-window-item>
         <transfer-zone></transfer-zone>
-      </v-tab-item>
-    </v-tabs-items>
+      </v-window-item>
+    </v-window>
   </div>
 </template>
 

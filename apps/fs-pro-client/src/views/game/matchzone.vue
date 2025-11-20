@@ -24,7 +24,7 @@
         </v-avatar>
       </v-badge>
 
-      <v-subheader class="mx-auto">
+      <v-list-subheader class="mx-auto">
         MATCHZONE
 
         <v-chip v-if="lastMatchOfSeason || fixture.isFinalMatch">
@@ -33,15 +33,17 @@
 
         Matchday {{ fixture.MatchDay }}
 
-        <v-chip v-if="simulateRest" small color="primary">simulation</v-chip>
-      </v-subheader>
+        <v-chip v-if="simulateRest" size="small" color="primary">
+          simulation
+        </v-chip>
+      </v-list-subheader>
 
       <v-spacer></v-spacer>
 
       <v-btn
         v-if="!matchFinished"
-        depressed
-        small
+        variant="flat"
+        size="small"
         icon
         @click="router.push('/u')"
       >
@@ -50,7 +52,7 @@
 
       <v-btn
         v-else-if="!lastMatchOfSeason"
-        color="pink accent-3"
+        color="pink-accent-3"
         @click="router.push('/u')"
       >
         FINISH MATCH
@@ -58,7 +60,7 @@
 
       <v-btn
         v-else-if="lastMatchOfSeason"
-        color="green accent-3"
+        color="green-accent-3"
         @click="finishSeason"
       >
         &lt; FINISH SEASON &gt;
@@ -80,15 +82,17 @@
                 <v-card
                   flat
                   tile
-                  color="secondary darken-4"
+                  color="secondary-darken-4"
                   class="py-2"
                   width="100%"
                 >
                   <div
-                    class="d-flex justify-center align-center flex-column caption"
+                    class="d-flex justify-center align-center flex-column text-caption"
                   >
-                    <span class="body-2 cyan--text text--accent-3">90:00</span>
-                    <span class="grey--text">{{ fixture.LeagueCode }}</span>
+                    <span class="text-body-2 text-cyan text-accent-3">
+                      90:00
+                    </span>
+                    <span class="text-grey">{{ fixture.LeagueCode }}</span>
                   </div>
 
                   <!-- Match stuff -->
@@ -113,7 +117,7 @@
                       class="align-center d-flex flex-column justify-center text-center py-4 px-0"
                     >
                       <div style="width: 100%">
-                        <div class="display-2 ma-0 d-flex justify-space-around">
+                        <div class="text-h2 ma-0 d-flex justify-space-around">
                           <div>
                             <span>{{ HomeTeamScore || '0' }}</span>
                             <v-divider
@@ -121,11 +125,11 @@
                                 border-width: 2px !important;
                                 border-radius: 2px !important;
                               "
-                              class="deep-purple darken-3"
+                              class="deep-purple-darken-3"
                             ></v-divider>
                           </div>
                           <span
-                            class="text-muted secondary--text text--lighten-1"
+                            class="text-muted text-secondary text-lighten-1"
                           >
                             :
                           </span>
@@ -136,7 +140,7 @@
                                 border-width: 2px !important;
                                 border-radius: 2px !important;
                               "
-                              class="pink accent-3"
+                              class="pink-accent-3"
                             ></v-divider>
                           </div>
                         </div>
@@ -145,7 +149,7 @@
                           <v-btn
                             v-if="!allReady"
                             class="mt-2"
-                            color="green accent-3"
+                            color="green-accent-3"
                             @click="openLobby = true"
                           >
                             START
@@ -170,7 +174,7 @@
                   </v-row>
 
                   <!-- Setup button -->
-                  <v-overlay absolute :value="starting && !matchFinished">
+                  <v-overlay absolute :model-value="starting && !matchFinished">
                     <v-progress-circular
                       color="success"
                       size="130"
@@ -181,9 +185,9 @@
 
                   <v-row no-gutters class="mt-2">
                     <v-col
-                      class="align-center caption d-flex flex-column justify-center text-center"
+                      class="align-center text-caption d-flex flex-column justify-center text-center"
                     >
-                      <div class="caption grey--text">
+                      <div class="text-caption text-grey">
                         <span>
                           {{ fixture.SeasonCode }} - {{ fixture.Title }}
                         </span>
@@ -242,9 +246,7 @@
                   max-height="550px"
                   style="overflow-y: auto"
                 >
-                  <v-card-subtitle
-                    class="text-center cyan--text text--accent-3"
-                  >
+                  <v-card-subtitle class="text-center text-cyan text-accent-3">
                     Timeline
                   </v-card-subtitle>
                   <v-card-text>
