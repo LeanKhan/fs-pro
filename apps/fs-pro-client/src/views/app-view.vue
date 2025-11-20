@@ -3,27 +3,29 @@
     <v-navigation-drawer
       :model-value="drawer"
       @update:model-value="drawer = $event"
-      app
-      clipped
     >
       <v-list-item class="px-2 mt-2">
-        <v-list-item-avatar>
-          <v-img
-            :src="`${
-              userMode
-                ? 'https://randomuser.me/api/portraits/women/84.jpg'
-                : 'https://randomuser.me/api/portraits/men/85.jpg'
-            }`"
-          ></v-img>
-        </v-list-item-avatar>
+        <template v-slot:prepend>
+          <v-avatar>
+            <v-img
+              :src="`${
+                userMode
+                  ? 'https://randomuser.me/api/portraits/women/84.jpg'
+                  : 'https://randomuser.me/api/portraits/men/85.jpg'
+              }`"
+            ></v-img>
+          </v-avatar>
+        </template>
 
         <v-list-item-title>
           {{ userMode ? 'Manager' : 'Admin' }}
         </v-list-item-title>
 
-        <v-btn icon @click="show = !show">
-          <v-icon>{{ show ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
-        </v-btn>
+        <template v-slot:append>
+          <v-btn icon @click="show = !show">
+            <v-icon>{{ show ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+          </v-btn>
+        </template>
       </v-list-item>
 
       <v-expand-transition>
@@ -31,19 +33,21 @@
           <v-divider></v-divider>
 
           <v-list-item
-            class="px-2 grey darken-4"
+            class="px-2 grey-darken-4"
             :to="`${!userMode ? '/u' : '/a'}`"
             link
           >
-            <v-list-item-avatar>
-              <v-img
-                :src="`${
-                  !userMode
-                    ? 'https://randomuser.me/api/portraits/women/84.jpg'
-                    : 'https://randomuser.me/api/portraits/men/85.jpg'
-                }`"
-              ></v-img>
-            </v-list-item-avatar>
+            <template v-slot:prepend>
+              <v-avatar>
+                <v-img
+                  :src="`${
+                    !userMode
+                      ? 'https://randomuser.me/api/portraits/women/84.jpg'
+                      : 'https://randomuser.me/api/portraits/men/85.jpg'
+                  }`"
+                ></v-img>
+              </v-avatar>
+            </template>
 
             <v-list-item-title>
               {{ !userMode ? 'Manager' : 'Admin' }}
@@ -54,7 +58,7 @@
 
       <v-divider></v-divider>
 
-      <v-list dense>
+      <v-list density="compact">
         <v-list-item
           v-for="item in navItems"
           :key="item.title"
@@ -62,30 +66,28 @@
           :exact="true"
           link
         >
-          <v-list-item-icon>
+          <template v-slot:prepend>
             <v-icon :color="item.color">{{ item.icon }}</v-icon>
-          </v-list-item-icon>
+          </template>
 
-          <v-list-item-content>
-            <v-list-item-title>{{ item.title }}</v-list-item-title>
-          </v-list-item-content>
+          <v-list-item-title>{{ item.title }}</v-list-item-title>
         </v-list-item>
       </v-list>
     </v-navigation-drawer>
 
-    <v-app-bar app dense clipped-left v-if="!MatchZone">
+    <v-app-bar density="compact" v-if="!MatchZone">
       <v-app-bar-nav-icon @click.stop="drawer = !drawer" />
       <img class="mx-4" width="40px" :src="`${api}/img/logo-new.png`" />
       <v-toolbar-title class="mr-12 align-center">
-        <span class="title">FS Pro</span>
+        <span class="text-h6">FS Pro</span>
       </v-toolbar-title>
 
       <v-spacer></v-spacer>
 
       <v-badge
         bordered
-        bottom
-        :color="socketConnected ? 'deep-purple accent-4' : 'grey'"
+        location="bottom end"
+        :color="socketConnected ? 'deep-purple-accent-4' : 'grey'"
         dot
         offset-x="10"
         offset-y="10"
@@ -105,8 +107,8 @@
         {{ user ? user.username : 'User' }}
       </span>
 
-      <v-btn class="ml-2" small icon>
-        <v-icon small color="error" @click="logout">mdi-logout</v-icon>
+      <v-btn class="ml-2" size="small" icon>
+        <v-icon size="small" color="error" @click="logout">mdi-logout</v-icon>
       </v-btn>
     </v-app-bar>
 

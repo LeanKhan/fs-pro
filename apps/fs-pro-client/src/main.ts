@@ -52,7 +52,7 @@ app.use(vuetify);
 app.config.globalProperties.$filters = {
   currency: (value: number) => `${formatter.format(value)}`,
   roundTo: roundTo,
-  ordinal: ordinal
+  ordinal: ordinal,
 };
 
 app.mount('#app');
