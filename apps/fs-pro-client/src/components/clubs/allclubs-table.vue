@@ -76,11 +76,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from '@/store';
 import { Club } from '@/interfaces/club';
-
+import { apiUrl } from '@/store';
 interface Props {
   clubs: Club[];
 }
@@ -93,9 +93,7 @@ const store = useStore();
 // TODO: searches should be navigable. change url
 const search = ref('');
 
-const apiUrl = computed(() =>
-  store.calendar?.YearString ? `${store.calendar.YearString}/api` : '/api'
-);
+// const apiUrl = ref<string>(apiUrl);
 
 const headers = ref<any[]>([
   {

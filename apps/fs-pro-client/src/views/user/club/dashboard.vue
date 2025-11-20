@@ -5,7 +5,7 @@
         <!-- Current day -->
         <v-toolbar-title>
           <template v-if="club && season">
-            <v-icon size="x-large">${{ club.ClubCode }}</v-icon>
+            <v-icon size="x-large">custom:{{ club.ClubCode }}</v-icon>
             <v-chip
               size="small"
               class="ml-1 text-subtitle-1 font-weight-bold text-white"
@@ -17,7 +17,7 @@
 
         <v-spacer></v-spacer>
         <template v-if="club">
-          <v-icon size="x-large">${{ club.ClubCode }}</v-icon>
+          <v-icon size="x-large">custom:{{ club.ClubCode }}</v-icon>
           <span class="text-subtitle-1 font-weight-bold text-white">
             {{ club.Name }}
           </span>
@@ -55,7 +55,7 @@
                             style="font-size: 70px; height: 70px"
                             size="x-large"
                           >
-                            ${{
+                            custom:{{
                               selectedDay.Matches[competitionIndex].Fixture.Home
                             }}
                           </v-icon>
@@ -68,7 +68,7 @@
                             style="font-size: 70px; height: 70px"
                             size="x-large"
                           >
-                            ${{
+                            custom:{{
                               selectedDay.Matches[competitionIndex].Fixture.Away
                             }}
                           </v-icon>

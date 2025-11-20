@@ -6,7 +6,7 @@
     center-active
     @click:next="nextDay"
   >
-    <v-slide-item
+    <v-slide-group-item
       v-for="(day, i) in days"
       :key="i"
       v-slot:default="{ active, toggle }"
@@ -18,7 +18,7 @@
         :club="club"
         :singleLeague="singleLeague"
       ></calendar-day>
-    </v-slide-item>
+    </v-slide-group-item>
   </v-slide-group>
 </template>
 

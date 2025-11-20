@@ -23,7 +23,7 @@
                 <v-list-item v-for="(p, i) in top_players[attr]" :key="i">
                   <template v-slot:prepend>
                     <v-icon style="font-size: 30px; height: 30px" size="large">
-                      ${{ p.player.ClubCode }}
+                      custom:{{ p.player.ClubCode }}
                     </v-icon>
                   </template>
 

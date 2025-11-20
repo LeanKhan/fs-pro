@@ -17,7 +17,7 @@
                 <template v-slot:prepend>
                   <v-avatar>
                     <v-icon style="font-size: 30px; height: 30px" size="large">
-                      ${{ p.player.ClubCode }}
+                      custom:{{ p.player.ClubCode }}
                     </v-icon>
                   </v-avatar>
                 </template>

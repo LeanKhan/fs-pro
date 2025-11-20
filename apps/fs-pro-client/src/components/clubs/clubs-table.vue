@@ -1,7 +1,7 @@
 <template>
   <v-card>
     <v-card-title>
-      Add Club to competition
+      {{ multiSelect ? 'Add Clubs' : 'Add Club to competition' }}
       <v-spacer></v-spacer>
 
       <v-text-field
@@ -19,7 +19,7 @@
       v-model="selectedClub"
       item-key="ClubCode"
       show-select
-      :single-select="true"
+      :single-select="!multiSelect"
       :search="search"
       loading-text="Fetching Clubs..."
       no-data-text="No Clubs"
@@ -54,7 +54,9 @@
     <v-card-actions>
       <v-spacer></v-spacer>
       <v-btn color="secondary" @click="close">Close</v-btn>
-      <v-btn color="success" v-if="selectedClub[0]" @click="addClub">Add</v-btn>
+      <v-btn color="success" v-if="selectedClub.length > 0" @click="addClub">
+        {{ multiSelect ? `Add (${selectedClub.length})` : 'Add' }}
+      </v-btn>
     </v-card-actions>
   </v-card>
 </template>
@@ -64,12 +66,16 @@ import { ref, onMounted } from 'vue';
 import { Club } from '@/interfaces/club';
 import { $axios } from '@/main';
 
+const props = defineProps<{
+  multiSelect?: boolean;
+}>();
+
 const clubs = ref<any[]>([]);
 const selectedClub = ref<Club[] | []>([]);
 const search = ref('');
 
 const emit = defineEmits<{
-  'close-club-modal': [payload?: { id: string; name: string }];
+  'close-club-modal': [payload?: { id: string | string[]; name?: string }];
 }>();
 
 const headers = ref<any[]>([
@@ -90,10 +96,17 @@ const headers = ref<any[]>([
 ]);
 
 const addClub = (): void => {
-  emit('close-club-modal', {
-    id: selectedClub.value[0]._id,
-    name: selectedClub.value[0].Name,
-  });
+  if (props.multiSelect) {
+    // For multi-select, emit array of IDs
+    const clubIds = selectedClub.value.map((club: any) => club._id);
+    emit('close-club-modal', { id: clubIds });
+  } else {
+    // For single-select, emit single ID and name
+    emit('close-club-modal', {
+      id: selectedClub.value[0]._id,
+      name: selectedClub.value[0].Name,
+    });
+  }
 };
 
 const close = (): void => {
