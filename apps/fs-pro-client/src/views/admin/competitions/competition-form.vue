@@ -28,7 +28,7 @@
               <v-radio-group
                 label="Type"
                 v-model="form.Type"
-                @change="typeChanged"
+                @update:model-value="typeChanged"
               >
                 <v-radio
                   v-for="(type, i) in types"
@@ -43,7 +43,7 @@
               <v-select
                 label="Country"
                 :items="countries"
-                item-text="Name"
+                item-title="Name"
                 item-value="_id"
                 v-model="form.Country"
               ></v-select>
@@ -112,11 +112,11 @@
 
               <v-card v-else>
                 <v-sheet
-                  color="pink lighten-1"
+                  color="pink-lighten-1"
                   height="100%"
                   width="100%"
                   class="px-3 py-2 text-center"
-                  style="white-spaces: no-wrap"
+                  style="white-space: no-wrap"
                 >
                   <div>
                     For now you can only add clubs to this competition after

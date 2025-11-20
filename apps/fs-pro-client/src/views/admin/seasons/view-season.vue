@@ -3,7 +3,7 @@
     <v-row>
       <v-col cols="12">
         <v-card>
-          <div class="overline">{{ season.SeasonCode }}</div>
+          <div class="text-overline">{{ season.SeasonCode }}</div>
           <v-card-title>
             {{ season.Title }} Season
             <v-chip class="mx-2" :color="season.isStarted ? 'green' : 'orange'">

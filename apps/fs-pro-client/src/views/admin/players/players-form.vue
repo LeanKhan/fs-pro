@@ -3,7 +3,7 @@
     <v-row>
       <v-col cols="12">
         <v-card>
-          <v-toolbar flat color="indigo darken-1">
+          <v-toolbar flat color="indigo-darken-1">
             <v-btn icon @click="goBack">
               <v-icon>mdi-arrow-left</v-icon>
             </v-btn>
@@ -20,7 +20,7 @@
         <v-col cols="3">
           <v-card height="300" width="245" style="position: fixed">
             <v-card-title>Player</v-card-title>
-            <v-card-text class="d-flex justify-center pb-0 accent">
+            <v-card-text class="d-flex justify-center pb-0 bg-accent">
               <player-avatar :appearance="form.Appearance"></player-avatar>
             </v-card-text>
             <v-card-actions>Rating: {{ rating }}</v-card-actions>
@@ -33,7 +33,7 @@
               <v-row>
                 <v-col cols="6">
                   <v-text-field
-                    color="indigo darken-1"
+                    color="indigo-darken-1"
                     label="First Name"
                     v-model="form.FirstName"
                   ></v-text-field>
@@ -41,7 +41,7 @@
 
                 <v-col cols="6">
                   <v-text-field
-                    color="indigo darken-1"
+                    color="indigo-darken-1"
                     label="Last Name"
                     v-model="form.LastName"
                   ></v-text-field>
@@ -49,7 +49,7 @@
 
                 <v-col cols="6">
                   <v-text-field
-                    color="indigo darken-1"
+                    color="indigo-darken-1"
                     type="number"
                     min="16"
                     max="45"
@@ -58,16 +58,16 @@
                   ></v-text-field>
 
                   <v-select
-                    color="indigo darken-1"
+                    color="indigo-darken-1"
                     label="Nationality"
                     :items="countries"
-                    item-text="Name"
+                    item-title="Name"
                     item-value="_id"
                     v-model="form.Nationality"
                   ></v-select>
 
                   <v-select
-                    color="indigo darken-1"
+                    color="indigo-darken-1"
                     label="Position"
                     :items="positions"
                     v-model="form.Position"
@@ -94,7 +94,7 @@
                     <v-radio label="Right" value="right"></v-radio>
                   </v-radio-group>
 
-                  <div class="subtitle-1">Mindset</div>
+                  <div class="text-subtitle-1">Mindset</div>
                   <v-checkbox
                     v-model="form.Attributes.AttackingMindset"
                     label="Attacking"
@@ -104,7 +104,7 @@
                     label="Defensive"
                   ></v-checkbox>
 
-                  <div class="subtitle-1">Appearance</div>
+                  <div class="text-subtitle-1">Appearance</div>
                   <div v-for="(f, x) in appearances" :key="x">
                     <span>{{ f.feature }}</span>
                     <ul v-for="(v, y) in f.variants" :key="y">
@@ -114,52 +114,48 @@
                 </v-col>
 
                 <v-col class="px-2" cols="6">
-                  <div class="subtitle-1">Attributes</div>
-                  <v-list two-line>
+                  <div class="text-subtitle-1">Attributes</div>
+                  <v-list lines="two">
                     <v-list-item v-for="(attr, i) in attributes" :key="i">
-                      <template v-slot:default>
-                        <v-list-item-avatar>
-                          <v-avatar
-                            width="65"
-                            height="65"
-                            :color="attrColor(form.Attributes[attr])"
-                          >
-                            {{ form.Attributes[attr] }}
-                          </v-avatar>
-                        </v-list-item-avatar>
-                        <v-list-item-content>
-                          <v-list-item-subtitle class="pl-2">
-                            {{ attr }}
-                          </v-list-item-subtitle>
-                          <v-list-item-subtitle class="px-2">
-                            <v-slider
-                              dense
-                              v-model="form.Attributes[attr]"
-                              color="indigo"
-                              track-color="grey"
-                              min="0"
-                              max="99"
-                            >
-                              <template v-slot:prepend>
-                                <v-icon
-                                  color="indigo lighten-3"
-                                  @click="form.Attributes[attr]--"
-                                >
-                                  mdi-minus
-                                </v-icon>
-                              </template>
-                              <template v-slot:append>
-                                <v-icon
-                                  color="indigo lighten-3"
-                                  @click="form.Attributes[attr]++"
-                                >
-                                  mdi-plus
-                                </v-icon>
-                              </template>
-                            </v-slider>
-                          </v-list-item-subtitle>
-                        </v-list-item-content>
+                      <template v-slot:prepend>
+                        <v-avatar
+                          size="65"
+                          :color="attrColor(form.Attributes[attr])"
+                        >
+                          {{ form.Attributes[attr] }}
+                        </v-avatar>
                       </template>
+
+                      <v-list-item-subtitle class="pl-2">
+                        {{ attr }}
+                      </v-list-item-subtitle>
+                      <v-list-item-subtitle class="px-2">
+                        <v-slider
+                          density="compact"
+                          v-model="form.Attributes[attr]"
+                          color="indigo"
+                          track-color="grey"
+                          min="0"
+                          max="99"
+                        >
+                          <template v-slot:prepend>
+                            <v-icon
+                              color="indigo-lighten-3"
+                              @click="form.Attributes[attr]--"
+                            >
+                              mdi-minus
+                            </v-icon>
+                          </template>
+                          <template v-slot:append>
+                            <v-icon
+                              color="indigo-lighten-3"
+                              @click="form.Attributes[attr]++"
+                            >
+                              mdi-plus
+                            </v-icon>
+                          </template>
+                        </v-slider>
+                      </v-list-item-subtitle>
                     </v-list-item>
                   </v-list>
                 </v-col>
@@ -188,7 +184,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useStore } from '@/store';
 import { $axios } from '@/main';

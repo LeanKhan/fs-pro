@@ -6,7 +6,7 @@
     <v-row>
       <v-col cols="12">
         <v-card>
-          <v-toolbar flat color="amber darken-1">
+          <v-toolbar flat color="amber-darken-1">
             <v-btn icon @click="goBack">
               <v-icon>mdi-arrow-left</v-icon>
             </v-btn>
@@ -38,43 +38,46 @@
             </v-col>
 
             <v-col cols="6">
-              <div class="title">
-                <span class="subtitle-1 grey--text">Name:</span>
+              <div class="text-h6">
+                <span class="text-subtitle-1 text-grey">Name:</span>
                 {{ club ? club.Name : 'N/A' }}
-                <span class="grey--text">{{ club.ClubCode }}</span>
+                <span class="text-grey">{{ club.ClubCode }}</span>
               </div>
 
-              <div v-if="club.Manager && club.Manager.FirstName" class="title">
-                <span class="subtitle-1 grey--text">Manager:</span>
+              <div
+                v-if="club.Manager && club.Manager.FirstName"
+                class="text-h6"
+              >
+                <span class="text-subtitle-1 text-grey">Manager:</span>
                 {{ club.Manager.FirstName }} {{ club.Manager.LastName }}
               </div>
-              <div v-else class="title">
-                <span class="subtitle-1 grey--text">Manager:</span>
+              <div v-else class="text-h6">
+                <span class="text-subtitle-1 text-grey">Manager:</span>
                 No Manager
               </div>
 
-              <div class="title">
-                <span class="subtitle-1 grey--text">League:</span>
+              <div class="text-h6">
+                <span class="text-subtitle-1 text-grey">League:</span>
                 {{ club.LeagueCode }}
               </div>
 
-              <div class="title">
-                <span class="subtitle-1 grey--text">Stadium:</span>
+              <div class="text-h6">
+                <span class="text-subtitle-1 text-grey">Stadium:</span>
                 <span>{{ club.Stadium?.Name }}</span>
                 &nbsp;
-                <span class="grey--text">{{ club.Stadium?.Location }}</span>
+                <span class="text-grey">{{ club.Stadium?.Location }}</span>
               </div>
 
-              <div class="title">
-                <span class="subtitle-1 grey--text">Rating:</span>
+              <div class="text-h6">
+                <span class="text-subtitle-1 text-grey">Rating:</span>
                 <v-rating
-                  :value="clubRating"
-                  :half-increments="true"
-                  :readonly="true"
-                  color="amber darken-1"
-                  background-color="secondary lighten-1"
+                  :model-value="clubRating"
+                  half-increments
+                  readonly
+                  color="amber-darken-1"
+                  bg-color="secondary-lighten-1"
                 ></v-rating>
-                <span class="font-italic success--text">{{ clubRating }}</span>
+                <span class="font-italic text-success">{{ clubRating }}</span>
               </div>
             </v-col>
 

@@ -2,7 +2,7 @@
   <div>
     <v-card :loading="loading">
       <v-toolbar>
-        <v-toolbar-title class="subtitle-1 font-weight-bold indigo--text">
+        <v-toolbar-title class="text-subtitle-1 font-weight-bold text-indigo">
           Current Calendar: {{ calendar?.YearString }}
         </v-toolbar-title>
 
@@ -51,16 +51,16 @@
           <li v-for="cndr in calendars" :key="cndr._id">
             {{ cndr.YearString }}
 
-            <v-chip small>
+            <v-chip size="small">
               {{ cndr.isActive ? 'Active' : 'Not Active' }}
             </v-chip>
 
-            <v-chip small v-if="cndr.isEnded">Ended</v-chip>
+            <v-chip size="small" v-if="cndr.isEnded">Ended</v-chip>
 
             <v-btn
               v-if="cndr.Days && cndr.Days.length > 0"
-              text
-              small
+              variant="text"
+              size="small"
               @click="startCalendarYear(cndr.YearString, cndr._id)"
             >
               Start Year
@@ -68,8 +68,8 @@
 
             <v-btn
               v-else-if="!cndr.Days || cndr.Days.length == 0"
-              text
-              small
+              variant="text"
+              size="small"
               class="ml-2"
               color="accent"
               @click="setupAndStartCalendarYear(cndr.YearString, cndr._id)"
@@ -81,7 +81,7 @@
       </v-card-text>
     </v-card>
 
-    <v-overlay :value="loading">
+    <v-overlay :model-value="loading">
       <v-progress-circular indeterminate size="68"></v-progress-circular>
     </v-overlay>
 
