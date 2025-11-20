@@ -1,8 +1,8 @@
 <template>
   <v-app id="app">
     <v-navigation-drawer
-      :model-value="drawer"
-      @update:model-value="drawer = $event"
+      :modelValue="drawer"
+      @update:modelValue="drawer = $event"
     >
       <v-list-item class="px-2 mt-2">
         <template v-slot:prepend>
@@ -57,7 +57,6 @@
       </v-expand-transition>
 
       <v-divider></v-divider>
-
       <v-list density="compact">
         <v-list-item
           v-for="item in navItems"
@@ -67,7 +66,10 @@
           link
         >
           <template v-slot:prepend>
-            <v-icon :color="item.color">{{ item.icon }}</v-icon>
+            <v-icon v-if="item.type == 'club-logo'">
+              {{ `custom:${item.icon}` }}
+            </v-icon>
+            <v-icon v-else :color="item.color">{{ item.icon }}</v-icon>
           </template>
 
           <v-list-item-title>{{ item.title }}</v-list-item-title>
@@ -77,7 +79,7 @@
 
     <v-app-bar density="compact" v-if="!MatchZone">
       <v-app-bar-nav-icon @click.stop="drawer = !drawer" />
-      <img class="mx-4" width="40px" :src="`${api}/img/logo-new.png`" />
+      <img class="mx-4" width="40px" :src="`/logo-new.png`" />
       <v-toolbar-title class="mr-12 align-center">
         <span class="text-h6">FS Pro</span>
       </v-toolbar-title>
@@ -118,14 +120,9 @@
       </v-container>
     </v-main>
 
-    <!-- TODO: add a global snackbar to app -->
-    <!-- <v-snackbar color="dark" timeout="2000" :value="showSnackbar">
-      Hi!
-    </v-snackbar> -->
-
     <v-snackbar
-      :model-value="toast.show"
-      @update:model-value="toast.show = $event"
+      :modelValue="toast.show"
+      @update:modelValue="toast.show = $event"
       :timeout="3000"
       :color="toast.style"
     >
@@ -134,8 +131,8 @@
 
     <!-- TODO: clean this up! -->
     <v-overlay
-      :model-value="errorOverlay"
-      @update:model-value="errorOverlay = $event"
+      :modelValue="errorOverlay"
+      @update:modelValue="errorOverlay = $event"
     >
       <v-sheet class="text-center pa-2" width="500px" height="300px">
         Error!
@@ -158,13 +155,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, getCurrentInstance } from 'vue';
 import { useRouter, useRoute, onBeforeRouteUpdate } from 'vue-router';
-import { apiUrl } from '@/store';
+import { apiUrl, useStore } from '@/store';
 
 const router = useRouter();
 const route = useRoute();
 const instance = getCurrentInstance();
 const $axios = instance?.appContext.config.globalProperties.$axios;
-const $store = instance?.appContext.config.globalProperties.$store;
+const store = useStore();
 const $socket = instance?.appContext.config.globalProperties.$socket;
 
 const drawer = ref(true);
@@ -209,7 +206,7 @@ const logout = (): void => {
       console.log('Response => ', response.data);
       if (response.data.success) {
         $socket.client.disconnect();
-        $store.dispatch('UNSET_USER');
+        store.unsetUser();
         router.push('/auth');
       }
     })
@@ -219,20 +216,20 @@ const logout = (): void => {
 };
 
 const goBackToPreviousState = (): void => {
-  $store.commit('TOGGLE_ERROR_OVERLAY');
+  store.toggleErrorOverlay();
   router.back();
 };
 
 const user = computed(() => {
-  return $store.getters.user;
+  return store.user;
 });
 
 const errorOverlay = computed(() => {
-  return $store.getters.errorOverlay;
+  return store.errorOverlay;
 });
 
 const toast = computed(() => {
-  return $store.getters.toast;
+  return store.toast;
 });
 
 const socketConnected = computed(() => {
@@ -253,9 +250,10 @@ const userNavItems = computed((): any[] => {
     const clubRoutes = user.value.clubs.map((club: any) => {
       return {
         title: club.Name,
-        icon: `$${club.ClubCode}`,
+        icon: `${club.ClubCode}`,
         link: `/u/clubs/${club._id}/${club.ClubCode}`,
         color: 'pink darken-2',
+        type: 'club-logo',
       };
     });
 
@@ -295,7 +293,7 @@ const enter = (): void => {
       { withCredentials: true }
     )
     .then((response: any) => {
-      $store.dispatch('SET_USER', {
+      store.setUser({
         ...user.value,
         session: response.data.sessionID,
       });
@@ -321,14 +319,14 @@ onMounted(() => {
     drawer.value = false;
   }
 
-  $store.dispatch('GET_USER');
-  $store.dispatch('GET_COUNTRIES');
+  store.getUser();
+  store.getCountries();
 
   // Enter app :p wait for getting user first! XD
   enter();
 
   if ($socket) {
-    $socket.client.open();
+    $socket.open();
   }
 });
 </script>

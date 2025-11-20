@@ -1,14 +1,10 @@
 <template>
   <div id="user-lobby">
-    <h4 class="display-1 mb-0 text-center">FS-Pro Lobby</h4>
+    <h4 class="text-h4 mb-0 text-center">FS-Pro Lobby</h4>
     <div class="d-flex justify-center align-center my-3">
-      <img
-        alt="FsPro Logo :)"
-        height="200px"
-        :src="`${api}/img/logo-new.png`"
-      />
+      <img alt="FsPro Logo" height="200px" src="/logo-new.png" />
     </div>
-    <div class="text-center white--text pa-2">
+    <div class="text-center text-white pa-2">
       No new Years available yet. Admin will create :)
 
       <br />
@@ -16,10 +12,5 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { apiUrl } from '@/store';
-const api = apiUrl;
-</script>
 
 <style></style>
