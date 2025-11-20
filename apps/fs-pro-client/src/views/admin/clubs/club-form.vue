@@ -3,7 +3,7 @@
     <v-row>
       <v-col cols="12">
         <v-card>
-          <v-toolbar flat color="amber darken-1">
+          <v-toolbar flat color="amber-darken-1">
             <v-btn icon @click="goBack">
               <v-icon>mdi-arrow-left</v-icon>
             </v-btn>
@@ -55,7 +55,7 @@
               <v-row>
                 <v-col cols="6">
                   <v-text-field
-                    color="amber darken-1"
+                    color="amber-darken-1"
                     label="Name"
                     v-model="form.Name"
                   ></v-text-field>
@@ -63,29 +63,29 @@
 
                 <v-col cols="6">
                   <v-text-field
-                    color="amber darken-1"
+                    color="amber-darken-1"
                     label="Code"
                     v-model="form.ClubCode"
                   ></v-text-field>
                 </v-col>
 
                 <v-col cols="6">
-                  <div class="subtitle-1">Stadium</div>
+                  <div class="text-subtitle-1">Stadium</div>
                   <div class="d-flex flex-column">
                     <v-text-field
-                      color="amber darken-1"
+                      color="amber-darken-1"
                       label="Name"
                       v-model="form.Stadium.Name"
                     ></v-text-field>
 
                     <v-text-field
-                      color="amber darken-1"
+                      color="amber-darken-1"
                       label="Capacity"
                       v-model="form.Stadium.Capacity"
                     ></v-text-field>
 
                     <v-text-field
-                      color="amber darken-1"
+                      color="amber-darken-1"
                       label="Location"
                       v-model="form.Stadium.Location"
                     ></v-text-field>
@@ -93,25 +93,25 @@
                 </v-col>
 
                 <v-col class="px-2" cols="6">
-                  <div class="subtitle-1">Address</div>
+                  <div class="text-subtitle-1">Address</div>
                   <div class="d-flex flex-column">
                     <v-text-field
-                      color="amber darken-1"
+                      color="amber-darken-1"
                       label="Section"
                       v-model="form.Address.Section"
                     ></v-text-field>
 
                     <v-text-field
-                      color="amber darken-1"
+                      color="amber-darken-1"
                       label="City"
                       v-model="form.Address.City"
                     ></v-text-field>
 
                     <v-select
-                      color="amber darken-1"
+                      color="amber-darken-1"
                       label="Country"
                       :items="countries"
-                      item-text="Name"
+                      item-title="Name"
                       item-value="_id"
                       v-model="form.Address.Country"
                     ></v-select>

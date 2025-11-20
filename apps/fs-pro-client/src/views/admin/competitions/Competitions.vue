@@ -10,6 +10,7 @@ import { defineComponent, computed } from 'vue';
 import { useRoute } from 'vue-router';
 
 export default defineComponent({
+  // eslint-disable-next-line vue/multi-word-component-names
   name: 'Competitions',
   setup() {
     const route = useRoute();

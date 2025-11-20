@@ -1,7 +1,7 @@
 <template>
   <div>
     <v-card>
-      <v-toolbar flat color="indigo darken-1">
+      <v-toolbar flat color="indigo-darken-1">
         <v-btn icon @click="goBack">
           <v-icon>mdi-arrow-left</v-icon>
         </v-btn>

@@ -7,15 +7,13 @@
         :src="`${api}/img/logo-new.png`"
       />
     </div>
-    <p class="display-2 secondary--text text-center">FSPro</p>
-    <p class="caption secondary--text lighten-3 text-center">Let's go!</p>
+    <p class="text-h2 text-secondary text-center">FSPro</p>
+    <p class="text-caption text-secondary text-center">Let's go!</p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useStore, apiUrl } from '@/store';
+import { apiUrl } from '@/store';
 
-const store = useStore();
 const api = apiUrl;
 </script>
