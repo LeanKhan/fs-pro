@@ -133,6 +133,14 @@ const routes: RouteRecordRaw[] = [
               ),
             name: 'User Lobby',
           },
+          {
+            path: 'settings',
+            component: () =>
+              import(
+                /* webpackChunkName: "user_settings" */ '../views/user/settings.vue'
+              ),
+            name: 'User Settings',
+          },
 
           userClubRoutes,
         ],

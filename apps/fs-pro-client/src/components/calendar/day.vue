@@ -30,13 +30,13 @@
           <template v-else>
             <div v-if="isClub">
               <v-icon size="large">
-                ${{ day.Matches[0] ? day.Matches[0].Fixture.Home : 'NA' }}
+                custom:{{ day.Matches[0] ? day.Matches[0].Fixture.Home : 'NA' }}
               </v-icon>
 
               <span>vs</span>
 
               <v-icon size="large">
-                ${{ day.Matches[0] ? day.Matches[0].Fixture.Away : 'NA' }}
+                custom:${{ day.Matches[0] ? day.Matches[0].Fixture.Away : 'NA' }}
               </v-icon>
             </div>
 
