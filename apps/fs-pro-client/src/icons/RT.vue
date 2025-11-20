@@ -138,17 +138,17 @@
           x2="170.4027"
           y2="154.6651"
         >
-          <stop offset="0" style="stop-color:#BA7418" />
-          <stop offset="0.1534" style="stop-color:#DCA94A" />
-          <stop offset="0.2701" style="stop-color:#F1CB6A" />
-          <stop offset="0.3333" style="stop-color:#F9D876" />
-          <stop offset="0.38" style="stop-color:#FBDD8B" />
-          <stop offset="0.4675" style="stop-color:#FEE6AC" />
-          <stop offset="0.5152" style="stop-color:#FFE9B9" />
-          <stop offset="0.5649" style="stop-color:#FDE4A4" />
-          <stop offset="0.6583" style="stop-color:#FADB83" />
-          <stop offset="0.7091" style="stop-color:#F9D876" />
-          <stop offset="1" style="stop-color:#BA7418" />
+          <stop offset="0" style="stop-color: #ba7418" />
+          <stop offset="0.1534" style="stop-color: #dca94a" />
+          <stop offset="0.2701" style="stop-color: #f1cb6a" />
+          <stop offset="0.3333" style="stop-color: #f9d876" />
+          <stop offset="0.38" style="stop-color: #fbdd8b" />
+          <stop offset="0.4675" style="stop-color: #fee6ac" />
+          <stop offset="0.5152" style="stop-color: #ffe9b9" />
+          <stop offset="0.5649" style="stop-color: #fde4a4" />
+          <stop offset="0.6583" style="stop-color: #fadb83" />
+          <stop offset="0.7091" style="stop-color: #f9d876" />
+          <stop offset="1" style="stop-color: #ba7418" />
         </linearGradient>
         <path
           fill="url(#SVGID_1_)"
@@ -229,17 +229,17 @@
           x2="51.387"
           y2="27.1756"
         >
-          <stop offset="0" style="stop-color:#BA7418" />
-          <stop offset="0.1534" style="stop-color:#DCA94A" />
-          <stop offset="0.2701" style="stop-color:#F1CB6A" />
-          <stop offset="0.3333" style="stop-color:#F9D876" />
-          <stop offset="0.38" style="stop-color:#FBDD8B" />
-          <stop offset="0.4675" style="stop-color:#FEE6AC" />
-          <stop offset="0.5152" style="stop-color:#FFE9B9" />
-          <stop offset="0.5649" style="stop-color:#FDE4A4" />
-          <stop offset="0.6583" style="stop-color:#FADB83" />
-          <stop offset="0.7091" style="stop-color:#F9D876" />
-          <stop offset="1" style="stop-color:#BA7418" />
+          <stop offset="0" style="stop-color: #ba7418" />
+          <stop offset="0.1534" style="stop-color: #dca94a" />
+          <stop offset="0.2701" style="stop-color: #f1cb6a" />
+          <stop offset="0.3333" style="stop-color: #f9d876" />
+          <stop offset="0.38" style="stop-color: #fbdd8b" />
+          <stop offset="0.4675" style="stop-color: #fee6ac" />
+          <stop offset="0.5152" style="stop-color: #ffe9b9" />
+          <stop offset="0.5649" style="stop-color: #fde4a4" />
+          <stop offset="0.6583" style="stop-color: #fadb83" />
+          <stop offset="0.7091" style="stop-color: #f9d876" />
+          <stop offset="1" style="stop-color: #ba7418" />
         </linearGradient>
         <path
           fill="url(#SVGID_2_)"
@@ -254,17 +254,17 @@
           x2="65.6232"
           y2="28.8038"
         >
-          <stop offset="0" style="stop-color:#BA7418" />
-          <stop offset="0.1534" style="stop-color:#DCA94A" />
-          <stop offset="0.2701" style="stop-color:#F1CB6A" />
-          <stop offset="0.3333" style="stop-color:#F9D876" />
-          <stop offset="0.38" style="stop-color:#FBDD8B" />
-          <stop offset="0.4675" style="stop-color:#FEE6AC" />
-          <stop offset="0.5152" style="stop-color:#FFE9B9" />
-          <stop offset="0.5649" style="stop-color:#FDE4A4" />
-          <stop offset="0.6583" style="stop-color:#FADB83" />
-          <stop offset="0.7091" style="stop-color:#F9D876" />
-          <stop offset="1" style="stop-color:#BA7418" />
+          <stop offset="0" style="stop-color: #ba7418" />
+          <stop offset="0.1534" style="stop-color: #dca94a" />
+          <stop offset="0.2701" style="stop-color: #f1cb6a" />
+          <stop offset="0.3333" style="stop-color: #f9d876" />
+          <stop offset="0.38" style="stop-color: #fbdd8b" />
+          <stop offset="0.4675" style="stop-color: #fee6ac" />
+          <stop offset="0.5152" style="stop-color: #ffe9b9" />
+          <stop offset="0.5649" style="stop-color: #fde4a4" />
+          <stop offset="0.6583" style="stop-color: #fadb83" />
+          <stop offset="0.7091" style="stop-color: #f9d876" />
+          <stop offset="1" style="stop-color: #ba7418" />
         </linearGradient>
         <path fill="url(#SVGID_3_)" d="M57.9,27.3H63v21.1h-5.1V27.3z" />
         <linearGradient
@@ -275,17 +275,17 @@
           x2="81.7395"
           y2="27.1756"
         >
-          <stop offset="0" style="stop-color:#BA7418" />
-          <stop offset="0.1534" style="stop-color:#DCA94A" />
-          <stop offset="0.2701" style="stop-color:#F1CB6A" />
-          <stop offset="0.3333" style="stop-color:#F9D876" />
-          <stop offset="0.38" style="stop-color:#FBDD8B" />
-          <stop offset="0.4675" style="stop-color:#FEE6AC" />
-          <stop offset="0.5152" style="stop-color:#FFE9B9" />
-          <stop offset="0.5649" style="stop-color:#FDE4A4" />
-          <stop offset="0.6583" style="stop-color:#FADB83" />
-          <stop offset="0.7091" style="stop-color:#F9D876" />
-          <stop offset="1" style="stop-color:#BA7418" />
+          <stop offset="0" style="stop-color: #ba7418" />
+          <stop offset="0.1534" style="stop-color: #dca94a" />
+          <stop offset="0.2701" style="stop-color: #f1cb6a" />
+          <stop offset="0.3333" style="stop-color: #f9d876" />
+          <stop offset="0.38" style="stop-color: #fbdd8b" />
+          <stop offset="0.4675" style="stop-color: #fee6ac" />
+          <stop offset="0.5152" style="stop-color: #ffe9b9" />
+          <stop offset="0.5649" style="stop-color: #fde4a4" />
+          <stop offset="0.6583" style="stop-color: #fadb83" />
+          <stop offset="0.7091" style="stop-color: #f9d876" />
+          <stop offset="1" style="stop-color: #ba7418" />
         </linearGradient>
         <path
           fill="url(#SVGID_4_)"
@@ -299,17 +299,17 @@
           x2="95.9757"
           y2="28.8038"
         >
-          <stop offset="0" style="stop-color:#BA7418" />
-          <stop offset="0.1534" style="stop-color:#DCA94A" />
-          <stop offset="0.2701" style="stop-color:#F1CB6A" />
-          <stop offset="0.3333" style="stop-color:#F9D876" />
-          <stop offset="0.38" style="stop-color:#FBDD8B" />
-          <stop offset="0.4675" style="stop-color:#FEE6AC" />
-          <stop offset="0.5152" style="stop-color:#FFE9B9" />
-          <stop offset="0.5649" style="stop-color:#FDE4A4" />
-          <stop offset="0.6583" style="stop-color:#FADB83" />
-          <stop offset="0.7091" style="stop-color:#F9D876" />
-          <stop offset="1" style="stop-color:#BA7418" />
+          <stop offset="0" style="stop-color: #ba7418" />
+          <stop offset="0.1534" style="stop-color: #dca94a" />
+          <stop offset="0.2701" style="stop-color: #f1cb6a" />
+          <stop offset="0.3333" style="stop-color: #f9d876" />
+          <stop offset="0.38" style="stop-color: #fbdd8b" />
+          <stop offset="0.4675" style="stop-color: #fee6ac" />
+          <stop offset="0.5152" style="stop-color: #ffe9b9" />
+          <stop offset="0.5649" style="stop-color: #fde4a4" />
+          <stop offset="0.6583" style="stop-color: #fadb83" />
+          <stop offset="0.7091" style="stop-color: #f9d876" />
+          <stop offset="1" style="stop-color: #ba7418" />
         </linearGradient>
         <path fill="url(#SVGID_5_)" d="M88.3,27.3h5.1v21.1h-5.1V27.3z" />
         <linearGradient
@@ -320,17 +320,17 @@
           x2="112.0919"
           y2="27.1756"
         >
-          <stop offset="0" style="stop-color:#BA7418" />
-          <stop offset="0.1534" style="stop-color:#DCA94A" />
-          <stop offset="0.2701" style="stop-color:#F1CB6A" />
-          <stop offset="0.3333" style="stop-color:#F9D876" />
-          <stop offset="0.38" style="stop-color:#FBDD8B" />
-          <stop offset="0.4675" style="stop-color:#FEE6AC" />
-          <stop offset="0.5152" style="stop-color:#FFE9B9" />
-          <stop offset="0.5649" style="stop-color:#FDE4A4" />
-          <stop offset="0.6583" style="stop-color:#FADB83" />
-          <stop offset="0.7091" style="stop-color:#F9D876" />
-          <stop offset="1" style="stop-color:#BA7418" />
+          <stop offset="0" style="stop-color: #ba7418" />
+          <stop offset="0.1534" style="stop-color: #dca94a" />
+          <stop offset="0.2701" style="stop-color: #f1cb6a" />
+          <stop offset="0.3333" style="stop-color: #f9d876" />
+          <stop offset="0.38" style="stop-color: #fbdd8b" />
+          <stop offset="0.4675" style="stop-color: #fee6ac" />
+          <stop offset="0.5152" style="stop-color: #ffe9b9" />
+          <stop offset="0.5649" style="stop-color: #fde4a4" />
+          <stop offset="0.6583" style="stop-color: #fadb83" />
+          <stop offset="0.7091" style="stop-color: #f9d876" />
+          <stop offset="1" style="stop-color: #ba7418" />
         </linearGradient>
         <path
           fill="url(#SVGID_6_)"
@@ -344,17 +344,17 @@
           x2="131.0283"
           y2="27.1756"
         >
-          <stop offset="0" style="stop-color:#BA7418" />
-          <stop offset="0.1534" style="stop-color:#DCA94A" />
-          <stop offset="0.2701" style="stop-color:#F1CB6A" />
-          <stop offset="0.3333" style="stop-color:#F9D876" />
-          <stop offset="0.38" style="stop-color:#FBDD8B" />
-          <stop offset="0.4675" style="stop-color:#FEE6AC" />
-          <stop offset="0.5152" style="stop-color:#FFE9B9" />
-          <stop offset="0.5649" style="stop-color:#FDE4A4" />
-          <stop offset="0.6583" style="stop-color:#FADB83" />
-          <stop offset="0.7091" style="stop-color:#F9D876" />
-          <stop offset="1" style="stop-color:#BA7418" />
+          <stop offset="0" style="stop-color: #ba7418" />
+          <stop offset="0.1534" style="stop-color: #dca94a" />
+          <stop offset="0.2701" style="stop-color: #f1cb6a" />
+          <stop offset="0.3333" style="stop-color: #f9d876" />
+          <stop offset="0.38" style="stop-color: #fbdd8b" />
+          <stop offset="0.4675" style="stop-color: #fee6ac" />
+          <stop offset="0.5152" style="stop-color: #ffe9b9" />
+          <stop offset="0.5649" style="stop-color: #fde4a4" />
+          <stop offset="0.6583" style="stop-color: #fadb83" />
+          <stop offset="0.7091" style="stop-color: #f9d876" />
+          <stop offset="1" style="stop-color: #ba7418" />
         </linearGradient>
         <path
           fill="url(#SVGID_7_)"
@@ -445,17 +445,17 @@
             x2="36.4609"
             y2="144.9947"
           >
-            <stop offset="0" style="stop-color:#BA7418" />
-            <stop offset="0.1534" style="stop-color:#DCA94A" />
-            <stop offset="0.2701" style="stop-color:#F1CB6A" />
-            <stop offset="0.3333" style="stop-color:#F9D876" />
-            <stop offset="0.38" style="stop-color:#FBDD8B" />
-            <stop offset="0.4675" style="stop-color:#FEE6AC" />
-            <stop offset="0.5152" style="stop-color:#FFE9B9" />
-            <stop offset="0.5649" style="stop-color:#FDE4A4" />
-            <stop offset="0.6583" style="stop-color:#FADB83" />
-            <stop offset="0.7091" style="stop-color:#F9D876" />
-            <stop offset="1" style="stop-color:#BA7418" />
+            <stop offset="0" style="stop-color: #ba7418" />
+            <stop offset="0.1534" style="stop-color: #dca94a" />
+            <stop offset="0.2701" style="stop-color: #f1cb6a" />
+            <stop offset="0.3333" style="stop-color: #f9d876" />
+            <stop offset="0.38" style="stop-color: #fbdd8b" />
+            <stop offset="0.4675" style="stop-color: #fee6ac" />
+            <stop offset="0.5152" style="stop-color: #ffe9b9" />
+            <stop offset="0.5649" style="stop-color: #fde4a4" />
+            <stop offset="0.6583" style="stop-color: #fadb83" />
+            <stop offset="0.7091" style="stop-color: #f9d876" />
+            <stop offset="1" style="stop-color: #ba7418" />
           </linearGradient>
           <path
             fill="url(#SVGID_8_)"
@@ -469,17 +469,17 @@
             x2="52.5942"
             y2="149.6901"
           >
-            <stop offset="0" style="stop-color:#BA7418" />
-            <stop offset="0.1534" style="stop-color:#DCA94A" />
-            <stop offset="0.2701" style="stop-color:#F1CB6A" />
-            <stop offset="0.3333" style="stop-color:#F9D876" />
-            <stop offset="0.38" style="stop-color:#FBDD8B" />
-            <stop offset="0.4675" style="stop-color:#FEE6AC" />
-            <stop offset="0.5152" style="stop-color:#FFE9B9" />
-            <stop offset="0.5649" style="stop-color:#FDE4A4" />
-            <stop offset="0.6583" style="stop-color:#FADB83" />
-            <stop offset="0.7091" style="stop-color:#F9D876" />
-            <stop offset="1" style="stop-color:#BA7418" />
+            <stop offset="0" style="stop-color: #ba7418" />
+            <stop offset="0.1534" style="stop-color: #dca94a" />
+            <stop offset="0.2701" style="stop-color: #f1cb6a" />
+            <stop offset="0.3333" style="stop-color: #f9d876" />
+            <stop offset="0.38" style="stop-color: #fbdd8b" />
+            <stop offset="0.4675" style="stop-color: #fee6ac" />
+            <stop offset="0.5152" style="stop-color: #ffe9b9" />
+            <stop offset="0.5649" style="stop-color: #fde4a4" />
+            <stop offset="0.6583" style="stop-color: #fadb83" />
+            <stop offset="0.7091" style="stop-color: #f9d876" />
+            <stop offset="1" style="stop-color: #ba7418" />
           </linearGradient>
           <path
             fill="url(#SVGID_9_)"
@@ -494,17 +494,17 @@
             x2="67.62"
             y2="152.4711"
           >
-            <stop offset="0" style="stop-color:#BA7418" />
-            <stop offset="0.1534" style="stop-color:#DCA94A" />
-            <stop offset="0.2701" style="stop-color:#F1CB6A" />
-            <stop offset="0.3333" style="stop-color:#F9D876" />
-            <stop offset="0.38" style="stop-color:#FBDD8B" />
-            <stop offset="0.4675" style="stop-color:#FEE6AC" />
-            <stop offset="0.5152" style="stop-color:#FFE9B9" />
-            <stop offset="0.5649" style="stop-color:#FDE4A4" />
-            <stop offset="0.6583" style="stop-color:#FADB83" />
-            <stop offset="0.7091" style="stop-color:#F9D876" />
-            <stop offset="1" style="stop-color:#BA7418" />
+            <stop offset="0" style="stop-color: #ba7418" />
+            <stop offset="0.1534" style="stop-color: #dca94a" />
+            <stop offset="0.2701" style="stop-color: #f1cb6a" />
+            <stop offset="0.3333" style="stop-color: #f9d876" />
+            <stop offset="0.38" style="stop-color: #fbdd8b" />
+            <stop offset="0.4675" style="stop-color: #fee6ac" />
+            <stop offset="0.5152" style="stop-color: #ffe9b9" />
+            <stop offset="0.5649" style="stop-color: #fde4a4" />
+            <stop offset="0.6583" style="stop-color: #fadb83" />
+            <stop offset="0.7091" style="stop-color: #f9d876" />
+            <stop offset="1" style="stop-color: #ba7418" />
           </linearGradient>
           <path
             fill="url(#SVGID_10_)"
@@ -518,17 +518,17 @@
             x2="82.8385"
             y2="154.052"
           >
-            <stop offset="0" style="stop-color:#BA7418" />
-            <stop offset="0.1534" style="stop-color:#DCA94A" />
-            <stop offset="0.2701" style="stop-color:#F1CB6A" />
-            <stop offset="0.3333" style="stop-color:#F9D876" />
-            <stop offset="0.38" style="stop-color:#FBDD8B" />
-            <stop offset="0.4675" style="stop-color:#FEE6AC" />
-            <stop offset="0.5152" style="stop-color:#FFE9B9" />
-            <stop offset="0.5649" style="stop-color:#FDE4A4" />
-            <stop offset="0.6583" style="stop-color:#FADB83" />
-            <stop offset="0.7091" style="stop-color:#F9D876" />
-            <stop offset="1" style="stop-color:#BA7418" />
+            <stop offset="0" style="stop-color: #ba7418" />
+            <stop offset="0.1534" style="stop-color: #dca94a" />
+            <stop offset="0.2701" style="stop-color: #f1cb6a" />
+            <stop offset="0.3333" style="stop-color: #f9d876" />
+            <stop offset="0.38" style="stop-color: #fbdd8b" />
+            <stop offset="0.4675" style="stop-color: #fee6ac" />
+            <stop offset="0.5152" style="stop-color: #ffe9b9" />
+            <stop offset="0.5649" style="stop-color: #fde4a4" />
+            <stop offset="0.6583" style="stop-color: #fadb83" />
+            <stop offset="0.7091" style="stop-color: #f9d876" />
+            <stop offset="1" style="stop-color: #ba7418" />
           </linearGradient>
           <path
             fill="url(#SVGID_11_)"
@@ -543,17 +543,17 @@
             x2="97.0515"
             y2="156.1555"
           >
-            <stop offset="0" style="stop-color:#BA7418" />
-            <stop offset="0.1534" style="stop-color:#DCA94A" />
-            <stop offset="0.2701" style="stop-color:#F1CB6A" />
-            <stop offset="0.3333" style="stop-color:#F9D876" />
-            <stop offset="0.38" style="stop-color:#FBDD8B" />
-            <stop offset="0.4675" style="stop-color:#FEE6AC" />
-            <stop offset="0.5152" style="stop-color:#FFE9B9" />
-            <stop offset="0.5649" style="stop-color:#FDE4A4" />
-            <stop offset="0.6583" style="stop-color:#FADB83" />
-            <stop offset="0.7091" style="stop-color:#F9D876" />
-            <stop offset="1" style="stop-color:#BA7418" />
+            <stop offset="0" style="stop-color: #ba7418" />
+            <stop offset="0.1534" style="stop-color: #dca94a" />
+            <stop offset="0.2701" style="stop-color: #f1cb6a" />
+            <stop offset="0.3333" style="stop-color: #f9d876" />
+            <stop offset="0.38" style="stop-color: #fbdd8b" />
+            <stop offset="0.4675" style="stop-color: #fee6ac" />
+            <stop offset="0.5152" style="stop-color: #ffe9b9" />
+            <stop offset="0.5649" style="stop-color: #fde4a4" />
+            <stop offset="0.6583" style="stop-color: #fadb83" />
+            <stop offset="0.7091" style="stop-color: #f9d876" />
+            <stop offset="1" style="stop-color: #ba7418" />
           </linearGradient>
           <path
             fill="url(#SVGID_12_)"
@@ -568,17 +568,17 @@
             x2="113.2844"
             y2="153.2624"
           >
-            <stop offset="0" style="stop-color:#BA7418" />
-            <stop offset="0.1534" style="stop-color:#DCA94A" />
-            <stop offset="0.2701" style="stop-color:#F1CB6A" />
-            <stop offset="0.3333" style="stop-color:#F9D876" />
-            <stop offset="0.38" style="stop-color:#FBDD8B" />
-            <stop offset="0.4675" style="stop-color:#FEE6AC" />
-            <stop offset="0.5152" style="stop-color:#FFE9B9" />
-            <stop offset="0.5649" style="stop-color:#FDE4A4" />
-            <stop offset="0.6583" style="stop-color:#FADB83" />
-            <stop offset="0.7091" style="stop-color:#F9D876" />
-            <stop offset="1" style="stop-color:#BA7418" />
+            <stop offset="0" style="stop-color: #ba7418" />
+            <stop offset="0.1534" style="stop-color: #dca94a" />
+            <stop offset="0.2701" style="stop-color: #f1cb6a" />
+            <stop offset="0.3333" style="stop-color: #f9d876" />
+            <stop offset="0.38" style="stop-color: #fbdd8b" />
+            <stop offset="0.4675" style="stop-color: #fee6ac" />
+            <stop offset="0.5152" style="stop-color: #ffe9b9" />
+            <stop offset="0.5649" style="stop-color: #fde4a4" />
+            <stop offset="0.6583" style="stop-color: #fadb83" />
+            <stop offset="0.7091" style="stop-color: #f9d876" />
+            <stop offset="1" style="stop-color: #ba7418" />
           </linearGradient>
           <path
             fill="url(#SVGID_13_)"
@@ -593,17 +593,17 @@
             x2="128.2252"
             y2="150.7512"
           >
-            <stop offset="0" style="stop-color:#BA7418" />
-            <stop offset="0.1534" style="stop-color:#DCA94A" />
-            <stop offset="0.2701" style="stop-color:#F1CB6A" />
-            <stop offset="0.3333" style="stop-color:#F9D876" />
-            <stop offset="0.38" style="stop-color:#FBDD8B" />
-            <stop offset="0.4675" style="stop-color:#FEE6AC" />
-            <stop offset="0.5152" style="stop-color:#FFE9B9" />
-            <stop offset="0.5649" style="stop-color:#FDE4A4" />
-            <stop offset="0.6583" style="stop-color:#FADB83" />
-            <stop offset="0.7091" style="stop-color:#F9D876" />
-            <stop offset="1" style="stop-color:#BA7418" />
+            <stop offset="0" style="stop-color: #ba7418" />
+            <stop offset="0.1534" style="stop-color: #dca94a" />
+            <stop offset="0.2701" style="stop-color: #f1cb6a" />
+            <stop offset="0.3333" style="stop-color: #f9d876" />
+            <stop offset="0.38" style="stop-color: #fbdd8b" />
+            <stop offset="0.4675" style="stop-color: #fee6ac" />
+            <stop offset="0.5152" style="stop-color: #ffe9b9" />
+            <stop offset="0.5649" style="stop-color: #fde4a4" />
+            <stop offset="0.6583" style="stop-color: #fadb83" />
+            <stop offset="0.7091" style="stop-color: #f9d876" />
+            <stop offset="1" style="stop-color: #ba7418" />
           </linearGradient>
           <path
             fill="url(#SVGID_14_)"
@@ -618,17 +618,17 @@
             x2="142.7585"
             y2="146.7772"
           >
-            <stop offset="0" style="stop-color:#BA7418" />
-            <stop offset="0.1534" style="stop-color:#DCA94A" />
-            <stop offset="0.2701" style="stop-color:#F1CB6A" />
-            <stop offset="0.3333" style="stop-color:#F9D876" />
-            <stop offset="0.38" style="stop-color:#FBDD8B" />
-            <stop offset="0.4675" style="stop-color:#FEE6AC" />
-            <stop offset="0.5152" style="stop-color:#FFE9B9" />
-            <stop offset="0.5649" style="stop-color:#FDE4A4" />
-            <stop offset="0.6583" style="stop-color:#FADB83" />
-            <stop offset="0.7091" style="stop-color:#F9D876" />
-            <stop offset="1" style="stop-color:#BA7418" />
+            <stop offset="0" style="stop-color: #ba7418" />
+            <stop offset="0.1534" style="stop-color: #dca94a" />
+            <stop offset="0.2701" style="stop-color: #f1cb6a" />
+            <stop offset="0.3333" style="stop-color: #f9d876" />
+            <stop offset="0.38" style="stop-color: #fbdd8b" />
+            <stop offset="0.4675" style="stop-color: #fee6ac" />
+            <stop offset="0.5152" style="stop-color: #ffe9b9" />
+            <stop offset="0.5649" style="stop-color: #fde4a4" />
+            <stop offset="0.6583" style="stop-color: #fadb83" />
+            <stop offset="0.7091" style="stop-color: #f9d876" />
+            <stop offset="1" style="stop-color: #ba7418" />
           </linearGradient>
           <path
             fill="url(#SVGID_15_)"

@@ -23,17 +23,17 @@
         x2="161.6393"
         y2="100.5444"
       >
-        <stop offset="0" style="stop-color:#BA7418" />
-        <stop offset="0.1534" style="stop-color:#DCA94A" />
-        <stop offset="0.2701" style="stop-color:#F1CB6A" />
-        <stop offset="0.3333" style="stop-color:#F9D876" />
-        <stop offset="0.38" style="stop-color:#FBDD8B" />
-        <stop offset="0.4675" style="stop-color:#FEE6AC" />
-        <stop offset="0.5152" style="stop-color:#FFE9B9" />
-        <stop offset="0.5649" style="stop-color:#FDE4A4" />
-        <stop offset="0.6583" style="stop-color:#FADB83" />
-        <stop offset="0.7091" style="stop-color:#F9D876" />
-        <stop offset="1" style="stop-color:#BA7418" />
+        <stop offset="0" style="stop-color: #ba7418" />
+        <stop offset="0.1534" style="stop-color: #dca94a" />
+        <stop offset="0.2701" style="stop-color: #f1cb6a" />
+        <stop offset="0.3333" style="stop-color: #f9d876" />
+        <stop offset="0.38" style="stop-color: #fbdd8b" />
+        <stop offset="0.4675" style="stop-color: #fee6ac" />
+        <stop offset="0.5152" style="stop-color: #ffe9b9" />
+        <stop offset="0.5649" style="stop-color: #fde4a4" />
+        <stop offset="0.6583" style="stop-color: #fadb83" />
+        <stop offset="0.7091" style="stop-color: #f9d876" />
+        <stop offset="1" style="stop-color: #ba7418" />
       </linearGradient>
       <circle
         fill="#1A1A1A"
@@ -53,17 +53,17 @@
           x2="173.7289"
           y2="172.4975"
         >
-          <stop offset="0" style="stop-color:#BA7418" />
-          <stop offset="0.1534" style="stop-color:#DCA94A" />
-          <stop offset="0.2701" style="stop-color:#F1CB6A" />
-          <stop offset="0.3333" style="stop-color:#F9D876" />
-          <stop offset="0.38" style="stop-color:#FBDD8B" />
-          <stop offset="0.4675" style="stop-color:#FEE6AC" />
-          <stop offset="0.5152" style="stop-color:#FFE9B9" />
-          <stop offset="0.5649" style="stop-color:#FDE4A4" />
-          <stop offset="0.6583" style="stop-color:#FADB83" />
-          <stop offset="0.7091" style="stop-color:#F9D876" />
-          <stop offset="1" style="stop-color:#BA7418" />
+          <stop offset="0" style="stop-color: #ba7418" />
+          <stop offset="0.1534" style="stop-color: #dca94a" />
+          <stop offset="0.2701" style="stop-color: #f1cb6a" />
+          <stop offset="0.3333" style="stop-color: #f9d876" />
+          <stop offset="0.38" style="stop-color: #fbdd8b" />
+          <stop offset="0.4675" style="stop-color: #fee6ac" />
+          <stop offset="0.5152" style="stop-color: #ffe9b9" />
+          <stop offset="0.5649" style="stop-color: #fde4a4" />
+          <stop offset="0.6583" style="stop-color: #fadb83" />
+          <stop offset="0.7091" style="stop-color: #f9d876" />
+          <stop offset="1" style="stop-color: #ba7418" />
         </linearGradient>
         <path
           fill="#1A1A1A"
@@ -84,17 +84,17 @@
           x2="173.7779"
           y2="28.5912"
         >
-          <stop offset="0" style="stop-color:#BA7418" />
-          <stop offset="0.1534" style="stop-color:#DCA94A" />
-          <stop offset="0.2701" style="stop-color:#F1CB6A" />
-          <stop offset="0.3333" style="stop-color:#F9D876" />
-          <stop offset="0.38" style="stop-color:#FBDD8B" />
-          <stop offset="0.4675" style="stop-color:#FEE6AC" />
-          <stop offset="0.5152" style="stop-color:#FFE9B9" />
-          <stop offset="0.5649" style="stop-color:#FDE4A4" />
-          <stop offset="0.6583" style="stop-color:#FADB83" />
-          <stop offset="0.7091" style="stop-color:#F9D876" />
-          <stop offset="1" style="stop-color:#BA7418" />
+          <stop offset="0" style="stop-color: #ba7418" />
+          <stop offset="0.1534" style="stop-color: #dca94a" />
+          <stop offset="0.2701" style="stop-color: #f1cb6a" />
+          <stop offset="0.3333" style="stop-color: #f9d876" />
+          <stop offset="0.38" style="stop-color: #fbdd8b" />
+          <stop offset="0.4675" style="stop-color: #fee6ac" />
+          <stop offset="0.5152" style="stop-color: #ffe9b9" />
+          <stop offset="0.5649" style="stop-color: #fde4a4" />
+          <stop offset="0.6583" style="stop-color: #fadb83" />
+          <stop offset="0.7091" style="stop-color: #f9d876" />
+          <stop offset="1" style="stop-color: #ba7418" />
         </linearGradient>
         <path
           fill="#1A1A1A"
@@ -272,17 +272,17 @@
         x2="155.849"
         y2="100.5444"
       >
-        <stop offset="0" style="stop-color:#BA7418" />
-        <stop offset="0.1534" style="stop-color:#DCA94A" />
-        <stop offset="0.2701" style="stop-color:#F1CB6A" />
-        <stop offset="0.3333" style="stop-color:#F9D876" />
-        <stop offset="0.38" style="stop-color:#FBDD8B" />
-        <stop offset="0.4675" style="stop-color:#FEE6AC" />
-        <stop offset="0.5152" style="stop-color:#FFE9B9" />
-        <stop offset="0.5649" style="stop-color:#FDE4A4" />
-        <stop offset="0.6583" style="stop-color:#FADB83" />
-        <stop offset="0.7091" style="stop-color:#F9D876" />
-        <stop offset="1" style="stop-color:#BA7418" />
+        <stop offset="0" style="stop-color: #ba7418" />
+        <stop offset="0.1534" style="stop-color: #dca94a" />
+        <stop offset="0.2701" style="stop-color: #f1cb6a" />
+        <stop offset="0.3333" style="stop-color: #f9d876" />
+        <stop offset="0.38" style="stop-color: #fbdd8b" />
+        <stop offset="0.4675" style="stop-color: #fee6ac" />
+        <stop offset="0.5152" style="stop-color: #ffe9b9" />
+        <stop offset="0.5649" style="stop-color: #fde4a4" />
+        <stop offset="0.6583" style="stop-color: #fadb83" />
+        <stop offset="0.7091" style="stop-color: #f9d876" />
+        <stop offset="1" style="stop-color: #ba7418" />
       </linearGradient>
       <circle
         fill="#0071BC"
@@ -1091,17 +1091,17 @@
           x2="103.89"
           y2="100.5444"
         >
-          <stop offset="0" style="stop-color:#BA7418" />
-          <stop offset="0.1534" style="stop-color:#DCA94A" />
-          <stop offset="0.2701" style="stop-color:#F1CB6A" />
-          <stop offset="0.3333" style="stop-color:#F9D876" />
-          <stop offset="0.38" style="stop-color:#FBDD8B" />
-          <stop offset="0.4675" style="stop-color:#FEE6AC" />
-          <stop offset="0.5152" style="stop-color:#FFE9B9" />
-          <stop offset="0.5649" style="stop-color:#FDE4A4" />
-          <stop offset="0.6583" style="stop-color:#FADB83" />
-          <stop offset="0.7091" style="stop-color:#F9D876" />
-          <stop offset="1" style="stop-color:#BA7418" />
+          <stop offset="0" style="stop-color: #ba7418" />
+          <stop offset="0.1534" style="stop-color: #dca94a" />
+          <stop offset="0.2701" style="stop-color: #f1cb6a" />
+          <stop offset="0.3333" style="stop-color: #f9d876" />
+          <stop offset="0.38" style="stop-color: #fbdd8b" />
+          <stop offset="0.4675" style="stop-color: #fee6ac" />
+          <stop offset="0.5152" style="stop-color: #ffe9b9" />
+          <stop offset="0.5649" style="stop-color: #fde4a4" />
+          <stop offset="0.6583" style="stop-color: #fadb83" />
+          <stop offset="0.7091" style="stop-color: #f9d876" />
+          <stop offset="1" style="stop-color: #ba7418" />
         </linearGradient>
         <circle fill="url(#SVGID_5_)" cx="90" cy="100.5" r="13.8" />
         <circle fill="#1A1A1A" cx="90" cy="100.5" r="11.2" />
@@ -1115,17 +1115,17 @@
           x2="173.4893"
           y2="138.7244"
         >
-          <stop offset="0" style="stop-color:#BA7418" />
-          <stop offset="0.1534" style="stop-color:#DCA94A" />
-          <stop offset="0.2701" style="stop-color:#F1CB6A" />
-          <stop offset="0.3333" style="stop-color:#F9D876" />
-          <stop offset="0.38" style="stop-color:#FBDD8B" />
-          <stop offset="0.4675" style="stop-color:#FEE6AC" />
-          <stop offset="0.5152" style="stop-color:#FFE9B9" />
-          <stop offset="0.5649" style="stop-color:#FDE4A4" />
-          <stop offset="0.6583" style="stop-color:#FADB83" />
-          <stop offset="0.7091" style="stop-color:#F9D876" />
-          <stop offset="1" style="stop-color:#BA7418" />
+          <stop offset="0" style="stop-color: #ba7418" />
+          <stop offset="0.1534" style="stop-color: #dca94a" />
+          <stop offset="0.2701" style="stop-color: #f1cb6a" />
+          <stop offset="0.3333" style="stop-color: #f9d876" />
+          <stop offset="0.38" style="stop-color: #fbdd8b" />
+          <stop offset="0.4675" style="stop-color: #fee6ac" />
+          <stop offset="0.5152" style="stop-color: #ffe9b9" />
+          <stop offset="0.5649" style="stop-color: #fde4a4" />
+          <stop offset="0.6583" style="stop-color: #fadb83" />
+          <stop offset="0.7091" style="stop-color: #f9d876" />
+          <stop offset="1" style="stop-color: #ba7418" />
         </linearGradient>
         <circle
           fill="#1A1A1A"
@@ -1144,17 +1144,17 @@
           x2="173.4893"
           y2="59.1073"
         >
-          <stop offset="0" style="stop-color:#BA7418" />
-          <stop offset="0.1534" style="stop-color:#DCA94A" />
-          <stop offset="0.2701" style="stop-color:#F1CB6A" />
-          <stop offset="0.3333" style="stop-color:#F9D876" />
-          <stop offset="0.38" style="stop-color:#FBDD8B" />
-          <stop offset="0.4675" style="stop-color:#FEE6AC" />
-          <stop offset="0.5152" style="stop-color:#FFE9B9" />
-          <stop offset="0.5649" style="stop-color:#FDE4A4" />
-          <stop offset="0.6583" style="stop-color:#FADB83" />
-          <stop offset="0.7091" style="stop-color:#F9D876" />
-          <stop offset="1" style="stop-color:#BA7418" />
+          <stop offset="0" style="stop-color: #ba7418" />
+          <stop offset="0.1534" style="stop-color: #dca94a" />
+          <stop offset="0.2701" style="stop-color: #f1cb6a" />
+          <stop offset="0.3333" style="stop-color: #f9d876" />
+          <stop offset="0.38" style="stop-color: #fbdd8b" />
+          <stop offset="0.4675" style="stop-color: #fee6ac" />
+          <stop offset="0.5152" style="stop-color: #ffe9b9" />
+          <stop offset="0.5649" style="stop-color: #fde4a4" />
+          <stop offset="0.6583" style="stop-color: #fadb83" />
+          <stop offset="0.7091" style="stop-color: #f9d876" />
+          <stop offset="1" style="stop-color: #ba7418" />
         </linearGradient>
         <circle
           fill="#1A1A1A"
@@ -1175,17 +1175,17 @@
           x2="18.598"
           y2="138.7244"
         >
-          <stop offset="0" style="stop-color:#BA7418" />
-          <stop offset="0.1534" style="stop-color:#DCA94A" />
-          <stop offset="0.2701" style="stop-color:#F1CB6A" />
-          <stop offset="0.3333" style="stop-color:#F9D876" />
-          <stop offset="0.38" style="stop-color:#FBDD8B" />
-          <stop offset="0.4675" style="stop-color:#FEE6AC" />
-          <stop offset="0.5152" style="stop-color:#FFE9B9" />
-          <stop offset="0.5649" style="stop-color:#FDE4A4" />
-          <stop offset="0.6583" style="stop-color:#FADB83" />
-          <stop offset="0.7091" style="stop-color:#F9D876" />
-          <stop offset="1" style="stop-color:#BA7418" />
+          <stop offset="0" style="stop-color: #ba7418" />
+          <stop offset="0.1534" style="stop-color: #dca94a" />
+          <stop offset="0.2701" style="stop-color: #f1cb6a" />
+          <stop offset="0.3333" style="stop-color: #f9d876" />
+          <stop offset="0.38" style="stop-color: #fbdd8b" />
+          <stop offset="0.4675" style="stop-color: #fee6ac" />
+          <stop offset="0.5152" style="stop-color: #ffe9b9" />
+          <stop offset="0.5649" style="stop-color: #fde4a4" />
+          <stop offset="0.6583" style="stop-color: #fadb83" />
+          <stop offset="0.7091" style="stop-color: #f9d876" />
+          <stop offset="1" style="stop-color: #ba7418" />
         </linearGradient>
         <circle
           fill="#1A1A1A"
@@ -1204,17 +1204,17 @@
           x2="18.598"
           y2="59.1073"
         >
-          <stop offset="0" style="stop-color:#BA7418" />
-          <stop offset="0.1534" style="stop-color:#DCA94A" />
-          <stop offset="0.2701" style="stop-color:#F1CB6A" />
-          <stop offset="0.3333" style="stop-color:#F9D876" />
-          <stop offset="0.38" style="stop-color:#FBDD8B" />
-          <stop offset="0.4675" style="stop-color:#FEE6AC" />
-          <stop offset="0.5152" style="stop-color:#FFE9B9" />
-          <stop offset="0.5649" style="stop-color:#FDE4A4" />
-          <stop offset="0.6583" style="stop-color:#FADB83" />
-          <stop offset="0.7091" style="stop-color:#F9D876" />
-          <stop offset="1" style="stop-color:#BA7418" />
+          <stop offset="0" style="stop-color: #ba7418" />
+          <stop offset="0.1534" style="stop-color: #dca94a" />
+          <stop offset="0.2701" style="stop-color: #f1cb6a" />
+          <stop offset="0.3333" style="stop-color: #f9d876" />
+          <stop offset="0.38" style="stop-color: #fbdd8b" />
+          <stop offset="0.4675" style="stop-color: #fee6ac" />
+          <stop offset="0.5152" style="stop-color: #ffe9b9" />
+          <stop offset="0.5649" style="stop-color: #fde4a4" />
+          <stop offset="0.6583" style="stop-color: #fadb83" />
+          <stop offset="0.7091" style="stop-color: #f9d876" />
+          <stop offset="1" style="stop-color: #ba7418" />
         </linearGradient>
         <circle
           fill="#1A1A1A"

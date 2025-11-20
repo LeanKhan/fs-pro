@@ -37,9 +37,7 @@
 
       <template v-slot:item.Id="{ item }">
         <v-avatar v-if="item.ClubCode" size="40">
-          <v-img
-            :src="`${api}/img/clubs/kit/${item.ClubCode}-kit.png`"
-          ></v-img>
+          <v-img :src="`${api}/img/clubs/kit/${item.ClubCode}-kit.png`"></v-img>
         </v-avatar>
       </template>
 

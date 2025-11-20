@@ -19,7 +19,12 @@
                 :src="`${api}/img/clubs/kits/${home.ClubCode}-kit.png`"
                 max-width="200px"
               ></v-img>
-              <v-overlay :model-value="true" :scrim="false" opacity="0.3" contained>
+              <v-overlay
+                :model-value="true"
+                :scrim="false"
+                opacity="0.3"
+                contained
+              >
                 <div class="text-h5">
                   {{ home.Name }}
                 </div>
@@ -51,7 +56,12 @@
                 :src="`${api}/img/clubs/kits/${away.ClubCode}-kit.png`"
                 max-width="200px"
               ></v-img>
-              <v-overlay :model-value="true" :scrim="false" opacity="0.3" contained>
+              <v-overlay
+                :model-value="true"
+                :scrim="false"
+                opacity="0.3"
+                contained
+              >
                 <div class="text-h5">
                   {{ away.Name }}
                 </div>

@@ -101,7 +101,11 @@
     <v-card-actions>
       <v-btn :disabled="step === 1" variant="text" @click="step--">Back</v-btn>
       <v-spacer></v-spacer>
-      <v-btn color="primary" variant="flat" @click="step == 2 ? register() : step++">
+      <v-btn
+        color="primary"
+        variant="flat"
+        @click="step == 2 ? register() : step++"
+      >
         {{ step == 2 ? 'Submit' : 'Next' }}
       </v-btn>
     </v-card-actions>

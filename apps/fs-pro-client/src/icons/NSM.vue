@@ -1456,12 +1456,12 @@ AAAAAAAAAAAAAAAAAAAAAOBb+X8CDAAxis6x8pkmkAAAAABJRU5ErkJggg=="
                   x2="93.2682"
                   y2="72.8354"
                 >
-                  <stop offset="8.163265e-002" style="stop-color:#FFFFFF" />
-                  <stop offset="0.1221" style="stop-color:#FFFBF3" />
-                  <stop offset="0.1946" style="stop-color:#FFEFD4" />
-                  <stop offset="0.2908" style="stop-color:#FFDBA2" />
-                  <stop offset="0.4072" style="stop-color:#FFC05C" />
-                  <stop offset="0.5308" style="stop-color:#FFA10A" />
+                  <stop offset="8.163265e-002" style="stop-color: #ffffff" />
+                  <stop offset="0.1221" style="stop-color: #fffbf3" />
+                  <stop offset="0.1946" style="stop-color: #ffefd4" />
+                  <stop offset="0.2908" style="stop-color: #ffdba2" />
+                  <stop offset="0.4072" style="stop-color: #ffc05c" />
+                  <stop offset="0.5308" style="stop-color: #ffa10a" />
                 </linearGradient>
                 <path
                   fill="url(#SVGID_1_)"

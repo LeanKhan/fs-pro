@@ -9,10 +9,7 @@ export default defineConfig({
       '@': resolve(__dirname, './src'),
     },
   },
-  plugins: [
-    vue(),
-    vuetify({ autoImport: true }),
-  ],
+  plugins: [vue(), vuetify({ autoImport: true })],
   server: {
     port: 8080,
   },

@@ -28,9 +28,9 @@
                   x2="575.9011"
                   y2="402.7609"
                 >
-                  <stop offset="0" style="stop-color:#1026C4" />
-                  <stop offset="0.5357" style="stop-color:#3D49A9" />
-                  <stop offset="1" style="stop-color:#09156E" />
+                  <stop offset="0" style="stop-color: #1026c4" />
+                  <stop offset="0.5357" style="stop-color: #3d49a9" />
+                  <stop offset="1" style="stop-color: #09156e" />
                 </linearGradient>
                 <path
                   fill="url(#SVGID_1_)"
@@ -95,9 +95,9 @@
                 x2="584.9754"
                 y2="403.5813"
               >
-                <stop offset="0" style="stop-color:#09156E" />
-                <stop offset="0.5357" style="stop-color:#3A448B" />
-                <stop offset="1" style="stop-color:#030725" />
+                <stop offset="0" style="stop-color: #09156e" />
+                <stop offset="0.5357" style="stop-color: #3a448b" />
+                <stop offset="1" style="stop-color: #030725" />
               </linearGradient>
               <path
                 fill="url(#SVGID_2_)"
@@ -118,9 +118,9 @@
             x2="516.3657"
             y2="86.5847"
           >
-            <stop offset="0" style="stop-color:#09156E" />
-            <stop offset="0.5357" style="stop-color:#3A448B" />
-            <stop offset="1" style="stop-color:#030725" />
+            <stop offset="0" style="stop-color: #09156e" />
+            <stop offset="0.5357" style="stop-color: #3a448b" />
+            <stop offset="1" style="stop-color: #030725" />
           </linearGradient>
           <path
             fill="url(#SVGID_3_)"
