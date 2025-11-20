@@ -1,4 +1,4 @@
-const {resolve} = require("path");
+const { resolve } = require('path');
 
 module.exports = {
   root: true,
@@ -25,7 +25,5 @@ module.exports = {
     '@typescript-eslint/no-unused-vars': 'error',
     '@typescript-eslint/no-explicit-any': 'off',
   },
-  ignorePatterns: [
-    "vite.config.ts"
-  ]
+  ignorePatterns: ['vite.config.ts'],
 };
