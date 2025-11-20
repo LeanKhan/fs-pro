@@ -3,7 +3,7 @@
     <v-card>
       <v-card-text>
         <template v-if="!showForgotSection">
-          <v-subheader>Login to FSPro</v-subheader>
+          <v-list-subheader>Login to FSPro</v-list-subheader>
 
           <v-text-field
             required
@@ -27,7 +27,7 @@
         </template>
 
         <template v-else>
-          <v-subheader>Change Password</v-subheader>
+          <v-list-subheader>Change Password</v-list-subheader>
 
           <v-text-field
             required
@@ -53,7 +53,7 @@
         <!-- Forgot Password -->
         <div>
           Forgot your password?
-          <v-btn outlined depressed @click="showForgot">
+          <v-btn variant="outlined" @click="showForgot">
             Yup, ama fish eater
           </v-btn>
         </div>
@@ -62,7 +62,7 @@
       <v-card-actions>
         <v-btn
           v-if="!showForgotSection"
-          color="green darken-2"
+          color="green-darken-2"
           @click="login"
           block
           :loading="loading"
@@ -72,7 +72,7 @@
 
         <v-btn
           v-else
-          color="pink darken-2"
+          color="pink-darken-2"
           @click="submitNewPassword"
           block
           :loading="loading"
