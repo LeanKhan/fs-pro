@@ -4,7 +4,7 @@
       <img
         alt="FsPro Logo :)"
         height="200px"
-        :src="`${api}/img/logo-new.png`"
+        :src="`/logo-new.png`"
       />
     </div>
     <p class="text-h2 text-secondary text-center">FSPro</p>

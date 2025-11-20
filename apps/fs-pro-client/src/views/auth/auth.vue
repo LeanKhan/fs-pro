@@ -8,11 +8,7 @@
               class="d-flex justify-center align-center"
               style="height: 100px"
             >
-              <img
-                alt="FsPro Logo :)"
-                height="100px"
-                :src="`${url}/img/logo-new.png`"
-              />
+              <img alt="FsPro Logo" height="100px" :src="`/logo-new.png`" />
             </div>
             <v-card color="dark">
               <v-tabs bg-color="transparent" color="green">
