@@ -3,13 +3,9 @@
     <v-row>
       <v-col cols="12">
         <v-card>
-          <v-toolbar flat color="indigo darken-1">
-            <v-toolbar-title class="ml-1">
-              Dashboard
-            </v-toolbar-title>
-
+          <v-toolbar flat color="indigo-darken-1">
+            <v-toolbar-title class="ml-1">Dashboard</v-toolbar-title>
             <v-spacer></v-spacer>
-
             <v-btn append-icon="mdi-plus" color="success" to="/a/managers/new">
               New
             </v-btn>
@@ -24,30 +20,19 @@
   </div>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
 import ManagersTable from '@/components/managers/managers-table.vue';
-// import { Player } from '@/interfaces/player';
+import { $axios } from '@/main';
 
-@Component({
-  components: {
-    ManagersTable,
-  },
-})
-export default class ManagersDashboard extends Vue {
-  private managers: any[] = [];
+const managers = ref<any[]>([]);
 
-  public mounted() {
-    this.$axios
-      .get('/managers?populate=Club')
-      .then(res => {
-        this.managers = res.data.payload;
-      })
-      .catch(err => {
-        console.log('Error! => ', err);
-      });
+onMounted(async () => {
+  try {
+    const response = await $axios.get('/managers?populate=Club');
+    managers.value = response.data.payload;
+  } catch (error) {
+    console.error('Error fetching managers:', error);
   }
-}
+});
 </script>
-
-<style></style>

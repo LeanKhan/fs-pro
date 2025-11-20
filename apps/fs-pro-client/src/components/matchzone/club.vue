@@ -1,5 +1,5 @@
 <template>
-  <div class="align-center d-flex flex-column " :class="isHome">
+  <div class="align-center d-flex flex-column" :class="isHome">
     <v-card-subtitle>
       {{ clubName }} -
       <b>{{ clubCode }}</b>
@@ -37,42 +37,50 @@
         :color="isHome ? 'deep-purple darken-3' : 'pink accent-3'"
         background-color="secondary lighten-1"
       ></v-rating>
-      <span class="caption text-muted ml-1">{{ clubRating | roundTo(1) }}</span>
+      <span class="caption text-muted ml-1">
+        {{ $filters.roundTo(clubRating, 1) }}
+      </span>
     </div>
 
     <div class="caption" v-if="clubStandings.standing">
-      <span class="ma-0 pr-2">{{ clubStandings.position | ordinal }} </span>
+      <span class="ma-0 pr-2">
+        {{ $filters.ordinal(clubStandings.position) }}
+      </span>
       -
       <span class="ma-0 pl-2">{{ clubStandings.standing.Points }} Pts</span>
     </div>
   </div>
 </template>
 
-<script lang="ts">
-import { Component, Vue, Prop } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref, computed, getCurrentInstance } from 'vue';
 import { apiUrl } from '@/store';
 
-@Component({})
-export default class ClubWidget extends Vue {
-  @Prop({ required: true }) readonly clubName: any;
-  @Prop({ required: true }) readonly isHome: any;
-  @Prop({ required: true }) readonly rating: any;
-  @Prop({ required: true }) readonly clubCode: any;
-  @Prop({ required: false }) readonly clubStandings: any;
-  @Prop({ required: false }) readonly winner!: string;
-
-  private api = apiUrl;
-
-  get clubRating() {
-    if (this.rating) {
-      return Math.round(this.rating) / 20;
-    } else {
-      return 0;
-    }
-  }
-
-  get side() {
-    return this.isHome ? 'home' : 'away';
-  }
+interface Props {
+  clubName: any;
+  isHome: any;
+  rating: any;
+  clubCode: any;
+  clubStandings?: any;
+  winner?: string;
 }
+
+const props = defineProps<Props>();
+
+const instance = getCurrentInstance();
+const $filters = instance?.appContext.config.globalProperties.$filters;
+
+const api = ref(apiUrl);
+
+const clubRating = computed(() => {
+  if (props.rating) {
+    return Math.round(props.rating) / 20;
+  } else {
+    return 0;
+  }
+});
+
+const side = computed(() => {
+  return props.isHome ? 'home' : 'away';
+});
 </script>

@@ -1,58 +1,35 @@
-import Vue from 'vue';
-import Vuex from 'vuex';
+import { defineStore } from 'pinia';
+import { ref, computed } from 'vue';
 import { Club } from '@/interfaces/club';
 import { $axios } from '../main';
-import socket from './socket';
 import { ICalendar } from '@/interfaces/calendar';
 
-Vue.use(Vuex);
-
-// 'http://192.168.10.4:3000' - Network server url
-// 'http://localhost:3000' - Local server url
-
-// export const apiUrl = 'http://192.168.0.137:3000';
-
 export const apiUrl = import.meta.env.VITE_APP_API_BASE_URL;
-// export const apiUrl = 'http://localhost:3000';
 
-export interface RootState {
-  YearString: string;
-  allClubs: Club[];
-  apiUrl: string;
-  user: {
-    username: string;
-    clubs: string[];
-    isAdmin: boolean;
-    userID: string;
-    session: string;
-    avatar: string;
-    fullname: string;
-  };
-  calendar: ICalendar;
-  countries: string[];
-  seasons: any[];
-  toast: {
-    show: boolean;
-    style: '';
-    actionText: '';
-    actionLink: '';
-    message: '';
-    withAction: boolean;
-  };
-  errorOverlay: boolean;
-  lobby: boolean;
-  /** The Competition._id of selected League */
-  selectedLeague: string;
-  // state: MainState;
+export interface User {
+  username: string;
+  clubs: string[];
+  isAdmin: boolean;
+  userID: string;
+  session: string;
+  avatar: string;
+  fullname: string;
 }
 
-//   socket: SocketState;
+export interface Toast {
+  show: boolean;
+  style: string;
+  actionText: string;
+  actionLink: string;
+  message: string;
+  withAction: boolean;
+}
 
-const state = {
-  YearString: '',
-  allClubs: [] as Club[],
-  apiUrl,
-  user: {
+export const useStore = defineStore('main', () => {
+  // State
+  const yearString = ref('');
+  const allClubs = ref<Club[]>([]);
+  const user = ref<User>({
     username: '',
     clubs: [],
     isAdmin: false,
@@ -60,206 +37,171 @@ const state = {
     session: '',
     avatar: '',
     fullname: '',
-  },
-  calendar: {} as unknown,
-  seasons: [],
-  countries: [],
-  toast: {
+  });
+  const calendar = ref<ICalendar | null>(null);
+  const seasons = ref([]);
+  const countries = ref([]);
+  const toast = ref<Toast>({
     show: false,
     message: '',
     style: '',
     actionText: '',
     actionLink: '',
     withAction: false,
-  },
-  errorOverlay: false,
-  lobby: false,
-  // new
-  selectedLeague: ''
-} as RootState;
+  });
+  const errorOverlay = ref(false);
+  const lobby = ref(false);
+  const selectedLeague = ref('');
 
-export default new Vuex.Store({
-  state,
-  modules: {
-    socket,
-  },
-  getters: {
-    apiUrl: state => {
-      return state.apiUrl;
-    },
-    user: state => {
-      return state.user;
-    },
-    currentYear: state => {
-      return state.YearString;
-    },
-    countries: state => {
-      return state.countries;
-    },
-    toast: state => {
-      return state.toast;
-    },
-    lobby: state => {
-      return state.lobby;
-    },
-    errorOverlay: state => {
-      return state.errorOverlay;
-    },
-    selectedLeague: state => {
-      return state.selectedLeague;
+  // Getters
+  const isAuthenticated = computed(() => !!user.value.username);
+  const currentYear = computed(() => yearString.value);
+
+  // Actions
+  function setUser(payload: User) {
+    window.localStorage.setItem('fspro-user', JSON.stringify(payload));
+    user.value = payload;
+  }
+
+  function unsetUser() {
+    window.localStorage.removeItem('fspro-user');
+    user.value = {
+      username: '',
+      clubs: [],
+      isAdmin: false,
+      userID: '',
+      session: '',
+      avatar: '',
+      fullname: '',
+    };
+  }
+
+  function getUser() {
+    const savedUser = window.localStorage.getItem('fspro-user');
+    if (savedUser) {
+      user.value = JSON.parse(savedUser);
     }
-  },
-  mutations: {
-    SET_USER: (state, payload) => {
-      state.user = payload;
-    },
-    SET_USER_CLUBS: (state, payload) => {
-      state.user.clubs = payload;
-    },
-    SET_CALENDAR: (state, payload) => {
-      state.calendar = payload;
-    },
-    SET_SEASONS: (state, payload) => {
-      state.seasons = payload;
-    },
-    SET_COUNTRIES: (state, payload) => {
-      state.countries = payload;
-    },
-    SET_SELECTED_LEAGUE: (state, payload) => {
-      // must be a valid MongoDB ObjectId
-      state.selectedLeague = payload;
-    },
-    SET_LOBBY: (state, payload) => {
-      state.lobby = payload;
-    },
-    SHOW_TOAST: (
-      state,
-      { message, style, actionText, actionLink, withAction }
-    ) => {
-      state.toast.show = true;
-      state.toast.message = message;
-      state.toast.style = style;
-      state.toast.actionText = actionText;
-      state.toast.actionLink = actionLink;
-      state.toast.withAction = withAction;
-    },
-    HIDE_TOAST: state => {
-      state.toast.show = false;
-      state.toast.message = '';
-      state.toast.style = '';
-      state.toast.actionText = '';
-      state.toast.actionLink = '';
-      state.toast.withAction = false;
-    },
-    TOGGLE_ERROR_OVERLAY: state => {
-      state.errorOverlay = !state.errorOverlay;
-    },
-  },
-  actions: {
-    SET_USER: ({ commit }, payload: RootState['user']) => {
-      window.localStorage.setItem('fspro-user', JSON.stringify(payload));
-      // this one is being saved as a js object, not string
-      commit('SET_USER', payload);
-    },
-    UNSET_USER: ({ commit }) => {
-      window.localStorage.removeItem('fspro-user');
-      // this one is being saved as a js object, not string
-      commit('SET_USER', {
-        username: '',
-        clubs: [],
-        isAdmin: null,
-        userID: '',
-        session: '',
-        avatar: '',
-        fullname: '',
-      });
-    },
-    GET_USER: ({ commit }) => {
-      const user = JSON.parse(
-        window.localStorage.getItem('fspro-user') as string
+  }
+
+  function setSelectedLeague(leagueId: string) {
+    selectedLeague.value = leagueId;
+  }
+
+  function unsetSelectedLeague() {
+    selectedLeague.value = '';
+  }
+
+  async function setUserClubs() {
+    if (user.value.clubs.length === 0) {
+      return;
+    }
+
+    try {
+      const query = JSON.stringify({ _id: { $in: user.value.clubs } });
+      const select = JSON.stringify('ClubCode Name _id');
+      const response = await $axios.get(
+        `/clubs/fetch?q=${query}&select=${select}`
       );
 
-      if (user)
-        // this one is saved as a js object
-        commit('SET_USER', user);
-    },
-    SET_SELECTED_LEAGUE: ({ commit }, payload: string) => {
-      // window.localStorage.setItem('fspro-selected-league', payload);
-      commit('SET_SELECTED_LEAGUE', payload);
-    },
-    UNSET_SELECTED_LEAGUE: ({ commit }, payload: string) => {
-      // window.localStorage.removeItem('fspro-selected-league');
-      commit('SET_SELECTED_LEAGUE', '');
-    },
-    // GET_SELECTED_LEAGUE: ({ commit }, payload: string) => {
-    //  const user = window.localStorage.getItem('fspro-selected-league') as string;
-
-    //   if (league)
-    //     // this one is saved as a js object
-    //     commit('SET_SELECTED_LEAGUE', league);
-    // },
-    SET_USER_CLUBS: ({ commit, state }) => {
-      if (state.user.clubs.length == 0) {
-        return 'nah fam';
+      if (response.data.success) {
+        user.value.clubs = response.data.payload;
       }
-      const query = JSON.stringify({ _id: { $in: state.user.clubs } });
-      const select = JSON.stringify('ClubCode Name _id');
+    } catch (error) {
+      console.error('Error fetching user clubs:', error);
+    }
+  }
 
-      $axios
-        .get(`/clubs/fetch?q=${query}&select=${select}`)
-        .then(response => {
-          if (response.data.success) {
-            commit('SET_USER_CLUBS', response.data.payload);
-          }
-        })
-        .catch(response => {
-          console.log('error => ', response);
-        });
-    },
-    SET_CALENDAR: ({ commit, dispatch }) => {
-      $axios
-        .get(`/calendar/current?page=1&limit=14&populate=false`)
-        .then(response => {
-          if (response.data.success) {
-            commit('SET_CALENDAR', response.data.payload);
-            // Maybe after this, get Current Seasons based on this year?
-            commit('SET_LOBBY', !response.data.payload.YearString);
-
-            // we should focus on a season at a time!
-            // dispatch('SET_SEASONS');
-          }
-        })
-        .catch(response => {
-          console.log('error => ', response);
-        });
-    },
-    SET_SEASONS: ({ commit }) => {
-      if (state.calendar.YearString) {
-        $axios
-          .get(`/seasons/${state.calendar.YearString}/current`)
-          .then(response => {
-            commit('SET_SEASONS', response.data.payload);
-          })
-          .catch(error => {
-            console.log('Error getting current seasons!', error);
-          });
+  async function setCalendar() {
+    try {
+      const response = await $axios.get(
+        '/calendar/current?page=1&limit=14&populate=false'
+      );
+      if (response.data.success) {
+        calendar.value = response.data.payload;
+        lobby.value = !response.data.payload.YearString;
       }
-    },
-    GET_COUNTRIES: ({ commit }) => {
-      $axios
-        .get('/places/country')
-        .then(res => {
-          commit('SET_COUNTRIES', res.data.payload);
-        })
-        .catch(error => {
-          console.log('Error getting countries!', error);
-        });
-    },
-    SHOW_TOAST: ({ commit }, payload) => {
-      commit('SHOW_TOAST', payload);
-    },
-    HIDE_TOAST: ({ commit }) => {
-      commit('HIDE_TOAST');
-    },
-  },
+    } catch (error) {
+      console.error('Error fetching calendar:', error);
+    }
+  }
+
+  async function setSeasons() {
+    if (calendar.value?.YearString) {
+      try {
+        const response = await $axios.get(
+          `/seasons/${calendar.value.YearString}/current`
+        );
+        seasons.value = response.data.payload;
+      } catch (error) {
+        console.error('Error fetching seasons:', error);
+      }
+    }
+  }
+
+  async function getCountries() {
+    try {
+      const response = await $axios.get('/places/country');
+      countries.value = response.data.payload;
+    } catch (error) {
+      console.error('Error fetching countries:', error);
+    }
+  }
+
+  function showToast(payload: Partial<Toast>) {
+    toast.value = {
+      show: true,
+      message: payload.message || '',
+      style: payload.style || '',
+      actionText: payload.actionText || '',
+      actionLink: payload.actionLink || '',
+      withAction: payload.withAction || false,
+    };
+  }
+
+  function hideToast() {
+    toast.value = {
+      show: false,
+      message: '',
+      style: '',
+      actionText: '',
+      actionLink: '',
+      withAction: false,
+    };
+  }
+
+  function toggleErrorOverlay() {
+    errorOverlay.value = !errorOverlay.value;
+  }
+
+  return {
+    // State
+    yearString,
+    allClubs,
+    user,
+    calendar,
+    seasons,
+    countries,
+    toast,
+    errorOverlay,
+    lobby,
+    selectedLeague,
+
+    // Getters
+    isAuthenticated,
+    currentYear,
+
+    // Actions
+    setUser,
+    unsetUser,
+    getUser,
+    setSelectedLeague,
+    unsetSelectedLeague,
+    setUserClubs,
+    setCalendar,
+    setSeasons,
+    getCountries,
+    showToast,
+    hideToast,
+    toggleErrorOverlay,
+  };
 });

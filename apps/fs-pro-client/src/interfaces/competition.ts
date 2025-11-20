@@ -7,7 +7,7 @@ export interface Competition {
   Name: string;
   CompetitionID: string | undefined;
   CompetitionCode: string;
-  Country: string;
+  Country: any;
   League: boolean;
   Tournament: boolean;
   Cup: boolean;

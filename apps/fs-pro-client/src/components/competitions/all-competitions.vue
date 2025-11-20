@@ -2,65 +2,59 @@
   <div class="container">
     <v-row>
       <v-col cols="4">
-        <v-card class="mx-auto" max-width="300" tile elevation="1">
+        <v-card class="mx-auto" max-width="300" elevation="1">
           <v-list>
-            <v-subheader>Competitions</v-subheader>
-            <v-list-item-group color="primary">
-              <v-list-item
-                v-for="(competition, i) in competitions"
-                :key="i"
-                color="#7535ed"
-                @click="showCompetition(competition.CompetitionCode)"
-                link
-              >
-                <v-list-item-avatar>
+            <v-list-subheader>Competitions</v-list-subheader>
+            <v-list-item
+              v-for="(competition, i) in competitions"
+              :key="i"
+              :value="i"
+              color="primary"
+              @click="showCompetition(competition.CompetitionCode)"
+            >
+              <template v-slot:prepend>
+                <v-avatar>
                   <v-img
                     :src="`${api}/img/logos/${competition.CompetitionCode}.png`"
-                    width="40px"
                   ></v-img>
-                </v-list-item-avatar>
-                <v-list-item-content>
-                  <v-list-item-title
-                    v-text="competition.Name"
-                  ></v-list-item-title>
-                </v-list-item-content>
-              </v-list-item>
-            </v-list-item-group>
+                </v-avatar>
+              </template>
+
+              <v-list-item-title>
+                {{ competition.Name }}
+              </v-list-item-title>
+            </v-list-item>
           </v-list>
         </v-card>
       </v-col>
 
       <v-col cols="8">
-        <v-card tile elevation="1" v-if="selectedCompetition.CompetitionID">
-          <v-card-title>
-            Selected Competition
-          </v-card-title>
+        <v-card elevation="1" v-if="selectedCompetition.CompetitionID">
+          <v-card-title>Selected Competition</v-card-title>
 
-          <v-list-item three-line>
-            <v-list-item-content>
-              <!-- <div class="overline mb-4">
-                Squad Size: {{ selectedClub.Players.length }}
-              </div> -->
-              <v-list-item-title class="headline mb-1">
-                {{ selectedCompetition.Name }}
-                <v-chip>{{ selectedCompetition.Type }}</v-chip>
-              </v-list-item-title>
-              <!-- <v-list-item-subtitle>
-                <b>Manager:</b>
-                {{ selectedClub.Manager }}
-                <b>Stadium:</b>
-                {{ selectedClub.Stadium.Name }}
-              </v-list-item-subtitle> -->
-              <!-- TODO: probably add 'Latest Season' -->
-            </v-list-item-content>
+          <v-list-item lines="three">
+            <!-- <div class="overline mb-4">
+              Squad Size: {{ selectedClub.Players.length }}
+            </div> -->
+            <v-list-item-title class="text-h5 mb-1">
+              {{ selectedCompetition.Name }}
+              <v-chip>{{ selectedCompetition.Type }}</v-chip>
+            </v-list-item-title>
+            <!-- <v-list-item-subtitle>
+              <b>Manager:</b>
+              {{ selectedClub.Manager }}
+              <b>Stadium:</b>
+              {{ selectedClub.Stadium.Name }}
+            </v-list-item-subtitle> -->
+            <!-- TODO: probably add 'Latest Season' -->
 
-            <v-list-item-avatar tile size="80">
-              <v-img
-                :src="
-                  `${api}/img/clubs/logos/${selectedCompetition.CompetitionCode}.png`
-                "
-              ></v-img>
-            </v-list-item-avatar>
+            <template v-slot:append>
+              <v-avatar tile size="80">
+                <v-img
+                  :src="`${api}/img/clubs/logos/${selectedCompetition.CompetitionCode}.png`"
+                ></v-img>
+              </v-avatar>
+            </template>
           </v-list-item>
 
           <v-divider light />
@@ -80,49 +74,45 @@
         </v-card>
 
         <v-card v-else>
-          <v-card-text class="text-center">
-            No selected competition
-          </v-card-text>
+          <v-card-text class="text-center">No selected competition</v-card-text>
         </v-card>
       </v-col>
     </v-row>
   </div>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref, onMounted, getCurrentInstance } from 'vue';
 import { Competition } from '@/interfaces/competition';
 import { apiUrl } from '@/store';
+import { $axios } from '@/main';
 
-@Component({})
-export default class AllCompetitions extends Vue {
-  private competitions: Competition[] = [];
+const instance = getCurrentInstance();
 
-  public selectedCompetition: any = {};
+const competitions = ref<Competition[]>([]);
+const selectedCompetition = ref<any>({});
+const api = ref<string>(apiUrl);
 
-  public api: string = apiUrl;
+const showCompetition = (compCode: string): void => {
+  const competition = competitions.value.find(
+    (c) => c.CompetitionCode == compCode
+  );
 
-  public showCompetition(compCode: string): void {
-    const competition = this.competitions.find(
-      c => c.CompetitionCode == compCode
-    );
-
-    if (competition) {
-      this.selectedCompetition = competition;
-    }
+  if (competition) {
+    selectedCompetition.value = competition;
   }
+};
 
-  public mounted() {
-    this.$axios
-      .get('/competitions/all')
-      .then(res => {
-        this.competitions = res.data.payload;
-      })
-      .catch(err => {
-        console.log('Error! => ', err);
-      });
-  }
-}
+onMounted(() => {
+  $axios
+    .get('/competitions/all')
+    .then((res: any) => {
+      competitions.value = res.data.payload;
+    })
+    .catch((err: any) => {
+      console.log('Error! => ', err);
+    });
+});
 </script>
 
 <style></style>

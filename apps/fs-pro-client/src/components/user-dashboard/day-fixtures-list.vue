@@ -1,52 +1,65 @@
 <template>
-  <v-list>
-      <v-list-item-group
-        v-model="selectedMatch"
-        :mandatory="MandatorySelect"
-        two-line
-        @change="$emit('match-selected', Matches[selectedMatch])"
-        color="primary"
-      >
-        <v-list-item
-          v-for="(match, i) in Matches"
-          :key="i"
-          :title="match.Fixture.Title + ' -> ' + match.Competition"
-        >
-          <v-list-item-icon>
-             <v-icon>${{ match.Fixture.Home }}</v-icon> vs
-             <v-icon>${{ match.Fixture.Away }}</v-icon>
-          </v-list-item-icon>
+  <v-list lines="two">
+    <v-list-item
+      v-for="(match, i) in Matches"
+      :key="i"
+      :value="i"
+      :active="selectedMatch === i"
+      @click="onSelectedMatchChange(i)"
+      color="primary"
+    >
+      <template v-slot:prepend>
+        <div class="d-flex align-center">
+          <v-icon>${{ match.Fixture.Home }}</v-icon>
+          <span class="mx-1">vs</span>
+          <v-icon>${{ match.Fixture.Away }}</v-icon>
+        </div>
+      </template>
 
-          <v-list-item-content>
-            <div v-if="Detail == 'details'">
-              <v-list-item-title>
-                {{ match.Fixture.Title }}
-              </v-list-item-title>
+      <div v-if="Detail == 'details'">
+        <v-list-item-title>
+          {{ match.Fixture.Title }}
+        </v-list-item-title>
 
-              <v-list-item-subtitle v-text="match.Fixture.Competition"></v-list-item-subtitle>
-            </div>
+        <v-list-item-subtitle>
+          {{ match.Competition }}
+        </v-list-item-subtitle>
+      </div>
 
-            <div v-if="Detail == 'results' && match.Fixture.Details">
-              {{ match.Fixture.Details.HomeTeamScore }} : {{ match.Fixture.Details.AwayTeamScore }}
-            </div>
-          </v-list-item-content>
-        </v-list-item>
-      </v-list-item-group>
-    </v-list>
+      <div v-if="Detail == 'results' && match.Fixture.Details">
+        {{ match.Fixture.Details.HomeTeamScore }} :
+        {{ match.Fixture.Details.AwayTeamScore }}
+      </div>
+    </v-list-item>
+  </v-list>
 </template>
 
-<script lang="ts">
+<script setup lang="ts">
+import { ref } from 'vue';
 import { ICalendarMatch } from '@/interfaces/calendar';
-import { Component, Vue, Prop } from 'vue-property-decorator';
 
-@Component
-export default class DayFixturesList extends Vue {
-  @Prop({ required: true }) readonly Matches!: ICalendarMatch[];
-  @Prop({ required: false }) readonly Detail: 'details' | 'results';
-  @Prop({ required: false, default: true }) readonly MandatorySelect;
-
-  private selectedMatch: any = null;
+interface Props {
+  Matches: ICalendarMatch[];
+  Detail?: 'details' | 'results';
+  MandatorySelect?: boolean;
 }
+
+const props = withDefaults(defineProps<Props>(), {
+  MandatorySelect: true,
+});
+
+const emit = defineEmits<{
+  'match-selected': [match: ICalendarMatch];
+}>();
+
+const selectedMatch = ref<any>(null);
+
+const onSelectedMatchChange = (value: any): void => {
+  selectedMatch.value = value;
+  if (value !== null && props.Matches[value]) {
+    emit('match-selected', props.Matches[value]);
+  }
+};
 </script>
 
 <style scoped></style>

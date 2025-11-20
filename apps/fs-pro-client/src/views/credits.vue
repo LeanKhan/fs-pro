@@ -6,28 +6,15 @@
         Source forever!
       </h4>
       <ul>
-        <li>
-          Vue
-        </li>
-        <li>
-          Vuetify
-        </li>
-        <li>
-          Express
-        </li>
-        <li>
-          Pexels
-        </li>
+        <li>Vue</li>
+        <li>Vuetify</li>
+        <li>Express</li>
+        <li>Pexels</li>
       </ul>
     </v-container>
   </div>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
-
-@Component({})
-export default class Credits extends Vue {}
-</script>
+<script setup lang="ts"></script>
 
 <style></style>

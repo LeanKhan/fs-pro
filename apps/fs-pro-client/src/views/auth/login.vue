@@ -3,7 +3,7 @@
     <v-card>
       <v-card-text>
         <template v-if="!showForgotSection">
-          <v-subheader>Login to FSPro</v-subheader>
+          <v-list-subheader>Login to FSPro</v-list-subheader>
 
           <v-text-field
             required
@@ -27,7 +27,7 @@
         </template>
 
         <template v-else>
-          <v-subheader>Change Password</v-subheader>
+          <v-list-subheader>Change Password</v-list-subheader>
 
           <v-text-field
             required
@@ -49,18 +49,20 @@
             v-model="newForm.NewPassword"
           ></v-text-field>
         </template>
+
         <!-- Forgot Password -->
         <div>
           Forgot your password?
-          <v-btn outlined depressed @click="showForgot">
+          <v-btn variant="outlined" @click="showForgot">
             Yup, ama fish eater
           </v-btn>
         </div>
       </v-card-text>
+
       <v-card-actions>
         <v-btn
           v-if="!showForgotSection"
-          color="green darken-2"
+          color="green-darken-2"
           @click="login"
           block
           :loading="loading"
@@ -70,7 +72,7 @@
 
         <v-btn
           v-else
-          color="pink darken-2"
+          color="pink-darken-2"
           @click="submitNewPassword"
           block
           :loading="loading"
@@ -82,104 +84,98 @@
   </form>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
-@Component
-export default class Login extends Vue {
-  private form = {
-    Username: '',
-    Password: '',
-  };
+<script setup lang="ts">
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useStore } from '@/store';
+import { $axios } from '@/main';
 
-  private newForm = {
-    Username: '',
-    NewPassword: '',
-  };
+const router = useRouter();
+const store = useStore();
 
-  public loading = false;
+const form = ref({
+  Username: '',
+  Password: '',
+});
 
-  public showForgotSection = false;
+const newForm = ref({
+  Username: '',
+  NewPassword: '',
+});
 
-  private login() {
-    this.loading = true;
-    this.$axios
-      .post(
-        '/users/login',
-        { data: { ...this.form } },
-        { withCredentials: true }
-      )
-      .then(response => {
-        console.log('Response => ', response.data);
-        if (response.data.success) {
+const loading = ref(false);
+const showForgotSection = ref(false);
 
-        this.$store.dispatch('SHOW_TOAST', {
-          message: 'Signed in Successfully!',
-          style: 'success',
-        });
+async function login() {
+  loading.value = true;
+  try {
+    const response = await $axios.post(
+      '/users/login',
+      { data: { ...form.value } },
+      { withCredentials: true }
+    );
 
-          this.$store.dispatch('SET_USER', {
-            username: response.data.payload.Username,
-            userID: response.data.payload._id,
-            clubs: response.data.payload.Clubs,
-            session: response.data.payload.Session,
-            isAdmin: response.data.payload.isAdmin,
-            avatar: response.data.payload.Avatar,
-            fullname: response.data.payload.FullName,
-          });
-        } else {
-        this.$store.dispatch('SHOW_TOAST', {
-          message: response.data.message,
-          style: 'error',
-        });
-        }
-
-        this.$socket.client.emit('authenticate');
-
-        this.$router.push('/u');
-      })
-      .catch(response => {
-        console.error('Error logging in! ', response);
-      })
-      .finally(() => {
-        this.loading = false;
+    if (response.data.success) {
+      store.showToast({
+        message: 'Signed in Successfully!',
+        style: 'success',
       });
-  }
 
-  private submitNewPassword() {
-    this.loading = true;
-    this.$axios
-      .post('/users/change-password', this.newForm, { withCredentials: true })
-      .then(response => {
-        console.log('Response => ', response.data);
-        if (response.data.success) {
-          this.$store.dispatch('SET_USER', {
-            username: response.data.payload.Username,
-            userID: response.data.payload._id,
-            clubs: response.data.payload.Clubs,
-            session: response.data.payload.Session,
-            isAdmin: response.data.payload.isAdmin,
-            avatar: response.data.payload.Avatar,
-            fullname: response.data.payload.FullName,
-          });
-        }
-
-        this.$socket.client.emit('authenticate');
-
-        this.$router.push('/u');
-      })
-      .catch(response => {
-        console.log('Error changing password in! ', response.data);
-      })
-      .finally(() => {
-        this.showForgotSection = false;
-        this.loading = false;
+      store.setUser({
+        username: response.data.payload.Username,
+        userID: response.data.payload._id,
+        clubs: response.data.payload.Clubs,
+        session: response.data.payload.Session,
+        isAdmin: response.data.payload.isAdmin,
+        avatar: response.data.payload.Avatar,
+        fullname: response.data.payload.FullName,
       });
-  }
+    } else {
+      store.showToast({
+        message: response.data.message,
+        style: 'error',
+      });
+    }
 
-  private showForgot() {
-    this.showForgotSection = true;
+    router.push('/u');
+  } catch (error) {
+    console.error('Error logging in!', error);
+  } finally {
+    loading.value = false;
   }
 }
-</script>
 
-<style></style>
+async function submitNewPassword() {
+  loading.value = true;
+  try {
+    const response = await $axios.post(
+      '/users/change-password',
+      newForm.value,
+      { withCredentials: true }
+    );
+
+    if (response.data.success) {
+      store.setUser({
+        username: response.data.payload.Username,
+        userID: response.data.payload._id,
+        clubs: response.data.payload.Clubs,
+        session: response.data.payload.Session,
+        isAdmin: response.data.payload.isAdmin,
+        avatar: response.data.payload.Avatar,
+        fullname: response.data.payload.FullName,
+      });
+    }
+
+    router.push('/u');
+  } catch (error) {
+    console.error('Error changing password!', error);
+  } finally {
+    showForgotSection.value = false;
+    loading.value = false;
+  }
+}
+
+function showForgot() {
+  showForgotSection.value = true;
+}
+</script>

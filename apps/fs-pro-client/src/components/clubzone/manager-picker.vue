@@ -1,16 +1,16 @@
 <template>
   <v-dialog
-    :value="show"
-    @input="$emit('update:show', $event)"
+    :model-value="show"
+    @update:model-value="$emit('update:show', $event)"
     width="700"
     persistent
   >
     <v-card class="pa-0" :loading="loading">
-      <v-card-title class="headline cyan darken-2" primary-title>
+      <v-card-title class="text-h5 bg-cyan-darken-2" primary-title>
         Hire a new Manager
         <v-spacer></v-spacer>
-        <v-btn small icon @click="close">
-          <v-icon small>mdi-close</v-icon>
+        <v-btn size="small" icon @click="close">
+          <v-icon size="small">mdi-close</v-icon>
         </v-btn>
       </v-card-title>
       <v-card-text>
@@ -21,13 +21,17 @@
               <v-card-title class="subtitle">
                 {{ selectedManager.FirstName }} {{ selectedManager.LastName }}
               </v-card-title>
-              <v-list flat dense>
+              <v-list density="compact">
                 <v-list-item>
                   <strong>
                     <v-icon>mdi-globe</v-icon>
                     Nationality: &nbsp;
                   </strong>
-                  {{ selectedManager.Nationality ? selectedManager.Nationality.Name : '-' }}
+                  {{
+                    selectedManager.Nationality
+                      ? selectedManager.Nationality.Name
+                      : '-'
+                  }}
                 </v-list-item>
                 <v-list-item>
                   <strong>
@@ -45,42 +49,46 @@
                 </v-list-item>
               </v-list>
             </v-card>
-            <v-sheet v-else height="100">
-              Select a manager to hire!
-            </v-sheet>
+            <v-sheet v-else height="100">Select a manager to hire!</v-sheet>
           </v-col>
 
           <v-col cols="6">
-            <v-list dense max-height="400px" flat>
-              <v-list-item-group v-model="managerModel" color="cyan darken-1">
-                <v-list-item v-for="(m, i) in managers" :key="i">
-                  <v-list-item-avatar size="30px" color="yellow">
+            <v-list density="compact" max-height="400px">
+              <v-list-item
+                v-for="(m, i) in managers"
+                :key="i"
+                :value="i"
+                :active="managerModel === i"
+                @click="managerModel = i"
+                color="cyan-darken-1"
+              >
+                <template v-slot:prepend>
+                  <v-avatar size="30" color="yellow">
                     <span>
                       {{ m.FirstName.charAt(0) + m.LastName.charAt(0) }}
                     </span>
-                  </v-list-item-avatar>
-                  <v-list-item-content>
-                    <v-list-item-title>
-                      {{ m.FirstName }}
-                      {{ m.LastName }}
-                    </v-list-item-title>
-                    <!-- <v-list-item-subtitle>
-                      <strong>12</strong>
-                      Titles |
-                      <strong>2</strong>
-                      Clubs |
-                      <strong>47</strong>
-                      Years Old |
-                    </v-list-item-subtitle> -->
-                  </v-list-item-content>
-                </v-list-item>
-              </v-list-item-group>
+                  </v-avatar>
+                </template>
+
+                <v-list-item-title>
+                  {{ m.FirstName }}
+                  {{ m.LastName }}
+                </v-list-item-title>
+                <!-- <v-list-item-subtitle>
+                    <strong>12</strong>
+                    Titles |
+                    <strong>2</strong>
+                    Clubs |
+                    <strong>47</strong>
+                    Years Old |
+                  </v-list-item-subtitle> -->
+              </v-list-item>
             </v-list>
           </v-col>
 
           <v-col cols="12">
             <v-text-field
-              color="cyan darken-1"
+              color="cyan-darken-1"
               label="Details"
               v-model="form.details"
               hint="The press release for the Manager's appointment"
@@ -98,66 +106,68 @@
   </v-dialog>
 </template>
 
-<script lang="ts">
-import { Component, Vue, Prop } from 'vue-property-decorator';
-// import { apiUrl } from '@/store';
+<script setup lang="ts">
+import { ref, computed, onMounted, getCurrentInstance } from 'vue';
 
-@Component({})
-export default class ManagerPicker extends Vue {
-  @Prop({ required: true }) show!: any;
-  @Prop({ required: true }) club!: string;
+interface Props {
+  show: any;
+  club: string;
+}
 
-  private managerModel = 0;
-  private managers: any = [];
-  private loading = false;
+const props = defineProps<Props>();
+const emit = defineEmits<{
+  'update:show': [value: boolean];
+  'update-available': [];
+}>();
 
-  private form = {
-    details: '',
-  };
+const instance = getCurrentInstance();
+const $axios = instance?.appContext.config.globalProperties.$axios;
 
-  get selectedManager() {
-    return this.managers[this.managerModel];
-  }
+const managerModel = ref(0);
+const managers = ref<any[]>([]);
+const loading = ref(false);
 
-  private close() {
-    this.$emit('update:show', false);
-  }
+const form = ref({
+  details: '',
+});
 
-  //  @Watch('selectedManager')
-  // onTabChanged(val: number) {
-  //   console.log('Tab Changed! =>', val);
-  // }
+const selectedManager = computed(() => {
+  return managers.value[managerModel.value];
+});
 
-  private hireManager() {
-    this.loading = true;
-    this.$axios
-      .put(`/clubs/${this.club}/manager`, {
-        ...this.form,
-        manager: this.selectedManager._id,
-      })
-      .then(() => {
-        console.log('Club Mangager appointed successfully!');
-        this.$emit('update:show', false);
-        this.$emit('update-available');
-      })
-      .catch(err => {
-        console.log('Error adding manager', err);
-      })
-      .finally(() => {
-        this.loading = false;
-      });
-  }
+const close = () => {
+  emit('update:show', false);
+};
 
-  public mounted() {
-  const query = JSON.stringify({isEmployed: false});
-    this.$axios
-      .get(`/managers?options=${query}&populate=Club`)
-      .then(res => {
-        this.managers = res.data.payload;
-      })
-      .catch(err => {
-        console.log('Error! => ', err);
-      });
-  }
-  }
+const hireManager = () => {
+  loading.value = true;
+  $axios
+    .put(`/clubs/${props.club}/manager`, {
+      ...form.value,
+      manager: selectedManager.value._id,
+    })
+    .then(() => {
+      console.log('Club Manager appointed successfully!');
+      emit('update:show', false);
+      emit('update-available');
+    })
+    .catch((err: any) => {
+      console.log('Error adding manager', err);
+    })
+    .finally(() => {
+      loading.value = false;
+    });
+};
+
+onMounted(() => {
+  const query = JSON.stringify({ isEmployed: false });
+  $axios
+    .get(`/managers?options=${query}&populate=Club`)
+    .then((res: any) => {
+      managers.value = res.data.payload;
+    })
+    .catch((err: any) => {
+      console.log('Error! => ', err);
+    });
+});
 </script>
