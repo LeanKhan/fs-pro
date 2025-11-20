@@ -4,6 +4,7 @@ dotenv.config();
 import express, { Application } from 'express';
 import cors from 'cors';
 import bodyparser from 'body-parser';
+import morgan from 'morgan';
 /** ---- sockets stuff -- */
 import assert from 'assert';
 import session from 'express-session';
@@ -49,7 +50,6 @@ console.log('ENVIRONMENT VARIABBLES => ', process.env.NODE_ENV);
 
 const cors_whitelist = [
       'http://localhost:8080',
-      'http://192.168.208.6:8080',
       // get host from env vars
       'http://' + (process.env.REMOTE_HOST!.trim() || 'localhost' ) + ':8080'
       ];
@@ -60,6 +60,11 @@ app.use(
     credentials: true,
   })
 );
+
+// Add morgan request logging in development mode
+if (process.env.NODE_ENV?.trim() === 'dev') {
+  app.use(morgan('dev'));
+}
 
 const Session = session({
   name: 'fspro.sid',

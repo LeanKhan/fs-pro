@@ -4,6 +4,8 @@
   "scripts": {
     "build": "turbo build",
     "dev": "dotenv -- turbo dev",
+    "dev:client": "dotenv -- turbo dev --filter=fs-pro-client",
+    "dev:server": "dotenv -- turbo dev --filter=fs-pro-server",
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
