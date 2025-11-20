@@ -5,13 +5,17 @@ import router from './router';
 import { createVuetify } from 'vuetify';
 import * as components from 'vuetify/components';
 import * as directives from 'vuetify/directives';
-import { io } from 'socket.io-client';
+import { Manager } from 'socket.io-client';
 import axios from 'axios';
 import { apiUrl } from '@/store';
 import 'vuetify/styles';
+import { mdi } from 'vuetify/iconsets/mdi';
 import { ordinal, roundTo } from './helpers/misc';
+import { customIcons } from './plugins/customIcons';
 
-const socket = io(apiUrl, { autoConnect: false });
+const manager = new Manager(apiUrl, { autoConnect: false });
+
+const socket = manager.socket('/');
 
 export const $axios = axios.create({
   baseURL: `${apiUrl}/api`,
@@ -32,6 +36,13 @@ const vuetify = createVuetify({
       },
     },
   },
+  icons: {
+    defaultSet: 'mdi',
+    sets: {
+      mdi,
+      custom: customIcons,
+    },
+  },
 });
 
 const formatter = new Intl.NumberFormat('en-US', {
@@ -41,7 +52,7 @@ const formatter = new Intl.NumberFormat('en-US', {
 
 const app = createApp(App);
 
-app.config.globalProperties.$socket = socket;
+app.config.globalProperties.$socket = manager;
 app.config.globalProperties.$axios = $axios;
 
 app.use(createPinia());
