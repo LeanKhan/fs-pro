@@ -1,10 +1,10 @@
 <template>
   <v-card>
-    <v-card-title class="title font-weight-regular justify-space-between">
+    <v-card-title class="text-h6 font-weight-regular justify-space-between">
       <span>{{ currentTitle }}</span>
       <v-avatar
-        color="primary lighten-2"
-        class="subheading white--text"
+        color="primary-lighten-2"
+        class="text-subtitle-1 text-white"
         size="40"
       >
         <v-icon color="white">{{ currentIcon }}</v-icon>
@@ -55,47 +55,38 @@
 
       <v-window-item :value="2">
         <v-card-text>
-          <v-card flat tile>
+          <v-card flat>
             <v-list>
-              <v-list-item-group v-model="form.Clubs" multiple>
-                <v-list-item
-                  v-for="(club, i) in visibleClubs"
-                  :value="club._id"
-                  :input-value="
-                    form.Clubs.filter((c) => c === club._id).length > 0
-                  "
-                  :key="i"
-                >
-                  <template v-slot:default="{ isActive, select }">
-                    <v-list-item-action>
-                      <v-checkbox
-                        color="green"
-                        :true-value="club._id"
-                        :input-value="isActive"
-                        @click="select"
-                      ></v-checkbox>
-                    </v-list-item-action>
+              <v-list-item
+                v-for="(club, i) in visibleClubs"
+                :value="club._id"
+                :key="i"
+              >
+                <template v-slot:prepend>
+                  <v-checkbox
+                    color="green"
+                    :model-value="form.Clubs.includes(club._id)"
+                    @update:model-value="toggleClub(club._id)"
+                  ></v-checkbox>
+                </template>
 
-                    <v-list-item-content>
-                      <v-list-item-title>{{ club.ClubCode }}</v-list-item-title>
-                      <v-list-item-subtitle>
-                        {{ club.Name }}
-                      </v-list-item-subtitle>
-                    </v-list-item-content>
+                <v-list-item-title>{{ club.ClubCode }}</v-list-item-title>
+                <v-list-item-subtitle>
+                  {{ club.Name }}
+                </v-list-item-subtitle>
 
-                    <v-list-item-avatar>
-                      <v-img
-                        :src="`${api}/img/clubs/logos/${club.ClubCode}.png`"
-                        width="40px"
-                      ></v-img>
-                    </v-list-item-avatar>
-                  </template>
-                </v-list-item>
-              </v-list-item-group>
+                <template v-slot:append>
+                  <v-avatar>
+                    <v-img
+                      :src="`${api}/img/clubs/logos/${club.ClubCode}.png`"
+                      width="40px"
+                    ></v-img>
+                  </v-avatar>
+                </template>
+              </v-list-item>
             </v-list>
             <v-card-actions>
               <v-pagination
-                circle
                 v-model="page"
                 :length="Math.ceil(clubs.length / perPage)"
               ></v-pagination>
@@ -108,9 +99,9 @@
     <v-divider></v-divider>
 
     <v-card-actions>
-      <v-btn :disabled="step === 1" text @click="step--">Back</v-btn>
+      <v-btn :disabled="step === 1" variant="text" @click="step--">Back</v-btn>
       <v-spacer></v-spacer>
-      <v-btn color="primary" depressed @click="step == 2 ? register() : step++">
+      <v-btn color="primary" variant="flat" @click="step == 2 ? register() : step++">
         {{ step == 2 ? 'Submit' : 'Next' }}
       </v-btn>
     </v-card-actions>
@@ -140,6 +131,15 @@ const confirmPassword = ref('');
 const step = ref(1);
 
 const api = apiUrl;
+
+function toggleClub(clubId: string) {
+  const index = form.value.Clubs.indexOf(clubId);
+  if (index > -1) {
+    form.value.Clubs.splice(index, 1);
+  } else {
+    form.value.Clubs.push(clubId);
+  }
+}
 
 const currentTitle = computed(() => {
   switch (step.value) {

@@ -1,7 +1,7 @@
 <template>
   <v-app>
     <v-main>
-      <v-container class="indigo auth-background" fluid>
+      <v-container class="bg-indigo auth-background" fluid>
         <v-row>
           <v-col offset="7">
             <div
@@ -15,9 +15,9 @@
               />
             </div>
             <v-card color="dark">
-              <v-tabs background-color="transparent" color="green" grow>
-                <v-tab title="Login" to="login">Login</v-tab>
-                <v-tab title="Join" to="join">Join</v-tab>
+              <v-tabs bg-color="transparent" color="green">
+                <v-tab to="login">Login</v-tab>
+                <v-tab to="join">Join</v-tab>
               </v-tabs>
               <router-view></router-view>
             </v-card>
@@ -26,12 +26,12 @@
       </v-container>
     </v-main>
 
-    <v-footer class="text-center" dark padless tile>
+    <v-footer class="text-center">
       <v-row dir="row" no-gutters class="justify-center">
         <v-col class="my-2">
-          <v-btn to="/credits" text>credits</v-btn>
+          <v-btn to="/credits" variant="text">credits</v-btn>
         </v-col>
-        <v-col class="ext-center white--text" cols="12">
+        <v-col class="ext-center text-white" cols="12">
           <v-divider></v-divider>
           {{ new Date().getFullYear() }} —
           <span>LeanKhan and Tobi</span>
