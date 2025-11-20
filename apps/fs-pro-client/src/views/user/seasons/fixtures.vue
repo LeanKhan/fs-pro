@@ -1,26 +1,11 @@
 <template>
   <v-card>
     <v-toolbar flat color="indigo darken-1">
-      <v-btn icon @click="$router.back()">
-        <v-icon>
-          mdi-arrow-left
-        </v-icon>
+      <v-btn icon @click="router.back()">
+        <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title class="ml-1">
-        All Fixtures
-      </v-toolbar-title>
+      <v-toolbar-title class="ml-1">All Fixtures</v-toolbar-title>
       <v-spacer></v-spacer>
-
-      <!-- <v-btn
-              :disabled="!shouldReload"
-              @click="fetchClub"
-              icon
-              color="white"
-            >
-              <v-icon>
-                mdi-reload
-              </v-icon>
-            </v-btn> -->
     </v-toolbar>
 
     <v-card-text>
@@ -52,81 +37,61 @@
   </v-card>
 </template>
 
-<script lang="ts">
-import { Component, Vue, Watch } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref, computed, watch, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { useStore } from '@/store';
+import { $axios } from '@/main';
 import FixturesTable from '@/components/seasons/fixtures-table.vue';
 
-@Component({
-  components: {
-    FixturesTable,
-  },
-})
-export default class Fixtures extends Vue {
-  private tab = 0;
+const router = useRouter();
+const store = useStore();
 
-  private fixtures: any = {};
+const tab = ref(0);
+const fixtures = ref({});
+const fixturesLoading = ref(false);
+const selectedYear = ref('');
 
-  private fixturesLoading = false;
+const currentYear = computed(() => store.currentYear);
+const seasons = computed(() => store.seasons as any);
+const selectedSeason = computed(() => seasons.value[tab.value] as any);
 
-  private selectedYear = '';
+watch(tab, () => {
+  getFixtures();
+});
 
-  get currentYear() {
-     return this.$store.getters.currentYear;
-  }
-
-  get seasons() {
-    return this.$store.state.seasons;
-  }
-
-  get selectedSeason() {
-    return this.seasons[this.tab];
-  }
-
-  @Watch('tab')
-  onTabChanged(val: number) {
-    console.log('Tab Changed! =>', val);
-    this.getFixtures();
-  }
-
-// TODO: paginate this!
-  private getFixtures() {
-    this.fixturesLoading = true;
+async function getFixtures() {
+  fixturesLoading.value = true;
+  try {
     const select = JSON.stringify('Title Home Away Details Played');
-    this.$axios
-      .get(`/seasons/${this.selectedSeason._id}/fixtures?select=${select}`)
-      .then(response => {
-        this.fixtures = response.data.payload;
-        console.log(response.data.payload);
-      })
-      .catch(error => {
-        console.log('Error getting fixtures for Season :/', error);
-      })
-      .finally(() => {
-        this.fixturesLoading = false;
-      });
-  }
-
-  private fetchCurrentSeasons() {
-    if(this.calendar && this.calendar.YearString){
-      this.$axios
-      .get(`/seasons?query=${JSON.stringify({Year: this.currentYear})}`)
-      .then(response => {
-        // Check for errors here o
-        if (response.data.success) {
-          this.seasons = response.data.payload;
-        }
-      })
-      .catch(response => {
-        console.log('Error fetching current Seasons! => ', response);
-      });
-    }
-  }
-
-  private mounted() {
-    this.getFixtures();
-    this.fetchCurrentSeasons();
+    const response = await $axios.get(
+      `/seasons/${selectedSeason.value._id}/fixtures?select=${select}`
+    );
+    fixtures.value = response.data.payload;
+  } catch (error) {
+    console.error('Error getting fixtures for Season:', error);
+  } finally {
+    fixturesLoading.value = false;
   }
 }
-</script>
 
-<style></style>
+async function fetchCurrentSeasons() {
+  if (store.calendar?.YearString) {
+    try {
+      const response = await $axios.get(
+        `/seasons?query=${JSON.stringify({ Year: currentYear.value })}`
+      );
+      if (response.data.success) {
+        store.seasons = response.data.payload;
+      }
+    } catch (error) {
+      console.error('Error fetching current Seasons:', error);
+    }
+  }
+}
+
+onMounted(() => {
+  getFixtures();
+  fetchCurrentSeasons();
+});
+</script>

@@ -1,47 +1,45 @@
 <template>
-  <v-simple-table>
-    <template v-slot:default>
-      <thead>
-        <tr>
-          <th class="text-left">Title</th>
-          <th class="text-left">Result</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="fx in fixtures" :key="fx._id" @click="goToMatch(fx._id)">
-          <td>
-            <v-icon large>${{ fx.Home }}</v-icon>
-            {{ fx.Title }}
-            <v-icon large>${{ fx.Away }}</v-icon>
-          </td>
-          <td>{{ fx.Played ? fx.Details.FullTimeScore : '- : -' }}</td>
-        </tr>
-      </tbody>
-    </template>
-  </v-simple-table>
+  <v-table>
+    <thead>
+      <tr>
+        <th class="text-left">Title</th>
+        <th class="text-left">Result</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr v-for="fx in fixtures" :key="fx._id" @click="goToMatch(fx._id)">
+        <td>
+          <v-icon size="large">${{ fx.Home }}</v-icon>
+          {{ fx.Title }}
+          <v-icon size="large">${{ fx.Away }}</v-icon>
+        </td>
+        <td>{{ fx.Played ? fx.Details.FullTimeScore : '- : -' }}</td>
+      </tr>
+    </tbody>
+  </v-table>
 </template>
 
-<script lang="ts">
-// import { Component, Vue, }
+<script setup lang="ts">
 // TODO: Highlight the winner of the match
 // TODO: Allow filtering, maybe show only played matches?
 // TODO: Should be able to visit the Match page of played matches
 // TODO: Should show Day information...
-import { Component, Vue, Prop } from 'vue-property-decorator';
+import { useRouter } from 'vue-router';
 
-@Component({
-  name: 'Fixtures',
-})
-export default class FixturesTable extends Vue {
-  @Prop({ required: true }) fixtures!: any;
-
-  /**
-   * ID -  Fixture Id
-   */
-  private goToMatch(id: string) {
-    this.$router.push('/matchzone/' + id);
-  }
+interface Props {
+  fixtures: any;
 }
+
+defineProps<Props>();
+
+const router = useRouter();
+
+/**
+ * ID - Fixture Id
+ */
+const goToMatch = (id: string) => {
+  router.push('/matchzone/' + id);
+};
 </script>
 
 <style scoped>

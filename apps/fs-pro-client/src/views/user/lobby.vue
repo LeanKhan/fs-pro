@@ -17,14 +17,9 @@
   </div>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+<script setup lang="ts">
 import { apiUrl } from '@/store';
-
-@Component
-export default class UserLobby extends Vue {
-  public api: string = apiUrl;
-}
+const api = apiUrl;
 </script>
 
 <style></style>

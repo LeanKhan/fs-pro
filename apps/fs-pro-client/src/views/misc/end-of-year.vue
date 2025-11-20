@@ -8,7 +8,7 @@
             color="accent"
             :loading="loading"
             :disabled="loading"
-            @click="endYear()"
+            @click="endYear"
           >
             End Year Now
           </v-btn>
@@ -26,73 +26,63 @@
     </v-card>
 
     <!-- loading overlay -->
-    <v-overlay :value="loading">
+    <v-overlay :model-value="loading">
       <v-progress-circular indeterminate size="68"></v-progress-circular>
     </v-overlay>
   </div>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useStore } from '@/store';
+import { $axios } from '@/main';
 
-@Component
-export default class EndOfYear extends Vue {
-  // after end of season, check if the Year is alos over (that is, all the seasons are finished...)
-  // then go to End Of Year...
+const route = useRoute();
+const router = useRouter();
+const store = useStore();
 
-  private loading = false;
+const loading = ref(false);
+const ended = ref(false);
+const calendar = ref<any>({});
 
-  private ended = false;
+function endYear() {
+  const ans = confirm('Are you sure you want to end this Year?');
+  if (!ans) return false;
 
-  private calendar: any = {};
-
-  get calendarId() {
-    return this.$route.params.calendar_id;
-  }
-
-  private endYear() {
-    const ans = confirm('Are you sure you want to end this Year?');
-
-    if (!ans) return false;
-
-    this.loading = true;
-    this.$axios
-      .post(`/calendar/${this.calendarId}/end`)
-      .then(response => {
-        if (response.data.success) {
-          console.log(response.data);
-
-          this.calendar = response.data.payload;
-          this.ended = true;
-
-          // Well, set new current Calendar! This should return null...
-          this.$store.dispatch('SET_CALENDAR');
-        }
-      })
-      .catch(response => {
-        console.log('Error ending Calendar => ');
-        this.calendar = response;
-      })
-      .finally(() => {
-        this.loading = false;
-      });
-  }
-
-  mounted() {
-    this.loading = true;
-    this.$axios
-      .get(`/calendar/current`)
-      .then(response => {
-        this.calendar = response.data.payload;
-      })
-      .catch(err => {
-        console.log('Error fetching current Calendar => ', err);
-      })
-      .finally(() => {
-        this.loading = false;
-      });
-  }
+  loading.value = true;
+  $axios
+    .post(`/calendar/${route.params.calendar_id}/end`)
+    .then((response) => {
+      if (response.data.success) {
+        console.log(response.data);
+        calendar.value = response.data.payload;
+        ended.value = true;
+        // Set new current Calendar! This should return null...
+        store.setCalendar();
+      }
+    })
+    .catch((error) => {
+      console.log('Error ending Calendar => ', error);
+      calendar.value = error;
+    })
+    .finally(() => {
+      loading.value = false;
+    });
 }
-</script>
 
-<style></style>
+onMounted(() => {
+  loading.value = true;
+  $axios
+    .get('/calendar/current')
+    .then((response) => {
+      calendar.value = response.data.payload;
+    })
+    .catch((err) => {
+      console.log('Error fetching current Calendar => ', err);
+    })
+    .finally(() => {
+      loading.value = false;
+    });
+});
+</script>

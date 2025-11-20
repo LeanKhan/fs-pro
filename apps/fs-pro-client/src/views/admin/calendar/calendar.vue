@@ -1,18 +1,16 @@
 <template>
   <div>
     <v-card :loading="loading">
-      <!-- // Toolbar -->
       <v-toolbar>
-        <!-- Current day -->
-        <v-toolbar-title class="subtitle-1 font-weight-bold indigo--text">
-          Current Calendar: {{ calendar.YearString }}
+        <v-toolbar-title class="text-subtitle-1 font-weight-bold text-indigo">
+          Current Calendar: {{ calendar?.YearString }}
         </v-toolbar-title>
 
         <v-toolbar-items>
           <v-btn
             color="warning"
-            v-if="calendar.allSeasonsCompleted"
-            @click="endYear()"
+            v-if="calendar?.allSeasonsCompleted"
+            @click="endYear"
           >
             END YEAR
           </v-btn>
@@ -27,7 +25,7 @@
               color="primary"
               :disabled="loading"
               :loading="loading"
-              @click="createNewYear()"
+              @click="createNewYear"
             >
               New Calendar Year
             </v-btn>
@@ -39,38 +37,30 @@
             ></v-checkbox>
           </v-col>
           <v-col cols="6">
-            <v-input readonly value="2020"></v-input>
+            <v-input readonly :value="new Date().getFullYear()"></v-input>
           </v-col>
         </v-row>
       </v-card-text>
-
-      <v-snackbar color="success" v-model="success">
-        success!
-      </v-snackbar>
     </v-card>
 
     <v-card>
-      <v-card-title>
-        Calendars
-      </v-card-title>
+      <v-card-title>Calendars</v-card-title>
 
       <v-card-text>
         <ul>
           <li v-for="cndr in calendars" :key="cndr._id">
             {{ cndr.YearString }}
 
-            <v-chip small>
+            <v-chip size="small">
               {{ cndr.isActive ? 'Active' : 'Not Active' }}
             </v-chip>
 
-            <v-chip small v-if="cndr.isEnded">
-              Ended
-            </v-chip>
+            <v-chip size="small" v-if="cndr.isEnded">Ended</v-chip>
 
             <v-btn
               v-if="cndr.Days && cndr.Days.length > 0"
-              text
-              small
+              variant="text"
+              size="small"
               @click="startCalendarYear(cndr.YearString, cndr._id)"
             >
               Start Year
@@ -78,8 +68,8 @@
 
             <v-btn
               v-else-if="!cndr.Days || cndr.Days.length == 0"
-              text
-              small
+              variant="text"
+              size="small"
               class="ml-2"
               color="accent"
               @click="setupAndStartCalendarYear(cndr.YearString, cndr._id)"
@@ -91,8 +81,7 @@
       </v-card-text>
     </v-card>
 
-    <!-- loading overlay -->
-    <v-overlay :value="loading">
+    <v-overlay :model-value="loading">
       <v-progress-circular indeterminate size="68"></v-progress-circular>
     </v-overlay>
 
@@ -102,162 +91,118 @@
   </div>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue';
+import { useStore } from '@/store';
+import { $axios } from '@/main';
 
-@Component
-export default class Calendar extends Vue {
-  private month = '';
+const store = useStore();
 
-  private success = false;
+const loading = ref(false);
+const calendars = ref<any[]>([]);
+const randomMonth = ref(false);
+const toast = ref({
+  show: false,
+  color: 'success',
+  message: 'Inside Calendar!',
+});
 
-  private loading = false;
+const calendar = computed(() => store.calendar) || {};
 
-  private calendars: any = [];
+async function createNewYear() {
+  loading.value = true;
 
-  private response: any = '';
+  try {
+    const response = await $axios.post(
+      `/calendar/new${randomMonth.value ? '?override_month=true' : ''}`
+    );
 
-  private randomMonth = false;
+    toast.value = {
+      show: true,
+      color: 'success',
+      message: 'Calendar created successfully!',
+    };
 
-  private showToast = false;
-  // TODO: make this a global service!
-  private toast = {
-    show: false,
-    color: 'success',
-    message: 'Inside Calendar!',
-  };
-
-  get currentDay() {
-    return this.$store.state.calendar.CurrentDay;
-  }
-
-  get calendar() {
-    return this.$store.state.calendar;
-  }
-
-  private createNewYear() {
-    this.loading = true;
-
-    this.$axios
-      .post(`/calendar/new${this.randomMonth ? '?override_month=true' : ''}`)
-      .then(response => {
-        console.log('Response => ', response);
-
-        this.toast = {
-          show: true,
-          color: 'success',
-          message: 'Calendar created successfully!',
-        };
-
-        this.getCalendars();
-      })
-      .catch(response => {
-        console.log('Response => ', response);
-      })
-      .finally(() => {
-        this.loading = false;
-      });
-  }
-
-  private getCurrentCalendar() {
-    this.$axios
-      .post('/calendar/current')
-      .then(response => {
-        console.log('Response => ', response);
-      })
-      .catch(response => {
-        console.log('Response => ', response);
-      });
-  }
-
-  private getCalendars() {
-    this.$axios
-      .get('/calendar/calendars')
-      .then(response => {
-        this.calendars = response.data.payload;
-      })
-      .catch(response => {
-        console.log('Response => ', response);
-      });
-  }
-
-  private getCompetitions() {
-    this.$axios
-      .get('/seasons?started=false')
-      .then(response => {
-        this.calendars = response.data.payload;
-      })
-      .catch(response => {
-        console.log('Response => ', response);
-      });
-  }
-
-  // TODO: make this page more usefule and add more feedback for users...
-
-  private startCalendarYear(year: string, id: string) {
-    this.loading = true;
-    this.$axios
-      .post(`/calendar/${year}/${id}/start`)
-      .then(response => {
-        console.log(
-          'Yup! Calendar started successfully!',
-          response.data.payload
-        );
-        this.success = true;
-        this.response = response.data;
-
-        this.toast = {
-          show: true,
-          color: 'success',
-          message: 'Year started successfully!',
-        };
-
-        this.$store.dispatch('SET_CALENDAR');
-      })
-      .catch(response => {
-        console.log('Response => ', response);
-      })
-      .finally(() => {
-        this.loading = false;
-      });
-  }
-
-  private setupAndStartCalendarYear(year: string, id: string) {
-    this.loading = true;
-    this.$axios
-      .post(`/calendar/${year}/${id}/setup-and-start`)
-      .then(response => {
-        console.log(
-          'Yup! Calendar started successfully!',
-          response.data.payload
-        );
-        this.success = true;
-        this.response = response.data;
-
-        this.toast = {
-          show: true,
-          color: 'success',
-          message: 'Calendar Year setup & started successfully!',
-        };
-
-        this.$store.dispatch('SET_CALENDAR');
-      })
-      .catch(response => {
-        console.log('Response => ', response);
-
-        this.toast = {
-          show: true,
-          color: 'error',
-          message: 'Error setting up & starting Year!',
-        };
-      })
-      .finally(() => {
-        this.loading = false;
-      });
-  }
-
-  mounted() {
-    this.getCalendars();
+    await getCalendars();
+  } catch (error) {
+    console.error('Error creating calendar:', error);
+    toast.value = {
+      show: true,
+      color: 'error',
+      message: 'Error creating calendar',
+    };
+  } finally {
+    loading.value = false;
   }
 }
+
+async function getCalendars() {
+  try {
+    const response = await $axios.get('/calendar/calendars');
+    calendars.value = response.data.payload;
+  } catch (error) {
+    console.error('Error fetching calendars:', error);
+  }
+}
+
+async function startCalendarYear(year: string, id: string) {
+  loading.value = true;
+
+  try {
+    const response = await $axios.post(`/calendar/${year}/${id}/start`);
+
+    toast.value = {
+      show: true,
+      color: 'success',
+      message: 'Year started successfully!',
+    };
+
+    await store.setCalendar();
+  } catch (error) {
+    console.error('Error starting calendar year:', error);
+    toast.value = {
+      show: true,
+      color: 'error',
+      message: 'Error starting year',
+    };
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function setupAndStartCalendarYear(year: string, id: string) {
+  loading.value = true;
+
+  try {
+    const response = await $axios.post(
+      `/calendar/${year}/${id}/setup-and-start`
+    );
+
+    toast.value = {
+      show: true,
+      color: 'success',
+      message: 'Calendar Year setup & started successfully!',
+    };
+
+    await store.setCalendar();
+  } catch (error) {
+    console.error('Error setting up calendar year:', error);
+    toast.value = {
+      show: true,
+      color: 'error',
+      message: 'Error setting up & starting Year!',
+    };
+  } finally {
+    loading.value = false;
+  }
+}
+
+function endYear() {
+  // Implementation for ending the year
+  console.log('Ending year...');
+}
+
+onMounted(() => {
+  getCalendars();
+});
 </script>

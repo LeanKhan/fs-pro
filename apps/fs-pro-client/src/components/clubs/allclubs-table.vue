@@ -8,7 +8,7 @@
         v-model="search"
         append-icon="mdi-magnify"
         label="Search"
-        color="amber darken-1"
+        color="amber-darken-1"
         single-line
         hide-details
         clearable
@@ -27,15 +27,15 @@
     >
       <template v-slot:item.Name="{ item }">
         <v-list-item>
-          <v-list-item-avatar>
-            <v-img
-              :src="`${apiUrl}/img/clubs/logos/${item.ClubCode}.png`"
-              width="40px"
-            ></v-img>
-          </v-list-item-avatar>
-          <v-list-item-content>
-            <v-list-item-title v-text="item.Name"></v-list-item-title>
-          </v-list-item-content>
+          <template v-slot:prepend>
+            <v-avatar>
+              <v-img
+                :src="`${apiUrl}/img/clubs/logos/${item.ClubCode}.png`"
+                width="40px"
+              ></v-img>
+            </v-avatar>
+          </template>
+          <v-list-item-title v-text="item.Name"></v-list-item-title>
         </v-list-item>
       </template>
 
@@ -44,9 +44,7 @@
           {{ item.Manager.FirstName.charAt(0) }} {{ item.Manager.LastName }}
         </template>
 
-        <template v-else>
-          No Manager :/
-        </template>
+        <template v-else>No Manager :/</template>
       </template>
 
       <template v-slot:item.Address="{ item }">
@@ -62,13 +60,13 @@
       </template>
 
       <template v-slot:item.Actions="{ item }">
-        <v-btn text icon title="View Club" color="success lighten-2">
-          <v-icon small @click="viewClub(item._id, item.ClubCode)">
+        <v-btn variant="text" icon title="View Club" color="success-lighten-2">
+          <v-icon size="small" @click="viewClub(item._id, item.ClubCode)">
             mdi-eye
           </v-icon>
         </v-btn>
-        <v-btn text icon title="Update Club" color="blue lighten-2">
-          <v-icon small @click="updateClub(item._id, item.ClubCode)">
+        <v-btn variant="text" icon title="Update Club" color="blue-lighten-2">
+          <v-icon size="small" @click="updateClub(item._id, item.ClubCode)">
             mdi-pencil
           </v-icon>
         </v-btn>
@@ -77,49 +75,55 @@
   </v-card>
 </template>
 
-<script lang="ts">
-import { Component, Vue, Prop } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
+import { useStore } from '@/store';
 import { Club } from '@/interfaces/club';
 
-@Component({})
-export default class AllClubsTable extends Vue {
-  @Prop({ required: true }) readonly clubs!: Club;
-
-  // TODO: searches should be navigable. change url
-  private search = '';
-
-  get apiUrl() {
-    return this.$store.getters.apiUrl;
-  }
-
-  private headers: any[] = [
-    {
-      text: 'Name',
-      align: 'start',
-      value: 'Name',
-    },
-    { text: 'Address', value: 'Address', filterable: true, sortable: true },
-    { text: 'Manager', value: 'Manager', filterable: true, sortable: false },
-    { text: 'Stadium', value: 'Stadium', filterable: true, sortable: false },
-    { text: 'League', value: 'LeagueCode', filterable: true, sortable: true },
-    { text: 'Players', value: 'Players', filterable: true, sortable: false },
-    { text: 'Actions', value: 'Actions', filterable: false, sortable: false },
-  ];
-
-  private updateClub(clubId: string, clubCode: string): void {
-    this.$router.push({
-      name: 'Update Club',
-      params: { id: clubId, code: clubCode },
-    });
-  }
-
-  private viewClub(clubId: string, clubCode: string): void {
-    this.$router.push({
-      name: 'View Club',
-      params: { id: clubId, code: clubCode },
-    });
-  }
+interface Props {
+  clubs: Club[];
 }
+
+defineProps<Props>();
+
+const router = useRouter();
+const store = useStore();
+
+// TODO: searches should be navigable. change url
+const search = ref('');
+
+const apiUrl = computed(() =>
+  store.calendar?.YearString ? `${store.calendar.YearString}/api` : '/api'
+);
+
+const headers = ref<any[]>([
+  {
+    title: 'Name',
+    align: 'start',
+    key: 'Name',
+  },
+  { title: 'Address', key: 'Address', filterable: true, sortable: true },
+  { title: 'Manager', key: 'Manager', filterable: true, sortable: false },
+  { title: 'Stadium', key: 'Stadium', filterable: true, sortable: false },
+  { title: 'League', key: 'LeagueCode', filterable: true, sortable: true },
+  { title: 'Players', key: 'Players', filterable: true, sortable: false },
+  { title: 'Actions', key: 'Actions', filterable: false, sortable: false },
+]);
+
+const updateClub = (clubId: string, clubCode: string): void => {
+  router.push({
+    name: 'Update Club',
+    params: { id: clubId, code: clubCode },
+  });
+};
+
+const viewClub = (clubId: string, clubCode: string): void => {
+  router.push({
+    name: 'View Club',
+    params: { id: clubId, code: clubCode },
+  });
+};
 </script>
 
 <style></style>

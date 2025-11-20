@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/interface-name-prefix */
 import { IFixture } from './fixture';
 export interface ICalendarMatch {
   Fixture: IFixture;
@@ -30,4 +29,6 @@ export interface ICalendar {
   isActive: boolean;
   /** Array of the ids of Days */
   Days: string[];
+
+  allSeasonsCompleted?: any;
 }

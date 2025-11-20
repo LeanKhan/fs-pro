@@ -1,7 +1,11 @@
 <template>
-  <v-dialog :value="show" @input="$emit('update:show', $event)" width="700">
+  <v-dialog
+    :model-value="show"
+    @update:model-value="$emit('update:show', $event)"
+    width="700"
+  >
     <v-card class="pa-0">
-      <v-card-title class="headline grey lighten-2" primary-title>
+      <v-card-title class="text-h5 bg-grey-lighten-2" primary-title>
         Relieve Manager
       </v-card-title>
       <v-card-text>
@@ -12,7 +16,7 @@
               <v-card-title>
                 {{ manager.FirstName }} {{ manager.LastName }}
               </v-card-title>
-              <v-list flat dense>
+              <v-list density="compact">
                 <v-list-item>
                   <strong>
                     <v-icon>mdi-globe</v-icon>
@@ -56,46 +60,39 @@
   </v-dialog>
 </template>
 
-<script lang="ts">
-import { Component, Vue, Prop } from 'vue-property-decorator';
-// import { apiUrl } from '@/store';
+<script setup lang="ts">
+import { ref, getCurrentInstance } from 'vue';
+import { useRouter } from 'vue-router';
 
-@Component({})
-export default class ManagerFire extends Vue {
-  @Prop({ required: true }) show!: any;
-  @Prop({ required: true }) manager!: any;
-  @Prop({ required: true }) club!: string;
-
-  private loading = false;
-
-  private reason = '';
-
-  private fireManager() {
-    this.loading = true;
-    this.$axios
-      .delete(
-        `/clubs/${this.club}/manager?reason=${JSON.stringify(this.reason)}`
-      )
-      .then(() => {
-        this.$router.push('..');
-      })
-      .catch(err => {
-        console.log('Error! => ', err);
-      })
-      .finally(() => {
-        this.loading = false;
-      });
-  }
-
-  //   public mounted() {
-  //     this.$axios
-  //       .get('/manager/id')
-  //       .then(res => {
-  //         this.manager = res.data.payload;
-  //       })
-  //       .catch(err => {
-  //         console.log('Error! => ', err);
-  //       });
-  //   }
+interface Props {
+  show: any;
+  manager: any;
+  club: string;
 }
+
+const props = defineProps<Props>();
+
+const router = useRouter();
+const instance = getCurrentInstance();
+const $axios = instance?.appContext.config.globalProperties.$axios;
+
+const loading = ref(false);
+const reason = ref('');
+
+const fireManager = () => {
+  loading.value = true;
+  $axios
+    .delete(
+      `/clubs/${props.club}/manager?reason=${JSON.stringify(reason.value)}`
+    )
+    .then(() => {
+      router.push('..');
+    })
+    .catch((err: any) => {
+      console.log('Error! => ', err);
+    })
+    .finally(() => {
+      loading.value = false;
+    });
+};
 </script>

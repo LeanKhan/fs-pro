@@ -4,58 +4,55 @@
       <v-col cols="4">
         <v-card class="mx-auto" max-width="300" tile elevation="1">
           <v-list>
-            <v-subheader>Clubs</v-subheader>
-            <v-list-item-group color="primary">
-              <v-list-item
-                v-for="(club, i) in clubs"
-                :key="i"
-                color="#7535ed"
-                @click="showClub(club.ClubCode)"
-                link
-              >
-                <v-list-item-avatar>
+            <v-list-subheader>Clubs</v-list-subheader>
+            <v-list-item
+              v-for="(club, i) in clubs"
+              :key="i"
+              color="#7535ed"
+              @click="showClub(club.ClubCode)"
+              link
+            >
+              <template v-slot:prepend>
+                <v-avatar>
                   <v-img
                     :src="`${api}/img/clubs/logos/${club.ClubCode}.png`"
                     width="40px"
                   ></v-img>
-                </v-list-item-avatar>
-                <v-list-item-content>
-                  <v-list-item-title v-text="club.Name"></v-list-item-title>
-                </v-list-item-content>
-              </v-list-item>
-            </v-list-item-group>
+                </v-avatar>
+              </template>
+
+              <v-list-item-title>{{ club.Name }}</v-list-item-title>
+            </v-list-item>
           </v-list>
         </v-card>
       </v-col>
 
       <v-col cols="8">
         <v-card tile elevation="1" v-if="selectedClub.Name">
-          <v-card-title>
-            Selected Club
-          </v-card-title>
+          <v-card-title>Selected Club</v-card-title>
 
-          <v-list-item three-line>
-            <v-list-item-content>
-              <div class="overline mb-4">
-                Squad Size: {{ selectedClub.Players.length }}
-              </div>
-              <v-list-item-title class="headline mb-1">
-                {{ selectedClub.Name }}
-                <v-chip>{{ selectedClub.ClubCode }}</v-chip>
-              </v-list-item-title>
-              <v-list-item-subtitle>
-                <b>Manager:</b>
-                {{ selectedClub.Manager }}
-                <b>Stadium:</b>
-                {{ selectedClub.Stadium.Name }}
-              </v-list-item-subtitle>
-            </v-list-item-content>
+          <v-list-item lines="three">
+            <div class="text-overline mb-4">
+              Squad Size: {{ selectedClub.Players.length }}
+            </div>
+            <v-list-item-title class="text-h5 mb-1">
+              {{ selectedClub.Name }}
+              <v-chip>{{ selectedClub.ClubCode }}</v-chip>
+            </v-list-item-title>
+            <v-list-item-subtitle>
+              <b>Manager:</b>
+              {{ selectedClub.Manager }}
+              <b>Stadium:</b>
+              {{ selectedClub.Stadium.Name }}
+            </v-list-item-subtitle>
 
-            <v-list-item-avatar tile size="80">
-              <v-img
-                :src="`${api}/img/logos/${selectedClub.ClubCode}.png`"
-              ></v-img>
-            </v-list-item-avatar>
+            <template v-slot:append>
+              <v-avatar tile size="80">
+                <v-img
+                  :src="`${api}/img/logos/${selectedClub.ClubCode}.png`"
+                ></v-img>
+              </v-avatar>
+            </template>
           </v-list-item>
 
           <v-divider light />
@@ -70,47 +67,40 @@
         </v-card>
 
         <v-card v-else>
-          <v-card-text class="text-center">
-            No selected club
-          </v-card-text>
+          <v-card-text class="text-center">No selected club</v-card-text>
         </v-card>
       </v-col>
     </v-row>
   </div>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
 import { Club } from '@/interfaces/club';
 import { apiUrl } from '@/store';
+import { $axios } from '@/main';
 
-@Component({})
-export default class AllClubs extends Vue {
-  private clubs: Club[] = [];
+const clubs = ref<Club[]>([]);
+const api = ref<string>(apiUrl);
+const selectedClub = ref<any>({});
 
-  private api: string = apiUrl;
-
-  public selectedClub: any = {};
-
-  public showClub(clubCode: string): void {
-    const club = this.clubs.find(c => c.ClubCode == clubCode);
-
-    if (club) {
-      this.selectedClub = club;
-    }
+const showClub = (clubCode: string): void => {
+  const club = clubs.value.find((c) => c.ClubCode == clubCode);
+  if (club) {
+    selectedClub.value = club;
   }
+};
 
-  public mounted() {
-    this.$axios
-      .get('/clubs/all')
-      .then(res => {
-        this.clubs = res.data.payload;
-      })
-      .catch(err => {
-        console.log('Error! => ', err);
-      });
-  }
-}
+onMounted(() => {
+  $axios
+    .get('/clubs/all')
+    .then((res) => {
+      clubs.value = res.data.payload;
+    })
+    .catch((err) => {
+      console.log('Error! => ', err);
+    });
+});
 </script>
 
 <style></style>

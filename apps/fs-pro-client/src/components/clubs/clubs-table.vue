@@ -53,69 +53,63 @@
     <v-divider></v-divider>
     <v-card-actions>
       <v-spacer></v-spacer>
-      <v-btn color="secondary" @click="close">
-        Close
-      </v-btn>
-      <v-btn color="success" v-if="selectedClub[0]" @click="addClub">
-        Add
-      </v-btn>
+      <v-btn color="secondary" @click="close">Close</v-btn>
+      <v-btn color="success" v-if="selectedClub[0]" @click="addClub">Add</v-btn>
     </v-card-actions>
   </v-card>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
 import { Club } from '@/interfaces/club';
+import { $axios } from '@/main';
 
-@Component({})
-export default class ClubsTable extends Vue {
-  //   @Prop({ required: true }) readonly clubs!: Club;
+const clubs = ref<any[]>([]);
+const selectedClub = ref<Club[] | []>([]);
+const search = ref('');
 
-  private clubs: any[] = [];
+const emit = defineEmits<{
+  'close-club-modal': [payload?: { id: string; name: string }];
+}>();
 
-  private selectedClub: Club[] | [] = [];
+const headers = ref<any[]>([
+  {
+    title: 'Code',
+    align: 'start',
+    key: 'ClubCode',
+  },
+  {
+    title: 'Name',
+    key: 'Name',
+  },
+  { title: 'Address', key: 'Address', filterable: true, sortable: true },
+  { title: 'Manager', key: 'Manager', filterable: true, sortable: false },
+  { title: 'Stadium', key: 'Stadium', filterable: true, sortable: false },
+  { title: 'League', key: 'LeagueCode', filterable: true, sortable: true },
+  { title: 'Players', key: 'Players', filterable: true, sortable: true },
+]);
 
-  private headers: any[] = [
-    {
-      text: 'Code',
-      align: 'start',
-      value: 'ClubCode',
-    },
-    {
-      text: 'Name',
-      value: 'Name',
-    },
-    { text: 'Address', value: 'Address', filterable: true, sortable: true },
-    { text: 'Manager', value: 'Manager', filterable: true, sortable: false },
-    { text: 'Stadium', value: 'Stadium', filterable: true, sortable: false },
-    { text: 'League', value: 'LeagueCode', filterable: true, sortable: true },
-    { text: 'Players', value: 'Players', filterable: true, sortable: true },
-  ];
+const addClub = (): void => {
+  emit('close-club-modal', {
+    id: selectedClub.value[0]._id,
+    name: selectedClub.value[0].Name,
+  });
+};
 
-  private search = '';
+const close = (): void => {
+  emit('close-club-modal');
+};
 
-  private addClub(): void {
-    this.$emit('close-club-modal', {
-      id: this.selectedClub[0]._id,
-      name: this.selectedClub[0].Name,
+onMounted(() => {
+  $axios
+    .get('/clubs/all')
+    .then((res) => {
+      clubs.value = res.data.payload as Club[];
+    })
+    .catch((err) => {
+      console.log('Error! => ', err);
     });
-  }
-
-  private close(): void {
-    this.$emit('close-club-modal');
-  }
-
-  private mounted() {
-    this.$axios
-      .get('/clubs/all')
-      .then(res => {
-        this.clubs = res.data.payload as Club[];
-      })
-      .catch(err => {
-        console.log('Error! => ', err);
-      });
-  }
-}
+});
 </script>
 
 <style></style>

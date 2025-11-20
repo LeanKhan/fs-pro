@@ -1,53 +1,58 @@
-import Vue from 'vue';
+import { createApp } from 'vue';
+import { createPinia } from 'pinia';
 import App from './App.vue';
-import vuetify from './plugins/vuetify';
 import router from './router';
-import store, { apiUrl } from './store';
-import axios, { AxiosStatic } from 'axios';
-import { roundTo, ordinal } from './helpers/misc';
+import { createVuetify } from 'vuetify';
+import * as components from 'vuetify/components';
+import * as directives from 'vuetify/directives';
+import { io } from 'socket.io-client';
+import axios from 'axios';
+import { apiUrl } from '@/store';
+import 'vuetify/styles';
+import { ordinal, roundTo } from './helpers/misc';
 
-import VueSocketIOExt from 'vue-socket.io-extended';
-import io from 'socket.io-client';
-
-const socket = io(`${apiUrl}`, { autoConnect: false });
-
-Vue.use(VueSocketIOExt, socket);
-
-// baseURL: 'http://localhost:3000/api',
+const socket = io(apiUrl, { autoConnect: false });
 
 export const $axios = axios.create({
   baseURL: `${apiUrl}/api`,
 });
 
-Vue.use({
-  install() {
-    Vue.prototype.$axios = $axios;
+const vuetify = createVuetify({
+  components,
+  directives,
+  theme: {
+    defaultTheme: 'dark',
+    themes: {
+      dark: {
+        colors: {
+          primary: '#7535ed',
+          accent: '#c23361',
+          anchor: '#340f78',
+        },
+      },
+    },
   },
 });
 
 const formatter = new Intl.NumberFormat('en-US', {
-    style: 'decimal',
-    minimumFractionDigits: 2,
+  style: 'decimal',
+  minimumFractionDigits: 2,
 });
 
+const app = createApp(App);
 
-Vue.filter('currency', (value: number) => `${formatter.format(value)}`);
+app.config.globalProperties.$socket = socket;
+app.config.globalProperties.$axios = $axios;
 
-Vue.filter('roundTo', roundTo);
+app.use(createPinia());
+app.use(router);
+app.use(vuetify);
 
-Vue.filter('ordinal', ordinal);
+// Global filters
+app.config.globalProperties.$filters = {
+  currency: (value: number) => `${formatter.format(value)}`,
+  roundTo: roundTo,
+  ordinal: ordinal,
+};
 
-declare module 'vue/types/vue' {
-  interface Vue {
-    $axios: AxiosStatic;
-  }
-}
-
-Vue.config.productionTip = false;
-
-new Vue({
-  vuetify,
-  router,
-  store,
-  render: h => h(App),
-}).$mount('#app');
+app.mount('#app');

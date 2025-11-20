@@ -2,34 +2,31 @@
   <router-view></router-view>
 </template>
 
-<script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+<script setup lang="ts">
+import { onMounted, nextTick } from 'vue';
+import { useStore } from '@/store';
 import { ICalendar } from '@/interfaces/calendar';
+import { $axios } from '@/main';
 
-@Component({})
-export default class User extends Vue {
-  // get current calendar...
-  private currentCalendar: ICalendar | unknown = {};
+const store = useStore();
 
-  private getCurrentCalendar() {
-    this.$axios
-      .get('/current')
-      .then(response => {
-        console.log('Current calendar: ', response.data);
-      })
-      .catch(response => {
-        console.log(response);
-      });
-  }
-
-  private mounted() {
-    this.$store.dispatch('SET_CALENDAR');
-
-    this.$nextTick(() => {
-      console.log('Inside nextTick at ', new Date());
-      // this.$store.dispatch('SET_SEASONS');
-      this.$store.dispatch('SET_USER_CLUBS');
-    });
+async function getCurrentCalendar() {
+  try {
+    const response = await $axios.get('/current');
+    console.log('Current calendar:', response.data);
+  } catch (error) {
+    console.error(error);
   }
 }
+
+onMounted(async () => {
+  // Set calendar in store
+  store.setCalendar();
+
+  await nextTick();
+  console.log('Inside nextTick at', new Date());
+
+  // Set user clubs and update store
+  store.setUserClubs();
+});
 </script>

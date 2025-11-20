@@ -1,24 +1,17 @@
-import { RootState } from '.';
-import { Module } from 'vuex';
+import { defineStore } from 'pinia';
 
 export interface SocketState {
   poop: string;
 }
 
-export const state: SocketState = {
-  poop: '',
-};
-
-const socket: Module<SocketState, RootState> = {
-  namespaced: true,
-  state,
+export const useSocketStore = defineStore('socket', {
+  state: (): SocketState => ({
+    poop: '',
+  }),
   getters: {
-    poop: state => {
-      return state.poop;
-    },
+    poop: (state) => state.poop,
   },
-  mutations: {},
-  actions: {},
-};
-
-export default socket;
+  actions: {
+    // Add actions here if needed
+  },
+});

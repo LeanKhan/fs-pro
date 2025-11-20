@@ -6,25 +6,31 @@
 </template>
 
 <script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
+import { defineComponent, computed } from 'vue';
+import { useRoute } from 'vue-router';
 
-@Component({})
-export default class Competitions extends Vue {
-  private get crumbs(): any[] {
-    const breadcrumbs = this.$route.matched.map(path => {
-      return {
-        exact: true,
-        disabled: false,
-        to:
-          typeof path.meta.to == 'function'
-            ? path.meta(this.$route).to()
-            : path.path,
-        text: path.meta.title || path.name || path.meta(this.$route).title,
-      };
+export default defineComponent({
+  // eslint-disable-next-line vue/multi-word-component-names
+  name: 'Competitions',
+  setup() {
+    const route = useRoute();
+    const crumbs = computed(() => {
+      return route.matched.map((path) => {
+        return {
+          exact: true,
+          disabled: false,
+          to:
+            typeof path.meta.to == 'function'
+              ? path.meta(route).to()
+              : path.path,
+          text: path.meta.title || path.name || path.meta(route).title,
+        };
+      });
     });
-    return breadcrumbs;
-  }
-}
+
+    return { crumbs };
+  },
+});
 </script>
 
 <style></style>
