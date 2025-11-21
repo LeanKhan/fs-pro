@@ -13,7 +13,7 @@
       hide-default-footer
     >
       <template v-slot:item.ClubCode="{ item }">
-        <v-icon>${{ item.ClubCode }}</v-icon>
+        <v-icon>custom:{{ item.ClubCode }}</v-icon>
       </template>
     </v-data-table>
   </v-card>

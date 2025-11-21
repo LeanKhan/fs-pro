@@ -10,9 +10,9 @@
     >
       <template v-slot:prepend>
         <div class="d-flex align-center">
-          <v-icon>${{ match.Fixture.Home }}</v-icon>
+          <v-icon>custom:{{ match.Fixture.Home }}</v-icon>
           <span class="mx-1">vs</span>
-          <v-icon>${{ match.Fixture.Away }}</v-icon>
+          <v-icon>custom:{{ match.Fixture.Away }}</v-icon>
         </div>
       </template>
 

@@ -11,11 +11,11 @@
 
     <v-card-text>
       <v-avatar>
-        <v-icon>${{ Match.Fixture.Home }}</v-icon>
+        <v-icon>custom:{{ Match.Fixture.Home }}</v-icon>
       </v-avatar>
       vs
       <v-avatar>
-        <v-icon>${{ Match.Fixture.Away }}</v-icon>
+        <v-icon>custom:{{ Match.Fixture.Away }}</v-icon>
       </v-avatar>
 
       <div class="pa-0 text-center">

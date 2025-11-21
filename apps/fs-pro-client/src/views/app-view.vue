@@ -260,6 +260,14 @@ const userNavItems = computed((): any[] => {
     routes = [...routes, ...clubRoutes];
   }
 
+  // Add settings link at the end
+  routes.push({
+    title: 'Settings',
+    icon: 'mdi-cog',
+    link: '/u/settings',
+    color: 'grey',
+  });
+
   return routes;
 });
 

@@ -3,7 +3,7 @@
     <v-app-bar dense app color="dark">
       <v-avatar tile size="30px">
         <v-icon style="font-size: 30px; height: 30px" large>
-          ${{ fixture.Home }}
+          custom:{{ fixture.Home }}
         </v-icon>
       </v-avatar>
 
@@ -19,7 +19,7 @@
       >
         <v-avatar tile size="30px">
           <v-icon style="font-size: 30px; height: 30px" large>
-            ${{ fixture.Away }}
+            custom:{{ fixture.Away }}
           </v-icon>
         </v-avatar>
       </v-badge>
