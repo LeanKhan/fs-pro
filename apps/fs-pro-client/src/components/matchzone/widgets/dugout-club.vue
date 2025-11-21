@@ -12,7 +12,7 @@
         >
           <v-avatar tile size="30">
             <v-icon style="font-size: 30px; height: 30px" size="large">
-              ${{ club.ClubCode }}
+              custom:{{ club.ClubCode }}
             </v-icon>
           </v-avatar>
         </v-badge>

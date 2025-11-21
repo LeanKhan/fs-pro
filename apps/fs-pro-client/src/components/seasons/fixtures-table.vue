@@ -9,9 +9,9 @@
     <tbody>
       <tr v-for="fx in fixtures" :key="fx._id" @click="goToMatch(fx._id)">
         <td>
-          <v-icon size="large">${{ fx.Home }}</v-icon>
+          <v-icon size="large">custom:{{ fx.Home }}</v-icon>
           {{ fx.Title }}
-          <v-icon size="large">${{ fx.Away }}</v-icon>
+          <v-icon size="large">custom:{{ fx.Away }}</v-icon>
         </td>
         <td>{{ fx.Played ? fx.Details.FullTimeScore : '- : -' }}</td>
       </tr>

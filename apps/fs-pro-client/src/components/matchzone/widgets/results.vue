@@ -7,7 +7,7 @@
           <td>
             <v-avatar tile size="30">
               <v-icon style="font-size: 30px; height: 30px" size="large">
-                ${{ home }}
+                custom:{{ home }}
               </v-icon>
             </v-avatar>
           </td>
@@ -17,7 +17,7 @@
           <td>
             <v-avatar tile size="30">
               <v-icon style="font-size: 30px; height: 30px" size="large">
-                ${{ away }}
+                custom:{{ away }}
               </v-icon>
             </v-avatar>
           </td>
