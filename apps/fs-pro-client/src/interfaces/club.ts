@@ -39,5 +39,5 @@ export interface Club {
     Country: string;
   };
   Budget: number;
-  Transactions: {};
+  Transactions: object;
 }
