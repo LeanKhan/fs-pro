@@ -17,8 +17,9 @@
       :headers="headers"
       :items="clubs"
       v-model="selectedClub"
-      item-key="ClubCode"
+      item-value="ClubCode"
       show-select
+      return-object
       :single-select="!multiSelect"
       :search="search"
       loading-text="Fetching Clubs..."
@@ -89,7 +90,13 @@ const headers = ref<any[]>([
     key: 'Name',
   },
   { title: 'Address', key: 'Address', filterable: true, sortable: true },
-  { title: 'Manager', key: 'Manager', filterable: true, sortable: false },
+  {
+    title: 'Manager',
+    key: 'Manager',
+    value: (item: any) => `${item.Manager.FirstName} ${item.Manager.LastName}`,
+    filterable: true,
+    sortable: false,
+  },
   { title: 'Stadium', key: 'Stadium', filterable: true, sortable: false },
   { title: 'League', key: 'LeagueCode', filterable: true, sortable: true },
   { title: 'Players', key: 'Players', filterable: true, sortable: true },

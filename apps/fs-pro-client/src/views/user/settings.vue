@@ -87,7 +87,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, getCurrentInstance } from 'vue';
+import { ref, computed, onMounted, getCurrentInstance, watch } from 'vue';
 import { useStore } from '@/store';
 import ClubsTable from '@/components/clubs/clubs-table.vue';
 
@@ -166,6 +166,7 @@ const removeClub = async (clubId: string) => {
 };
 
 const fetchUserClubs = async () => {
+  console.log('Fetching User Clubs', user.value);
   if (!user.value?.clubs || user.value.clubs.length === 0) {
     userClubs.value = [];
     return;
@@ -178,6 +179,8 @@ const fetchUserClubs = async () => {
       `/clubs/fetch?q=${query}&select=${select}`
     );
 
+    console.log('Clubs From User => ', response.data.success);
+
     if (response.data.success) {
       userClubs.value = response.data.payload;
     }
@@ -186,8 +189,22 @@ const fetchUserClubs = async () => {
   }
 };
 
-onMounted(async () => {
-  await fetchUserClubs();
+// Watch for user to be available, then fetch clubs
+watch(
+  user,
+  async (newUser) => {
+    if (newUser && newUser.userID) {
+      await fetchUserClubs();
+    }
+  },
+  { immediate: true }
+);
+
+onMounted(() => {
+  // Ensure user is loaded from store
+  if (!user.value?.userID) {
+    store.getUser();
+  }
 });
 </script>
 
