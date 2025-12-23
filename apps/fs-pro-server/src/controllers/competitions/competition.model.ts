@@ -75,14 +75,14 @@ export class Competition {
       { timestamps: true }
     );
 
-    const populate = function (next: any) {
+    const populate = function (this: ICompetition & Document, next: any) {
       this.populate('Country');
       next();
     };
 
     CompetitionSchema.pre('find', populate).pre('findOne', populate);
 
-    CompetitionSchema.post('remove', async function(doc, next) {
+    CompetitionSchema.post('remove', async function(this: ICompetition & Document, doc, next) {
 
       await DB.Models.Season.deleteMany({ Competition: this._id });
 

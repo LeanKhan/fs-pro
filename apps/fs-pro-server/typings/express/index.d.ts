@@ -10,3 +10,12 @@ declare module 'express-serve-static-core' {
     [key: string]: any;
   }
 }
+
+declare module 'express-session' {
+  interface SessionData {
+    onlineStart?: Date;
+    online?: boolean;
+    socketID?: string;
+    lastOnline?: Date;
+  }
+}

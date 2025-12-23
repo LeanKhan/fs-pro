@@ -72,7 +72,7 @@ export class Manager {
       { timestamps: true }
     );
 
-    const populate = function (next: any) {
+    const populate = function (this: IManager & Document, next: any) {
       this.populate('Nationality');
       next();
     };

@@ -139,7 +139,7 @@ export class Fixture {
       { timestamps: true }
     );
 
-    FixtureSchema.post('remove', async function(next) {
+    FixtureSchema.post('remove', async function(this: IFixture & Document, next) {
       await DB.Models.Season.updateOne(
           { Fixtures : this._id},
           { $pull: { Fixtures: this._id } },

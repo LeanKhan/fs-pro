@@ -111,7 +111,7 @@ export class Season {
       { timestamps: true }
     );
 
-    SeasonSchema.post('remove', async function(doc, next) {
+    SeasonSchema.post('remove', async function(this: ISeason & Document, doc, next) {
       await DB.Models.Fixture.deleteMany({ Season: this._id });
       // remove all seasons in this calendar.
 

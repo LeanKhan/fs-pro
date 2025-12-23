@@ -112,7 +112,7 @@ export function calculateClubsTotalRatings(clubId: string) {
   // Do first stage grouping...
   return DB.Models.Club.aggregate(
     [
-      { $match: { _id: Types.ObjectId(clubId) } },
+      { $match: { _id: new Types.ObjectId(clubId) } },
       {
         $lookup: {
           from: 'Players',
@@ -154,8 +154,8 @@ export function createNewClub(_club: any) {
   const CLUB = new DB.Models.Club(_club);
 
   return CLUB.save()
-    .then((club) => ({ error: false, result: club }))
-    .catch((error) => ({ error: true, result: error }));
+    .then((club: any) => ({ error: false, result: club }))
+    .catch((error: any) => ({ error: true, result: error }));
 }
 
 // Clubs _must_ always be in a league

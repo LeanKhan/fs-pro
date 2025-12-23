@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../generated/prisma/client';
 import { IDatabase, IModels } from './interfaces';
 
 /**
@@ -14,9 +14,7 @@ export class PostgreSQLDatabase implements IDatabase {
 
   constructor() {
     this.prisma = new PrismaClient({
-      log: process.env.NODE_ENV?.trim() === 'dev'
-        ? ['query', 'info', 'warn', 'error']
-        : ['error'],
+      
     });
 
     // Initialize placeholder models

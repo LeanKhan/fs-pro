@@ -53,7 +53,8 @@ export class MongoDatabase implements IDatabase {
 
   public async start(): Promise<void> {
     try {
-      const client = await connect(this.mongoUrl, { useNewUrlParser: true });
+      
+      const client = await connect(this.mongoUrl);
       console.log(
         `Connection to ${client.connection.db.databaseName} database successful!`
       );

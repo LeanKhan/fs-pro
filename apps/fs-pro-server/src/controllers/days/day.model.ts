@@ -58,7 +58,7 @@ export class Day {
 
 
     // only called on Document remove
-    DaySchema.post('remove', async function(next) {
+    DaySchema.post('remove', async function(this: IDay & Document, next) {
       await DB.Models.Calendar.updateOne(
           { Days : this._id},
           { $pull: { Days: this._id } },
