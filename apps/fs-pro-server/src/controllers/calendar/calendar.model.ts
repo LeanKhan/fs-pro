@@ -72,7 +72,7 @@ export class Calendar {
       { timestamps: true }
     );
 
-    CalendarSchema.post('remove', async function(doc, next) {
+    CalendarSchema.post('remove', async function(this: ICalendar & Document, doc, next) {
       await DB.Models.Day.deleteMany({ Calendar: this._id });
       // remove all seasons in this calendar.
       await DB.Models.Season.deleteMany({ Calendar: this._id });

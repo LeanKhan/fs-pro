@@ -142,14 +142,14 @@ export class Club {
       { timestamps: true }
     );
 
-    const populate = function (next: any) {
+    const populate = function (this: IClub & Document, next: any) {
       this.populate('Address.Country');
       next();
     };
 
     ClubSchema.pre('find', populate).pre('findOne', populate);
 
-    ClubSchema.post('remove', async function (doc, next) {
+    ClubSchema.post('remove', async function (this: IClub & Document, doc, next) {
       await DB.Models.Competition.updateOne(
         { Clubs: this._id },
         { $pull: { Clubs: this._id } },

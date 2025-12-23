@@ -7,7 +7,7 @@ import bodyparser from 'body-parser';
 import morgan from 'morgan';
 /** ---- sockets stuff -- */
 import assert from 'assert';
-import session from 'express-session';
+import session, { SessionData } from 'express-session';
 import sharedSession from 'express-socket.io-session';
 import mStore from 'connect-mongodb-session';
 import cookie from 'cookie';
@@ -131,7 +131,7 @@ io.use((socket: any, next: any) => {
     if (cookies['fspro.sid']) {
       store.get(
         sessionID,
-        (err: any, sess: Express.SessionData | null | undefined) => {
+        (err: any, sess: SessionData | null | undefined) => {
           if (!err) {
             if (sess) {
               if (process.env.NODE_ENV!.trim() === 'dev') {

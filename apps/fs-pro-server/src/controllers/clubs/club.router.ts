@@ -41,10 +41,10 @@ router.get('/all', (req, res) => {
 router.get('/fetch', (req, res) => {
   // fetch clubs with query and all
   let query;
-  let select;
+  let select: any;
   try {
-    query = req.query.q || {};
-    query = JSON.parse(req.query.q);
+    query = req.query.q || "{}";
+    query = JSON.parse(req.query.q as any);
     select = req.query.select || {};
     select = JSON.parse(select);
   } catch (err) {
@@ -104,14 +104,15 @@ router.delete('/:id', (req, res) => {
 /** Fetch Club by id */
 router.get('/:id', (req, res) => {
   try {
-    fetchSingleClubById(req.params.id, req.query.populate)
+    const populate = typeof req.query.populate === 'string' ? req.query.populate : false;
+    fetchSingleClubById(req.params.id, populate)
       .then((club) => {
         respond.success(res, 200, 'Club fetched successfully', club);
       })
       .catch((err) => {
         respond.fail(res, 400, 'Error fetching Club', err.toString());
       });
-  } catch (err) {
+  } catch (err: any) {
     respond.fail(res, 400, 'Error fetching Club', err.toString());
   }
 });
