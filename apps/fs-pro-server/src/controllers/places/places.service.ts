@@ -1,5 +1,6 @@
 import DB from '../../db';
 import { PlaceInterface } from './places.model';
+import { PlaceRepositoryFactory } from '../../repositories/PlaceRepositoryFactory';
 
 /**
  * fetchAll
@@ -38,10 +39,10 @@ export function createNew(data: any) {
 
   return $Place
     .save()
-    .then((p) => {
+    .then((p: any) => {
       return { error: false, result: p };
     })
-    .catch((error) => ({ error: true, result: error }));
+    .catch((error: any) => ({ error: true, result: error }));
 }
 
 /**
@@ -64,4 +65,26 @@ export function findOneAndUpdate(
   return DB.Models.Place.findOneAndUpdate(query, update, { new: true })
     .lean()
     .exec();
+}
+
+const placeRepo = PlaceRepositoryFactory.create();
+
+export async function getPlace(id: string) {
+  return placeRepo.findById(id);
+}
+
+export async function getAllPlaces() {
+  return placeRepo.findAll();
+}
+
+export async function createPlace(data: any) {
+  return placeRepo.create(data);
+}
+
+export async function updatePlace(id: string, data: any) {
+  return placeRepo.update(id, data);
+}
+
+export async function deletePlace(id: string) {
+  return placeRepo.delete(id);
 }

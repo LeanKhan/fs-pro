@@ -1,5 +1,7 @@
+import { PlaceRepositoryFactory } from '../repositories/PlaceRepositoryFactory';
 import { PrismaClient } from '../generated/prisma/client';
 import { IDatabase, IModels } from './interfaces';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 /**
  * PostgreSQL Database implementation using Prisma
@@ -7,15 +9,15 @@ import { IDatabase, IModels } from './interfaces';
  * Note: This is a placeholder implementation.
  * Models will be implemented incrementally as we migrate from MongoDB.
  */
+
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 export class PostgreSQLDatabase implements IDatabase {
   private static instance: PostgreSQLDatabase;
   private prisma: PrismaClient;
   private _models: IModels;
 
   constructor() {
-    this.prisma = new PrismaClient({
-      
-    });
+    this.prisma = new PrismaClient({ adapter });
 
     // Initialize placeholder models
     // These will be replaced with actual implementations during migration
@@ -31,7 +33,7 @@ export class PostgreSQLDatabase implements IDatabase {
       Manager: null,
       ClubMatch: null,
       PlayerMatch: null,
-      Place: null,
+      Place: PlaceRepositoryFactory.create(),
       Award: null,
     };
   }

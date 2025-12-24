@@ -15,7 +15,7 @@ export interface PlaceInterface {
  * 'Manager of the year: 2020 season'
  */
 
-declare interface IPlace extends Document {
+export declare interface IPlace extends Document {
   _id: string; // Bellean. We are using the current field vals :)
   Fullname: string; // Republic of Bellean
   Name: string; // Bellean
