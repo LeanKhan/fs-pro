@@ -48,7 +48,7 @@ export const updateManyPlayerSigning: RequestHandler = async (
 
   const { playerIds, clubId, clubCode } = req.body.data;
 
-  const pIds = playerIds.map(p => Types.ObjectId(p));
+  const pIds = playerIds.map((p: any) => new Types.ObjectId(p));
 
   const query = {'_id': { $in:  pIds}};
   const update = {

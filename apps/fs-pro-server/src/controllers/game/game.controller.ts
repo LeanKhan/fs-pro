@@ -15,12 +15,61 @@ import FieldPlayer from '../../classes/FieldPlayer';
 import App from '../app/App';
 import Game from '../Game';
 import log from '../../helpers/logger';
-import { SeasonInterface } from '../seasons/season.model';
+import { SeasonInterface, ClubStandings } from '../seasons/season.model';
 import { fetchSeason } from '../seasons/season.service';
 import axios from 'axios';
+import { CalendarMatchInterface, DayInterface } from '../days/day.model';
+
+interface TeamObject {
+  id: string;
+  name: string;
+  clubCode: string;
+  manager: string;
+}
+
+interface CurrentMatch {
+  SeasonCode?: string;
+  App?: App;
+  match?: Fixture;
+  home?: TeamObject;
+  away?: TeamObject;
+  season_id?: string;
+  HomeSideDetails?: any;
+  AwaySideDetails?: any;
+}
+
+interface UpdateRelatedDataParams {
+  match: Fixture;
+  home: TeamObject;
+  away: TeamObject;
+  season_id: string;
+  HomeSideDetails: any;
+  AwaySideDetails: any;
+}
+
+interface AfterMatchParams {
+  homeTable: ClubStandings;
+  awayTable: ClubStandings;
+  matches: CalendarMatchInterface[];
+  currentDay: DayInterface;
+}
+
+interface PlayResult {
+  homeTable: ClubStandings;
+  awayTable: ClubStandings;
+  match: Fixture | undefined;
+  HomeSideDetails: any;
+  AwaySideDetails: any;
+  lastMatchOfSeason: boolean | undefined;
+}
+
+interface GameResults {
+  main: PlayResult | undefined;
+  others: PlayResult[];
+}
 
 async function play(fixture_id: string) {
-  let CurrentMatch = {};
+  let CurrentMatch: CurrentMatch = {};
 
   // [1]
   if (!fixture_id) {
@@ -80,7 +129,7 @@ async function play(fixture_id: string) {
     season_id,
     HomeSideDetails,
     AwaySideDetails,
-  }) => {
+  }: UpdateRelatedDataParams) => {
     CurrentMatch = {
       ...CurrentMatch,
       match,
@@ -101,7 +150,7 @@ async function play(fixture_id: string) {
     );
   };
 
-  const afterMatch = async ({ homeTable, awayTable, matches, currentDay }) => {
+  const afterMatch = async ({ homeTable, awayTable, matches, currentDay }: AfterMatchParams) => {
     // Check if we need to update Calendar day
     const allMatchesPlayed = matches.every((m) => m.Played);
 
@@ -111,14 +160,14 @@ async function play(fixture_id: string) {
     if (allMatchesPlayed) {
       // We have to get this from the kini...
       // TODO there should be a better way to get these constants...
-      const currentYear = CurrentMatch.SeasonCode.split('-')
+      const currentYear = CurrentMatch.SeasonCode!.split('-')
         .splice(1)
         .join('-');
 
       try {
         await changeCurrentDay(currentYear, currentDay);
         // App._app.endGame();
-      } catch (error) {
+      } catch (error: any) {
         console.log('Error changing current Calendar Day!', error);
         // throw error;
         throw new Error('Error updating current Day ' + error.toString());
@@ -144,7 +193,7 @@ async function play(fixture_id: string) {
       if (season) {
         //  if this fixture's
         lastMatchOfSeason =
-          season.Fixtures.findIndex((f) => fixture_id == f) ==
+          season.Fixtures.findIndex((f) => fixture_id == f._id) ==
           season.Fixtures.length - 1;
       }
 
@@ -156,7 +205,7 @@ async function play(fixture_id: string) {
        * 3. Call this same function for all Fixtures which have not been played yet.
        * 4. When you're done, collect the results and send back to client...
        */
-      CurrentMatch.App.endGame();
+      CurrentMatch.App!.endGame();
       log('GAME ENDED from App');
 
 
@@ -175,7 +224,7 @@ async function play(fixture_id: string) {
         AwaySideDetails: CurrentMatch.AwaySideDetails,
         lastMatchOfSeason,
       };
-    } catch (error) {
+    } catch (error: any) {
       console.log(`Error at afterMatch -> ` + error.toString());
 
       console.log(
@@ -275,7 +324,7 @@ export async function restPlayGameNew(
   play(fixture_id)
     .then(async (d) => {
 
-      const results = {
+      const results: GameResults = {
         main: d,
         others: []
       };
@@ -287,7 +336,7 @@ export async function restPlayGameNew(
       if (simulate_rest) {
         // call siumlate sequence...
         const matchDay = await findDay(
-          { 'Matches.Fixture': Types.ObjectId(fixture_id) },
+          { 'Matches.Fixture': new Types.ObjectId(fixture_id) },
           false
         );
 
@@ -312,9 +361,9 @@ export async function restPlayGameNew(
         for (let index = 0; index < fixtures_not_played.length; index++){
           // let r = await axios.get(fixtures_not_played_endpoints[index]);
           let r = await play(fixtures_not_played[index].toString());
-          let result;
-          if(r.data && r.data.payload) {
-            result = r.data.payload;
+          let result: any;
+          if((r as any).data && (r as any).data.payload) {
+            result = (r as any).data.payload;
           } else {
             result = r;
           };
@@ -329,7 +378,7 @@ export async function restPlayGameNew(
            //    results
            //  );
 
-      } catch (error) {
+      } catch (error: any) {
         console.log(error);
          return responseHandler.fail(
         res,
@@ -378,7 +427,7 @@ export async function restPlayGame(
     // get fixture and its details...
     fixture = await fetchOneById(fixture_id, false);
     // We also need to get the associated calendar day...
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error! Fetching Fixture to play match =>', error);
 
     return responseHandler.fail(
@@ -412,7 +461,7 @@ export async function restPlayGame(
       home,
       away,
     });
-  } catch (error) {
+  } catch (error: any) {
     log(`Error setting up game! (in Rest) => ${error}`);
     return responseHandler.fail(res, 400, 'Error starting Game!', {
       ...error,
@@ -565,7 +614,7 @@ export function restUpdateStandings(
         if (season) {
           //  if this fixture's
           lastMatchOfSeason =
-            season.Fixtures.findIndex((f) => fixture_id == f) ==
+            season.Fixtures.findIndex((f) => fixture_id == f._id) ==
             season.Fixtures.length - 1;
         }
 

@@ -29,7 +29,7 @@ export function capitalize(text: string) {
  * https://stackoverflow.com/a/31615643/10382407
  *  */
 export function ordinal(n: number) {
-  let s = ['th', 'st', 'nd', 'rd'],
+  const s = ['th', 'st', 'nd', 'rd'],
     v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }

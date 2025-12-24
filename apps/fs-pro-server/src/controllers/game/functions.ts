@@ -71,7 +71,7 @@ export async function updateFixture(
       club.PlayerStats as PlayerMatchDetailsInterface[]
     );
     // res is the ids...
-    club.PlayerStats = res.map((r) => r._id) as string[];
+    club.PlayerStats = res.map((r: any) => r._id) as string[];
 
     // then we save this one too lol and
 
@@ -178,7 +178,7 @@ export function updateStandings(
     awayTable.Losses = 0;
   }
 
-  const query = { 'Matches.Fixture': Types.ObjectId(fixture_id) };
+  const query = { 'Matches.Fixture': new Types.ObjectId(fixture_id) };
 
   let currentDay: DayInterface;
 
@@ -254,7 +254,7 @@ export function updateStandings(
       return { homeTable, awayTable, matches, currentDay };
     } catch (error) {
       console.error('Error updating Season! :(', error);
-      throw new Error(error);
+      throw new Error(error as any);
     }
   };
 

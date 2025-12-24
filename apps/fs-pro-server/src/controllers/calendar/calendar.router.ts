@@ -83,7 +83,7 @@ router.get('/:year/days', (req: Request, res: Response) => {
   const { year } = req.params;
   const { paginate = false, populate = false, not_played = true ,limit } = req.query;
 
-  let query = { Year: year };
+  let query: {Year: string; isFree?: boolean; "Matches.Played"?: boolean} = { Year: year };
 
   if (not_played) {
     query = { ...query,  "isFree": false, "Matches.Played": false }
@@ -91,9 +91,10 @@ router.get('/:year/days', (req: Request, res: Response) => {
 
   fetchMany(
     query,
-    JSON.parse(populate),
-    JSON.parse(paginate),
-    limit
+    JSON.parse(populate as string),
+    JSON.parse(paginate as string),
+    // TODO: Fix the type vagueness here
+    parseInt(limit as string)
   )
     .then((days: any) => {
       return respond.success(
@@ -120,7 +121,7 @@ router.get('/day-of-fixture/:fixture', (req: Request, res: Response) => {
   }
 
   findDay(
-    { 'Matches.Fixture': Types.ObjectId(fixture_id) },
+    { 'Matches.Fixture': new Types.ObjectId(fixture_id) },
     true
   ).then((day: any) => {
       return respond.success(

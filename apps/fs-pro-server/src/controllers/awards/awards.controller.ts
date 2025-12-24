@@ -64,7 +64,7 @@ export async function giveAwards(req: Request, res: Response) {
 
     const winningManager = await fetchOne({
       isEmployed: true,
-      Club: Types.ObjectId(req.body.seasonChampions),
+      Club: new Types.ObjectId(req.body.seasonChampions),
     });
 
     if (winningManager) {
