@@ -12,3 +12,18 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model Place {
+  id        String   @id @map("_id") @default(uuid()) @db.Uuid
+  Fullname  String
+  Name      String
+  Code      String   @unique
+  Region    String?
+  Type      String?
+  Picture   String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Places")
+}
