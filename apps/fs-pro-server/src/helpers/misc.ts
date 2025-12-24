@@ -185,7 +185,7 @@ export function shuffleArray(arr: unknown[]) {
  * 
  * from => https://stackoverflow.com/a/32589289/10382407
  * */
-export function titleCase(str) {
+export function titleCase(str: string) {
    var splitStr = str.toLowerCase().split(' ');
    for (var i = 0; i < splitStr.length; i++) {
        // You do not need to check if i is larger than splitStr length, as your for does that for you

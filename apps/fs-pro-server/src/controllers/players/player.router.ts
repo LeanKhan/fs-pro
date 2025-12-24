@@ -33,14 +33,14 @@ const router = Router();
  * Fetch all Players
  */
 router.get('/all', (req, res) => {
-  let options = req.query.options || {};
+  let options: Record<string, string> = {};
   // This prevents the app from crashing if there's
   // an error parsing object :)
   try {
     if (req.query.options) {
-      options = JSON.parse(req.query.options);
+      options = JSON.parse(req.query.options.toString());
     }
-  } catch (err) {
+  } catch (err: any) {
     log(`Error parsing JSON => ${err}`);
       return respond.fail(res, 400, 'Error fetching players: Parsing Options', err.toString());
   }
@@ -148,10 +148,10 @@ router.get('/:id/rating', async (req, res) => {
 
 router.get('/appearance', (req, res) => {
   fetchAppearance()
-    .then((features) => {
+    .then((features: any) => {
       respond.success(res, 200, 'Fetched Appearance successfully', features);
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error fetching appearance features', err);
     });
 });
@@ -180,12 +180,18 @@ router.get('/stats', async (req: Request, res: Response) => {
   const matchObject: { [key: string]: any } = {};
   const sortObject: { [key: string]: any } = {};
 
-  matchObject[match_k] = match_v;
+  if (match_k) {
+    matchObject[match_k.toString()] = match_v;
+  }
 
   try {
-    sortObject[sort_k] = parseInt(sort_v);
-    if (Types.ObjectId(match_v)) {
-      matchObject[match_k] = Types.ObjectId(match_v);
+    if (sort_k && sort_v) {
+      sortObject[sort_k.toString()] = parseInt(sort_v.toString());
+    }
+    if (match_k && match_v) {
+      if (new Types.ObjectId(match_v.toString())) {
+        matchObject[match_k.toString()] = new Types.ObjectId(match_v.toString());
+      }
     }
   } catch (error) {
     console.error(error);
@@ -197,7 +203,7 @@ router.get('/stats', async (req: Request, res: Response) => {
       return respond.success(
         res,
         200,
-        `The Best 5 Players by ${sort_k.toUpperCase()}`,
+        `The Best 5 Players by ${sort_k?.toString().toUpperCase() ?? 'UNKNOWN'}`,
         updated.slice(0, 5)
       );
     })
@@ -206,7 +212,7 @@ router.get('/stats', async (req: Request, res: Response) => {
     });
 });
 
-router.put('/works/add-roles', (req, res) => {
+router.put('/works/add-roles/:id', (req, res) => {
   const { id } = req.params;
 
   fetchOneById(id)

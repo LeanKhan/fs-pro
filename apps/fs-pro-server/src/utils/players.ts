@@ -474,7 +474,7 @@ function generatePlayer({position, firstname, lastname, nationality}:
           Control: randomBetween(20, 60),
           Tackling: randomBetween(20, 60),
           Dribbling: randomBetween(20, 60),
-          Setpiece: randomBetween(20, 60),
+          SetPiece: randomBetween(20, 60),
           Strength: randomBetween(20, 60),
           Stamina: randomBetween(20, 60),
           Vision: randomBetween(20, 60),
@@ -490,7 +490,8 @@ function generatePlayer({position, firstname, lastname, nationality}:
           AttackingMindset: false, // random
           DefensiveMindset: false, // random
         },
-        isSigned: false
+        isSigned: false,
+        Value: 0
       };
 
       // set nationality
@@ -510,7 +511,7 @@ function generatePlayer({position, firstname, lastname, nationality}:
       obj.Age = randomBetween(18, 30);
 
       // set Position
-      obj.Role = pickRandomFromArray(Roles[obj.Position]);
+      obj.Role = pickRandomFromArray(Roles[obj.Position as keyof typeof Roles]);
 
       // set Preferred Foot
       obj.Attributes.PreferredFoot = pickRandomFromArray(['left', 'right']);
@@ -520,14 +521,14 @@ function generatePlayer({position, firstname, lastname, nationality}:
       obj.Attributes.DefensiveMindset = pickRandomFromArray([true, false]);
 
       // set Position specific attributes
-      attributesToIncrease[obj.Position].forEach(attr => {
-        obj.Attributes[attr] = 64;
+      attributesToIncrease[obj.Position as keyof typeof attributesToIncrease].forEach(attr => {
+        (obj.Attributes as any)[attr] = 64;
       });
 
       console.log('Generated Player payload => ', obj)
 
       // set Rating
-      obj.Rating = calculatePlayerRating(obj.Attributes, obj.Position, obj.Role);
+      obj.Rating = calculatePlayerRating(obj.Attributes, obj.Position, obj.Role as Role);
 
       // set Value
       // you need Player's Rating to calculate their Value

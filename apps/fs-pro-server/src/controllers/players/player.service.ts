@@ -79,8 +79,8 @@ export const createNewPlayer = async (_player: PlayerInterface) => {
   const PLAYER = new DB.Models.Player(_player);
 
   return PLAYER.save()
-    .then((player) => ({ error: false, result: player }))
-    .catch((error) => ({ error: true, result: error }));
+    .then((player: any) => ({ error: false, result: player }))
+    .catch((error: any) => ({ error: true, result: error }));
 };
 
 /**
@@ -126,7 +126,7 @@ export function getPlayerStats(calendar_id: string) {
         },
       },
       { $unwind: '$season' },
-      { $match: { 'season.Calendar': Types.ObjectId(calendar_id) } }, // Filter by the Year
+      { $match: { 'season.Calendar': new Types.ObjectId(calendar_id) } }, // Filter by the Year
       {
         $group: {
           _id: '$Player',
@@ -225,7 +225,7 @@ export function allPlayerStats(
         },
       },
       { $unwind: '$fixture' },
-      { $match: { 'fixture.Season': Types.ObjectId(season) } },
+      { $match: { 'fixture.Season': new Types.ObjectId(season) } },
        {
         $lookup: {
           from: 'Players',
