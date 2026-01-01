@@ -121,7 +121,7 @@ export class Match implements IMatch, MatchClass {
       this.Actions.push({
         type: 'goal',
         // save player's actual ID from now on!
-        playerID: data.shooter._id,
+        playerID: data.shooter._id!,
         playerTeam: data.shooter.ClubCode!,
         timestamp: this.getCurrentTime,
       });
@@ -188,7 +188,7 @@ export class Match implements IMatch, MatchClass {
       // add to match actions...
       this.Actions.push({
         type: 'pass',
-        playerID: data.passer._id,
+        playerID: data.passer._id!,
         playerTeam: data.passer.ClubCode!,
         timestamp: this.getCurrentTime,
       });
@@ -234,7 +234,7 @@ export class Match implements IMatch, MatchClass {
 
       this.Actions.push({
         type: 'interception',
-        playerID: data.interceptor._id,
+        playerID: data.interceptor._id!,
         playerTeam: data.interceptor.ClubCode!,
         timestamp: this.getCurrentTime,
       });
@@ -462,7 +462,7 @@ export interface IMatchData {
 }
 
 export interface IMatchEvent {
-  type: 'match' | 'shot' | 'miss' | 'save' | 'goal' | 'dribble' | 'tackle';
+  type: 'match' | 'shot' | 'miss' | 'save' | 'goal' | 'dribble' | 'tackle' | 'pass' | 'interception';
   message: string;
   time?: string;
   playerID?: string;
@@ -522,7 +522,7 @@ export interface IMatchSideDetails {
 }
 
 interface IMatchAction {
-  type: 'pass' | 'goal';
+  type: 'pass' | 'goal' | 'interception';
   playerID: string;
   playerTeam: string;
   timestamp: number;
