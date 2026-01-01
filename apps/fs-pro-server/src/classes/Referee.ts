@@ -31,13 +31,15 @@ export default class Referee {
     this.MatchBall = ball;
     this.Match = m;
 
-    matchEvents.on(`${this.Match.id}-reset-ball-position`, () => {
-      this.handleMatchRestart();
-    });
+    if (this.Match) {
+      matchEvents.on(`${this.Match.id}-reset-ball-position`, () => {
+        this.handleMatchRestart();
+      });
 
-    matchEvents.on(`${this.Match.id}-ball-out`, (outData) => {
-      this.handleBallOut(outData);
-    });
+      matchEvents.on(`${this.Match.id}-ball-out`, (outData) => {
+        this.handleBallOut(outData);
+      });
+    }
   }
 
   public assignMatch(match: Match) {
@@ -67,7 +69,7 @@ export default class Referee {
         break;
     }
     if (chance >= level) {
-      matchEvents.emit(`${this.Match.id}-game-halt`, {
+      matchEvents.emit(`${this.Match!.id}-game-halt`, {
         reason: 'yellow card',
         subject,
         object,
@@ -75,7 +77,7 @@ export default class Referee {
         interruption: true,
       } as IFoul);
     } else if (chance < level) {
-      matchEvents.emit(`${this.Match.id}-game-halt`, {
+      matchEvents.emit(`${this.Match!.id}-game-halt`, {
         reason: 'red card',
         subject,
         object,
@@ -83,7 +85,7 @@ export default class Referee {
         interruption: true,
       } as IFoul);
     } else {
-      matchEvents.emit(`${this.Match.id}-game-halt`, {
+      matchEvents.emit(`${this.Match!.id}-game-halt`, {
         reason: 'foul',
         subject,
         object,
@@ -243,7 +245,7 @@ export default class Referee {
     switch (data.result) {
       case 'goal':
         // Emit goal event
-        matchEvents.emit(`${this.Match.id}-goal!`, data);
+        matchEvents.emit(`${this.Match!.id}-goal!`, data);
 
         // Move ball to keeper position
         keeper.Ball.move(
@@ -253,14 +255,14 @@ export default class Referee {
         // Move players to starting position
 
         createMatchEvent(
-          this.Match.id,
+          this.Match!.id,
           `${data.shooter.FirstName} ${data.shooter.LastName} [${data.shooter.ClubCode}] scored`,
           'goal',
           data.shooter._id,
           data.shooter.ClubCode
         );
 
-        matchEvents.emit(`${this.Match.id}-reset-formations`);
+        matchEvents.emit(`${this.Match!.id}-reset-formations`);
 
         // matchEvents.emit(`${this.Match.id}-set-playing-sides`);
         break;
@@ -281,7 +283,7 @@ export default class Referee {
         // );
 
         createMatchEvent(
-          this.Match.id,
+          this.Match!.id,
           `${data.shooter.FirstName} ${data.shooter.LastName} [${data.shooter.ClubCode}] missed a shot`,
           'miss',
           data.shooter._id,
@@ -291,8 +293,8 @@ export default class Referee {
         // console.log('Keeper when ball out -> ', keeper);
 
         // NOTE: This is already handled in the Actions class
-        // matchEvents.emit(`${this.Match.id}-reset-formations`);
-        matchEvents.emit(`${this.Match.id}-missed-shot`, data);
+        // matchEvents.emit(`${this.Match!.id}-reset-formations`);
+        matchEvents.emit(`${this.Match!.id}-missed-shot`, data);
         break;
       case 'save':
         log('shot saved');
@@ -314,13 +316,13 @@ export default class Referee {
         // console.log('Keeper caught -> ', keeper);
 
         createMatchEvent(
-          this.Match.id,
+          this.Match!.id,
           `${data.keeper.FirstName} ${data.keeper.LastName} [${data.keeper.ClubCode}] saved a shot from ${data.shooter.FirstName} ${data.shooter.LastName}`,
           'save',
           data.keeper._id,
           data.keeper.ClubCode
         );
-        matchEvents.emit(`${this.Match.id}-saved-shot`, data);
+        matchEvents.emit(`${this.Match!.id}-saved-shot`, data);
         // reset formations here also...
         break;
       default:
@@ -343,14 +345,13 @@ export default class Referee {
       * Find the opposing team and give them the ball...
       * */
      // NOTE: THIS IS VERY TEMPORARY!
-      matchEvents.emit(`${this.Match.id}-reset-formations`);
+      matchEvents.emit(`${this.Match!.id}-reset-formations`);
   }
 
   public handleMatchRestart() {
     // move ball to centerBlock
-    console.log('Handling Match Restart! ', this.Match.CenterBlock.key);
+    console.log('Handling Match Restart! ', this.Match!.CenterBlock.key);
     this.MatchBall.move(
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       CO.co.calculateDifference(
         this.Match!.CenterBlock,
         this.MatchBall.Position
