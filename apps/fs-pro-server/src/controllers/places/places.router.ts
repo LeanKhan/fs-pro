@@ -15,11 +15,11 @@ const router = Router();
 
 /** FETCH ALL PLACES */
 router.get('/', (req, res) => {
-  let options = req.query.options || {};
+  let options: any = req.query.options || {};
   // This prevents the app from crashing if there's
   // an error parsing object :)
   try {
-    if (req.query.options) {
+    if (req.query.options && typeof req.query.options === 'string') {
       options = JSON.parse(req.query.options);
     }
   } catch (err) {
@@ -41,10 +41,10 @@ router.get('/', (req, res) => {
 router.get('/country', (req, res) => {
   // Get Place by name slug
   fetchMany({Type: 'country'})
-    .then((p) => {
+    .then((p: any) => {
       respond.success(res, 200, 'Countries fetched successfully', p);
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error fetching Countries', err);
     });
 });
@@ -54,24 +54,24 @@ router.get('/country', (req, res) => {
 router.get('/:id', (req, res) => {
   // Get Place by name slug
   const { id } = req.params;
-  let po = false;
+  let po: any = false;
   try {
-    po = req.query.populate && JSON.parse(req.query.populate);
+    po = req.query.populate && typeof req.query.populate === 'string' && JSON.parse(req.query.populate);
   } catch (err) {
-    console.error('Error fetching place, ', +err);
+    console.error('Error fetching place, ', err);
     return respond.fail(
       res,
       400,
       'Error fetching Place: Error populating field(s)',
-      err
+      (err as Error).toString()
     );
   }
 
-  fetchOneById(id, po)
-    .then((p) => {
+  fetchOneById(id)
+    .then((p: any) => {
       respond.success(res, 200, 'Place fetched successfully', p);
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error fetching Place', err);
     });
 });
@@ -79,13 +79,13 @@ router.get('/:id', (req, res) => {
 /** Get Place by name or code */
 router.get('/name/:name', (req, res) => {
   // Get Place by name slug
-  const { name, code } = req.params;
+  const { name } = req.params;
 
-  fetchOne({Name: name, Code: code})
-    .then((p) => {
+  fetchOne({Name: name, Code: name})
+    .then((p: any) => {
       respond.success(res, 200, 'Place fetched successfully', p);
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error fetching Place', err);
     });
 });
