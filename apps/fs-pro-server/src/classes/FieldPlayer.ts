@@ -25,7 +25,7 @@ export default class FieldPlayer
   public BallPosition: ICoordinate;
   public WithBall: boolean;
   public Ball: Ball;
-  private StartingPosition: IBlock;
+  public StartingPosition: IBlock;
   // public Team: MatchSide;
 
   /**
