@@ -13,6 +13,7 @@ import log from '../../helpers/logger';
 import { readCSVFileAsync, readCSVFileUploadAsync } from '../../utils/csv';
 import multer from 'multer';
 import { addClubsToUser } from '../user/user.service';
+import { IClub } from '../../interfaces/Club';
 
 export const upload_csv = multer({ dest: 'tmp/csv/' });
 
@@ -181,8 +182,8 @@ export function removeManagerFromClub(req: Request, res: Response) {
 // TODO: add Manager, League, LeagueCcode, Players
 // Rating and the Position Ratings
 
-const groupBy = function (data, key) {
-  return data.reduce(function (storage, item) {
+const groupBy = function (data: any[], key: string) {
+  return data.reduce(function (storage: any, item: any) {
     const group = item[key];
 
     storage[group] = storage[group] || [];
@@ -190,7 +191,7 @@ const groupBy = function (data, key) {
     storage[group].push(item);
 
     return storage;
-  }, {});
+  }, {} as Record<string, any[]>);
 };
 
 /**
@@ -201,7 +202,7 @@ const groupBy = function (data, key) {
  */
 export async function createManyClubsFromCSV(req: Request, res: Response) {
 
-  let data: { data: any[]; rowCount: number } = [];
+  let data: { data: any[]; rowCount: number } = { data: [], rowCount: 0 };
 
   // const saveClubsInCompetition = (competition_id: string, club_ids: string[]) => {
   //   return updateCompetition(competition_id, { $addToSet: { Clubs: {$each: club_ids} } });
@@ -211,12 +212,12 @@ export async function createManyClubsFromCSV(req: Request, res: Response) {
   const saveClubsInCompetition = (clubs: IClub[]) => {
     const competition_clubs = groupBy(clubs, 'League');
 
-    const all_club_ids = {};
+    const all_club_ids: Record<string, string[]> = {};
 
-    const promise_array = [];
+    const promise_array: Promise<any>[] = [];
 
     for (const u of Object.keys(competition_clubs)) {
-      all_club_ids[u] = competition_clubs[u].map((i) => i._id);
+      all_club_ids[u] = competition_clubs[u].map((i: any) => i._id);
     }
 
     for (const k of Object.keys(all_club_ids)) {
@@ -229,12 +230,12 @@ export async function createManyClubsFromCSV(req: Request, res: Response) {
   const saveClubsInUser = (clubs: IClub[]) => {
     const user_clubs = groupBy(clubs, 'User');
 
-    const all_club_ids = {};
+    const all_club_ids: Record<string, string[]> = {};
 
-    const promise_array = [];
+    const promise_array: Promise<any>[] = [];
 
     for (const u of Object.keys(user_clubs)) {
-      all_club_ids[u] = user_clubs[u].map((i) => i._id);
+      all_club_ids[u] = user_clubs[u].map((i: any) => i._id);
     }
 
     for (const u of Object.keys(all_club_ids)) {
@@ -245,18 +246,22 @@ export async function createManyClubsFromCSV(req: Request, res: Response) {
   };
 
   try {
+    if (!req.file) {
+      return respond.fail(res, 400, 'No file uploaded', null);
+    }
+
     data = await readCSVFileUploadAsync(req.file.path);
     // let club_ids = [];
     // the next thing for this would be to use the
     // generated objects to create Mongoose records
-    let club_ids = [];
-    let created_clubs = [];
+    let club_ids: string[] = [];
+    let created_clubs: any[] = [];
     createMany(data.data)
     .then((clubs: any) => {
       // get ids...
       club_ids = clubs.map((club: any) => club._id);
       created_clubs = clubs;
-      return  Promise.all[saveClubsInUser(clubs), saveClubsInCompetition(clubs)]
+      return  Promise.all([saveClubsInUser(clubs), saveClubsInCompetition(clubs)])
       // return clubs;
     })
     // .then(saveClubsInUser)
@@ -278,6 +283,6 @@ export async function createManyClubsFromCSV(req: Request, res: Response) {
 
   } catch (err) {
     console.error('ERROR READING CSV ', err);
-    return respond.fail(res, 400, 'Error reading CSV File', err.toString());
+    return respond.fail(res, 400, 'Error reading CSV File', (err as Error).toString());
   }
 }
