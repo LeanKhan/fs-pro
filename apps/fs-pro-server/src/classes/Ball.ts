@@ -50,7 +50,7 @@ export default class Ball implements IBall, BallClass {
       // meaning this ball would have gone out by the flanks
       // e.g original position is 8, 5 and the movement coords is 0, -6
       // the new position would be 8, -1 which is out.
-      const isGoingOutAtFlanks = this.Position.y + pos.y < 0 || this.Position.y + pos.y > this.Position.Field.mapHeigth - 1;
+      const isGoingOutAtFlanks = this.Position.y + pos.y < 0 || this.Position.y + pos.y > this.Position.Field.mapHeight - 1;
       const isGoingOutAtEnds = this.Position.x + pos.x < 0 || this.Position.x + pos.x > this.Position.Field.mapWidth - 1;
 
     matchEvents.emit(`${this.Match_id}-ball-out`, {
