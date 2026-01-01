@@ -1,3 +1,7 @@
+import { IFieldPlayer } from "@/interfaces/Player";
+import Field from "@/state/ImmutableState/FieldGrid";
+import CO from "@/utils/coordinates";
+
 export default class Block {
   public x: number;
   public y: number;
@@ -28,7 +32,7 @@ export default class Block {
     this.isFlank = isFlank;
     this.isEnds = isEnds;
     this.Field = field;
-    this.occupant = occupant;
+    this.occupant = occupant || null;
 
   };
 
@@ -36,20 +40,20 @@ export default class Block {
     // Get the blocks around for each side.
     const blocks: any[] = [];
     for (let side = 1; side <= 4; side++) {
-      // const block = this.BlockPosition.y - 1 < 0 ? undefined : coordinateToBlock({
-      //   x: this.BlockPosition.x,
-      //   y: this.BlockPosition.y - 1,
+      // const block = this.y - 1 < 0 ? undefined : coordinateToBlock({
+      //   x: this.x,
+      //   y: this.y - 1,
       // });
       switch (side) {
         case 1:
           // Top side
           for (let r = 1; r <= radius; r++) {
             const block =
-              this.BlockPosition.y - r < 0
+              this.y - r < 0
                 ? undefined
                 : CO.co.coordinateToBlock({
-                    x: this.BlockPosition.x,
-                    y: this.BlockPosition.y - r,
+                    x: this.x,
+                    y: this.y - r,
                   });
             blocks.push(block);
           }
@@ -59,11 +63,11 @@ export default class Block {
           // Left side
           for (let r = 1; r <= radius; r++) {
             const block =
-              this.BlockPosition.x - r < 0
+              this.x - r < 0
                 ? undefined
                 : CO.co.coordinateToBlock({
-                    x: this.BlockPosition.x - r,
-                    y: this.BlockPosition.y,
+                    x: this.x - r,
+                    y: this.y,
                   });
             blocks.push(block);
           }
@@ -72,11 +76,11 @@ export default class Block {
           // Right side
           for (let r = 1; r <= radius; r++) {
             const block =
-              this.BlockPosition.x + r > 14
+              this.x + r > 14
                 ? undefined
                 : CO.co.coordinateToBlock({
-                    x: this.BlockPosition.x + r,
-                    y: this.BlockPosition.y,
+                    x: this.x + r,
+                    y: this.y,
                   });
             blocks.push(block);
           }
@@ -85,11 +89,11 @@ export default class Block {
           // Bottom side
           for (let r = 1; r <= radius; r++) {
             const block =
-              this.BlockPosition.y + r > 10
+              this.y + r > 10
                 ? undefined
                 : CO.co.coordinateToBlock({
-                    x: this.BlockPosition.x,
-                    y: this.BlockPosition.y + r,
+                    x: this.x,
+                    y: this.y + r,
                   });
             blocks.push(block);
           }
