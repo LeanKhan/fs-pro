@@ -5,13 +5,14 @@ import express, { Application } from 'express';
 import cors from 'cors';
 import bodyparser from 'body-parser';
 import morgan from 'morgan';
+import DB, { MONGO_URL as dbstring } from './db';
+
 /** ---- sockets stuff -- */
 import assert from 'assert';
 import session, { SessionData } from 'express-session';
 import sharedSession from 'express-socket.io-session';
 import mStore from 'connect-mongodb-session';
 import cookie from 'cookie';
-import router from './routers';
 import path from 'path';
 
 import log from './helpers/logger';
@@ -20,7 +21,6 @@ const app: Application = express();
 
 import { Server } from 'http';
 
-import DB, { MONGO_URL as dbstring } from './db';
 
 const http = new Server(app);
 
@@ -45,8 +45,6 @@ const store = new MongoStore(
     }
   }
 );
-
-console.log('ENVIRONMENT VARIABBLES => ', process.env.NODE_ENV);
 
 const cors_whitelist = [
       'http://localhost:8080',
@@ -87,8 +85,6 @@ store.on('error', (error) => {
 // Use Sessions o
 app.use(Session);
 
-// io.origins(['*wegive.me:*']);
-
 // Share Express session with SocketIO
 io.use(sharedSession(Session));
 
@@ -107,6 +103,9 @@ app.get('/', (req, res) => {
     .send('<p>Welcome to FS-PRO <i>Server</i></p> enjoy!');
 });
 
+// Import routers after DB is started to avoid circular dependency issues
+const routerModule = require('./routers');
+const router = routerModule.default || routerModule;
 app.use('/api', router);
 
 // Attach socket
