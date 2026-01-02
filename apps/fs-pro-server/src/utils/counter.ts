@@ -4,10 +4,11 @@ import { NextFunction, Request, RequestHandler, Response } from 'express';
 import mongoose from 'mongoose';
 import DB from '../db';
 import log from '../helpers/logger';
+import { Db } from 'mongodb';
 
 export function incrementCounter(counterName: string) {
-  return DB.db.collection('counter').findOneAndUpdate(
-    { _id: counterName },
+  return (DB.db as unknown as Db).collection('counter').findOneAndUpdate(
+    { _id: counterName as any },
     {
       $inc: { sequence_value: 1 },
     }
@@ -26,9 +27,9 @@ export const getCurrentCounter: RequestHandler = (
     .collection('counter')
     .findOne({ _id: counterName }, async (err, counter) => {
       if (!err) {
-        let number = 1000000 + (await counter.sequence_value) + 1;
+        let number = 1000000 + (await counter!.sequence_value) + 1;
         number = number.toString().substring(1);
-        const id: string = counter.prefix + number;
+        const id: string = counter!.prefix + number;
 
         log(`Id => ${id}`);
 
@@ -71,10 +72,10 @@ export function getCurrentCounter2(model: string) {
     .then(async (counter) => {
       let number =
         1000000 +
-        (await counter.sequence_value) +
+        (await counter!.sequence_value) +
         Math.round(Math.random() * 10);
       number = number.toString().substring(1);
-      const id: string = counter.prefix + number;
+      const id: string = counter!.prefix + number;
       console.log('id => ', id);
       return id;
     })

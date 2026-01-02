@@ -29,7 +29,7 @@ export async function getCurrentSeasons(req: Request, res: Response) {
   let populate;
 
   try {
-    populate = JSON.parse(req.query.populate);
+    populate = req.query.populate && typeof req.query.populate === 'string' && JSON.parse(req.query.populate);
   } catch (error) {
     console.log("Couldn't parse populate query param for Seasons");
     populate = false;
@@ -40,7 +40,7 @@ export async function getCurrentSeasons(req: Request, res: Response) {
   // Find the seasons that are in these competitions and this year
   const query = { Year: year };
   try {
-    const seasons = await fetchAll(query, populate, false);
+    const seasons = await fetchAll(query, populate, false, {field: 'CompetitionCode', dir: 1});
     if (seasons.length == 0) {
       return respond.fail(res, 404, 'No Seasons found!', seasons);
     }
@@ -90,7 +90,7 @@ export async function finishSeason(
       400,
       'Error ending Season, could not fetch Season',
       {
-        ...error,
+        error,
         matchErrorResponseCode: 1,
       }
     );
@@ -173,7 +173,7 @@ export async function finishSeason(
       const all_seasons: SeasonInterface[] = await fetchAll({
         Calendar: season.Calendar,
         Year: season.Year,
-      });
+      }, false, false, {field: 'CompetitionCode', dir: 1});
 
       const all_finished = all_seasons.every(
         (s) => s.isFinished && s.isStarted
@@ -201,7 +201,7 @@ export async function finishSeason(
         //   season: updatedSeason
         // });
       })
-      .catch((err) => {
+      .catch((err: any) => {
         console.error(err);
         console.log('Error ending Season!');
 
