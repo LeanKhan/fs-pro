@@ -38,5 +38,4 @@ yarn-error.log*
 *.pem
 
 # Prisma
-**/prisma/migrations
 **/src/generated

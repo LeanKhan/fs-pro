@@ -5,7 +5,6 @@
  * Set USE_POSTGRESQL=true in .env to use PostgreSQL
  * Otherwise, defaults to MongoDB
  */
-
 import { IDatabase, IModels, DatabaseType } from './interfaces';
 import { MongoDatabase } from './mongodb';
 import { PostgreSQLDatabase } from './postgresql';
@@ -29,9 +28,11 @@ export const MONGO_URL = prod_db;
  * Automatically selects MongoDB or PostgreSQL based on environment
  */
 export default class DB {
+
   private static instance: IDatabase;
 
   public static start() {
+      console.log('DB Instance')
     if (!DB.instance) {
       if (USE_POSTGRESQL) {
         console.log('🐘 Using PostgreSQL database');

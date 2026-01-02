@@ -17,7 +17,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "db:test": "ts-node src/scripts/test-connection.ts"
+    "db:test": "ts-node src/scripts/test-connection.ts",
+    "migrate:places": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-places.ts"
   },
   "author": "@LeanKhan",
   "license": "ISC",

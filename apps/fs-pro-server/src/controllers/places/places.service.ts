@@ -67,24 +67,31 @@ export function findOneAndUpdate(
     .exec();
 }
 
-const placeRepo = PlaceRepositoryFactory.create();
+let placeRepo: ReturnType<typeof PlaceRepositoryFactory.create> | null = null;
+
+function getPlaceRepo() {
+  if (!placeRepo) {
+    placeRepo = PlaceRepositoryFactory.create();
+  }
+  return placeRepo;
+}
 
 export async function getPlace(id: string) {
-  return placeRepo.findById(id);
+  return getPlaceRepo().findById(id);
 }
 
 export async function getAllPlaces() {
-  return placeRepo.findAll();
+  return getPlaceRepo().findAll();
 }
 
 export async function createPlace(data: any) {
-  return placeRepo.create(data);
+  return getPlaceRepo().create(data);
 }
 
 export async function updatePlace(id: string, data: any) {
-  return placeRepo.update(id, data);
+  return getPlaceRepo().update(id, data);
 }
 
 export async function deletePlace(id: string) {
-  return placeRepo.delete(id);
+  return getPlaceRepo().delete(id);
 }
