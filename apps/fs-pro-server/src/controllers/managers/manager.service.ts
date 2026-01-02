@@ -104,6 +104,6 @@ export async function create(m: ManagerInterface) {
   const MANAGER = new DB.Models.Manager(m);
 
   return MANAGER.save()
-    .then((manager) => ({ error: false, result: manager }))
-    .catch((error) => ({ error: true, result: error }));
+    .then((manager: any) => ({ error: false, result: manager }))
+    .catch((error: any) => ({ error: true, result: error }));
 }

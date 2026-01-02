@@ -51,7 +51,7 @@ delete params.select; delete params.populate;
   }
 
   const options: BaseFetchInt = {
-  	select,model, populate: false, query: queries
+  	select: typeof select === 'string' ? select : false,model, populate: false, query: queries
   }
 
   let func = baseFetch(options).one;
@@ -62,7 +62,7 @@ delete params.select; delete params.populate;
 
   try {
   	func()
-      .then((results) => {
+      .then((results: any) => {
         respond.success(res, 200, `${model} fetched successfully`, results);
       })
       .catch((err: any) => {

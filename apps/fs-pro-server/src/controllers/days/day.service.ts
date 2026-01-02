@@ -102,11 +102,11 @@ export function createNew(data: any) {
   const DAY = new DB.Models.Day(data);
 
   return DAY.save()
-    .then((day) => {
+    .then((day: any) => {
       // incrementCounter('day_counter');
       return { error: false, result: day };
     })
-    .catch((error) => ({ error: true, result: error }));
+    .catch((error: any) => ({ error: true, result: error }));
 }
 
 /**

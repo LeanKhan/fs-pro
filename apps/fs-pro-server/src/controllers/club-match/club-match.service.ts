@@ -60,10 +60,10 @@ export function createNew(data: any) {
 
   return $ClubMatchDetails
     .save()
-    .then((c) => {
+    .then((c: any) => {
       return { error: false, result: c };
     })
-    .catch((error) => ({ error: true, result: error }));
+    .catch((error: any) => ({ error: true, result: error }));
 }
 
 /**

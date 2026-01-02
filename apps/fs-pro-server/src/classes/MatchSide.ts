@@ -103,11 +103,11 @@ export class MatchSide extends Club {
     // console.log('Current Formation for =>', this.ClubCode, currentFormation);
 
     // Sort them here...
-    this.StartingSquad = sortFromKeeperDown(this.StartingSquad);
+    this.StartingSquad = sortFromKeeperDown(this.StartingSquad) as IFieldPlayer[];
 
     // just change each startingswaud player to the new block position
 
-    this.StartingSquad.forEach((player: FieldPlayer, i) => {
+    this.StartingSquad.forEach((player: IFieldPlayer, i) => {
       // const startingBlock = fieldPlay[this.Formation[i]];
       // Find the first starting block that is for this player's position
       // const startingBlock = fieldPlay.find(())

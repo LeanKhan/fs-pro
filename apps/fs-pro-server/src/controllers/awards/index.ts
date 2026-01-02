@@ -78,10 +78,10 @@ export function createNew(data: any) {
   const _ = new DB.Models.Award(data);
 
   return _.save()
-    .then((award) => {
+    .then((award: any) => {
       return { error: false, result: award };
     })
-    .catch((error) => ({ error: true, result: error }));
+    .catch((error: any) => ({ error: true, result: error }));
 }
 
 // controller

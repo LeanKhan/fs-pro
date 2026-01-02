@@ -23,15 +23,15 @@ router.get('/', (req, res) => {
   // an error parsing object :)
 
   try {
-    if (options) {
+    if (options && typeof options === 'string') {
       options = JSON.parse(options);
     }
   } catch (err) {
-  return  respond.fail(res, 400, 'Error fetching players', err.toString());
+  return  respond.fail(res, 400, 'Error fetching players', (err as Error).toString());
     log(`Error parsing JSON => ${err}`);
   }
 
-  fetchAll(options, req.query.populate)
+  fetchAll(options as Record<string, unknown>, typeof req.query.populate === 'string' ? req.query.populate : undefined)
     .then((managers) => {
       respond.success(res, 200, 'Managers fetched successfully', managers);
     })
@@ -57,9 +57,9 @@ router.get('/:id', (req, res) => {
   const { id } = req.params;
   let po = false;
   try {
-    po = req.query.populate && JSON.parse(req.query.populate);
+    po = req.query.populate && typeof req.query.populate === 'string' && JSON.parse(req.query.populate);
   } catch (err) {
-    console.error('Error fetching manager, ', err.toString());
+    console.error('Error fetching manager, ', (err as Error).toString());
     return respond.fail(
       res,
       400,

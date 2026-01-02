@@ -53,6 +53,6 @@ export default class Player implements PlayerInterface {
       Dribbles: 0,
       Interceptions: 0,
       Fouls: 0,
-    };
+    } as any;
   }
 }

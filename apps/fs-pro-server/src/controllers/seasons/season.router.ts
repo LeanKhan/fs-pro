@@ -34,7 +34,7 @@ router.get('/', (req: Request, res: Response) => {
   // TODO: review all these your service then, async/awaits.
   let {query, select, populate, sort} = req.query;
 
-  if(query){
+  if(query && typeof query === 'string'){
     try {
       query = JSON.parse(query);
     } catch (err) {
@@ -43,7 +43,7 @@ router.get('/', (req: Request, res: Response) => {
     }
   }
 
-  fetchAll(query, populate, select, sort)
+  fetchAll(query as Record<string, unknown>, typeof populate === 'string' ? populate : false, typeof select === 'string' ? select : undefined, {field: 'CompetitionCode', dir: 1})
     .then((seasons: any) => {
       return respond.success(res, 200, 'Seasons fetched successfully', seasons);
     })
@@ -108,7 +108,7 @@ router.post('/:id/finish', finishSeason, giveAwards);
 
 /** Get all Fixtures in Season */
 router.get('/:id/fixtures', (req, res) => {
-  fetchAllFixtures({ Season: req.params.id }, req.query.select || "")
+  fetchAllFixtures({ Season: req.params.id }, typeof req.query.select === 'string' ? req.query.select : "")
     .then((fixtures: any) => {
       respond.success(
         res,
@@ -139,7 +139,7 @@ router.get('/:id', (req: Request, res: Response) => {
   const {populate} = req.query;
   let p;
   try {
-    p = JSON.parse(populate);
+    p = populate && typeof populate === 'string' && JSON.parse(populate);
   } catch(e) {
     console.error(e);
     console.log('Could not parse Season populate')

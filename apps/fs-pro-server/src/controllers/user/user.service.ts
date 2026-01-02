@@ -17,7 +17,7 @@ export function fetchUser(id: string, populate = false) {
 
 /** fetch User session */
 export function getUserSession(id: string, session: string) {
-  return DB.Models.User.findById(id).then((user) => {
+  return DB.Models.User.findById(id).then((user: any) => {
     user!.findSession(session, (a: any, sess: any) => {
       if (sess) {
         log('Session =>', sess);
@@ -74,8 +74,8 @@ export const createNewUser = async (userData: any) => {
   const USER = new DB.Models.User(userData);
 
   return USER.save()
-    .then((user) => ({ error: false, result: user }))
-    .catch((err) => ({ error: true, result: err }));
+    .then((user: any) => ({ error: false, result: user }))
+    .catch((err: any) => ({ error: true, result: err }));
 };
 
 
