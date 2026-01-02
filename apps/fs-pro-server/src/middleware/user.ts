@@ -11,7 +11,7 @@ export function initializeSession(
   next: NextFunction
 ) {
   const id = req.body.userID;
-  req.session!.userID = id;
+  (req.session as any).userID = id;
 
   req.session!.save((err: any) => {
     if (err) {
@@ -27,7 +27,7 @@ export function initializeSession(
             ...user,
           });
         })
-        .catch((error) => {
+        .catch((error: any) => {
           responseHandler.fail(res, 400, 'Error fetching User', error);
         });
     }
@@ -55,7 +55,7 @@ export const checkSession: RequestHandler = (
       if (session) {
         return responseHandler.success(res, 200, 'Authenticated successfully', {
           sessionExists: true,
-          user: { userID: req.session!.userID, sessionID },
+          user: { userID: (req.session as any).userID, sessionID },
         });
       } else {
         //  if session is expired or something, go to the next middleware...
@@ -80,7 +80,7 @@ export function findSession(req: Request, res: Response, next: NextFunction) {
       // here find an accompanying session...
       user.findSession(
         user.Session,
-        function (err: any, sess: Express.SessionData) {
+        function (err: any, sess: any) {
           if (sess) {
             // If you find the session it means it's an old one so do this...
             // set a new one, create a new cookie and send session data to client
@@ -106,7 +106,7 @@ export function findSession(req: Request, res: Response, next: NextFunction) {
             });
           } else {
             // User exists but does not have any associated sessions...
-            req.session!.userID = user._id;
+            (req.session as any).userID = user._id;
 
             req.session!.save((err: any) => {
               if (err) {
@@ -127,7 +127,7 @@ export function findSession(req: Request, res: Response, next: NextFunction) {
         }
       );
     })
-    .catch((err) => {
+    .catch((err: any) => {
       log(`error in entering => ${err}`);
       responseHandler.fail(res, 400, 'Error in authentication', err);
     });

@@ -137,7 +137,7 @@ router.post('/change-password', (req, res, next) => {
 /** Get User by id */
 router.get('/:id', (req, res) => {
   const id = req.params.id;
-  const populate = req.query.populate || false;
+  const populate = req.query.populate === 'true' ? true : false;
 
   const response = fetchUser(id, populate);
 
@@ -145,7 +145,7 @@ router.get('/:id', (req, res) => {
     .then((user: any) => {
       respond.success(res, 200, 'User fetched successfully', user);
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error fetching User', err);
     });
 });
@@ -164,7 +164,7 @@ router.delete('/:id/logout', (req, res) => {
         // User exists... check password
         user.findSession(
           user.Session,
-          function (err: any, sess: Express.SessionData) {
+          function (err: any, sess: any) {
             if (sess) {
               // If you find the session it means it's an old one so do this...
               // set a new one, create a new cookie and send session data to client
@@ -202,7 +202,7 @@ router.post('/:id/update', (req, res) => {
     .then((user: any) => {
       respond.success(res, 200, 'User updated successfully', user);
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error updating User', err);
     });
 });
@@ -220,7 +220,7 @@ router.post('/:id/add-clubs', (req, res) => {
     .then((user: any) => {
       respond.success(res, 200, 'Clubs added successfully', user);
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error adding Clubs', err);
     });
 });
@@ -238,13 +238,13 @@ router.post('/:id/add-club', (req, res) => {
     .then((user: any) => {
       respond.success(res, 200, 'Club added successfully', user);
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error adding Club', err);
     });
 });
 
 /** Remove Club from User account */
-router.delete('/:id/clubs/:id', (req, res) => {
+router.delete('/:id/clubs/:club_id', (req, res) => {
   const id = req.params.id;
   const club_id = req.params.club_id;
 
@@ -254,7 +254,7 @@ router.delete('/:id/clubs/:id', (req, res) => {
     .then((user: any) => {
       respond.success(res, 200, 'User removed Club successfully', user);
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error removing Club', err);
     });
 });

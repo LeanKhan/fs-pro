@@ -70,7 +70,7 @@
 ])
  */
 
- function arrange(matches_in_week, Fixture, Day) {
+ function arrange(matches_in_week: any, Fixture: any, Day: any) {
       debugger;
       if (matches_in_week > 0 && matches_in_week <= 3){
       for (let a = 0;a < matches_in_week; a++){

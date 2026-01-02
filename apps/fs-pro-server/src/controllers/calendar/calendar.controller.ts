@@ -65,11 +65,11 @@ export function createCalendarYear(req: Request, res: Response) {
   };
 
   return createNew(calendar)
-    .then((c) => {
+    .then((c: any) => {
       console.log('Calendar Year created successfully!');
       return respond.success(res, 200, 'Calendar Year created succesfully!', c);
     })
-    .catch((e) => {
+    .catch((e: any) => {
       console.log(`Calendar Year could not be created!`);
       console.error(e);
       return respond.fail(res, 400, 'Failed to create Calendar Year ', e);
@@ -137,10 +137,10 @@ export function setupDaysInYear(
   const createDays = async (calendar: CalendarInterface) => {
     _calendar = calendar;
 
-    const competitions: CompetitionInterface[] = await fetchAll();
+    const competitions: CompetitionInterface[] = await fetchAll() as CompetitionInterface[];
     const seasons: SeasonInterface[] = await fetchAllSeasons({
       Year: _calendar.YearString,
-    });
+    }, false, false, {field: 'CompetitionCode', dir: 1}) as SeasonInterface[];
 
     /**
      * TODO URGENT APRIL 26 2022
@@ -188,9 +188,11 @@ export function setupDaysInYear(
             {
               Fixture: fixture._id,
               Competition: fixture.LeagueCode,
+              CompetitionId: typeof fixture.Season === 'string' ? fixture.Season : '',
               MatchType: fixture.Type,
               Played: false,
               Time: `${1}`,
+              FixtureIndex: index,
               Week: Math.ceil((index + 1) / firstDivisionMatchesPerWeek),
             },
           ];
@@ -208,9 +210,11 @@ export function setupDaysInYear(
           const Match: CalendarMatchInterface = {
             Fixture: secondDivisionFixtures[index]._id,
             Competition: secondDivisionFixtures[index].LeagueCode,
+            CompetitionId: typeof secondDivisionFixtures[index].Season === 'string' ? secondDivisionFixtures[index].Season : '',
             MatchType: secondDivisionFixtures[index].Type,
             Played: false,
             Time: `${2}`,
+            FixtureIndex: index,
             Week: Math.ceil((index + 1) / secondDivisionMatchesPerWeek),
           };
           return {
@@ -368,7 +372,7 @@ export function setupDaysInYear2(
     const AllLeagueSeasonsThisYear: SeasonInterface[] = await fetchAllSeasons({
       Year: _calendar.YearString,
       Competition: { $in: AllLeagues },
-    }, false, false, {"CompetitionCode": 1});
+    }, false, false, {field: "CompetitionCode", dir: 1});
 
     return { days: freeDays, seasons: AllLeagueSeasonsThisYear };
   };
@@ -649,14 +653,14 @@ export function startYear(req: Request, res: Response) {
 // TODO: add the _id of Calendar to Season
 
 export async function getCurrentCalendar(req: Request, res: Response) {
-  const skip = getSkip(parseInt(req.query.page || 1), 14);
-  const limit = parseInt(req.query.limit || 14);
+  const skip = getSkip(parseInt(String(req.query.page || 1)), 14);
+  const limit = parseInt(String(req.query.limit || 14));
   let response;
 
   let populate;
 
   try {
-    populate = JSON.parse(req.query.populate);
+    populate = req.query.populate && typeof req.query.populate === 'string' && JSON.parse(req.query.populate);
   } catch (error) {
     log("Couldn't parse populate query param");
     populate = false;
@@ -717,7 +721,7 @@ export async function endYear(req: Request, res: Response, next: NextFunction) {
 
   const all_seasons: SeasonInterface[] = await fetchAllSeasons({
     Calendar: id,
-  });
+  }, false, false, {field: 'CompetitionCode', dir: 1}) as SeasonInterface[];
 
   // actually check if Calendar is not already ended :)
 

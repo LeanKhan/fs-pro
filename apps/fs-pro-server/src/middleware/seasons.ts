@@ -62,7 +62,7 @@ export async function create(
       )}`,
     };
 
-    return createNew(data).catch((err) => {
+    return createNew(data).catch((err: any) => {
       throw err;
     });
   };
@@ -119,14 +119,14 @@ export async function create(
     // respond.success(res, 200, 'Success creating Fixtures', fixtureObjects);
 
     return createFixtures(fixtureObjects)
-      .then((fixtures) => {
-        const fixtureIds: string[] = fixtures.map((fixture) => {
+      .then((fixtures: any) => {
+        const fixtureIds: string[] = fixtures.map((fixture: any) => {
           return fixture._id;
         });
 
         return fixtureIds;
       })
-      .catch((err) => {
+      .catch((err: any) => {
         throw err;
       });
   };
@@ -217,7 +217,7 @@ export function createSeason(req: Request, res: Response, next: NextFunction) {
     req.body.data.SeasonCode = seasonCode;
     req.body.data.Calendar = cal._id;
     req.body.data.Year = cal.YearString;
-    return createNew(req.body.data).catch((err) => {
+    return createNew(req.body.data).catch((err: any) => {
       throw err;
     });
   };
@@ -339,15 +339,15 @@ export function generateFixtures(
   // respond.success(res, 200, 'Success creating Fixtures', fixtureObjects);
 
   createFixtures(fixtureObjects)
-    .then((fixtures) => {
-      const fixtureIds: string[] = fixtures.map((fixture) => {
+    .then((fixtures: any) => {
+      const fixtureIds: string[] = fixtures.map((fixture: any) => {
         return fixture._id;
       });
 
       req.body.fixtureIds = fixtureIds;
       next();
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error creating Fixtures', err);
     });
 }

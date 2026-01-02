@@ -19,7 +19,7 @@ router.get('/all', (req: Request, res: Response) => {
 
   let {query, select} = req.query;
 
-  if(query){
+  if(query && typeof query === 'string'){
     try {
       query = JSON.parse(query);
     } catch (err) {
@@ -28,8 +28,8 @@ router.get('/all', (req: Request, res: Response) => {
     }
   }
 
-  fetchAll(query, select)
-    .then((competitions) => {
+  fetchAll(query, typeof select === 'string' ? select : undefined)
+    .then((competitions: any) => {
       return respond.success(
         res,
         200,
@@ -37,7 +37,7 @@ router.get('/all', (req: Request, res: Response) => {
         competitions
       );
     })
-    .catch((err) => {
+    .catch((err: any) => {
       return respond.fail(res, 400, 'Error fetching Competitions', err);
     });
 });
@@ -48,7 +48,7 @@ router.get('/:id', (req: Request, res: Response) => {
   const response = fetchOneById(req.params.id, populate != 'false');
 
   response
-    .then((competition) => {
+    .then((competition: any) => {
       respond.success(
         res,
         200,
@@ -56,17 +56,17 @@ router.get('/:id', (req: Request, res: Response) => {
         competition
       );
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error fetching Competition', err);
     });
 });
 
 /** Get all the seasons */
 router.get('/:id/seasons/all', (req: Request, res: Response) => {
-  const response = fetchAllSeasons({ Competition: req.params.id });
+  const response = fetchAllSeasons({ Competition: req.params.id }, false, false, {field: 'CompetitionCode', dir: 1});
 
   response
-    .then((seasons) => {
+    .then((seasons: any) => {
       respond.success(
         res,
         200,
@@ -74,7 +74,7 @@ router.get('/:id/seasons/all', (req: Request, res: Response) => {
         seasons
       );
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error fetching seasons in competition', err);
     });
 });
@@ -84,7 +84,7 @@ router.post('/:id/update', (req: Request, res: Response) => {
   const response = update(req.params.id, req.body.data);
 
   response
-    .then((competition) => {
+    .then((competition: any) => {
       respond.success(
         res,
         200,
@@ -92,7 +92,7 @@ router.post('/:id/update', (req: Request, res: Response) => {
         competition
       );
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error in updating Competition', err);
     });
 });
@@ -100,10 +100,10 @@ router.post('/:id/update', (req: Request, res: Response) => {
 /** Delete Competition by id */
 router.delete('/:id', (req: Request, res: Response) => {
   deleteByRemove(req.params.id)
-    .then((data) => {
+    .then((data: any) => {
       respond.success(res, 200, 'Competition deleted successfully', data);
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error deleting Competition', err);
     });
 });
