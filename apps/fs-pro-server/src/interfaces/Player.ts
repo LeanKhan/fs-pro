@@ -13,6 +13,7 @@ export interface IFieldPlayer extends PlayerInterface {
   // Team: MatchSide;
   move(pos: any): void;
   changePosition(pos: IBlock): void;
+  changeStartingPosition(block: IBlock): void;
   pass(pos: any): void;
   shoot(pos: any): void;
   updateBallPosition(pos: any): void;

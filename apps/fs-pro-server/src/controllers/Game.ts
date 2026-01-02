@@ -10,7 +10,7 @@ import Referee from '../classes/Referee';
 import { Actions } from '../state/ImmutableState/Actions/Actions';
 import { matchEvents, createMatchEvent } from '../utils/events';
 import { ClubInterface as IClub } from './clubs/club.model';
-import CO from '../utils/coordinates';
+import CO, { default as Coordinates } from '../utils/coordinates';
 import log from '../helpers/logger';
 
 // import log from ''
@@ -249,22 +249,26 @@ export default class Game implements GameClass {
       this.Match.Home.StartingSquad
     );
 
-    this.MatchActions.move(
-      this.ActivePlayerAS,
-      'towards ball',
-      this.MatchBall.Position
-    );
+    if (this.ActivePlayerAS) {
+      this.MatchActions.move(
+        this.ActivePlayerAS,
+        'towards ball',
+        this.MatchBall.Position
+      );
+    }
 
     this.ActivePlayerDS = this.Co.findClosestFieldPlayer(
       this.MatchBall.Position,
       this.Match.Away.StartingSquad
     );
 
-    this.MatchActions.move(
-      this.ActivePlayerDS,
-      'towards ball',
-      this.MatchBall.Position
-    );
+    if (this.ActivePlayerDS) {
+      this.MatchActions.move(
+        this.ActivePlayerDS,
+        'towards ball',
+        this.MatchBall.Position
+      );
+    }
 
     // this.matchComments();
   }

@@ -57,11 +57,11 @@ export function createNew(data: any) {
   const FIXTURE = new DB.Models.Fixture(data);
 
   return FIXTURE.save()
-    .then((fixture) => {
+    .then((fixture: any) => {
       void incrementCounter('fixture_counter');
       return { error: false, result: fixture };
     })
-    .catch((error) => ({ error: true, result: error }));
+    .catch((error: any) => ({ error: true, result: error }));
 }
 
 export function deleteById(id: string) {

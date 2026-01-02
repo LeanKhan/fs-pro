@@ -57,7 +57,7 @@ export function addSeasonToCompetition(
     .then(() => {
       respond.success(res, 200, 'Season added to competition successfully!');
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error adding sesason to competition', err);
     });
 }

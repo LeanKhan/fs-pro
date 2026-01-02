@@ -56,8 +56,8 @@ export function createNew(data: any) {
 
   return _competition
     .save()
-    .then((competition) => ({ error: false, result: competition }))
-    .catch((error) => ({ error: true, result: error }));
+    .then((competition: any) => ({ error: false, result: competition }))
+    .catch((error: any) => ({ error: true, result: error }));
 }
 
 export function update(id: string, data: any): Promise<CompetitionInterface> {

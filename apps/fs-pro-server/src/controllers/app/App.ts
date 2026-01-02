@@ -41,7 +41,7 @@ export default class App {
       const centerBlock = this.Coordinates.Field.PlayingField[82];
 
       this.Game = new Game(
-        teams,
+        teams as any,
         sides,
         // homePost,
         // awayPost,
@@ -63,7 +63,7 @@ export default class App {
       return this.Game;
     } catch (err) {
       console.log('Error setting up game! (in App) =>', err);
-      throw new Error(err);
+      throw new Error(err as any);
     }
   }
 
@@ -93,7 +93,7 @@ export default class App {
   }
 
   public listenForGameEvents() {
-    matchEvents.on(`${this.Game.Match.id}-set-playing-sides`, () => {
+    matchEvents.on(`${this.Game!.Match.id}-set-playing-sides`, () => {
       const playingSides = this.Game!.setPlayingSides();
 
       matchEvents.emit(`${this.Game!.Match.id}-setting-playing-sides`, playingSides);

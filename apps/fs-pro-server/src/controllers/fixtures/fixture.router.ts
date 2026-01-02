@@ -7,19 +7,19 @@ const router = Router();
 
 /** Get Fixture by id */
 router.get('/:id', (req, res) => {
-  let p = false;
+  let p: any = false;
 
   try {
-    p = JSON.parse(req.query.populate);
+    p = typeof req.query.populate === 'string' && JSON.parse(req.query.populate);
   } catch (err) {
     console.log('Error parsing populate string, Fixture', err);
   }
 
   fetchOneById(req.params.id, p)
-    .then((fixture) => {
+    .then((fixture: any) => {
       respond.success(res, 200, 'Fixture fetched successfully', fixture);
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error fetching Fixture', err);
     });
 });

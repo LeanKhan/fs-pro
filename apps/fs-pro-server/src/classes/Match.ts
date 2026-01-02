@@ -369,8 +369,8 @@ export class Match implements IMatch, MatchClass {
   }
 
   public setPlayerStats() {
-    this.Details.HomeTeamDetails.PlayerStats = this.Home.getPlayerStats();
-    this.Details.AwayTeamDetails.PlayerStats = this.Away.getPlayerStats();
+    this.Details.HomeTeamDetails.PlayerStats = this.Home.getPlayerStats() as any;
+    this.Details.AwayTeamDetails.PlayerStats = this.Away.getPlayerStats() as any;
   }
 
   public endMatch() {
