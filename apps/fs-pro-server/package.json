@@ -18,7 +18,10 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "db:test": "ts-node src/scripts/test-connection.ts",
-    "migrate:places": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-places.ts"
+    "migrate:places": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-places.ts",
+    "migrate:awards": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-awards.ts",
+    "migrate:users": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-users.ts",
+    "migrate:managers": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-managers.ts"
   },
   "author": "@LeanKhan",
   "license": "ISC",
