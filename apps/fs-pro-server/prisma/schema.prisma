@@ -14,17 +14,74 @@ datasource db {
 }
 
 model Place {
-  id        String   @id @map("_id") @default(uuid()) @db.Uuid
-  mongoId   String?  @unique // Original MongoDB ObjectID
-  Fullname  String
-  Name      String
-  Code      String   @unique
-  Region    String?
-  Type      String?
-  Picture   String?
+  id       String  @id @default(uuid()) @map("_id") @db.Uuid
+  mongoId  String? @unique // Original MongoDB ObjectID
+  Fullname String
+  Name     String
+  Code     String  @unique
+  Region   String?
+  Type     String?
+  Picture  String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("Places")
+}
+
+model Award {
+  id        String  @id @default(uuid()) @map("_id") @db.Uuid
+  mongoId   String? @unique // Original MongoDB ObjectID
+  Name      String
+  Type      String // manager/player
+  Period    String // season/year/all-time
+  Category  String
+  Recipient String // ObjectId reference stored as string
+  Club      String? // ObjectId reference stored as string
+  Remarks   String?
+  Season    String? // ObjectId reference stored as string
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Awards")
+}
+
+model User {
+  id       String   @id @default(uuid()) @map("_id") @db.Uuid
+  mongoId  String?  @unique // Original MongoDB ObjectID
+  FullName String
+  Password String // Hashed password
+  Age      Int?
+  Username String   @unique
+  Avatar   String   @default("default-avatar.png")
+  Alerts   Json? // Stored as JSON object
+  Clubs    String[] // Array of Club ObjectIds stored as strings
+  isAdmin  Boolean  @default(false)
+  Session  String? // Session ID
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Users")
+}
+
+model Manager {
+  id           String  @id @default(uuid()) @map("_id") @db.Uuid
+  mongoId      String? @unique // Original MongoDB ObjectID
+  Key          String  @unique
+  FirstName    String
+  LastName     String
+  Age          Int
+  Picture      String?
+  Club         String? // ObjectId reference stored as string
+  Nationality  String? // ObjectId reference to Place stored as string
+  NationalTeam Boolean @default(false)
+  Records      Json[] // Array of records
+  isEmployed   Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Managers")
 }
