@@ -21,7 +21,8 @@
     "migrate:places": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-places.ts",
     "migrate:awards": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-awards.ts",
     "migrate:users": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-users.ts",
-    "migrate:managers": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-managers.ts"
+    "migrate:managers": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-managers.ts",
+    "migrate:competitions": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-competitions.ts"
   },
   "author": "@LeanKhan",
   "license": "ISC",
