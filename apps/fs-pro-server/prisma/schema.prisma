@@ -85,3 +85,28 @@ model Manager {
 
   @@map("Managers")
 }
+
+model Competition {
+  id              String   @id @default(uuid()) @map("_id") @db.Uuid
+  mongoId         String?  @unique // Original MongoDB ObjectID
+  Name            String
+  Type            String
+  CompetitionCode String   @unique
+  CompetitionID   String   @unique
+  League          Boolean  @default(false)
+  Tournament      Boolean  @default(false)
+  Cup             Boolean  @default(false)
+  Division        Int      @default(0) // 0, 1, 2, or 3
+  NumberOfTeams   Int
+  NumberOfWeeks   Int
+  TeamsPromoted   Int?
+  TeamsRelegated  Int?
+  Country         String?  // ObjectId reference to Place stored as string
+  Clubs           String[] // Array of Club ObjectIds stored as strings
+  Seasons         String[] // Array of Season ObjectIds stored as strings
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Competitions")
+}

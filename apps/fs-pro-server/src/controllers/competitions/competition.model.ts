@@ -1,7 +1,7 @@
 // tslint:disable: variable-name
 import { Schema, model, Document, Model } from 'mongoose';
 import { ClubInterface } from '../clubs/club.model';
-import DB from '../../db';
+// import DB from '../../db'; // Removed to prevent circular dependency
 
 export interface CompetitionInterface {
   _id?: string;
@@ -27,7 +27,7 @@ declare interface ICompetition extends Document {
   Name: string;
   CompetitionID: string;
   CompetitionCode: string;
-  Country: string;
+  Country?: any; // ObjectId reference
   League: boolean;
   Tournament: boolean;
   Division: 1 | 2 | 3 | 0;
@@ -36,8 +36,11 @@ declare interface ICompetition extends Document {
   NumberOfWeeks: number;
   TeamsRelegated?: number;
   TeamsPromoted?: number;
-  Clubs: [];
-  Seasons: [];
+  Clubs: any[]; // Array of ObjectIds
+  Seasons: any[]; // Array of ObjectIds
+  // Timestamps from mongoose
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export type CompetitionModel = Model<ICompetition>;
@@ -46,60 +49,65 @@ export class Competition {
   private _model: Model<ICompetition>;
 
   constructor() {
-    const CompetitionSchema: Schema = new Schema(
-      {
-        Name: String,
-        League: { type: Boolean, default: false },
-        Tournament: { type: Boolean, default: false },
-        Cup: { type: Boolean, default: false },
-        Type: String,
-        CompetitionCode: { type: String, unique: true },
-        CompetitionID: { type: String, unique: true },
-        NumberOfTeams: Number,
-        NumberOfWeeks: Number,
-        TeamsPromoted: Number,
-        TeamsRelegated: Number,
-        Country: {
-          type: Schema.Types.ObjectId,
-          ref: 'Place',
-          autopopulate: true,
+    // Check if model already exists to prevent OverwriteModelError
+    try {
+      this._model = model<ICompetition>('Competition');
+    } catch (error) {
+      // Model doesn't exist, create it
+      const CompetitionSchema: Schema = new Schema(
+        {
+          Name: String,
+          League: { type: Boolean, default: false },
+          Tournament: { type: Boolean, default: false },
+          Cup: { type: Boolean, default: false },
+          Type: String,
+          CompetitionCode: { type: String, unique: true },
+          CompetitionID: { type: String, unique: true },
+          NumberOfTeams: Number,
+          NumberOfWeeks: Number,
+          TeamsPromoted: Number,
+          TeamsRelegated: Number,
+          Country: {
+            type: Schema.Types.ObjectId,
+            ref: 'Place',
+            autopopulate: true,
+          },
+          Division: {
+            type: Number,
+            default: 0,
+            enum: [1, 2, 3, 0],
+          },
+          Clubs: [{ type: Schema.Types.ObjectId, ref: 'Club' }],
+          Seasons: [{ type: Schema.Types.ObjectId, ref: 'Season' }],
         },
-        Division: {
-          type: Number,
-          default: 0,
-          enum: [1, 2, 3, 0],
-        },
-        Clubs: [{ type: Schema.Types.ObjectId, ref: 'Club' }],
-        Seasons: [{ type: Schema.Types.ObjectId, ref: 'Season' }],
-      },
-      { timestamps: true }
-    );
+        { timestamps: true }
+      );
 
-    const populate = function (this: ICompetition & Document, next: any) {
-      this.populate('Country');
-      next();
-    };
+      const populate = function (this: ICompetition & Document, next: any) {
+        this.populate('Country');
+        next();
+      };
 
-    CompetitionSchema.pre('find', populate).pre('findOne', populate);
+      CompetitionSchema.pre('find', populate).pre('findOne', populate);
 
-    CompetitionSchema.post('remove', async function(this: ICompetition & Document, doc, next) {
-
-      await DB.Models.Season.deleteMany({ Competition: this._id });
-
-      await DB.Models.Club.updateOne(
-        { League: this._id },
-        { $unset: { League: 1 } }
-      ).exec();
-
-      next();
-  });
+      // Post-remove hook commented out to prevent circular dependency with DB
+      // If needed, handle cleanup in the controller/service layer instead
+      // CompetitionSchema.post('remove', async function(this: ICompetition & Document, doc, next) {
+      //   await DB.Models.Season.deleteMany({ Competition: this._id });
+      //   await DB.Models.Club.updateOne(
+      //     { League: this._id },
+      //     { $unset: { League: 1 } }
+      //   ).exec();
+      //   next();
+      // });
 
 
-    this._model = model<ICompetition>(
-      'Competition',
-      CompetitionSchema,
-      'Competitions'
-    );
+      this._model = model<ICompetition>(
+        'Competition',
+        CompetitionSchema,
+        'Competitions'
+      );
+    }
   }
 
   public get model(): Model<ICompetition> {
