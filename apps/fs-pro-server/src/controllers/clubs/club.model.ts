@@ -3,26 +3,52 @@ import { Schema, Document, model, Model } from 'mongoose';
 import { PlayerInterface } from '../../interfaces/Player';
 import { IUser } from '../user/user.model';
 // import { Player } from '../models/player.model'; // Uncomment this after testing!
-import DB from '../../db';
+// import DB from '../../db'; // Removed to prevent circular dependency
 
 declare interface IClub extends Document {
   Name: string;
   ClubCode: string;
   AttackingClass: number;
   DefensiveClass: number;
-  Players: PlayerInterface[];
-  assets: {
-    Kit: string;
-    Logo: string;
-    Stadium: string;
+  Players: any[]; // Array of ObjectIds
+  assets?: {
+    Kit?: string;
+    Logo?: string;
+    Stadium?: string;
+    MainColor?: string;
   };
   Rating: number;
-  Address: Record<string, unknown>;
-  Manager: string;
-  Stadium: Record<string, unknown>;
-  Stats: Record<string, unknown>;
-  LeagueCode: string;
-  League: string;
+  GK_Rating: number;
+  ATT_Rating: number;
+  DEF_Rating: number;
+  MID_Rating: number;
+  Address?: {
+    Section?: string;
+    City?: string;
+    Country?: any; // ObjectId reference
+  };
+  Manager?: any; // ObjectId reference
+  Stadium?: {
+    Name?: string;
+    Capacity?: string;
+    Location?: string;
+  };
+  Stats?: {
+    LeagueTitles?: number;
+    Cups?: number;
+    MatchesWon?: number;
+    MatchesLost?: number;
+    MatchesDrawn?: number;
+  };
+  LeagueCode?: string;
+  League?: any; // ObjectId reference
+  User?: any; // ObjectId reference
+  Budget?: number;
+  Transactions?: any;
+  Records?: any[];
+  // Timestamps from mongoose
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface ClubInterface {
@@ -74,7 +100,12 @@ export class Club {
   private _model: Model<IClub>;
 
   constructor() {
-    const ClubSchema: Schema = new Schema(
+    // Check if model already exists to prevent OverwriteModelError
+    try {
+      this._model = model<IClub>('Club');
+    } catch (error) {
+      // Model doesn't exist, create it
+      const ClubSchema: Schema = new Schema(
       {
         Name: {
           type: String,
@@ -147,43 +178,37 @@ export class Club {
       next();
     };
 
-    ClubSchema.pre('find', populate).pre('findOne', populate);
+      ClubSchema.pre('find', populate).pre('findOne', populate);
 
-    ClubSchema.post('remove', async function (this: IClub & Document, doc, next) {
-      await DB.Models.Competition.updateOne(
-        { Clubs: this._id },
-        { $pull: { Clubs: this._id } },
-        { multi: true }
-      ) //if reference exists in multiple documents
-        .exec();
+      // Post-remove hook commented out to prevent circular dependency with DB
+      // If needed, handle cleanup in the controller/service layer instead
+      // ClubSchema.post('remove', async function (this: IClub & Document, doc, next) {
+      //   await DB.Models.Competition.updateOne(
+      //     { Clubs: this._id },
+      //     { $pull: { Clubs: this._id } },
+      //     { multi: true }
+      //   ).exec();
+      //   await DB.Models.User.updateOne(
+      //     { Clubs: this._id },
+      //     { $pull: { Clubs: this._id } },
+      //     { multi: true }
+      //   ).exec();
+      //   await DB.Models.Manager.updateOne(
+      //     { Club: this._id },
+      //     { $unset: { Club: 1 } },
+      //     { multi: true }
+      //   ).exec();
+      //   await DB.Models.Player.updateOne(
+      //     { Club: this._id },
+      //     { $unset: { Club: 1, ClubCode: 1 }, $set: { isSigned: false } },
+      //     { multi: true }
+      //   ).exec();
+      //   await DB.Models.ClubMatch.deleteMany({ Club: this._id });
+      //   next();
+      // });
 
-      await DB.Models.User.updateOne(
-        { Clubs: this._id },
-        { $pull: { Clubs: this._id } },
-        { multi: true }
-      ) //if reference exists in multiple documents
-        .exec();
-
-      await DB.Models.Manager.updateOne(
-        { Club: this._id },
-        { $unset: { Club: 1 } },
-        { multi: true }
-      ) //if reference exists in multiple documents
-        .exec();
-
-      await DB.Models.Player.updateOne(
-        { Club: this._id },
-        { $unset: { Club: 1, ClubCode: 1 }, $set: { isSigned: false } },
-        { multi: true }
-      ) //if reference exists in multiple documents
-        .exec();
-
-      await DB.Models.ClubMatch.deleteMany({ Club: this._id });
-
-      next();
-    });
-
-    this._model = model<IClub>('Club', ClubSchema, 'Clubs');
+      this._model = model<IClub>('Club', ClubSchema, 'Clubs');
+    }
   }
 
   public get model() {

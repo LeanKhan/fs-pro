@@ -110,3 +110,67 @@ model Competition {
 
   @@map("Competitions")
 }
+
+model Club {
+  id              String  @id @default(uuid()) @map("_id") @db.Uuid
+  mongoId         String? @unique // Original MongoDB ObjectID
+  Name            String  @unique
+  ClubCode        String  @unique
+  AttackingClass  Int?
+  DefensiveClass  Int?
+  Rating          Int     @default(0)
+  GK_Rating       Int     @default(0)
+  ATT_Rating      Int     @default(0)
+  DEF_Rating      Int     @default(0)
+  MID_Rating      Int     @default(0)
+  Manager         String? // ObjectId reference stored as string
+  assets          Json? // Object with Kit, Logo, Stadium, MainColor
+  Stats           Json? // Object with LeagueTitles, Cups, MatchesWon, etc.
+  Address         Json? // Object with Section, City, Country
+  Budget          Int?
+  Transactions    Json?
+  Records         Json[]
+  Stadium         Json? // Object with Name, Capacity, Location
+  LeagueCode      String?
+  League          String? // ObjectId reference to Competition stored as string
+  Players         String[] // Array of Player ObjectIds stored as strings
+  User            String? // ObjectId reference to User stored as string
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Clubs")
+}
+
+model Calendar {
+  id                   String   @id @default(uuid()) @map("_id") @db.Uuid
+  mongoId              String?  @unique // Original MongoDB ObjectID
+  Name                 String
+  YearString           String   // Like JUN-2020
+  YearDigits           String   // Like 06-2020
+  CurrentDay           Int?     // The present day of the year
+  isActive             Boolean  @default(false)
+  isEnded              Boolean  @default(false)
+  allSeasonsCompleted  Boolean  @default(false)
+  Days                 String[] // Array of Day ObjectIds stored as strings
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Calendars")
+}
+
+model Day {
+  id       String  @id @default(uuid()) @map("_id") @db.Uuid
+  mongoId  String? @unique // Original MongoDB ObjectID
+  Matches  Json[]  // Array of CalendarMatch objects
+  isFree   Boolean
+  Day      Int?
+  Year     String
+  Calendar String? // ObjectId reference to Calendar stored as string
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Days")
+}
