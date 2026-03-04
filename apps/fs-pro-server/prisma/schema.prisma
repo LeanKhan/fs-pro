@@ -174,3 +174,30 @@ model Day {
 
   @@map("Days")
 }
+
+model Season {
+  id              String   @id @default(uuid()) @map("_id") @db.Uuid
+  mongoId         String?  @unique // Original MongoDB ObjectID
+  SeasonCode      String   @unique
+  Title           String
+  StartDate       DateTime
+  EndDate         DateTime
+  Winner          String?  // ObjectId reference to Club stored as string
+  Promoted        String[] // Array of Club ObjectIds stored as strings
+  Relegated       String[] // Array of Club ObjectIds stored as strings
+  isFinished      Boolean  @default(false)
+  isStarted       Boolean  @default(false)
+  Status          String   @default("Pending")
+  Year            String?
+  Calendar        String?  // ObjectId reference to Calendar stored as string
+  Competition     String?  // ObjectId reference to Competition stored as string
+  CompetitionCode String
+  Fixtures        String[] // Array of Fixture ObjectIds stored as strings
+  Standings       Json[]   // Array of WeekStandings objects
+  Logs            Json[]   // Array of Log objects
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Seasons")
+}

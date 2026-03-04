@@ -25,7 +25,8 @@
     "migrate:competitions": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-competitions.ts",
     "migrate:clubs": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-clubs.ts",
     "migrate:calendars": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-calendars.ts",
-    "migrate:days": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-days.ts"
+    "migrate:days": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-days.ts",
+    "migrate:seasons": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-seasons.ts"
   },
   "author": "@LeanKhan",
   "license": "ISC",
