@@ -1,7 +1,21 @@
-import { Match } from '../classes/Match';
+import { IMatchDetails, IMatchFrame } from '../classes/Match';
 import { getMatchReplayNamespace } from './io';
 
 const DEFAULT_TICK_MS = 300;
+
+/**
+ * Everything replayMatch actually reads off a finished match. A real
+ * `Match` instance satisfies this structurally, but so does the plain
+ * result object a worker_thread posts back (see src/jobs/matchSimWorker.ts)
+ * - the simulation itself may now run somewhere that never held a real
+ * `Match` class instance.
+ */
+export interface IReplayableMatch {
+  Home: { _id: string; Name: string; ClubCode: string };
+  Away: { _id: string; Name: string; ClubCode: string };
+  Frames: IMatchFrame[];
+  Details: IMatchDetails;
+}
 
 /**
  * Streams a fully-simulated match's recorded Frames out over Socket.IO,
@@ -15,7 +29,7 @@ const DEFAULT_TICK_MS = 300;
  * only generated inside the same request that starts the replay, leaving no
  * practical window to join the room first.
  */
-export function replayMatch(match: Match, fixtureId: string, tickMs = DEFAULT_TICK_MS): Promise<void> {
+export function replayMatch(match: IReplayableMatch, fixtureId: string, tickMs = DEFAULT_TICK_MS): Promise<void> {
   return new Promise((resolve) => {
     const room = getMatchReplayNamespace().to(fixtureId);
 
@@ -48,7 +62,7 @@ export function replayMatch(match: Match, fixtureId: string, tickMs = DEFAULT_TI
 }
 
 /** Fire-and-forget wrapper so callers don't need their own .catch. */
-export function startMatchReplay(match: Match, fixtureId: string, tickMs?: number): void {
+export function startMatchReplay(match: IReplayableMatch, fixtureId: string, tickMs?: number): void {
   replayMatch(match, fixtureId, tickMs).catch((err) => {
     console.error(`[replay] error replaying match ${fixtureId}:`, err);
   });

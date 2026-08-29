@@ -2,6 +2,7 @@
 import Coordinates from '../../utils/coordinates';
 import { matchEvents } from '../../utils/events';
 import { fetchClubs } from '../clubs/club.service';
+import { IClub } from '../../interfaces/Club';
 import Game from '../Game';
 
 export default class App {
@@ -28,14 +29,19 @@ export default class App {
   }
 
   /** Setup Game => Run this first */
+  /**
+   * @param prefetchedClubs when provided (e.g. from a worker_thread that
+   * can't touch the DB itself), used instead of fetching clubs here.
+   */
   public async setupGame(
     clubs: string[],
-    sides: { home: string; away: string }
+    sides: { home: string; away: string },
+    prefetchedClubs?: IClub[]
   ) {
     try {
       this.Coordinates = new Coordinates();
 
-      const teams = await fetchClubs({ _id: { $in: clubs } });
+      const teams = prefetchedClubs ?? (await fetchClubs({ _id: { $in: clubs } }));
 
       // Kickoff spot, resolved as the exact center of the pitch regardless
       // of grid resolution (previously PlayingField[82], a flat-index hack

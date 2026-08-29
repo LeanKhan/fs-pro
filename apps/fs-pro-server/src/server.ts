@@ -5,16 +5,16 @@ import express, { Application } from 'express';
 import cors from 'cors';
 import bodyparser from 'body-parser';
 import morgan from 'morgan';
-import DB, { MONGO_URL as dbstring } from './db';
+import DB from './db';
 
 /** ---- sockets stuff -- */
 import assert from 'assert';
 import session, { SessionData } from 'express-session';
-import mStore from 'connect-mongodb-session';
 import cookie from 'cookie';
 import path from 'path';
 
 import log from './helpers/logger';
+import { store } from './sessionStore';
 
 const app: Application = express();
 
@@ -29,20 +29,6 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 
 import App from './controllers/app/App';
 import { registerIO } from './realtime/io';
-
-const MongoStore = mStore(session);
-
-const store = new MongoStore(
-  {
-    uri: dbstring,
-    collection: 'Sessions',
-  },
-  (err: any) => {
-    if (err) {
-      console.error(`Error connecting Store to MongoDB => ${err}`);
-    }
-  }
-);
 
 const cors_whitelist = [
   'http://localhost:8080',

@@ -1,6 +1,6 @@
 import { Schema, Document, model, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { store } from '../../server';
+import { store } from '../../sessionStore';
 import log from '../../helpers/logger';
 export declare interface IUser extends Document {
   FullName: string; // Matches schema

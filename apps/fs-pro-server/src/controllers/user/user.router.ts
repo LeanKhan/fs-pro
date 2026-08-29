@@ -15,7 +15,7 @@ import { IUserLogin } from '../../interfaces/Response';
 import { initializeSession, findSession } from '../../middleware/user';
 import { updateClubs } from '../../controllers/clubs/club.controller';
 import { IUser } from './user.model';
-import { store } from '../../server';
+import { store } from '../../sessionStore';
 import log from '../../helpers/logger';
 
 //
