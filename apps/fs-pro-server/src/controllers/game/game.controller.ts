@@ -20,6 +20,7 @@ import { fetchSeason } from '../seasons/season.service';
 import axios from 'axios';
 import { CalendarMatchInterface, DayInterface } from '../days/day.model';
 import { startMatchReplay } from '../../realtime/matchBroadcaster';
+import { enqueueMatchPlay } from '../../jobs/matchQueue';
 
 interface TeamObject {
   id: string;
@@ -673,4 +674,39 @@ export function restUpdateStandings(
       App._app.endGame();
       log('GAME ENDED from App');
     });
+}
+
+/**
+ * Enqueues a fixture to be simulated in a background worker and replayed
+ * live over Socket.IO (see src/jobs/matchQueue.ts), instead of running the
+ * whole simulation synchronously inline like restPlayGame/restPlayGameNew
+ * do. Returns immediately - it does not wait for the match to be played,
+ * and does not persist anything (no updateFixture/updateStandings/day
+ * advance). For exercising the record-then-replay pipeline (e.g. via
+ * PitchPreview.html) without touching the existing, real-client-facing
+ * kickoff flow.
+ */
+export function restEnqueueMatch(req: Request, res: Response) {
+  const { fixture: fixture_id } = req.params;
+
+  if (!fixture_id) {
+    return responseHandler.fail(res, 404, 'No Fixture ID sent!', {
+      matchErrorResponseCode: 1,
+    });
+  }
+
+  const result = enqueueMatchPlay(fixture_id);
+
+  if (!result.queued) {
+    return responseHandler.fail(
+      res,
+      409,
+      result.reason || 'Match already queued or in progress',
+      { fixture_id }
+    );
+  }
+
+  return responseHandler.success(res, 202, 'Match enqueued for simulation', {
+    fixture_id,
+  });
 }

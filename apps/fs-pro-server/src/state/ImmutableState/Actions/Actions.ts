@@ -579,9 +579,13 @@ export class Actions {
     const teamIndex = this.teams.findIndex(
       (t) => t.ClubCode === player.ClubCode
     );
-    const keeper = this.teams[teamIndex].ScoringSide.occupant;
-    // console.log(this.teams[teamIndex].ClubCode);
-    // console.log(this.teams[teamIndex].ScoringSide.occupant);
+    // Found by Position, not by exact block occupancy - the goalkeeper
+    // isn't guaranteed to be standing precisely on the ScoringSide block at
+    // the moment of the shot (more so on a finer-resolution grid), and
+    // `.occupant` being null here was reaching downstream code that assumes
+    // there's always a real keeper (e.g. Match.ts's goal handler).
+    const defendingTeam = this.teams[teamIndex === 0 ? 1 : 0];
+    const keeper = playerFunc.getGK(defendingTeam.StartingSquad) as IFieldPlayer;
 
     const result = this.decider.getShotResult(player, keeper as IFieldPlayer);
 

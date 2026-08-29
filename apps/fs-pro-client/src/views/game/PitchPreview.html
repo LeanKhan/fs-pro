@@ -471,13 +471,16 @@ swapEndsBtn.addEventListener('click', () => {
 
 /* ------------------------- live match replay -------------------------
    Debug workflow: enter the FIXTURE id (not the internal match.id, which
-   doesn't exist until kickoff runs) and click "Watch + Kick Off" - it joins
-   the fixture's room first, then calls the same /api/game/kickoff-new/:fixture
-   endpoint the real app hits, so a full match can be exercised from this one
-   file. "Watch" alone just joins the room, for watching a match kicked off
-   some other way (the Vue app, curl, Postman). There's no server-side
-   catch-up buffer for late joiners in v1 - if you join after kickoff has
-   already fired, you'll only see whatever frames haven't gone out yet.
+   doesn't exist until the match starts simulating) and click "Watch + Kick
+   Off" - it joins the fixture's room first, then calls
+   /api/game/enqueue/:fixture, which just acks immediately and queues the
+   match for a background worker to simulate (see src/jobs/matchQueue.ts) -
+   NOT the synchronous /api/game/kickoff-new/:fixture the real app still
+   uses. "Watch" alone just joins the room, for watching a match kicked off
+   some other way (the Vue app, curl, Postman, or this queue). There's no
+   server-side catch-up buffer for late joiners in v1 - if you join after
+   the match has already started simulating, you'll only see whatever
+   frames haven't gone out yet.
 ------------------------------------------------------------------------*/
 
 const DEFAULT_SERVER = 'http://localhost:3000';
@@ -671,8 +674,11 @@ watchBtn.addEventListener('click', async () => {
 
 /**
  * PitchPreview otherwise has no way to make a match actually happen - this
- * joins the room first (so no frames are missed), then calls the same
- * kickoff endpoint the real client hits, so the whole record-then-replay
+ * joins the room first (so no frames are missed), then calls the queue
+ * endpoint (/api/game/enqueue/:fixture) instead of the synchronous kickoff
+ * endpoint the real client uses. That endpoint just acks immediately - the
+ * actual simulation runs in a worker_thread and the result streams back
+ * over the socket already joined above, so the whole record-then-replay
  * loop can be exercised from this one file without curl/Postman/the Vue app.
  */
 kickoffBtn.addEventListener('click', async () => {
@@ -687,17 +693,17 @@ kickoffBtn.addEventListener('click', async () => {
   try {
     await ensureWatching(fixtureId);
 
-    const url = `${serverUrl.replace(/\/$/, '')}/api/game/kickoff-new/${fixtureId}`;
-    console.log('[replay] triggering kickoff', url);
-    setStatus(`Watching ${fixtureId}, kicking off...`);
+    const url = `${serverUrl.replace(/\/$/, '')}/api/game/enqueue/${fixtureId}`;
+    console.log('[replay] enqueueing match', url);
+    setStatus(`Watching ${fixtureId}, enqueueing...`);
 
     const res = await fetch(url, { credentials: 'include' });
     if (!res.ok) {
-      throw new Error(`Kickoff request failed: HTTP ${res.status}`);
+      throw new Error(`Enqueue request failed: HTTP ${res.status}`);
     }
-    console.log('[replay] kickoff request accepted - waiting for match-replay-start');
+    console.log('[replay] match enqueued - waiting for match-replay-start');
   } catch (err) {
-    console.error('[replay] kickoff failed', err);
+    console.error('[replay] enqueue failed', err);
     setStatus(err.message || String(err));
   } finally {
     kickoffBtn.disabled = false;

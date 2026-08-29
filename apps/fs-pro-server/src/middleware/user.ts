@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { updateUser, fetchOneUser } from '../controllers/user/user.service';
 import responseHandler from '../helpers/responseHandler';
-import { store } from '../server';
+import { store } from '../sessionStore';
 import { IUser } from '../controllers/user/user.model';
 import log from '../helpers/logger';
 
