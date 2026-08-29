@@ -36,14 +36,20 @@ export default class Block {
 
   };
 
+   /**
+    * Get the blocks around this block by radius.
+    *
+    * Bounds are read off this.Field.mapWidth/mapHeight rather than
+    * hardcoded, so this works for whatever grid size Field was
+    * constructed with.
+    */
    public getBlocksAround(radius: number): any[] {
+    const maxX = this.Field.mapWidth - 1;
+    const maxY = this.Field.mapHeight - 1;
+
     // Get the blocks around for each side.
     const blocks: any[] = [];
     for (let side = 1; side <= 4; side++) {
-      // const block = this.y - 1 < 0 ? undefined : coordinateToBlock({
-      //   x: this.x,
-      //   y: this.y - 1,
-      // });
       switch (side) {
         case 1:
           // Top side
@@ -76,7 +82,7 @@ export default class Block {
           // Right side
           for (let r = 1; r <= radius; r++) {
             const block =
-              this.x + r > 14
+              this.x + r > maxX
                 ? undefined
                 : CO.co.coordinateToBlock({
                     x: this.x + r,
@@ -89,7 +95,7 @@ export default class Block {
           // Bottom side
           for (let r = 1; r <= radius; r++) {
             const block =
-              this.y + r > 10
+              this.y + r > maxY
                 ? undefined
                 : CO.co.coordinateToBlock({
                     x: this.x,
