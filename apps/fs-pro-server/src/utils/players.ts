@@ -100,13 +100,26 @@ function getRandomDEF(team: MatchSide) {
 /**
  *
  * Find a free block around
+ *
+ * Bounds are checked against the block's own Field.mapWidth/mapHeight
+ * (with a proper AND) instead of the old `||` chain hardcoded to 11/6,
+ * which was almost always true regardless of position and only matched
+ * the old 15x11 grid anyway. In practice `around` entries already come
+ * pre-filtered by checkNextBlocks(), so this is a defensive re-check.
+ *
  * @param around
  */
 function findFreeBlock(around: IPositions) {
   for (const key in around) {
     if (around.hasOwnProperty(key) && around[key] !== undefined) {
       const block = around[key] as IBlock;
-      if (block.x >= 0 || block.y >= 0 || block.x <= 11 || block.y <= 6) {
+      const inBounds =
+        block.x >= 0 &&
+        block.y >= 0 &&
+        block.x <= block.Field.mapWidth - 1 &&
+        block.y <= block.Field.mapHeight - 1;
+
+      if (inBounds) {
         if (block.occupant == null) {
           return block;
         }

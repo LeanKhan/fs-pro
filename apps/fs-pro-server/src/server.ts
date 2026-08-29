@@ -10,7 +10,6 @@ import DB, { MONGO_URL as dbstring } from './db';
 /** ---- sockets stuff -- */
 import assert from 'assert';
 import session, { SessionData } from 'express-session';
-import sharedSession from 'express-socket.io-session';
 import mStore from 'connect-mongodb-session';
 import cookie from 'cookie';
 import path from 'path';
@@ -26,11 +25,10 @@ const http = new Server(app);
 
 const port = process.env.PORT || 3000;
 
-import i = require('socket.io');
+import { Server as SocketIOServer, Socket } from 'socket.io';
 
 import App from './controllers/app/App';
-
-const io = i(http);
+import { registerIO } from './realtime/io';
 
 const MongoStore = mStore(session);
 
@@ -47,10 +45,21 @@ const store = new MongoStore(
 );
 
 const cors_whitelist = [
-      'http://localhost:8080',
-      // get host from env vars
-      'http://' + (process.env.REMOTE_HOST!.trim() || 'localhost' ) + ':8080'
-      ];
+  'http://localhost:8080',
+  'http://localhost:5173',
+  'http://127.0.0.1:8080',
+  'http://127.0.0.1:5173',
+  'http://' + (process.env.REMOTE_HOST!.trim() || 'localhost') + ':8080',
+  'http://' + (process.env.REMOTE_HOST!.trim() || 'localhost') + ':5173',
+];
+
+const io = new SocketIOServer(http, {
+  cors: {
+    origin: process.env.NODE_ENV?.trim() === 'dev' ? true : cors_whitelist,
+    credentials: true,
+  },
+});
+registerIO(io);
 
 app.use(
   cors({
@@ -85,8 +94,8 @@ store.on('error', (error) => {
 // Use Sessions o
 app.use(Session);
 
-// Share Express session with SocketIO
-io.use(sharedSession(Session));
+// Share Express session with Socket.IO v4 engine requests.
+io.engine.use(Session);
 
 DB.start();
 
@@ -122,12 +131,16 @@ http.listen(port, () => {
   console.log('Game Server running successfully! on port ' + port);
 });
 
-io.use((socket: any, next: any) => {
-  const sessionID = socket.handshake.sessionID as string;
+io.use((socket: Socket, next: (err?: Error) => void) => {
+  const socketRequest = socket.request as typeof socket.request & {
+    sessionID?: string;
+    session?: SessionData & { save: (callback: (err?: Error) => void) => void };
+  };
+  const sessionID = socketRequest.sessionID;
 
   if (socket.request.headers.cookie) {
     const cookies = cookie.parse(socket.request.headers.cookie);
-    if (cookies['fspro.sid']) {
+    if (cookies['fspro.sid'] && sessionID) {
       store.get(
         sessionID,
         (err: any, sess: SessionData | null | undefined) => {
@@ -152,18 +165,16 @@ io.use((socket: any, next: any) => {
       );
     } else {
       // delete session :)
-      store.destroy(sessionID);
+      if (sessionID) {
+        store.destroy(sessionID);
+      }
       console.log('No cookie sent man, destroying session :)');
       next(new Error('Not authorized man!'));
     }
   } else {
     log('hi there :p');
+    next(new Error('Not authorized man!'));
   }
-});
-
-// Socket.io Instance
-io.use((socket, next) => {
-  Session(socket.request, socket.request.res || {}, next);
 });
 
 // app.use('', (req, res) =>{
@@ -173,16 +184,21 @@ io.use((socket, next) => {
 // Anytime there is a (re)connection save the socketID to the session
 // You could actually also save the User id... then map the id to the current socket id.
 
-io.on('connection', (socket: i.Socket) => {
+io.on('connection', (socket: Socket) => {
   // let sessionID = socket.handshake.session.id;
+  const socketRequest = socket.request as typeof socket.request & {
+    sessionID?: string;
+    session: SessionData & { save: (callback: (err?: Error) => void) => void };
+  };
+  const socketSession = socketRequest.session;
 
   console.log(`Client connected successfully! => ${socket.id}`);
 
-  socket.handshake.session!.onlineStart = new Date();
-  socket.handshake.session!.online = true;
-  socket.handshake.session!.socketID = socket.id;
+  socketSession.onlineStart = new Date();
+  socketSession.online = true;
+  socketSession.socketID = socket.id;
 
-  socket.handshake.session!.save((err: Error) => {
+  socketSession.save((err?: Error) => {
     if (err) {
       console.log(`Errror in saving session! => ${err}`);
       console.error(`Error in saving session! => ${err}`);
@@ -192,17 +208,17 @@ io.on('connection', (socket: i.Socket) => {
   });
 
   socket.on('disconnect', () => {
-    socket.handshake.session!.lastOnline = new Date();
-    socket.handshake.session!.online = false;
+    socketSession.lastOnline = new Date();
+    socketSession.online = false;
 
-    socket.handshake.session!.save((err: Error) => {
+    socketSession.save((err?: Error) => {
       if (err) {
         console.log(`Error in saving session! => ${err}`);
         console.error(`Error in saving session! => ${err}`);
       }
     });
     console.info(
-      `Disconnected client session => ${socket.handshake.session!.id}`
+      `Disconnected client session => ${socketRequest.sessionID || 'unknown'}`
     );
   });
 

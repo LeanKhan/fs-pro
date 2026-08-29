@@ -219,12 +219,14 @@ export class Actions {
     }
 
     /**
-     * Find an opponent closest to the teammate to intercept...
+     * Find the opponent best placed to intercept - i.e. standing closest to
+     * the actual passing lane between player and teammate, not merely
+     * closest to the receiver.
      */
-    const interceptor = CO.co.findClosestFieldPlayer(
+    const interceptor = CO.co.findClosestToSegment(
+      player.BlockPosition,
       teammate.BlockPosition,
       defendingSide.StartingSquad,
-      undefined,
       interceptorDistance
     );
 
@@ -723,78 +725,87 @@ export class Actions {
     });
   }
 
+  /**
+   * Resolve a (possibly diagonal) single-step path into an actual move.
+   *
+   * `path` can have both x and y set (e.g. moving up-and-left). The
+   * diagonal target block isn't tracked by `around` (which only knows the
+   * four cardinal neighbours), so it's looked up directly via `blockAt`.
+   * If the diagonal is blocked or off the pitch, each axis is tried on its
+   * own before falling back to any free block around the player.
+   */
   private makeMove(
     player: IFieldPlayer,
     path: ICoordinate,
     around: IPositions
   ) {
-    switch (path.x) {
-      case -1:
-        const b1 = around.left as IBlock;
-        if (b1.occupant == null) {
-          player.move(path);
-          return true;
-        } else {
-          const b = playerFunc.findFreeBlock(around) as IBlock;
-          if (b === undefined) {
-            return false;
-          } else {
-            const p = CO.co.findPath(b, player.BlockPosition);
-            player.move(p);
-            return true;
-          }
-        }
+    const { x, y } = path;
 
-      case 1:
-        const b2 = around.right as IBlock;
-        if (b2.occupant == null) {
-          player.move(path);
-          return true;
-        } else {
-          const b = playerFunc.findFreeBlock(around) as IBlock;
-          if (b === undefined) {
-            return false;
-          } else {
-            const p = CO.co.findPath(b, player.BlockPosition);
-            player.move(p);
-            return true;
-          }
-        }
+    if (x !== 0 && y !== 0) {
+      const diagonal = this.blockAt(player.BlockPosition, x, y);
+      if (diagonal && diagonal.occupant == null) {
+        player.move(path);
+        return true;
+      }
+
+      const horizontal = x === -1 ? around.left : around.right;
+      if (horizontal && horizontal.occupant == null) {
+        player.move({ x, y: 0 });
+        return true;
+      }
+
+      const vertical = y === -1 ? around.top : around.bottom;
+      if (vertical && vertical.occupant == null) {
+        player.move({ x: 0, y });
+        return true;
+      }
+
+      return this.moveToAnyFreeBlock(player, around);
     }
 
-    switch (path.y) {
-      case -1:
-        const b3 = around.top as IBlock;
-        if (b3.occupant == null) {
-          player.move(path);
-          return true;
-        } else {
-          const b = playerFunc.findFreeBlock(around) as IBlock;
-          if (b === undefined) {
-            return false;
-          } else {
-            const p = CO.co.findPath(b, player.BlockPosition);
-            player.move(p);
-            return true;
-          }
-        }
-
-      case 1:
-        const b4 = around.bottom as IBlock;
-        if (b4.occupant == null) {
-          player.move(path);
-          return true;
-        } else {
-          const b = playerFunc.findFreeBlock(around) as IBlock;
-          if (b === undefined) {
-            return false;
-          } else {
-            const p = CO.co.findPath(b, player.BlockPosition);
-            player.move(p);
-            return true;
-          }
-        }
+    if (x !== 0) {
+      const target = x === -1 ? around.left : around.right;
+      if (target && target.occupant == null) {
+        player.move(path);
+        return true;
+      }
+      return this.moveToAnyFreeBlock(player, around);
     }
+
+    if (y !== 0) {
+      const target = y === -1 ? around.top : around.bottom;
+      if (target && target.occupant == null) {
+        player.move(path);
+        return true;
+      }
+      return this.moveToAnyFreeBlock(player, around);
+    }
+
+    return false;
+  }
+
+  /** Bounds-checked lookup of the block offset from `pos` by (dx, dy). */
+  private blockAt(pos: IBlock, dx: number, dy: number): IBlock | undefined {
+    const maxX = pos.Field.mapWidth - 1;
+    const maxY = pos.Field.mapHeight - 1;
+    const x = pos.x + dx;
+    const y = pos.y + dy;
+
+    if (x < 0 || x > maxX || y < 0 || y > maxY) {
+      return undefined;
+    }
+
+    return CO.co.coordinateToBlock({ x, y });
+  }
+
+  private moveToAnyFreeBlock(player: IFieldPlayer, around: IPositions): boolean {
+    const free = playerFunc.findFreeBlock(around) as IBlock;
+    if (free === undefined) {
+      return false;
+    }
+    const p = CO.co.findPath(free, player.BlockPosition);
+    player.move(p);
+    return true;
   }
 
   private successfulDribble(
@@ -820,8 +831,7 @@ export class Actions {
 
   private tackle(player: IFieldPlayer, tackler: IFieldPlayer, predetermined = false) {
     // log(`${tackler.LastName} is tackling ${player.LastName}`);
-    // const success = this.decider.getTackleResult(tackler, player);
-    const success = predetermined ? true : Math.round(Math.random() * 12) >= 6;
+    const success = predetermined ? true : this.decider.getTackleResult(tackler, player);
 
     if (success) {
       tackler.Ball.move(

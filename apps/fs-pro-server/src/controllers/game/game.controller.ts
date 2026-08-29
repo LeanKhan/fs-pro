@@ -19,6 +19,7 @@ import { SeasonInterface, ClubStandings } from '../seasons/season.model';
 import { fetchSeason } from '../seasons/season.service';
 import axios from 'axios';
 import { CalendarMatchInterface, DayInterface } from '../days/day.model';
+import { startMatchReplay } from '../../realtime/matchBroadcaster';
 
 interface TeamObject {
   id: string;
@@ -241,6 +242,11 @@ async function play(fixture_id: string) {
   return CurrentMatch.App
     .startGame()
     ?.then(async (m) => {
+      // Fire-and-forget: stream the recorded match live over sockets,
+      // keyed by fixture_id (known ahead of the kickoff call, unlike
+      // match.id) so a debug client can join the room before triggering it.
+      startMatchReplay(m, fixture_id);
+
       // throw 'Ending match here :)';
       const homeObj = {
         id: m.Home._id,
@@ -473,6 +479,11 @@ export async function restPlayGame(
   App._app
     .startGame()
     ?.then(async (m) => {
+      // Fire-and-forget: stream the recorded match live over sockets,
+      // keyed by fixture_id (known ahead of the kickoff call, unlike
+      // match.id) so a debug client can join the room before triggering it.
+      startMatchReplay(m, fixture_id);
+
       const homeObj = {
         id: m.Home._id,
         name: m.Home.Name,

@@ -26,6 +26,9 @@ export class Match implements IMatch, MatchClass {
   public Details!: IMatchDetails;
   public Events: IMatchEvent[];
   public Actions: IMatchAction[] = [];
+  /** Per-tick position/event snapshots, used to replay the match live over sockets. */
+  public Frames: IMatchFrame[] = [];
+  private lastFrameEventIndex = 0;
   private CurrentTime = 0;
   private Teams: MatchSide[];
 
@@ -420,6 +423,41 @@ export class Match implements IMatch, MatchClass {
     // log(this.Actions, 'table'); TODO: UNCOMMENT O
   }
 
+  /**
+   * Snapshot all player/ball positions plus any new Events entries since the
+   * last snapshot. Called once per gameLoop tick so the match can be
+   * replayed live afterwards (see src/realtime/matchBroadcaster.ts) without
+   * slowing down the simulation itself.
+   */
+  public captureFrame(tick: number, ballPosition: { x: number; y: number }): void {
+    const events = this.Events.slice(this.lastFrameEventIndex);
+    this.lastFrameEventIndex = this.Events.length;
+
+    this.Frames.push({
+      tick,
+      minute: this.getCurrentTime,
+      half: tick < 90 ? 1 : 2,
+      ball: { x: ballPosition.x, y: ballPosition.y },
+      players: [
+        ...this.Home.StartingSquad.map((p) => this.toFramePlayer(p, 'home')),
+        ...this.Away.StartingSquad.map((p) => this.toFramePlayer(p, 'away')),
+      ],
+      events,
+    });
+  }
+
+  private toFramePlayer(p: IFieldPlayer, side: 'home' | 'away'): IMatchFramePlayer {
+    return {
+      id: p._id!,
+      side,
+      num: p.ShirtNumber,
+      pos: p.Position,
+      x: p.BlockPosition.x,
+      y: p.BlockPosition.y,
+      withBall: p.WithBall,
+    };
+  }
+
   public calculatePosession() {
     const totalPossession =
       this.Details.HomeTeamDetails.TimesWithBall +
@@ -468,6 +506,25 @@ export interface IMatchEvent {
   playerID?: string;
   playerTeamID?: string;
   data?: any;
+}
+
+export interface IMatchFramePlayer {
+  id: string;
+  side: 'home' | 'away';
+  num: string;
+  pos: string;
+  x: number;
+  y: number;
+  withBall: boolean;
+}
+
+export interface IMatchFrame {
+  tick: number;
+  minute: number;
+  half: 1 | 2;
+  ball: { x: number; y: number };
+  players: IMatchFramePlayer[];
+  events: IMatchEvent[];
 }
 
 export interface IMatchDetails {

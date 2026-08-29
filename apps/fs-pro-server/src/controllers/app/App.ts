@@ -24,7 +24,6 @@ export default class App {
   private Coordinates!: Coordinates;
 
   constructor() {
-    // this.Coordinates = new Coordinates();
     App.instances++;
   }
 
@@ -38,17 +37,18 @@ export default class App {
 
       const teams = await fetchClubs({ _id: { $in: clubs } });
 
-      const centerBlock = this.Coordinates.Field.PlayingField[82];
+      // Kickoff spot, resolved as the exact center of the pitch regardless
+      // of grid resolution (previously PlayingField[82], a flat-index hack
+      // that only pointed to the center on a 15x11 grid).
+      const centerBlock = this.Coordinates.Field.getBlockByFraction(0.5, 0.5);
 
       this.Game = new Game(
         teams as any,
         sides,
-        // homePost,
-        // awayPost,
         { color: '#ffffff', cb: centerBlock },
         { fname: 'Anjus', lname: 'Banjus', level: 'normal' },
         centerBlock,
-        this.Coordinates.Field.PlayingField,
+        this.Coordinates.Field,
         this.Coordinates
       );
 
@@ -56,7 +56,9 @@ export default class App {
 
       this.Game.setClubPlayers();
 
-      this.Game.setClubFormations('HOME-433', 'AWAY-433');
+      // Formation shapes are no longer HOME/AWAY-specific - each side's
+      // attacking direction is derived from its ScoringSide/KeepingSide.
+      this.Game.setClubFormations('433', '433');
 
       this.listenForGameEvents();
 
@@ -71,12 +73,7 @@ export default class App {
   public startGame() {
     try {
       return this.Game!.startHalf();
-
-      // After here, the game should start!
     } catch (error) {
-      // TODO: !!! SEARCH FOR THIS log(..., any) in the code
-      // Done! RegExp used: log\(.*, [a-zA-Z]*\) this finds expressions
-      // that look like log(..., ...)
       console.log('Error starting game! =>', error);
     }
   }
@@ -85,8 +82,6 @@ export default class App {
   public endGame() {
     try {
       this.Game = undefined;
-
-      // After here, the game should start!
     } catch (error) {
       console.log('Error ending game! =>', error);
     }
