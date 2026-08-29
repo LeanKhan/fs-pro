@@ -263,6 +263,7 @@
         <div class="controls">
           <input id="fixtureIdInput" type="text" placeholder="fixture id" />
           <button id="watchBtn"><span class="dot">▶</span>Watch</button>
+          <button id="kickoffBtn"><span class="dot">⚽</span>Watch + Kick Off</button>
         </div>
         <div class="status" id="connStatus">Disconnected</div>
       </div>
@@ -383,6 +384,7 @@ const eventLog = document.getElementById('eventLog');
 const connStatus = document.getElementById('connStatus');
 const fixtureIdInput = document.getElementById('fixtureIdInput');
 const watchBtn = document.getElementById('watchBtn');
+const kickoffBtn = document.getElementById('kickoffBtn');
 const swapEndsBtn = document.getElementById('swapEnds');
 
 function toPct(block) {
@@ -468,10 +470,13 @@ swapEndsBtn.addEventListener('click', () => {
 });
 
 /* ------------------------- live match replay -------------------------
-   Debug workflow: enter the FIXTURE id (the one you're about to POST to
-   /api/game/kickoff-new/:fixture, not the internal match.id which doesn't
-   exist yet), click Watch, THEN trigger kickoff. There's no server-side
-   catch-up buffer for late joiners in v1 - if you Watch after kickoff has
+   Debug workflow: enter the FIXTURE id (not the internal match.id, which
+   doesn't exist until kickoff runs) and click "Watch + Kick Off" - it joins
+   the fixture's room first, then calls the same /api/game/kickoff-new/:fixture
+   endpoint the real app hits, so a full match can be exercised from this one
+   file. "Watch" alone just joins the room, for watching a match kicked off
+   some other way (the Vue app, curl, Postman). There's no server-side
+   catch-up buffer for late joiners in v1 - if you join after kickoff has
    already fired, you'll only see whatever frames haven't gone out yet.
 ------------------------------------------------------------------------*/
 
@@ -621,6 +626,34 @@ function appendEvents(events) {
   }
 }
 
+/**
+ * Load the client, connect, and join `fixtureId`'s room. Resolves once
+ * `watch-match` has actually been emitted on an open socket - callers that
+ * also need to trigger kickoff should await this FIRST, so the room is
+ * joined before the server ever starts pushing frames (no catch-up buffer).
+ */
+async function ensureWatching(fixtureId) {
+  setStatus('Loading Socket.IO client...');
+  await loadSocketIoClient();
+
+  const s = connectSocket();
+
+  return new Promise((resolve) => {
+    const join = () => {
+      s.emit('watch-match', fixtureId);
+      console.log('[replay] watch-match emitted for', fixtureId);
+      setStatus(`Connected, watching ${fixtureId}`);
+      resolve(s);
+    };
+
+    if (s.connected) {
+      join();
+    } else {
+      s.once('connect', join);
+    }
+  });
+}
+
 watchBtn.addEventListener('click', async () => {
   const fixtureId = fixtureIdInput.value.trim();
   if (!fixtureId) {
@@ -629,26 +662,45 @@ watchBtn.addEventListener('click', async () => {
   }
 
   try {
-    setStatus('Loading Socket.IO client...');
-    await loadSocketIoClient();
+    await ensureWatching(fixtureId);
   } catch (err) {
     console.error('[replay] socket.io client load failed', err);
     setStatus(err.message || String(err));
+  }
+});
+
+/**
+ * PitchPreview otherwise has no way to make a match actually happen - this
+ * joins the room first (so no frames are missed), then calls the same
+ * kickoff endpoint the real client hits, so the whole record-then-replay
+ * loop can be exercised from this one file without curl/Postman/the Vue app.
+ */
+kickoffBtn.addEventListener('click', async () => {
+  const fixtureId = fixtureIdInput.value.trim();
+  if (!fixtureId) {
+    alert('Enter a fixture id first');
     return;
   }
 
-  const s = connectSocket();
-  console.log('Socket => ', s)
-  const join = () => {
-    s.emit('watch-match', fixtureId);
-    console.log('[replay] watch-match emitted for', fixtureId);
-    setStatus(`Connected, watching ${fixtureId}`);
-  };
+  kickoffBtn.disabled = true;
 
-  if (s.connected) {
-    join();
-  } else {
-    s.once('connect', join);
+  try {
+    await ensureWatching(fixtureId);
+
+    const url = `${serverUrl.replace(/\/$/, '')}/api/game/kickoff-new/${fixtureId}`;
+    console.log('[replay] triggering kickoff', url);
+    setStatus(`Watching ${fixtureId}, kicking off...`);
+
+    const res = await fetch(url, { credentials: 'include' });
+    if (!res.ok) {
+      throw new Error(`Kickoff request failed: HTTP ${res.status}`);
+    }
+    console.log('[replay] kickoff request accepted - waiting for match-replay-start');
+  } catch (err) {
+    console.error('[replay] kickoff failed', err);
+    setStatus(err.message || String(err));
+  } finally {
+    kickoffBtn.disabled = false;
   }
 });
 </script>
