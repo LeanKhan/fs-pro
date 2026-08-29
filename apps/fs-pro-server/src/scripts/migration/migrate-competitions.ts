@@ -1,13 +1,11 @@
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-import { PrismaClient } from '../../generated/prisma/client';
 import { connect, connection } from 'mongoose';
 import { Place } from '../../controllers/places/places.model';
 import { Competition } from '../../controllers/competitions/competition.model';
-import { PrismaPg } from '@prisma/adapter-pg';
-
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+import { createDrizzleConnection } from '../../db/drizzle/client';
+import { competitions as competitionsTable } from '../../db/drizzle/schema';
 
 async function migrateCompetitions() {
   console.log('Starting Competitions migration...');
@@ -17,10 +15,8 @@ async function migrateCompetitions() {
   console.log('Connected to MongoDB');
 
   // Connect to PostgreSQL
-  const prisma = new PrismaClient({
-    adapter,
-  });
-  await prisma.$connect();
+  const { client, db } = createDrizzleConnection();
+  await client`SELECT 1`;
   console.log('Connected to PostgreSQL');
 
   // Register Place model first (required by Competition's populate hook)
@@ -42,8 +38,9 @@ async function migrateCompetitions() {
       const clubIds = (competition.Clubs || []).map((clubId: any) => clubId.toString());
       const seasonIds = (competition.Seasons || []).map((seasonId: any) => seasonId.toString());
 
-      await prisma.competition.create({
-        data: {
+      await db
+        .insert(competitionsTable)
+        .values({
           mongoId: competition._id.toString(), // Store original MongoDB ID
           Name: competition.Name,
           Type: competition.Type,
@@ -62,8 +59,7 @@ async function migrateCompetitions() {
           Seasons: seasonIds,
           createdAt: (competition as any).createdAt || new Date(),
           updatedAt: (competition as any).updatedAt || new Date(),
-        },
-      });
+        });
       console.log(`✓ Migrated: ${competition.Name}`);
     } catch (err: any) {
       console.error(`✗ Failed: ${competition.Name}`);
@@ -79,7 +75,7 @@ async function migrateCompetitions() {
 
   console.log('Migration complete!');
   await connection.close();
-  await prisma.$disconnect();
+  await client.end();
 }
 
 migrateCompetitions().catch(console.error);

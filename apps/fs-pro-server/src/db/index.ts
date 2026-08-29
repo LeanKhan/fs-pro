@@ -1,19 +1,20 @@
 /**
- * Database abstraction layer
- * Supports both MongoDB and PostgreSQL
+ * Database abstraction layer.
+ * Supports MongoDB and PostgreSQL through Prisma or Drizzle.
  *
- * Set USE_POSTGRESQL=true in .env to use PostgreSQL
- * Otherwise, defaults to MongoDB
+ * Set USE_POSTGRESQL=true in .env to use PostgreSQL.
+ * Set USE_DRIZZLE=true with USE_POSTGRESQL=true to use Drizzle.
+ * Otherwise, defaults to MongoDB.
  */
-import { IDatabase, IModels, DatabaseType } from './interfaces';
+import { connection } from 'mongoose';
+import { DatabaseType, IDatabase, IModels } from './interfaces';
+import { DrizzleDatabase } from './drizzle';
 import { MongoDatabase } from './mongodb';
 import { PostgreSQLDatabase } from './postgresql';
-import { connection } from 'mongoose';
 
-// Determine which database to use
 const USE_POSTGRESQL = process.env.USE_POSTGRESQL?.trim() === 'true';
+const USE_DRIZZLE = process.env.USE_DRIZZLE?.trim() === 'true';
 
-// MongoDB URL configuration
 let prod_db = '';
 if (process.env.DEV_TEST?.trim()) {
   prod_db = process.env.DEV_MONGO_URL?.trim() as string;
@@ -23,24 +24,24 @@ if (process.env.DEV_TEST?.trim()) {
 
 export const MONGO_URL = prod_db;
 
-/**
- * Database singleton
- * Automatically selects MongoDB or PostgreSQL based on environment
- */
 export default class DB {
-
   private static instance: IDatabase;
 
   public static start() {
-      console.log('DB Instance')
     if (!DB.instance) {
       if (USE_POSTGRESQL) {
-        console.log('🐘 Using PostgreSQL database');
-        DB.instance = PostgreSQLDatabase.getInstance();
+        if (USE_DRIZZLE) {
+          console.log('Using PostgreSQL database with Drizzle ORM');
+          DB.instance = DrizzleDatabase.getInstance();
+        } else {
+          console.log('Using PostgreSQL database with Prisma ORM');
+          DB.instance = PostgreSQLDatabase.getInstance();
+        }
       } else {
-        console.log('🍃 Using MongoDB database');
+        console.log('Using MongoDB database');
         DB.instance = MongoDatabase.getInstance(MONGO_URL);
       }
+
       DB.instance.start();
     }
   }
@@ -53,13 +54,19 @@ export default class DB {
   }
 
   public static get db() {
-    if (USE_POSTGRESQL) {
-      // Return Prisma client for PostgreSQL
-      return (DB.instance as PostgreSQLDatabase).client;
-    } else {
-      // Return MongoDB connection
-      return connection.db;
+    if (!DB.instance) {
+      DB.start();
     }
+
+    if (USE_POSTGRESQL) {
+      if (USE_DRIZZLE) {
+        return (DB.instance as DrizzleDatabase).database;
+      }
+
+      return (DB.instance as PostgreSQLDatabase).client;
+    }
+
+    return connection.db;
   }
 
   public static async disconnect(): Promise<void> {
@@ -77,5 +84,13 @@ export default class DB {
       DB.start();
     }
     return DB.instance!;
+  }
+
+  public static get ormType(): 'mongoose' | 'prisma' | 'drizzle' {
+    if (!USE_POSTGRESQL) {
+      return 'mongoose';
+    }
+
+    return USE_DRIZZLE ? 'drizzle' : 'prisma';
   }
 }

@@ -1,13 +1,11 @@
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-import { PrismaClient } from '../../generated/prisma/client';
 import { connect, connection } from 'mongoose';
 import { Place } from '../../controllers/places/places.model';
 import { Manager } from '../../controllers/managers/manager.model';
-import { PrismaPg } from '@prisma/adapter-pg';
-
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+import { createDrizzleConnection } from '../../db/drizzle/client';
+import { managers as managersTable } from '../../db/drizzle/schema';
 
 async function migrateManagers() {
   console.log('Starting Managers migration...');
@@ -17,10 +15,8 @@ async function migrateManagers() {
   console.log('Connected to MongoDB');
 
   // Connect to PostgreSQL
-  const prisma = new PrismaClient({
-    adapter,
-  });
-  await prisma.$connect();
+  const { client, db } = createDrizzleConnection();
+  await client`SELECT 1`;
   console.log('Connected to PostgreSQL');
 
   // Register Place model first (required by Manager's populate hook)
@@ -38,8 +34,9 @@ async function migrateManagers() {
     try {
       console.log('Manager => ', manager._id.toString());
 
-      await prisma.manager.create({
-        data: {
+      await db
+        .insert(managersTable)
+        .values({
           mongoId: manager._id.toString(), // Store original MongoDB ID
           Key: manager.Key,
           FirstName: manager.FirstName,
@@ -49,12 +46,11 @@ async function migrateManagers() {
           Club: manager.Club?.toString() || null,
           Nationality: manager.Nationality?._id.toString() || null,
           NationalTeam: manager.NationalTeam || false,
-          Records: manager.Records || [],
+          Records: (manager.Records || []) as any,
           isEmployed: manager.isEmployed || false,
           createdAt: (manager as any).createdAt || new Date(),
           updatedAt: (manager as any).updatedAt || new Date(),
-        },
-      });
+        });
       console.log(`✓ Migrated: ${manager.FirstName} ${manager.LastName}`);
     } catch (err: any) {
       console.error(`✗ Failed: ${manager.FirstName} ${manager.LastName}`);
@@ -70,7 +66,7 @@ async function migrateManagers() {
 
   console.log('Migration complete!');
   await connection.close();
-  await prisma.$disconnect();
+  await client.end();
 }
 
 migrateManagers().catch(console.error);

@@ -1,12 +1,10 @@
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-import { PrismaClient } from '../../generated/prisma/client';
 import { connect, connection } from 'mongoose';
 import { Calendar } from '../../controllers/calendar/calendar.model';
-import { PrismaPg } from '@prisma/adapter-pg';
-
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+import { createDrizzleConnection } from '../../db/drizzle/client';
+import { calendars as calendarsTable } from '../../db/drizzle/schema';
 
 async function migrateCalendars() {
   console.log('Starting Calendars migration...');
@@ -16,10 +14,8 @@ async function migrateCalendars() {
   console.log('Connected to MongoDB');
 
   // Connect to PostgreSQL
-  const prisma = new PrismaClient({
-    adapter,
-  });
-  await prisma.$connect();
+  const { client, db } = createDrizzleConnection();
+  await client`SELECT 1`;
   console.log('Connected to PostgreSQL');
 
   // Create Calendar model directly (avoiding DB circular dependency)
@@ -37,8 +33,9 @@ async function migrateCalendars() {
       // Convert Days array of ObjectIds to strings
       const dayIds = (calendar.Days || []).map((dayId: any) => dayId.toString());
 
-      await prisma.calendar.create({
-        data: {
+      await db
+        .insert(calendarsTable)
+        .values({
           mongoId: calendar._id.toString(), // Store original MongoDB ID
           Name: calendar.Name,
           YearString: calendar.YearString,
@@ -50,8 +47,7 @@ async function migrateCalendars() {
           Days: dayIds,
           createdAt: (calendar as any).createdAt || new Date(),
           updatedAt: (calendar as any).updatedAt || new Date(),
-        },
-      });
+        });
       console.log(`✓ Migrated: ${calendar.Name}`);
     } catch (err: any) {
       console.error(`✗ Failed: ${calendar.Name}`);
@@ -67,7 +63,7 @@ async function migrateCalendars() {
 
   console.log('Migration complete!');
   await connection.close();
-  await prisma.$disconnect();
+  await client.end();
 }
 
 migrateCalendars().catch(console.error);

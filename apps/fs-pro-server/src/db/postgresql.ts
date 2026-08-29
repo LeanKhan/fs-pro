@@ -1,7 +1,7 @@
-import { PlaceRepositoryFactory } from '../repositories/PlaceRepositoryFactory';
 import { PrismaClient } from '../generated/prisma/client';
 import { IDatabase, IModels } from './interfaces';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { SQLPlaceRepository } from '../repositories/sql/PlaceRepository';
 
 /**
  * PostgreSQL Database implementation using Prisma
@@ -33,7 +33,7 @@ export class PostgreSQLDatabase implements IDatabase {
       Manager: null,
       ClubMatch: null,
       PlayerMatch: null,
-      Place: PlaceRepositoryFactory.create(),
+      Place: new SQLPlaceRepository(this.prisma),
       Award: null,
     };
   }

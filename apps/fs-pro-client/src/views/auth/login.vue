@@ -54,7 +54,7 @@
         <div>
           Forgot your password?
           <v-btn variant="outlined" @click="showForgot">
-            Yup, ama fish eater
+            Change Password
           </v-btn>
         </div>
       </v-card-text>

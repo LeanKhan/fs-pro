@@ -1,13 +1,11 @@
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-import { PrismaClient } from '../../generated/prisma/client';
 import { connect, connection } from 'mongoose';
 import { Place } from '../../controllers/places/places.model';
 import { Club } from '../../controllers/clubs/club.model';
-import { PrismaPg } from '@prisma/adapter-pg';
-
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+import { createDrizzleConnection } from '../../db/drizzle/client';
+import { clubs as clubsTable } from '../../db/drizzle/schema';
 
 async function migrateClubs() {
   console.log('Starting Clubs migration...');
@@ -17,10 +15,8 @@ async function migrateClubs() {
   console.log('Connected to MongoDB');
 
   // Connect to PostgreSQL
-  const prisma = new PrismaClient({
-    adapter,
-  });
-  await prisma.$connect();
+  const { client, db } = createDrizzleConnection();
+  await client`SELECT 1`;
   console.log('Connected to PostgreSQL');
 
   // Register Place model first (required by Club's populate hook)
@@ -50,8 +46,9 @@ async function migrateClubs() {
         };
       }
 
-      await prisma.club.create({
-        data: {
+      await db
+        .insert(clubsTable)
+        .values({
           mongoId: club._id.toString(), // Store original MongoDB ID
           Name: club.Name,
           ClubCode: club.ClubCode,
@@ -63,21 +60,20 @@ async function migrateClubs() {
           DEF_Rating: club.DEF_Rating || 0,
           MID_Rating: club.MID_Rating || 0,
           Manager: club.Manager?.toString() || null,
-          assets: club.assets ? (club.assets as any) : undefined,
-          Stats: club.Stats ? (club.Stats as any) : undefined,
-          Address: addressData ? (addressData as any) : undefined,
+          assets: club.assets ? (club.assets as any) : null,
+          Stats: club.Stats ? (club.Stats as any) : null,
+          Address: addressData ? (addressData as any) : null,
           Budget: club.Budget || null,
-          Transactions: club.Transactions ? (club.Transactions as any) : undefined,
-          Records: club.Records || [],
-          Stadium: club.Stadium ? (club.Stadium as any) : undefined,
+          Transactions: club.Transactions ? (club.Transactions as any) : null,
+          Records: (club.Records || []) as any,
+          Stadium: club.Stadium ? (club.Stadium as any) : null,
           LeagueCode: club.LeagueCode || null,
           League: club.League?.toString() || null,
           Players: playerIds,
           User: club.User?.toString() || null,
           createdAt: (club as any).createdAt || new Date(),
           updatedAt: (club as any).updatedAt || new Date(),
-        },
-      });
+        });
       console.log(`✓ Migrated: ${club.Name}`);
     } catch (err: any) {
       console.error(`✗ Failed: ${club.Name}`);
@@ -93,7 +89,7 @@ async function migrateClubs() {
 
   console.log('Migration complete!');
   await connection.close();
-  await prisma.$disconnect();
+  await client.end();
 }
 
 migrateClubs().catch(console.error);
