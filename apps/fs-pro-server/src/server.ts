@@ -63,7 +63,10 @@ registerIO(io);
 
 app.use(
   cors({
-    origin: cors_whitelist,
+    // Same dev-only relaxation already applied to the Socket.IO CORS config
+    // above - lets a standalone debug page (PitchPreview.html, opened from
+    // an arbitrary origin) call the REST API directly in dev.
+    origin: process.env.NODE_ENV?.trim() === 'dev' ? true : cors_whitelist,
     credentials: true,
   })
 );
