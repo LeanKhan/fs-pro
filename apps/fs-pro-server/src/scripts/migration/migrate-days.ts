@@ -1,12 +1,10 @@
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-import { PrismaClient } from '../../generated/prisma/client';
 import { connect, connection } from 'mongoose';
 import { Day } from '../../controllers/days/day.model';
-import { PrismaPg } from '@prisma/adapter-pg';
-
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+import { createDrizzleConnection } from '../../db/drizzle/client';
+import { days as daysTable } from '../../db/drizzle/schema';
 
 async function migrateDays() {
   console.log('Starting Days migration...');
@@ -16,10 +14,8 @@ async function migrateDays() {
   console.log('Connected to MongoDB');
 
   // Connect to PostgreSQL
-  const prisma = new PrismaClient({
-    adapter,
-  });
-  await prisma.$connect();
+  const { client, db } = createDrizzleConnection();
+  await client`SELECT 1`;
   console.log('Connected to PostgreSQL');
 
   // Create Day model directly (avoiding DB circular dependency)
@@ -46,8 +42,9 @@ async function migrateDays() {
         Week: match.Week || null,
       }));
 
-      await prisma.day.create({
-        data: {
+      await db
+        .insert(daysTable)
+        .values({
           mongoId: day._id.toString(), // Store original MongoDB ID
           Matches: matches as any,
           isFree: day.isFree || false,
@@ -56,8 +53,7 @@ async function migrateDays() {
           Calendar: day.Calendar?.toString() || null,
           createdAt: (day as any).createdAt || new Date(),
           updatedAt: (day as any).updatedAt || new Date(),
-        },
-      });
+        });
       console.log(`✓ Migrated: Day ${day.Day} - ${day.Year}`);
     } catch (err: any) {
       console.error(`✗ Failed: Day ${day.Day} - ${day.Year}`);
@@ -73,7 +69,7 @@ async function migrateDays() {
 
   console.log('Migration complete!');
   await connection.close();
-  await prisma.$disconnect();
+  await client.end();
 }
 
 migrateDays().catch(console.error);

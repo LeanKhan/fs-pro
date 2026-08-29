@@ -1,12 +1,10 @@
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-import { PrismaClient } from '../../generated/prisma/client';
 import { connect, connection } from 'mongoose';
 import { Season } from '../../controllers/seasons/season.model';
-import { PrismaPg } from '@prisma/adapter-pg';
-
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+import { createDrizzleConnection } from '../../db/drizzle/client';
+import { seasons as seasonsTable } from '../../db/drizzle/schema';
 
 async function migrateSeasons() {
   console.log('Starting Seasons migration...');
@@ -16,10 +14,8 @@ async function migrateSeasons() {
   console.log('Connected to MongoDB');
 
   // Connect to PostgreSQL
-  const prisma = new PrismaClient({
-    adapter,
-  });
-  await prisma.$connect();
+  const { client, db } = createDrizzleConnection();
+  await client`SELECT 1`;
   console.log('Connected to PostgreSQL');
 
   // Create Season model directly (avoiding DB circular dependency)
@@ -39,8 +35,9 @@ async function migrateSeasons() {
       const relegated = (season.Relegated || []).map((clubId: any) => clubId.toString());
       const fixtures = (season.Fixtures || []).map((fixtureId: any) => fixtureId.toString());
 
-      await prisma.season.create({
-        data: {
+      await db
+        .insert(seasonsTable)
+        .values({
           mongoId: season._id.toString(), // Store original MongoDB ID
           SeasonCode: season.SeasonCode,
           Title: season.Title,
@@ -61,8 +58,7 @@ async function migrateSeasons() {
           Logs: (season.Logs || []) as any,
           createdAt: (season as any).createdAt || new Date(),
           updatedAt: (season as any).updatedAt || new Date(),
-        },
-      });
+        });
       console.log(`✓ Migrated: ${season.SeasonCode}`);
     } catch (err: any) {
       console.error(`✗ Failed: ${season.SeasonCode}`);
@@ -78,7 +74,7 @@ async function migrateSeasons() {
 
   console.log('Migration complete!');
   await connection.close();
-  await prisma.$disconnect();
+  await client.end();
 }
 
 migrateSeasons().catch(console.error);

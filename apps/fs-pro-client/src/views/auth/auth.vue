@@ -30,7 +30,7 @@
         <v-col class="ext-center text-white" cols="12">
           <v-divider></v-divider>
           {{ new Date().getFullYear() }} —
-          <span>LeanKhan and Tobi</span>
+          <span>ESL & TSL</span>
         </v-col>
       </v-row>
     </v-footer>

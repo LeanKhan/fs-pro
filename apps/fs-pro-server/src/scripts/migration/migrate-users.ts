@@ -1,12 +1,10 @@
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-import { PrismaClient } from '../../generated/prisma/client';
 import { connect, connection } from 'mongoose';
 import { User } from '../../controllers/user/user.model';
-import { PrismaPg } from '@prisma/adapter-pg';
-
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+import { createDrizzleConnection } from '../../db/drizzle/client';
+import { users as usersTable } from '../../db/drizzle/schema';
 
 async function migrateUsers() {
   console.log('Starting Users migration...');
@@ -16,10 +14,8 @@ async function migrateUsers() {
   console.log('Connected to MongoDB');
 
   // Connect to PostgreSQL
-  const prisma = new PrismaClient({
-    adapter,
-  });
-  await prisma.$connect();
+  const { client, db } = createDrizzleConnection();
+  await client`SELECT 1`;
   console.log('Connected to PostgreSQL');
 
   // Create User model directly (avoiding DB circular dependency)
@@ -37,8 +33,9 @@ async function migrateUsers() {
       // Convert Clubs array of ObjectIds to strings
       const clubIds = (user.Clubs || []).map((clubId: any) => clubId.toString());
 
-      await prisma.user.create({
-        data: {
+      await db
+        .insert(usersTable)
+        .values({
           mongoId: user._id.toString(), // Store original MongoDB ID
           FullName: user.FullName,
           Password: user.Password, // Already hashed from MongoDB
@@ -51,8 +48,7 @@ async function migrateUsers() {
           Session: user.Session || null,
           createdAt: (user as any).createdAt || new Date(),
           updatedAt: (user as any).updatedAt || new Date(),
-        },
-      });
+        });
       console.log(`✓ Migrated: ${user.Username}`);
     } catch (err: any) {
       console.error(`✗ Failed: ${user.Username}`);
@@ -68,7 +64,7 @@ async function migrateUsers() {
 
   console.log('Migration complete!');
   await connection.close();
-  await prisma.$disconnect();
+  await client.end();
 }
 
 migrateUsers().catch(console.error).then(() => console.log('complet.'));

@@ -3,7 +3,11 @@ import { PostgreSQLDatabase } from '../../db/postgresql';
 import { IPlace } from '../../controllers/places/places.model';
 
 export class SQLPlaceRepository implements IPlaceRepository {
-  private prisma = (PostgreSQLDatabase.getInstance().getConnection() as any);
+  private prisma: any;
+
+  constructor(prisma = PostgreSQLDatabase.getInstance().getConnection()) {
+    this.prisma = prisma as any;
+  }
 
   async findById(id: string): Promise<IPlace | null> {
     return this.prisma.place.findUnique({ where: { id } });
