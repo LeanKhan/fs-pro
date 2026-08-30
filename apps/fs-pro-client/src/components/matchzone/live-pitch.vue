@@ -18,52 +18,77 @@
         class="player"
         :class="[p.side, { gk: p.pos === 'GK', 'with-ball': p.withBall, 'sent-off': p.matchStatus === 'sent-off' }]"
         :style="playerStyle(p)"
+        @mouseenter="hoveredId = p.id"
+        @mouseleave="hoveredId = null"
       >
         {{ p.pos }}
       </div>
 
       <div v-if="frame" class="ball" :style="ballStyle(frame.ball)"></div>
+
+      <div
+        v-if="hoveredPlayer"
+        class="player-tooltip"
+        :style="toPct(hoveredPlayer)"
+      >
+        <div class="tooltip-name">
+          {{ hoveredPlayer.name }} <span class="tooltip-num">#{{ hoveredPlayer.num }}</span>
+        </div>
+        <div class="tooltip-row">
+          {{ hoveredPlayer.pos }} · ★ {{ hoveredPlayer.rating ?? '-' }}
+        </div>
+        <div class="tooltip-row">
+          <span v-if="hoveredPlayer.matchStatus === 'sent-off'" class="tooltip-red">
+            Sent off
+          </span>
+          <span v-else-if="hoveredPlayer.yellowCards > 0" class="tooltip-yellow">
+            {{ hoveredPlayer.yellowCards > 1 ? 'x2 ' : '' }}Yellow card
+          </span>
+          <span v-else>Active</span>
+        </div>
+      </div>
     </div>
 
     <div class="meta-line">
       <span>{{ home?.name }} [{{ home?.code }}] vs {{ away?.name }} [{{ away?.code }}]</span>
       <span v-if="frame">{{ frame.minute }}' - half {{ frame.half }}</span>
     </div>
-
-    <div class="event-log">
-      <div v-if="!events.length" class="empty">Waiting for kick-off...</div>
-      <div v-for="(ev, i) in events" :key="i" class="event-row">
-        <span class="event-time">{{ ev.time }}'</span>
-        <span class="event-type">[{{ ev.type }}]</span>
-        {{ ev.message }}
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import type { IMatchFrame, IMatchFramePlayer, IMatchEvent } from '@/utils/matchReplaySocket';
+import { ref, computed } from 'vue';
+import type { IMatchFrame, IMatchFramePlayer } from '@/utils/matchReplaySocket';
+import { apiUrl } from '@/services/api';
 
 const DEFAULT_X_BLOCKS = 33;
 const DEFAULT_Y_BLOCKS = 21;
-const MAX_EVENT_ROWS = 50;
 
 const props = defineProps<{
   frame: IMatchFrame | null;
   home?: { name: string; code: string };
   away?: { name: string; code: string };
+  /** id -> squad info, so tooltips can show a name/rating without bloating
+   * every frame with data that never changes tick to tick. */
+  players?: Record<string, { FirstName: string; LastName: string; Rating: number }>;
 }>();
 
-const events = ref<IMatchEvent[]>([]);
+const hoveredId = ref<string | null>(null);
 
-watch(
-  () => props.frame,
-  (frame) => {
-    if (!frame?.events?.length) return;
-    events.value = [...frame.events, ...events.value].slice(0, MAX_EVENT_ROWS);
-  }
-);
+const hoveredPlayer = computed(() => {
+  if (!hoveredId.value || !props.frame) return null;
+
+  const framePlayer = props.frame.players.find((p) => p.id === hoveredId.value);
+  if (!framePlayer) return null;
+
+  const info = props.players?.[framePlayer.id];
+
+  return {
+    ...framePlayer,
+    name: info ? `${info.FirstName} ${info.LastName}` : `Player #${framePlayer.num}`,
+    rating: info ? Math.round(info.Rating) : null,
+  };
+});
 
 function toPct(pos: { x: number; y: number }) {
   return {
@@ -72,15 +97,22 @@ function toPct(pos: { x: number; y: number }) {
   };
 }
 
+function kitUrl(side: 'home' | 'away') {
+  const code = side === 'home' ? props.home?.code : props.away?.code;
+  return code ? `${apiUrl}/img/clubs/kits/${code}-kit.png` : '';
+}
+
 function playerStyle(p: IMatchFramePlayer) {
-  return toPct(p);
+  const url = kitUrl(p.side);
+  return {
+    ...toPct(p),
+    backgroundImage: url ? `url(${url})` : undefined,
+  };
 }
 
 function ballStyle(ball: { x: number; y: number }) {
   return toPct(ball);
 }
-
-defineExpose({ events });
 </script>
 
 <style scoped>
@@ -133,15 +165,20 @@ svg.markings rect {
   font-weight: 700;
   font-size: 10px;
   color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
   border: 2px solid rgba(255, 255, 255, 0.85);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  background-color: #444;
+  background-size: cover;
+  background-position: center;
   transition: left 280ms linear, top 280ms linear;
+  cursor: pointer;
 }
 .player.home {
-  background: #2a5db0;
+  background-color: #2a5db0;
 }
 .player.away {
-  background: #b0342a;
+  background-color: #b0342a;
 }
 .player.gk {
   filter: brightness(1.35);
@@ -164,28 +201,39 @@ svg.markings rect {
   transition: left 280ms linear, top 280ms linear;
 }
 
+.player-tooltip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 12px));
+  background: rgba(12, 23, 16, 0.95);
+  border: 1px solid #23392c;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+.tooltip-name {
+  font-weight: 700;
+}
+.tooltip-num {
+  opacity: 0.6;
+  font-weight: 400;
+}
+.tooltip-row {
+  opacity: 0.85;
+}
+.tooltip-yellow {
+  color: #e9b34a;
+}
+.tooltip-red {
+  color: #ef4444;
+}
+
 .meta-line {
   display: flex;
   justify-content: space-between;
   font-size: 11px;
   opacity: 0.7;
-}
-
-.event-log {
-  max-height: 140px;
-  overflow-y: auto;
-  font-size: 12px;
-  line-height: 1.6;
-}
-.event-log .empty {
-  opacity: 0.6;
-}
-.event-time {
-  opacity: 0.6;
-  margin-right: 4px;
-}
-.event-type {
-  color: #e9b34a;
-  margin-right: 4px;
 }
 </style>

@@ -178,6 +178,10 @@ export const useStore = defineStore('main', () => {
     errorOverlay.value = !errorOverlay.value;
   }
 
+  function setErrorOverlay(value: boolean) {
+    errorOverlay.value = value;
+  }
+
   return {
     // State
     yearString,
@@ -208,5 +212,6 @@ export const useStore = defineStore('main', () => {
     showToast,
     hideToast,
     toggleErrorOverlay,
+    setErrorOverlay,
   };
 });

@@ -1,333 +1,124 @@
 <template>
-  <div class="home">
-    <v-app-bar density="compact" color="dark">
-      <v-avatar tile size="30px">
-        <v-icon style="font-size: 30px; height: 30px" size="large">
-          custom:{{ fixture.Home }}
-        </v-icon>
-      </v-avatar>
+  <div class="matchzone">
+    <header class="mz-header">
+      <button class="mz-close" @click="router.push('/u')" title="Close">
+        ✕
+      </button>
 
-      vs
-
-      <v-badge
-        bordered
-        location="bottom"
-        color="green-accent-3"
-        dot
-        offset-x="10"
-        offset-y="10"
-      >
-        <v-avatar tile size="30px">
-          <v-icon style="font-size: 30px; height: 30px" size="large">
-            custom:{{ fixture.Away }}
-          </v-icon>
-        </v-avatar>
-      </v-badge>
-
-      <v-list-subheader class="mx-auto">
+      <div class="mz-title">
         MATCHZONE
-
-        <v-chip v-if="lastMatchOfSeason || fixture.isFinalMatch">
+        <span v-if="lastMatchOfSeason || fixture.isFinalMatch" class="mz-chip">
           LAST MATCH
-        </v-chip>
+        </span>
+        <span v-if="simulateRest" class="mz-chip mz-chip-accent">simulation</span>
+      </div>
 
-        Matchday {{ fixture.MatchDay }}
+      <div class="mz-header-actions">
+        <label class="mz-checkbox">
+          <input type="checkbox" v-model="simulateRest" />
+          Simulate Rest
+        </label>
 
-        <v-chip v-if="simulateRest" size="small" color="primary">
-          simulation
-        </v-chip>
-      </v-list-subheader>
+        <button
+          v-if="matchFinished && !lastMatchOfSeason"
+          class="mz-action-btn"
+          @click="router.push('/u')"
+        >
+          FINISH MATCH
+        </button>
 
-      <v-spacer></v-spacer>
+        <button
+          v-else-if="matchFinished && lastMatchOfSeason"
+          class="mz-action-btn mz-action-accent"
+          @click="finishSeason"
+        >
+          &lt; FINISH SEASON &gt;
+        </button>
+      </div>
+    </header>
 
-      <v-btn
-        v-if="!matchFinished"
-        variant="flat"
-        size="small"
-        icon
-        @click="router.push('/u')"
-      >
-        <v-icon>mdi-close</v-icon>
-      </v-btn>
+    <div v-if="!fixture.HomeTeam" class="mz-loading-screen">Loading match...</div>
 
-      <v-btn
-        v-else-if="!lastMatchOfSeason"
-        color="pink-accent-3"
-        @click="router.push('/u')"
-      >
-        FINISH MATCH
-      </v-btn>
+    <div v-else class="mz-body">
+      <main class="mz-main">
+        <div class="mz-pitch-wrap">
+          <live-pitch
+            :frame="liveFrame"
+            :home="liveHome"
+            :away="liveAway"
+            :players="playersById"
+          ></live-pitch>
 
-      <v-btn
-        v-else-if="lastMatchOfSeason"
-        color="green-accent-3"
-        @click="finishSeason"
-      >
-        &lt; FINISH SEASON &gt;
-      </v-btn>
-    </v-app-bar>
+          <div v-if="!resultsReady" class="mz-pitch-overlay">Simulating...</div>
+        </div>
+      </main>
 
-    <v-container fluid class="pa-0">
-      <v-row no-gutters>
-        <v-col cols="9" class="px-1">
-          <v-card tile height="100%">
-            <v-toolbar color="green-accent-3" density="compact" flat tile>
-              Field
-              <v-spacer></v-spacer>
-              <v-switch v-model="simulateRest" label="Simulate Rest"></v-switch>
-            </v-toolbar>
+      <aside class="mz-sidebar">
+        <div class="mz-teams-card">
+          <club-widget
+            :winner="winner"
+            :clubName="fixture.HomeTeam.Name"
+            :clubCode="fixture.Home"
+            :isHome="true"
+            :rating="fixture.HomeTeam.Rating"
+            :clubStandings="homeStandings"
+          ></club-widget>
 
-            <v-row no-gutters>
-              <v-col cols="8">
-                <v-card
-                  flat
-                  tile
-                  color="secondary-darken-4"
-                  class="py-2"
-                  width="100%"
-                >
-                  <div
-                    class="d-flex justify-center align-center flex-column text-caption"
-                  >
-                    <span class="text-body-2 text-cyan text-accent-3">
-                      90:00
-                    </span>
-                    <span class="text-grey">{{ fixture.LeagueCode }}</span>
-                  </div>
+          <div class="mz-score">
+            <div class="mz-score-row">
+              <span>{{ displayHomeScore }}</span>
+              <span class="mz-score-sep">:</span>
+              <span>{{ displayAwayScore }}</span>
+            </div>
 
-                  <!-- Match stuff -->
-                  <v-row>
-                    <v-col cols="5" class="text-center">
-                      <!-- Home team -->
-                      <template v-if="fixture.HomeTeam">
-                        <club-widget
-                          :winner="winner"
-                          :clubName="fixture.HomeTeam.Name"
-                          :clubCode="fixture.Home"
-                          :isHome="true"
-                          :rating="fixture.HomeTeam.Rating"
-                          :clubStandings="homeStandings"
-                        ></club-widget>
-                      </template>
-                    </v-col>
+            <button
+              v-if="!allReady"
+              class="mz-start-btn"
+              @click="openLobby = true"
+            >
+              START
+            </button>
+          </div>
 
-                    <!-- Scores and stats -->
-                    <v-col
-                      cols="2"
-                      class="align-center d-flex flex-column justify-center text-center py-4 px-0"
-                    >
-                      <div style="width: 100%">
-                        <div class="text-h2 ma-0 d-flex justify-space-around">
-                          <div>
-                            <span>{{ HomeTeamScore || '0' }}</span>
-                            <v-divider
-                              style="
-                                border-width: 2px !important;
-                                border-radius: 2px !important;
-                              "
-                              class="deep-purple-darken-3"
-                            ></v-divider>
-                          </div>
-                          <span
-                            class="text-muted text-secondary text-lighten-1"
-                          >
-                            :
-                          </span>
-                          <div>
-                            <span>{{ AwayTeamScore || '0' }}</span>
-                            <v-divider
-                              style="
-                                border-width: 2px !important;
-                                border-radius: 2px !important;
-                              "
-                              class="pink-accent-3"
-                            ></v-divider>
-                          </div>
-                        </div>
+          <club-widget
+            :winner="winner"
+            :clubName="fixture.AwayTeam.Name"
+            :clubCode="fixture.Away"
+            :isHome="false"
+            :rating="fixture.AwayTeam.Rating"
+            :clubStandings="awayStandings"
+          ></club-widget>
+        </div>
 
-                        <div>
-                          <v-btn
-                            v-if="!allReady"
-                            class="mt-2"
-                            color="green-accent-3"
-                            @click="openLobby = true"
-                          >
-                            START
-                          </v-btn>
-                        </div>
-                      </div>
-                    </v-col>
+        <div class="mz-fixture-meta">
+          {{ fixture.SeasonCode }} - {{ fixture.Title }}
+          <span v-if="fixture.Stadium"> - {{ fixture.Stadium }}</span>
+        </div>
 
-                    <v-col cols="5" class="text-center">
-                      <!-- Away team -->
-                      <template v-if="fixture.AwayTeam">
-                        <club-widget
-                          :won="winner"
-                          :clubName="fixture.AwayTeam.Name"
-                          :clubCode="fixture.Away"
-                          :isHome="false"
-                          :rating="fixture.AwayTeam.Rating"
-                          :clubStandings="awayStandings"
-                        ></club-widget>
-                      </template>
-                    </v-col>
-                  </v-row>
+        <div class="mz-dugout">
+          <dugout
+            :home="fixture.HomeTeam"
+            :away="fixture.AwayTeam"
+            :homeSquad="mappedHomeSquad"
+            :awaySquad="mappedAwaySquad"
+            :match="fixture"
+            :matchFinished="matchFinished"
+            :currentDay="currentDay"
+            :currentFixture="fixture._id"
+            :liveEvents="liveEvents"
+            @match-selected="matchSelected"
+          ></dugout>
+        </div>
+      </aside>
+    </div>
 
-                  <!-- Setup button -->
-                  <v-overlay absolute :model-value="starting && !matchFinished">
-                    <v-progress-circular
-                      color="success"
-                      size="130"
-                      width="15"
-                      indeterminate
-                    ></v-progress-circular>
-                  </v-overlay>
-
-                  <v-row no-gutters class="mt-2">
-                    <v-col
-                      class="align-center text-caption d-flex flex-column justify-center text-center"
-                    >
-                      <div class="text-caption text-grey">
-                        <span>
-                          {{ fixture.SeasonCode }} - {{ fixture.Title }}
-                        </span>
-                        <p class="ma-0">{{ fixture.Stadium }}</p>
-                        <p class="ma-0">{{ fixture.Week }}</p>
-                      </div>
-                    </v-col>
-                  </v-row>
-                </v-card>
-
-                <v-row v-if="liveWatching" no-gutters class="mt-1">
-                  <v-col cols="12">
-                    <v-card flat tile>
-                      <v-toolbar
-                        color="green-accent-3"
-                        density="compact"
-                        flat
-                        tile
-                      >
-                        Live
-                      </v-toolbar>
-                      <v-card-text>
-                        <live-pitch
-                          :frame="liveFrame"
-                          :home="liveHome"
-                          :away="liveAway"
-                        ></live-pitch>
-                      </v-card-text>
-                    </v-card>
-                  </v-col>
-                </v-row>
-
-                <v-row no-gutters>
-                  <v-col cols="8" class="pr-1">
-                    <v-card flat tile min-height="320px">
-                      <v-toolbar
-                        color="green-accent-3"
-                        density="compact"
-                        flat
-                        tile
-                      >
-                        Results
-                      </v-toolbar>
-                      <v-card-text class="d-flex justify-center flex-column">
-                        <template v-if="!matchFinished">
-                          No data yet...
-                        </template>
-                        <results
-                          v-if="matchFinished"
-                          :home="fixture.Home"
-                          :away="fixture.Away"
-                          :matchDetails="{
-                            Home: fixture.HomeSideDetails,
-                            Away: fixture.AwaySideDetails,
-                          }"
-                        ></results>
-                      </v-card-text>
-                    </v-card>
-                  </v-col>
-
-                  <v-col cols="4" class="pl-1">
-                    <v-card flat tile min-height="320px">
-                      <v-toolbar
-                        color="green-accent-3"
-                        density="compact"
-                        flat
-                        tile
-                      >
-                        MOTM
-                      </v-toolbar>
-                      <v-card-text>
-                        <template v-if="!matchFinished">No data</template>
-                        <template v-else>
-                          <motm :motm_id="MOTM"></motm>
-                        </template>
-                      </v-card-text>
-                    </v-card>
-                  </v-col>
-                </v-row>
-              </v-col>
-
-              <!-- Events -->
-              <v-col cols="4">
-                <v-card
-                  flat
-                  tile
-                  height="100%"
-                  max-height="550px"
-                  style="overflow-y: auto"
-                >
-                  <v-card-subtitle class="text-center text-cyan text-accent-3">
-                    Timeline
-                  </v-card-subtitle>
-                  <v-card-text>
-                    <template v-if="!matchFinished">No data yet...</template>
-                    <timeline v-else :Events="fixture.Events"></timeline>
-                  </v-card-text>
-                </v-card>
-              </v-col>
-            </v-row>
-          </v-card>
-        </v-col>
-
-        <!-- Other stuff.. userland -->
-        <v-col cols="3" class="pl-2">
-          <v-card tile height="100%">
-            <v-toolbar color="green-accent-3" density="compact" flat tile>
-              Dugout
-            </v-toolbar>
-            <dugout
-              v-if="fixture.HomeTeam"
-              :home="fixture.HomeTeam"
-              :away="fixture.AwayTeam"
-              :homeSquad="mappedHomeSquad"
-              :awaySquad="mappedAwaySquad"
-              :match="fixture"
-              :matchFinished="matchFinished"
-              :currentDay="currentDay"
-              :currentFixture="fixture._id"
-              @match-selected="matchSelected"
-            ></dugout>
-          </v-card>
-        </v-col>
-      </v-row>
-
-      <game-lobby
-        v-if="fixture.HomeTeam && fixture.AwayTeam"
-        v-model:show="openLobby"
-        @all-ready="ready"
-        :home="{ Name: fixture.HomeTeam.Name, ClubCode: fixture.Home }"
-        :away="{ Name: fixture.AwayTeam.Name, ClubCode: fixture.Away }"
-      ></game-lobby>
-
-      <v-skeleton-loader
-        v-else
-        class="mx-auto"
-        max-width="500"
-        type="card"
-      ></v-skeleton-loader>
-    </v-container>
+    <game-lobby
+      v-if="fixture.HomeTeam && fixture.AwayTeam"
+      v-model:show="openLobby"
+      @all-ready="ready"
+      :home="{ Name: fixture.HomeTeam.Name, ClubCode: fixture.Home }"
+      :away="{ Name: fixture.AwayTeam.Name, ClubCode: fixture.Away }"
+    ></game-lobby>
   </div>
 </template>
 
@@ -337,12 +128,7 @@ import { useRouter, useRoute } from 'vue-router';
 import ClubWidget from '@/components/matchzone/club.vue';
 import GameLobby from '@/components/matchzone/game-lobby.vue';
 import LivePitch from '@/components/matchzone/live-pitch.vue';
-import {
-  Dugout,
-  Results,
-  Timeline,
-  Motm,
-} from '@/components/matchzone/widgets';
+import { Dugout } from '@/components/matchzone/widgets';
 import { $axios } from '@/services/api';
 import { MatchReplaySocket, IMatchFrame } from '@/utils/matchReplaySocket';
 
@@ -367,6 +153,14 @@ const simulateRest = ref(false);
 const replaySocket = new MatchReplaySocket();
 const liveWatching = ref(false);
 const liveFrame = ref<IMatchFrame | null>(null);
+// True once the kickoff-new HTTP call has actually returned a result -
+// gates revealing the (already quietly progressing, in the background)
+// live pitch, so the loading state stays up until results are gotten
+// rather than showing frames the instant they start trickling in.
+const resultsReady = ref(true);
+const liveHomeScore = ref(0);
+const liveAwayScore = ref(0);
+const liveEvents = ref<any[]>([]);
 
 const liveHome = computed(() => ({
   name: fixture.value.HomeTeam?.Name,
@@ -376,6 +170,20 @@ const liveAway = computed(() => ({
   name: fixture.value.AwayTeam?.Name,
   code: fixture.value.Away,
 }));
+
+// id -> squad info, so the live pitch's hover tooltip can show a name/
+// rating without that data needing to travel on every single frame.
+const playersById = computed(() => {
+  const map: Record<string, { FirstName: string; LastName: string; Rating: number }> = {};
+  const allPlayers = [
+    ...(fixture.value.HomeTeam?.Players || []),
+    ...(fixture.value.AwayTeam?.Players || []),
+  ];
+  allPlayers.forEach((p: any) => {
+    map[p._id] = { FirstName: p.FirstName, LastName: p.LastName, Rating: p.Rating };
+  });
+  return map;
+});
 
 const winner = computed(() => {
   if (
@@ -403,10 +211,15 @@ const HomeTeamScore = computed(() => {
   return fixture.value.Details.HomeTeamScore;
 });
 
-const MOTM = computed(() => {
-  if (!fixture.value.Details) return null;
-  return fixture.value.Details.MOTM;
-});
+// Before the match is marked Played, show the score as tallied live from
+// the frame-stream's goal events instead of the final Details score (which
+// only exists once the whole match has finished and been persisted).
+const displayHomeScore = computed(() =>
+  matchFinished.value ? HomeTeamScore.value ?? 0 : liveHomeScore.value
+);
+const displayAwayScore = computed(() =>
+  matchFinished.value ? AwayTeamScore.value ?? 0 : liveAwayScore.value
+);
 
 const matchFinished = computed(() => fixture.value.Played);
 
@@ -514,6 +327,11 @@ async function playGame() {
     params.send_other_results = false;
   }
 
+  resultsReady.value = false;
+  liveHomeScore.value = 0;
+  liveAwayScore.value = 0;
+  liveEvents.value = [];
+
   // Join the fixture's live-replay room before triggering kickoff - there's
   // no catch-up buffer for late joiners, so this must happen first. If the
   // socket can't connect, fall back to today's instant-reveal behavior
@@ -531,6 +349,18 @@ async function playGame() {
     liveWatching.value = true;
     replaySocket.onFrame((frame) => {
       liveFrame.value = frame;
+
+      if (frame.events?.length) {
+        liveEvents.value.push(...frame.events);
+      }
+
+      // Tally the score live from goal events as they stream in, rather
+      // than waiting for the final Details once the match is fully over.
+      frame.events?.forEach((ev) => {
+        if (ev.type !== 'goal') return;
+        if (ev.playerTeamID === fixture.value.Home) liveHomeScore.value++;
+        else if (ev.playerTeamID === fixture.value.Away) liveAwayScore.value++;
+      });
     });
   }
 
@@ -548,6 +378,7 @@ async function playGame() {
     getStandings();
     getFixtureDay();
     liveWatching.value = false;
+    starting.value = false;
   };
 
   try {
@@ -559,17 +390,23 @@ async function playGame() {
       main = response.data.payload.main;
     }
 
+    // Results are in - reveal the pitch (which has been quietly tracking
+    // frames in the background since watchingLive started above).
+    resultsReady.value = true;
+
     if (watchingLive) {
-      // Hold the reveal until the paced replay actually finishes, rather
-      // than spoiling the result the moment this (much faster) HTTP call
-      // resolves.
+      // Hold the full reveal (score/timeline/MOTM) until the paced replay
+      // actually finishes, rather than spoiling it the moment this (much
+      // faster) HTTP call resolves.
       replaySocket.onReplayEnd(() => applyResult(main));
     } else {
       applyResult(main);
     }
   } catch (error) {
     console.error('Error playing match:', error);
+    resultsReady.value = true;
     liveWatching.value = false;
+    starting.value = false;
   }
 }
 
@@ -613,6 +450,10 @@ async function initializeGame() {
   replaySocket.disconnect();
   liveWatching.value = false;
   liveFrame.value = null;
+  resultsReady.value = true;
+  liveHomeScore.value = 0;
+  liveAwayScore.value = 0;
+  liveEvents.value = [];
 
   await getFixture();
   await getFixtureDay();
@@ -631,3 +472,205 @@ watch(fixtureId, () => {
   initializeGame();
 });
 </script>
+
+<style scoped>
+.matchzone {
+  height: 100vh;
+  background: #0c1710;
+  color: #eef3ec;
+  font-family: 'IBM Plex Mono', monospace;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mz-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  background: #12241a;
+  border-bottom: 1px solid #23392c;
+}
+.mz-close {
+  background: transparent;
+  border: 1px solid #23392c;
+  color: #eef3ec;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+}
+.mz-title {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mz-chip {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #23392c;
+}
+.mz-chip-accent {
+  background: #e9b34a;
+  color: #12241a;
+}
+.mz-header-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+.mz-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.75;
+}
+.mz-action-btn {
+  background: transparent;
+  border: 1px solid #e9b34a;
+  color: #eef3ec;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+}
+.mz-action-accent {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: #0c1710;
+}
+
+.mz-loading-screen {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+}
+
+.mz-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+}
+
+.mz-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+}
+
+.mz-pitch-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+}
+.mz-pitch-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(12, 23, 16, 0.55);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.mz-sidebar {
+  width: 340px;
+  flex-shrink: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mz-teams-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #12241a;
+  border: 1px solid #23392c;
+  border-radius: 8px;
+  padding: 12px;
+  flex-shrink: 0;
+}
+.mz-score {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.mz-score-row {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 24px;
+  font-weight: 700;
+}
+.mz-score-sep {
+  opacity: 0.5;
+}
+.mz-start-btn {
+  font-size: 11px;
+  font-weight: 700;
+  background: #22c55e;
+  color: #0c1710;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.mz-fixture-meta {
+  text-align: center;
+  font-size: 10px;
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+
+.mz-dugout {
+  flex: 1;
+  min-height: 0;
+  background: #12241a;
+  border: 1px solid #23392c;
+  border-radius: 8px;
+  padding: 10px 12px;
+  overflow-y: auto;
+}
+
+@media (max-width: 860px) {
+  .mz-body {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .matchzone {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+  .mz-sidebar {
+    width: 100%;
+  }
+}
+</style>

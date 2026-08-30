@@ -508,6 +508,8 @@ export class Match implements IMatch, MatchClass {
       y: p.BlockPosition.y,
       withBall: p.WithBall,
       matchStatus: p.MatchStatus,
+      yellowCards: p.GameStats.YellowCards,
+      redCards: p.GameStats.RedCards,
     };
   }
 
@@ -570,6 +572,8 @@ export interface IMatchFramePlayer {
   y: number;
   withBall: boolean;
   matchStatus: PlayerMatchStatus;
+  yellowCards: number;
+  redCards: number;
 }
 
 export interface IMatchFrame {
