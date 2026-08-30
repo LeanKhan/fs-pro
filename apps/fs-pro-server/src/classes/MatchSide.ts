@@ -48,6 +48,17 @@ export class MatchSide extends Club {
     this.KeepingSide = keepingSide;
   }
 
+  /**
+   * Outfield players currently available for selection - excludes anyone
+   * sent off. StartingSquad itself stays the full original 11 always, so
+   * end-of-match reporting (getPlayerStats) and formation setup keep
+   * working unchanged; gameplay logic (marking, passing targets, restarts,
+   * who's closest to the ball) should query this instead.
+   */
+  public get ActivePlayers(): IFieldPlayer[] {
+    return this.StartingSquad.filter((p) => p.MatchStatus !== 'sent-off');
+  }
+
   public setPlayers() {
     this.MatchSquad = this.Players.map((p: PlayerInterface, i) => {
       return new Player(p);

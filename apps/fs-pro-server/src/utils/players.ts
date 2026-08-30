@@ -19,7 +19,7 @@ import { Role, Roles } from '../controllers/players/player.model';
  * @param team
  */
 function getATTMID(team: MatchSide) {
-  return team.StartingSquad.filter((player) => {
+  return team.ActivePlayers.filter((player) => {
     if (
       (player.Position === 'ATT' && !player.WithBall) ||
       (player.Position === 'MID' && !player.WithBall)
@@ -36,7 +36,7 @@ function getATTMID(team: MatchSide) {
  * @param team
  */
 function getATTMIDNoFilter(team: MatchSide) {
-  return team.StartingSquad.filter((player) => {
+  return team.ActivePlayers.filter((player) => {
     if (player.Position === 'ATT' || player.Position === 'MID') {
       return true;
     } else {

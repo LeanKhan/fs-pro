@@ -224,7 +224,7 @@ export default class Game implements GameClass {
       // the ball
       this.ActivePlayerDS = this.Co.findClosestFieldPlayer(
         this.MatchBall.Position,
-        this.DS.StartingSquad
+        this.DS.ActivePlayers
       );
 
       return {
@@ -252,7 +252,7 @@ export default class Game implements GameClass {
       // the ball
       this.ActivePlayerDS = this.Co.findClosestFieldPlayer(
         this.MatchBall.Position,
-        this.DS.StartingSquad
+        this.DS.ActivePlayers
       );
 
       return {
@@ -271,7 +271,7 @@ export default class Game implements GameClass {
   public moveTowardsBall() {
     this.ActivePlayerAS = this.Co.findClosestFieldPlayer(
       this.MatchBall.Position,
-      this.Match.Home.StartingSquad
+      this.Match.Home.ActivePlayers
     );
 
     if (this.ActivePlayerAS) {
@@ -284,7 +284,7 @@ export default class Game implements GameClass {
 
     this.ActivePlayerDS = this.Co.findClosestFieldPlayer(
       this.MatchBall.Position,
-      this.Match.Away.StartingSquad
+      this.Match.Away.ActivePlayers
     );
 
     if (this.ActivePlayerDS) {

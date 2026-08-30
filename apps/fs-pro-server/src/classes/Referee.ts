@@ -53,57 +53,44 @@ export default class Referee {
    * @param object The Offended (the victim) ?
    */
   public foul(subject: IFieldPlayer, object: IFieldPlayer) {
-    const chance = Math.round(Math.random() * 12);
-    log(`Referees difficulty => ${chance}`);
-    let level = 0;
-    switch (this.Difficulty) {
-      case 'tough':
-        level = 8;
-        break;
+    // Previously: chance (0-12) >= level ? yellow : chance < level ? red :
+    // foul. Since >= and < are complementary and exhaustive over the same
+    // range, the third branch was dead code - every foul resolved to
+    // EITHER a yellow or a red, with roughly a 46% chance of red at the
+    // default difficulty. Real fouls draw a card only a minority of the
+    // time, and red cards are rare even among those. Replaced with a
+    // proper three-way split on a 0-100 roll, most fouls drawing no card.
+    const chance = Math.round(Math.random() * 100);
+    const difficultyMultiplier =
+      this.Difficulty === 'tough' ? 1.5 : this.Difficulty === 'lenient' ? 0.6 : 1;
 
-      case 'lenient':
-        level = 4;
-        break;
-      case 'normal':
-        level = 6;
-        break;
-    }
-    if (chance >= level) {
-      matchEvents.emit(`${this.Match!.id}-game-halt`, {
-        reason: 'yellow card',
-        subject,
-        object,
-        where: subject.BlockPosition,
-        interruption: true,
-      } as IFoul);
-    } else if (chance < level) {
-      matchEvents.emit(`${this.Match!.id}-game-halt`, {
-        reason: 'red card',
-        subject,
-        object,
-        where: subject.BlockPosition,
-        interruption: true,
-      } as IFoul);
-    } else {
-      matchEvents.emit(`${this.Match!.id}-game-halt`, {
-        reason: 'foul',
-        subject,
-        object,
-        where: subject.BlockPosition,
-        interruption: true,
-      } as IFoul);
-    }
+    const redThreshold = 3 * difficultyMultiplier; // ~2-4.5% of fouls
+    const yellowThreshold = 25 * difficultyMultiplier; // next ~15-37% of fouls
+
+    const reason: IFoul['reason'] =
+      chance <= redThreshold ? 'red card' : chance <= yellowThreshold ? 'yellow card' : 'foul';
+
+    log(`Referee ruling: ${reason} (roll ${chance}, difficulty ${this.Difficulty})`);
+
+    matchEvents.emit(`${this.Match!.id}-game-halt`, {
+      reason,
+      subject,
+      object,
+      where: subject.BlockPosition,
+      interruption: true,
+    } as IFoul);
   }
 
   public handleFoul(data: IFoul, matchActions: Actions) {
     switch (data.reason) {
       case 'yellow card':
         log('yellow card! [Y]');
-        // Get freekick taker
+        this.bookPlayer(data.subject, 'yellow');
         this.setUpSetPiece(data, data.where);
         break;
       case 'red card':
         log('red card! [R]');
+        this.bookPlayer(data.subject, 'red');
         this.setUpSetPiece(data, data.where);
         break;
       case 'foul':
@@ -113,6 +100,54 @@ export default class Referee {
       default:
         break;
     }
+  }
+
+  /**
+   * Applies a card's real effect. This is the template for future
+   * match-dynamic incidents (injury, morale-affecting events, etc.):
+   * mutate player state once, emit an event, and let the rest of the
+   * simulation - which already reads MatchStatus/ActivePlayers/Attributes -
+   * react naturally. No special-casing needed anywhere else.
+   */
+  private bookPlayer(player: IFieldPlayer, card: 'yellow' | 'red') {
+    if (card === 'yellow') {
+      player.GameStats.YellowCards++;
+      if (player.GameStats.YellowCards >= 2) {
+        this.sendOff(player, true);
+        return;
+      }
+    } else {
+      this.sendOff(player, false);
+    }
+  }
+
+  /** Removes a player from ActivePlayers for the rest of the match. */
+  private sendOff(player: IFieldPlayer, secondYellow: boolean) {
+    if (player.MatchStatus === 'sent-off') {
+      return; // already off - avoid double-counting a repeat incident
+    }
+
+    player.MatchStatus = 'sent-off';
+    player.GameStats.RedCards++;
+
+    // Fouls are usually committed by the non-possessing side, but if this
+    // player somehow has the ball, hand it to the nearest active teammate
+    // rather than leaving it with someone no longer in the match.
+    if (player.WithBall) {
+      const team = this.Teams!.find((t) => t.ClubCode === player.ClubCode);
+      const replacement = team
+        ? CO.co.findClosestFieldPlayer(player.BlockPosition, team.ActivePlayers, player)
+        : undefined;
+
+      if (replacement) {
+        replacement.changePosition(player.BlockPosition);
+        this.MatchBall.move(
+          CO.co.calculateDifference(replacement.BlockPosition, this.MatchBall.Position)
+        );
+      }
+    }
+
+    matchEvents.emit(`${this.Match!.id}-player-sent-off`, { player, secondYellow } as ISentOff);
   }
 
   public setUpSetPiece(foulData: IFoul, where: IBlock) {
@@ -408,8 +443,8 @@ export default class Referee {
    * about which team actually earned it (kickoff/goal/throw-in possession
    * rules aren't modeled here). */
   private pickRestartTaker(): IFieldPlayer | undefined {
-    const allPlayers = this.Match!.Home.StartingSquad.concat(
-      this.Match!.Away.StartingSquad
+    const allPlayers = this.Match!.Home.ActivePlayers.concat(
+      this.Match!.Away.ActivePlayers
     );
 
     return CO.co.findClosestFieldPlayer(this.Match!.CenterBlock, allPlayers);
@@ -426,11 +461,17 @@ export interface IReferee {
   handleShot(data: IShot, matchActions: Actions): void;
 }
 
+export interface ISentOff {
+  player: IFieldPlayer;
+  /** Whether this dismissal came from a second yellow rather than a straight red. */
+  secondYellow: boolean;
+}
+
 /**
  * Reason this
  */
 export interface IFoul {
-  reason: string;
+  reason: 'foul' | 'yellow card' | 'red card';
   subject: IFieldPlayer;
   object: IFieldPlayer;
   where: IBlock;
