@@ -42,7 +42,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 
 const props = defineProps<{
   isUpdate?: boolean;

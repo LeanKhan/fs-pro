@@ -78,7 +78,7 @@
 import { ref, onMounted } from 'vue';
 import { Club } from '@/interfaces/club';
 import { apiUrl } from '@/store';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 
 const clubs = ref<Club[]>([]);
 const api = ref<string>(apiUrl);

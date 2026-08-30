@@ -34,7 +34,7 @@
       <v-window-item>
         <v-card-text>
           <day-fixtures-list
-            :Matches="currentDay.Matches"
+            :Matches="currentDay?.Matches || []"
             Detail="results"
             :MandatorySelect="false"
             @match-selected="matchSelected"
@@ -46,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import DugoutClub from './dugout-club.vue';
 import DayFixturesList from '@/components/user-dashboard/day-fixtures-list.vue';
 
@@ -61,7 +61,7 @@ interface Props {
   currentFixture: any;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   matchFinished: false,
 });
 
@@ -69,25 +69,11 @@ const emit = defineEmits<{
   'match-selected': [match: any];
 }>();
 
+defineOptions({
+  name: 'DugoutWidget',
+});
+
 const tab = ref<any>(null);
-const showHomeSquad = ref(false);
-const showAwaySquad = ref(false);
-
-const HomeSideDetails = computed(() => {
-  if (props.match) return props.match.HomeSideDetails;
-  else return false;
-});
-
-const AwaySideDetails = computed(() => {
-  if (props.match) return props.match.AwaySideDetails;
-  else return false;
-});
-
-const otherFixtures = computed(() => {
-  if (props.currentDay) {
-    return props.currentDay.Matches.map((f: any) => f.Fixture);
-  }
-});
 
 const matchSelected = (match: any) => {
   console.log('Selected match => ', match);

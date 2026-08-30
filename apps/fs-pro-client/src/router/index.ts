@@ -26,7 +26,7 @@ export function replaceParams(
   replacements: { search: string; replace: string }[]
 ): string {
   replacements.forEach((r) => {
-    path.replace(r.search, r.replace);
+    path = path.replace(r.search, r.replace);
   });
 
   return path;
@@ -175,12 +175,12 @@ const routes: RouteRecordRaw[] = [
 ];
 
 const router = createRouter({
-  history: createWebHistory(process.env.BASE_URL),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes,
 });
 
 router.beforeEach((to, from, next) => {
-  const isAuthenticated = window.localStorage.getItem('fspro-user');
+  const isAuthenticated = Boolean(window.localStorage.getItem('fspro-user'));
 
   if (!RegExp(/\/auth/).test(to.path) && !isAuthenticated) {
     next({ name: 'Auth' });

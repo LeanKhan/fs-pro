@@ -23,7 +23,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import ManagersTable from '@/components/managers/managers-table.vue';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 
 const managers = ref<any[]>([]);
 

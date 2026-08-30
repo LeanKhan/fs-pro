@@ -1,8 +1,8 @@
 <template>
   <div class="home">
-    <v-app-bar dense app color="dark">
+    <v-app-bar density="compact" color="dark">
       <v-avatar tile size="30px">
-        <v-icon style="font-size: 30px; height: 30px" large>
+        <v-icon style="font-size: 30px; height: 30px" size="large">
           custom:{{ fixture.Home }}
         </v-icon>
       </v-avatar>
@@ -11,14 +11,14 @@
 
       <v-badge
         bordered
-        bottom
-        color="green accent-3"
+        location="bottom"
+        color="green-accent-3"
         dot
         offset-x="10"
         offset-y="10"
       >
         <v-avatar tile size="30px">
-          <v-icon style="font-size: 30px; height: 30px" large>
+          <v-icon style="font-size: 30px; height: 30px" size="large">
             custom:{{ fixture.Away }}
           </v-icon>
         </v-avatar>
@@ -71,7 +71,7 @@
       <v-row no-gutters>
         <v-col cols="9" class="px-1">
           <v-card tile height="100%">
-            <v-toolbar color="green accent-3" dense flat tile>
+            <v-toolbar color="green-accent-3" density="compact" flat tile>
               Field
               <v-spacer></v-spacer>
               <v-switch v-model="simulateRest" label="Simulate Rest"></v-switch>
@@ -201,7 +201,12 @@
                 <v-row no-gutters>
                   <v-col cols="8" class="pr-1">
                     <v-card flat tile min-height="320px">
-                      <v-toolbar color="green accent-3" dense flat tile>
+                      <v-toolbar
+                        color="green-accent-3"
+                        density="compact"
+                        flat
+                        tile
+                      >
                         Results
                       </v-toolbar>
                       <v-card-text class="d-flex justify-center flex-column">
@@ -223,7 +228,12 @@
 
                   <v-col cols="4" class="pl-1">
                     <v-card flat tile min-height="320px">
-                      <v-toolbar color="green accent-3" dense flat tile>
+                      <v-toolbar
+                        color="green-accent-3"
+                        density="compact"
+                        flat
+                        tile
+                      >
                         MOTM
                       </v-toolbar>
                       <v-card-text>
@@ -262,7 +272,9 @@
         <!-- Other stuff.. userland -->
         <v-col cols="3" class="pl-2">
           <v-card tile height="100%">
-            <v-toolbar color="green accent-3" dense flat tile>Dugout</v-toolbar>
+            <v-toolbar color="green-accent-3" density="compact" flat tile>
+              Dugout
+            </v-toolbar>
             <dugout
               v-if="fixture.HomeTeam"
               :home="fixture.HomeTeam"
@@ -281,7 +293,7 @@
 
       <game-lobby
         v-if="fixture.HomeTeam && fixture.AwayTeam"
-        :show.sync="openLobby"
+        v-model:show="openLobby"
         @all-ready="ready"
         :home="{ Name: fixture.HomeTeam.Name, ClubCode: fixture.Home }"
         :away="{ Name: fixture.AwayTeam.Name, ClubCode: fixture.Away }"
@@ -298,9 +310,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { useStore } from '@/store';
 import ClubWidget from '@/components/matchzone/club.vue';
 import GameLobby from '@/components/matchzone/game-lobby.vue';
 import {
@@ -309,32 +320,25 @@ import {
   Timeline,
   Motm,
 } from '@/components/matchzone/widgets';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 
 const router = useRouter();
 const route = useRoute();
-const store = useStore();
+
+defineOptions({
+  name: 'MatchZone',
+});
 
 const whistle = ref<HTMLAudioElement>();
 const fixture = ref<any>({});
-const currentMatch = ref<any>({});
 const currentDay = ref<any>({});
 const allReady = ref(false);
 const openLobby = ref(false);
 const kickoffTimer = ref(0);
 const starting = ref(false);
 const lastMatchOfSeason = ref(false);
-const showPlayOverlay = ref(true);
-const imSetup = ref(false);
-const matchDetails = ref<any>({});
-const matchEvents = ref<any>({});
-const homeSquad = ref<any>({});
-const awaySquad = ref<any>({});
-const otherResults = ref<any[]>([]);
 const standings = ref<any>(null);
 const simulateRest = ref(false);
-
-const user = computed(() => store.user);
 
 const winner = computed(() => {
   if (
@@ -368,8 +372,6 @@ const MOTM = computed(() => {
 });
 
 const matchFinished = computed(() => fixture.value.Played);
-
-const isPlayed = computed(() => fixture.value.Played);
 
 const mappedHomeSquad = computed(() => {
   if (matchFinished.value && fixture.value.HomeSideDetails.PlayerStats) {
@@ -525,21 +527,23 @@ async function getStandings() {
   }
 }
 
-function matchSelected(match: any) {
+async function matchSelected(match: any) {
   if (fixture.value.Played) {
-    router.push({ params: { fixture: match.Fixture._id } });
-    initializeGame();
+    await router.push({ params: { fixture: match.Fixture._id } });
   }
 }
 
-function initializeGame() {
-  getFixture();
-  getFixtureDay();
+async function initializeGame() {
+  await getFixture();
+  await getFixtureDay();
 }
 
 onMounted(() => {
   whistle.value = new Audio('../../assets/sounds/whistle1.mp3');
   initializeGame();
 });
+
+watch(fixtureId, () => {
+  initializeGame();
+});
 </script>
-```

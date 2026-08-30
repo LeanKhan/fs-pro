@@ -8,14 +8,14 @@
     <v-badge
       v-if="winner == side"
       bordered
-      top
+      location="top"
       color="gold"
       dot
       offset-x="10"
       offset-y="10"
     >
       <v-avatar tile size="30px">
-        <v-icon color="gold" style="font-size: 30px; height: 30px" large>
+        <v-icon color="gold" style="font-size: 30px; height: 30px" size="large">
           mdi-trophy
         </v-icon>
       </v-avatar>
@@ -30,21 +30,20 @@
 
     <div>
       <v-rating
-        :value="clubRating"
+        :model-value="clubRating"
         :half-increments="true"
         :readonly="true"
         size="14px"
-        :color="isHome ? 'deep-purple darken-3' : 'pink accent-3'"
-        background-color="secondary lighten-1"
+        :color="isHome ? 'deep-purple-darken-3' : 'pink-accent-3'"
       ></v-rating>
-      <span class="caption text-muted ml-1">
-        {{ $filters.roundTo(clubRating, 1) }}
+      <span class="text-caption text-muted ml-1">
+        {{ roundTo(clubRating, 1) }}
       </span>
     </div>
 
-    <div class="caption" v-if="clubStandings.standing">
+    <div class="text-caption" v-if="clubStandings.standing">
       <span class="ma-0 pr-2">
-        {{ $filters.ordinal(clubStandings.position) }}
+        {{ ordinal(clubStandings.position) }}
       </span>
       -
       <span class="ma-0 pl-2">{{ clubStandings.standing.Points }} Pts</span>
@@ -53,8 +52,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, getCurrentInstance } from 'vue';
+import { ref, computed } from 'vue';
 import { apiUrl } from '@/store';
+import { ordinal, roundTo } from '@/helpers/misc';
 
 interface Props {
   clubName: any;
@@ -67,8 +67,9 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const instance = getCurrentInstance();
-const $filters = instance?.appContext.config.globalProperties.$filters;
+defineOptions({
+  name: 'MatchClub',
+});
 
 const api = ref(apiUrl);
 

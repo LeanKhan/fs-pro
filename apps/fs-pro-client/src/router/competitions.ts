@@ -1,4 +1,4 @@
-import { RouteConfig, Route } from 'vue-router';
+import type { RouteLocationNormalizedLoaded, RouteRecordRaw } from 'vue-router';
 import CompetitionsHome from '@/views/admin/competitions/dashboard.vue';
 import CompetitionSeasonsHome from '@/views/admin/seasons/dashboard.vue';
 import ViewCompetition from '@/views/admin/competitions/view-competition.vue';
@@ -8,7 +8,9 @@ import SeasonForm from '@/views/admin/seasons/season-form.vue';
 import SeasonHome from '@/views/admin/seasons/view-season.vue';
 import { replaceParams } from './index';
 
-const routes: RouteConfig = {
+type Route = RouteLocationNormalizedLoaded;
+
+const routes = {
   path: 'competitions',
   component: () =>
     import(
@@ -35,8 +37,8 @@ const routes: RouteConfig = {
             title: route.params.code.toUpperCase(),
             to: () => {
               return replaceParams(route.path, [
-                { search: ':id', replace: route.params.id },
-                { search: ':code', replace: route.params.code },
+                { search: ':id', replace: String(route.params.id) },
+                { search: ':code', replace: String(route.params.code) },
               ]);
             },
           }),
@@ -49,8 +51,8 @@ const routes: RouteConfig = {
             title: 'Update',
             to: () => {
               return replaceParams(route.path, [
-                { search: ':id', replace: route.params.id },
-                { search: ':code', replace: route.params.code },
+                { search: ':id', replace: String(route.params.id) },
+                { search: ':code', replace: String(route.params.code) },
               ]);
             },
           }),
@@ -81,8 +83,8 @@ const routes: RouteConfig = {
                 title: 'New Season',
                 to: () => {
                   return replaceParams(route.path, [
-                    { search: ':id', replace: route.params.id },
-                    { search: ':code', replace: route.params.code },
+                    { search: ':id', replace: String(route.params.id) },
+                    { search: ':code', replace: String(route.params.code) },
                   ]);
                 },
               }),
@@ -95,8 +97,8 @@ const routes: RouteConfig = {
         title: route.params.code.toUpperCase(),
         to: () => {
           return replaceParams(route.path, [
-            { search: ':id', replace: route.params.id },
-            { search: ':code', replace: route.params.code },
+            { search: ':id', replace: String(route.params.id) },
+            { search: ':code', replace: String(route.params.code) },
           ]);
         },
       }),
@@ -112,5 +114,5 @@ const routes: RouteConfig = {
   meta: () => ({
     title: 'Competitions Home',
   }),
-};
+} as RouteRecordRaw;
 export default routes;

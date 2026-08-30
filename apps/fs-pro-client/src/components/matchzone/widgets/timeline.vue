@@ -3,7 +3,7 @@
     <v-timeline-item
       v-for="(event, i) in usefulEvents"
       :key="i"
-      :color="eventColor(event.type)"
+      :dot-color="eventColor(event.type)"
       :icon="eventIcon(event.type)"
     >
       <template v-slot:opposite>
@@ -22,6 +22,10 @@ interface Props {
 
 const props = defineProps<Props>();
 
+defineOptions({
+  name: 'TimelineWidget',
+});
+
 const usefulEvents = computed(() => {
   return props.Events.filter(
     (ev: any) => !['dribble', 'tackle'].includes(ev.type)
@@ -38,6 +42,8 @@ const eventColor = (type: string) => {
       return 'red';
     case 'goal':
       return 'green-accent-3';
+    default:
+      return 'grey';
   }
 };
 
@@ -51,6 +57,8 @@ const eventIcon = (type: string) => {
       return 'mdi-close-thick';
     case 'goal':
       return 'mdi-soccer';
+    default:
+      return 'mdi-circle';
   }
 };
 </script>

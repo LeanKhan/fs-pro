@@ -190,7 +190,7 @@ import { ClubZone, SquadZone, TransferZone } from './zones';
 import DayScroll from '@/components/calendar/day-scroll.vue';
 import StandingsScroller from '@/components/seasons/standings-scroller.vue';
 import { ICalendar, IDay } from '@/interfaces/calendar';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 
 const route = useRoute();
 const router = useRouter();

@@ -187,7 +187,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useStore } from '@/store';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 import PlayerAvatar from '@/components/players/player-avatar.vue';
 import { calculatePlayerRating } from '@/helpers/players';
 

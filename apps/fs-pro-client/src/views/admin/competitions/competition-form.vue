@@ -153,7 +153,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useStore } from '@/store';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 import ClubList from '@/components/clubs/club-list.vue';
 import ClubsTable from '@/components/clubs/clubs-table.vue';
 import type { Competition } from '@/interfaces/competition';

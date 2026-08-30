@@ -107,7 +107,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, getCurrentInstance } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { $axios } from '@/services/api';
 
 interface Props {
   show: any;
@@ -119,9 +120,6 @@ const emit = defineEmits<{
   'update:show': [value: boolean];
   'update-available': [];
 }>();
-
-const instance = getCurrentInstance();
-const $axios = instance?.appContext.config.globalProperties.$axios;
 
 const managerModel = ref(0);
 const managers = ref<any[]>([]);

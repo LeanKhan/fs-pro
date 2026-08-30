@@ -9,7 +9,7 @@
       Load
     </v-btn>
 
-    <template v-else-if="loadMOTM && Player">
+    <template v-else-if="loadMOTM && player">
       <v-list density="compact">
         <!-- <v-list-item class="text-center center-text justify-center">
           <v-avatar color="yellow">
@@ -27,8 +27,8 @@
           </template>
 
           <v-list-item-title>
-            {{ Player.FirstName }}
-            {{ Player.LastName }}
+            {{ player.FirstName }}
+            {{ player.LastName }}
           </v-list-item-title>
         </v-list-item>
       </v-list>
@@ -38,9 +38,9 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref, getCurrentInstance } from 'vue';
-import { Player } from '@/interfaces/player';
-import { $axios } from '@/main';
+import { ref } from 'vue';
+import type { Player } from '@/interfaces/player';
+import { $axios } from '@/services/api';
 
 interface Props {
   motm_id: string;
@@ -48,12 +48,13 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const instance = getCurrentInstance();
-// const $axios = instance?.appContext.config.globalProperties.$axios;
+defineOptions({
+  name: 'MotmWidget',
+});
 
 const loading = ref(false);
 const loadMOTM = ref(false);
-const Player = ref<any | Player>({});
+const player = ref<Player | null>(null);
 
 const getMOTM = () => {
   if (props.motm_id) {
@@ -61,7 +62,7 @@ const getMOTM = () => {
     $axios
       .get(`/players/${props.motm_id}/`)
       .then((response: any) => {
-        Player.value = response.data.payload;
+        player.value = response.data.payload;
         loadMOTM.value = true;
       })
       .catch((response: any) => {
