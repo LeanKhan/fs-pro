@@ -4,7 +4,7 @@
       <v-toolbar>
         <!-- Current day -->
         <v-toolbar-title>
-          <template v-if="club && season">
+          <template v-if="club && season && club.League">
             <v-icon size="x-large">custom:{{ club.ClubCode }}</v-icon>
             <v-chip
               size="small"

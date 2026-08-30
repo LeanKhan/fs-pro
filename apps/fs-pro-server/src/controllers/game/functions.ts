@@ -31,7 +31,8 @@ export async function updateFixture(
   events: IMatchEvent[],
   home: Team,
   away: Team,
-  fixture_id: string
+  fixture_id: string,
+  saveStats = true
 ) {
   const matchDetails = {
     ...MatchDetails,
@@ -62,16 +63,24 @@ export async function updateFixture(
   //  Find that particular fixture that has not been played of course...
 
   const savePlayerAndClubStats = async (club: IMatchSideDetails) => {
-    club.PlayerStats = club.PlayerStats.map((p: any) => ({
-      ...p,
-      Fixture: fixture_id,
-    }));
+    if (saveStats) {
+      club.PlayerStats = club.PlayerStats.map((p: any) => ({
+        ...p,
+        Fixture: fixture_id,
+      }));
 
-    const res = await insertManyPlayerMatchStats(
-      club.PlayerStats as PlayerMatchDetailsInterface[]
-    );
-    // res is the ids...
-    club.PlayerStats = res.map((r: any) => r._id) as string[];
+      const res = await insertManyPlayerMatchStats(
+        club.PlayerStats as PlayerMatchDetailsInterface[]
+      );
+      // res is the ids...
+      club.PlayerStats = res.map((r: any) => r._id) as string[];
+    } else {
+      // Not counting this match toward permanent player stats history -
+      // skip the PlayerMatch inserts entirely. The club's box score (goals,
+      // shots, etc.) is still saved below via ClubMatchDetails so the match
+      // can be viewed, just without per-player career-stat rows.
+      club.PlayerStats = [];
+    }
 
     // then we save this one too lol and
 

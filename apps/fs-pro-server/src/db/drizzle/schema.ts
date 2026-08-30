@@ -274,6 +274,12 @@ export const fixtures = pgTable('Fixtures', {
   AwaySideDetails: text('AwaySideDetails'),
   HomeManager: text('HomeManager'),
   AwayManager: text('AwayManager'),
+    HomeTactic: text('HomeTactic'),
+    AwayTactic: text('AwayTactic'),
+    /** Whether this match's result should count toward permanent player/club
+     * stats history. Only meaningful for friendlies - real fixtures are
+     * always persisted in full regardless of this field. */
+    SaveStats: boolean('SaveStats'),
   isFinalMatch: boolean('isFinalMatch').notNull().default(false),
   ...timestamps,
 });

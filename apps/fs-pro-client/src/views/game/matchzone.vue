@@ -198,6 +198,28 @@
                   </v-row>
                 </v-card>
 
+                <v-row v-if="liveWatching" no-gutters class="mt-1">
+                  <v-col cols="12">
+                    <v-card flat tile>
+                      <v-toolbar
+                        color="green-accent-3"
+                        density="compact"
+                        flat
+                        tile
+                      >
+                        Live
+                      </v-toolbar>
+                      <v-card-text>
+                        <live-pitch
+                          :frame="liveFrame"
+                          :home="liveHome"
+                          :away="liveAway"
+                        ></live-pitch>
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+                </v-row>
+
                 <v-row no-gutters>
                   <v-col cols="8" class="pr-1">
                     <v-card flat tile min-height="320px">
@@ -310,10 +332,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import ClubWidget from '@/components/matchzone/club.vue';
 import GameLobby from '@/components/matchzone/game-lobby.vue';
+import LivePitch from '@/components/matchzone/live-pitch.vue';
 import {
   Dugout,
   Results,
@@ -321,6 +344,7 @@ import {
   Motm,
 } from '@/components/matchzone/widgets';
 import { $axios } from '@/services/api';
+import { MatchReplaySocket, IMatchFrame } from '@/utils/matchReplaySocket';
 
 const router = useRouter();
 const route = useRoute();
@@ -339,6 +363,19 @@ const starting = ref(false);
 const lastMatchOfSeason = ref(false);
 const standings = ref<any>(null);
 const simulateRest = ref(false);
+
+const replaySocket = new MatchReplaySocket();
+const liveWatching = ref(false);
+const liveFrame = ref<IMatchFrame | null>(null);
+
+const liveHome = computed(() => ({
+  name: fixture.value.HomeTeam?.Name,
+  code: fixture.value.Home,
+}));
+const liveAway = computed(() => ({
+  name: fixture.value.AwayTeam?.Name,
+  code: fixture.value.Away,
+}));
 
 const winner = computed(() => {
   if (
@@ -477,15 +514,27 @@ async function playGame() {
     params.send_other_results = false;
   }
 
+  // Join the fixture's live-replay room before triggering kickoff - there's
+  // no catch-up buffer for late joiners, so this must happen first. If the
+  // socket can't connect, fall back to today's instant-reveal behavior
+  // rather than waiting on a replay that will never arrive.
+  let watchingLive = true;
   try {
-    const response = await $axios.get(`/game/kickoff-new/${fixtureId.value}`, {
-      params,
-    });
-    let main = response.data.payload;
-    if (response.data.payload.main) {
-      main = response.data.payload.main;
-    }
+    await replaySocket.watch(String(fixtureId.value));
+  } catch (error) {
+    console.error('Error connecting to live match replay, falling back:', error);
+    watchingLive = false;
+  }
 
+  if (watchingLive) {
+    liveFrame.value = null;
+    liveWatching.value = true;
+    replaySocket.onFrame((frame) => {
+      liveFrame.value = frame;
+    });
+  }
+
+  const applyResult = (main: any) => {
     const { match, HomeSideDetails, AwaySideDetails } = main;
     fixture.value = {
       ...fixture.value,
@@ -498,12 +547,37 @@ async function playGame() {
     lastMatchOfSeason.value = main.lastMatchOfSeason;
     getStandings();
     getFixtureDay();
+    liveWatching.value = false;
+  };
+
+  try {
+    const response = await $axios.get(`/game/kickoff-new/${fixtureId.value}`, {
+      params,
+    });
+    let main = response.data.payload;
+    if (response.data.payload.main) {
+      main = response.data.payload.main;
+    }
+
+    if (watchingLive) {
+      // Hold the reveal until the paced replay actually finishes, rather
+      // than spoiling the result the moment this (much faster) HTTP call
+      // resolves.
+      replaySocket.onReplayEnd(() => applyResult(main));
+    } else {
+      applyResult(main);
+    }
   } catch (error) {
     console.error('Error playing match:', error);
+    liveWatching.value = false;
   }
 }
 
 async function getFixtureDay() {
+  // Friendlies are season-less Fixtures - there's no Calendar Day entry to
+  // look up for them.
+  if (fixture.value.Type === 'friendly') return;
+
   try {
     const response = await $axios.get(
       `/calendar/day-of-fixture/${fixtureId.value}`
@@ -534,6 +608,12 @@ async function matchSelected(match: any) {
 }
 
 async function initializeGame() {
+  // Reset any live-watch state from a previously watched fixture before
+  // loading a new one (e.g. jumping between fixtures via the Dugout).
+  replaySocket.disconnect();
+  liveWatching.value = false;
+  liveFrame.value = null;
+
   await getFixture();
   await getFixtureDay();
 }
@@ -541,6 +621,10 @@ async function initializeGame() {
 onMounted(() => {
   whistle.value = new Audio('../../assets/sounds/whistle1.mp3');
   initializeGame();
+});
+
+onUnmounted(() => {
+  replaySocket.disconnect();
 });
 
 watch(fixtureId, () => {

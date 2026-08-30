@@ -118,6 +118,14 @@ const routes: RouteRecordRaw[] = [
             name: 'All Fixtures',
           },
           {
+            path: 'friendly',
+            component: () =>
+              import(
+                /* webpackChunkName: "friendly_setup" */ '../views/game/friendly-setup.vue'
+              ),
+            name: 'Friendly Setup',
+          },
+          {
             path: 'stats/:type/:season_id',
             component: () =>
               import(
