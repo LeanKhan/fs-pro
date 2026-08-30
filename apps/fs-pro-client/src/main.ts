@@ -3,8 +3,6 @@ import { createPinia } from 'pinia';
 import App from './App.vue';
 import router from './router';
 import { createVuetify } from 'vuetify';
-import * as components from 'vuetify/components';
-import * as directives from 'vuetify/directives';
 import { Manager } from 'socket.io-client';
 import axios from 'axios';
 import { apiUrl } from '@/store';
@@ -15,15 +13,13 @@ import { customIcons } from './plugins/customIcons';
 
 const manager = new Manager(apiUrl, { autoConnect: false });
 
-const socket = manager.socket('/');
+manager.socket('/');
 
 export const $axios = axios.create({
   baseURL: `${apiUrl}/api`,
 });
 
 const vuetify = createVuetify({
-  components,
-  directives,
   theme: {
     defaultTheme: 'dark',
     themes: {
