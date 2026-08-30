@@ -1,5 +1,6 @@
 import DB from '../../db';
 import { ManagerInterface } from './manager.model';
+import { ITactic, tacticFromManager } from '../../state/PersistentState/Formations';
 
 /**
  * fetchAllPlayers
@@ -34,6 +35,28 @@ export function fetchOneById(
     return DB.Models.Manager.findById(id).populate('Club').lean().exec();
   }
   return DB.Models.Manager.findById(id).lean().exec();
+}
+
+/**
+ * A club's manager's preferred tactic, falling back to the default tactic
+ * if there's no manager, none is set, or the lookup fails. Shared by
+ * App.setupGame (synchronous path) and jobs/matchQueue.ts (queued-worker
+ * path) so both fall back the same way - only ever call this from the main
+ * thread (needs a live DB connection); a worker_thread must be handed the
+ * already-resolved tactic instead.
+ */
+export async function resolveManagerTactic(managerId: unknown): Promise<ITactic> {
+  if (!managerId) {
+    return tacticFromManager(null);
+  }
+
+  try {
+    const manager = await fetchOneById(managerId as string);
+    return tacticFromManager(manager);
+  } catch (err) {
+    console.error('Error resolving manager tactic, falling back to default =>', err);
+    return tacticFromManager(null);
+  }
 }
 
 /**

@@ -12,6 +12,7 @@ import { matchEvents, createMatchEvent } from '../utils/events';
 import { ClubInterface as IClub } from './clubs/club.model';
 import CO, { default as Coordinates } from '../utils/coordinates';
 import log from '../helpers/logger';
+import { ITactic } from '../state/PersistentState/Formations';
 
 // import log from ''
 
@@ -115,41 +116,42 @@ export default class Game implements GameClass {
   }
 
   /**
-   * Initial Club Formations
+   * Initial Club Tactics (formation + playing style)
    *
-   * @param homeFormation shape name, e.g. '433' (not tied to a side -
-   * attacking direction is derived from each MatchSide's ScoringSide)
-   * @param awayFormation shape name, e.g. '433'
+   * @param homeTactic e.g. { formationName: '433', styleName: 'Balanced' }
+   * (not tied to a side - attacking direction is derived from each
+   * MatchSide's ScoringSide)
+   * @param awayTactic
    */
-  public setClubFormations(homeFormation: string, awayFormation: string) {
+  public setClubFormations(homeTactic: ITactic, awayTactic: ITactic) {
 
-    this.MatchSettings.homeFormation = homeFormation;
-    this.MatchSettings.awayFormation = awayFormation;
+    this.MatchSettings.homeTactic = homeTactic;
+    this.MatchSettings.awayTactic = awayTactic;
 
     this.Match.Home.setFormation(
-      this.MatchSettings.homeFormation,
+      this.MatchSettings.homeTactic,
       this.MatchBall,
       this.Field
     );
 
     this.Match.Away.setFormation(
-      this.MatchSettings.awayFormation,
+      this.MatchSettings.awayTactic,
       this.MatchBall,
       this.Field
     );
   }
 
-  /** Swap Club Formations at half time... */
+  /** Swap ends at half time, keeping each side's tactic as-is. */
   public swapClubFormations() {
     // copy value
-    let awayF = this.MatchSettings.awayFormation;
-    let homeF = this.MatchSettings.homeFormation;
+    let awayTactic = this.MatchSettings.awayTactic;
+    let homeTactic = this.MatchSettings.homeTactic;
 
-    this.MatchSettings.homeFormation = awayF;
-    this.MatchSettings.awayFormation = homeF;
+    this.MatchSettings.homeTactic = awayTactic;
+    this.MatchSettings.awayTactic = homeTactic;
 
-    this.Match.Home.changeFormation(
-      this.MatchSettings.homeFormation,
+    this.Match.Home.changeTactic(
+      this.MatchSettings.homeTactic,
       this.Field,
       // new scoring side
       this.homePost,
@@ -157,14 +159,45 @@ export default class Game implements GameClass {
       this.awayPost
     );
 
-    this.Match.Away.changeFormation(
-      this.MatchSettings.awayFormation,
+    this.Match.Away.changeTactic(
+      this.MatchSettings.awayTactic,
       this.Field,
       // new scoring side
       this.awayPost,
       // new keeping side
       this.homePost
     );
+  }
+
+  /**
+   * Change a side's tactic at any point in the match, not just half-time.
+   * Emits a matchEvents event so the change lands in Match.Events/Frames
+   * automatically, same as every other in-match action - no replay-system
+   * changes needed for this to show up in a live watch.
+   */
+  public changeTactic(side: 'home' | 'away', tactic: ITactic) {
+    const matchSide = side === 'home' ? this.Match.Home : this.Match.Away;
+
+    matchSide.changeTactic(
+      tactic,
+      this.Field,
+      matchSide.ScoringSide,
+      matchSide.KeepingSide
+    );
+
+    if (side === 'home') {
+      this.MatchSettings.homeTactic = tactic;
+    } else {
+      this.MatchSettings.awayTactic = tactic;
+    }
+
+    createMatchEvent(
+      this.Match.id,
+      `${matchSide.Name} [${matchSide.ClubCode}] changed tactics to ${tactic.formationName} (${tactic.styleName})`,
+      'match'
+    );
+
+    matchEvents.emit(`${this.Match.id}-tactic-changed`, { side, tactic });
   }
 
   public getMatch() {

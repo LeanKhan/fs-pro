@@ -4,6 +4,8 @@ import { matchEvents } from '../../utils/events';
 import { fetchClubs } from '../clubs/club.service';
 import { IClub } from '../../interfaces/Club';
 import Game from '../Game';
+import { resolveManagerTactic } from '../managers/manager.service';
+import { ITactic } from '../../state/PersistentState/Formations';
 
 export default class App {
   public static instance: App;
@@ -32,11 +34,15 @@ export default class App {
   /**
    * @param prefetchedClubs when provided (e.g. from a worker_thread that
    * can't touch the DB itself), used instead of fetching clubs here.
+   * @param prefetchedTactics same idea, for each side's starting tactic -
+   * when provided, skips the manager lookup entirely (a worker_thread has
+   * no DB connection to do that lookup with).
    */
   public async setupGame(
     clubs: string[],
     sides: { home: string; away: string },
-    prefetchedClubs?: IClub[]
+    prefetchedClubs?: IClub[],
+    prefetchedTactics?: { home: ITactic; away: ITactic }
   ) {
     try {
       this.Coordinates = new Coordinates();
@@ -64,7 +70,16 @@ export default class App {
 
       // Formation shapes are no longer HOME/AWAY-specific - each side's
       // attacking direction is derived from its ScoringSide/KeepingSide.
-      this.Game.setClubFormations('433', '433');
+      const homeClub = teams.find((c) => c._id?.toString() === sides.home);
+      const awayClub = teams.find((c) => c._id?.toString() === sides.away);
+
+      const tactics =
+        prefetchedTactics ?? {
+          home: await resolveManagerTactic(homeClub?.Manager),
+          away: await resolveManagerTactic(awayClub?.Manager),
+        };
+
+      this.Game.setClubFormations(tactics.home, tactics.away);
 
       this.listenForGameEvents();
 

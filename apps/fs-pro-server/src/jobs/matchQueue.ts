@@ -2,7 +2,9 @@ import path from 'path';
 import { Worker } from 'worker_threads';
 import { fetchOneById } from '../controllers/fixtures/fixture.service';
 import { fetchClubs } from '../controllers/clubs/club.service';
+import { resolveManagerTactic } from '../controllers/managers/manager.service';
 import { startMatchReplay, IReplayableMatch } from '../realtime/matchBroadcaster';
+import { ITactic } from '../state/PersistentState/Formations';
 
 /**
  * Deliberately conservative: this path is new and unaudited, and doesn't
@@ -68,12 +70,26 @@ async function runMatchJob(fixtureId: string): Promise<void> {
   const away = fixture.AwayTeam.toString();
 
   const clubs = await fetchClubs({ _id: { $in: [home, away] } });
+  const homeClub = clubs.find((c: any) => c._id?.toString() === home);
+  const awayClub = clubs.find((c: any) => c._id?.toString() === away);
+
+  // Resolved here, not inside the worker - a worker_thread has no DB
+  // connection to look managers up with (same reason clubs are prefetched).
+  const tactics: { home: ITactic; away: ITactic } = {
+    home: await resolveManagerTactic(homeClub?.Manager),
+    away: await resolveManagerTactic(awayClub?.Manager),
+  };
+
   // Strip Mongoose/BSON ObjectId instances etc. down to plain data before
   // it crosses the worker_thread boundary (workerData is structured-clone,
   // not every Mongoose-lean() field survives that cleanly).
   const plainClubs = JSON.parse(JSON.stringify(clubs));
 
-  const result = await runInWorker(fixtureId, { clubs: plainClubs, sides: { home, away } });
+  const result = await runInWorker(fixtureId, {
+    clubs: plainClubs,
+    sides: { home, away },
+    tactics,
+  });
 
   console.log(`[queue] ${fixtureId} simulated: ${result.Frames.length} frames`);
 
@@ -101,7 +117,14 @@ function workerFailure(fixtureId: string, msg: IWorkerMessage | undefined, fallb
   return error;
 }
 
-function runInWorker(fixtureId: string, workerData: { clubs: unknown[]; sides: { home: string; away: string } }): Promise<IReplayableMatch> {
+function runInWorker(
+  fixtureId: string,
+  workerData: {
+    clubs: unknown[];
+    sides: { home: string; away: string };
+    tactics: { home: ITactic; away: ITactic };
+  }
+): Promise<IReplayableMatch> {
   return new Promise((resolve, reject) => {
     const isTs = __filename.endsWith('.ts');
     const workerPath = path.join(__dirname, `matchSimWorker.${isTs ? 'ts' : 'js'}`);

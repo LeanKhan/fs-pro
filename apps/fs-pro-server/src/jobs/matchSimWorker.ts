@@ -16,19 +16,24 @@
 import { parentPort, workerData } from 'worker_threads';
 import App from '../controllers/app/App';
 import { IClub } from '../interfaces/Club';
+import { ITactic } from '../state/PersistentState/Formations';
 
 interface IMatchSimWorkerData {
   clubs: IClub[];
   sides: { home: string; away: string };
+  tactics: { home: ITactic; away: ITactic };
 }
 
 async function main() {
-  const { clubs, sides } = workerData as IMatchSimWorkerData;
+  const { clubs, sides, tactics } = workerData as IMatchSimWorkerData;
 
-  console.log(`[worker] simulating ${sides.home} vs ${sides.away}`);
+  console.log(
+    `[worker] simulating ${sides.home} (${tactics.home.formationName}/${tactics.home.styleName}) vs ` +
+      `${sides.away} (${tactics.away.formationName}/${tactics.away.styleName})`
+  );
 
   const app = new App();
-  await app.setupGame([sides.home, sides.away], sides, clubs);
+  await app.setupGame([sides.home, sides.away], sides, clubs, tactics);
   const match = await app.startGame();
 
   if (!match) {

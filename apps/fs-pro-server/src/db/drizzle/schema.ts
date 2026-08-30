@@ -76,6 +76,8 @@ export const managers = pgTable('Managers', {
   Age: integer('Age').notNull(),
   Picture: text('Picture'),
   Club: text('Club'),
+  PreferredFormation: text('PreferredFormation'),
+  PreferredStyle: text('PreferredStyle'),
   Nationality: text('Nationality'),
   NationalTeam: boolean('NationalTeam').notNull().default(false),
   Records: jsonArray('Records'),

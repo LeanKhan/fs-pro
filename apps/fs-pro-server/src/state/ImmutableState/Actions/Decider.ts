@@ -210,22 +210,26 @@ export class Decider {
   }
 
   /**
-   * Adjusts a base confidence threshold by the player's composure (Mental)
-   * and how many opponents are pressuring him. A composed player under
-   * little pressure gets a higher effective threshold (more likely to take
-   * the shot/attempt); a low-Mental player swarmed by defenders gets a much
-   * lower one (more likely to bail into a pass instead).
+   * Adjusts a base confidence threshold by the player's composure (Mental),
+   * how many opponents are pressuring him, and his own team's playing style.
+   * A composed player under little pressure gets a higher effective
+   * threshold (more likely to take the shot/attempt); a low-Mental player
+   * swarmed by defenders gets a much lower one (more likely to bail into a
+   * pass instead). A higher-tempo style nudges every such attempt more
+   * eager; a patient style nudges it more cautious.
    */
   private confidenceThreshold(
     player: IFieldPlayer,
+    attackingSide: MatchSide,
     defendingSide: MatchSide,
     base: number,
     pressureRadius = 3
   ): number {
     const composure = (player.Attributes.Mental - 50) * 0.3;
     const pressure = this.countPressure(player, defendingSide, pressureRadius) * 8;
+    const tempoBias = (attackingSide.Tactic.style.tempo - 0.5) * 20;
 
-    return Math.min(100, Math.max(0, base + composure - pressure));
+    return Math.min(100, Math.max(0, base + composure - pressure + tempoBias));
   }
 
   /**
@@ -418,7 +422,7 @@ export class Decider {
       return false;
     }
 
-    return this.gimmeAChance() <= this.confidenceThreshold(player, defendingSide, threshold);
+    return this.gimmeAChance() <= this.confidenceThreshold(player, attackingSide, defendingSide, threshold);
   }
 
   /**
@@ -494,7 +498,7 @@ export class Decider {
 
     if (
       this.passability(player, attackingSide, defendingSide, passingDistance, !pos) &&
-      this.gimmeAChance() <= this.confidenceThreshold(player, defendingSide, threshold)
+      this.gimmeAChance() <= this.confidenceThreshold(player, attackingSide, defendingSide, threshold)
     ) {
       //  If the closest teammate is also an attacker then pass
       strategy = { type: 'pass', detail: 'short' };
