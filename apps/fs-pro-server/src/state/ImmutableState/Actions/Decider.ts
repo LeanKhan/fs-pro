@@ -527,29 +527,41 @@ export class Decider {
     distance: number,
     teammatePosition: boolean
   ): boolean {
-    const teammate = CO.co.findClosestPlayer(
-      player.BlockPosition,
-      attackingSide.StartingSquad,
-      player,
-      true
-    );
+    // Check the several closest teammates, not just the single nearest one.
+    // With realistic defensive shape (players spread across a formation
+    // rather than swarming the ball), the single closest teammate's lane
+    // being blocked is common - that shouldn't kill the whole pass
+    // evaluation when another nearby teammate is completely open.
+    const candidates = attackingSide.StartingSquad
+      .filter((p) => p !== player)
+      .sort(
+        (a, b) =>
+          CO.co.calculateDistance(player.BlockPosition, a.BlockPosition) -
+          CO.co.calculateDistance(player.BlockPosition, b.BlockPosition)
+      )
+      .slice(0, 3);
 
-    const teammateIsClose =
-      CO.co.calculateDistance(player.BlockPosition, teammate.BlockPosition) <=
-      distance;
+    return candidates.some((teammate) => {
+      const teammateIsClose =
+        CO.co.calculateDistance(player.BlockPosition, teammate.BlockPosition) <=
+        distance;
 
-    const laneIsClear = this.laneIsClear(player, teammate, defendingSide);
+      if (!teammateIsClose) {
+        return false;
+      }
 
-    if (teammatePosition) {
-      // Pass to Attackers or Midfielders
-      return (
-        (teammate.Position === 'ATT' || teammate.Position === 'MID') &&
-        teammateIsClose &&
-        laneIsClear
-      );
-    }
+      const laneIsClear = this.laneIsClear(player, teammate, defendingSide);
 
-    return teammateIsClose && laneIsClear;
+      if (teammatePosition) {
+        // Pass to Attackers or Midfielders
+        return (
+          (teammate.Position === 'ATT' || teammate.Position === 'MID') &&
+          laneIsClear
+        );
+      }
+
+      return laneIsClear;
+    });
   }
 
   /**

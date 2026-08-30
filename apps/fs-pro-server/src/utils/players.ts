@@ -70,6 +70,38 @@ function findRandomFreeBlock(player: IFieldPlayer, radius: number = 3): IBlock {
 }
 
 /**
+ * Like findRandomFreeBlock, but biased toward the farthest free blocks
+ * instead of picking uniformly at random among all of them.
+ *
+ * Used when a player needs to actually put distance between themselves and
+ * a marker (escaping a tight-marking duel) - a uniform-random pick is just
+ * as likely to land one block away as five, which barely counts as an
+ * escape and lets an equally fast marker re-close the gap almost
+ * immediately.
+ */
+function findFarthestFreeBlock(player: IFieldPlayer, radius: number = 5): IBlock {
+  const circumference = (player.getBlocksAround(radius) as IBlock[]).filter((block) => {
+    return block !== undefined && block.occupant === null;
+  });
+
+  if (circumference.length === 0) {
+    return player.BlockPosition;
+  }
+
+  const distanceFromPlayer = (block: IBlock) =>
+    Math.abs(block.x - player.BlockPosition.x) + Math.abs(block.y - player.BlockPosition.y);
+
+  const maxDistance = Math.max(...circumference.map(distanceFromPlayer));
+  const farthestBlocks = circumference.filter(
+    (block) => distanceFromPlayer(block) === maxDistance
+  );
+
+  const randomIndex = Math.round(Math.random() * (farthestBlocks.length - 1));
+
+  return farthestBlocks[randomIndex];
+}
+
+/**
  * Get a random Attacker or Midfielder - No filter
  *
  */
@@ -554,6 +586,7 @@ export {
   getATTMID,
   findFreeBlock,
   findRandomFreeBlock,
+  findFarthestFreeBlock,
   getRandomATTMID,
   getGK,
   calculatePlayerValue,
