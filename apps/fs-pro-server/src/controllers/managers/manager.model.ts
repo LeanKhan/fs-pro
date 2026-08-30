@@ -13,6 +13,10 @@ export interface ManagerInterface {
   Nationality: string;
   Records: [];
   isEmployed: boolean;
+  /** Default tactic used at kickoff when this manager's club plays -
+   * see state/PersistentState/Formations.ts for valid names. */
+  PreferredFormation?: string;
+  PreferredStyle?: string;
 }
 
 /**
@@ -31,6 +35,8 @@ declare interface IManager extends Document {
   Nationality?: any; // ObjectId reference
   Records: any[];
   isEmployed: boolean;
+  PreferredFormation?: string;
+  PreferredStyle?: string;
   // Timestamps from mongoose
   createdAt: Date;
   updatedAt: Date;
@@ -75,6 +81,8 @@ export class Manager {
           },
           Records: [],
           isEmployed: {type: Boolean, default: false},
+          PreferredFormation: { type: String, default: '433' },
+          PreferredStyle: { type: String, default: 'Balanced' },
         },
         { timestamps: true }
       );

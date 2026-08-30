@@ -528,11 +528,39 @@ export class Actions {
   }
 
   public movePlayersForward(player: IFieldPlayer, team: MatchSide) {
-    this.move(player, 'forward', team.ScoringSide);
+    // Bias toward goal, not the goal block itself - a higher defensive
+    // line pushes further forward, but every player advances from THEIR
+    // OWN slot (see getShapeTarget), preserving width instead of the whole
+    // line collapsing onto the single ScoringSide point.
+    const bias = 0.2 + team.Tactic.style.defensiveLineHeight * 0.5;
+    const target = this.getShapeTarget(player, team.ScoringSide, bias);
+    this.move(player, 'forward', target);
   }
 
   public movePlayersBackward(player: IFieldPlayer, team: MatchSide) {
-    this.move(player, 'fallback', team.KeepingSide);
+    // Inverse of the above: a deep/low-block style retreats further when
+    // regrouping, a high-line style barely drops off.
+    const bias = 0.2 + (1 - team.Tactic.style.defensiveLineHeight) * 0.5;
+    const target = this.getShapeTarget(player, team.KeepingSide, bias);
+    this.move(player, 'fallback', target);
+  }
+
+  /**
+   * A point between a player's formation slot (FieldPlayer.StartingPosition
+   * - the stable per-player "home" block, kept current by
+   * MatchSide.setFormation/changeTactic) and a destination block, blended
+   * by `bias` (0 = stay at the slot, 1 = the destination itself). Only x
+   * moves - y stays at the player's own slot, so the team's shape/width is
+   * preserved instead of every player converging on one shared point.
+   */
+  private getShapeTarget(
+    player: IFieldPlayer,
+    destination: IBlock,
+    bias: number
+  ): IBlock {
+    const home = player.StartingPosition;
+    const x = Math.round(home.x + (destination.x - home.x) * bias);
+    return CO.co.coordinateToBlock({ x, y: home.y });
   }
 
   /**
@@ -869,6 +897,14 @@ export class Actions {
     this.move(player, 'towards ball', player.Ball.Position);
   }
 
+  /** Hold formation shape instead of chasing the ball - what every
+   * non-pressing player does now, instead of piling on (see pressureBall). */
+  private holdShape(player: IFieldPlayer, team: MatchSide) {
+    const bias = 1 - team.Tactic.style.positionalDiscipline;
+    const target = this.getShapeTarget(player, player.Ball.Position, bias);
+    this.move(player, 'hold shape', target);
+  }
+
   private pushForward(team: MatchSide) {
     // const chance = Math.round(Math.random() * 100);
     log('*-- Attacking Side pushing forward --*');
@@ -897,9 +933,29 @@ export class Actions {
     // Find midfielders and attackers
     const defendingPlayers = playerFunc.getATTMID(team);
 
-    defendingPlayers.forEach((p) => {
-      this.markBall(p);
-    });
+    if (defendingPlayers.length === 0) {
+      return;
+    }
+
+    // Only the nearest few (per the team's playing style) actually close
+    // the ball down - previously EVERY ATT/MID player beelined for the
+    // exact ball coordinate every tick, which just swarmed the ball
+    // carrier (whoever got there first tackled it, nobody held a passing
+    // lane open). Everyone else holds their formation shape instead.
+    const ballPosition = defendingPlayers[0].Ball.Position;
+    const pressingIntensity = team.Tactic.style.pressingIntensity;
+
+    const sortedByBallDistance = [...defendingPlayers].sort(
+      (a, b) =>
+        CO.co.calculateDistance(a.BlockPosition, ballPosition) -
+        CO.co.calculateDistance(b.BlockPosition, ballPosition)
+    );
+
+    const pressers = sortedByBallDistance.slice(0, pressingIntensity);
+    const holders = sortedByBallDistance.slice(pressingIntensity);
+
+    pressers.forEach((p) => this.markBall(p));
+    holders.forEach((p) => this.holdShape(p, team));
   }
 }
 

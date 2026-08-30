@@ -4,9 +4,11 @@ import FieldPlayer from './FieldPlayer';
 import Field, { IBlock } from '../state/ImmutableState/FieldGrid';
 import Ball from './Ball';
 import {
-  resolveFormation,
+  resolveTactic,
   ResolvedFormationSlot,
   AttackingDirection,
+  ITactic,
+  IActiveTactic,
 } from '../state/PersistentState/Formations';
 import Player from './Player';
 import { ClubInterface } from '../controllers/clubs/club.model';
@@ -26,7 +28,7 @@ export class MatchSide extends Club {
   public StartingSquad: IFieldPlayer[] = [];
   public Substitutes: IFieldPlayer[] = [];
   public MatchSquad: Player[] = [];
-  public Formation: ResolvedFormationSlot[] = [];
+  public Tactic!: IActiveTactic;
   /**
    * ScoringSide is where this team will be scoring
    * that is, it is the opponents post :p
@@ -64,14 +66,14 @@ export class MatchSide extends Club {
       : 'right-to-left';
   }
 
-  public setFormation(formation: string, ball: Ball, field: Field) {
+  public setFormation(tactic: ITactic, ball: Ball, field: Field) {
     const direction = this.getAttackingDirection();
 
-    this.Formation = resolveFormation(formation, field, direction);
+    this.Tactic = resolveTactic(tactic, field, direction);
 
-    log('Formation =>', this.Formation);
+    log('Tactic =>', this.Tactic);
 
-    const currentFormation = [...this.Formation];
+    const currentFormation = [...this.Tactic.slots];
 
     // Sort them here...
     this.MatchSquad = sortFromKeeperDown(this.MatchSquad);
@@ -89,8 +91,15 @@ export class MatchSide extends Club {
     });
   }
 
-  public changeFormation(
-    formation: string,
+  /**
+   * Resolve and apply a new tactic (formation + playing style), reassigning
+   * every player to their new slot. Callable at any point in a match, not
+   * just half-time - half-time is just one caller of this (see
+   * Game.swapClubFormations), and it's what backs the eventual "change
+   * tactics mid-match" capability.
+   */
+  public changeTactic(
+    tactic: ITactic,
     field: Field,
     scoringSide: IBlock,
     keepingSide: IBlock
@@ -100,11 +109,11 @@ export class MatchSide extends Club {
 
     const direction = this.getAttackingDirection();
 
-    this.Formation = resolveFormation(formation, field, direction);
+    this.Tactic = resolveTactic(tactic, field, direction);
 
-    log('Formation =>', this.Formation);
+    log('Tactic =>', this.Tactic);
 
-    const currentFormation = [...this.Formation];
+    const currentFormation = [...this.Tactic.slots];
 
     // Sort them here...
     this.StartingSquad = sortFromKeeperDown(
