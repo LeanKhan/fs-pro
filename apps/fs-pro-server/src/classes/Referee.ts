@@ -48,6 +48,21 @@ export default class Referee {
   }
 
   /**
+   * Move a player back to a specific block only if it's actually free (or
+   * already theirs) - guards the handful of direct repositioning calls in
+   * this class (keeper resets, sent-off replacements) against silently
+   * displacing whoever another part of the engine still thinks occupies
+   * that block, which is exactly the class of desync that produced the
+   * ball-possession corruption fixed in FieldPlayer.move()/Actions.tackle().
+   */
+  private moveToBlockIfFree(player: IFieldPlayer, target: IBlock) {
+    if (target.occupant !== null && target.occupant !== player) {
+      return;
+    }
+    player.move(CO.co.calculateDifference(target, player.BlockPosition));
+  }
+
+  /**
    * Handle foul
    * @param subject The tackler (the offender)
    * @param object The Offended (the victim) ?
@@ -285,12 +300,7 @@ export default class Referee {
       defendingSide.StartingSquad
     ) as IFieldPlayer;
 
-    keeper.move(
-      CO.co.calculateDifference(
-        keeper.StartingPosition,
-        keeper.BlockPosition
-      )
-    );
+    this.moveToBlockIfFree(keeper, keeper.StartingPosition);
 
     switch (data.result) {
       case 'goal':
@@ -320,12 +330,7 @@ export default class Referee {
         log('missed shot');
         // matchEvents.emit(`${this.Match.id}-set-playing-sides`);
 
-        keeper.move(
-          CO.co.calculateDifference(
-            keeper.StartingPosition,
-            keeper.BlockPosition
-          )
-        );
+        this.moveToBlockIfFree(keeper, keeper.StartingPosition);
 
         // Move ball to keeper position (goal kick) - this was commented
         // out with a note claiming it's "handled in Actions", but
@@ -354,12 +359,7 @@ export default class Referee {
       case 'save':
         log('shot saved');
 
-        keeper.move(
-          CO.co.calculateDifference(
-            keeper.StartingPosition,
-            keeper.BlockPosition
-          )
-        );
+        this.moveToBlockIfFree(keeper, keeper.StartingPosition);
 
         // Move ball to keeper position - was commented out (same stale
         // "handled elsewhere" assumption as the miss case above).

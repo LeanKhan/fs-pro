@@ -106,16 +106,69 @@ and probably a substitution system (not designed).
 
 ---
 
+### Residual intermittent dual-ball-holder anomaly
+
+**Status:** Confirmed as a genuine occupancy collision; specific cause
+still not found. Instrumented and safe to leave for now (self-corrects
+within a few ticks in every case observed since the freeze-causing bugs
+below were fixed).
+
+**Context:** While fixing the 99%-possession/0-pass bug (see git history —
+`FieldPlayer.move()` no longer calls `checkWithBall()` on every ordinary
+move, and `Actions.tackle()` no longer stomps a foul's correct ball
+placement with a stale post-foul ball-move), a rarer anomaly turned up via
+a defensive warning added to `Game.setPlayingSides()`: occasionally two
+players — sometimes on opposing teams, sometimes on the *same* team —
+simultaneously satisfy `WithBall`. Frequency is inconsistent run to run
+(over a dozen distinct pairs in one 15-match batch, zero in the next 85
+matches, then a dozen more in the next 15). Confirmed (once the warning's
+own crash - see below - was fixed and it could log positions) that in every
+observed case **both players report the exact same x/y block** - this is a
+real occupancy-invariant violation somewhere in the movement code, not a
+`WithBall`-specific logic bug. The specific call site that lets two players
+land on the same block has not been found - `Actions.ts`'s
+`findFarthestFreeBlock`-based escape jumps and `Referee.ts`'s
+`sendOff`/`handleMatchRestart` placements were audited and look
+individually safe.
+
+**Found and fixed along the way:** the warning itself originally crashed
+the whole match (`JSON.stringify` on a live `Block`/`FieldPlayer` throws
+"Converting circular structure to JSON" because `Block.occupant` points
+back to a player whose `Ball.Position` cycles back to a `Block`) - fixed by
+logging plain `x`/`y` numbers instead. If you add more detail to this
+warning later, never `JSON.stringify` a live block/player/ball object
+directly.
+
+**If revisited:** The `console.warn('[possession] ...')` in
+`Game.setPlayingSides()` already logs both players' exact block positions
+(confirmed identical every time) and the ball's position whenever this
+fires - run a large batch (`simRealismCheck.ts` with a high count) until it
+reproduces, then work backward from which movement call most recently
+placed one of the two reported players on that block.
+
+**Files:** `controllers/Game.ts` (`setPlayingSides` — the diagnostic
+warning), `state/ImmutableState/Actions/Actions.ts`, `classes/Referee.ts`,
+`classes/MatchSide.ts` (`changePosition` call sites - candidates to check
+first for same-team collisions specifically).
+
+---
+
 ### Remaining realism-tuning gaps
 
 **Status:** Deferred, not urgent — user said "I am satisfied with the
-results for now."
+results for now." Numbers below are current as of the possession/movement
+bug-fixing pass (`FieldPlayer.move()`, `Actions.tackle()`,
+`Actions.successfulDribble()`, `Actions.move()`'s no-marking-opponent
+fallback) - passes-per-team roughly doubled (12→22 avg) and goals per match
+went up (2.1→3.5 avg) once play stopped freezing/getting silently
+corrupted, so re-check this table again if more engine changes land.
 
-**What's off:** Per `simRealismCheck.ts`, shots per team still sit around
-2.9-4.0 vs. a real-world reference band of 7-18; tackles/interceptions/fouls
-are somewhat under their reference bands too (a natural side effect of
-fixing the inverted pass-success bug — passes now succeed correctly, so the
-ball changes hands defensively less often).
+**What's off:** Per `simRealismCheck.ts`, shots per team sit around 3.6 vs.
+a real-world reference band of 7-18; tackles/interceptions/fouls/yellow
+cards are somewhat under their reference bands too (plausibly a natural
+side effect of fixing the inverted pass-success bug and the possession
+freezes — passes/dribbles now succeed and progress correctly, so the ball
+changes hands defensively less often than the reference bands assume).
 
 **Diagnosis so far:** Believed structural, not a formula bug — i.e. how
 often an attacker gets close enough to goal *with the ball* to justify a

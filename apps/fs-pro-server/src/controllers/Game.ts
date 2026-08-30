@@ -205,6 +205,28 @@ export default class Game implements GameClass {
   }
 
   public setPlayingSides() {
+    // Ball possession should always be single-owner - if it ever isn't,
+    // something upstream (a foul/restart racing an ordinary tackle/dribble
+    // ball-move, the exact class of bug fixed in FieldPlayer.move() and
+    // Actions.tackle()) has regressed. Warn loudly instead of silently
+    // picking whichever holder Array.find() happens to see first.
+    const holders = [...this.Match.Home.StartingSquad, ...this.Match.Away.StartingSquad].filter(
+      (p) => p.WithBall
+    );
+    if (holders.length > 1) {
+      // NOTE: Block objects hold an `occupant` back-reference to a player
+      // (whose own Ball -> Position can cycle back to a Block) - JSON.
+      // stringify-ing one directly throws "Converting circular structure
+      // to JSON" and crashes the whole match. Pick plain x/y instead.
+      const ballPos = this.MatchBall.Position;
+      console.warn(
+        `[possession] ${holders.length} players simultaneously have WithBall (ball @ x:${ballPos.x},y:${ballPos.y}): `,
+        holders.map(
+          (p) => `${p.FirstName} ${p.LastName} [${p.ClubCode}] @ x:${p.BlockPosition.x},y:${p.BlockPosition.y}`
+        )
+      );
+    }
+
     if (
       this.Match.Home.StartingSquad.find((p) => {
         return p.WithBall;

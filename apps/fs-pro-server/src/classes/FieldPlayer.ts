@@ -122,7 +122,19 @@ export default class FieldPlayer
       And is at {x: ${this.BlockPosition.x}, y: ${this.BlockPosition.y}}
       `
     );
-    this.checkWithBall();
+    // Deliberately NOT calling checkWithBall() here. WithBall must only
+    // ever change because the BALL moved (see the ballMove listener below,
+    // which fires for every player on every real pass/shot/tackle/restart)
+    // - never merely because THIS player's own unrelated positional
+    // movement (marking, pressing, holding shape) happened to land on
+    // whatever block the ball is currently resting on. That coincidence
+    // was silently handing possession to bystanders with no pass, tackle,
+    // dribble, or interception ever attempted, and no event ever logged -
+    // the root cause of matches with 99% possession and 0 passes for one
+    // side. The carry-forward case just above (this.WithBall already true
+    // -> move the ball too) still keeps a genuine dribble/carry in sync,
+    // since that re-fires the ballMove listener for everyone including
+    // this player.
   }
 
   public substitute() {

@@ -413,6 +413,28 @@ export class Actions {
           if (!opponentBlock) {
             if (this.makeMove(player, path, around)) {
               situation.status = true;
+            } else if (player.WithBall) {
+              // path was {x:0,y:0} - this player already reached their
+              // computed forward-shape target (see getShapeTarget) and
+              // there's no marking opponent to dribble/tackle past either.
+              // That target never changes on its own, so without this
+              // fallback the ball carrier would freeze in place holding
+              // the ball for the rest of the match (observed for 65+
+              // straight ticks in a real game). Look up the player's own
+              // squad directly rather than assuming this.attackingSide/
+              // defendingSide line up with them - move() is also called
+              // for defending-side players elsewhere in this class.
+              const playerSquad = this.teams.find((t) => t.ClubCode === player.ClubCode);
+              const opponentSquad = this.teams.find((t) => t.ClubCode !== player.ClubCode);
+              if (playerSquad && opponentSquad) {
+                this.pass(player, 'short', playerSquad, opponentSquad);
+                situation = {
+                  status: true,
+                  reason: `move ${type} had nowhere further to go, passed instead`,
+                };
+              } else {
+                situation.status = false;
+              }
             } else {
               situation.status = false;
             }
@@ -894,7 +916,23 @@ export class Actions {
     around: IPositions,
     dribbled: IFieldPlayer
   ) {
-    this.makeMove(player, path, around);
+    // `path` is the player's general forward-shape step for this tick,
+    // computed once at the top of move() - it's frequently {x:0,y:0} once
+    // a player has already reached their current shape target. makeMove()
+    // correctly no-ops in that case, but this function used to log a
+    // "successful dribble" regardless, leaving the player and their
+    // marker frozen on the exact same blocks. Since nothing about that
+    // state ever changes on its own, the very next tick re-rolled the same
+    // dribble and repeated the fake "success" indefinitely - a real match
+    // was observed with a player stuck like this for 38 straight ticks.
+    // Falling back to a genuine escape step away from the just-beaten
+    // marker guarantees a dribble that actually succeeded always moves
+    // the player somewhere.
+    const moved = this.makeMove(player, path, around);
+    if (!moved) {
+      const escapeTo = playerFunc.findFarthestFreeBlock(dribbled, 3);
+      player.move(CO.co.calculateDifference(escapeTo, player.BlockPosition));
+    }
     matchEvents.emit(`${this.match.id}-dribble`, {
       dribbler: player,
       dribbled,
@@ -923,36 +961,42 @@ export class Actions {
       0,
       Math.min(100, 30 + (tackler.Attributes.Aggression - tackler.Attributes.Tackling) * 0.3)
     );
-    if (this.decider.gimmeAChance() <= foulChance) {
+    const fouled = this.decider.gimmeAChance() <= foulChance;
+    if (fouled) {
       this.referee.foul(tackler, player);
     }
 
-    if (success) {
+    matchEvents.emit(`${this.match.id}-tackle`, {
+      tackler,
+      tackled: player,
+      success,
+    } as ITackle);
+
+    // A foul on this exact attempt already routed the restart (free-kick/
+    // penalty taker + ball placement) through Referee.setUpSetPiece(),
+    // which moves the ball relative to its own actual current position.
+    // Unconditionally also moving it here - using a diff computed from the
+    // pre-foul tackler/player positions - would stomp that correct
+    // placement with a bogus offset, stranding the ball on an arbitrary,
+    // almost certainly unoccupied block for the rest of the half (nothing
+    // else ever explicitly reclaims it). Skip the ball move (and the
+    // "tackled the ball from" narrative, which would contradict the foul
+    // that was just called on the same challenge) whenever fouled.
+    if (success && !fouled) {
       tackler.Ball.move(
         CO.co.calculateDifference(tackler.BlockPosition, player.BlockPosition)
       );
-      matchEvents.emit(`${this.match.id}-tackle`, {
-        tackler,
-        tackled: player,
-        success,
-      } as ITackle);
       createMatchEvent(
         this.match.id,
-        `${tackler.FirstName} ${tackler.LastName} [${tackler.ClubCode}] 
+        `${tackler.FirstName} ${tackler.LastName} [${tackler.ClubCode}]
         tackled the ball from ${player.FirstName} ${player.LastName}`,
         'tackle',
         tackler.PlayerID,
         tackler.ClubCode
       );
-      return true;
-    } else {
-      matchEvents.emit(`${this.match.id}-tackle`, {
-        tackler,
-        tackled: player,
-        success,
-      } as ITackle);
-      return false;
     }
+
+    return success;
   }
 
   private markBall(player: IFieldPlayer) {
