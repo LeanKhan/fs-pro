@@ -21,6 +21,7 @@ import axios from 'axios';
 import { CalendarMatchInterface, DayInterface } from '../days/day.model';
 import { startMatchReplay } from '../../realtime/matchBroadcaster';
 import { enqueueMatchPlay } from '../../jobs/matchQueue';
+import { saveReplay, fetchReplay } from '../match-replays/match-replay.service';
 import {
   ITactic,
   DEFAULT_TACTIC,
@@ -270,6 +271,16 @@ async function play(fixture_id: string) {
       // keyed by fixture_id (known ahead of the kickoff call, unlike
       // match.id) so a debug client can join the room before triggering it.
       startMatchReplay(m, fixture_id);
+
+      // Also persist the same Frames so this match can be re-streamed later
+      // on demand (see restRewatchMatch) without re-simulating it. Gated by
+      // the same SaveStats flag used for permanent stats below - a friendly
+      // played with SaveStats off is meant to leave nothing behind.
+      if (isFriendly ? fixture.SaveStats === true : true) {
+        saveReplay(fixture_id, m).catch((err: any) => {
+          console.error(`[replay] error saving replay for ${fixture_id}:`, err);
+        });
+      }
 
       // throw 'Ending match here :)';
       const homeObj = {
@@ -528,6 +539,12 @@ export async function restPlayGame(
       // match.id) so a debug client can join the room before triggering it.
       startMatchReplay(m, fixture_id);
 
+      // Also persist the same Frames so this match can be re-streamed later
+      // on demand (see restRewatchMatch) without re-simulating it.
+      saveReplay(fixture_id, m).catch((err: any) => {
+        console.error(`[replay] error saving replay for ${fixture_id}:`, err);
+      });
+
       const homeObj = {
         id: m.Home._id,
         name: m.Home.Name,
@@ -752,6 +769,56 @@ export function restEnqueueMatch(req: Request, res: Response) {
   return responseHandler.success(res, 202, 'Match enqueued for simulation', {
     fixture_id,
   });
+}
+
+/**
+ * Re-streams a previously-played match's recorded Frames over the same
+ * `/match-replay` Socket.IO room a live kickoff uses (see
+ * realtime/matchBroadcaster.ts), reading them back from the MatchReplay
+ * record saveReplay() wrote when the match was originally played instead of
+ * re-simulating anything. Returns immediately - the client is expected to
+ * have already joined the fixture's room (MatchReplaySocket.watch) before
+ * calling this, exactly like the live-kickoff flow.
+ */
+export async function restRewatchMatch(req: Request, res: Response) {
+  const { fixture: fixture_id } = req.params;
+
+  if (!fixture_id) {
+    return responseHandler.fail(res, 404, 'No Fixture ID sent!', {
+      matchErrorResponseCode: 1,
+    });
+  }
+
+  let replay;
+  try {
+    replay = await fetchReplay(fixture_id);
+  } catch (error: any) {
+    console.error('Error fetching match replay =>', error);
+    return responseHandler.fail(res, 400, 'Error fetching match replay', {
+      msg: error.toString(),
+      matchErrorResponseCode: 2,
+    });
+  }
+
+  if (!replay) {
+    return responseHandler.fail(res, 404, 'No replay saved for this match', {
+      fixture_id,
+      matchErrorResponseCode: 3,
+    });
+  }
+
+  startMatchReplay(
+    {
+      Home: { _id: replay.Home.id, Name: replay.Home.name, ClubCode: replay.Home.code },
+      Away: { _id: replay.Away.id, Name: replay.Away.name, ClubCode: replay.Away.code },
+      Frames: replay.Frames,
+      Details: replay.Details,
+    },
+    fixture_id,
+    replay.TickMs
+  );
+
+  return responseHandler.success(res, 202, 'Match replay started', { fixture_id });
 }
 
 /**

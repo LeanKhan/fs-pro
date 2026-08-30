@@ -38,6 +38,7 @@ export class DrizzleDatabase implements IDatabase {
       PlayerMatch: null,
       Place: new DrizzlePlaceRepository(this.drizzleDb),
       Award: null,
+      MatchReplay: null,
     };
   }
 

@@ -19,6 +19,7 @@ export interface IModels {
   PlayerMatch: any;
   Place: any;
   Award: any;
+  MatchReplay: any;
   [key: string]: any;
 }
 
