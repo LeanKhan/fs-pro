@@ -41,7 +41,7 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from '@/store';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 import FixturesTable from '@/components/seasons/fixtures-table.vue';
 
 const router = useRouter();

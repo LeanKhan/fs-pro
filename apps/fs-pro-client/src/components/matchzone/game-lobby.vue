@@ -100,7 +100,7 @@ interface Props {
   away: any;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   show: false,
 });
 
@@ -111,7 +111,6 @@ const emit = defineEmits<{
 
 const player1Ready = ref(false);
 const player2Ready = ref(false);
-const skip = ref(false);
 const api = ref(apiUrl);
 
 const allReady = computed(() => {

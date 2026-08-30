@@ -113,7 +113,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useStore, apiUrl } from '@/store';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 import PlayersTable from '@/components/players/players-table.vue';
 import AllPlayersTable from '@/components/players/allplayers-table.vue';
 import type { Club } from '@/interfaces/club';

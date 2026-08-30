@@ -153,22 +153,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, getCurrentInstance } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute, onBeforeRouteUpdate } from 'vue-router';
-import { apiUrl, useStore } from '@/store';
+import { useStore } from '@/store';
+import { $axios } from '@/services/api';
+import { appSocket } from '@/services/socket';
 
 const router = useRouter();
 const route = useRoute();
-const instance = getCurrentInstance();
-const $axios = instance?.appContext.config.globalProperties.$axios;
 const store = useStore();
-const $socket = instance?.appContext.config.globalProperties.$socket;
 
 const drawer = ref(true);
-const appBar = ref(true);
 const show = ref(false);
-const api = ref(apiUrl);
-const mini = ref(true);
+const socketIsConnected = ref(appSocket.connected);
 
 const adminNavItems = ref<any[]>([
   { title: 'Home', icon: 'mdi-soccer', link: '/a', color: 'primary' },
@@ -205,7 +202,7 @@ const logout = (): void => {
     .then((response: any) => {
       console.log('Response => ', response.data);
       if (response.data.success) {
-        $socket.client.disconnect();
+        appSocket.disconnect();
         store.unsetUser();
         router.push('/auth');
       }
@@ -233,7 +230,7 @@ const toast = computed(() => {
 });
 
 const socketConnected = computed(() => {
-  return $socket?.connected || false;
+  return socketIsConnected.value;
 });
 
 const userNavItems = computed((): any[] => {
@@ -288,7 +285,7 @@ const navItems = computed(() => {
 });
 
 const enter = (): void => {
-  if (!user.value) return;
+  if (!user.value?.userID || !user.value?.session) return;
 
   const { userID, session: sessionID } = user.value;
 
@@ -314,10 +311,8 @@ const enter = (): void => {
 onBeforeRouteUpdate((to, from, next) => {
   if (to.name == 'MatchZone') {
     drawer.value = false;
-    appBar.value = false;
   } else {
     drawer.value = true;
-    appBar.value = true;
   }
   next();
 });
@@ -330,11 +325,23 @@ onMounted(() => {
   store.getUser();
   store.getCountries();
 
-  // Enter app :p wait for getting user first! XD
   enter();
 
-  if ($socket) {
-    $socket.open();
-  }
+  appSocket.on('connect', handleSocketConnect);
+  appSocket.on('disconnect', handleSocketDisconnect);
+  appSocket.connect();
 });
+
+onUnmounted(() => {
+  appSocket.off('connect', handleSocketConnect);
+  appSocket.off('disconnect', handleSocketDisconnect);
+});
+
+function handleSocketConnect() {
+  socketIsConnected.value = true;
+}
+
+function handleSocketDisconnect() {
+  socketIsConnected.value = false;
+}
 </script>

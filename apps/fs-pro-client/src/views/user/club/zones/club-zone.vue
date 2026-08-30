@@ -11,22 +11,27 @@
         </template>
       </v-card-text>
       <v-card-actions>
-        <v-btn v-if="club.Manager" color="error" @click="fireManager" depressed>
+        <v-btn
+          v-if="club.Manager"
+          color="error"
+          @click="fireManager"
+          variant="flat"
+        >
           Fire Manager
         </v-btn>
-        <v-btn v-else @click="hireManager" color="info" depressed>
+        <v-btn v-else @click="hireManager" color="info" variant="flat">
           Hire Manager
         </v-btn>
       </v-card-actions>
     </v-card>
 
     <manager-picker
-      :show.sync="openManagerPicker"
+      v-model:show="openManagerPicker"
       @update-available="emit('update-available')"
       :club="club._id"
     ></manager-picker>
     <manager-firer
-      :show.sync="openFireManager"
+      v-model:show="openFireManager"
       :manager="club.Manager"
       :club="club._id"
     ></manager-firer>
@@ -37,13 +42,17 @@
 import { ref } from 'vue';
 import { ManagerPicker, ManagerFirer } from '@/components/clubzone';
 
-const props = defineProps<{
+defineProps<{
   club: any;
 }>();
 
 const emit = defineEmits<{
   (e: 'update-available'): void;
 }>();
+
+defineOptions({
+  name: 'ClubZone',
+});
 
 const openManagerPicker = ref(false);
 const openFireManager = ref(false);

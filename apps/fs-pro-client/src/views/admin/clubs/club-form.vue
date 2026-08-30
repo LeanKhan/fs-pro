@@ -147,7 +147,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { apiUrl, useStore } from '@/store';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 import ImageUploader from '@/components/helpers/image-uploader.vue';
 import type { Club } from '@/interfaces/club';
 

@@ -24,7 +24,7 @@
 import { ref, onMounted } from 'vue';
 import PlayersTable from '@/components/players/players-table.vue';
 import type { Player } from '@/interfaces/player';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 
 const players = ref<Player[]>([]);
 

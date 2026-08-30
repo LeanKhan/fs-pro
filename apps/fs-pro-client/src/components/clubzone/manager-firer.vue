@@ -61,8 +61,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, getCurrentInstance } from 'vue';
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { $axios } from '@/services/api';
 
 interface Props {
   show: any;
@@ -71,10 +72,11 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const emit = defineEmits<{
+  'update:show': [value: boolean];
+}>();
 
 const router = useRouter();
-const instance = getCurrentInstance();
-const $axios = instance?.appContext.config.globalProperties.$axios;
 
 const loading = ref(false);
 const reason = ref('');
@@ -86,6 +88,7 @@ const fireManager = () => {
       `/clubs/${props.club}/manager?reason=${JSON.stringify(reason.value)}`
     )
     .then(() => {
+      emit('update:show', false);
       router.push('..');
     })
     .catch((err: any) => {

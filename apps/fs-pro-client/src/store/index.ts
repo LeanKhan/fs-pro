@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { Club } from '@/interfaces/club';
-import { $axios } from '../main';
+import { $axios, apiUrl } from '@/services/api';
 import { ICalendar } from '@/interfaces/calendar';
 
-export const apiUrl = import.meta.env.VITE_APP_API_BASE_URL;
+export { apiUrl };
 
 export interface User {
   username: string;
@@ -79,7 +79,12 @@ export const useStore = defineStore('main', () => {
   function getUser() {
     const savedUser = window.localStorage.getItem('fspro-user');
     if (savedUser) {
-      user.value = JSON.parse(savedUser);
+      try {
+        user.value = JSON.parse(savedUser);
+      } catch (error) {
+        console.error('Error parsing saved user:', error);
+        unsetUser();
+      }
     }
   }
 

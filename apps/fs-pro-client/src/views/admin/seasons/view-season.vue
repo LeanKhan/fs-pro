@@ -99,7 +99,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 import type { Season } from '@/interfaces/season';
 import StandingsScroller from '@/components/seasons/standings-scroller.vue';
 import FixturesTable from '@/components/seasons/fixtures-table.vue';

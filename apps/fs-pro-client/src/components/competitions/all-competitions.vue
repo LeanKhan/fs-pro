@@ -85,7 +85,7 @@
 import { ref, onMounted, getCurrentInstance } from 'vue';
 import { Competition } from '@/interfaces/competition';
 import { apiUrl } from '@/store';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 
 const instance = getCurrentInstance();
 

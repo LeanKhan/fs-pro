@@ -1,10 +1,10 @@
-import { RouteConfig } from 'vue-router';
+import type { RouteRecordRaw } from 'vue-router';
 // import ClubsDashboard from '@/views/admin/clubs/dashboard.vue';
 // import ViewClub from '@/views/admin/clubs/view-club.vue';
 // import ClubHome from '@/views/admin/clubs/club-home.vue';
 // import ClubForm from '@/views/admin/clubs/club-form.vue';
 
-const routes: RouteConfig = {
+const routes = {
   path: 'clubs',
   component: () =>
     import(
@@ -60,6 +60,6 @@ const routes: RouteConfig = {
       meta: { title: 'View Club' },
     },
   ],
-};
+} as RouteRecordRaw;
 
 export default routes;

@@ -53,9 +53,7 @@
         <!-- Forgot Password -->
         <div>
           Forgot your password?
-          <v-btn variant="outlined" @click="showForgot">
-            Change Password
-          </v-btn>
+          <v-btn variant="outlined" @click="showForgot">Change Password</v-btn>
         </div>
       </v-card-text>
 
@@ -88,7 +86,11 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from '@/store';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
+
+defineOptions({
+  name: 'LoginView',
+});
 
 const router = useRouter();
 const store = useStore();
@@ -130,14 +132,14 @@ async function login() {
         avatar: response.data.payload.Avatar,
         fullname: response.data.payload.FullName,
       });
+
+      router.push('/u');
     } else {
       store.showToast({
         message: response.data.message,
         style: 'error',
       });
     }
-
-    router.push('/u');
   } catch (error) {
     console.error('Error logging in!', error);
   } finally {
@@ -164,9 +166,9 @@ async function submitNewPassword() {
         avatar: response.data.payload.Avatar,
         fullname: response.data.payload.FullName,
       });
-    }
 
-    router.push('/u');
+      router.push('/u');
+    }
   } catch (error) {
     console.error('Error changing password!', error);
   } finally {

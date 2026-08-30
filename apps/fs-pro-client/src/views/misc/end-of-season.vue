@@ -66,7 +66,7 @@
 <script setup lang="ts">
 import { ref, onMounted, getCurrentInstance } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 
 const route = useRoute();
 const router = useRouter();
