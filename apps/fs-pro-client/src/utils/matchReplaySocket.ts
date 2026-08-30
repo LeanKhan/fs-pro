@@ -12,6 +12,8 @@ export interface IMatchFramePlayer {
   y: number;
   withBall: boolean;
   matchStatus: 'active' | 'sent-off';
+  yellowCards: number;
+  redCards: number;
 }
 
 export interface IMatchEvent {

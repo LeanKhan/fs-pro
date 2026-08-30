@@ -1,40 +1,15 @@
 <template>
-  <div class="d-flex justify-center">
-    <v-btn
-      v-if="!loadMOTM"
-      :disabled="loading"
-      :loading="loading"
-      @click="getMOTM()"
-    >
-      Load
-    </v-btn>
+  <div class="motm">
+    <button v-if="!loadMOTM" class="motm-btn" :disabled="loading" @click="getMOTM()">
+      {{ loading ? 'Loading...' : 'Load' }}
+    </button>
 
-    <template v-else-if="loadMOTM && player">
-      <v-list density="compact">
-        <!-- <v-list-item class="text-center center-text justify-center">
-          <v-avatar color="yellow">
-            <v-icon color="white" size="large">
-              mdi-star
-            </v-icon>
-          </v-avatar>
-        </v-list-item> -->
+    <div v-else-if="loadMOTM && player" class="motm-player">
+      <span class="motm-star">★</span>
+      {{ player.FirstName }} {{ player.LastName }}
+    </div>
 
-        <v-list-item>
-          <template v-slot:prepend>
-            <v-avatar tile size="50" color="transparent" class="h3">
-              <span class="text-green font-weight-bold">10</span>
-            </v-avatar>
-          </template>
-
-          <v-list-item-title>
-            {{ player.FirstName }}
-            {{ player.LastName }}
-          </v-list-item-title>
-        </v-list-item>
-      </v-list>
-    </template>
-
-    <v-sheet v-else>Could not load MOTM Data</v-sheet>
+    <div v-else class="motm-empty">Could not load MOTM Data</div>
   </div>
 </template>
 <script setup lang="ts">
@@ -74,3 +49,36 @@ const getMOTM = () => {
   }
 };
 </script>
+
+<style scoped>
+.motm {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+}
+.motm-btn {
+  font-size: 12px;
+  font-weight: 700;
+  background: transparent;
+  color: #eef3ec;
+  border: 1px solid #23392c;
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+.motm-btn:hover {
+  border-color: #e9b34a;
+}
+.motm-player {
+  font-size: 14px;
+  font-weight: 700;
+}
+.motm-star {
+  color: #e9b34a;
+  margin-right: 4px;
+}
+.motm-empty {
+  opacity: 0.6;
+  font-size: 13px;
+}
+</style>
