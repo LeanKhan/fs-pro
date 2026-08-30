@@ -200,7 +200,7 @@ export class Actions {
       case 'short':
         teammate = CO.co.findClosestPlayer(
           player.BlockPosition,
-          squad.StartingSquad,
+          squad.ActivePlayers,
           player
         );
         break;
@@ -208,7 +208,7 @@ export class Actions {
       case 'long':
         teammate = CO.co.findLongPlayer(
           player.BlockPosition,
-          squad.StartingSquad,
+          squad.ActivePlayers,
           player
         );
         interceptorDistance = 3;
@@ -219,7 +219,7 @@ export class Actions {
           squad.KeepingSide,
           'GK',
           player,
-          squad.StartingSquad
+          squad.ActivePlayers
         );
         interceptorDistance = 3;
         break;
@@ -244,7 +244,7 @@ export class Actions {
     const interceptor = CO.co.findClosestToSegment(
       player.BlockPosition,
       teammate.BlockPosition,
-      defendingSide.StartingSquad,
+      defendingSide.ActivePlayers,
       interceptorDistance
     );
 

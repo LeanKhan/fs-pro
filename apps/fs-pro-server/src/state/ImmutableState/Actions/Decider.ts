@@ -203,7 +203,7 @@ export class Decider {
   ): number {
     const scaledRadius = CO.co.scaleDistance(radius);
 
-    return defendingSide.StartingSquad.filter((opponent) => {
+    return defendingSide.ActivePlayers.filter((opponent) => {
       return (
         opponent.Position !== 'GK' &&
         CO.co.calculateDistance(player.BlockPosition, opponent.BlockPosition) <= scaledRadius
@@ -567,7 +567,7 @@ export class Decider {
     // rather than swarming the ball), the single closest teammate's lane
     // being blocked is common - that shouldn't kill the whole pass
     // evaluation when another nearby teammate is completely open.
-    const candidates = attackingSide.StartingSquad
+    const candidates = attackingSide.ActivePlayers
       .filter((p) => p !== player)
       .sort(
         (a, b) =>
@@ -612,7 +612,7 @@ export class Decider {
     defendingSide: MatchSide,
     laneWidth = 1.5
   ): boolean {
-    return !defendingSide.StartingSquad.some((opponent) => {
+    return !defendingSide.ActivePlayers.some((opponent) => {
       return (
         opponent.Position !== 'GK' &&
         CO.co.distanceToSegment(
@@ -672,7 +672,7 @@ export class Decider {
     return (
       CO.co.findClosestPlayerInclusive(
         attackingSide.ScoringSide,
-        attackingSide.StartingSquad
+        attackingSide.ActivePlayers
       ) === player
     );
   }

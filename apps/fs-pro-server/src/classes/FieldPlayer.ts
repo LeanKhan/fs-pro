@@ -2,6 +2,7 @@ import {
   IFieldPlayer,
   IPositions,
   PlayerInterface,
+  PlayerMatchStatus,
 } from '../interfaces/Player';
 import Player from './Player';
 import Ball from './Ball';
@@ -26,6 +27,7 @@ export default class FieldPlayer
   public WithBall: boolean;
   public Ball: Ball;
   public StartingPosition: IBlock;
+  public MatchStatus: PlayerMatchStatus = 'active';
   // public Team: MatchSide;
 
   /**

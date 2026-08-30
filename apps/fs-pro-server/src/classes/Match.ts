@@ -2,8 +2,8 @@ import { ClubInterface as Club } from '../controllers/clubs/club.model';
 import { MatchSide } from './MatchSide';
 import { matchEvents, createMatchEvent, ballMove } from '../utils/events';
 import { IBlock } from '../state/ImmutableState/FieldGrid';
-import { IFieldPlayer, IPlayerStats } from '../interfaces/Player';
-import { IShot, IPass, GamePoints, ITackle, IDribble, IFoul } from './Referee';
+import { IFieldPlayer, IPlayerStats, PlayerMatchStatus } from '../interfaces/Player';
+import { IShot, IPass, GamePoints, ITackle, IDribble, IFoul, ISentOff } from './Referee';
 import log from '../helpers/logger';
 import { generateRandomNDigits } from '../helpers/misc';
 
@@ -306,9 +306,11 @@ export class Match implements IMatch, MatchClass {
       offendingSide.Fouls++;
       if (data.reason === 'yellow card') {
         offendingSide.YellowCards++;
-      } else if (data.reason === 'red card') {
-        offendingSide.RedCards++;
       }
+      // RedCards is tracked below, off the -player-sent-off event instead -
+      // a second yellow is ALSO a red card (a send-off), and counting it
+      // here too (keyed off data.reason === 'red card') would miss that
+      // case while double-counting a straight red.
 
       createMatchEvent(
         this.id,
@@ -321,6 +323,26 @@ export class Match implements IMatch, MatchClass {
       );
 
       log(`Foul: ${data.reason} by ${data.subject.FirstName} ${data.subject.LastName}`);
+    });
+
+    matchEvents.on(`${this.id}-player-sent-off`, (data: ISentOff) => {
+      const offendingSide =
+        data.player.ClubCode === this.Home.ClubCode
+          ? this.Details.HomeTeamDetails
+          : this.Details.AwayTeamDetails;
+
+      offendingSide.RedCards++;
+
+      createMatchEvent(
+        this.id,
+        `${data.player.FirstName} ${data.player.LastName} [${data.player.ClubCode}] has been sent off` +
+          (data.secondYellow ? ' (second yellow card)' : ' (red card)'),
+        'foul',
+        data.player._id,
+        data.player.ClubCode
+      );
+
+      log(`${data.player.FirstName} ${data.player.LastName} sent off (${data.secondYellow ? 'second yellow' : 'red card'})`);
     });
 
     matchEvents.on(`${this.id}-reset-formations`, () => {
@@ -485,6 +507,7 @@ export class Match implements IMatch, MatchClass {
       x: p.BlockPosition.x,
       y: p.BlockPosition.y,
       withBall: p.WithBall,
+      matchStatus: p.MatchStatus,
     };
   }
 
@@ -546,6 +569,7 @@ export interface IMatchFramePlayer {
   x: number;
   y: number;
   withBall: boolean;
+  matchStatus: PlayerMatchStatus;
 }
 
 export interface IMatchFrame {

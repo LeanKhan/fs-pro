@@ -34,6 +34,8 @@ interface IMatchSummary {
   dribblesPerTeam: number;
   interceptionsPerTeam: number;
   foulsPerTeam: number;
+  yellowCardsPerTeam: number;
+  redCardsPerTeam: number;
 }
 
 /**
@@ -52,6 +54,8 @@ const REFERENCE_RANGES: Record<string, [number, number]> = {
   'Dribbles (successful) per team (approx.)': [5, 20],
   'Interceptions per team (approx.)': [8, 20],
   'Fouls per team': [6, 16],
+  'Yellow cards per team': [1, 3],
+  'Red cards per team': [0, 0.3],
 };
 
 /**
@@ -104,6 +108,8 @@ async function simulateOneMatch(homeId: string, awayId: string): Promise<IMatchS
     dribblesPerTeam: countEvents('dribble') / 2,
     interceptionsPerTeam: interceptions / 2,
     foulsPerTeam: (home.Fouls + away.Fouls) / 2,
+    yellowCardsPerTeam: (home.YellowCards + away.YellowCards) / 2,
+    redCardsPerTeam: (home.RedCards + away.RedCards) / 2,
   };
 }
 
@@ -122,6 +128,8 @@ function printReport(summaries: IMatchSummary[]): void {
     'Dribbles (successful) per team (approx.)': summaries.map((s) => s.dribblesPerTeam),
     'Interceptions per team (approx.)': summaries.map((s) => s.interceptionsPerTeam),
     'Fouls per team': summaries.map((s) => s.foulsPerTeam),
+    'Yellow cards per team': summaries.map((s) => s.yellowCardsPerTeam),
+    'Red cards per team': summaries.map((s) => s.redCardsPerTeam),
   };
 
   console.log(`\n=== Realism check over ${summaries.length} simulated matches ===\n`);
