@@ -149,7 +149,12 @@ export class Actions {
       case 'move':
         log('Move attempt');
 
-        this.move(attackingPlayer, 'forward', attackingSide.ScoringSide);
+        // Routed through movePlayersForward (not a raw move(...ScoringSide))
+        // so the ball carrier's own decided movement gets the same
+        // shape-aware, tactic-biased target as everyone else - otherwise
+        // the player WITH the ball beelines dead straight for the exact
+        // goal block regardless of their formation slot.
+        this.movePlayersForward(attackingPlayer, attackingSide);
 
         break;
     }
@@ -459,11 +464,24 @@ export class Actions {
         * - if dribble is successful, swap positions of players.
         * */
 
-      // TODO: Ideally, player should just jump over another player.
       if(player.WithBall){
         console.log('With ball and tightly marked :/');
 
         if(marker) {
+          // Give the player a real chance to pass out of trouble instead of
+          // ALWAYS dribbling/contesting the tackle - previously dribble-or-
+          // tackle was the only option ever considered here, so two closely
+          // matched players (e.g. a winger and their marking fullback) could
+          // keep re-contesting the exact same duel indefinitely, since
+          // nothing ever routed the ball away from them.
+          if (
+            this.attackingSide &&
+            this.defendingSide &&
+            this.decider.gimmeAChance() <= 50
+          ) {
+            this.pass(player, 'short', this.attackingSide, this.defendingSide);
+            return { status: true, reason: 'passed out of tight marking' };
+          }
 
           let successOfTightDribble = this.decider.getDribbleResult(
               player,
@@ -471,17 +489,18 @@ export class Actions {
             );
 
             if(successOfTightDribble) {
-              // swap positions away from this guy
-              // get free blocks around marker and move player there.
+              // swap positions away from this guy - a full jump to the
+              // target block (not a single step), so the player actually
+              // clears the contested area in one go. A 1-block-per-tick
+              // shuffle here let an equally fast marker re-close the gap
+              // just as quickly, recreating the same jam next tick.
               situation = {
                   status: true,
                   reason: 'dribbled successfully while tightly marked',
                 }
 
-              let toMoveTo = playerFunc.findRandomFreeBlock(marker, 5);
-              let path = CO.co.findPath(toMoveTo, player.BlockPosition);
-
-              player.move(path);
+              const toMoveTo = playerFunc.findFarthestFreeBlock(marker, 5);
+              player.move(CO.co.calculateDifference(toMoveTo, player.BlockPosition));
 
               matchEvents.emit(`${this.match.id}-dribble`, {
               dribbler: player,
@@ -489,19 +508,32 @@ export class Actions {
             } as IDribble);
             createMatchEvent(
               this.match.id,
-              `${player.FirstName} ${player.LastName} [${player.ClubCode}] 
+              `${player.FirstName} ${player.LastName} [${player.ClubCode}]
               dribbled ${marker.FirstName} ${marker.LastName}`,
               'dribble',
               player._id,
               player.ClubCode
             );
             } else {
-              // do a successful tackle, already predetermined
-              this.tackle(player, marker, true);
-                situation = {
-                  status: true,
-                  reason: 'tackle successful in close position, possession lost',
-                };
+              // Real tackle odds, not a forced win - and whoever ends up
+              // with the ball jumps clear of the contested area afterwards.
+              // Without this, neither player's position ever changes here
+              // (tackle() only moves the ball), so the very next tick
+              // re-triggers this exact same "no free block" branch - just
+              // with roles reversed - producing an endless tackle-trade
+              // between the same two players instead of the duel resolving.
+              const tackleSuccess = this.tackle(player, marker);
+              const ballHolder = tackleSuccess ? marker : player;
+
+              const escapeTo = playerFunc.findFarthestFreeBlock(ballHolder, 5);
+              ballHolder.move(CO.co.calculateDifference(escapeTo, ballHolder.BlockPosition));
+
+              situation = {
+                status: tackleSuccess,
+                reason: tackleSuccess
+                  ? 'tackle successful in close position, possession lost'
+                  : 'tackle failed in close position, possession kept',
+              };
             }
         } else if (markerTeammate) {
           // pass
@@ -510,13 +542,8 @@ export class Actions {
                 reason: `move ${type} | ran away from closely marking teammate XD`,
           };
 
-            let toMoveTo = playerFunc.findRandomFreeBlock(markerTeammate, 5);
-            let path = CO.co.findPath(toMoveTo, player.BlockPosition);
-
-            player.move(path);
-
-        // do a dribble
-        // this.pass(player, 'long', this.attackingSide, this.defendingSide);
+            const toMoveTo = playerFunc.findFarthestFreeBlock(markerTeammate, 5);
+            player.move(CO.co.calculateDifference(toMoveTo, player.BlockPosition));
       }
     } else {
         // I guess do nothing lol
