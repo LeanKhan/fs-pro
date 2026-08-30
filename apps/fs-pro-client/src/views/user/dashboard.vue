@@ -89,6 +89,14 @@
                   variant="text"
                   size="small"
                   color="indigo"
+                  to="/u/friendly"
+                >
+                  Play Friendly
+                </v-btn>
+                <v-btn
+                  variant="text"
+                  size="small"
+                  color="indigo"
                   to="/u/fixtures"
                 >
                   View All

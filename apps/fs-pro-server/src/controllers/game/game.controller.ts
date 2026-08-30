@@ -21,6 +21,14 @@ import axios from 'axios';
 import { CalendarMatchInterface, DayInterface } from '../days/day.model';
 import { startMatchReplay } from '../../realtime/matchBroadcaster';
 import { enqueueMatchPlay } from '../../jobs/matchQueue';
+import {
+  ITactic,
+  DEFAULT_TACTIC,
+  formationShapes,
+  PLAYING_STYLES,
+} from '../../state/PersistentState/Formations';
+import { createNew as createFixture } from '../fixtures/fixture.service';
+import { fetchSingleClubById } from '../clubs/club.service';
 
 interface TeamObject {
   id: string;
@@ -108,16 +116,31 @@ async function play(fixture_id: string) {
   CurrentMatch.App = new App();
   const SeasonCode = fixture.SeasonCode;
 
+  // Friendlies (created via POST /api/game/friendly) are season-less
+  // Fixture docs - they carry an explicit tactic per side and skip the
+  // standings/day-advance bookkeeping real fixtures need (see the branch
+  // at the end of this function).
+  const isFriendly = fixture.Type === 'friendly';
+  const prefetchedTactics: { home: ITactic; away: ITactic } | undefined =
+    fixture.HomeTactic && fixture.AwayTactic
+      ? { home: fixture.HomeTactic, away: fixture.AwayTactic }
+      : undefined;
+
   let { HomeTeam: home, AwayTeam: away } = fixture;
 
   home = home.toString();
   away = away.toString();
 
   try {
-    await CurrentMatch.App.setupGame([home, away], {
-      home,
-      away,
-    });
+    await CurrentMatch.App.setupGame(
+      [home, away],
+      {
+        home,
+        away,
+      },
+      undefined,
+      prefetchedTactics
+    );
   } catch (error) {
     log(`Error setting up game! (in Rest) => ${error}`);
     throw error;
@@ -273,7 +296,8 @@ async function play(fixture_id: string) {
           m.Events,
           homeObj,
           awayObj,
-          fixture_id
+          fixture_id,
+          isFriendly ? fixture.SaveStats === true : true
         );
 
 
@@ -292,6 +316,23 @@ async function play(fixture_id: string) {
         CurrentMatch.away = awayObj;
         CurrentMatch.HomeSideDetails = HSD;
         CurrentMatch.AwaySideDetails = ASD;
+
+        if (isFriendly) {
+          // No Season/Day exists for a friendly - skip updateStandings and
+          // afterMatch entirely (they'd throw looking for a Day/Season that
+          // was never created) and end the game here.
+          CurrentMatch.App!.endGame();
+          log('GAME ENDED from App (friendly)');
+
+          return {
+            homeTable: undefined,
+            awayTable: undefined,
+            match: matchFixture,
+            HomeSideDetails: HSD,
+            AwaySideDetails: ASD,
+            lastMatchOfSeason: false,
+          };
+        }
 
         return {
           home: homeObj,
@@ -313,8 +354,10 @@ async function play(fixture_id: string) {
         // }});
       }
     })
-    .then(updateRelatedData)
-    .then(afterMatch);
+    .then((result: any) =>
+      isFriendly ? result : updateRelatedData(result)
+    )
+    .then((result: any) => (isFriendly ? result : afterMatch(result)));
 
   // [5] Update standings and shii... do later :)
 }
@@ -709,4 +752,79 @@ export function restEnqueueMatch(req: Request, res: Response) {
   return responseHandler.success(res, 202, 'Match enqueued for simulation', {
     fixture_id,
   });
+}
+
+/**
+ * The formation/style names a client can offer in a tactic picker - sourced
+ * straight from Formations.ts so there's exactly one place that defines
+ * what a valid ITactic looks like.
+ */
+export function restTacticOptions(req: Request, res: Response) {
+  return responseHandler.success(res, 200, 'Tactic options fetched successfully', {
+    formations: Object.keys(formationShapes),
+    styles: Object.keys(PLAYING_STYLES),
+  });
+}
+
+/**
+ * Creates a season-less Fixture (Type: 'friendly') between two arbitrary
+ * clubs, with an explicit tactic per side, that can be played and watched
+ * through the exact same /matchzone/:fixture flow as a real match - see
+ * play()'s isFriendly branch above for how kickoff treats it differently.
+ */
+export async function restCreateFriendly(req: Request, res: Response) {
+  const { homeClubId, awayClubId, homeTactic, awayTactic, saveStats } = req.body;
+
+  if (!homeClubId || !awayClubId) {
+    return responseHandler.fail(res, 400, 'homeClubId and awayClubId are required', {
+      matchErrorResponseCode: 1,
+    });
+  }
+
+  if (homeClubId === awayClubId) {
+    return responseHandler.fail(res, 400, 'homeClubId and awayClubId must be different clubs', {
+      matchErrorResponseCode: 2,
+    });
+  }
+
+  try {
+    const [homeClub, awayClub] = await Promise.all([
+      fetchSingleClubById(homeClubId, false),
+      fetchSingleClubById(awayClubId, false),
+    ]);
+
+    if (!homeClub || !awayClub) {
+      return responseHandler.fail(res, 404, 'One or both clubs could not be found', {
+        matchErrorResponseCode: 3,
+      });
+    }
+
+    const { error, result } = await createFixture({
+      Title: `${homeClub.Name} vs ${awayClub.Name} (Friendly)`,
+      Home: homeClub.ClubCode,
+      Away: awayClub.ClubCode,
+      HomeTeam: homeClubId,
+      AwayTeam: awayClubId,
+      Type: 'friendly',
+      Status: 'friendly',
+      Played: false,
+      HomeTactic: homeTactic || DEFAULT_TACTIC,
+      AwayTactic: awayTactic || DEFAULT_TACTIC,
+      SaveStats: saveStats === true,
+    });
+
+    if (error) {
+      return responseHandler.fail(res, 400, 'Error creating friendly fixture', result);
+    }
+
+    return responseHandler.success(res, 200, 'Friendly fixture created successfully', {
+      fixture_id: result._id,
+    });
+  } catch (error: any) {
+    console.error('Error creating friendly fixture =>', error);
+    return responseHandler.fail(res, 400, 'Error creating friendly fixture', {
+      msg: error.toString(),
+      matchErrorResponseCode: 4,
+    });
+  }
 }
