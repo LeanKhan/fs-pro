@@ -49,7 +49,7 @@
             :players="playersById"
           ></live-pitch>
 
-          <div v-if="!resultsReady" class="mz-pitch-overlay">Simulating...</div>
+          <div v-if="!resultsReady" class="mz-pitch-overlay">{{ overlayText }}</div>
         </div>
       </main>
 
@@ -72,11 +72,19 @@
             </div>
 
             <button
-              v-if="!allReady"
+              v-if="!allReady && !matchFinished"
               class="mz-start-btn"
               @click="openLobby = true"
             >
               START
+            </button>
+
+            <button
+              v-else-if="matchFinished && !liveWatching"
+              class="mz-start-btn"
+              @click="watchReplay"
+            >
+              WATCH REPLAY
             </button>
           </div>
 
@@ -161,6 +169,7 @@ const resultsReady = ref(true);
 const liveHomeScore = ref(0);
 const liveAwayScore = ref(0);
 const liveEvents = ref<any[]>([]);
+const overlayText = ref('Simulating...');
 
 const liveHome = computed(() => ({
   name: fixture.value.HomeTeam?.Name,
@@ -321,6 +330,7 @@ async function playGame() {
   timer();
   whistle.value?.play();
 
+  overlayText.value = 'Simulating...';
   const params: { simulate_rest?: boolean; send_other_results?: boolean } = {};
   if (simulateRest.value) {
     params.simulate_rest = true;
@@ -410,6 +420,51 @@ async function playGame() {
   }
 }
 
+/**
+ * Re-streams a finished match's already-simulated Frames from the server
+ * (see GET /game/replay/:fixture) over the same /match-replay socket room
+ * playGame() uses for a live watch - no new simulation runs, and the final
+ * score/timeline (already loaded via getFixture) stay untouched throughout,
+ * since matchFinished is already true.
+ */
+async function watchReplay() {
+  if (liveWatching.value) return;
+
+  overlayText.value = 'Loading replay...';
+  liveFrame.value = null;
+  resultsReady.value = false;
+
+  // Fresh socket per attempt - MatchReplaySocket has no listener-removal
+  // API, so reusing one across rewatches would stack duplicate handlers.
+  replaySocket.disconnect();
+
+  try {
+    await replaySocket.watch(String(fixtureId.value));
+  } catch (error) {
+    console.error('Error connecting to match replay:', error);
+    resultsReady.value = true;
+    return;
+  }
+
+  liveWatching.value = true;
+  replaySocket.onFrame((frame) => {
+    liveFrame.value = frame;
+    resultsReady.value = true;
+  });
+  replaySocket.onReplayEnd(() => {
+    liveWatching.value = false;
+  });
+
+  try {
+    await $axios.get(`/game/replay/${fixtureId.value}`);
+  } catch (error) {
+    console.error('Error starting match replay:', error);
+    resultsReady.value = true;
+    liveWatching.value = false;
+    alert('No replay is available for this match.');
+  }
+}
+
 async function getFixtureDay() {
   // Friendlies are season-less Fixtures - there's no Calendar Day entry to
   // look up for them.
@@ -454,6 +509,7 @@ async function initializeGame() {
   liveHomeScore.value = 0;
   liveAwayScore.value = 0;
   liveEvents.value = [];
+  overlayText.value = 'Simulating...';
 
   await getFixture();
   await getFixtureDay();

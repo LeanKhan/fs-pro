@@ -26,6 +26,7 @@ import {
 } from '../controllers/player-match/player-match.model';
 import { Place, PlaceModel } from '../controllers/places/places.model';
 import { Award, AwardModel } from '../controllers/awards/awards.model';
+import { MatchReplay } from '../controllers/match-replays/match-replay.model';
 import log from '../helpers/logger';
 import { IDatabase, IModels } from './interfaces';
 
@@ -78,6 +79,7 @@ export class MongoDatabase implements IDatabase {
         PlayerMatch: new PlayerMatchDetails().model,
         Place: new Place().model,
         Award: new Award().model,
+        MatchReplay: new MatchReplay().model,
       };
 
       // TODO: remove this later

@@ -35,6 +35,7 @@ export class PostgreSQLDatabase implements IDatabase {
       PlayerMatch: null,
       Place: new SQLPlaceRepository(this.prisma),
       Award: null,
+      MatchReplay: null,
     };
   }
 
