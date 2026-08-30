@@ -307,6 +307,15 @@ export default class Game implements GameClass {
   public startHalf() {
     createMatchEvent(this.Match.id, 'Match Kick-Off', 'match');
     log('Half is starting!');
+
+    // Unlike half-time/post-goal/post-ball-out restarts, the very first
+    // kickoff never goes through the `-reset-ball-position` event chain, so
+    // nothing ever gave a player the ball here - no formation slot sits
+    // exactly on the center block, so every match previously started with
+    // WithBall false for all 22 players. Reusing the Referee's restart
+    // handler here gives kickoff the same explicit possession assignment.
+    this.Referee.handleMatchRestart();
+
     return this.gamePlay();
   }
 

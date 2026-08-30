@@ -27,7 +27,7 @@ export const MONGO_URL = prod_db;
 export default class DB {
   private static instance: IDatabase;
 
-  public static start() {
+  public static async start(): Promise<void> {
     if (!DB.instance) {
       if (USE_POSTGRESQL) {
         if (USE_DRIZZLE) {
@@ -42,7 +42,12 @@ export default class DB {
         DB.instance = MongoDatabase.getInstance(MONGO_URL);
       }
 
-      DB.instance.start();
+      // Previously not awaited here, so `await DB.start()` anywhere else
+      // didn't actually wait for the connection - it happened to work by
+      // luck of timing (Mongoose buffers queries issued before a model
+      // exists... except DB.Models itself is empty until this resolves, so
+      // that buffering doesn't help callers that read DB.Models directly).
+      await DB.instance.start();
     }
   }
 

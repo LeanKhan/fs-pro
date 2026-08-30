@@ -3,7 +3,7 @@ import { MatchSide } from './MatchSide';
 import { matchEvents, createMatchEvent, ballMove } from '../utils/events';
 import { IBlock } from '../state/ImmutableState/FieldGrid';
 import { IFieldPlayer, IPlayerStats } from '../interfaces/Player';
-import { IShot, IPass, GamePoints, ITackle, IDribble } from './Referee';
+import { IShot, IPass, GamePoints, ITackle, IDribble, IFoul } from './Referee';
 import log from '../helpers/logger';
 import { generateRandomNDigits } from '../helpers/misc';
 
@@ -293,6 +293,36 @@ export class Match implements IMatch, MatchClass {
       }
     });
 
+    matchEvents.on(`${this.id}-game-halt`, (data: IFoul) => {
+      // Previously nothing ever tracked fouls/cards at all - Referee.foul()
+      // existed and was fully wired to emit this by the time this listener
+      // was added, but the stats it should feed (Fouls/YellowCards/
+      // RedCards, all already present on IMatchSideDetails) never moved.
+      const offendingSide =
+        data.subject.ClubCode === this.Home.ClubCode
+          ? this.Details.HomeTeamDetails
+          : this.Details.AwayTeamDetails;
+
+      offendingSide.Fouls++;
+      if (data.reason === 'yellow card') {
+        offendingSide.YellowCards++;
+      } else if (data.reason === 'red card') {
+        offendingSide.RedCards++;
+      }
+
+      createMatchEvent(
+        this.id,
+        `${data.subject.FirstName} ${data.subject.LastName} [${data.subject.ClubCode}] ` +
+          `committed a foul on ${data.object.FirstName} ${data.object.LastName}` +
+          (data.reason !== 'foul' ? ` (${data.reason})` : ''),
+        'foul',
+        data.subject._id,
+        data.subject.ClubCode
+      );
+
+      log(`Foul: ${data.reason} by ${data.subject.FirstName} ${data.subject.LastName}`);
+    });
+
     matchEvents.on(`${this.id}-reset-formations`, () => {
       log('********Resetting formations *********');
       this.resetClubFormations();
@@ -500,7 +530,7 @@ export interface IMatchData {
 }
 
 export interface IMatchEvent {
-  type: 'match' | 'shot' | 'miss' | 'save' | 'goal' | 'dribble' | 'tackle' | 'pass' | 'interception';
+  type: 'match' | 'shot' | 'miss' | 'save' | 'goal' | 'dribble' | 'tackle' | 'pass' | 'interception' | 'foul';
   message: string;
   time?: string;
   playerID?: string;

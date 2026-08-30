@@ -288,6 +288,26 @@ export default class Coordinates {
   }
 
   /**
+   * Every distance THRESHOLD in Decider.ts/Actions.ts (how close a
+   * teammate needs to be to pass to, how near the post counts as a
+   * shooting chance, etc.) was hand-tuned in block-counts against the
+   * original 15x11 grid. When the grid was widened to 33x21 for more
+   * realistic spacing (see FieldGrid.ts), those constants were never
+   * rescaled - the same "4 blocks away" now covers less than half the real
+   * pitch distance it used to, so on the finer grid almost nothing ever
+   * reads as "close enough", starving passing/shooting decisions in favour
+   * of a `move` fallback. This scales a threshold that was calibrated for
+   * the original 15-wide grid up to whatever grid is actually in play, so
+   * it keeps meaning the same real-world distance regardless of
+   * resolution - the same reasoning FormationSlot's fractional x/y already
+   * uses, applied to these threshold constants too.
+   */
+  public scaleDistance(distanceAt15WideGrid: number): number {
+    const REFERENCE_WIDTH = 15;
+    return distanceAt15WideGrid * (this.mapWidth / REFERENCE_WIDTH);
+  }
+
+  /**
    * Find the coordinate you want to move to
    *
    * Both axes are resolved independently so a target that is off-axis

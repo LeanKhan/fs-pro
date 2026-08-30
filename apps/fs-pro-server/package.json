@@ -22,6 +22,7 @@
     "drizzle:push": "drizzle-kit push",
     "drizzle:studio": "drizzle-kit studio",
     "db:test": "ts-node src/scripts/test-connection.ts",
+    "sim:realism": "set DEV_TEST=true && ts-node src/scripts/simRealismCheck.ts",
     "migrate:places": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-places.ts",
     "migrate:awards": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-awards.ts",
     "migrate:users": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-users.ts",

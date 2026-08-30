@@ -13,6 +13,7 @@ import {
   IPass,
   IDribble,
   ITackle,
+  IFoul,
 } from '../../../classes/Referee';
 import { Decider, IStrategy } from './Decider';
 import { Match, IMatchData } from '../../../classes/Match';
@@ -51,8 +52,12 @@ export class Actions {
 
     this.decider = new Decider(this.teams);
 
-    matchEvents.on(`${this.match.id}-game-halt`, (data) => {
-      this.interruption = true;
+    matchEvents.on(`${this.match.id}-game-halt`, (data: IFoul) => {
+      this.interruption = data.interruption;
+      // Referee.foul() already emits this, but nothing ever actually ran
+      // the free-kick/penalty/card setup it implies - handleFoul()
+      // (fully written, never called) does that.
+      this.referee.handleFoul(data, this);
     });
 
     matchEvents.on(`${this.match.id}-shot`, (data: IShot) => {
@@ -226,7 +231,15 @@ export class Actions {
     /**
      * Find the opponent best placed to intercept - i.e. standing closest to
      * the actual passing lane between player and teammate, not merely
-     * closest to the receiver.
+     * closest to the receiver. Deliberately NOT run through
+     * Coordinates.scaleDistance() - unlike the REACH thresholds in
+     * Decider.ts (how far you can pass/shoot to), this is a LANE-WIDTH
+     * concept like Decider.laneIsClear's laneWidth: how close a defender
+     * must be to the actual pass line to plausibly stick a leg out and cut
+     * it out. The finer 33x21 grid gives that a smaller, more precise
+     * real-world footprint, which is correct, not stale - scaling it up
+     * (as briefly tried) made interceptors show up far more often than
+     * intended and tanked pass completion into the 30s%.
      */
     const interceptor = CO.co.findClosestToSegment(
       player.BlockPosition,
@@ -255,7 +268,15 @@ export class Actions {
        * pass the player, the reciever and the nearest interceptor if possible...
        */
 
-      const fail = this.decider.getPassResult(
+      // getPassResult() returns true when the PASSER wins the duel (per
+      // getResult(passerStats, interceptorStats, ...) => $a > $b). This was
+      // previously named `fail` and checked as `if (!fail)`, which
+      // inverted the outcome - a pass only "succeeded" when the formula
+      // said the INTERCEPTOR won. Every threshold tuned in
+      // Decider.getPassResult to favor the passer was therefore making
+      // interceptions MORE likely, not less - this is the actual reason
+      // completion rate never responded to that tuning.
+      const passSucceeds = this.decider.getPassResult(
         player,
         teammate,
         type,
@@ -263,7 +284,7 @@ export class Actions {
         interceptor
       );
 
-      if (!fail) {
+      if (passSucceeds) {
         player.pass(
           CO.co.calculateDifference(
             teammate.BlockPosition,
@@ -891,6 +912,20 @@ export class Actions {
   private tackle(player: IFieldPlayer, tackler: IFieldPlayer, predetermined = false) {
     // log(`${tackler.LastName} is tackling ${player.LastName}`);
     const success = predetermined ? true : this.decider.getTackleResult(tackler, player);
+
+    // A mistimed/aggressive tackle can draw a foul independent of whether
+    // it actually wins the ball - higher Aggression and lower Tackling
+    // skill make it more likely. Previously nothing in the engine ever
+    // called Referee.foul() at all, despite the whole foul/card/set-piece
+    // system (Referee.foul/handleFoul/setUpSetPiece) already being fully
+    // written and simply never wired up - fouls were always exactly 0.
+    const foulChance = Math.max(
+      0,
+      Math.min(100, 30 + (tackler.Attributes.Aggression - tackler.Attributes.Tackling) * 0.3)
+    );
+    if (this.decider.gimmeAChance() <= foulChance) {
+      this.referee.foul(tackler, player);
+    }
 
     if (success) {
       tackler.Ball.move(

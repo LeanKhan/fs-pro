@@ -122,7 +122,12 @@ export default class Referee {
 
     //  Get distance from ScoringSide
     const distance = CO.co.calculateDistance(this.Teams![i].ScoringSide, where);
-    if (distance < 2) {
+    // Calibrated for the original 15-wide grid, same as every other
+    // distance threshold in Decider.ts - see Coordinates.scaleDistance.
+    const penaltyDistance = CO.co.scaleDistance(2);
+    const freeKickDistance = CO.co.scaleDistance(5);
+
+    if (distance < penaltyDistance) {
       log('<== Penalty Kick ==>');
 
       // Get an attacker or midfielder to take the PK
@@ -131,21 +136,31 @@ export default class Referee {
       );
       const taker = playerFunc.getRandomATTMID(this.Teams![teamIndex]);
 
-      // Move involved players away
-      // Move tackled
-      const b1 = playerFunc.findRandomFreeBlock(foulData.object);
-
-      const p1 = CO.co.findPath(b1, foulData.object.BlockPosition);
-      foulData.object.move(p1);
-
-      // Move tackler
+      // Move the tackler away from the penalty spot
       const b2 = playerFunc.findRandomFreeBlock(foulData.subject);
-
       const p2 = CO.co.findPath(b2, foulData.subject.BlockPosition);
-      foulData.object.move(p2);
+      foulData.subject.move(p2);
 
-      // Give him the ball :)
-    } else if (distance >= 2 && distance < 5) {
+      // Give the taker the ball at the penalty spot - previously this was
+      // just a comment ("Give him the ball :)"), so nobody ever actually
+      // had the ball after a penalty was awarded. Now the taker gets
+      // possession the same way every other restart does (see
+      // Referee.handleMatchRestart), and the normal decision loop takes it
+      // from there - this close to goal, Decider will very likely choose
+      // to shoot on its own, so no separate "penalty" shot logic is needed.
+      const takerPath = CO.co.calculateDifference(
+        foulData.where,
+        taker.BlockPosition
+      );
+      taker.move(takerPath);
+      taker.Ball.move(
+        CO.co.calculateDifference(taker.BlockPosition, taker.Ball.Position)
+      );
+
+      log(
+        `${taker.FirstName} ${taker.LastName} [${taker.Position}] is taking the penalty`
+      );
+    } else if (distance >= penaltyDistance && distance < freeKickDistance) {
       log('<== Set Piece Free Kick! ==>');
 
       // Move freekick taker to spot
@@ -277,10 +292,15 @@ export default class Referee {
           )
         );
 
-        // Move ball to keeper position
-        // keeper.Ball.move(
-        //   CO.co.calculateDifference(keeper.BlockPosition, keeper.Ball.Position)
-        // );
+        // Move ball to keeper position (goal kick) - this was commented
+        // out with a note claiming it's "handled in Actions", but
+        // Actions.shoot() sends an off-target shot to a random UNOCCUPIED
+        // block near the goal by design, so nobody ever had the ball after
+        // a miss. That left the match with no active player until someone
+        // incidentally wandered onto that exact block.
+        keeper.Ball.move(
+          CO.co.calculateDifference(keeper.BlockPosition, keeper.Ball.Position)
+        );
 
         createMatchEvent(
           this.Match!.id,
@@ -306,11 +326,14 @@ export default class Referee {
           )
         );
 
-        // Move ball to keeper position
-        // Missing a shot is already handled by Actions
-        // keeper.Ball.move(
-        //   CO.co.calculateDifference(keeper.BlockPosition, keeper.Ball.Position)
-        // );
+        // Move ball to keeper position - was commented out (same stale
+        // "handled elsewhere" assumption as the miss case above).
+        // Actions.shoot() sends a saved shot to the exact goal-line block,
+        // not to wherever the keeper actually stands, so nothing ever gave
+        // the keeper possession after a save without this.
+        keeper.Ball.move(
+          CO.co.calculateDifference(keeper.BlockPosition, keeper.Ball.Position)
+        );
 
         // console.log('Player shot -> ', data.shooter);
         // console.log('Keeper caught -> ', keeper);
@@ -348,17 +371,48 @@ export default class Referee {
       matchEvents.emit(`${this.Match!.id}-reset-formations`);
   }
 
+  /**
+   * Restart play from the center circle - kickoff, after a goal, after the
+   * ball goes out. Previously this only moved the BALL to the center
+   * block; nothing ever gave a player possession, and FieldPlayer.WithBall
+   * only becomes true when a player's own block happens to exactly
+   * coincide with the ball's. Since no formation slot sits exactly at the
+   * center circle, that coincidence was rare, so most matches spent nearly
+   * the whole simulation with no active player at all (Game.setPlayingSides
+   * finds nobody WithBall, falls back to moveTowardsBall() every tick,
+   * and takeAction() - where all passing/shooting/tackling logic lives -
+   * never runs). Now the nearest outfield player is physically placed on
+   * the ball's new block before it moves there, so WithBall is
+   * unambiguously true for them the moment the ball arrives.
+   */
   public handleMatchRestart() {
-    // move ball to centerBlock
-    console.log('Handling Match Restart! ', this.Match!.CenterBlock.key);
+    const centerBlock = this.Match!.CenterBlock;
+
+    console.log('Handling Match Restart! ', centerBlock.key);
+
+    const taker = this.pickRestartTaker();
+    if (taker) {
+      taker.changePosition(centerBlock);
+    }
+
+    // Moving the ball fires the ball-moved event every player already
+    // listens to, which re-checks WithBall for all of them - so this must
+    // happen AFTER placing the taker, not before.
     this.MatchBall.move(
-      CO.co.calculateDifference(
-        this.Match!.CenterBlock,
-        this.MatchBall.Position
-      )
+      CO.co.calculateDifference(centerBlock, this.MatchBall.Position)
+    );
+  }
+
+  /** Whichever outfield player is currently closest to the center circle -
+   * a simple, stateless heuristic for "who takes the restart", not a claim
+   * about which team actually earned it (kickoff/goal/throw-in possession
+   * rules aren't modeled here). */
+  private pickRestartTaker(): IFieldPlayer | undefined {
+    const allPlayers = this.Match!.Home.StartingSquad.concat(
+      this.Match!.Away.StartingSquad
     );
 
-
+    return CO.co.findClosestFieldPlayer(this.Match!.CenterBlock, allPlayers);
   }
 }
 

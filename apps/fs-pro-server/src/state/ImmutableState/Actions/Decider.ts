@@ -201,10 +201,12 @@ export class Decider {
     defendingSide: MatchSide,
     radius: number
   ): number {
+    const scaledRadius = CO.co.scaleDistance(radius);
+
     return defendingSide.StartingSquad.filter((opponent) => {
       return (
         opponent.Position !== 'GK' &&
-        CO.co.calculateDistance(player.BlockPosition, opponent.BlockPosition) <= radius
+        CO.co.calculateDistance(player.BlockPosition, opponent.BlockPosition) <= scaledRadius
       );
     }).length;
   }
@@ -257,15 +259,26 @@ export class Decider {
     switch (type) {
       case 'short':
         if (interceptor) {
+          // Checked real generated attributes (src/scripts/
+          // checkAttributeDistribution.ts): passing-relevant stats and
+          // Tackling are both clustered ~65-70 for every position - nearly
+          // identical. Any duel formula that weighs them head-on lands
+          // close to 50/50 regardless of threshold tuning, but real short
+          // passes complete 70-92% of the time even under some pressure -
+          // being NEAR the lane isn't the same as actually cutting the
+          // pass out. So the interceptor's Tackling is discounted (70%)
+          // AND weighted mostly toward luck (20%), while the passer stays
+          // skill-dominated (90%) - not just a threshold nudge, an
+          // intentional structural bias toward the passer.
           result = getResult(
             [
               { v: passer.Attributes.ShortPass, p: 50 },
               { v: passer.Attributes.Mental, p: 25 },
               { v: reciever.Attributes.Control, p: 25 },
             ],
-            [interceptor.Attributes.Tackling],
-            80,
-            80
+            [interceptor.Attributes.Tackling * 0.7],
+            90,
+            20
           );
         } else {
           const tally =
@@ -290,11 +303,14 @@ export class Decider {
       case 'long':
         // let chance = Math.round(Math.random() * 100);
         if (interceptor) {
+          // Same rebalancing as the short-pass case above, and for the same
+          // reason (LongPass/Mental cluster in the same ~65-70 range as
+          // Tackling in the real data).
           result = getResult(
             [passer.Attributes.LongPass, passer.Attributes.Mental],
-            [interceptor.Attributes.Tackling],
-            70,
-            60
+            [interceptor.Attributes.Tackling * 0.7],
+            85,
+            20
           );
         } else {
           // TODO: Chance would be form...
@@ -333,12 +349,30 @@ export class Decider {
     dribbler: IFieldPlayer,
     opponent: IFieldPlayer
   ): boolean {
-    const chance = this.gimmeAChance();
-    const tally =
-      dribbler.Attributes.Dribbling / 2 +
-      dribbler.Attributes.Speed / 2 -
-      opponent.Attributes.Tackling;
-    return chance <= tally;
+    // Previously: chance <= (Dribbling+Speed)/2 - Tackling, with chance
+    // drawn uniformly from 0-100. At roughly EQUAL attributes (the common
+    // case) that tally is close to 0, and since chance can never be
+    // negative, success was only possible in the rare case chance rolled
+    // exactly 0 - a genuine 50/50 matchup succeeded well under 5% of the
+    // time instead of ~50%. Switched to the same getResult() duel used for
+    // every other contest in this file (tackles, shots, passes), which
+    // doesn't have that asymmetry.
+    // Unlike short passing (70-92% real completion, structurally favored
+    // above), dribbling past a defender is a lower-percentage, riskier
+    // action even for a good dribbler - real success rates run closer to
+    // 40-55%. So this stays a genuinely even-ish duel rather than getting
+    // the same passer-favoring treatment: the defender is weighted
+    // slightly MORE on skill (80%) than the dribbler (65%), since actual
+    // attribute values cluster together the same way passing/Tackling do.
+    return getResult(
+      [
+        { v: dribbler.Attributes.Dribbling, p: 60 },
+        { v: dribbler.Attributes.Speed, p: 40 },
+      ],
+      [opponent.Attributes.Tackling],
+      65,
+      80
+    );
   }
 
   /**
@@ -416,7 +450,8 @@ export class Decider {
     distance: number
   ) {
     const inRange =
-      CO.co.calculateDistance(player.BlockPosition, attackingSide.ScoringSide) <= distance;
+      CO.co.calculateDistance(player.BlockPosition, attackingSide.ScoringSide) <=
+      CO.co.scaleDistance(distance);
 
     if (!inRange) {
       return false;
@@ -541,10 +576,12 @@ export class Decider {
       )
       .slice(0, 3);
 
+    const scaledDistance = CO.co.scaleDistance(distance);
+
     return candidates.some((teammate) => {
       const teammateIsClose =
         CO.co.calculateDistance(player.BlockPosition, teammate.BlockPosition) <=
-        distance;
+        scaledDistance;
 
       if (!teammateIsClose) {
         return false;
@@ -601,19 +638,21 @@ export class Decider {
     distance: number,
     ownPost = false
   ): boolean {
+    const scaledDistance = CO.co.scaleDistance(distance);
+
     if (ownPost) {
       return (
         CO.co.calculateDistance(
           player.BlockPosition,
           attackingSide.KeepingSide
-        ) <= distance
+        ) <= scaledDistance
       );
     } else {
       return (
         CO.co.calculateDistance(
           player.BlockPosition,
           attackingSide.ScoringSide
-        ) <= distance
+        ) <= scaledDistance
       );
     }
   }
