@@ -23,10 +23,28 @@ const VALID_BACKENDS: BackendChoice[] = ['mongo', 'drizzle', 'prisma'];
  *
  * 'User (partial)': only the identity-only routes (login, fetch-by-id,
  * change-password, update, logout, /enter) go through the repository.
- * Registration and every Club-linking route (POST /join, /add-club(s),
- * /clubs/:id) are still fully raw Mongo - see FUTURE-PLANS.md for why.
+ * Registration's user-creation and the `User.Clubs`-array routes
+ * (/add-club(s), /clubs/:id, GET /:id?populate=true) are still fully raw
+ * Mongo - not because Club is unconverted (it now partially is), but
+ * because Postgres dropped `Users.Clubs` entirely in favor of `Clubs.User`
+ * (the reverse FK) - there's no array left to keep in sync on that backend.
+ * See FUTURE-PLANS.md for the full writeup.
+ *
+ * 'Manager (partial)': fetch/create/update/`populate=Club` (incl.
+ * `resolveManagerTactic`, used on every match kickoff) go through the
+ * repository. DELETE stays raw for the Manager-side write, but its
+ * Club-side write (`Club.Manager` unset) now goes through the Club
+ * repository too.
+ *
+ * 'Club (partial)': fetch-by-id (no populate)/create/update (plain fields
+ * only) go through the repository, as does every Manager
+ * hire/fire/removal write via `appendClubRecord` (a read-modify-write
+ * replacement for the old `$push`/`$unset` operator updates). GET
+ * /clubs/all, /clubs/fetch, arbitrary-populate fetches, add/remove-player,
+ * and the CSV bulk import stay raw - they need either Mongo operators the
+ * repository doesn't support, or Player data (Player isn't converted).
  */
-const CONVERTED_ENTITIES = ['Place', 'User (partial)'];
+const CONVERTED_ENTITIES = ['Place', 'User (partial)', 'Manager (partial)', 'Club (partial)'];
 
 /**
  * @openapi

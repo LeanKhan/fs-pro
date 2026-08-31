@@ -65,7 +65,15 @@ export class DrizzleDatabase implements IDatabase {
       Competition: mongo.Competition, // TODO: DrizzleCompetitionRepository not built yet
       Player: mongo.Player, // TODO: DrizzlePlayerRepository not built yet
       Season: mongo.Season, // TODO: DrizzleSeasonRepository not built yet
-      Club: mongo.Club, // TODO: DrizzleClubRepository not built yet
+      // DrizzleClubRepository/MongoClubRepository do exist (see
+      // repositories/{mongo,drizzle}/ClubRepository.ts) and are used
+      // directly by the identity/CRUD surface (ClubRepositoryFactory, called
+      // from controllers/clubs/club.service.ts) - but not wired in here:
+      // DB.Models.Club is one slot shared by every consumer, and several
+      // routes still need Mongo-operator ($push/$unset) semantics or
+      // arbitrary populate specs the repository doesn't support (GET
+      // /clubs/all, /clubs/fetch, add/remove-player, the CSV bulk import).
+      Club: mongo.Club,
       // DrizzleUserRepository/MongoUserRepository do exist (see
       // repositories/{mongo,drizzle}/UserRepository.ts), but deliberately
       // aren't wired in here: DB.Models.User is one slot shared by every
@@ -77,7 +85,12 @@ export class DrizzleDatabase implements IDatabase {
       Fixture: mongo.Fixture, // TODO: DrizzleFixtureRepository not built yet
       Calendar: mongo.Calendar, // TODO: DrizzleCalendarRepository not built yet
       Day: mongo.Day, // TODO: DrizzleDayRepository not built yet
-      Manager: mongo.Manager, // TODO: DrizzleManagerRepository not built yet
+      // DrizzleManagerRepository/MongoManagerRepository do exist (see
+      // repositories/{mongo,drizzle}/ManagerRepository.ts) and cover most of
+      // the Manager surface now, including `populate=Club` - but DELETE
+      // /managers/:id and the always-fallback slot below stay on Mongo for
+      // the same one-slot-shared reason as Club/User above.
+      Manager: mongo.Manager,
       ClubMatch: mongo.ClubMatch, // TODO: DrizzleClubMatchRepository not built yet
       PlayerMatch: mongo.PlayerMatch, // TODO: DrizzlePlayerMatchRepository not built yet
       Place: new DrizzlePlaceRepository(this.drizzleDb),

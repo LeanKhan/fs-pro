@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { updateUser, getUserById, updateUserFields } from '../controllers/user/user.service';
+import { getClubs } from '../controllers/clubs/club.service';
 import responseHandler from '../helpers/responseHandler';
 import { store } from '../sessionStore';
 import { IUser } from '../controllers/user/user.model';
@@ -47,6 +48,18 @@ export function initializeSession(
  * user.router.ts) - under Drizzle its `_id` is a Postgres UUID, which
  * `updateUser`/`DB.Models.User` (Mongo) would silently fail to match, so
  * this stamps the session through the same repository instead.
+ *
+ * `Clubs` in the response is overwritten with a live `Clubs.User` reverse
+ * lookup rather than whatever the stored `Users.Clubs` array says (on
+ * Postgres that array doesn't even exist - dropped from the schema - so
+ * `user.Clubs` there would otherwise just be `undefined`). This is the
+ * client's actual source of truth for club ownership on login
+ * (`login.vue` stores it as `user.value.clubs`) - now that
+ * `/add-club(s)`/`/clubs/:club_id` write ownership straight to `Clubs.User`
+ * and no longer touch the array at all, leaving this on the raw field would
+ * make it silently go stale the first time a user added or removed a club.
+ * Kept as an id array (not full Club objects) to match what
+ * `settings.vue`'s `_id: { $in: user.value.clubs }` query still expects.
  */
 export function initializeSessionForLogin(
   req: Request,
@@ -61,10 +74,14 @@ export function initializeSessionForLogin(
       return responseHandler.fail(res, 400, 'Error creating session', err);
     }
 
-    updateUserFields(id, { Session: req.sessionID } as Partial<IUser>)
-      .then((user) => {
+    Promise.all([
+      updateUserFields(id, { Session: req.sessionID } as Partial<IUser>),
+      getClubs({ User: id }),
+    ])
+      .then(([user, clubs]) => {
         responseHandler.success(res, 200, 'User authenticated successfully', {
           ...user,
+          Clubs: clubs.map((club) => club._id),
         });
       })
       .catch((error: any) => {

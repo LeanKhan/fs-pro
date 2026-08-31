@@ -1,15 +1,14 @@
 import { Router } from 'express';
 import {
-  fetchAll,
-  fetchOneById,
-  deleteById,
-  deleteByRemove,
-  create,
-  updateById,
+  deleteManagerById,
+  getManagers,
+  getManagerById,
+  createManager,
+  updateManager,
 } from './manager.service';
 import respond from '../../helpers/responseHandler';
 import { incrementCounter, getCurrentCounter } from '../../utils/counter';
-import { updateClub } from '../clubs/club.service';
+import { appendClubRecord } from '../clubs/club.service';
 import { ManagerInterface } from './manager.model';
 import log from '../../helpers/logger';
 import {baseQuery, setupRoutes } from '../../helpers/queries';
@@ -31,7 +30,17 @@ router.get('/', (req, res) => {
     log(`Error parsing JSON => ${err}`);
   }
 
-  fetchAll(options as Record<string, unknown>, typeof req.query.populate === 'string' ? req.query.populate : undefined)
+  // populate=Club now goes through the repository too, with Club selected
+  // down to Name/ClubCode/LeagueCode (see IManagerReadOptions.withClub) -
+  // same projection the old raw `.populate('Club', 'Name ClubCode
+  // LeagueCode')` call used.
+  const populate = typeof req.query.populate === 'string' ? req.query.populate : undefined;
+  const response =
+    populate === 'Club'
+      ? getManagers(options as Record<string, unknown>, { withClub: true })
+      : getManagers(options as Record<string, unknown>);
+
+  response
     .then((managers) => {
       respond.success(res, 200, 'Managers fetched successfully', managers);
     })
@@ -42,7 +51,7 @@ router.get('/', (req, res) => {
 
 router.get('/unemployed', (req, res) => {
 
-  fetchAll({isEmployed: false}, 'Club')
+  getManagers({ isEmployed: false }, { withClub: true })
     .then((managers) => {
       respond.success(res, 200, 'Managers fetched successfully', managers);
     })
@@ -68,7 +77,9 @@ router.get('/:id', (req, res) => {
     );
   }
 
-  fetchOneById(id, po)
+  const response = po ? getManagerById(id, { withClub: true }) : getManagerById(id);
+
+  response
     .then((m) => {
       respond.success(res, 200, 'Manager fetched successfully', m);
     })
@@ -85,9 +96,9 @@ router.delete('/:id', (req, res) => {
   // Find the club(s) that they are employed and remove them...
   // if manager is signed to a club, remove them from that arrangement...
   const getManager = () => {
-    return fetchOneById(id)
+    return getManagerById(id)
       .then((m) => {
-        if (m.isEmployed && m.Club) {
+        if (m?.isEmployed && m.Club) {
           return m;
         }
 
@@ -102,24 +113,24 @@ router.delete('/:id', (req, res) => {
     const { Club, FirstName, LastName } = manager as ManagerInterface;
     if (Club) {
       // TODO: finish this, refer to manager when adding record
-      updateClub(Club, {
-        $unset: { Manager: 1 },
-        $push: {
-          Records: {
-            type: 'hired',
-            title: `${FirstName} ${LastName} just left the club and the system :/`,
-            date: new Date(),
-            details: 'Manager is no longer in the system',
-          },
-        },
-      }).catch((err) => {
-        throw err;
-      });
+      // (returned, not fire-and-forget - deleteManager below must wait for
+      // this to finish, and a failure here must stop the delete from
+      // running rather than being silently swallowed)
+      return appendClubRecord(
+        Club,
+        { Manager: null },
+        {
+          type: 'hired',
+          title: `${FirstName} ${LastName} just left the club and the system :/`,
+          date: new Date(),
+          details: 'Manager is no longer in the system',
+        }
+      );
     }
   };
 
   const deleteManager = () => {
-    return deleteByRemove(id);
+    return deleteManagerById(id);
   };
 
   // hey, link up!
@@ -141,7 +152,7 @@ router.put('/:id', (req, res) => {
   const { id } = req.params;
   const { data } = req.body;
 
-  updateById(id, data)
+  updateManager(id, data)
     .then((manager) => {
       respond.success(res, 200, 'Manager updated successfully', manager);
     })
@@ -153,13 +164,12 @@ router.put('/:id', (req, res) => {
 /** CREATE NEW MANAGER */
 router.post('/', getCurrentCounter, async (req, res) => {
   // Create a new Manager
-  const response = await create(req.body.data);
-
-  if (!response.error) {
+  try {
+    const manager = await createManager(req.body.data);
     void incrementCounter('manager_counter');
-    respond.success(res, 200, 'Manger created successfully', response.result);
-  } else {
-    respond.fail(res, 400, 'Error creating Manager', response.result);
+    respond.success(res, 200, 'Manger created successfully', manager);
+  } catch (error) {
+    respond.fail(res, 400, 'Error creating Manager', error);
   }
 });
 

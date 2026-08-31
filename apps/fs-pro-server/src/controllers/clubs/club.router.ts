@@ -2,11 +2,12 @@ import { Router } from 'express';
 import respond from '../../helpers/responseHandler';
 import {
   fetchAllClubs,
-  createNewClub,
   fetchSingleClubById,
   fetchClubs,
-  updateClub,
   deleteByRemove,
+  getClubById,
+  createClub,
+  updateClubFields,
 } from './club.service';
 import { updateManyPlayerSigning, updatePlayerSigning } from '../../middleware/player';
 import {
@@ -66,20 +67,19 @@ router.get('/fetch', (req, res) => {
 
 /** Create new Club */
 router.post('/new', async (req, res) => {
-  const response = await createNewClub(req.body.data);
-
-  if (!response.error) {
-    respond.success(res, 200, 'Club created successfully', response.result);
-  } else {
-    respond.fail(res, 400, 'Error creating club', response.result);
+  try {
+    const club = await createClub(req.body.data);
+    respond.success(res, 200, 'Club created successfully', club);
+  } catch (error) {
+    respond.fail(res, 400, 'Error creating club', error);
   }
 });
 
-/** Update Club */
+/** Update Club - plain fields only, no Mongo $set/$push/$unset operators */
 router.post('/:id/update', (req, res) => {
   const data = req.body.data;
 
-  updateClub(req.params.id, data)
+  updateClubFields(req.params.id, data)
     .then((club) => {
       respond.success(res, 200, 'Club updated successfully', club);
     })
@@ -105,7 +105,12 @@ router.delete('/:id', (req, res) => {
 router.get('/:id', (req, res) => {
   try {
     const populate = typeof req.query.populate === 'string' ? req.query.populate : false;
-    fetchSingleClubById(req.params.id, populate)
+    // An explicit ?populate= needs an arbitrary Mongo populate spec
+    // (`JSON.parse`d, can be any field/array of fields) - no repository
+    // equivalent for that, stays on the raw path. Plain fetches go through
+    // the repository (Address.Country still comes back populated either way).
+    const response = populate ? fetchSingleClubById(req.params.id, populate) : getClubById(req.params.id);
+    response
       .then((club) => {
         respond.success(res, 200, 'Club fetched successfully', club);
       })
