@@ -3,6 +3,7 @@ dotenv.config();
 
 import { connect, connection } from 'mongoose';
 import { Competition } from '../../controllers/competitions/competition.model';
+import { Place } from '../../controllers/places/places.model';
 import { createDrizzleConnection } from '../../db/drizzle/client';
 import {
   competitionClubs as competitionClubsTable,
@@ -28,6 +29,9 @@ async function migrateCompetitionClubs() {
   await client`SELECT 1`;
   console.log('Connected to PostgreSQL');
 
+  // Competition's find hook populates Country, so Place has to be
+  // registered even though this migration only reads Competition.Clubs.
+  new Place();
   const CompetitionModel = new Competition().model;
   const competitions = await CompetitionModel.find({}).lean().exec();
   console.log(`Found ${competitions.length} competitions to link`);
