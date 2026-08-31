@@ -12,6 +12,89 @@ Entries are grouped by area. Within a group, newest first.
 
 ## DB migration (Mongo → Postgres)
 
+### Player and Fixture conversions - both partial, plus two real bugs found and fixed
+
+**Status:** Done, deliberately partial - seventh and eighth entities
+converted after Place, User, Manager, Club, Competition, and Calendar.
+
+**Player.** Same always-populate-`Nationality` hook shape as Club/Manager/
+Competition. Converted: `GET /:id` (and the two internal reads at
+`GET /:id/rating` and `PUT /works/add-roles/:id`, both switched to the
+repository too), `POST /:id/update` (plain fields), `POST /new`,
+`DELETE /:id`. Left raw: `GET /all` (arbitrary query), `PATCH /update-many`
+(bulk, arbitrary update), `/stats` and the three aggregate-pipeline stats
+functions (`getPlayerStats`/`getSpecificPlayerStats`/`allPlayerStats` -
+multi-stage `$lookup`/`$group` Mongo aggregations, no Drizzle equivalent
+without a raw-SQL rewrite), and `updatePlayersDetails` (end-of-year
+rating/age progression - `$set`/`$push` operators). `delete()` on Mongo
+uses `.remove()` (not `findByIdAndDelete`) specifically to keep
+`player.model.ts`'s real, active `post('remove')` hook firing (it pulls
+this player out of `Club.Players`, a Mongo-only array, and deletes its
+`PlayerMatch` history) - the Drizzle implementation deletes the matching
+`playerMatchDetails` rows explicitly first, since that FK has no
+`ON DELETE CASCADE`.
+
+**Fixture.** No auto-populate hook, but `fixture.service.ts`'s raw
+`fetchOneById` always populates `HomeSideDetails`/`AwaySideDetails` (each
+with `PlayerStats`) regardless of its own `populate` argument - so
+`findById` replicates that same baseline via nested Drizzle relations
+(`homeSideDetails`/`awaySideDetails`, each `with: { playerStats: true }`),
+proving Manager/Club/Competition's single-level nested-populate pattern
+extends cleanly to two levels. Converted: `GET /:id` (only when no extra
+`?populate=` is requested - that case needs the raw arbitrary-populate
+path) and `DELETE /:id`. Left raw (and never exposed via router to begin
+with - no public create/update route exists for Fixture, only match-engine
+internals): `findOneAndUpdate` (arbitrary query + update, used throughout
+match simulation to record state) and bulk creation
+(`createFixtures`/`createMany`). `create`/`update`/`findAll` exist on the
+repository for future use but aren't wired into anything yet.
+
+**Two real, pre-existing bugs found and fixed along the way (not part of
+the DB-migration scope, but directly blocking the routes converted here):**
+
+1. `fixture.model.ts`'s `post('remove')` hook was declared
+   `async function(this, next)` - a post-remove hook's real signature is
+   `(doc, next)`, so the single declared parameter `next` was actually
+   bound to the removed *document*, not a callback. Calling `next()` then
+   threw `TypeError: next is not a function` - on **every single** Fixture
+   removal, silently after the deletion had already committed (so the
+   document really was gone, but every caller saw an error instead of
+   confirmation). This predates this session entirely; it just never got
+   exercised live until `DELETE /fixtures/:id` was tested against a real
+   record here. Fixed by adding the missing `doc` parameter and dropping
+   `next()` (unnecessary for an async hook - Mongoose waits on the
+   returned promise instead).
+2. `POST /players/new` and `POST /competitions/new` called
+   `respond.success(...)` and *then* `void incrementCounter(...)` - if
+   `incrementCounter` throws, that throw now lands inside a `try` block
+   whose `catch` calls `respond.fail(...)` on a response that was already
+   sent, crashing the process with `Error: Cannot set headers after they
+   are sent to the client`. Hit this directly testing Player creation
+   under `backend=drizzle`: `incrementCounter` reads `DB.db` (see
+   `db/index.ts`), which resolves to the *Drizzle* database object under
+   that backend, not a raw MongoDB driver handle - calling `.collection()`
+   on it throws synchronously. Fixed by reordering both routes to call
+   `incrementCounter` *before* `respond.success` (matching the order
+   `manager.router.ts`'s create route already used) - a thrown error now
+   produces one clean `respond.fail`, not a crash. The underlying
+   `incrementCounter`/`DB.db` mismatch under `backend=drizzle` is a
+   separate, bigger, pre-existing problem (the whole Mongo `counter`
+   collection concept was never adapted for Postgres) - not fixed, same
+   family as the already-documented Manager/Competition counter issues.
+
+Verified both entities' converted surface (including the nested Fixture
+populate and both bug fixes) against real data on both Mongo and Postgres.
+
+**Files:** `repositories/{Player,Fixture}Repository.ts`,
+`repositories/{mongo,drizzle}/{Player,Fixture}Repository.ts`,
+`repositories/{Player,Fixture}RepositoryFactory.ts`,
+`controllers/players/{player.service,player.router}.ts`,
+`controllers/fixtures/{fixture.service,fixture.router,fixture.model}.ts`,
+`controllers/competitions/competition.router.ts` (counter-ordering fix
+only).
+
+---
+
 ### Competition and Calendar conversions - both partial, same identity-only pattern
 
 **Status:** Done, deliberately partial - fifth and sixth entities converted

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import respond from '../../helpers/responseHandler';
-import { fetchOneById, deleteByRemove } from './fixture.service';
+import { fetchOneById, getFixtureById, deleteFixtureById } from './fixture.service';
 import { setupRoutes } from '../../helpers/queries';
 
 const router = Router();
@@ -15,7 +15,12 @@ router.get('/:id', (req, res) => {
     console.log('Error parsing populate string, Fixture', err);
   }
 
-  fetchOneById(req.params.id, p)
+  // An extra ?populate= path needs the raw arbitrary-populate function -
+  // HomeSideDetails/AwaySideDetails+PlayerStats are always populated
+  // either way, by the repository or by fetchOneById's own default.
+  const response = p ? fetchOneById(req.params.id, p) : getFixtureById(req.params.id);
+
+  response
     .then((fixture: any) => {
       respond.success(res, 200, 'Fixture fetched successfully', fixture);
     })
@@ -25,7 +30,7 @@ router.get('/:id', (req, res) => {
 });
 
 router.delete('/:id', (req, res) => {
-  deleteByRemove(req.params.id)
+  deleteFixtureById(req.params.id)
     .then((calendar: any) => {
       respond.success(res, 200, 'Fixture deleted successfully :)', calendar);
     })

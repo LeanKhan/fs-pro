@@ -5,6 +5,45 @@ import { PlayerInterface } from '../../interfaces/Player';
 import { calculatePlayerValue } from '../../utils/players';
 import { PlayerMatchDetailsInterface } from '../player-match/player-match.model';
 import { Types } from 'mongoose';
+import { PlayerRepositoryFactory } from '../../repositories/PlayerRepositoryFactory';
+import { IPlayerFilter } from '../../repositories/PlayerRepository';
+
+/**
+ * Repository-backed functions below are for the identity/CRUD surface that
+ * has no arbitrary-query or Mongo-operator update in play - `update()` only
+ * accepts plain fields. `updatePlayersDetails` (end-of-year progression),
+ * `toggleSigned`, `updatePlayers` (bulk), and every aggregate-pipeline stats
+ * function below stay on the raw functions, unchanged. See FUTURE-PLANS.md.
+ */
+let playerRepo: ReturnType<typeof PlayerRepositoryFactory.create> | null = null;
+
+function getPlayerRepo() {
+  if (!playerRepo) {
+    playerRepo = PlayerRepositoryFactory.create();
+  }
+  return playerRepo;
+}
+
+export async function getPlayerById(id: string) {
+  return getPlayerRepo().findById(id);
+}
+
+export async function getPlayers(filter?: IPlayerFilter) {
+  return getPlayerRepo().findAll(filter);
+}
+
+export async function updatePlayerFields(id: string, data: Partial<PlayerInterface>) {
+  return getPlayerRepo().update(id, data);
+}
+
+export async function deletePlayerById(id: string) {
+  return getPlayerRepo().delete(id);
+}
+
+export async function createPlayer(data: Partial<PlayerInterface>) {
+  data.Value = calculatePlayerValue(data.Position as string, data.Rating as number, data.Age as number);
+  return getPlayerRepo().create(data);
+}
 
 /**
  * fetchAllPlayers
@@ -41,48 +80,6 @@ export function updateById(id: string, update: any): Promise<PlayerInterface> {
     .lean()
     .exec();
 }
-/**
- * delete Player by id
- * @param id
- */
-export function deletePlayer(id: string) {
-  return DB.Models.Player.findByIdAndDelete(id).lean().exec();
-}
-
-export async function deleteByRemove(id: string) {
-  /**
-  * Delete the Player
-  */
-
-  const doc = await DB.Models.Player.findById(id);
-
-  if(!doc) {
-    throw new Error(`Player ${id} does not exist`);
-  }
-
-  return doc.remove();
-}
-
-/**
- * Create new player broooooo
- *
- * @param p Player making data
- * @returns - {error: boolean, result: any}
- */
-export const createNewPlayer = async (_player: PlayerInterface) => {
-  _player.Value = calculatePlayerValue(
-    _player.Position,
-    _player.Rating,
-    _player.Age
-  );
-
-  const PLAYER = new DB.Models.Player(_player);
-
-  return PLAYER.save()
-    .then((player: any) => ({ error: false, result: player }))
-    .catch((error: any) => ({ error: true, result: error }));
-};
-
 /**
  * Toggle Signed
  * @param playerId

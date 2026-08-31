@@ -116,8 +116,11 @@ router.delete('/:id', (req: Request, res: Response) => {
 router.post('/new', getCurrentCounter, async (req: Request, res: Response) => {
   try {
     const competition = await createCompetition(req.body.data);
-    respond.success(res, 200, 'Competition created successfully', competition);
+    // incrementCounter before respond.success - if it throws, the catch
+    // below must still be the only response sent (see FUTURE-PLANS.md for
+    // the double-response crash this ordering used to cause).
     void incrementCounter('competition_counter');
+    respond.success(res, 200, 'Competition created successfully', competition);
   } catch (error) {
     respond.fail(res, 400, 'Error creating competition', error);
   }

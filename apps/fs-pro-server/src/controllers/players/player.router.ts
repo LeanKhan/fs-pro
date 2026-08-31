@@ -3,14 +3,12 @@ import { Request, Response, Router } from 'express';
 import respond from '../../helpers/responseHandler';
 import {
   fetchAll,
-  createNewPlayer,
-  fetchOneById,
-  updateById,
-  deletePlayer,
-  deleteByRemove,
   updatePlayers,
   getSpecificPlayerStats,
-  findOnePlayer,
+  getPlayerById,
+  updatePlayerFields,
+  deletePlayerById,
+  createPlayer,
 } from './player.service';
 import { PlayerInterface } from './player.model';
 import { generatePlayers } from './player.controller';
@@ -82,7 +80,7 @@ router.post('/:id/update', (req, res) => {
   const { id } = req.params;
   const { data } = req.body;
 
-  updateById(id, data)
+  updatePlayerFields(id, data)
     .then((player: any) => {
       respond.success(res, 200, 'Player updated successfully', player);
     })
@@ -108,24 +106,26 @@ router.post('/new', getCurrentCounter, async (req, res) => {
     req.body.data.Age
   );
 
-  const response = await createNewPlayer({
-    ...req.body.data,
-    Rating: new_rating,
-    Value: new_value,
-  });
-
-  if (!response.error) {
-    respond.success(res, 200, 'Player created successfully', response.result);
+  try {
+    const created = await createPlayer({
+      ...req.body.data,
+      Rating: new_rating,
+      Value: new_value,
+    });
+    // incrementCounter before respond.success - if it throws, the catch
+    // below must still be the only response sent (see FUTURE-PLANS.md for
+    // the double-response crash this ordering used to cause).
     void incrementCounter('player_counter');
-  } else {
-    respond.fail(res, 400, 'Error creating player', response.result);
+    respond.success(res, 200, 'Player created successfully', created);
+  } catch (error) {
+    respond.fail(res, 400, 'Error creating player', error);
   }
 });
 
 router.get('/:id/rating', async (req, res) => {
   const { id } = req.params;
 
-  const player = (await fetchOneById(id)) as PlayerInterface;
+  const player = (await getPlayerById(id)) as PlayerInterface;
 
   if (!player) return respond.fail(res, 400, 'Player not found!');
 
@@ -215,7 +215,7 @@ router.get('/stats', async (req: Request, res: Response) => {
 router.put('/works/add-roles/:id', (req, res) => {
   const { id } = req.params;
 
-  fetchOneById(id)
+  getPlayerById(id)
     .then((player: any) => {
       respond.success(res, 200, 'Player fetched successfully', player);
     })
@@ -249,7 +249,7 @@ router.get('/generate-players', generatePlayers);
 router.get('/:id', (req, res) => {
   const { id } = req.params;
 
-  fetchOneById(id)
+  getPlayerById(id)
     .then((player: any) => {
       respond.success(res, 200, 'Player fetched successfully', player);
     })
@@ -262,7 +262,7 @@ router.get('/:id', (req, res) => {
 router.delete('/:id', (req, res) => {
   const { id } = req.params;
 
-  deleteByRemove(id)
+  deletePlayerById(id)
     .then((player: any) => {
       respond.success(res, 200, 'Player deleted successfully', player);
     })
