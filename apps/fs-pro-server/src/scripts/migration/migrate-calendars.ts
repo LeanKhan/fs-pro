@@ -5,6 +5,7 @@ import { connect, connection } from 'mongoose';
 import { Calendar } from '../../controllers/calendar/calendar.model';
 import { createDrizzleConnection } from '../../db/drizzle/client';
 import { calendars as calendarsTable } from '../../db/drizzle/schema';
+import { upsertByMongoId } from './utils';
 
 async function migrateCalendars() {
   console.log('Starting Calendars migration...');
@@ -30,22 +31,20 @@ async function migrateCalendars() {
     try {
       console.log('Calendar => ', calendar._id.toString());
 
-      await db
-        .insert(calendarsTable)
-        .values({
-          mongoId: calendar._id.toString(), // Store original MongoDB ID
-          Name: calendar.Name,
-          YearString: calendar.YearString,
-          YearDigits: calendar.YearDigits,
-          CurrentDay: calendar.CurrentDay || null,
-          isActive: calendar.isActive || false,
-          isEnded: calendar.isEnded || false,
-          allSeasonsCompleted: calendar.allSeasonsCompleted || false,
-          // Days dropped - days.Calendar (see migrate-days.ts) is the FK
-          // source of truth; a calendar's days are a reverse lookup now.
-          createdAt: (calendar as any).createdAt || new Date(),
-          updatedAt: (calendar as any).updatedAt || new Date(),
-        });
+      await upsertByMongoId(db, calendarsTable, {
+        mongoId: calendar._id.toString(), // Store original MongoDB ID
+        Name: calendar.Name,
+        YearString: calendar.YearString,
+        YearDigits: calendar.YearDigits,
+        CurrentDay: calendar.CurrentDay || null,
+        isActive: calendar.isActive || false,
+        isEnded: calendar.isEnded || false,
+        allSeasonsCompleted: calendar.allSeasonsCompleted || false,
+        // Days dropped - days.Calendar (see migrate-days.ts) is the FK
+        // source of truth; a calendar's days are a reverse lookup now.
+        createdAt: (calendar as any).createdAt || new Date(),
+        updatedAt: (calendar as any).updatedAt || new Date(),
+      });
       console.log(`✓ Migrated: ${calendar.Name}`);
     } catch (err: any) {
       console.error(`✗ Failed: ${calendar.Name}`);

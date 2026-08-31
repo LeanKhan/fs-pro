@@ -5,6 +5,7 @@ import { connect, connection } from 'mongoose';
 import { Place } from '../../controllers/places/places.model';
 import { createDrizzleConnection } from '../../db/drizzle/client';
 import { places as placesTable } from '../../db/drizzle/schema';
+import { upsertByMongoId } from './utils';
 
 async function migratePlaces() {
   console.log('Starting Places migration...');
@@ -28,20 +29,18 @@ async function migratePlaces() {
   // Migrate each place
   for (const place of places) {
     try {
-      console.log('Place => ', place._id.toString())
-      await db
-        .insert(placesTable)
-        .values({
-          mongoId: place._id.toString(), // Store original MongoDB ID
-          Fullname: place.Fullname,
-          Name: place.Name,
-          Code: place.Code,
-          Type: place.Type,
-          Picture: place.Picture || null,
-          Region: place.Region || null,
-          createdAt: (place as any).createdAt || new Date(),
-          updatedAt: (place as any).updatedAt || new Date(),
-        });
+      console.log('Place => ', place._id.toString());
+      await upsertByMongoId(db, placesTable, {
+        mongoId: place._id.toString(), // Store original MongoDB ID
+        Fullname: place.Fullname,
+        Name: place.Name,
+        Code: place.Code,
+        Type: place.Type,
+        Picture: place.Picture || null,
+        Region: place.Region || null,
+        createdAt: (place as any).createdAt || new Date(),
+        updatedAt: (place as any).updatedAt || new Date(),
+      });
       console.log(`✓ Migrated: ${place.Name}`);
     } catch (err: any) {
       console.error(`✗ Failed: ${place.Name}`);

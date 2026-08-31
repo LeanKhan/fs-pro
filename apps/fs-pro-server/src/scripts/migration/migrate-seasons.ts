@@ -10,7 +10,7 @@ import {
   calendars as calendarsTable,
   competitions as competitionsTable,
 } from '../../db/drizzle/schema';
-import { loadIdMap, resolve } from './utils';
+import { loadIdMap, resolve, upsertByMongoId } from './utils';
 
 async function migrateSeasons() {
   console.log('Starting Seasons migration...');
@@ -51,32 +51,30 @@ async function migrateSeasons() {
         .map((clubId: any) => resolve(clubsMap, clubId))
         .filter((id): id is string => id !== null);
 
-      await db
-        .insert(seasonsTable)
-        .values({
-          mongoId: season._id.toString(), // Store original MongoDB ID
-          SeasonCode: season.SeasonCode,
-          Title: season.Title,
-          StartDate: season.StartDate || new Date(),
-          EndDate: season.EndDate || new Date(),
-          Winner: resolve(clubsMap, season.Winner),
-          Promoted: promoted,
-          Relegated: relegated,
-          isFinished: season.isFinished || false,
-          isStarted: season.isStarted || false,
-          Status: season.Status || 'Pending',
-          Year: season.Year || null,
-          Calendar: resolve(calendarsMap, season.Calendar),
-          Competition: resolve(competitionsMap, season.Competition),
-          CompetitionCode: season.CompetitionCode,
-          // Fixtures dropped - fixtures.Season (see migrate-fixtures.ts) is
-          // the FK source of truth; a season's fixtures are a reverse
-          // lookup now.
-          Standings: (season.Standings || []) as any,
-          Logs: (season.Logs || []) as any,
-          createdAt: (season as any).createdAt || new Date(),
-          updatedAt: (season as any).updatedAt || new Date(),
-        });
+      await upsertByMongoId(db, seasonsTable, {
+        mongoId: season._id.toString(), // Store original MongoDB ID
+        SeasonCode: season.SeasonCode,
+        Title: season.Title,
+        StartDate: season.StartDate || new Date(),
+        EndDate: season.EndDate || new Date(),
+        Winner: resolve(clubsMap, season.Winner),
+        Promoted: promoted,
+        Relegated: relegated,
+        isFinished: season.isFinished || false,
+        isStarted: season.isStarted || false,
+        Status: season.Status || 'Pending',
+        Year: season.Year || null,
+        Calendar: resolve(calendarsMap, season.Calendar),
+        Competition: resolve(competitionsMap, season.Competition),
+        CompetitionCode: season.CompetitionCode,
+        // Fixtures dropped - fixtures.Season (see migrate-fixtures.ts) is
+        // the FK source of truth; a season's fixtures are a reverse
+        // lookup now.
+        Standings: (season.Standings || []) as any,
+        Logs: (season.Logs || []) as any,
+        createdAt: (season as any).createdAt || new Date(),
+        updatedAt: (season as any).updatedAt || new Date(),
+      });
       console.log(`✓ Migrated: ${season.SeasonCode}`);
     } catch (err: any) {
       console.error(`✗ Failed: ${season.SeasonCode}`);

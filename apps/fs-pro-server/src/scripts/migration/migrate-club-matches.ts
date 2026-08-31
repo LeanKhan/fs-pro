@@ -11,7 +11,7 @@ import {
   clubs as clubsTable,
   fixtures as fixturesTable,
 } from '../../db/drizzle/schema';
-import { loadIdMap, resolve } from './utils';
+import { loadIdMap, resolve, upsertByMongoId } from './utils';
 
 /**
  * Run AFTER migrate-clubs and migrate-fixtures. Also closes the
@@ -33,7 +33,9 @@ async function migrateClubMatches() {
 
   const ClubMatchDetailsModel = new ClubMatchDetails().model;
   const clubMatches = await ClubMatchDetailsModel.find({}).lean().exec();
-  console.log(`Found ${clubMatches.length} club match detail records to migrate`);
+  console.log(
+    `Found ${clubMatches.length} club match detail records to migrate`
+  );
 
   const [clubsMap, fixturesMap] = await Promise.all([
     loadIdMap(db, clubsTable),
@@ -44,7 +46,7 @@ async function migrateClubMatches() {
     try {
       console.log('ClubMatchDetails => ', clubMatch._id.toString());
 
-      await db.insert(clubMatchDetailsTable).values({
+      await upsertByMongoId(db, clubMatchDetailsTable, {
         mongoId: clubMatch._id.toString(),
         Club: resolve(clubsMap, clubMatch.Club),
         Fixture: resolve(fixturesMap, clubMatch.Fixture),
@@ -81,8 +83,14 @@ async function migrateClubMatches() {
   const fixtures = await FixtureModel.find({}).lean().exec();
 
   for (const fixture of fixtures) {
-    const homeSideDetails = resolve(clubMatchesMap, (fixture as any).HomeSideDetails);
-    const awaySideDetails = resolve(clubMatchesMap, (fixture as any).AwaySideDetails);
+    const homeSideDetails = resolve(
+      clubMatchesMap,
+      (fixture as any).HomeSideDetails
+    );
+    const awaySideDetails = resolve(
+      clubMatchesMap,
+      (fixture as any).AwaySideDetails
+    );
     if (!homeSideDetails && !awaySideDetails) continue;
 
     await db

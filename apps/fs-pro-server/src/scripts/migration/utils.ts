@@ -38,7 +38,9 @@
  *                                `Type` points to)
  */
 
-type AnyDb = ReturnType<typeof import('../../db/drizzle/client').createDrizzleConnection>['db'];
+type AnyDb = ReturnType<
+  typeof import('../../db/drizzle/client').createDrizzleConnection
+>['db'];
 
 interface IdMappedTable {
   id: unknown;
@@ -49,7 +51,10 @@ interface IdMappedTable {
  * Loads every already-migrated row's (mongoId -> Postgres id) pair for one
  * table in a single query, rather than a SELECT per ref being resolved.
  */
-export async function loadIdMap(db: AnyDb, table: IdMappedTable): Promise<Map<string, string>> {
+export async function loadIdMap(
+  db: AnyDb,
+  table: IdMappedTable
+): Promise<Map<string, string>> {
   const rows = await (db as any)
     .select({ id: (table as any).id, mongoId: (table as any).mongoId })
     .from(table);
@@ -65,7 +70,31 @@ export async function loadIdMap(db: AnyDb, table: IdMappedTable): Promise<Map<st
 
 /** `idMap.get(mongoId)` with the `null`-when-missing-or-absent handling
  * every ref field needs, instead of repeating `?? null` everywhere. */
-export function resolve(idMap: Map<string, string>, mongoId: unknown): string | null {
+export function resolve(
+  idMap: Map<string, string>,
+  mongoId: unknown
+): string | null {
   if (!mongoId) return null;
   return idMap.get(mongoId.toString()) ?? null;
+}
+
+/**
+ * Inserts a migrated Mongo document row, or updates the existing SQL row
+ * when a previous run already inserted it. This makes the migration scripts
+ * safe to re-run after fixing a bad transform or a partially failed batch.
+ */
+export function upsertByMongoId(
+  db: AnyDb,
+  table: IdMappedTable,
+  values: Record<string, unknown>
+) {
+  const { id: _id, ...set } = values;
+
+  return (db as any)
+    .insert(table)
+    .values(values)
+    .onConflictDoUpdate({
+      target: (table as any).mongoId,
+      set,
+    });
 }

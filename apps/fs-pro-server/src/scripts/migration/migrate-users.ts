@@ -5,6 +5,7 @@ import { connect, connection } from 'mongoose';
 import { User } from '../../controllers/user/user.model';
 import { createDrizzleConnection } from '../../db/drizzle/client';
 import { users as usersTable } from '../../db/drizzle/schema';
+import { upsertByMongoId } from './utils';
 
 async function migrateUsers() {
   console.log('Starting Users migration...');
@@ -30,23 +31,21 @@ async function migrateUsers() {
     try {
       console.log('User => ', user._id.toString());
 
-      await db
-        .insert(usersTable)
-        .values({
-          mongoId: user._id.toString(), // Store original MongoDB ID
-          FullName: user.FullName,
-          Password: user.Password, // Already hashed from MongoDB
-          Age: user.Age || null,
-          Username: user.Username,
-          Avatar: user.Avatar || 'default-avatar.png',
-          Alerts: user.Alerts || null,
-          // Clubs dropped - clubs.User (see migrate-clubs.ts) is the FK
-          // source of truth; a user's clubs are a reverse lookup now.
-          isAdmin: user.isAdmin || false,
-          Session: user.Session || null,
-          createdAt: (user as any).createdAt || new Date(),
-          updatedAt: (user as any).updatedAt || new Date(),
-        });
+      await upsertByMongoId(db, usersTable, {
+        mongoId: user._id.toString(), // Store original MongoDB ID
+        FullName: user.FullName,
+        Password: user.Password, // Already hashed from MongoDB
+        Age: user.Age || null,
+        Username: user.Username,
+        Avatar: user.Avatar || 'default-avatar.png',
+        Alerts: user.Alerts || null,
+        // Clubs dropped - clubs.User (see migrate-clubs.ts) is the FK
+        // source of truth; a user's clubs are a reverse lookup now.
+        isAdmin: user.isAdmin || false,
+        Session: user.Session || null,
+        createdAt: (user as any).createdAt || new Date(),
+        updatedAt: (user as any).updatedAt || new Date(),
+      });
       console.log(`✓ Migrated: ${user.Username}`);
     } catch (err: any) {
       console.error(`✗ Failed: ${user.Username}`);
@@ -65,4 +64,6 @@ async function migrateUsers() {
   await client.end();
 }
 
-migrateUsers().catch(console.error).then(() => console.log('complet.'));
+migrateUsers()
+  .catch(console.error)
+  .then(() => console.log('complet.'));

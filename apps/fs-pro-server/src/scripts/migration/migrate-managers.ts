@@ -5,8 +5,12 @@ import { connect, connection } from 'mongoose';
 import { Place } from '../../controllers/places/places.model';
 import { Manager } from '../../controllers/managers/manager.model';
 import { createDrizzleConnection } from '../../db/drizzle/client';
-import { managers as managersTable, clubs as clubsTable, places as placesTable } from '../../db/drizzle/schema';
-import { loadIdMap, resolve } from './utils';
+import {
+  managers as managersTable,
+  clubs as clubsTable,
+  places as placesTable,
+} from '../../db/drizzle/schema';
+import { loadIdMap, resolve, upsertByMongoId } from './utils';
 
 /**
  * Run BEFORE migrate-clubs (see utils.ts for the full required order).
@@ -46,24 +50,25 @@ async function migrateManagers() {
     try {
       console.log('Manager => ', manager._id.toString());
 
-      await db
-        .insert(managersTable)
-        .values({
-          mongoId: manager._id.toString(), // Store original MongoDB ID
-          Key: manager.Key,
-          FirstName: manager.FirstName,
-          LastName: manager.LastName,
-          Age: manager.Age,
-          Picture: manager.Picture || null,
-          // Left null if clubs haven't been migrated yet - see migrate-clubs.ts's backfill pass.
-          Club: resolve(clubsMap, manager.Club),
-          Nationality: resolve(placesMap, (manager.Nationality as any)?._id || manager.Nationality),
-          NationalTeam: manager.NationalTeam || false,
-          Records: (manager.Records || []) as any,
-          isEmployed: manager.isEmployed || false,
-          createdAt: (manager as any).createdAt || new Date(),
-          updatedAt: (manager as any).updatedAt || new Date(),
-        });
+      await upsertByMongoId(db, managersTable, {
+        mongoId: manager._id.toString(), // Store original MongoDB ID
+        Key: manager.Key,
+        FirstName: manager.FirstName,
+        LastName: manager.LastName,
+        Age: manager.Age,
+        Picture: manager.Picture || null,
+        // Left null if clubs haven't been migrated yet - see migrate-clubs.ts's backfill pass.
+        Club: resolve(clubsMap, manager.Club),
+        Nationality: resolve(
+          placesMap,
+          (manager.Nationality as any)?._id || manager.Nationality
+        ),
+        NationalTeam: manager.NationalTeam || false,
+        Records: (manager.Records || []) as any,
+        isEmployed: manager.isEmployed || false,
+        createdAt: (manager as any).createdAt || new Date(),
+        updatedAt: (manager as any).updatedAt || new Date(),
+      });
       console.log(`✓ Migrated: ${manager.FirstName} ${manager.LastName}`);
     } catch (err: any) {
       console.error(`✗ Failed: ${manager.FirstName} ${manager.LastName}`);

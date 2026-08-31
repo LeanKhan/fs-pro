@@ -7,37 +7,39 @@ CREATE TABLE "CompetitionClubs" (
 	CONSTRAINT "CompetitionClubs_Competition_Club_unique" UNIQUE("Competition","Club")
 );
 --> statement-breakpoint
-ALTER TABLE "Awards" ALTER COLUMN "Recipient" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Awards" ALTER COLUMN "Club" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Awards" ALTER COLUMN "Season" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "ClubMatchDetails" ALTER COLUMN "Club" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "ClubMatchDetails" ALTER COLUMN "Fixture" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Clubs" ALTER COLUMN "Manager" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Clubs" ALTER COLUMN "League" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Clubs" ALTER COLUMN "User" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Competitions" ALTER COLUMN "Country" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Days" ALTER COLUMN "Calendar" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Fixtures" ALTER COLUMN "Season" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Fixtures" ALTER COLUMN "ReverseFixture" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Fixtures" ALTER COLUMN "HomeTeam" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Fixtures" ALTER COLUMN "AwayTeam" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Fixtures" ALTER COLUMN "HomeSideDetails" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Fixtures" ALTER COLUMN "AwaySideDetails" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Fixtures" ALTER COLUMN "HomeManager" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Fixtures" ALTER COLUMN "AwayManager" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Managers" ALTER COLUMN "Club" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Managers" ALTER COLUMN "Nationality" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "PlayerMatchDetails" ALTER COLUMN "Player" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "PlayerMatchDetails" ALTER COLUMN "Fixture" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Players" ALTER COLUMN "Nationality" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Players" ALTER COLUMN "Club" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Seasons" ALTER COLUMN "Winner" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Seasons" ALTER COLUMN "Promoted" SET DATA TYPE uuid[];--> statement-breakpoint
+ALTER TABLE "Awards" ALTER COLUMN "Recipient" SET DATA TYPE uuid USING "Recipient"::uuid;--> statement-breakpoint
+ALTER TABLE "Awards" ALTER COLUMN "Club" SET DATA TYPE uuid USING "Club"::uuid;--> statement-breakpoint
+ALTER TABLE "Awards" ALTER COLUMN "Season" SET DATA TYPE uuid USING "Season"::uuid;--> statement-breakpoint
+ALTER TABLE "ClubMatchDetails" ALTER COLUMN "Club" SET DATA TYPE uuid USING "Club"::uuid;--> statement-breakpoint
+ALTER TABLE "ClubMatchDetails" ALTER COLUMN "Fixture" SET DATA TYPE uuid USING "Fixture"::uuid;--> statement-breakpoint
+ALTER TABLE "Clubs" ALTER COLUMN "Manager" SET DATA TYPE uuid USING "Manager"::uuid;--> statement-breakpoint
+ALTER TABLE "Clubs" ALTER COLUMN "League" SET DATA TYPE uuid USING "League"::uuid;--> statement-breakpoint
+ALTER TABLE "Clubs" ALTER COLUMN "User" SET DATA TYPE uuid USING "User"::uuid;--> statement-breakpoint
+ALTER TABLE "Competitions" ALTER COLUMN "Country" SET DATA TYPE uuid USING "Country"::uuid;--> statement-breakpoint
+ALTER TABLE "Days" ALTER COLUMN "Calendar" SET DATA TYPE uuid USING "Calendar"::uuid;--> statement-breakpoint
+ALTER TABLE "Fixtures" ALTER COLUMN "Season" SET DATA TYPE uuid USING "Season"::uuid;--> statement-breakpoint
+ALTER TABLE "Fixtures" ALTER COLUMN "ReverseFixture" SET DATA TYPE uuid USING "ReverseFixture"::uuid;--> statement-breakpoint
+ALTER TABLE "Fixtures" ALTER COLUMN "HomeTeam" SET DATA TYPE uuid USING "HomeTeam"::uuid;--> statement-breakpoint
+ALTER TABLE "Fixtures" ALTER COLUMN "AwayTeam" SET DATA TYPE uuid USING "AwayTeam"::uuid;--> statement-breakpoint
+ALTER TABLE "Fixtures" ALTER COLUMN "HomeSideDetails" SET DATA TYPE uuid USING "HomeSideDetails"::uuid;--> statement-breakpoint
+ALTER TABLE "Fixtures" ALTER COLUMN "AwaySideDetails" SET DATA TYPE uuid USING "AwaySideDetails"::uuid;--> statement-breakpoint
+ALTER TABLE "Fixtures" ALTER COLUMN "HomeManager" SET DATA TYPE uuid USING "HomeManager"::uuid;--> statement-breakpoint
+ALTER TABLE "Fixtures" ALTER COLUMN "AwayManager" SET DATA TYPE uuid USING "AwayManager"::uuid;--> statement-breakpoint
+ALTER TABLE "Managers" ALTER COLUMN "Club" SET DATA TYPE uuid USING "Club"::uuid;--> statement-breakpoint
+ALTER TABLE "Managers" ALTER COLUMN "Nationality" SET DATA TYPE uuid USING "Nationality"::uuid;--> statement-breakpoint
+ALTER TABLE "PlayerMatchDetails" ALTER COLUMN "Player" SET DATA TYPE uuid USING "Player"::uuid;--> statement-breakpoint
+ALTER TABLE "PlayerMatchDetails" ALTER COLUMN "Fixture" SET DATA TYPE uuid USING "Fixture"::uuid;--> statement-breakpoint
+ALTER TABLE "Players" ALTER COLUMN "Nationality" SET DATA TYPE uuid USING "Nationality"::uuid;--> statement-breakpoint
+ALTER TABLE "Players" ALTER COLUMN "Club" SET DATA TYPE uuid USING "Club"::uuid;--> statement-breakpoint
+ALTER TABLE "Seasons" ALTER COLUMN "Winner" SET DATA TYPE uuid USING "Winner"::uuid;--> statement-breakpoint
+ALTER TABLE "Seasons" ALTER COLUMN "Promoted" DROP DEFAULT;--> statement-breakpoint
+ALTER TABLE "Seasons" ALTER COLUMN "Promoted" SET DATA TYPE uuid[] USING "Promoted"::uuid[];--> statement-breakpoint
 ALTER TABLE "Seasons" ALTER COLUMN "Promoted" SET DEFAULT ARRAY[]::uuid[];--> statement-breakpoint
-ALTER TABLE "Seasons" ALTER COLUMN "Relegated" SET DATA TYPE uuid[];--> statement-breakpoint
+ALTER TABLE "Seasons" ALTER COLUMN "Relegated" DROP DEFAULT;--> statement-breakpoint
+ALTER TABLE "Seasons" ALTER COLUMN "Relegated" SET DATA TYPE uuid[] USING "Relegated"::uuid[];--> statement-breakpoint
 ALTER TABLE "Seasons" ALTER COLUMN "Relegated" SET DEFAULT ARRAY[]::uuid[];--> statement-breakpoint
-ALTER TABLE "Seasons" ALTER COLUMN "Calendar" SET DATA TYPE uuid;--> statement-breakpoint
-ALTER TABLE "Seasons" ALTER COLUMN "Competition" SET DATA TYPE uuid;--> statement-breakpoint
+ALTER TABLE "Seasons" ALTER COLUMN "Calendar" SET DATA TYPE uuid USING "Calendar"::uuid;--> statement-breakpoint
+ALTER TABLE "Seasons" ALTER COLUMN "Competition" SET DATA TYPE uuid USING "Competition"::uuid;--> statement-breakpoint
 ALTER TABLE "Clubs" ADD COLUMN "AddressCountry" uuid;--> statement-breakpoint
 ALTER TABLE "Fixtures" ADD COLUMN "HomeTactic" text;--> statement-breakpoint
 ALTER TABLE "Fixtures" ADD COLUMN "AwayTactic" text;--> statement-breakpoint
