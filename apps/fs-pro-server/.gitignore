@@ -3,6 +3,7 @@
 /.vscode
 *.log
 .env
+/.db-backend.json
 /environment
 /assets
 

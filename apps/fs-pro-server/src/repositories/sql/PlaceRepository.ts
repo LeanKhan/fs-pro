@@ -1,4 +1,4 @@
-import { IPlaceRepository } from '../PlaceRepository';
+import { IPlaceRepository, IPlaceFilter } from '../PlaceRepository';
 import { PostgreSQLDatabase } from '../../db/postgresql';
 import { IPlace } from '../../controllers/places/places.model';
 
@@ -13,8 +13,14 @@ export class SQLPlaceRepository implements IPlaceRepository {
     return this.prisma.place.findUnique({ where: { id } });
   }
 
-  async findAll(): Promise<IPlace[]> {
-    return this.prisma.place.findMany();
+  async findAll(filter: IPlaceFilter = {}): Promise<IPlace[]> {
+    return this.prisma.place.findMany({ where: filter });
+  }
+
+  async findByNameOrCode(value: string): Promise<IPlace | null> {
+    return this.prisma.place.findFirst({
+      where: { OR: [{ name: value }, { code: value }] },
+    });
   }
 
   async create(data: Partial<IPlace>): Promise<IPlace> {
