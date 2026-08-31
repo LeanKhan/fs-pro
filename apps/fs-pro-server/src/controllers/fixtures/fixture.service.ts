@@ -1,6 +1,45 @@
 import DB from '../../db';
 import { incrementCounter } from '../../utils/counter';
 import { Fixture } from './fixture.model';
+import { FixtureRepositoryFactory } from '../../repositories/FixtureRepositoryFactory';
+import { IFixtureFilter } from '../../repositories/FixtureRepository';
+
+/**
+ * Repository-backed functions below cover the identity/CRUD surface with no
+ * arbitrary-query update in play - `update()` only accepts plain fields.
+ * `findOneAndUpdate` (used throughout the match engine) stays raw,
+ * unchanged. `findById` always comes back with `HomeSideDetails`/
+ * `AwaySideDetails` populated (each with `PlayerStats`) - see
+ * IFixtureRepository's doc comment.
+ */
+let fixtureRepo: ReturnType<typeof FixtureRepositoryFactory.create> | null = null;
+
+function getFixtureRepo() {
+  if (!fixtureRepo) {
+    fixtureRepo = FixtureRepositoryFactory.create();
+  }
+  return fixtureRepo;
+}
+
+export async function getFixtureById(id: string) {
+  return getFixtureRepo().findById(id);
+}
+
+export async function getFixtures(filter?: IFixtureFilter) {
+  return getFixtureRepo().findAll(filter);
+}
+
+export async function createFixture(data: Partial<Fixture>) {
+  return getFixtureRepo().create(data);
+}
+
+export async function updateFixtureFields(id: string, data: Partial<Fixture>) {
+  return getFixtureRepo().update(id, data);
+}
+
+export async function deleteFixtureById(id: string) {
+  return getFixtureRepo().delete(id);
+}
 
 /**
  * fetchAll

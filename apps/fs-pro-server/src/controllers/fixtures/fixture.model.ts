@@ -156,14 +156,18 @@ export class Fixture {
       { timestamps: true }
     );
 
-    FixtureSchema.post('remove', async function(this: IFixture & Document, next) {
+    FixtureSchema.post('remove', async function(this: IFixture & Document, doc) {
+      // Post-remove hooks receive (doc, next) - the missing `doc` param
+      // here meant `next` was actually bound to the removed document, so
+      // calling it as a callback threw `TypeError: next is not a function`
+      // on every single Fixture removal. Async hooks don't need `next()`
+      // at all (Mongoose waits on the returned promise), so it's dropped
+      // instead of just re-added.
       await DB.Models.Season.updateOne(
           { Fixtures : this._id},
           { $pull: { Fixtures: this._id } },
           { multi: true })  //if reference exists in multiple documents
       .exec();
-
-      next();
   });
 
     this._model = model<IFixture>('Fixture', FixtureSchema, 'Fixtures');

@@ -69,7 +69,13 @@ export class DrizzleDatabase implements IDatabase {
       // (Clubs/Seasons) and the Club/Season membership routes
       // (add-club/add-season) still need the raw Mongo model.
       Competition: mongo.Competition,
-      Player: mongo.Player, // TODO: DrizzlePlayerRepository not built yet
+      // DrizzlePlayerRepository/MongoPlayerRepository do exist (see
+      // repositories/{mongo,drizzle}/PlayerRepository.ts) and cover the
+      // identity/CRUD surface - GET /all's arbitrary query, bulk
+      // update-many, the aggregate-pipeline stats endpoints, and
+      // end-of-year progression (operator updates) still need the raw
+      // Mongo model. Same one-slot-shared reason as everything else here.
+      Player: mongo.Player,
       Season: mongo.Season, // TODO: DrizzleSeasonRepository not built yet
       // DrizzleClubRepository/MongoClubRepository do exist (see
       // repositories/{mongo,drizzle}/ClubRepository.ts) and are used
@@ -88,7 +94,14 @@ export class DrizzleDatabase implements IDatabase {
       // repository-backed User routes call UserRepositoryFactory directly
       // instead - see controllers/user/user.service.ts.
       User: mongo.User,
-      Fixture: mongo.Fixture, // TODO: DrizzleFixtureRepository not built yet
+      // DrizzleFixtureRepository/MongoFixtureRepository do exist (see
+      // repositories/{mongo,drizzle}/FixtureRepository.ts) and cover the
+      // identity/CRUD surface (findById always comes with
+      // HomeSideDetails/AwaySideDetails+PlayerStats populated) - the
+      // arbitrary-query `findOneAndUpdate` the match engine uses throughout
+      // still needs the raw Mongo model. Same one-slot-shared reason as
+      // everything else here.
+      Fixture: mongo.Fixture,
       // DrizzleCalendarRepository/MongoCalendarRepository do exist (see
       // repositories/{mongo,drizzle}/CalendarRepository.ts) and cover the
       // identity/CRUD surface - the Days-array-building game loop

@@ -42,10 +42,9 @@ const VALID_BACKENDS: BackendChoice[] = ['mongo', 'drizzle', 'prisma'];
  * replacement for the old `$push`/`$unset` operator updates). GET
  * /clubs/all, /clubs/fetch, arbitrary-populate fetches, add/remove-player,
  * the CSV bulk import, and DELETE /clubs/:id stay raw - they need either
- * Mongo operators the repository doesn't support, Player data (Player
- * isn't converted), or (DELETE) a repository `delete()` method that
- * doesn't exist yet - a known gap, same shape as the one just closed for
- * Manager.
+ * Mongo operators the repository doesn't support, or (DELETE) a repository
+ * `delete()` method that doesn't exist yet - a known gap, same shape as
+ * the one closed for Manager.
  *
  * 'Competition (partial)': fetch-by-id (populate=false only)/create/update
  * (plain fields)/delete go through the repository. The default
@@ -61,7 +60,20 @@ const VALID_BACKENDS: BackendChoice[] = ['mongo', 'drizzle', 'prisma'];
  * game loop (`setup-and-start`, `setup-days-and-start`, `startYear`'s
  * aggregation-pipeline multi-row update) stays raw. Day itself has no
  * repository at all yet - its real read path (`GET /:year/days`) needs
- * `Matches.Fixture` populate, which needs Fixture converted first.
+ * `Matches.Fixture` populate; Fixture is converted now, but nobody's built
+ * Day on top of it yet.
+ *
+ * 'Player (partial)': fetch-by-id/create/update (plain fields)/delete go
+ * through the repository. `GET /all` (arbitrary query), bulk
+ * `update-many`, the aggregate-pipeline stats endpoints (`/stats`), and
+ * end-of-year rating/age progression (operator updates) stay raw.
+ *
+ * 'Fixture (partial)': fetch-by-id (no extra populate)/create/update
+ * (plain fields)/delete go through the repository - `findById` always
+ * comes with `HomeSideDetails`/`AwaySideDetails` (each with `PlayerStats`)
+ * populated, matching the raw path's own default. An explicit
+ * `?populate=` path, and the arbitrary-query `findOneAndUpdate` the match
+ * engine uses throughout to record match state, stay raw.
  */
 const CONVERTED_ENTITIES = [
   'Place',
@@ -70,6 +82,8 @@ const CONVERTED_ENTITIES = [
   'Club (partial)',
   'Competition (partial)',
   'Calendar (partial)',
+  'Player (partial)',
+  'Fixture (partial)',
 ];
 
 /**
