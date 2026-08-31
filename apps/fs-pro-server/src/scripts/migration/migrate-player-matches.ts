@@ -3,9 +3,25 @@ dotenv.config();
 
 import { connect, connection } from 'mongoose';
 import { PlayerMatchDetails } from '../../controllers/player-match/player-match.model';
+import { ClubMatchDetails } from '../../controllers/club-match/club-match.model';
 import { createDrizzleConnection } from '../../db/drizzle/client';
-import { playerMatchDetails as playerMatchDetailsTable } from '../../db/drizzle/schema';
+import {
+  playerMatchDetails as playerMatchDetailsTable,
+  players as playersTable,
+  fixtures as fixturesTable,
+  clubMatchDetails as clubMatchDetailsTable,
+} from '../../db/drizzle/schema';
+import { loadIdMap, resolve } from './utils';
 
+/**
+ * Run AFTER migrate-players, migrate-fixtures, and migrate-club-matches.
+ * `ClubMatchDetails` doesn't exist as a field on the Mongo
+ * PlayerMatchDetails document (see schema.ts's comment on that column) - it
+ * only exists as the *reverse* pointer, `ClubMatchDetails.PlayerStats`. So
+ * the association is read from there: build a map of
+ * playerMatchDetails-mongoId -> clubMatchDetails-mongoId first, then
+ * resolve through it below.
+ */
 async function migratePlayerMatches() {
   console.log('Starting PlayerMatchDetails migration...');
 
@@ -20,14 +36,33 @@ async function migratePlayerMatches() {
   const playerMatches = await PlayerMatchDetailsModel.find({}).lean().exec();
   console.log(`Found ${playerMatches.length} player match detail records to migrate`);
 
+  const ClubMatchDetailsModel = new ClubMatchDetails().model;
+  const clubMatches = await ClubMatchDetailsModel.find({}).lean().exec();
+
+  const playerMatchToClubMatchMongoId = new Map<string, string>();
+  for (const clubMatch of clubMatches) {
+    for (const playerStatId of clubMatch.PlayerStats || []) {
+      playerMatchToClubMatchMongoId.set((playerStatId as any).toString(), clubMatch._id.toString());
+    }
+  }
+
+  const [playersMap, fixturesMap, clubMatchesMap] = await Promise.all([
+    loadIdMap(db, playersTable),
+    loadIdMap(db, fixturesTable),
+    loadIdMap(db, clubMatchDetailsTable),
+  ]);
+
   for (const playerMatch of playerMatches) {
     try {
       console.log('PlayerMatchDetails => ', playerMatch._id.toString());
 
+      const clubMatchMongoId = playerMatchToClubMatchMongoId.get(playerMatch._id.toString());
+
       await db.insert(playerMatchDetailsTable).values({
         mongoId: playerMatch._id.toString(),
-        Player: playerMatch.Player?.toString() || null,
-        Fixture: playerMatch.Fixture?.toString() || null,
+        Player: resolve(playersMap, playerMatch.Player),
+        Fixture: resolve(fixturesMap, playerMatch.Fixture),
+        ClubMatchDetails: clubMatchMongoId ? resolve(clubMatchesMap, clubMatchMongoId) : null,
         Goals: playerMatch.Goals || 0,
         Saves: playerMatch.Saves || 0,
         YellowCards: playerMatch.YellowCards || 0,

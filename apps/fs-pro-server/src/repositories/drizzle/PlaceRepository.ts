@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { IPlace } from '../../controllers/places/places.model';
-import * as schema from '../../db/drizzle/schema';
+import * as schema from '../../db/drizzle/full-schema';
 import { places } from '../../db/drizzle/schema';
 import { IPlaceRepository } from '../PlaceRepository';
 

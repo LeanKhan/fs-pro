@@ -30,9 +30,6 @@ async function migrateCalendars() {
     try {
       console.log('Calendar => ', calendar._id.toString());
 
-      // Convert Days array of ObjectIds to strings
-      const dayIds = (calendar.Days || []).map((dayId: any) => dayId.toString());
-
       await db
         .insert(calendarsTable)
         .values({
@@ -44,7 +41,8 @@ async function migrateCalendars() {
           isActive: calendar.isActive || false,
           isEnded: calendar.isEnded || false,
           allSeasonsCompleted: calendar.allSeasonsCompleted || false,
-          Days: dayIds,
+          // Days dropped - days.Calendar (see migrate-days.ts) is the FK
+          // source of truth; a calendar's days are a reverse lookup now.
           createdAt: (calendar as any).createdAt || new Date(),
           updatedAt: (calendar as any).updatedAt || new Date(),
         });

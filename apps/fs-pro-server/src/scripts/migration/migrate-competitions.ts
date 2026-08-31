@@ -5,7 +5,8 @@ import { connect, connection } from 'mongoose';
 import { Place } from '../../controllers/places/places.model';
 import { Competition } from '../../controllers/competitions/competition.model';
 import { createDrizzleConnection } from '../../db/drizzle/client';
-import { competitions as competitionsTable } from '../../db/drizzle/schema';
+import { competitions as competitionsTable, places as placesTable } from '../../db/drizzle/schema';
+import { loadIdMap, resolve } from './utils';
 
 async function migrateCompetitions() {
   console.log('Starting Competitions migration...');
@@ -29,14 +30,12 @@ async function migrateCompetitions() {
   const competitions = await CompetitionModel.find({}).lean().exec();
   console.log(`Found ${competitions.length} competitions to migrate`);
 
+  const placesMap = await loadIdMap(db, placesTable);
+
   // Migrate each competition
   for (const competition of competitions) {
     try {
       console.log('Competition => ', competition._id.toString());
-
-      // Convert Clubs and Seasons arrays of ObjectIds to strings
-      const clubIds = (competition.Clubs || []).map((clubId: any) => clubId.toString());
-      const seasonIds = (competition.Seasons || []).map((seasonId: any) => seasonId.toString());
 
       await db
         .insert(competitionsTable)
@@ -54,9 +53,9 @@ async function migrateCompetitions() {
           NumberOfWeeks: competition.NumberOfWeeks,
           TeamsPromoted: competition.TeamsPromoted || null,
           TeamsRelegated: competition.TeamsRelegated || null,
-          Country: competition.Country?.toString() || null,
-          Clubs: clubIds,
-          Seasons: seasonIds,
+          Country: resolve(placesMap, (competition.Country as any)?._id || competition.Country),
+          // Clubs/Seasons dropped - see migrate-competition-clubs.ts (join
+          // table) and seasons.Competition (reverse relation) respectively.
           createdAt: (competition as any).createdAt || new Date(),
           updatedAt: (competition as any).updatedAt || new Date(),
         });

@@ -30,9 +30,6 @@ async function migrateUsers() {
     try {
       console.log('User => ', user._id.toString());
 
-      // Convert Clubs array of ObjectIds to strings
-      const clubIds = (user.Clubs || []).map((clubId: any) => clubId.toString());
-
       await db
         .insert(usersTable)
         .values({
@@ -43,7 +40,8 @@ async function migrateUsers() {
           Username: user.Username,
           Avatar: user.Avatar || 'default-avatar.png',
           Alerts: user.Alerts || null,
-          Clubs: clubIds,
+          // Clubs dropped - clubs.User (see migrate-clubs.ts) is the FK
+          // source of truth; a user's clubs are a reverse lookup now.
           isAdmin: user.isAdmin || false,
           Session: user.Session || null,
           createdAt: (user as any).createdAt || new Date(),

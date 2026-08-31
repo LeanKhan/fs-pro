@@ -5,7 +5,8 @@ import { connect, connection } from 'mongoose';
 import { Player } from '../../controllers/players/player.model';
 import { Place } from '../../controllers/places/places.model';
 import { createDrizzleConnection } from '../../db/drizzle/client';
-import { players as playersTable } from '../../db/drizzle/schema';
+import { players as playersTable, clubs as clubsTable, places as placesTable } from '../../db/drizzle/schema';
+import { loadIdMap, resolve } from './utils';
 
 async function migratePlayers() {
   console.log('Starting Players migration...');
@@ -22,6 +23,11 @@ async function migratePlayers() {
   const players = await PlayerModel.find({}).lean().exec();
   console.log(`Found ${players.length} players to migrate`);
 
+  const [clubsMap, placesMap] = await Promise.all([
+    loadIdMap(db, clubsTable),
+    loadIdMap(db, placesTable),
+  ]);
+
   for (const player of players) {
     try {
       console.log('Player => ', player._id.toString());
@@ -30,7 +36,7 @@ async function migratePlayers() {
         mongoId: player._id.toString(),
         FirstName: player.FirstName,
         LastName: player.LastName,
-        Nationality: (player as any).Nationality?._id?.toString() || (player as any).Nationality?.toString() || null,
+        Nationality: resolve(placesMap, (player as any).Nationality?._id || (player as any).Nationality),
         Age: player.Age || null,
         PlayerID: player.PlayerID || null,
         Position: (player as any).Position || null,
@@ -47,7 +53,7 @@ async function migratePlayers() {
         RatingsHistory: ((player as any).RatingsHistory || []) as any,
         isSigned: player.isSigned || false,
         ClubCode: player.ClubCode || null,
-        Club: player.Club?.toString() || null,
+        Club: resolve(clubsMap, player.Club),
         createdAt: (player as any).createdAt || new Date(),
         updatedAt: (player as any).updatedAt || new Date(),
       });
