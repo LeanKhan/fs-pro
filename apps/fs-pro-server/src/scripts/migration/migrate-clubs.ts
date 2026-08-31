@@ -1,12 +1,27 @@
 import * as dotenv from 'dotenv';
 dotenv.config();
 
+import { eq } from 'drizzle-orm';
 import { connect, connection } from 'mongoose';
 import { Place } from '../../controllers/places/places.model';
 import { Club } from '../../controllers/clubs/club.model';
 import { createDrizzleConnection } from '../../db/drizzle/client';
-import { clubs as clubsTable } from '../../db/drizzle/schema';
+import {
+  clubs as clubsTable,
+  managers as managersTable,
+  competitions as competitionsTable,
+  users as usersTable,
+  places as placesTable,
+} from '../../db/drizzle/schema';
+import { loadIdMap, resolve } from './utils';
 
+/**
+ * Run AFTER migrate-managers, migrate-competitions, and migrate-users (see
+ * utils.ts for the full required order). Also closes the Club<->Manager
+ * circular reference: migrate-managers.ts left every manager's `Club`
+ * column null (clubs didn't exist yet), so once clubs exist here, this
+ * backfills that column via an UPDATE pass at the end.
+ */
 async function migrateClubs() {
   console.log('Starting Clubs migration...');
 
@@ -29,21 +44,23 @@ async function migrateClubs() {
   const clubs = await ClubModel.find({}).lean().exec();
   console.log(`Found ${clubs.length} clubs to migrate`);
 
+  const [managersMap, competitionsMap, usersMap, placesMap] = await Promise.all([
+    loadIdMap(db, managersTable),
+    loadIdMap(db, competitionsTable),
+    loadIdMap(db, usersTable),
+    loadIdMap(db, placesTable),
+  ]);
+
   // Migrate each club
   for (const club of clubs) {
     try {
       console.log('Club => ', club._id.toString());
 
-      // Convert Players array of ObjectIds to strings
-      const playerIds = (club.Players || []).map((playerId: any) => playerId.toString());
-
-      // Handle Address.Country ObjectId conversion
-      let addressData = null;
+      // Address no longer carries Country - that's its own FK column now.
+      let addressData: Record<string, unknown> | null = null;
       if (club.Address) {
-        addressData = {
-          ...club.Address,
-          Country: club.Address.Country?._id?.toString() || club.Address.Country?.toString() || null,
-        };
+        const { Country, ...rest } = club.Address as any;
+        addressData = rest;
       }
 
       await db
@@ -59,18 +76,23 @@ async function migrateClubs() {
           ATT_Rating: club.ATT_Rating || 0,
           DEF_Rating: club.DEF_Rating || 0,
           MID_Rating: club.MID_Rating || 0,
-          Manager: club.Manager?.toString() || null,
+          Manager: resolve(managersMap, club.Manager),
           assets: club.assets ? (club.assets as any) : null,
           Stats: club.Stats ? (club.Stats as any) : null,
           Address: addressData ? (addressData as any) : null,
+          AddressCountry: resolve(
+            placesMap,
+            (club.Address as any)?.Country?._id || (club.Address as any)?.Country
+          ),
           Budget: club.Budget || null,
           Transactions: club.Transactions ? (club.Transactions as any) : null,
           Records: (club.Records || []) as any,
           Stadium: club.Stadium ? (club.Stadium as any) : null,
           LeagueCode: club.LeagueCode || null,
-          League: club.League?.toString() || null,
-          Players: playerIds,
-          User: club.User?.toString() || null,
+          League: resolve(competitionsMap, club.League),
+          // Players dropped - players.Club (see migrate-players.ts) is the
+          // FK source of truth now.
+          User: resolve(usersMap, club.User),
           createdAt: (club as any).createdAt || new Date(),
           updatedAt: (club as any).updatedAt || new Date(),
         });
@@ -85,6 +107,20 @@ async function migrateClubs() {
         console.error('Error stack:', err.stack?.toString());
       }
     }
+  }
+
+  // Backfill managers.Club now that every club has been inserted, closing
+  // the Club<->Manager cycle.
+  console.log('Backfilling managers.Club...');
+  const clubsMap = await loadIdMap(db, clubsTable);
+  for (const club of clubs) {
+    if (!club.Manager) continue;
+
+    const managerId = resolve(managersMap, club.Manager);
+    const clubId = resolve(clubsMap, club._id.toString());
+    if (!managerId || !clubId) continue;
+
+    await db.update(managersTable).set({ Club: clubId }).where(eq(managersTable.mongoId, club.Manager.toString()));
   }
 
   console.log('Migration complete!');

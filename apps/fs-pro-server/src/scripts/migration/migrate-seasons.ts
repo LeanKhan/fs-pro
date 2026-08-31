@@ -4,7 +4,13 @@ dotenv.config();
 import { connect, connection } from 'mongoose';
 import { Season } from '../../controllers/seasons/season.model';
 import { createDrizzleConnection } from '../../db/drizzle/client';
-import { seasons as seasonsTable } from '../../db/drizzle/schema';
+import {
+  seasons as seasonsTable,
+  clubs as clubsTable,
+  calendars as calendarsTable,
+  competitions as competitionsTable,
+} from '../../db/drizzle/schema';
+import { loadIdMap, resolve } from './utils';
 
 async function migrateSeasons() {
   console.log('Starting Seasons migration...');
@@ -25,15 +31,25 @@ async function migrateSeasons() {
   const seasons = await SeasonModel.find({}).lean().exec();
   console.log(`Found ${seasons.length} seasons to migrate`);
 
+  const [clubsMap, calendarsMap, competitionsMap] = await Promise.all([
+    loadIdMap(db, clubsTable),
+    loadIdMap(db, calendarsTable),
+    loadIdMap(db, competitionsTable),
+  ]);
+
   // Migrate each season
   for (const season of seasons) {
     try {
       console.log('Season => ', season._id.toString());
 
-      // Convert arrays of ObjectIds to strings
-      const promoted = (season.Promoted || []).map((clubId: any) => clubId.toString());
-      const relegated = (season.Relegated || []).map((clubId: any) => clubId.toString());
-      const fixtures = (season.Fixtures || []).map((fixtureId: any) => fixtureId.toString());
+      // Promoted/Relegated are now uuid[] columns (no FK on the elements -
+      // see schema.ts), so each id has to resolve to a real club row.
+      const promoted = (season.Promoted || [])
+        .map((clubId: any) => resolve(clubsMap, clubId))
+        .filter((id): id is string => id !== null);
+      const relegated = (season.Relegated || [])
+        .map((clubId: any) => resolve(clubsMap, clubId))
+        .filter((id): id is string => id !== null);
 
       await db
         .insert(seasonsTable)
@@ -43,17 +59,19 @@ async function migrateSeasons() {
           Title: season.Title,
           StartDate: season.StartDate || new Date(),
           EndDate: season.EndDate || new Date(),
-          Winner: season.Winner?.toString() || null,
+          Winner: resolve(clubsMap, season.Winner),
           Promoted: promoted,
           Relegated: relegated,
           isFinished: season.isFinished || false,
           isStarted: season.isStarted || false,
           Status: season.Status || 'Pending',
           Year: season.Year || null,
-          Calendar: season.Calendar?.toString() || null,
-          Competition: season.Competition?.toString() || null,
+          Calendar: resolve(calendarsMap, season.Calendar),
+          Competition: resolve(competitionsMap, season.Competition),
           CompetitionCode: season.CompetitionCode,
-          Fixtures: fixtures,
+          // Fixtures dropped - fixtures.Season (see migrate-fixtures.ts) is
+          // the FK source of truth; a season's fixtures are a reverse
+          // lookup now.
           Standings: (season.Standings || []) as any,
           Logs: (season.Logs || []) as any,
           createdAt: (season as any).createdAt || new Date(),

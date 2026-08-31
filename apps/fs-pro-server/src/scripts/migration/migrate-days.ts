@@ -4,7 +4,8 @@ dotenv.config();
 import { connect, connection } from 'mongoose';
 import { Day } from '../../controllers/days/day.model';
 import { createDrizzleConnection } from '../../db/drizzle/client';
-import { days as daysTable } from '../../db/drizzle/schema';
+import { days as daysTable, calendars as calendarsTable } from '../../db/drizzle/schema';
+import { loadIdMap, resolve } from './utils';
 
 async function migrateDays() {
   console.log('Starting Days migration...');
@@ -25,12 +26,16 @@ async function migrateDays() {
   const days = await DayModel.find({}).lean().exec();
   console.log(`Found ${days.length} days to migrate`);
 
+  const calendarsMap = await loadIdMap(db, calendarsTable);
+
   // Migrate each day
   for (const day of days) {
     try {
       console.log('Day => ', day._id.toString());
 
-      // Convert Matches to handle ObjectId references
+      // Matches stays jsonb - it's an array of embedded subdocuments in
+      // Mongo, not a separate collection, so its own Fixture/CompetitionId
+      // refs stay as plain copied strings rather than resolved FKs.
       const matches = (day.Matches || []).map((match: any) => ({
         Fixture: match.Fixture?.toString() || null,
         MatchType: match.MatchType || null,
@@ -50,7 +55,7 @@ async function migrateDays() {
           isFree: day.isFree || false,
           Day: day.Day || null,
           Year: day.Year,
-          Calendar: day.Calendar?.toString() || null,
+          Calendar: resolve(calendarsMap, day.Calendar),
           createdAt: (day as any).createdAt || new Date(),
           updatedAt: (day as any).updatedAt || new Date(),
         });

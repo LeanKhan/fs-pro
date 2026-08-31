@@ -323,31 +323,38 @@ watch. Kept for reference: `apps/fs-pro-client/src/views/game/PitchPreview.html`
 
 ### Replay/rewatch a past match (including friendlies)
 
-**Status:** Paused - was being discussed, then deprioritized in favor of
-fixing global render-error handling and the Matchzone redesign first.
+**Status:** Done. `Match.Frames` is now persisted as its own `MatchReplay`
+Mongoose record (`controllers/match-replays/match-replay.model.ts`), keyed
+by `Fixture` id, written by `saveReplay()` right after every match finishes
+(both `play()`'s and legacy `restPlayGame`'s post-`startMatchReplay` step).
+For friendlies this is gated behind the same `SaveStats` flag already used
+for permanent stats - a friendly played with `SaveStats` off leaves nothing
+behind, matching the original ask's intent.
 
-**Context:** Right now `startMatchReplay` streams a match's frames exactly
-once, at kickoff time (`Match.Frames` is populated and broadcast live, but
-nothing persists a way to re-trigger that broadcast later for a match that
-already happened). The ask was specifically for friendly matches ("ability
-to replay a friendly match, and ability to watch the replay") but the same
-gap applies to any past match.
+A new `GET /api/game/replay/:fixture` endpoint (`restRewatchMatch`) reads
+the stored record back and re-drives the exact same
+`startMatchReplay(replayableMatch, fixtureId, tickMs)` call the live case
+uses, over the same `/match-replay` Socket.IO room - so the client-side
+`MatchReplaySocket`/`live-pitch.vue` pieces built for live-watching needed
+no changes at all. `matchzone.vue` now shows a "WATCH REPLAY" button in
+place of "START" once `matchFinished` is true, wired to a new
+`watchReplay()` that joins the room, hits the replay endpoint, and streams
+frames into the same `liveFrame` the live path already renders through.
 
-**If revisited:** `Match.Frames` would need to be persisted somewhere
-queryable by fixture id (it's currently only ever held in-memory on the
-runtime `Match` instance and discarded after the request completes) - most
-likely a new field/collection keyed by `Fixture._id`, given `Frames` arrays
-are large (one entry per tick) and not something to bolt onto the `Fixture`
-document itself. Rewatching would then mean re-driving the exact same
-`startMatchReplay(storedFrames, fixtureId)` call the live case already uses,
-so the client-side `MatchReplaySocket`/`live-pitch.vue` pieces built for
-live-watching need no changes - only a "replay stored frames on demand"
-server entry point is new.
+**Not done / left as-is:** `jobs/matchQueue.ts`'s worker-thread pipeline
+(used by `PitchPreview.html`'s enqueue flow) deliberately still does not
+persist anything - it's a separate debug/testing path, out of scope here.
+Matches played before this feature shipped have no `MatchReplay` record;
+`watchReplay()` surfaces that as a plain `alert()` on a 404 rather than
+hiding the button, since there's no cheap way to know in advance without
+an extra round-trip.
 
-**Files:** `classes/Match.ts` (`Frames` capture), `realtime/matchBroadcaster.ts`
-(`startMatchReplay` - reusable as-is), a new persistence layer for frames,
-a new "rewatch" trigger endpoint, `matchzone.vue`/`friendly-setup.vue` for
-a "Watch Replay" entry point.
+**Files:** `controllers/match-replays/match-replay.{model,service}.ts` (new),
+`db/{interfaces,mongodb,postgresql,drizzle/index}.ts` (registered
+`MatchReplay` alongside the other models), `controllers/game/game.controller.ts`
+(`saveReplay` calls + `restRewatchMatch`), `controllers/game/game.router.ts`
+(`GET /replay/:fixture`), `views/game/matchzone.vue` (`watchReplay()` +
+WATCH REPLAY button).
 
 ---
 

@@ -1,11 +1,26 @@
 import * as dotenv from 'dotenv';
 dotenv.config();
 
+import { eq } from 'drizzle-orm';
 import { connect, connection } from 'mongoose';
 import { ClubMatchDetails } from '../../controllers/club-match/club-match.model';
+import { Fixture } from '../../controllers/fixtures/fixture.model';
 import { createDrizzleConnection } from '../../db/drizzle/client';
-import { clubMatchDetails as clubMatchDetailsTable } from '../../db/drizzle/schema';
+import {
+  clubMatchDetails as clubMatchDetailsTable,
+  clubs as clubsTable,
+  fixtures as fixturesTable,
+} from '../../db/drizzle/schema';
+import { loadIdMap, resolve } from './utils';
 
+/**
+ * Run AFTER migrate-clubs and migrate-fixtures. Also closes the
+ * Fixture<->ClubMatchDetails circular reference: migrate-fixtures.ts left
+ * `HomeSideDetails`/`AwaySideDetails` null (this table didn't exist yet),
+ * so once club-match rows exist here, this backfills those columns via an
+ * UPDATE pass at the end, reading the association back off the Fixture
+ * documents in Mongo.
+ */
 async function migrateClubMatches() {
   console.log('Starting ClubMatchDetails migration...');
 
@@ -20,14 +35,19 @@ async function migrateClubMatches() {
   const clubMatches = await ClubMatchDetailsModel.find({}).lean().exec();
   console.log(`Found ${clubMatches.length} club match detail records to migrate`);
 
+  const [clubsMap, fixturesMap] = await Promise.all([
+    loadIdMap(db, clubsTable),
+    loadIdMap(db, fixturesTable),
+  ]);
+
   for (const clubMatch of clubMatches) {
     try {
       console.log('ClubMatchDetails => ', clubMatch._id.toString());
 
       await db.insert(clubMatchDetailsTable).values({
         mongoId: clubMatch._id.toString(),
-        Club: clubMatch.Club?.toString() || null,
-        Fixture: clubMatch.Fixture?.toString() || null,
+        Club: resolve(clubsMap, clubMatch.Club),
+        Fixture: resolve(fixturesMap, clubMatch.Fixture),
         Possession: clubMatch.Possession || 0,
         Goals: clubMatch.Goals || 0,
         ShotsOnTarget: clubMatch.ShotsOnTarget || 0,
@@ -36,7 +56,8 @@ async function migrateClubMatches() {
         YellowCards: clubMatch.YellowCards || 0,
         RedCards: clubMatch.RedCards || 0,
         Passes: clubMatch.Passes || 0,
-        PlayerStats: (clubMatch.PlayerStats || []).map((playerStat: any) => playerStat.toString()),
+        // PlayerStats dropped - playerMatchDetails.ClubMatchDetails (see
+        // migrate-player-matches.ts) is the FK source of truth now.
         Won: clubMatch.Won || false,
         Drew: clubMatch.Drew || false,
         Events: (clubMatch.Events || []) as any,
@@ -52,6 +73,25 @@ async function migrateClubMatches() {
         console.error('Error message:', err.message.toString());
       }
     }
+  }
+
+  console.log('Backfilling fixtures.HomeSideDetails/AwaySideDetails...');
+  const clubMatchesMap = await loadIdMap(db, clubMatchDetailsTable);
+  const FixtureModel = new Fixture().model;
+  const fixtures = await FixtureModel.find({}).lean().exec();
+
+  for (const fixture of fixtures) {
+    const homeSideDetails = resolve(clubMatchesMap, (fixture as any).HomeSideDetails);
+    const awaySideDetails = resolve(clubMatchesMap, (fixture as any).AwaySideDetails);
+    if (!homeSideDetails && !awaySideDetails) continue;
+
+    await db
+      .update(fixturesTable)
+      .set({
+        ...(homeSideDetails ? { HomeSideDetails: homeSideDetails } : {}),
+        ...(awaySideDetails ? { AwaySideDetails: awaySideDetails } : {}),
+      })
+      .where(eq(fixturesTable.mongoId, fixture._id.toString()));
   }
 
   console.log('Migration complete!');

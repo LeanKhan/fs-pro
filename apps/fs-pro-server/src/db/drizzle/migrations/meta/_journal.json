@@ -15,6 +15,20 @@
       "when": 1788033256951,
       "tag": "0001_busy_ogun",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788134654213,
+      "tag": "0002_panoramic_giant_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788147070565,
+      "tag": "0003_wooden_colossus",
+      "breakpoints": true
     }
   ]
 }

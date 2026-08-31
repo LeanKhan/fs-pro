@@ -5,8 +5,15 @@ import { connect, connection } from 'mongoose';
 import { Place } from '../../controllers/places/places.model';
 import { Manager } from '../../controllers/managers/manager.model';
 import { createDrizzleConnection } from '../../db/drizzle/client';
-import { managers as managersTable } from '../../db/drizzle/schema';
+import { managers as managersTable, clubs as clubsTable, places as placesTable } from '../../db/drizzle/schema';
+import { loadIdMap, resolve } from './utils';
 
+/**
+ * Run BEFORE migrate-clubs (see utils.ts for the full required order).
+ * Club<->Manager is a circular reference in Mongo (both sides store the
+ * other's id) - since clubs haven't been migrated yet at this point, `Club`
+ * is left null here and backfilled by migrate-clubs.ts once clubs exist.
+ */
 async function migrateManagers() {
   console.log('Starting Managers migration...');
 
@@ -29,6 +36,11 @@ async function migrateManagers() {
   const managers = await ManagerModel.find({}).lean().exec();
   console.log(`Found ${managers.length} managers to migrate`);
 
+  const [placesMap, clubsMap] = await Promise.all([
+    loadIdMap(db, placesTable),
+    loadIdMap(db, clubsTable),
+  ]);
+
   // Migrate each manager
   for (const manager of managers) {
     try {
@@ -43,8 +55,9 @@ async function migrateManagers() {
           LastName: manager.LastName,
           Age: manager.Age,
           Picture: manager.Picture || null,
-          Club: manager.Club?.toString() || null,
-          Nationality: manager.Nationality?._id.toString() || null,
+          // Left null if clubs haven't been migrated yet - see migrate-clubs.ts's backfill pass.
+          Club: resolve(clubsMap, manager.Club),
+          Nationality: resolve(placesMap, (manager.Nationality as any)?._id || manager.Nationality),
           NationalTeam: manager.NationalTeam || false,
           Records: (manager.Records || []) as any,
           isEmployed: manager.isEmployed || false,
