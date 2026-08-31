@@ -5,7 +5,9 @@ import express, { Application } from 'express';
 import cors from 'cors';
 import bodyparser from 'body-parser';
 import morgan from 'morgan';
+import swaggerUi from 'swagger-ui-express';
 import DB from './db';
+import { swaggerSpec } from './docs/swagger';
 
 /** ---- sockets stuff -- */
 import assert from 'assert';
@@ -100,6 +102,12 @@ app.get('/', (req, res) => {
     .status(200)
     .send('<p>Welcome to FS-PRO <i>Server</i></p> enjoy!');
 });
+
+// REST API docs + tester - see src/docs/swagger.ts. Includes a runtime
+// database-backend switch (POST /api/meta/db/backend) for comparing Mongo
+// vs Postgres/Drizzle behavior without restarting the process.
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get('/api-docs.json', (req, res) => res.json(swaggerSpec));
 
 // Import routers after DB is started to avoid circular dependency issues
 const routerModule = require('./routers');

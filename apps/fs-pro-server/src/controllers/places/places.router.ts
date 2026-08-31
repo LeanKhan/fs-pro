@@ -1,19 +1,71 @@
 import { Router } from 'express';
 import {
-  fetchMany,
-  fetchOneById,
-  deleteById,
-  fetchOne,
-  findOneAndUpdate,
+  getAllPlaces,
+  getPlace,
+  getPlaceByNameOrCode,
+  updatePlace,
 } from './places.service';
 import respond from '../../helpers/responseHandler';
-import { PlaceInterface } from './places.model';
 import log from '../../helpers/logger';
 import {baseQuery, setupRoutes} from '../../helpers/queries';
 
 const router = Router();
 
-/** FETCH ALL PLACES */
+/**
+ * @openapi
+ * components:
+ *   schemas:
+ *     Place:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *           description: Mongo ObjectId hex string or Postgres UUID, depending on the active backend (see GET /meta/db)
+ *         Fullname:
+ *           type: string
+ *           example: Republic of Simeone
+ *         Name:
+ *           type: string
+ *           example: Simeone
+ *         Code:
+ *           type: string
+ *           example: SIM
+ *         Region:
+ *           type: string
+ *           example: world-east
+ *         Type:
+ *           type: string
+ *           example: country
+ *         Picture:
+ *           type: string
+ *           nullable: true
+ */
+
+/**
+ * @openapi
+ * /places:
+ *   get:
+ *     tags: [Places]
+ *     summary: Fetch places, optionally filtered
+ *     parameters:
+ *       - in: query
+ *         name: options
+ *         schema:
+ *           type: string
+ *         description: JSON-encoded filter, e.g. {"Type":"country"}
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 payload:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Place'
+ */
 router.get('/', (req, res) => {
   let options: any = req.query.options || {};
   // This prevents the app from crashing if there's
@@ -27,7 +79,7 @@ router.get('/', (req, res) => {
   }
 
 /** e.g to fetch all countries: options => {Type: 'country'} */
-  fetchMany(options)
+  getAllPlaces(options)
     .then((places: any[]) => {
       respond.success(res, 200, 'Places fetched successfully', places);
     })
@@ -37,10 +89,28 @@ router.get('/', (req, res) => {
 });
 
 
-/** Get Place by name or code */
+/**
+ * @openapi
+ * /places/country:
+ *   get:
+ *     tags: [Places]
+ *     summary: Fetch every Place with Type=country
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 payload:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Place'
+ */
 router.get('/country', (req, res) => {
   // Get Place by name slug
-  fetchMany({Type: 'country'})
+  getAllPlaces({Type: 'country'})
     .then((p: any) => {
       respond.success(res, 200, 'Countries fetched successfully', p);
     })
@@ -50,24 +120,34 @@ router.get('/country', (req, res) => {
 });
 
 
-/** GET PLACE BY ID */
+/**
+ * @openapi
+ * /places/{id}:
+ *   get:
+ *     tags: [Places]
+ *     summary: Fetch a Place by id
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 payload:
+ *                   $ref: '#/components/schemas/Place'
+ */
 router.get('/:id', (req, res) => {
   // Get Place by name slug
   const { id } = req.params;
-  let po: any = false;
-  try {
-    po = req.query.populate && typeof req.query.populate === 'string' && JSON.parse(req.query.populate);
-  } catch (err) {
-    console.error('Error fetching place, ', err);
-    return respond.fail(
-      res,
-      400,
-      'Error fetching Place: Error populating field(s)',
-      (err as Error).toString()
-    );
-  }
 
-  fetchOneById(id)
+  getPlace(id)
     .then((p: any) => {
       respond.success(res, 200, 'Place fetched successfully', p);
     })
@@ -76,12 +156,35 @@ router.get('/:id', (req, res) => {
     });
 });
 
-/** Get Place by name or code */
+/**
+ * @openapi
+ * /places/name/{name}:
+ *   get:
+ *     tags: [Places]
+ *     summary: Fetch a Place whose Name or Code matches
+ *     parameters:
+ *       - in: path
+ *         name: name
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Matched against both Name and Code
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 payload:
+ *                   $ref: '#/components/schemas/Place'
+ */
 router.get('/name/:name', (req, res) => {
   // Get Place by name slug
   const { name } = req.params;
 
-  fetchOne({Name: name, Code: name})
+  getPlaceByNameOrCode(name)
     .then((p: any) => {
       respond.success(res, 200, 'Place fetched successfully', p);
     })
@@ -95,14 +198,46 @@ router.get('/name/:name', (req, res) => {
   // TODO: COMPLETE!
 // });
 
-/** UPDATE PLACE BY id */
+/**
+ * @openapi
+ * /places/{id}:
+ *   put:
+ *     tags: [Places]
+ *     summary: Update a Place by id
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               data:
+ *                 type: object
+ *                 description: Partial Place fields to update
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 payload:
+ *                   $ref: '#/components/schemas/Place'
+ */
 router.put('/:id', (req, res) => {
   // Update place by id
 
   const { id } = req.params;
   const { data } = req.body;
 
-  findOneAndUpdate({_id: id}, data)
+  updatePlace(id, data)
     .then((place) => {
       respond.success(res, 200, 'Place updated successfully', place);
     })
