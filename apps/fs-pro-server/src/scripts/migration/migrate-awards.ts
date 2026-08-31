@@ -11,7 +11,7 @@ import {
   players as playersTable,
   managers as managersTable,
 } from '../../db/drizzle/schema';
-import { loadIdMap, resolve } from './utils';
+import { loadIdMap, resolve, upsertByMongoId } from './utils';
 
 /**
  * Run LAST (see utils.ts) - needs clubs, seasons, players, AND managers
@@ -60,21 +60,19 @@ async function migrateAwards() {
         continue;
       }
 
-      await db
-        .insert(awardsTable)
-        .values({
-          mongoId: award._id.toString(), // Store original MongoDB ID
-          Name: award.Name,
-          Type: award.Type,
-          Period: award.Period,
-          Category: award.Category,
-          Recipient: recipient,
-          Club: resolve(clubsMap, award.Club),
-          Remarks: award.Remarks || null,
-          Season: resolve(seasonsMap, award.Season),
-          createdAt: (award as any).createdAt || new Date(),
-          updatedAt: (award as any).updatedAt || new Date(),
-        });
+      await upsertByMongoId(db, awardsTable, {
+        mongoId: award._id.toString(), // Store original MongoDB ID
+        Name: award.Name,
+        Type: award.Type,
+        Period: award.Period,
+        Category: award.Category,
+        Recipient: recipient,
+        Club: resolve(clubsMap, award.Club),
+        Remarks: award.Remarks || null,
+        Season: resolve(seasonsMap, award.Season),
+        createdAt: (award as any).createdAt || new Date(),
+        updatedAt: (award as any).updatedAt || new Date(),
+      });
       console.log(`✓ Migrated: ${award.Name}`);
     } catch (err: any) {
       console.error(`✗ Failed: ${award.Name}`);

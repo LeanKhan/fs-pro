@@ -5,8 +5,12 @@ import { connect, connection } from 'mongoose';
 import { Player } from '../../controllers/players/player.model';
 import { Place } from '../../controllers/places/places.model';
 import { createDrizzleConnection } from '../../db/drizzle/client';
-import { players as playersTable, clubs as clubsTable, places as placesTable } from '../../db/drizzle/schema';
-import { loadIdMap, resolve } from './utils';
+import {
+  players as playersTable,
+  clubs as clubsTable,
+  places as placesTable,
+} from '../../db/drizzle/schema';
+import { loadIdMap, resolve, upsertByMongoId } from './utils';
 
 async function migratePlayers() {
   console.log('Starting Players migration...');
@@ -32,11 +36,14 @@ async function migratePlayers() {
     try {
       console.log('Player => ', player._id.toString());
 
-      await db.insert(playersTable).values({
+      await upsertByMongoId(db, playersTable, {
         mongoId: player._id.toString(),
         FirstName: player.FirstName,
         LastName: player.LastName,
-        Nationality: resolve(placesMap, (player as any).Nationality?._id || (player as any).Nationality),
+        Nationality: resolve(
+          placesMap,
+          (player as any).Nationality?._id || (player as any).Nationality
+        ),
         Age: player.Age || null,
         PlayerID: player.PlayerID || null,
         Position: (player as any).Position || null,

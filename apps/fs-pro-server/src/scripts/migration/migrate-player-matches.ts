@@ -11,7 +11,7 @@ import {
   fixtures as fixturesTable,
   clubMatchDetails as clubMatchDetailsTable,
 } from '../../db/drizzle/schema';
-import { loadIdMap, resolve } from './utils';
+import { loadIdMap, resolve, upsertByMongoId } from './utils';
 
 /**
  * Run AFTER migrate-players, migrate-fixtures, and migrate-club-matches.
@@ -34,7 +34,9 @@ async function migratePlayerMatches() {
 
   const PlayerMatchDetailsModel = new PlayerMatchDetails().model;
   const playerMatches = await PlayerMatchDetailsModel.find({}).lean().exec();
-  console.log(`Found ${playerMatches.length} player match detail records to migrate`);
+  console.log(
+    `Found ${playerMatches.length} player match detail records to migrate`
+  );
 
   const ClubMatchDetailsModel = new ClubMatchDetails().model;
   const clubMatches = await ClubMatchDetailsModel.find({}).lean().exec();
@@ -42,7 +44,10 @@ async function migratePlayerMatches() {
   const playerMatchToClubMatchMongoId = new Map<string, string>();
   for (const clubMatch of clubMatches) {
     for (const playerStatId of clubMatch.PlayerStats || []) {
-      playerMatchToClubMatchMongoId.set((playerStatId as any).toString(), clubMatch._id.toString());
+      playerMatchToClubMatchMongoId.set(
+        (playerStatId as any).toString(),
+        clubMatch._id.toString()
+      );
     }
   }
 
@@ -56,13 +61,17 @@ async function migratePlayerMatches() {
     try {
       console.log('PlayerMatchDetails => ', playerMatch._id.toString());
 
-      const clubMatchMongoId = playerMatchToClubMatchMongoId.get(playerMatch._id.toString());
+      const clubMatchMongoId = playerMatchToClubMatchMongoId.get(
+        playerMatch._id.toString()
+      );
 
-      await db.insert(playerMatchDetailsTable).values({
+      await upsertByMongoId(db, playerMatchDetailsTable, {
         mongoId: playerMatch._id.toString(),
         Player: resolve(playersMap, playerMatch.Player),
         Fixture: resolve(fixturesMap, playerMatch.Fixture),
-        ClubMatchDetails: clubMatchMongoId ? resolve(clubMatchesMap, clubMatchMongoId) : null,
+        ClubMatchDetails: clubMatchMongoId
+          ? resolve(clubMatchesMap, clubMatchMongoId)
+          : null,
         Goals: playerMatch.Goals || 0,
         Saves: playerMatch.Saves || 0,
         YellowCards: playerMatch.YellowCards || 0,

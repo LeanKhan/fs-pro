@@ -4,8 +4,11 @@ dotenv.config();
 import { connect, connection } from 'mongoose';
 import { Day } from '../../controllers/days/day.model';
 import { createDrizzleConnection } from '../../db/drizzle/client';
-import { days as daysTable, calendars as calendarsTable } from '../../db/drizzle/schema';
-import { loadIdMap, resolve } from './utils';
+import {
+  days as daysTable,
+  calendars as calendarsTable,
+} from '../../db/drizzle/schema';
+import { loadIdMap, resolve, upsertByMongoId } from './utils';
 
 async function migrateDays() {
   console.log('Starting Days migration...');
@@ -47,18 +50,16 @@ async function migrateDays() {
         Week: match.Week || null,
       }));
 
-      await db
-        .insert(daysTable)
-        .values({
-          mongoId: day._id.toString(), // Store original MongoDB ID
-          Matches: matches as any,
-          isFree: day.isFree || false,
-          Day: day.Day || null,
-          Year: day.Year,
-          Calendar: resolve(calendarsMap, day.Calendar),
-          createdAt: (day as any).createdAt || new Date(),
-          updatedAt: (day as any).updatedAt || new Date(),
-        });
+      await upsertByMongoId(db, daysTable, {
+        mongoId: day._id.toString(), // Store original MongoDB ID
+        Matches: matches as any,
+        isFree: day.isFree || false,
+        Day: day.Day || null,
+        Year: day.Year,
+        Calendar: resolve(calendarsMap, day.Calendar),
+        createdAt: (day as any).createdAt || new Date(),
+        updatedAt: (day as any).updatedAt || new Date(),
+      });
       console.log(`✓ Migrated: Day ${day.Day} - ${day.Year}`);
     } catch (err: any) {
       console.error(`✗ Failed: Day ${day.Day} - ${day.Year}`);

@@ -40,14 +40,18 @@ async function migrateCompetitionClubs() {
   for (const competition of competitions) {
     const competitionId = resolve(competitionsMap, competition._id.toString());
     if (!competitionId) {
-      console.error(`✗ Skipped ${competition.Name}: not found in Postgres (run migrate-competitions first)`);
+      console.error(
+        `✗ Skipped ${competition.Name}: not found in Postgres (run migrate-competitions first)`
+      );
       continue;
     }
 
     for (const clubRef of competition.Clubs || []) {
       const clubId = resolve(clubsMap, (clubRef as any).toString());
       if (!clubId) {
-        console.error(`✗ Skipped a club membership for ${competition.Name}: club not found in Postgres`);
+        console.error(
+          `✗ Skipped a club membership for ${competition.Name}: club not found in Postgres`
+        );
         continue;
       }
 
@@ -62,10 +66,17 @@ async function migrateCompetitionClubs() {
           })
           .onConflictDoNothing();
       } catch (err: any) {
-        console.error(`✗ Failed linking club to ${competition.Name}:`, err.message?.toString());
+        console.error(
+          `✗ Failed linking club to ${competition.Name}:`,
+          err.message?.toString()
+        );
       }
     }
-    console.log(`✓ Linked: ${competition.Name} (${(competition.Clubs || []).length} clubs)`);
+    console.log(
+      `✓ Linked: ${competition.Name} (${
+        (competition.Clubs || []).length
+      } clubs)`
+    );
   }
 
   console.log('Migration complete!');

@@ -11,7 +11,7 @@ import {
   clubs as clubsTable,
   managers as managersTable,
 } from '../../db/drizzle/schema';
-import { loadIdMap, resolve } from './utils';
+import { loadIdMap, resolve, upsertByMongoId } from './utils';
 
 /**
  * Run AFTER migrate-seasons, migrate-clubs, and migrate-managers (see
@@ -45,7 +45,7 @@ async function migrateFixtures() {
     try {
       console.log('Fixture => ', fixture._id.toString());
 
-      await db.insert(fixturesTable).values({
+      await upsertByMongoId(db, fixturesTable, {
         mongoId: fixture._id.toString(),
         Title: fixture.Title || null,
         FixtureCode: (fixture as any).FixtureCode || null,

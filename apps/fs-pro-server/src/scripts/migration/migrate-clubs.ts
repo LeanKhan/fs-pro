@@ -13,7 +13,7 @@ import {
   users as usersTable,
   places as placesTable,
 } from '../../db/drizzle/schema';
-import { loadIdMap, resolve } from './utils';
+import { loadIdMap, resolve, upsertByMongoId } from './utils';
 
 /**
  * Run AFTER migrate-managers, migrate-competitions, and migrate-users (see
@@ -44,12 +44,14 @@ async function migrateClubs() {
   const clubs = await ClubModel.find({}).lean().exec();
   console.log(`Found ${clubs.length} clubs to migrate`);
 
-  const [managersMap, competitionsMap, usersMap, placesMap] = await Promise.all([
-    loadIdMap(db, managersTable),
-    loadIdMap(db, competitionsTable),
-    loadIdMap(db, usersTable),
-    loadIdMap(db, placesTable),
-  ]);
+  const [managersMap, competitionsMap, usersMap, placesMap] = await Promise.all(
+    [
+      loadIdMap(db, managersTable),
+      loadIdMap(db, competitionsTable),
+      loadIdMap(db, usersTable),
+      loadIdMap(db, placesTable),
+    ]
+  );
 
   // Migrate each club
   for (const club of clubs) {
@@ -63,39 +65,37 @@ async function migrateClubs() {
         addressData = rest;
       }
 
-      await db
-        .insert(clubsTable)
-        .values({
-          mongoId: club._id.toString(), // Store original MongoDB ID
-          Name: club.Name,
-          ClubCode: club.ClubCode,
-          AttackingClass: club.AttackingClass || null,
-          DefensiveClass: club.DefensiveClass || null,
-          Rating: club.Rating || 0,
-          GK_Rating: club.GK_Rating || 0,
-          ATT_Rating: club.ATT_Rating || 0,
-          DEF_Rating: club.DEF_Rating || 0,
-          MID_Rating: club.MID_Rating || 0,
-          Manager: resolve(managersMap, club.Manager),
-          assets: club.assets ? (club.assets as any) : null,
-          Stats: club.Stats ? (club.Stats as any) : null,
-          Address: addressData ? (addressData as any) : null,
-          AddressCountry: resolve(
-            placesMap,
-            (club.Address as any)?.Country?._id || (club.Address as any)?.Country
-          ),
-          Budget: club.Budget || null,
-          Transactions: club.Transactions ? (club.Transactions as any) : null,
-          Records: (club.Records || []) as any,
-          Stadium: club.Stadium ? (club.Stadium as any) : null,
-          LeagueCode: club.LeagueCode || null,
-          League: resolve(competitionsMap, club.League),
-          // Players dropped - players.Club (see migrate-players.ts) is the
-          // FK source of truth now.
-          User: resolve(usersMap, club.User),
-          createdAt: (club as any).createdAt || new Date(),
-          updatedAt: (club as any).updatedAt || new Date(),
-        });
+      await upsertByMongoId(db, clubsTable, {
+        mongoId: club._id.toString(), // Store original MongoDB ID
+        Name: club.Name,
+        ClubCode: club.ClubCode,
+        AttackingClass: club.AttackingClass || null,
+        DefensiveClass: club.DefensiveClass || null,
+        Rating: club.Rating || 0,
+        GK_Rating: club.GK_Rating || 0,
+        ATT_Rating: club.ATT_Rating || 0,
+        DEF_Rating: club.DEF_Rating || 0,
+        MID_Rating: club.MID_Rating || 0,
+        Manager: resolve(managersMap, club.Manager),
+        assets: club.assets ? (club.assets as any) : null,
+        Stats: club.Stats ? (club.Stats as any) : null,
+        Address: addressData ? (addressData as any) : null,
+        AddressCountry: resolve(
+          placesMap,
+          (club.Address as any)?.Country?._id || (club.Address as any)?.Country
+        ),
+        Budget: club.Budget || null,
+        Transactions: club.Transactions ? (club.Transactions as any) : null,
+        Records: (club.Records || []) as any,
+        Stadium: club.Stadium ? (club.Stadium as any) : null,
+        LeagueCode: club.LeagueCode || null,
+        League: resolve(competitionsMap, club.League),
+        // Players dropped - players.Club (see migrate-players.ts) is the
+        // FK source of truth now.
+        User: resolve(usersMap, club.User),
+        createdAt: (club as any).createdAt || new Date(),
+        updatedAt: (club as any).updatedAt || new Date(),
+      });
       console.log(`✓ Migrated: ${club.Name}`);
     } catch (err: any) {
       console.error(`✗ Failed: ${club.Name}`);
@@ -120,7 +120,10 @@ async function migrateClubs() {
     const clubId = resolve(clubsMap, club._id.toString());
     if (!managerId || !clubId) continue;
 
-    await db.update(managersTable).set({ Club: clubId }).where(eq(managersTable.mongoId, club.Manager.toString()));
+    await db
+      .update(managersTable)
+      .set({ Club: clubId })
+      .where(eq(managersTable.mongoId, club.Manager.toString()));
   }
 
   console.log('Migration complete!');
