@@ -1,5 +1,41 @@
 import DB from '../../db';
 import { CalendarInterface } from './calendar.model';
+import { CalendarRepositoryFactory } from '../../repositories/CalendarRepositoryFactory';
+import { ICalendarFilter } from '../../repositories/CalendarRepository';
+
+/**
+ * Repository-backed functions below cover the identity/CRUD surface with no
+ * Days-array or aggregation-pipeline update in play - see
+ * ICalendarRepository's doc comment for what stays raw and why.
+ */
+let calendarRepo: ReturnType<typeof CalendarRepositoryFactory.create> | null = null;
+
+function getCalendarRepo() {
+  if (!calendarRepo) {
+    calendarRepo = CalendarRepositoryFactory.create();
+  }
+  return calendarRepo;
+}
+
+export async function getCalendarById(id: string) {
+  return getCalendarRepo().findById(id);
+}
+
+export async function getCalendars(filter?: ICalendarFilter) {
+  return getCalendarRepo().findAll(filter);
+}
+
+export async function createCalendar(data: Partial<CalendarInterface>) {
+  return getCalendarRepo().create(data);
+}
+
+export async function updateCalendarFields(id: string, data: Partial<CalendarInterface>) {
+  return getCalendarRepo().update(id, data);
+}
+
+export async function deleteCalendarById(id: string) {
+  return getCalendarRepo().delete(id);
+}
 
 /**
  * fetchAll
@@ -74,16 +110,6 @@ export function updateCalendar(id: string, update: any) {
 
 export function createCalendars(Calendars: any[]) {
   return DB.Models.Calendar.insertMany(Calendars, { ordered: true });
-}
-
-/**
- * create new Calendar year...
- */
-
-export function createNew(data: any) {
-  const Calendar = new DB.Models.Calendar(data);
-
-  return Calendar.save();
 }
 
 export function deleteById(id: string) {

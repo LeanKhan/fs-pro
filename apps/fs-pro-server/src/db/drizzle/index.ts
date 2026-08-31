@@ -62,7 +62,13 @@ export class DrizzleDatabase implements IDatabase {
     const mongo = this.mongoFallback.Models;
 
     this._models = {
-      Competition: mongo.Competition, // TODO: DrizzleCompetitionRepository not built yet
+      // DrizzleCompetitionRepository/MongoCompetitionRepository do exist
+      // (see repositories/{mongo,drizzle}/CompetitionRepository.ts) and
+      // cover the identity/CRUD surface - but not wired in here, same
+      // one-slot-shared reason as Club/User/Manager above: populate=true
+      // (Clubs/Seasons) and the Club/Season membership routes
+      // (add-club/add-season) still need the raw Mongo model.
+      Competition: mongo.Competition,
       Player: mongo.Player, // TODO: DrizzlePlayerRepository not built yet
       Season: mongo.Season, // TODO: DrizzleSeasonRepository not built yet
       // DrizzleClubRepository/MongoClubRepository do exist (see
@@ -83,13 +89,19 @@ export class DrizzleDatabase implements IDatabase {
       // instead - see controllers/user/user.service.ts.
       User: mongo.User,
       Fixture: mongo.Fixture, // TODO: DrizzleFixtureRepository not built yet
-      Calendar: mongo.Calendar, // TODO: DrizzleCalendarRepository not built yet
-      Day: mongo.Day, // TODO: DrizzleDayRepository not built yet
+      // DrizzleCalendarRepository/MongoCalendarRepository do exist (see
+      // repositories/{mongo,drizzle}/CalendarRepository.ts) and cover the
+      // identity/CRUD surface - the Days-array-building game loop
+      // (createSeasonsInTheYear, setupDaysInYear(2), startYear's
+      // aggregation-pipeline update) still needs the raw Mongo model. Same
+      // one-slot-shared reason as everything else here.
+      Calendar: mongo.Calendar,
+      Day: mongo.Day, // TODO: DrizzleDayRepository not built yet - GET /:year/days (its real read path) needs Matches.Fixture populate, which needs Fixture converted first.
       // DrizzleManagerRepository/MongoManagerRepository do exist (see
-      // repositories/{mongo,drizzle}/ManagerRepository.ts) and cover most of
-      // the Manager surface now, including `populate=Club` - but DELETE
-      // /managers/:id and the always-fallback slot below stay on Mongo for
-      // the same one-slot-shared reason as Club/User above.
+      // repositories/{mongo,drizzle}/ManagerRepository.ts) and cover the
+      // full Manager surface now (including `populate=Club` and DELETE) -
+      // still not wired in here, same one-slot-shared reason as everything
+      // else in this list.
       Manager: mongo.Manager,
       ClubMatch: mongo.ClubMatch, // TODO: DrizzleClubMatchRepository not built yet
       PlayerMatch: mongo.PlayerMatch, // TODO: DrizzlePlayerMatchRepository not built yet

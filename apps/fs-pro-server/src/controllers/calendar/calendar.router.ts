@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { Types } from 'mongoose';
 import respond from '../../helpers/responseHandler';
-import { fetchOneById, fetchAll, deleteByRemove, deleteDayByRemove } from './calendar.service';
+import { deleteDayByRemove, getCalendarById, getCalendars, deleteCalendarById } from './calendar.service';
 import {
   getCurrentCalendar,
   startYear,
@@ -26,7 +26,7 @@ const router = Router();
 
 /** Get Calendar by id */
 router.get('/calendars/:id', (req, res) => {
-  const response = fetchOneById(req.params.id);
+  const response = getCalendarById(req.params.id);
 
   response
     .then((fixture: any) => {
@@ -39,7 +39,7 @@ router.get('/calendars/:id', (req, res) => {
 
 /** Delete Calendar by id */
 router.delete('/calendars/:id', (req, res) => {
-  deleteByRemove(req.params.id)
+  deleteCalendarById(req.params.id)
     .then((calendar: any) => {
       respond.success(res, 200, 'Calendar deleted successfully :)', calendar);
     })
@@ -62,7 +62,7 @@ router.delete('/days/:id', (req, res) => {
 
 /** Get all Calendars */
 router.get('/calendars', (req, res) => {
-  const response = fetchAll();
+  const response = getCalendars();
 
   response
     .then((calendars: any) => {
