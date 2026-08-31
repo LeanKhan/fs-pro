@@ -66,7 +66,14 @@ export class DrizzleDatabase implements IDatabase {
       Player: mongo.Player, // TODO: DrizzlePlayerRepository not built yet
       Season: mongo.Season, // TODO: DrizzleSeasonRepository not built yet
       Club: mongo.Club, // TODO: DrizzleClubRepository not built yet
-      User: mongo.User, // TODO: DrizzleUserRepository not built yet
+      // DrizzleUserRepository/MongoUserRepository do exist (see
+      // repositories/{mongo,drizzle}/UserRepository.ts), but deliberately
+      // aren't wired in here: DB.Models.User is one slot shared by every
+      // consumer, and the Club-coupled routes (POST /join, /add-club(s),
+      // /clubs/:id) still need it to be the raw Mongo model. The
+      // repository-backed User routes call UserRepositoryFactory directly
+      // instead - see controllers/user/user.service.ts.
+      User: mongo.User,
       Fixture: mongo.Fixture, // TODO: DrizzleFixtureRepository not built yet
       Calendar: mongo.Calendar, // TODO: DrizzleCalendarRepository not built yet
       Day: mongo.Day, // TODO: DrizzleDayRepository not built yet

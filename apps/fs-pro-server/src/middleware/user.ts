@@ -1,10 +1,18 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
-import { updateUser, fetchOneUser } from '../controllers/user/user.service';
+import { updateUser, getUserById, updateUserFields } from '../controllers/user/user.service';
 import responseHandler from '../helpers/responseHandler';
 import { store } from '../sessionStore';
 import { IUser } from '../controllers/user/user.model';
+import { resolveUserSession } from '../utils/auth';
 import log from '../helpers/logger';
 
+/**
+ * Used only by POST /join - registration is Club-coupled (see the User
+ * conversion plan / FUTURE-PLANS.md) and stays on the raw Mongo path
+ * entirely, so this keeps using `updateUser` (DB.Models.User directly)
+ * rather than the repository. Do not reuse this for anything backed by
+ * the new User repository - see `initializeSessionForLogin` below.
+ */
 export function initializeSession(
   req: Request,
   res: Response,
@@ -31,6 +39,37 @@ export function initializeSession(
           responseHandler.fail(res, 400, 'Error fetching User', error);
         });
     }
+  });
+}
+
+/**
+ * Used by POST /login. The user was fetched via the repository (see
+ * user.router.ts) - under Drizzle its `_id` is a Postgres UUID, which
+ * `updateUser`/`DB.Models.User` (Mongo) would silently fail to match, so
+ * this stamps the session through the same repository instead.
+ */
+export function initializeSessionForLogin(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  const id = req.body.userID;
+  (req.session as any).userID = id;
+
+  req.session!.save((err: any) => {
+    if (err) {
+      return responseHandler.fail(res, 400, 'Error creating session', err);
+    }
+
+    updateUserFields(id, { Session: req.sessionID } as Partial<IUser>)
+      .then((user) => {
+        responseHandler.success(res, 200, 'User authenticated successfully', {
+          ...user,
+        });
+      })
+      .catch((error: any) => {
+        responseHandler.fail(res, 400, 'Error fetching User', error);
+      });
   });
 }
 
@@ -75,57 +114,62 @@ export function findSession(req: Request, res: Response, next: NextFunction) {
 
   // This is if the cookie was not sent back, if not find the session and create a new one with the same data...
 
-  fetchOneUser({ _id: userID }, true, false)
-    .then((user: IUser) => {
-      // here find an accompanying session...
-      user.findSession(
-        user.Session,
-        function (err: any, sess: any) {
-          if (sess) {
-            // If you find the session it means it's an old one so do this...
-            // set a new one, create a new cookie and send session data to client
-            store.set(sessionID, sess, (err: any) => {
-              if (err) {
-                throw new Error('Error in setting Session' + `${err}`);
-              } else {
-                // store.createSession(req, sess);
+  getUserById(userID)
+    .then((user) => {
+      if (!user) {
+        return responseHandler.fail(res, 404, 'User not found');
+      }
 
-                user.Session = req.sessionID as string;
+      // here find an accompanying session... (matches the original
+      // `user.findSession(user.Session, cb)` call exactly - always looks
+      // the session up under the user's own stored Session value, not the
+      // incoming request's sessionID)
+      resolveUserSession(user.Session, user.Session, (err: any, sess: any) => {
+        if (sess) {
+          // If you find the session it means it's an old one so do this...
+          // set a new one, create a new cookie and send session data to client
+          store.set(sessionID, sess, (err: any) => {
+            if (err) {
+              throw new Error('Error in setting Session' + `${err}`);
+            }
 
-                // Maybe here delete that old session?...
-
-                void user.save();
-
+            updateUserFields(userID, { Session: req.sessionID } as Partial<IUser>)
+              .then(() => {
                 return responseHandler.success(
                   res,
                   200,
                   'Client Authenticated successfully',
                   { userID: user._id, sessionID: req.sessionID }
                 );
-              }
-            });
-          } else {
-            // User exists but does not have any associated sessions...
-            (req.session as any).userID = user._id;
+              })
+              .catch((updateErr: any) => {
+                responseHandler.fail(res, 400, 'Error in authentication', updateErr);
+              });
+          });
+        } else {
+          // User exists but does not have any associated sessions...
+          (req.session as any).userID = user._id;
 
-            req.session!.save((err: any) => {
-              if (err) {
-                throw new Error('Error in saving new user session' + `${err}`);
-              } else {
-                user.Session = req.sessionID as string;
-                void user.save();
+          req.session!.save((sessionErr: any) => {
+            if (sessionErr) {
+              throw new Error('Error in saving new user session' + `${sessionErr}`);
+            }
 
+            updateUserFields(userID, { Session: req.sessionID } as Partial<IUser>)
+              .then(() => {
                 return responseHandler.success(
                   res,
                   200,
                   'Client Authenticated successfully',
                   { userID: user._id, sessionID: req.sessionID }
                 );
-              }
-            });
-          }
+              })
+              .catch((updateErr: any) => {
+                responseHandler.fail(res, 400, 'Error in authentication', updateErr);
+              });
+          });
         }
-      );
+      });
     })
     .catch((err: any) => {
       log(`error in entering => ${err}`);
