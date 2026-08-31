@@ -92,6 +92,7 @@ export interface ClubInterface {
   User?: string | IUser;
   Budget?: number;
   Transactions?: unknown; // TODO: fix, use an actual type :)
+  Records?: any[];
 }
 
 export type ClubModel = Model<IClub>;

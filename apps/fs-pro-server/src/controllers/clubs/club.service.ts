@@ -4,6 +4,61 @@ import { Types } from 'mongoose';
 import { Club, ClubInterface } from './club.model';
 import log from '../../helpers/logger';
 import { IClub } from '../../interfaces/Club';
+import { ClubRepositoryFactory } from '../../repositories/ClubRepositoryFactory';
+import { IClubFilter } from '../../repositories/ClubRepository';
+
+/**
+ * Repository-backed functions below are for the identity/CRUD surface that
+ * has no Mongo-operator ($set/$push/$unset) update in play. `update()` on
+ * the repository only ever accepts plain fields - every caller below that
+ * used to build a `$push`/`$unset` update object (hiring/firing a manager,
+ * clearing a club's owner) goes through `appendClubRecord`, which reads the
+ * current Records array and writes the appended version back as a plain
+ * field, instead. See FUTURE-PLANS.md for the full Club conversion writeup.
+ */
+let clubRepo: ReturnType<typeof ClubRepositoryFactory.create> | null = null;
+
+function getClubRepo() {
+  if (!clubRepo) {
+    clubRepo = ClubRepositoryFactory.create();
+  }
+  return clubRepo;
+}
+
+export async function getClubById(id: string) {
+  return getClubRepo().findById(id);
+}
+
+export async function getClubs(filter?: IClubFilter) {
+  return getClubRepo().findAll(filter);
+}
+
+export async function createClub(data: Partial<ClubInterface>) {
+  return getClubRepo().create(data);
+}
+
+export async function updateClubFields(id: string, data: Partial<ClubInterface>) {
+  return getClubRepo().update(id, data);
+}
+
+/**
+ * Update a Club's plain fields and append one entry to its Records array in
+ * the same write - replaces the `$push: { Records: ... }` pattern every
+ * Mongo-operator call site used, since the repository's `update()` doesn't
+ * support operators. Read-modify-write is safe here: every real caller
+ * (hiring/firing a manager, a manager's DELETE route clearing its club)
+ * already reads the club first for other reasons, so this isn't adding an
+ * extra round trip in practice.
+ */
+export async function appendClubRecord(
+  id: string,
+  fields: Record<string, unknown>,
+  record: unknown
+) {
+  const club = await getClubRepo().findById(id);
+  const records = [...(club?.Records ?? []), record];
+  return getClubRepo().update(id, { ...fields, Records: records } as Partial<ClubInterface>);
+}
 
 /**
  * fetchAllClubs mate

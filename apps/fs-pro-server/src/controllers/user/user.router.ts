@@ -5,13 +5,12 @@
 import { Router } from 'express';
 import {
   createNewUser,
-  updateUser,
-  fetchUser,
-  fetchOneUser,
   getUserById,
   getUserByUsername,
   updateUserFields,
 } from './user.service';
+import { getClubs, updateClubFields } from '../clubs/club.service';
+import { ClubInterface } from '../clubs/club.model';
 import respond from '../../helpers/responseHandler';
 import { IUserLogin } from '../../interfaces/Response';
 import { initializeSession, initializeSessionForLogin, findSession } from '../../middleware/user';
@@ -128,9 +127,15 @@ router.get('/:id', (req, res) => {
   const id = req.params.id;
   const populate = req.query.populate === 'true' ? true : false;
 
-  // populate=true is Club-coupled (populates Clubs) - stays on the raw
-  // path, there's nothing to populate on Postgres yet.
-  const response = populate ? fetchUser(id, true) : getUserById(id);
+  // Club ownership is `Clubs.User` (a reverse FK) on both backends now -
+  // `Users.Clubs` doesn't exist on Postgres - so `populate=true` derives
+  // the owned-clubs list via a reverse lookup through the Club repository
+  // instead of an array populate.
+  const response = populate
+    ? Promise.all([getUserById(id), getClubs({ User: id })]).then(([user, clubs]) =>
+        user ? { ...user, Clubs: clubs } : user
+      )
+    : getUserById(id);
 
   response
     .then((user: any) => {
@@ -194,52 +199,47 @@ router.post('/:id/update', (req, res) => {
     });
 });
 
-/** Add Clubs to User account */
+/**
+ * Add Clubs to User account - claims ownership of each club by setting its
+ * `User` FK, same write `POST /users/join`'s `updateClubs` does. Responds
+ * with the user's full owned-clubs list (a reverse lookup, not a stored
+ * array) rather than a User document - there's no `Users.Clubs` to return.
+ */
 router.post('/:id/add-clubs', (req, res) => {
   const id = req.params.id;
   const { data } = req.body;
 
-  const clubs = { Clubs: data };
-
-  const response = updateUser(id, clubs);
-
-  response
-    .then((user: any) => {
-      respond.success(res, 200, 'Clubs added successfully', user);
+  Promise.all(((data ?? []) as string[]).map((clubId) => updateClubFields(clubId, { User: id })))
+    .then(() => getClubs({ User: id }))
+    .then((clubs) => {
+      respond.success(res, 200, 'Clubs added successfully', clubs);
     })
     .catch((err: any) => {
       respond.fail(res, 400, 'Error adding Clubs', err);
     });
 });
 
-/** Add Club to User account */
+/** Add Club to User account - same reverse-FK write as above, for one club. */
 router.post('/:id/add-club', (req, res) => {
   const id = req.params.id;
   const { clubId } = req.body.data;
 
-  const data = { $push: { Clubs: clubId } };
-
-  const response = updateUser(id, data);
-
-  response
-    .then((user: any) => {
-      respond.success(res, 200, 'Club added successfully', user);
+  updateClubFields(clubId, { User: id })
+    .then((club) => {
+      respond.success(res, 200, 'Club added successfully', club);
     })
     .catch((err: any) => {
       respond.fail(res, 400, 'Error adding Club', err);
     });
 });
 
-/** Remove Club from User account */
+/** Remove Club from User account - clears the club's `User` FK. */
 router.delete('/:id/clubs/:club_id', (req, res) => {
-  const id = req.params.id;
   const club_id = req.params.club_id;
 
-  const data = { $pull: { Clubs: club_id } };
-
-  updateUser(id, data)
-    .then((user: any) => {
-      respond.success(res, 200, 'User removed Club successfully', user);
+  updateClubFields(club_id, { User: null } as unknown as Partial<ClubInterface>)
+    .then((club) => {
+      respond.success(res, 200, 'User removed Club successfully', club);
     })
     .catch((err: any) => {
       respond.fail(res, 400, 'Error removing Club', err);
