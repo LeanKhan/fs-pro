@@ -14,14 +14,19 @@ const router = Router();
 const VALID_BACKENDS: BackendChoice[] = ['mongo', 'drizzle', 'prisma'];
 
 /**
- * Entities with a real repository (Mongo + Drizzle implementations) wired
- * into their router - everything else still reads/writes through
- * `DB.Models.X` directly and, while `backend` is `drizzle`, transparently
- * falls back to a live Mongo connection (see `db/drizzle/index.ts`) rather
- * than actually touching Postgres. Update this list as each entity gets
- * converted (see FUTURE-PLANS.md).
+ * Entities with a real repository (Mongo + Drizzle implementations) reached
+ * by at least some of their routes - everything else still reads/writes
+ * through `DB.Models.X` directly and, while `backend` is `drizzle`,
+ * transparently falls back to a live Mongo connection (see
+ * `db/drizzle/index.ts`) rather than actually touching Postgres. Update
+ * this list as each entity gets converted (see FUTURE-PLANS.md).
+ *
+ * 'User (partial)': only the identity-only routes (login, fetch-by-id,
+ * change-password, update, logout, /enter) go through the repository.
+ * Registration and every Club-linking route (POST /join, /add-club(s),
+ * /clubs/:id) are still fully raw Mongo - see FUTURE-PLANS.md for why.
  */
-const CONVERTED_ENTITIES = ['Place'];
+const CONVERTED_ENTITIES = ['Place', 'User (partial)'];
 
 /**
  * @openapi

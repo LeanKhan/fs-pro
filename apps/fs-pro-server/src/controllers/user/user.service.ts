@@ -1,5 +1,36 @@
 import DB from '../../db';
 import log from '../../helpers/logger';
+import { UserRepositoryFactory } from '../../repositories/UserRepositoryFactory';
+import { IUser } from './user.model';
+
+/**
+ * Repository-backed functions below (getUserById/getUserByUsername/
+ * updateUserFields) are for the identity-only surface that has no Club or
+ * registration-session entanglement - see FUTURE-PLANS.md / the User
+ * conversion plan for why this is split rather than converting everything.
+ * The raw DB.Models.User functions above/below stay exactly as they are,
+ * still used by POST /join and the /add-club(s)/clubs/:id routes.
+ */
+let userRepo: ReturnType<typeof UserRepositoryFactory.create> | null = null;
+
+function getUserRepo() {
+  if (!userRepo) {
+    userRepo = UserRepositoryFactory.create();
+  }
+  return userRepo;
+}
+
+export async function getUserById(id: string) {
+  return getUserRepo().findById(id);
+}
+
+export async function getUserByUsername(username: string) {
+  return getUserRepo().findByUsername(username);
+}
+
+export async function updateUserFields(id: string, data: Partial<IUser>) {
+  return getUserRepo().update(id, data);
+}
 
 /**
  * fetch one user by Id
