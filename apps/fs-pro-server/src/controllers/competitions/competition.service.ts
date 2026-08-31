@@ -1,5 +1,44 @@
 import DB from '../../db';
 import { CompetitionInterface, CompetitionModel } from './competition.model';
+import { CompetitionRepositoryFactory } from '../../repositories/CompetitionRepositoryFactory';
+import { ICompetitionFilter } from '../../repositories/CompetitionRepository';
+
+/**
+ * Repository-backed functions below are for the identity/CRUD surface that
+ * has no Club/Season membership-mutation in play - `update()` only accepts
+ * plain fields. `addClubToCompetition`/`addSeasonToCompetition` (Club- and
+ * Season-coupled) and any arbitrary-query fetch stay on the raw functions
+ * below/exported, unchanged. See FUTURE-PLANS.md for the full writeup.
+ */
+let competitionRepo: ReturnType<typeof CompetitionRepositoryFactory.create> | null = null;
+
+function getCompetitionRepo() {
+  if (!competitionRepo) {
+    competitionRepo = CompetitionRepositoryFactory.create();
+  }
+  return competitionRepo;
+}
+
+export async function getCompetitionById(id: string) {
+  return getCompetitionRepo().findById(id);
+}
+
+export async function getCompetitions(filter?: ICompetitionFilter) {
+  return getCompetitionRepo().findAll(filter);
+}
+
+export async function createCompetition(data: Partial<CompetitionInterface>) {
+  return getCompetitionRepo().create(data);
+}
+
+export async function updateCompetitionFields(id: string, data: Partial<CompetitionInterface>) {
+  return getCompetitionRepo().update(id, data);
+}
+
+export async function deleteCompetitionById(id: string) {
+  return getCompetitionRepo().delete(id);
+}
+
 /**
  * fetchAll Competitions
  */

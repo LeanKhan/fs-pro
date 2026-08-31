@@ -2,9 +2,10 @@ import { Router, Request, Response } from 'express';
 import {
   fetchAll,
   fetchOneById,
-  createNew,
-  update,
-  deleteByRemove,
+  getCompetitionById,
+  createCompetition,
+  updateCompetitionFields,
+  deleteCompetitionById,
 } from './competition.service';
 import { fetchAll as fetchAllSeasons } from '../seasons/season.service';
 import respond from '../../helpers/responseHandler';
@@ -45,7 +46,10 @@ router.get('/all', (req: Request, res: Response) => {
 /** Get Competition by id */
 router.get('/:id', (req: Request, res: Response) => {
   const { populate } = req.query;
-  const response = fetchOneById(req.params.id, populate != 'false');
+  // populate defaults to true (populates Clubs/Seasons) - stays on the raw
+  // path, same reason as ICompetitionRepository's doc comment. Only the
+  // explicit populate=false case goes through the repository.
+  const response = populate === 'false' ? getCompetitionById(req.params.id) : fetchOneById(req.params.id, true);
 
   response
     .then((competition: any) => {
@@ -79,9 +83,9 @@ router.get('/:id/seasons/all', (req: Request, res: Response) => {
     });
 });
 
-/** Update Competition by id */
+/** Update Competition by id - plain fields only, no Mongo $push/$addToSet */
 router.post('/:id/update', (req: Request, res: Response) => {
-  const response = update(req.params.id, req.body.data);
+  const response = updateCompetitionFields(req.params.id, req.body.data);
 
   response
     .then((competition: any) => {
@@ -99,7 +103,7 @@ router.post('/:id/update', (req: Request, res: Response) => {
 
 /** Delete Competition by id */
 router.delete('/:id', (req: Request, res: Response) => {
-  deleteByRemove(req.params.id)
+  deleteCompetitionById(req.params.id)
     .then((data: any) => {
       respond.success(res, 200, 'Competition deleted successfully', data);
     })
@@ -110,18 +114,12 @@ router.delete('/:id', (req: Request, res: Response) => {
 
 /** Create new Competition */
 router.post('/new', getCurrentCounter, async (req: Request, res: Response) => {
-  const response = await createNew(req.body.data);
-
-  if (!response.error) {
-    respond.success(
-      res,
-      200,
-      'Competition created successfully',
-      response.result
-    );
+  try {
+    const competition = await createCompetition(req.body.data);
+    respond.success(res, 200, 'Competition created successfully', competition);
     void incrementCounter('competition_counter');
-  } else {
-    respond.fail(res, 400, 'Error creating competition', response.result);
+  } catch (error) {
+    respond.fail(res, 400, 'Error creating competition', error);
   }
 });
 

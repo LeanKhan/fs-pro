@@ -21,30 +21,56 @@ const VALID_BACKENDS: BackendChoice[] = ['mongo', 'drizzle', 'prisma'];
  * `db/drizzle/index.ts`) rather than actually touching Postgres. Update
  * this list as each entity gets converted (see FUTURE-PLANS.md).
  *
- * 'User (partial)': only the identity-only routes (login, fetch-by-id,
- * change-password, update, logout, /enter) go through the repository.
- * Registration's user-creation and the `User.Clubs`-array routes
- * (/add-club(s), /clubs/:id, GET /:id?populate=true) are still fully raw
- * Mongo - not because Club is unconverted (it now partially is), but
- * because Postgres dropped `Users.Clubs` entirely in favor of `Clubs.User`
- * (the reverse FK) - there's no array left to keep in sync on that backend.
+ * 'User (partial)': identity-only routes (login, fetch-by-id,
+ * change-password, update, logout, /enter) plus all the club-ownership
+ * routes (/add-club(s), /clubs/:id, populate=true) go through repositories
+ * now - ownership reads/writes go through `ClubRepository`'s `Clubs.User`
+ * reverse FK instead of the old `Users.Clubs` array, which Postgres never
+ * had. Only registration's user-creation step is still fully raw Mongo.
  * See FUTURE-PLANS.md for the full writeup.
  *
- * 'Manager (partial)': fetch/create/update/`populate=Club` (incl.
- * `resolveManagerTactic`, used on every match kickoff) go through the
- * repository. DELETE stays raw for the Manager-side write, but its
- * Club-side write (`Club.Manager` unset) now goes through the Club
- * repository too.
+ * 'Manager (partial)': fetch/create/update/`populate=Club`/DELETE (incl.
+ * `resolveManagerTactic`, used on every match kickoff) all go through the
+ * repository now, including the delete itself (`IManagerRepository.delete`)
+ * - closed a real gap where deleting a Postgres-native manager under
+ * `backend=drizzle` used to fail after already clearing the club's Manager
+ * field.
  *
  * 'Club (partial)': fetch-by-id (no populate)/create/update (plain fields
  * only) go through the repository, as does every Manager
  * hire/fire/removal write via `appendClubRecord` (a read-modify-write
  * replacement for the old `$push`/`$unset` operator updates). GET
  * /clubs/all, /clubs/fetch, arbitrary-populate fetches, add/remove-player,
- * and the CSV bulk import stay raw - they need either Mongo operators the
- * repository doesn't support, or Player data (Player isn't converted).
+ * the CSV bulk import, and DELETE /clubs/:id stay raw - they need either
+ * Mongo operators the repository doesn't support, Player data (Player
+ * isn't converted), or (DELETE) a repository `delete()` method that
+ * doesn't exist yet - a known gap, same shape as the one just closed for
+ * Manager.
+ *
+ * 'Competition (partial)': fetch-by-id (populate=false only)/create/update
+ * (plain fields)/delete go through the repository. The default
+ * populate=true (Clubs/Seasons) and the Club/Season membership routes
+ * (add-club, add-season) stay raw - `Competition.Clubs` maps to two
+ * different mechanisms on Postgres depending on competition type (a club's
+ * `League` FK, or the `competitionClubs` join table for cups/tournaments),
+ * which needs real branching logic, not a mechanical conversion.
+ *
+ * 'Calendar (partial)': fetch-by-id/fetch-all/create/update (plain
+ * fields)/delete go through the repository (used by `POST /calendar/new`
+ * and `POST /:id/end`'s isActive/isEnded write). The Days-array-building
+ * game loop (`setup-and-start`, `setup-days-and-start`, `startYear`'s
+ * aggregation-pipeline multi-row update) stays raw. Day itself has no
+ * repository at all yet - its real read path (`GET /:year/days`) needs
+ * `Matches.Fixture` populate, which needs Fixture converted first.
  */
-const CONVERTED_ENTITIES = ['Place', 'User (partial)', 'Manager (partial)', 'Club (partial)'];
+const CONVERTED_ENTITIES = [
+  'Place',
+  'User (partial)',
+  'Manager (partial)',
+  'Club (partial)',
+  'Competition (partial)',
+  'Calendar (partial)',
+];
 
 /**
  * @openapi

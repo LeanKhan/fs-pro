@@ -19,11 +19,12 @@ import {
   randomCode,
 } from '../../utils/seasons';
 import {
-  createNew,
   fetchOne,
   findOneAndUpdate as updateCalendar,
   findAndUpdate as updateCalendars,
   fetchOneById,
+  createCalendar,
+  updateCalendarFields,
 } from './calendar.service';
 import log from '../../helpers/logger';
 import { CompetitionInterface } from '../competitions/competition.model';
@@ -64,7 +65,7 @@ export function createCalendarYear(req: Request, res: Response) {
     Days: [],
   };
 
-  return createNew(calendar)
+  return createCalendar(calendar)
     .then((c: any) => {
       console.log('Calendar Year created successfully!');
       return respond.success(res, 200, 'Calendar Year created succesfully!', c);
@@ -744,7 +745,7 @@ export async function endYear(req: Request, res: Response, next: NextFunction) {
         console.log('Seasons prolegated Successfully!');
         // No, time to update Calendar!
         // TODO: This should get Player of the Year etc...
-        updateCalendar({ _id: id }, { isActive: false, isEnded: true })
+        updateCalendarFields(id, { isActive: false, isEnded: true })
           .then((c) => {
             console.log('Calendar Year Ended Successfully! :)');
             // Move to the Updating Players part...
