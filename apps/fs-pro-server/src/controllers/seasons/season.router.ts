@@ -4,7 +4,6 @@ import { Router, Request, Response } from 'express';
 import {
   fetchAll,
   fetchOneById,
-  findByIdAndUpdate,
   getSeasonById,
   updateSeasonFields,
   deleteSeasonById,
@@ -76,7 +75,9 @@ router.post(
   (req, res) => {
     const fixtureIds = req.body.fixtureIds;
 
-    findByIdAndUpdate(req.params.id, { Fixtures: fixtureIds })
+    // Fixtures doesn't exist on Postgres - see saveFixtures's comment in
+    // middleware/seasons.ts for why this is a safe no-op there.
+    updateSeasonFields(req.params.id, { Fixtures: fixtureIds } as any)
       .then((season: any) => {
         respond.success(
           res,

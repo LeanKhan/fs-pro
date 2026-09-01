@@ -34,6 +34,20 @@ export class DrizzleUserRepository implements IUserRepository {
     return user ? toUser(user) : null;
   }
 
+  async create(data: Partial<IUser>): Promise<IUser> {
+    const insert: Record<string, unknown> = { ...data, updatedAt: new Date() };
+    if (insert.Password) {
+      insert.Password = await hashPassword(insert.Password as string);
+    }
+
+    const [user] = await this.db
+      .insert(users)
+      .values(insert as typeof users.$inferInsert)
+      .returning();
+
+    return toUser(user);
+  }
+
   async update(id: string, data: Partial<IUser>): Promise<IUser | null> {
     const update: Record<string, unknown> = { ...data, updatedAt: new Date() };
     if (update.Password) {

@@ -83,9 +83,11 @@ export class DrizzleDatabase implements IDatabase {
       // DrizzleSeasonRepository/MongoSeasonRepository do exist (see
       // repositories/{mongo,drizzle}/SeasonRepository.ts) and cover the
       // identity/CRUD surface (findById always comes with Fixtures
-      // populated) - GET /'s arbitrary query/populate/select/sort combo,
-      // and the fixture-generation/standings/prolegation game loop, still
-      // need the raw Mongo model. Same one-slot-shared reason as
+      // populated) plus the fixture-generation/standings/prolegation game
+      // loop's isolated plain-field writes (saveFixtures, setInitialStandings,
+      // generate-fixtures) - GET /'s arbitrary query/populate/select/sort
+      // combo and the finish-season flow's mixed $push/$set operator update
+      // still need the raw Mongo model. Same one-slot-shared reason as
       // everything else here.
       Season: mongo.Season,
       // DrizzleClubRepository/MongoClubRepository do exist (see
@@ -98,40 +100,85 @@ export class DrizzleDatabase implements IDatabase {
       // import still need the raw Mongo model.
       Club: mongo.Club,
       // DrizzleUserRepository/MongoUserRepository do exist (see
-      // repositories/{mongo,drizzle}/UserRepository.ts), but deliberately
-      // aren't wired in here: DB.Models.User is one slot shared by every
-      // consumer, and the Club-coupled routes (POST /join, /add-club(s),
-      // /clubs/:id) still need it to be the raw Mongo model. The
-      // repository-backed User routes call UserRepositoryFactory directly
-      // instead - see controllers/user/user.service.ts.
+      // repositories/{mongo,drizzle}/UserRepository.ts) and now cover the
+      // full real surface, including registration (`create()` - Club, its
+      // one real coupling via `updateClubs`, is fully converted too) -
+      // every route calls UserRepositoryFactory directly, not this slot
+      // (see controllers/user/user.service.ts). The remaining raw
+      // `DB.Models.User` functions in that file (`fetchUser`/
+      // `getUserSession`/`fetchOneUser`/`updateManyUsers`) have no real
+      // callers left - dead code, not a functional dependency on this slot.
       User: mongo.User,
       // DrizzleFixtureRepository/MongoFixtureRepository do exist (see
       // repositories/{mongo,drizzle}/FixtureRepository.ts) and cover the
       // identity/CRUD surface (findById always comes with
-      // HomeSideDetails/AwaySideDetails+PlayerStats populated) - the
-      // arbitrary-query `findOneAndUpdate` the match engine uses throughout
+      // HomeSideDetails/AwaySideDetails+PlayerStats populated) plus the
+      // match engine's own fixture-state write (game/functions.ts's
+      // updateFixture, a plain-field update by id) and the friendly-fixture
+      // create path - the explicit `?populate=` path on GET /fixtures/:id
       // still needs the raw Mongo model. Same one-slot-shared reason as
       // everything else here.
       Fixture: mongo.Fixture,
       // DrizzleCalendarRepository/MongoCalendarRepository do exist (see
-      // repositories/{mongo,drizzle}/CalendarRepository.ts) and cover the
-      // identity/CRUD surface - the Days-array-building game loop
-      // (createSeasonsInTheYear, setupDaysInYear(2), startYear's
-      // aggregation-pipeline update) still needs the raw Mongo model. Same
+      // repositories/{mongo,drizzle}/CalendarRepository.ts) and now cover
+      // the identity/CRUD surface plus the whole Days-array-building game
+      // loop's Calendar-side reads/writes (createSeasonsInTheYear,
+      // setupDaysInYear(2), startYear's isActive flip via the repository's
+      // own activateYear(), and the YearString-keyed lookups used to find
+      // "the" calendar for a given year) - only GET /calendar/current's
+      // arbitrary populate+pagination still needs the raw Mongo model. Same
       // one-slot-shared reason as everything else here.
       Calendar: mongo.Calendar,
-      Day: mongo.Day, // TODO: DrizzleDayRepository not built yet - GET /:year/days (its real read path) needs Matches.Fixture populate, which needs Fixture converted first.
+      // DrizzleDayRepository/MongoDayRepository do exist (see
+      // repositories/{mongo,drizzle}/DayRepository.ts) and cover
+      // identity/CRUD, plus day.service.ts's own branching functions
+      // (getDaysForYear/findDayByFixtureId/findNextPlayableDay/
+      // markMatchPlayed) cover every real read/write - Matches.Fixture
+      // populate is done via a batch fetch+merge against FixtureRepository,
+      // since Matches is a jsonb array, not a relation. Nothing left raw
+      // for Day specifically; this slot stays shared for consistency with
+      // every other entity here.
+      Day: mongo.Day,
       // DrizzleManagerRepository/MongoManagerRepository do exist (see
       // repositories/{mongo,drizzle}/ManagerRepository.ts) and cover the
       // full Manager surface now (including `populate=Club` and DELETE) -
       // still not wired in here, same one-slot-shared reason as everything
       // else in this list.
       Manager: mongo.Manager,
-      ClubMatch: mongo.ClubMatch, // TODO: DrizzleClubMatchRepository not built yet
-      PlayerMatch: mongo.PlayerMatch, // TODO: DrizzlePlayerMatchRepository not built yet
+      // DrizzleClubMatchRepository/MongoClubMatchRepository do exist (see
+      // repositories/{mongo,drizzle}/ClubMatchRepository.ts) and cover
+      // identity/CRUD, including the one real call site
+      // (game/functions.ts's savePlayerAndClubStats, the match-finish
+      // persistence write) - PlayerStats comes back as full
+      // PlayerMatchDetails rows via the reverse
+      // playerMatchDetails.ClubMatchDetails FK on Postgres, a real array on
+      // Mongo. This slot stays shared for consistency with every other
+      // entity here; nothing left raw for ClubMatch specifically.
+      ClubMatch: mongo.ClubMatch,
+      // DrizzlePlayerMatchRepository/MongoPlayerMatchRepository do exist
+      // (see repositories/{mongo,drizzle}/PlayerMatchRepository.ts) and
+      // cover identity/CRUD, including the one real call site
+      // (game/functions.ts's savePlayerAndClubStats, via
+      // createManyPlayerMatches) - nothing left raw for PlayerMatch either.
+      PlayerMatch: mongo.PlayerMatch,
       Place: new DrizzlePlaceRepository(this.drizzleDb),
-      Award: mongo.Award, // TODO: DrizzleAwardRepository not built yet
-      MatchReplay: mongo.MatchReplay, // TODO: DrizzleMatchReplayRepository not built yet
+      // DrizzleAwardRepository/MongoAwardRepository do exist (see
+      // repositories/{mongo,drizzle}/AwardRepository.ts) and cover the one
+      // real surface (`GET /awards/season/:id`'s `fetchAll`, and
+      // `giveAwards`' bulk `createAwards`) - the polymorphic `Recipient`
+      // populate (Player or Manager depending on `Type`) is resolved by a
+      // small switch in `awards/index.ts`, not a schema-level relation
+      // (Postgres can't FK one column against two tables). Nothing left
+      // raw for Award specifically; this slot stays shared for consistency
+      // with every other entity here.
+      Award: mongo.Award,
+      // DrizzleMatchReplayRepository/MongoMatchReplayRepository do exist
+      // (see repositories/{mongo,drizzle}/MatchReplayRepository.ts) and
+      // cover the only two real call sites (`saveReplay`/`fetchReplay` in
+      // `match-replay.service.ts`) via a Fixture-keyed upsert (real
+      // `onConflictDoUpdate` on Postgres, `findOneAndUpdate` upsert on
+      // Mongo). Nothing left raw for MatchReplay.
+      MatchReplay: mongo.MatchReplay,
     };
   }
 

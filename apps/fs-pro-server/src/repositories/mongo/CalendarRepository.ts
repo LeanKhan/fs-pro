@@ -27,4 +27,10 @@ export class MongoCalendarRepository implements ICalendarRepository {
     }
     return calendar;
   }
+
+  async activateYear(yearString: string): Promise<void> {
+    await DB.Models.Calendar.updateMany({}, [
+      { $set: { isActive: { $eq: ['$YearString', yearString] }, CurrentDay: 0 } },
+    ]);
+  }
 }

@@ -26,8 +26,13 @@ const VALID_BACKENDS: BackendChoice[] = ['mongo', 'drizzle', 'prisma'];
  * routes (/add-club(s), /clubs/:id, populate=true) go through repositories
  * now - ownership reads/writes go through `ClubRepository`'s `Clubs.User`
  * reverse FK instead of the old `Users.Clubs` array, which Postgres never
- * had. Only registration's user-creation step is still fully raw Mongo.
- * See FUTURE-PLANS.md for the full writeup.
+ * had. Registration (`POST /join`) is repository-backed too now
+ * (`createUser`, hashing the password the same way `update()` already
+ * did) - `updateClubs`, the one real Club-coupling in that chain, was
+ * already fully converted. `addClubsToUser` (CSV bulk import's redundant
+ * `Users.Clubs` re-sync, `Clubs.User` is the real ownership write either
+ * way) is a no-op under `backend=drizzle`. See FUTURE-PLANS.md for the full
+ * writeup.
  *
  * 'Manager (partial)': fetch/create/update/`populate=Club`/DELETE (incl.
  * `resolveManagerTactic`, used on every match kickoff) all go through the
@@ -65,12 +70,19 @@ const VALID_BACKENDS: BackendChoice[] = ['mongo', 'drizzle', 'prisma'];
  *
  * 'Calendar (partial)': fetch-by-id/fetch-all/create/update (plain
  * fields)/delete go through the repository (used by `POST /calendar/new`
- * and `POST /:id/end`'s isActive/isEnded write). The Days-array-building
- * game loop (`setup-and-start`, `setup-days-and-start`, `startYear`'s
- * aggregation-pipeline multi-row update) stays raw. Day itself has no
- * repository at all yet - its real read path (`GET /:year/days`) needs
- * `Matches.Fixture` populate; Fixture is converted now, but nobody's built
- * Day on top of it yet.
+ * and `POST /:id/end`'s isActive/isEnded write), as does the whole
+ * Days-array-building game loop's Calendar-side reads/writes -
+ * `createSeasonsInTheYear` (no Calendar calls of its own, routes entirely
+ * through Season/Competition), `setup-and-start`/`setup-days-and-start`'s
+ * calendar lookup and `Days` write (a no-op on Postgres, each Day already
+ * carries its own `Calendar` FK), `startYear`'s multi-row `isActive` flip
+ * (`activateYear()` - two plain updates on Postgres in place of Mongo's
+ * per-row-computed aggregation pipeline), and the `YearString`-keyed
+ * lookups used throughout season-creation and `changeCurrentDay`. Only
+ * `GET /calendar/current`'s arbitrary populate+pagination stays raw. Day
+ * itself has no repository at all yet - its real read path
+ * (`GET /:year/days`) needs `Matches.Fixture` populate; Fixture is
+ * converted now, so Day is next in the Phase B order.
  *
  * 'Player (partial)': fetch-by-id/create/update (plain fields)/delete go
  * through the repository, as does `toggleSigned`/`signManyPlayersToClub`
@@ -90,18 +102,73 @@ const VALID_BACKENDS: BackendChoice[] = ['mongo', 'drizzle', 'prisma'];
  * 'Fixture (partial)': fetch-by-id (no extra populate)/create/update
  * (plain fields)/delete go through the repository - `findById` always
  * comes with `HomeSideDetails`/`AwaySideDetails` (each with `PlayerStats`)
- * populated, matching the raw path's own default. An explicit
- * `?populate=` path, and the arbitrary-query `findOneAndUpdate` the match
- * engine uses throughout to record match state, stay raw.
+ * populated, matching the raw path's own default. The match engine's own
+ * fixture-state write (`game/functions.ts`'s `updateFixture` - Played,
+ * PlayedAt, Details, Events, Home/AwaySideDetails, Home/AwayManager, all
+ * plain fields by id) and the friendly-fixture create path
+ * (`game.controller.ts`'s `restCreateFriendly`) are converted too. Only
+ * the explicit `?populate=` path on `GET /fixtures/:id` stays raw.
  *
  * 'Season (partial)': fetch-by-id (no extra populate)/create/update (plain
  * fields)/delete go through the repository - `findById` always comes with
  * `Fixtures` populated (matching the raw path's own default), and
  * `PATCH /:id/start`'s isolated `{ isStarted, StartDate }` write is
- * converted too. `GET /`'s arbitrary query/populate/select/sort combo, and
- * the fixture-generation/standings/prolegation game loop
- * (`middleware/seasons.ts`, `season.controller.ts`) - all plain-field
- * writes, but deep, interdependent game-loop internals - stay raw.
+ * converted too, as are the fixture-generation/standings/prolegation game
+ * loop's own plain-field writes (`saveFixtures`, `setInitialStandings`,
+ * `generate-fixtures` in `middleware/seasons.ts`/`season.router.ts`) -
+ * `Fixtures` doesn't exist on Postgres (reverse `fixtures.Season` FK
+ * instead), so that key is a no-op there. `GET /`'s arbitrary
+ * query/populate/select/sort combo, and the finish-season flow's mixed
+ * `$push`/`$set` operator update (`season.controller.ts`), stay raw.
+ *
+ * 'Day (partial)': first entity with a genuinely new repository shape -
+ * `Matches` is a jsonb array of embedded match summaries on Postgres, not
+ * a relation, so `Matches.Fixture` populate is a batch fetch+merge against
+ * `FixtureRepository` (`day.service.ts`'s `attachFixturesToDays`) rather
+ * than a nested Drizzle `with`. Covers every real call site: `GET
+ * /:year/days` (`getDaysForYear`), `GET /day-of-fixture/:fixture`
+ * (`findDayByFixtureId`), `changeCurrentDay`'s next-playable-day lookup
+ * (`findNextPlayableDay`), the match engine's own `Matches.$.Played` write
+ * (`markMatchPlayed` - a read-modify-write replacing Mongo's positional
+ * update, since Postgres has no per-array-element update via a plain
+ * `set()`), and Day creation (`createManyDays`, used by the
+ * Days-array-building game loop).
+ *
+ * 'ClubMatch (partial)'/'PlayerMatch (partial)': identity/CRUD go through
+ * their repositories, including the one real call site for each
+ * (`game/functions.ts`'s `savePlayerAndClubStats`, the match engine's
+ * persistence write) - ClubMatchDetails is now created *before* its
+ * PlayerMatchDetails rows so each can set the reverse
+ * `playerMatchDetails.ClubMatchDetails` FK back to it (Postgres has no
+ * `PlayerStats` array to populate after the fact, unlike Mongo, which
+ * still gets a real array backfill write for compatibility).
+ *
+ * 'Award (partial)': `fetchAll`/`createAwards` (the two real call sites -
+ * `GET /awards/season/:id` and `giveAwards`' bulk create) go through the
+ * repository. `Recipient` is polymorphic (Player or Manager, depending on
+ * `Type` - Postgres can't FK one column against two tables) - resolving it
+ * (plus `Club`/`Season`, at higher `populate` levels) is a small batch
+ * fetch+merge in `awards/index.ts` against each type's own repository,
+ * replacing the old runtime `model: capitalize(recipient)` Mongoose
+ * populate. `giveAwards`'s winning-manager lookup also moved off a raw
+ * `manager.service.ts` `fetchOne` onto `getManagers({isEmployed, Club})`
+ * (added `Club` to `IManagerFilter` for this).
+ *
+ * 'MatchReplay': the smallest of the "new repo" entities - exactly two
+ * call sites (`saveReplay`/`fetchReplay`), both now repository-backed. A
+ * "save" is always an upsert keyed on the unique `Fixture` FK (a fixture
+ * can in principle be replayed more than once in dev/testing, latest wins)
+ * - Postgres does this with a real `onConflictDoUpdate`, Mongo keeps its
+ * existing `findOneAndUpdate({upsert: true})`. Nothing left raw.
+ *
+ * 'Place': the Phase B cleanup pass found `places.controller.ts` (its
+ * pre-repository raw `fetchAll`/`fetchOneById`/`fetchOne`/`allCountries`)
+ * had zero callers left anywhere - `places.router.ts` was already fully
+ * repository-backed - so the file was deleted outright rather than left as
+ * dead weight. `helpers/misc.ts`'s one other raw `DB.Models.Place` read
+ * sits inside an explicitly commented-out, "DO NOT TOUCH" function -
+ * intentionally left alone. This closes Phase B: every entity in the
+ * plan's suggested order is now converted.
  */
 const CONVERTED_ENTITIES = [
   'Place',
@@ -113,6 +180,11 @@ const CONVERTED_ENTITIES = [
   'Player (partial)',
   'Fixture (partial)',
   'Season (partial)',
+  'Day (partial)',
+  'ClubMatch (partial)',
+  'PlayerMatch (partial)',
+  'Award (partial)',
+  'MatchReplay',
 ];
 
 /**

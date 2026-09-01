@@ -11,7 +11,12 @@ export class MongoFixtureRepository implements IFixtureRepository {
   }
 
   async findAll(filter: IFixtureFilter = {}): Promise<FixtureInterface[]> {
-    return DB.Models.Fixture.find(filter).populate(homePopulate).populate(awayPopulate).lean().exec();
+    const { ids, ...rest } = filter;
+    const query: Record<string, unknown> = { ...rest };
+    if (ids !== undefined) {
+      query._id = { $in: ids };
+    }
+    return DB.Models.Fixture.find(query).populate(homePopulate).populate(awayPopulate).lean().exec();
   }
 
   async create(data: Partial<FixtureInterface>): Promise<FixtureInterface> {

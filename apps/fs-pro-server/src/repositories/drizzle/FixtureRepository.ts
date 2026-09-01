@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { Fixture as FixtureInterface } from '../../controllers/fixtures/fixture.model';
 import * as schema from '../../db/drizzle/full-schema';
@@ -65,6 +65,7 @@ export class DrizzleFixtureRepository implements IFixtureRepository {
     const conditions = [];
     if (filter.Season !== undefined) conditions.push(eq(fixtures.Season, filter.Season));
     if (filter.Played !== undefined) conditions.push(eq(fixtures.Played, filter.Played));
+    if (filter.ids !== undefined) conditions.push(inArray(fixtures.id, filter.ids));
 
     const rows = await this.db.query.fixtures.findMany({
       where: conditions.length ? and(...conditions) : undefined,

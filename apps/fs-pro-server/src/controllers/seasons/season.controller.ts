@@ -12,7 +12,7 @@ import {
 import { SeasonInterface } from './season.model';
 import { compileStandings } from '../../utils/seasons';
 import { CompetitionInterface } from '../competitions/competition.model';
-import { findOneAndUpdate } from '../calendar/calendar.service';
+import { updateCalendarFields } from '../calendar/calendar.service';
 import { findOne, update } from '../competitions/competition.service';
 import { updateClub } from '../clubs/club.service';
 // import { monthFromIndex } from '../../utils/seasons';
@@ -180,10 +180,7 @@ export async function finishSeason(
       );
 
       if (all_finished) {
-        await findOneAndUpdate(
-          { _id: season.Calendar },
-          { allSeasonsCompleted: true }
-        );
+        await updateCalendarFields(season.Calendar as string, { allSeasonsCompleted: true });
       }
 
       return season;

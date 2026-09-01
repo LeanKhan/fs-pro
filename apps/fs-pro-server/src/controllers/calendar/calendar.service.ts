@@ -4,9 +4,9 @@ import { CalendarRepositoryFactory } from '../../repositories/CalendarRepository
 import { ICalendarFilter } from '../../repositories/CalendarRepository';
 
 /**
- * Repository-backed functions below cover the identity/CRUD surface with no
- * Days-array or aggregation-pipeline update in play - see
- * ICalendarRepository's doc comment for what stays raw and why.
+ * Repository-backed functions below cover the identity/CRUD surface plus
+ * `activateCalendarYear` (the `startYear` multi-row `isActive` flip) - see
+ * ICalendarRepository's doc comment for exactly what each covers and why.
  */
 let calendarRepo: ReturnType<typeof CalendarRepositoryFactory.create> | null = null;
 
@@ -37,21 +37,40 @@ export async function deleteCalendarById(id: string) {
   return getCalendarRepo().delete(id);
 }
 
+export async function activateCalendarYear(yearString: string) {
+  return getCalendarRepo().activateYear(yearString);
+}
+
+/**
+ * Looks a calendar up by its (in-practice-unique) `YearString` and applies a
+ * plain-field update - a read-then-write replacement for the raw
+ * `findOneAndUpdate({ YearString }, ...)` call sites (`changeCurrentDay`,
+ * `middleware/seasons.ts`'s season-creation lookup), since the repository's
+ * `update()` only takes an id.
+ */
+export async function updateCalendarByYearString(yearString: string, data: Partial<CalendarInterface>) {
+  const [calendar] = await getCalendars({ YearString: yearString });
+  if (!calendar) {
+    return null;
+  }
+  return updateCalendarFields(calendar._id as string, data);
+}
+
+/**
+ * Same read-by-`YearString` lookup as above, but for callers that only need
+ * the record (`middleware/seasons.ts`'s `findCalendar` - was the raw
+ * `fetchOne({ YearString })`).
+ */
+export async function getCalendarByYearString(yearString: string) {
+  const [calendar] = await getCalendars({ YearString: yearString });
+  return calendar ?? null;
+}
+
 /**
  * fetchAll
  */
 export function fetchAll(query: unknown = {}) {
   return DB.Models.Calendar.find(query).lean().exec();
-}
-
-/**
- * FetchOneById
- *
- * Fetch a specific season by its id
- * @param id
- */
-export function fetchOneById(id: string) {
-  return DB.Models.Calendar.findById(id).lean().exec();
 }
 
 /**
@@ -76,29 +95,6 @@ export function fetchOne(
   }
 
   return DB.Models.Calendar.findOne(query).lean().exec();
-}
-
-export function findOneAndUpdate(
-  query: unknown,
-  update: any
-): Promise<CalendarInterface> {
-  return DB.Models.Calendar.findOneAndUpdate(query, update, { new: true })
-    .lean()
-    .exec();
-}
-
-/** updates many.
- *
- * can use with aggregation pipeline to conditionally
- * update docs...
- */
-export function findAndUpdate(query: unknown, update: any) {
-  return DB.Models.Calendar.updateMany(query, update, {
-    multi: true,
-    new: true,
-  })
-    .lean()
-    .exec();
 }
 
 /** update Calendar */
@@ -136,16 +132,3 @@ export async function deleteByRemove(id: string) {
   return doc.remove();
 };
 
-export async function deleteDayByRemove(id: string) {
-  /**
-  * Delete the Calendar, then Days, Seasons & Fixtures, then
-  */
-
-  const doc = await DB.Models.Day.findById(id);
-
-  if(!doc) {
-    throw new Error(`Day ${id} does not exist on Calendar`);
-  }
-
-  return doc.remove();
-}

@@ -1,6 +1,6 @@
 import path from 'path';
 import { Worker } from 'worker_threads';
-import { fetchOneById } from '../controllers/fixtures/fixture.service';
+import { getFixtureById } from '../controllers/fixtures/fixture.service';
 import { fetchClubs } from '../controllers/clubs/club.service';
 import { resolveManagerTactic } from '../controllers/managers/manager.service';
 import { startMatchReplay, IReplayableMatch } from '../realtime/matchBroadcaster';
@@ -61,7 +61,7 @@ function pump(): void {
 async function runMatchJob(fixtureId: string): Promise<void> {
   console.log(`[queue] starting job for ${fixtureId}`);
 
-  const fixture = await fetchOneById(fixtureId, false);
+  const fixture = await getFixtureById(fixtureId);
   if (!fixture) {
     throw new Error(`Fixture not found: ${fixtureId}`);
   }

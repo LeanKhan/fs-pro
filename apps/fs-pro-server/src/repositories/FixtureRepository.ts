@@ -3,6 +3,10 @@ import { Fixture as FixtureInterface } from '../controllers/fixtures/fixture.mod
 export interface IFixtureFilter {
   Season?: string;
   Played?: boolean;
+  /** Batch-fetch by id - used by Day's Matches.Fixture populate merge
+   * (day.service.ts), since Matches is a jsonb array of bare Fixture ids,
+   * not a Drizzle relation. */
+  ids?: string[];
 }
 
 /**

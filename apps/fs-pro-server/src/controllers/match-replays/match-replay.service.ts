@@ -1,5 +1,14 @@
-import DB from '../../db';
 import { IReplayableMatch } from '../../realtime/matchBroadcaster';
+import { MatchReplayRepositoryFactory } from '../../repositories/MatchReplayRepositoryFactory';
+
+let matchReplayRepo: ReturnType<typeof MatchReplayRepositoryFactory.create> | null = null;
+
+function getMatchReplayRepo() {
+  if (!matchReplayRepo) {
+    matchReplayRepo = MatchReplayRepositoryFactory.create();
+  }
+  return matchReplayRepo;
+}
 
 /**
  * Upserts the finished match's frames under its fixture id, so it can be
@@ -12,30 +21,23 @@ export function saveReplay(
   match: IReplayableMatch,
   tickMs = 300
 ) {
-  return DB.Models.MatchReplay.findOneAndUpdate(
-    { Fixture: fixtureId },
-    {
-      Fixture: fixtureId,
-      Home: {
-        id: match.Home._id,
-        name: match.Home.Name,
-        code: match.Home.ClubCode,
-      },
-      Away: {
-        id: match.Away._id,
-        name: match.Away.Name,
-        code: match.Away.ClubCode,
-      },
-      Frames: match.Frames,
-      Details: match.Details,
-      TickMs: tickMs,
+  return getMatchReplayRepo().upsertByFixtureId(fixtureId, {
+    Home: {
+      id: match.Home._id,
+      name: match.Home.Name,
+      code: match.Home.ClubCode,
     },
-    { upsert: true, new: true }
-  )
-    .lean()
-    .exec();
+    Away: {
+      id: match.Away._id,
+      name: match.Away.Name,
+      code: match.Away.ClubCode,
+    },
+    Frames: match.Frames,
+    Details: match.Details,
+    TickMs: tickMs,
+  } as any);
 }
 
 export function fetchReplay(fixtureId: string) {
-  return DB.Models.MatchReplay.findOne({ Fixture: fixtureId }).lean().exec();
+  return getMatchReplayRepo().findByFixtureId(fixtureId);
 }
