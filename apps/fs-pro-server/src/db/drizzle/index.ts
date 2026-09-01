@@ -76,15 +76,22 @@ export class DrizzleDatabase implements IDatabase {
       // end-of-year progression (operator updates) still need the raw
       // Mongo model. Same one-slot-shared reason as everything else here.
       Player: mongo.Player,
-      Season: mongo.Season, // TODO: DrizzleSeasonRepository not built yet
+      // DrizzleSeasonRepository/MongoSeasonRepository do exist (see
+      // repositories/{mongo,drizzle}/SeasonRepository.ts) and cover the
+      // identity/CRUD surface (findById always comes with Fixtures
+      // populated) - GET /'s arbitrary query/populate/select/sort combo,
+      // and the fixture-generation/standings/prolegation game loop, still
+      // need the raw Mongo model. Same one-slot-shared reason as
+      // everything else here.
+      Season: mongo.Season,
       // DrizzleClubRepository/MongoClubRepository do exist (see
-      // repositories/{mongo,drizzle}/ClubRepository.ts) and are used
-      // directly by the identity/CRUD surface (ClubRepositoryFactory, called
-      // from controllers/clubs/club.service.ts) - but not wired in here:
-      // DB.Models.Club is one slot shared by every consumer, and several
-      // routes still need Mongo-operator ($push/$unset) semantics or
-      // arbitrary populate specs the repository doesn't support (GET
-      // /clubs/all, /clubs/fetch, add/remove-player, the CSV bulk import).
+      // repositories/{mongo,drizzle}/ClubRepository.ts) and now cover most
+      // of the Club surface (including GET /clubs/all with Players/Manager
+      // populated, add/remove-player via the Player repository, the
+      // ratings recalculation, and DELETE) - but not wired in here:
+      // DB.Models.Club is one slot shared by every consumer, and
+      // /clubs/fetch's arbitrary Mongo query object and the CSV bulk
+      // import still need the raw Mongo model.
       Club: mongo.Club,
       // DrizzleUserRepository/MongoUserRepository do exist (see
       // repositories/{mongo,drizzle}/UserRepository.ts), but deliberately

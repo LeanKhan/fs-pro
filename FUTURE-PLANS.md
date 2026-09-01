@@ -12,6 +12,233 @@ Entries are grouped by area. Within a group, newest first.
 
 ## DB migration (Mongo → Postgres)
 
+### Phase B, entity 1: Club full conversion
+
+**Status:** Done - first entity of Phase B (see "Goal shift" entry below
+for the full plan). Closes almost all of Club's remaining gaps in one
+pass, since add/remove-player, the ratings recalculation, and delete were
+all tightly coupled to each other through the same middleware chain.
+
+**Added `delete()`** to `IClubRepository`/both implementations - same
+mechanical fix already applied to Manager/Fixture/Season/Competition.
+
+**`GET /clubs/all`** now goes through the repository too (`getClubs`, no
+longer `fetchAllClubs`) - it turned out to take no query at all, so unlike
+`/clubs/fetch` it was never actually "arbitrary query," just never wired
+up. Added `IClubReadOptions.withPlayersAndManager` (mirrors Manager's
+`withClub`) so it still comes back with `Players`/`Manager` populated,
+via the `players`/`manager` relations already on `clubsRelations`. One
+deliberate, documented simplification: Mongoose's `.populate('Players
+Manager')` re-triggers those models' own `pre('find')` hooks, so a
+populated Player/Manager's own `Nationality` comes back populated too on
+Mongo - the Drizzle version doesn't nest that one level deeper (Nationality
+stays a bare id on the nested objects). Low-stakes: this is an
+overview/admin endpoint, not on any critical path.
+
+**Add/remove-player, the real fix.** `Club.Players` doesn't exist on
+Postgres (dropped in favor of the reverse `players.Club` FK) - so "add a
+player to a club" isn't a Club-side write at all there, it's a *Player*-side
+write. `toggleSigned` (`player.service.ts`) is now backend-aware: Mongo
+keeps doing the `$set` update it always did; Drizzle calls the existing
+`updatePlayerFields` (plain fields - `Club`/`ClubCode`/`isSigned` are
+direct columns). Added `signManyPlayersToClub` + a new
+`IPlayerRepository.updateManyByIds()` for the bulk case
+(`PUT /clubs/:id/add-many-players`). `middleware/club.ts`'s
+`addPlayerToClubMiddleware`/`addManyPlayersToClub` (the actual
+`Club.Players` array push) become a no-op under `backend=drizzle` - by the
+time they'd run, `toggleSigned`/`signManyPlayersToClub` (earlier in the
+same middleware chain) has already made the real write; the array push
+was only ever a Mongo-side redundant-storage optimization.
+
+**Ratings recalculation.** `calculateClubsTotalRatings` (the
+`$lookup`/`$unwind`/`$group` aggregate) got a Drizzle branch: group
+`players` directly by `Club = clubId` (no `$lookup` needed - `players.Club`
+is a direct FK, unlike Mongo's array-based lookup) and compute
+`avg`/`count` per `Position` via a plain SQL `GROUP BY`. Verified this
+produces numerically identical results to the Mongo aggregate on the same
+live roster (`62.70875` both ways, just fewer trailing decimals from
+Postgres's `real` type) - confirms the SQL rewrite is a faithful port, not
+just "close enough."
+
+Verified the full flow end-to-end on both backends: add a player to a
+club, confirm the rating recalculates and the player's ownership fields
+are set correctly; remove a player, confirm both revert; bulk add two
+players in one call; create and delete a throwaway club. All identical
+results on Mongo and Postgres.
+
+**Left raw, unchanged:** `/clubs/fetch` (arbitrary Mongo query + select),
+the CSV bulk import (`createManyClubsFromCSV`) - both still need
+capabilities the repository deliberately doesn't have.
+
+**Files:** `repositories/ClubRepository.ts` (added `delete`,
+`IClubReadOptions`), `repositories/{mongo,drizzle}/ClubRepository.ts`,
+`repositories/PlayerRepository.ts` (added `updateManyByIds`),
+`repositories/{mongo,drizzle}/PlayerRepository.ts`,
+`controllers/clubs/{club.service,club.router}.ts`,
+`controllers/players/player.service.ts` (`toggleSigned` made
+backend-aware, added `signManyPlayersToClub`), `middleware/club.ts`,
+`middleware/player.ts`.
+
+---
+
+### Goal shift: make `USE_DRIZZLE=true` mean zero live Mongo connections
+
+**Status:** In progress - Phase A (of a multi-phase plan) done. Every
+entity conversion up to now has been deliberately partial, leaving
+anything unconverted to transparently fall back to a live Mongo connection
+(`DrizzleDatabase.mongoFallback`). The user asked to go all the way: full
+independence from Mongo under `USE_DRIZZLE=true`, without changing the
+existing Drizzle schema (`db/drizzle/schema.ts`) - everything needed
+(reverse FKs, the `competitionClubs` join table, etc.) is already there
+from the original schema-design pass.
+
+Two research passes confirmed the shape of the remaining work: the
+match-simulation core (`Game.ts`, `classes/Match.ts`,
+`state/ImmutableState/**`, `matchQueue.ts`) is already Mongo-agnostic -
+plain objects throughout, `matchQueue.ts` explicitly strips Mongoose/BSON
+before crossing the worker-thread boundary. All the real coupling is one
+layer down, in each entity's `*.service.ts` file - exactly the layer this
+whole migration has already been targeting. The one non-entity-specific
+risk found: a handful of unguarded `new Types.ObjectId(...)` calls
+(`middleware/player.ts`, `awards.controller.ts`, `player.router.ts`) that
+will throw or silently no-op against a Postgres UUID - these disappear
+naturally once the arbitrary-Mongo-query call sites that build them get
+replaced with typed filters, not a separate fix.
+
+Full roadmap: Phase A (below) closes the two pieces of infrastructure that
+sit outside any entity and block every entity's create/login routes
+equally. Phase B is per-entity full conversion (not just identity/CRUD) -
+arbitrary queries to typed filters, operator updates to plain-field/
+read-modify-write, aggregation pipelines to SQL, new repositories for Day/
+ClubMatch/PlayerMatch/Award/MatchReplay. Phase C removes the Mongo fallback
+entirely once no code path calls `DB.Models.X` raw. Phase D is a full
+create-calendar → generate-season → play-matches → end-year run under
+`USE_DRIZZLE=true` with Mongo made deliberately unreachable, the first
+true full-lifecycle proof. See the full plan for per-entity detail.
+
+**Phase A - done:**
+
+1. **Counter system** (`utils/counter.ts`) used to be a hard Mongo
+   dependency independent of any entity/model - `incrementCounter` read
+   `DB.db` directly (which resolves to the *Drizzle* object under
+   `backend=drizzle`, not a Mongo driver handle - this is the exact crash
+   already documented two entries below), and `getCurrentCounter`/
+   `getCurrentCounter2` called `mongoose.connection.db` directly, bypassing
+   `DB.Models` entirely. Replaced with **raw Postgres `SEQUENCE`s** (one
+   per counter: `player_counter_seq`, `manager_counter_seq`,
+   `competition_counter_seq`, `season_counter_seq`), created by a
+   plain, re-runnable setup script
+   (`scripts/migration/setup-counter-sequences.ts`, `npm run
+   setup:counter-sequences`) - deliberately **not** a Drizzle schema
+   migration, so `schema.ts` doesn't change. `utils/counter.ts` now
+   branches on `DB.ormType`: the Mongo branch is untouched byte-for-byte,
+   the new Drizzle branch calls `nextval()` on the matching sequence.
+   `incrementCounter` becomes a no-op under `backend=drizzle`, since
+   `nextval()` already atomically reserves the id in one step - which also
+   **fixes the race condition** the old two-step read-then-increment-later
+   design had (this is what caused the pre-existing Manager
+   `MG-000026` duplicate-key collision documented earlier).
+   Sequence starting values were derived from the actual max existing id
+   suffix already in each Postgres table (not from Mongo's `sequence_value`,
+   which was confirmed out of sync with reality for Manager) - this
+   incidentally fixes that collision risk for Player/Manager/Competition
+   too. `season_counter` is the exception: `SeasonCode` doesn't follow a
+   parseable `S-NNNNNN` pattern, and `season.model.ts` has no `SeasonID`
+   field for the generated id to even land in - it looks functionally
+   unused today; carried its Mongo value over as a safe starting point
+   without chasing this further.
+2. **Session store** (`sessionStore.ts`) was a second, fully independent
+   live Mongo connection (`connect-mongodb-session`), entirely outside the
+   `DB.Models`/`DrizzleDatabase` fallback path. Replaced with a small
+   hand-rolled `express-session` `Store` (`PgSessionStore`, in the same
+   file) backed by the existing `postgres` driver already in
+   `package.json` - deliberately not `connect-pg-simple`, to avoid adding
+   `pg` as a second Postgres client. Backed by a new `Sessions` table
+   (`sid` text primary key, `session` jsonb, `expires` timestamptz),
+   created by `scripts/migration/setup-sessions-table.ts` (`npm run
+   setup:sessions-table`) - same "plain setup script, not a schema
+   migration" reasoning as the counter sequences. Picks Mongo vs Postgres
+   via `db/backendChoice.ts`'s `resolveBackend()` - deliberately **not**
+   `db/index.ts` or `db/drizzle/index.ts`, both of which import
+   `db/mongodb.ts` and would recreate the exact circular-import problem
+   `sessionStore.ts`'s own file comment already documents (`db/mongodb.ts`
+   → `user.model.ts` → historically `server.ts` → the db layer again) -
+   `backendChoice.ts` is a leaf module (just `fs`/`path`), safe to import
+   directly.
+
+Verified both live end-to-end under `backend=drizzle`: created a
+Player/Manager/Competition and confirmed sequential, correctly-prefixed,
+collision-free ids (including two rapid-fire creates in a row, proving the
+race is actually closed); logged in, confirmed a real row landed in the
+new `Sessions` table, logged out, confirmed the row was removed. Re-ran
+the equivalent checks under `backend=mongo` to confirm zero regression -
+both branches are untouched code paths, just gated by an `if` that wasn't
+there before.
+
+**Files:** `utils/counter.ts`, `sessionStore.ts`,
+`scripts/migration/setup-counter-sequences.ts` (new),
+`scripts/migration/setup-sessions-table.ts` (new), `package.json` (two new
+`setup:*` scripts).
+
+---
+
+### Season conversion is partial - ninth entity, same identity-only pattern
+
+**Status:** Done, deliberately partial - ninth entity converted after
+Place, User, Manager, Club, Competition, Calendar, Player, and Fixture.
+
+**Context:** No auto-populate hook on `season.model.ts`, but
+`season.service.ts`'s raw `fetchOneById` defaults its `populate` argument
+to `'Fixtures'` - and `season.router.ts`'s `GET /:id` calls it passing
+`p` (`undefined` whenever no explicit `?populate=` is given), which still
+triggers that default (JS default parameters apply to an explicitly-passed
+`undefined`, not just an omitted argument). So in practice every plain
+`GET /:id` already came back with the full `Fixtures` array populated -
+`findById` replicates that via the `fixtures` relation from
+`relations.ts` (`many(fixtures)`, the reverse of `fixtures.Season`), proving
+the nested-populate pattern used for Manager/Club/Competition/Fixture
+extends cleanly to a one-to-many array relation too, not just one-to-one.
+
+Converted: `GET /:id` (only when no extra `?populate=` is requested - an
+explicit one stays on the raw arbitrary-populate path),
+`PATCH /:id/start` (`{ isStarted, StartDate }`, and `DELETE /:id`.
+`delete()` uses a plain `findByIdAndDelete` on Mongo (not `.remove()`) -
+unlike Player/Fixture, Season's `post('remove')` hook is commented out in
+the schema, so there's no active cascade to preserve.
+
+**Left raw, and why:** `GET /` (arbitrary query/populate/select/sort
+combo - also has a pre-existing, unrelated bug: the hardcoded
+`{field: 'CompetitionCode', dir: 1}` sort spec throws
+`TypeError: Invalid sort value` in Mongoose, since `.sort()` expects
+`{CompetitionCode: 1}`, not `{field, dir}` - hit this directly while
+looking for test data; not fixed, out of scope, and it affects every
+caller of this exact sort spec, not just Season's route). Also raw:
+`POST /` (Competition-coupled, via `addSeasonToCompetition`),
+`/:id/:code/generate-fixtures`, `/:id/finish` (Award-coupled), the
+`/:id/fixtures`/`/:id/standings`/`/:year/current` reads, and the entire
+fixture-generation/standings/prolegation game loop in
+`middleware/seasons.ts` and `season.controller.ts`. Every one of those
+`findByIdAndUpdate` calls is already plain-field (no Mongo operators - the
+codebase is consistent about that for Season), so they're *mechanically*
+convertible, but they're deep, sequential, tightly-coupled game-loop
+internals - not worth the risk of touching untested for this pass, unlike
+the one isolated `/:id/start` call that had no such coupling.
+
+Verified the converted surface (including `Fixtures` populate, `start`,
+and `delete`) against real data on both Mongo and Postgres. One test-data
+wrinkle worth noting: Postgres's `Seasons` table has real `NOT NULL`
+constraints (`StartDate`, `EndDate`, `CompetitionCode`) that the Mongo
+schema doesn't enforce - a `create()` payload missing those fails loudly
+on Postgres and silently succeeds on Mongo. Not a bug, just something to
+remember when constructing test/seed data for this entity going forward.
+
+**Files:** `repositories/SeasonRepository.ts`,
+`repositories/{mongo,drizzle}/SeasonRepository.ts`,
+`repositories/SeasonRepositoryFactory.ts`,
+`controllers/seasons/{season.service,season.router}.ts`.
+
+---
+
 ### Player and Fixture conversions - both partial, plus two real bugs found and fixed
 
 **Status:** Done, deliberately partial - seventh and eighth entities

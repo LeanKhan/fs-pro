@@ -4,8 +4,10 @@ import { Router, Request, Response } from 'express';
 import {
   fetchAll,
   fetchOneById,
-  deleteByRemove,
   findByIdAndUpdate,
+  getSeasonById,
+  updateSeasonFields,
+  deleteSeasonById,
 } from './season.service';
 import { SeasonInterface } from './season.model';
 import {
@@ -91,7 +93,7 @@ router.post(
 
 /** Start Season */
 router.patch('/:id/start', (req, res) => {
-  findByIdAndUpdate(req.params.id, {
+  updateSeasonFields(req.params.id, {
     isStarted: true,
     StartDate: new Date(),
   })
@@ -145,7 +147,12 @@ router.get('/:id', (req: Request, res: Response) => {
     console.log('Could not parse Season populate')
   }
 
-  fetchOneById(id, false, p)
+  // No explicit ?populate= needs the repository's own default (Fixtures) -
+  // an explicit one (anything other than the default) stays on the raw
+  // arbitrary-populate path.
+  const response = p ? fetchOneById(id, false, p) : getSeasonById(id);
+
+  response
     .then((season: any) => {
       if (!season.Title)
         return respond.success(res, 404, 'Season not found!', season);
@@ -188,7 +195,7 @@ router.delete('/:id', (req: Request, res: Response) => {
   }
 
   const deleteSeason = () => {
-    return deleteByRemove(id);
+    return deleteSeasonById(id);
   };
 
 

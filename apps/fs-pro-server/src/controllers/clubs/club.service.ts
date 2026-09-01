@@ -5,7 +5,10 @@ import { Club, ClubInterface } from './club.model';
 import log from '../../helpers/logger';
 import { IClub } from '../../interfaces/Club';
 import { ClubRepositoryFactory } from '../../repositories/ClubRepositoryFactory';
-import { IClubFilter } from '../../repositories/ClubRepository';
+import { IClubFilter, IClubReadOptions } from '../../repositories/ClubRepository';
+import { DrizzleDatabase } from '../../db/drizzle';
+import { players } from '../../db/drizzle/schema';
+import { eq, sql as drizzleSql } from 'drizzle-orm';
 
 /**
  * Repository-backed functions below are for the identity/CRUD surface that
@@ -25,12 +28,12 @@ function getClubRepo() {
   return clubRepo;
 }
 
-export async function getClubById(id: string) {
-  return getClubRepo().findById(id);
+export async function getClubById(id: string, options?: IClubReadOptions) {
+  return getClubRepo().findById(id, options);
 }
 
-export async function getClubs(filter?: IClubFilter) {
-  return getClubRepo().findAll(filter);
+export async function getClubs(filter?: IClubFilter, options?: IClubReadOptions) {
+  return getClubRepo().findAll(filter, options);
 }
 
 export async function createClub(data: Partial<ClubInterface>) {
@@ -39,6 +42,10 @@ export async function createClub(data: Partial<ClubInterface>) {
 
 export async function updateClubFields(id: string, data: Partial<ClubInterface>) {
   return getClubRepo().update(id, data);
+}
+
+export async function deleteClubById(id: string) {
+  return getClubRepo().delete(id);
 }
 
 /**
@@ -84,25 +91,6 @@ export function fetchClubs(
   return DB.Models.Club.find(condition).populate('Players').lean().exec();
 }
 
-export function deleteById(id: string) {
-  return DB.Models.Club.findByIdAndDelete(id).lean().exec();
-}
-/**
- * Delete Club by Id using 'remove' method
- *
- * @param id Club Id
- * @returns
- */
-export async function deleteByRemove(id: string) {
-
-  const doc = await DB.Models.Club.findById(id);
-
-   if(!doc) {
-     throw new Error(`Club [${id}] does not exist`);
-   }
-
-   return doc.remove();
-  }
 
 /**
  * fecthSingleClubById
@@ -160,9 +148,34 @@ export function addPlayerToClub(clubId: string, playerId: string) {
 /**
  * Calculate the clubs Average Rating...
  *
+ * Mongo groups by `$lookup`-ing `Club.Players` (an array of ids) into
+ * `Players`; Postgres has no such array (dropped in favor of the reverse
+ * `players.Club` FK - see FUTURE-PLANS.md), so the Drizzle branch just
+ * groups `players` directly by `Club = clubId` instead. Same output shape
+ * either way: `{ position, avg_rating, count }[]`.
+ *
  * @param clubId
  */
-export function calculateClubsTotalRatings(clubId: string) {
+export async function calculateClubsTotalRatings(clubId: string) {
+  if (DB.ormType === 'drizzle') {
+    const db = DrizzleDatabase.getInstance().database;
+    const rows = await db
+      .select({
+        position: players.Position,
+        avg_rating: drizzleSql<number>`avg(${players.Rating})`,
+        count: drizzleSql<number>`count(*)`,
+      })
+      .from(players)
+      .where(eq(players.Club, clubId))
+      .groupBy(players.Position);
+
+    return rows.map((r) => ({
+      position: r.position,
+      avg_rating: Number(r.avg_rating),
+      count: Number(r.count),
+    }));
+  }
+
   // TODO: Guy! Just do the calculation yourself!
   // Do first stage grouping...
   return DB.Models.Club.aggregate(

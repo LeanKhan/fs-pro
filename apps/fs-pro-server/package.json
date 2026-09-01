@@ -37,7 +37,9 @@
     "migrate:players": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-players.ts",
     "migrate:player-matches": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-player-matches.ts",
     "migrate:club-matches": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-club-matches.ts",
-    "migrate:fixtures": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-fixtures.ts"
+    "migrate:fixtures": "set DEV_TEST=true && ts-node src/scripts/migration/migrate-fixtures.ts",
+    "setup:counter-sequences": "set USE_POSTGRESQL=true && set USE_DRIZZLE=true && ts-node src/scripts/migration/setup-counter-sequences.ts",
+    "setup:sessions-table": "set USE_POSTGRESQL=true && set USE_DRIZZLE=true && ts-node src/scripts/migration/setup-sessions-table.ts"
   },
   "author": "@LeanKhan",
   "license": "ISC",

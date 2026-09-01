@@ -82,6 +82,14 @@ export function updateById(id: string, update: any): Promise<PlayerInterface> {
 }
 /**
  * Toggle Signed
+ *
+ * Despite the name, this always sets `isSigned` to `!value` (not a real
+ * toggle against current state) - callers pass the *current* isSigned
+ * value and get the flipped one back, unchanged from the original
+ * behavior. Repository-backed under `backend=drizzle` (a plain 3-field
+ * write, no operators - `Club`/`ClubCode` are direct columns on `players`,
+ * so this is the actual "add/remove player to/from club" write on
+ * Postgres, not `Club.Players` which doesn't exist there).
  * @param playerId
  * @param value
  */
@@ -91,11 +99,34 @@ export function toggleSigned(
   clubCode: string | null,
   clubId: string | null
 ) {
+  const fields = { isSigned: !value, ClubCode: clubCode, Club: clubId } as unknown as Partial<PlayerInterface>;
+
+  if (DB.ormType === 'drizzle') {
+    return updatePlayerFields(playerId, fields);
+  }
+
   return DB.Models.Player.findByIdAndUpdate(playerId, {
-    $set: { isSigned: !value, ClubCode: clubCode, Club: clubId },
+    $set: fields,
   })
     .lean()
     .exec();
+}
+
+/**
+ * Sign many Players to a Club in one write - the bulk equivalent of
+ * `toggleSigned`, used by `PUT /clubs/:id/add-many-players`. Repository
+ * `updateManyByIds` under `backend=drizzle` (plain fields, no operators);
+ * unchanged raw `updateMany` on Mongo.
+ */
+export function signManyPlayersToClub(playerIds: string[], clubCode: string, clubId: string) {
+  const fields = { isSigned: true, ClubCode: clubCode, Club: clubId } as unknown as Partial<PlayerInterface>;
+
+  if (DB.ormType === 'drizzle') {
+    return getPlayerRepo().updateManyByIds(playerIds, fields);
+  }
+
+  const pIds = playerIds.map((p) => new Types.ObjectId(p));
+  return DB.Models.Player.updateMany({ _id: { $in: pIds } }, { $set: fields }, { multi: true });
 }
 
 export function updatePlayers(query: any, update: any) {
