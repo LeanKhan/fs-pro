@@ -12,6 +12,82 @@ Entries are grouped by area. Within a group, newest first.
 
 ## DB migration (Mongo → Postgres)
 
+### Phase B, entity 4: Player - the big aggregate-pipeline rewrite
+
+**Status:** Done - fourth entity of Phase B (see the "Goal shift" entry
+below for the full plan). This is the one this whole migration's per-entity
+FUTURE-PLANS entries kept pointing at as "no Drizzle equivalent without a
+raw-SQL rewrite" - turned out to be very doable once actually attempted.
+
+**Removed dead code.** `fetchOneById` and `findOnePlayer` had no callers
+left anywhere (confirmed by grep) - deleted.
+
+**Converted `getPlayerStats`/`allPlayerStats`** (the two aggregate
+pipelines with a *fixed* shape - filter by a single calendar/season id,
+not an arbitrary matcher). Both rewritten as a Drizzle `select` with
+`sum()`/`avg()`/`count()` and a `GROUP BY`, joining `playerMatchDetails` →
+`fixtures` (→ `seasons`, for `getPlayerStats`'s calendar filter) - direct
+FK joins, no `$lookup`-on-an-array-of-ids needed since these are all
+single-value FKs. The old pipelines' final `$lookup`-into-`Players`
+(and, for `allPlayerStats`, `Fixtures`) steps became a new shared
+`attachPlayersAndFixtures()` helper: batch-fetch every distinct
+player/fixture id the grouped rows reference in one `IN (...)` query each,
+then merge in JS - same idea as Club's `Players`/`Manager` populate, just
+applied to a computed result set instead of a table read. One real
+Postgres-specific fix needed: `min()` has no built-in overload for `uuid`
+(used to pick an arbitrary representative Fixture per group, mirroring
+Mongo's `$first` after `$unwind`) - cast to `::text` for the comparison,
+which is fine since the picked fixture is provably unused by the only
+consumer (`awards.controller.ts` fetches it but never reads a field off
+it).
+
+Verified against the same live data on both backends: **`getPlayerStats`
+returned the identical row count (220) and the identical top-ranked
+player with identical stats** (same goals/saves/points/etc, not just the
+same count) - as strong a confirmation as Club's ratings-calc parity
+check that the SQL rewrite is a faithful port. `allPlayerStats` matched on
+row count (110) but not on which player appears first, which is expected
+and fine - neither the original Mongo pipeline nor this rewrite has an
+explicit sort, so unordered-group iteration order is implementation-defined
+on both databases; nothing depends on it.
+
+**`getSpecificPlayerStats` stays raw** - unlike the other two, it takes a
+genuinely arbitrary Mongo `$match`/`$sort` object built from
+`GET /players/stats`'s query params (can match on dot-paths into the
+joined `fixture`/`season` sub-documents), not a single fixed id. Same
+"arbitrary query, not a fixed shape" exclusion used throughout this
+migration.
+
+**Converted `incrementAllPlayersAge`** (was inline
+`updatePlayers({}, { $inc: { Age: 1 } })` in `player.controller.ts`'s
+`increaseAllPeoplesAge`, called alongside Manager's now-converted
+analogous bump) - same reasoning as Manager's: unconditional, fixed `+1`,
+one SQL statement. Verified the same before/after/revert cycle used for
+Manager's version, on both backends.
+
+**Converted `createMany`** (bulk player creation, used by the
+`/generate-players` dev tool) to a Drizzle bulk `insert().values([...])`
+under `backend=drizzle`. **Found, not fixed:** `utils/players.ts`'s
+`generatePlayer()` hardcodes `Nationality` to literal Mongo ObjectId
+strings (`'611fe72fb69949fd0152a092'` for "kev", etc.) - these aren't
+valid Postgres UUIDs and don't correspond to any real `Places` row there,
+so `/generate-players` will fail on the `Nationality` FK constraint under
+`backend=drizzle` today. Out of scope for this pass (it's in a separate
+utility file, not `player.service.ts`, and is a data-generation concern,
+not a query/write-path one) - flagging for whoever picks up
+`utils/players.ts` next. Verified the bulk-insert mechanism itself works
+correctly on both backends using a payload with `Nationality` omitted.
+
+**Left raw, unchanged:** `GET /all` (arbitrary query), `PATCH
+/update-many` (arbitrary query+update), `getSpecificPlayerStats` (above),
+and `updateById`/the rating-progression half of `updatePlayersDetails`
+(per-player, per-row-different `$set`/`$push` operator writes - genuinely
+not a fixed-shape bulk operation the way the age bump was).
+
+**Files:** `controllers/players/{player.service,player.controller}.ts`.
+
+---
+
 ### Phase B, entity 3: Manager cleanup + age-progression conversion
 
 **Status:** Done - third entity of Phase B (see the "Goal shift" entry
