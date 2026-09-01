@@ -36,15 +36,16 @@ const VALID_BACKENDS: BackendChoice[] = ['mongo', 'drizzle', 'prisma'];
  * `backend=drizzle` used to fail after already clearing the club's Manager
  * field.
  *
- * 'Club (partial)': fetch-by-id (no populate)/create/update (plain fields
- * only) go through the repository, as does every Manager
+ * 'Club (partial)': fetch-by-id (no populate)/create/update (plain
+ * fields)/delete go through the repository, as does every Manager
  * hire/fire/removal write via `appendClubRecord` (a read-modify-write
- * replacement for the old `$push`/`$unset` operator updates). GET
- * /clubs/all, /clubs/fetch, arbitrary-populate fetches, add/remove-player,
- * the CSV bulk import, and DELETE /clubs/:id stay raw - they need either
- * Mongo operators the repository doesn't support, or (DELETE) a repository
- * `delete()` method that doesn't exist yet - a known gap, same shape as
- * the one closed for Manager.
+ * replacement for the old `$push`/`$unset` operator updates), `GET
+ * /clubs/all` (now with `Players`/`Manager` populated via the repository),
+ * and add/remove/add-many-player (writes `Player.Club`/`ClubCode` via the
+ * Player repository - `Club.Players` doesn't exist on Postgres - and the
+ * ratings recalculation, via a SQL `GROUP BY` replacing the old
+ * `$lookup`/`$group` aggregate). `/clubs/fetch`'s arbitrary Mongo query
+ * object and the CSV bulk import stay raw.
  *
  * 'Competition (partial)': fetch-by-id (populate=false only)/create/update
  * (plain fields)/delete go through the repository. The default
@@ -64,9 +65,12 @@ const VALID_BACKENDS: BackendChoice[] = ['mongo', 'drizzle', 'prisma'];
  * Day on top of it yet.
  *
  * 'Player (partial)': fetch-by-id/create/update (plain fields)/delete go
- * through the repository. `GET /all` (arbitrary query), bulk
- * `update-many`, the aggregate-pipeline stats endpoints (`/stats`), and
- * end-of-year rating/age progression (operator updates) stay raw.
+ * through the repository, as does `toggleSigned`/`signManyPlayersToClub`
+ * (add/remove player to/from a club - the actual Postgres-side ownership
+ * write, since `players.Club` is a direct column there). `GET /all`
+ * (arbitrary query), bulk `update-many`, the aggregate-pipeline stats
+ * endpoints (`/stats`), and end-of-year rating/age progression (operator
+ * updates) stay raw.
  *
  * 'Fixture (partial)': fetch-by-id (no extra populate)/create/update
  * (plain fields)/delete go through the repository - `findById` always
@@ -74,6 +78,15 @@ const VALID_BACKENDS: BackendChoice[] = ['mongo', 'drizzle', 'prisma'];
  * populated, matching the raw path's own default. An explicit
  * `?populate=` path, and the arbitrary-query `findOneAndUpdate` the match
  * engine uses throughout to record match state, stay raw.
+ *
+ * 'Season (partial)': fetch-by-id (no extra populate)/create/update (plain
+ * fields)/delete go through the repository - `findById` always comes with
+ * `Fixtures` populated (matching the raw path's own default), and
+ * `PATCH /:id/start`'s isolated `{ isStarted, StartDate }` write is
+ * converted too. `GET /`'s arbitrary query/populate/select/sort combo, and
+ * the fixture-generation/standings/prolegation game loop
+ * (`middleware/seasons.ts`, `season.controller.ts`) - all plain-field
+ * writes, but deep, interdependent game-loop internals - stay raw.
  */
 const CONVERTED_ENTITIES = [
   'Place',
@@ -84,6 +97,7 @@ const CONVERTED_ENTITIES = [
   'Calendar (partial)',
   'Player (partial)',
   'Fixture (partial)',
+  'Season (partial)',
 ];
 
 /**

@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { PlayerInterface } from '../../controllers/players/player.model';
 import * as schema from '../../db/drizzle/full-schema';
@@ -66,6 +66,14 @@ export class DrizzlePlayerRepository implements IPlayerRepository {
       .returning();
 
     return player ? toPlayer(player) : null;
+  }
+
+  async updateManyByIds(ids: string[], data: Partial<PlayerInterface>): Promise<void> {
+    if (!ids.length) return;
+    await this.db
+      .update(players)
+      .set({ ...(data as Partial<typeof players.$inferInsert>), updatedAt: new Date() })
+      .where(inArray(players.id, ids));
   }
 
   async delete(id: string): Promise<PlayerInterface> {

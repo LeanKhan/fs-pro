@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import respond from '../../helpers/responseHandler';
 import {
-  fetchAllClubs,
   fetchSingleClubById,
   fetchClubs,
-  deleteByRemove,
   getClubById,
+  getClubs,
   createClub,
   updateClubFields,
+  deleteClubById,
 } from './club.service';
 import { updateManyPlayerSigning, updatePlayerSigning } from '../../middleware/player';
 import {
@@ -27,7 +27,7 @@ const router = Router();
 
 /** Fetch all Clubs */
 router.get('/all', (req, res) => {
-  const response = fetchAllClubs();
+  const response = getClubs(undefined, { withPlayersAndManager: true });
 
   response
     .then((clubs: any) => {
@@ -92,7 +92,7 @@ router.post('/:id/update', (req, res) => {
 // confirmation.
 /** Delete Club by id */
 router.delete('/:id', (req, res) => {
-  deleteByRemove(req.params.id)
+  deleteClubById(req.params.id)
     .then((data: any) => {
       respond.success(res, 200, 'Club deleted successfully', data);
     })

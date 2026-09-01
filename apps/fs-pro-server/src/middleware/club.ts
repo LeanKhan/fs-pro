@@ -4,6 +4,7 @@ import {
   addPlayerToClub,
   updateClubLeague,
   updateClub,
+  updateClubFields,
   updateClubsById,
   fetchAllClubs,
   fetchClubs,
@@ -11,6 +12,7 @@ import {
 import respond from '../helpers/responseHandler';
 import log from '../helpers/logger';
 import { IClub } from '../interfaces/Club';
+import DB from '../db';
 
 interface RatingObject {
   avg_rating: number;
@@ -56,7 +58,7 @@ export const calculateClubRating: RequestHandler = (
 
       // Now update club...
 
-      updateClub(req.params.id, data)
+      updateClubFields(req.params.id, data)
         .then((club) => {
           respond.success(
             res,
@@ -120,7 +122,7 @@ export function updateAllClubsRating(req: Request, res: Response) {
         });
 
         // Now update club...
-        return updateClub(club_id, data);
+        return updateClubFields(club_id, data);
       })
       .catch((err: any) => {
         throw err;
@@ -159,6 +161,14 @@ export function addPlayerToClubMiddleware(
   // tslint:disable-next-line: variable-name
   const { playerId } = req.body.data;
 
+  // Club.Players doesn't exist on Postgres - ownership already lives on
+  // the Player row (players.Club, just written by updatePlayerSigning
+  // earlier in this same middleware chain), so there's nothing left to do
+  // here under that backend.
+  if (DB.ormType === 'drizzle') {
+    return next();
+  }
+
   let _response;
 
   if (req.query.remove) {
@@ -189,6 +199,12 @@ export function addManyPlayersToClub(
 ) {
   // tslint:disable-next-line: variable-name
   const { playerIds, clubId } = req.body.data;
+
+  // Same reason as addPlayerToClubMiddleware above - nothing left to do on
+  // the Club row itself under this backend.
+  if (DB.ormType === 'drizzle') {
+    return next();
+  }
 
   updateClub(clubId, {
       $addToSet: { Players: {$each: playerIds} }

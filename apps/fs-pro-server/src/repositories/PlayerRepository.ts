@@ -13,9 +13,15 @@ export interface IPlayerFilter {
  * `create`/`update`/`delete` do NOT populate it, matching Mongoose's hook.
  *
  * `update()` takes plain fields only - no Mongo `$set`/`$push` operators.
- * `updatePlayersDetails` (end-of-year rating/age progression) and
- * `toggleSigned`/`updatePlayers` (bulk, arbitrary-query updates) stay on
- * the raw `updateById`/`updatePlayers` in `player.service.ts`, unchanged.
+ * `updatePlayersDetails` (end-of-year rating/age progression) and the
+ * generic `updatePlayers` (bulk, arbitrary-query updates) stay on the raw
+ * `updateById`/`updatePlayers` in `player.service.ts`, unchanged.
+ * `toggleSigned`/`signManyPlayersToClub` (add/remove player to/from a
+ * club) *are* converted, via `update()`/`updateManyByIds()` - both are
+ * always plain-field writes, never operators.
+ *
+ * `updateManyByIds()` also takes plain fields only - used for the
+ * "sign several players to one club at once" case.
  *
  * `delete()` on Mongo uses `.remove()` (not `findByIdAndDelete`) to
  * preserve `player.model.ts`'s real, active `post('remove')` hook - it
@@ -31,5 +37,6 @@ export interface IPlayerRepository {
   findAll(filter?: IPlayerFilter): Promise<PlayerInterface[]>;
   create(data: Partial<PlayerInterface>): Promise<PlayerInterface>;
   update(id: string, data: Partial<PlayerInterface>): Promise<PlayerInterface | null>;
+  updateManyByIds(ids: string[], data: Partial<PlayerInterface>): Promise<void>;
   delete(id: string): Promise<PlayerInterface>;
 }

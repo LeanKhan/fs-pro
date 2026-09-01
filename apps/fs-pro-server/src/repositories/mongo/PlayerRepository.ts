@@ -22,6 +22,10 @@ export class MongoPlayerRepository implements IPlayerRepository {
     return DB.Models.Player.findByIdAndUpdate(id, data, { new: true }).lean().exec();
   }
 
+  async updateManyByIds(ids: string[], data: Partial<PlayerInterface>): Promise<void> {
+    await DB.Models.Player.updateMany({ _id: { $in: ids } }, data);
+  }
+
   async delete(id: string): Promise<PlayerInterface> {
     const doc = await DB.Models.Player.findById(id);
     if (!doc) {
