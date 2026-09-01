@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
 import {
   fetchAll,
-  fetchOneById,
   getCompetitionById,
+  getCompetitionWithClubsAndSeasons,
   createCompetition,
   updateCompetitionFields,
   deleteCompetitionById,
@@ -46,10 +46,10 @@ router.get('/all', (req: Request, res: Response) => {
 /** Get Competition by id */
 router.get('/:id', (req: Request, res: Response) => {
   const { populate } = req.query;
-  // populate defaults to true (populates Clubs/Seasons) - stays on the raw
-  // path, same reason as ICompetitionRepository's doc comment. Only the
-  // explicit populate=false case goes through the repository.
-  const response = populate === 'false' ? getCompetitionById(req.params.id) : fetchOneById(req.params.id, true);
+  // populate defaults to true (populates Clubs/Seasons via the reverse
+  // Clubs.League/Seasons.Competition FKs, since neither array exists on
+  // Postgres) - both branches are repository-backed now.
+  const response = populate === 'false' ? getCompetitionById(req.params.id) : getCompetitionWithClubsAndSeasons(req.params.id);
 
   response
     .then((competition: any) => {

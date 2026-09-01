@@ -12,6 +12,98 @@ Entries are grouped by area. Within a group, newest first.
 
 ## DB migration (Mongo → Postgres)
 
+### Phase B, entity 3: Manager cleanup + age-progression conversion
+
+**Status:** Done - third entity of Phase B (see the "Goal shift" entry
+below for the full plan). Manager was already the most-converted entity
+going into this pass (fetch/create/update/delete/`populate=Club` were all
+done earlier), so this was a small, mostly-cleanup pass.
+
+**Removed dead code.** `fetchAll`, `fetchOneById`, `updateById`, `update`,
+`deleteById`, and `create` in `manager.service.ts` had no callers left
+anywhere in the codebase (confirmed by grep) - every real consumer had
+already migrated to the repository-backed functions in earlier passes.
+Deleted rather than left as unused exports.
+
+**Converted `incrementAllManagersAge`** (was `updateManagers({}, { $inc:
+{ Age: 1 } })`, called from `player.controller.ts`'s
+`increaseAllPeoplesAge` alongside Player's own analogous age bump). Unlike
+most operator updates left raw elsewhere in this migration, this one was
+genuinely easy: no filter (applies to every row) and the same fixed `+1`
+for every manager, so it's one SQL statement under `backend=drizzle`
+(`UPDATE "Managers" SET "Age" = "Age" + 1`, via Drizzle's `sql` template
+in a `.set()`) - no per-row read-modify-write needed, unlike
+`appendManagerRecord`. Verified by sampling three real managers' `Age`
+before/after on both backends and reverting the whole-table bump
+afterward (`$inc: -2` on Mongo after two verification runs, `Age - 1` on
+Postgres after one) - confirmed the sampled managers landed back on their
+exact original ages on both backends.
+
+**Left raw, deliberately not touched:** `fetchOne` (used by
+`awards.controller.ts` to find a club's currently-employed manager via
+`{ isEmployed, Club }`, e.g. to award them "Season Title") - this is
+Award's territory, not Manager's, and Award hasn't had its own Phase B
+pass yet. Revisit when Award comes up rather than reaching into it now.
+
+**Files:** `controllers/managers/manager.service.ts`,
+`controllers/players/player.controller.ts` (`incrementAllManagersAge`
+swapped in for the old direct `updateManagers` call).
+
+---
+
+### Phase B, entity 2: Competition full conversion
+
+**Status:** Done - second entity of Phase B (see the "Goal shift" entry
+below for the full plan). `delete()` already existed on this repository
+from its original conversion pass, so this closed the remaining two gaps:
+`populate=true` and the Club/Season membership routes.
+
+**`populate=true` (`GET /competitions/:id`'s default).** `Competition.Clubs`/
+`Seasons` don't exist on Postgres - added
+`getCompetitionWithClubsAndSeasons()` (`competition.service.ts`), which
+composes the base repository read with two reverse lookups already
+available for free: `getClubs({ League: id })` and
+`getSeasons({ Competition: id })`. `GET /:id` is now **fully**
+repository-backed on both branches (`populate=false` and the default) -
+no raw fallback left for this route at all.
+
+**`addClubToCompetition`.** Turned out simpler than the original Club-
+conversion writeup assumed: despite `ICompetitionRepository`'s doc comment
+speculating a competition's `Type` (league vs. cup/tournament) would
+decide between `Clubs.League` and the `competitionClubs` join table, the
+*live* code only ever does one thing - unconditionally sets
+`Club.League`/`Club.LeagueCode`, regardless of `Type`. Checked: nothing in
+the app reads or writes `competitionClubs` anywhere except the one-time
+migration script - it's schema/relations infrastructure for a
+cup/tournament-multi-membership feature that was never actually wired up,
+not a live design decision this conversion needed to resolve. So
+`addClubToCompetition` just calls `updateClubFields` under
+`backend=drizzle`, no branching needed. (If cup/tournament multi-membership
+ever becomes a real live feature, revisit then - the join table is ready
+for it.)
+
+**`addSeasonToCompetition`.** A genuine no-op under `backend=drizzle`,
+same shape as Club's array-vs-FK pattern: `Seasons.Competition` is already
+set at season-creation time (`middleware/seasons.ts`'s `create` sets
+`data.Competition = competitionID` directly), so `Competition.Seasons`
+(which doesn't exist on Postgres anyway) was only ever a redundant
+Mongo-side forward array. Nothing left to write.
+
+Verified `populate=true`/`false`, `add-club` (moving a real club between
+two real leagues and back), and create/delete against real data on both
+Mongo and Postgres - identical club/season counts on both backends for the
+same competition. `addSeasonToCompetition`'s no-op branch is trivial
+(no DB interaction at all) and wasn't separately exercised live - the
+season-creation flow it's chained after is deep game-loop territory
+reserved for Season's own dedicated Phase B pass.
+
+**Left raw, unchanged:** `GET /all` (arbitrary query/select).
+
+**Files:** `controllers/competitions/{competition.service,
+competition.router,competition.controller}.ts`.
+
+---
+
 ### Phase B, entity 1: Club full conversion
 
 **Status:** Done - first entity of Phase B (see "Goal shift" entry below

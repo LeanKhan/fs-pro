@@ -1,7 +1,7 @@
 import respond from '../../helpers/responseHandler';
 import { NextFunction, Request, Response } from 'express';
 import { getPlayerStats, updateById, updatePlayers, createMany } from './player.service';
-import { updateManagers } from '../managers/manager.service';
+import { incrementAllManagersAge } from '../managers/manager.service';
 import { newAttributeRatings, generatePlayer } from '../../utils/players';
 import { PlayerInterface, IPlayerAttributes } from '../../interfaces/Player';
 import { runSpawn } from '../../utils/scripts';
@@ -37,7 +37,7 @@ export function updatePlayersDetails(
 
   const increaseAllPeoplesAge = () => {
     return Promise.all([updatePlayers({}, { $inc: { Age: 1 } }),
-     updateManagers({}, { $inc: { Age: 1 } })]);
+     incrementAllManagersAge()]);
   }
 
   const updPlayer = (data: {

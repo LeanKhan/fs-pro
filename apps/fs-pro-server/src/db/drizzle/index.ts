@@ -63,11 +63,12 @@ export class DrizzleDatabase implements IDatabase {
 
     this._models = {
       // DrizzleCompetitionRepository/MongoCompetitionRepository do exist
-      // (see repositories/{mongo,drizzle}/CompetitionRepository.ts) and
-      // cover the identity/CRUD surface - but not wired in here, same
-      // one-slot-shared reason as Club/User/Manager above: populate=true
-      // (Clubs/Seasons) and the Club/Season membership routes
-      // (add-club/add-season) still need the raw Mongo model.
+      // (see repositories/{mongo,drizzle}/CompetitionRepository.ts) and now
+      // cover the full Competition surface (including populate=true, via
+      // reverse Clubs.League/Seasons.Competition lookups, and add-club/
+      // add-season) - not wired in here, same one-slot-shared reason as
+      // everything else in this list: GET /all's arbitrary query still
+      // needs the raw Mongo model.
       Competition: mongo.Competition,
       // DrizzlePlayerRepository/MongoPlayerRepository do exist (see
       // repositories/{mongo,drizzle}/PlayerRepository.ts) and cover the
