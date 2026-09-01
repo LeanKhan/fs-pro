@@ -75,10 +75,17 @@ const VALID_BACKENDS: BackendChoice[] = ['mongo', 'drizzle', 'prisma'];
  * 'Player (partial)': fetch-by-id/create/update (plain fields)/delete go
  * through the repository, as does `toggleSigned`/`signManyPlayersToClub`
  * (add/remove player to/from a club - the actual Postgres-side ownership
- * write, since `players.Club` is a direct column there). `GET /all`
- * (arbitrary query), bulk `update-many`, the aggregate-pipeline stats
- * endpoints (`/stats`), and end-of-year rating/age progression (operator
- * updates) stay raw.
+ * write, since `players.Club` is a direct column there), bulk player
+ * generation (`createMany`), end-of-year age progression
+ * (`incrementAllPlayersAge` - one SQL `Age = Age + 1`, unconditional so no
+ * per-row write needed), and `getPlayerStats`/`allPlayerStats` (SQL
+ * joins+`GROUP BY` replacing the old `$lookup`/`$group` aggregates -
+ * verified identical row counts, and for `getPlayerStats`, identical
+ * top-ranked player, against the same live data on both backends). `GET
+ * /all` (arbitrary query), bulk `update-many`, `getSpecificPlayerStats`
+ * (genuinely arbitrary match/sort objects, unlike the other two stats
+ * functions), and end-of-year rating progression (per-player operator
+ * updates with dynamic values) stay raw.
  *
  * 'Fixture (partial)': fetch-by-id (no extra populate)/create/update
  * (plain fields)/delete go through the repository - `findById` always

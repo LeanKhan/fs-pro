@@ -71,11 +71,14 @@ export class DrizzleDatabase implements IDatabase {
       // needs the raw Mongo model.
       Competition: mongo.Competition,
       // DrizzlePlayerRepository/MongoPlayerRepository do exist (see
-      // repositories/{mongo,drizzle}/PlayerRepository.ts) and cover the
-      // identity/CRUD surface - GET /all's arbitrary query, bulk
-      // update-many, the aggregate-pipeline stats endpoints, and
-      // end-of-year progression (operator updates) still need the raw
-      // Mongo model. Same one-slot-shared reason as everything else here.
+      // repositories/{mongo,drizzle}/PlayerRepository.ts) and now cover
+      // identity/CRUD, bulk `createMany`, age progression, and the
+      // `getPlayerStats`/`allPlayerStats` aggregate-pipeline rewrites (SQL
+      // joins+GROUP BY, in `player.service.ts` directly rather than the
+      // repository) - GET /all's arbitrary query, bulk update-many, and
+      // `getSpecificPlayerStats`'s genuinely arbitrary match/sort objects
+      // still need the raw Mongo model. Same one-slot-shared reason as
+      // everything else here.
       Player: mongo.Player,
       // DrizzleSeasonRepository/MongoSeasonRepository do exist (see
       // repositories/{mongo,drizzle}/SeasonRepository.ts) and cover the

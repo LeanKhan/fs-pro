@@ -1,6 +1,6 @@
 import respond from '../../helpers/responseHandler';
 import { NextFunction, Request, Response } from 'express';
-import { getPlayerStats, updateById, updatePlayers, createMany } from './player.service';
+import { getPlayerStats, updateById, incrementAllPlayersAge, createMany } from './player.service';
 import { incrementAllManagersAge } from '../managers/manager.service';
 import { newAttributeRatings, generatePlayer } from '../../utils/players';
 import { PlayerInterface, IPlayerAttributes } from '../../interfaces/Player';
@@ -36,7 +36,7 @@ export function updatePlayersDetails(
   };
 
   const increaseAllPeoplesAge = () => {
-    return Promise.all([updatePlayers({}, { $inc: { Age: 1 } }),
+    return Promise.all([incrementAllPlayersAge(),
      incrementAllManagersAge()]);
   }
 
