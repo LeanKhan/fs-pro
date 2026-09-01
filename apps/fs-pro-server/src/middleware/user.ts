@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
-import { updateUser, getUserById, updateUserFields } from '../controllers/user/user.service';
+import { getUserById, updateUserFields } from '../controllers/user/user.service';
 import { getClubs } from '../controllers/clubs/club.service';
 import responseHandler from '../helpers/responseHandler';
 import { store } from '../sessionStore';
@@ -8,11 +8,13 @@ import { resolveUserSession } from '../utils/auth';
 import log from '../helpers/logger';
 
 /**
- * Used only by POST /join - registration is Club-coupled (see the User
- * conversion plan / FUTURE-PLANS.md) and stays on the raw Mongo path
- * entirely, so this keeps using `updateUser` (DB.Models.User directly)
- * rather than the repository. Do not reuse this for anything backed by
- * the new User repository - see `initializeSessionForLogin` below.
+ * Used only by POST /join, right after registration. Repository-backed now
+ * that Club (registration's one real coupling, via `updateClubs`) is fully
+ * converted too - see `initializeSessionForLogin` below for the equivalent
+ * login-path stamping, and its doc comment for why `Clubs` needs a live
+ * reverse lookup rather than the stored field on this path too, in
+ * principle - not done here since a freshly-registered user has no clubs
+ * yet regardless of backend.
  */
 export function initializeSession(
   req: Request,
@@ -28,9 +30,7 @@ export function initializeSession(
     } else {
       // User has been crreated
 
-      const response = updateUser(id, { Session: req.sessionID }).lean();
-
-      response
+      updateUserFields(id, { Session: req.sessionID } as Partial<IUser>)
         .then((user: any) => {
           responseHandler.success(res, 200, 'User authenticated successfully', {
             ...user,
@@ -45,9 +45,9 @@ export function initializeSession(
 
 /**
  * Used by POST /login. The user was fetched via the repository (see
- * user.router.ts) - under Drizzle its `_id` is a Postgres UUID, which
- * `updateUser`/`DB.Models.User` (Mongo) would silently fail to match, so
- * this stamps the session through the same repository instead.
+ * user.router.ts), so its `_id` may be a Postgres UUID - stamping the
+ * session through the same repository (`updateUserFields`) instead of a
+ * raw `DB.Models.User` call keeps this correct on either backend.
  *
  * `Clubs` in the response is overwritten with a live `Clubs.User` reverse
  * lookup rather than whatever the stored `Users.Clubs` array says (on

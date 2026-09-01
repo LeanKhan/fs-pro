@@ -1,6 +1,38 @@
 import DB from '../../db';
 import { ClubMatchDetailsInterface } from './club-match.model';
+import { ClubMatchRepositoryFactory } from '../../repositories/ClubMatchRepositoryFactory';
 // import { ClubMatchDetailsInterface } from './day.model';
+
+/**
+ * Repository-backed - the only real call site is `game/functions.ts`'s
+ * `savePlayerAndClubStats`. Every other function below is dead code (no
+ * remaining callers), left as-is.
+ */
+let clubMatchRepo: ReturnType<typeof ClubMatchRepositoryFactory.create> | null = null;
+
+function getClubMatchRepo() {
+  if (!clubMatchRepo) {
+    clubMatchRepo = ClubMatchRepositoryFactory.create();
+  }
+  return clubMatchRepo;
+}
+
+export async function getClubMatchById(id: string) {
+  return getClubMatchRepo().findById(id);
+}
+
+export async function createClubMatch(data: Partial<ClubMatchDetailsInterface>) {
+  return getClubMatchRepo().create(data);
+}
+
+export async function updateClubMatchFields(id: string, data: Partial<ClubMatchDetailsInterface>) {
+  return getClubMatchRepo().update(id, data);
+}
+
+export async function deleteClubMatchById(id: string) {
+  return getClubMatchRepo().delete(id);
+}
+
 /**
  * fetchAll ClubMatchDetails
  */
@@ -47,23 +79,6 @@ export function findOne(
     return DB.Models.ClubMatch.findOne(query).populate(populate).lean().exec();
 
   return DB.Models.ClubMatch.findOne(query).lean().exec();
-}
-
-/**
- * create new ClubMatchDetail...
- *
- * @returns ClubMatchDetail, so to get the document gan => result._doc (_id ==> _doc._id)
- * @param data
- */
-export function createNew(data: any) {
-  const $ClubMatchDetails = new DB.Models.ClubMatch(data);
-
-  return $ClubMatchDetails
-    .save()
-    .then((c: any) => {
-      return { error: false, result: c };
-    })
-    .catch((error: any) => ({ error: true, result: error }));
 }
 
 /**

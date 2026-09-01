@@ -1,5 +1,4 @@
 import DB from '../../db';
-import { incrementCounter } from '../../utils/counter';
 import { Fixture } from './fixture.model';
 import { FixtureRepositoryFactory } from '../../repositories/FixtureRepositoryFactory';
 import { IFixtureFilter } from '../../repositories/FixtureRepository';
@@ -7,10 +6,11 @@ import { IFixtureFilter } from '../../repositories/FixtureRepository';
 /**
  * Repository-backed functions below cover the identity/CRUD surface with no
  * arbitrary-query update in play - `update()` only accepts plain fields.
- * `findOneAndUpdate` (used throughout the match engine) stays raw,
- * unchanged. `findById` always comes back with `HomeSideDetails`/
- * `AwaySideDetails` populated (each with `PlayerStats`) - see
- * IFixtureRepository's doc comment.
+ * The match engine's own fixture-state write (`game/functions.ts`'s
+ * `updateFixture`, formerly a raw `findOneAndUpdate`) is plain-field too and
+ * now goes through `updateFixtureFields`. `findById` always comes back with
+ * `HomeSideDetails`/`AwaySideDetails` populated (each with `PlayerStats`) -
+ * see IFixtureRepository's doc comment.
  */
 let fixtureRepo: ReturnType<typeof FixtureRepositoryFactory.create> | null = null;
 
@@ -88,21 +88,6 @@ export function createFixtures(fixtures: any[]) {
   return DB.Models.Fixture.insertMany(fixtures, { ordered: true });
 }
 
-/**
- * create new fixture
- */
-
-export function createNew(data: any) {
-  const FIXTURE = new DB.Models.Fixture(data);
-
-  return FIXTURE.save()
-    .then((fixture: any) => {
-      void incrementCounter('fixture_counter');
-      return { error: false, result: fixture };
-    })
-    .catch((error: any) => ({ error: true, result: error }));
-}
-
 export function deleteById(id: string) {
   return DB.Models.Fixture.findByIdAndDelete(id).lean().exec();
 }
@@ -119,19 +104,6 @@ export async function deleteByRemove(id: string) {
   }
 
   return doc.remove();
-}
-
-/**
- *
- * @param data Find one and update
- */
-export function findOneAndUpdate(
-  query: Record<string, unknown>,
-  update: any
-): Promise<Fixture> {
-  return DB.Models.Fixture.findOneAndUpdate(query, update, { new: true })
-    .lean()
-    .exec();
 }
 
 export function deleteAll(query: Record<string, unknown>) {

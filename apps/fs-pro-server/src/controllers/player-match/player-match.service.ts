@@ -1,6 +1,38 @@
 import DB from '../../db';
 import { PlayerMatchDetailsInterface } from './player-match.model';
+import { PlayerMatchRepositoryFactory } from '../../repositories/PlayerMatchRepositoryFactory';
 // import { PlayerMatchDetailsInterface } from './day.model';
+
+/**
+ * Repository-backed - the only real call site is `game/functions.ts`'s
+ * `savePlayerAndClubStats` (via `createManyPlayerMatches`). Every other
+ * function below is dead code (no remaining callers), left as-is.
+ */
+let playerMatchRepo: ReturnType<typeof PlayerMatchRepositoryFactory.create> | null = null;
+
+function getPlayerMatchRepo() {
+  if (!playerMatchRepo) {
+    playerMatchRepo = PlayerMatchRepositoryFactory.create();
+  }
+  return playerMatchRepo;
+}
+
+export async function getPlayerMatchById(id: string) {
+  return getPlayerMatchRepo().findById(id);
+}
+
+export async function createManyPlayerMatches(data: Partial<PlayerMatchDetailsInterface>[]) {
+  return getPlayerMatchRepo().createMany(data);
+}
+
+export async function updatePlayerMatchFields(id: string, data: Partial<PlayerMatchDetailsInterface>) {
+  return getPlayerMatchRepo().update(id, data);
+}
+
+export async function deletePlayerMatchById(id: string) {
+  return getPlayerMatchRepo().delete(id);
+}
+
 /**
  * fetchAll PlayerMatchDetails
  */
@@ -94,13 +126,3 @@ export function findOneAndUpdate(
     .exec();
 }
 
-/**
- * Create many Day documents from raw PlayerMatchDetails objects
- * @param {PlayerMatchDetailsInterface} PlayerMatchDetails raw PlayerMatchDetails objects
- * @returns Array of created Document Ids :)
- */
-export function createMany(PlayerMatchDetails: PlayerMatchDetailsInterface[]) {
-  return DB.Models.PlayerMatch.insertMany(PlayerMatchDetails, {
-    ordered: true,
-  });
-}

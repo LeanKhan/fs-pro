@@ -1,10 +1,9 @@
 // Sockets...
 
 import { Request, Response, NextFunction } from 'express';
-import { Types } from 'mongoose';
 
-import { fetchOneById } from '../fixtures/fixture.service';
-import { findOne as findDay } from '../days/day.service';
+import { getFixtureById } from '../fixtures/fixture.service';
+import { findDayByFixtureId } from '../days/day.service';
 import { Fixture } from '../fixtures/fixture.model';
 import { updateFixture, updateStandings } from './functions';
 import { changeCurrentDay } from '../calendar/calendar.controller';
@@ -28,7 +27,7 @@ import {
   formationShapes,
   PLAYING_STYLES,
 } from '../../state/PersistentState/Formations';
-import { createNew as createFixture } from '../fixtures/fixture.service';
+import { createFixture } from '../fixtures/fixture.service';
 import { fetchSingleClubById } from '../clubs/club.service';
 
 interface TeamObject {
@@ -94,7 +93,7 @@ async function play(fixture_id: string) {
   // fetch fixture...
   try {
     // get fixture and its details...
-    fixture = await fetchOneById(fixture_id, false);
+    fixture = (await getFixtureById(fixture_id)) as Fixture;
     // We also need to get the associated calendar day...
   } catch (error) {
     throw error;
@@ -322,7 +321,7 @@ async function play(fixture_id: string) {
         // console.log(CurrentMatch.App.Game.MatchBall);
         // console.log(`The FieldPlayer instances ${FieldPlayer.instances}`);
 
-        CurrentMatch.match = matchFixture;
+        CurrentMatch.match = matchFixture as Fixture | undefined;
         CurrentMatch.home = homeObj;
         CurrentMatch.away = awayObj;
         CurrentMatch.HomeSideDetails = HSD;
@@ -396,10 +395,7 @@ export async function restPlayGameNew(
 
       if (simulate_rest) {
         // call siumlate sequence...
-        const matchDay = await findDay(
-          { 'Matches.Fixture': new Types.ObjectId(fixture_id) },
-          false
-        );
+        const matchDay = await findDayByFixtureId(fixture_id, { populate: false });
 
         if (!matchDay || matchDay.isFree) {
           return responseHandler.fail(
@@ -486,7 +482,7 @@ export async function restPlayGame(
 
   try {
     // get fixture and its details...
-    fixture = await fetchOneById(fixture_id, false);
+    fixture = (await getFixtureById(fixture_id)) as Fixture;
     // We also need to get the associated calendar day...
   } catch (error: any) {
     console.error('Error! Fetching Fixture to play match =>', error);
@@ -866,7 +862,7 @@ export async function restCreateFriendly(req: Request, res: Response) {
       });
     }
 
-    const { error, result } = await createFixture({
+    const result = await createFixture({
       Title: `${homeClub.Name} vs ${awayClub.Name} (Friendly)`,
       Home: homeClub.ClubCode,
       Away: awayClub.ClubCode,
@@ -878,11 +874,7 @@ export async function restCreateFriendly(req: Request, res: Response) {
       HomeTactic: homeTactic || DEFAULT_TACTIC,
       AwayTactic: awayTactic || DEFAULT_TACTIC,
       SaveStats: saveStats === true,
-    });
-
-    if (error) {
-      return responseHandler.fail(res, 400, 'Error creating friendly fixture', result);
-    }
+    } as any);
 
     return responseHandler.success(res, 200, 'Friendly fixture created successfully', {
       fixture_id: result._id,

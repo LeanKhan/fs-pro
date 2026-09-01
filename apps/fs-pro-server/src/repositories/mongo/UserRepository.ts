@@ -12,6 +12,13 @@ export class MongoUserRepository implements IUserRepository {
     return DB.Models.User.findOne({ Username: username }).lean().exec();
   }
 
+  async create(data: Partial<IUser>): Promise<IUser> {
+    // Mongoose's Model.create() calls .save() under the hood, so the
+    // pre('save') password-hashing hook still fires.
+    const user = await DB.Models.User.create(data);
+    return user.toObject();
+  }
+
   async update(id: string, data: Partial<IUser>): Promise<IUser | null> {
     const update = { ...data };
     if (update.Password) {

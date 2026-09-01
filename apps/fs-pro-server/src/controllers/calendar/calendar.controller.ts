@@ -9,7 +9,7 @@ import {
   fetchAll as fetchAllSeasons,
   findAndUpdate as updateManySeasons,
 } from '../seasons/season.service';
-import { createMany, findOne as findDay } from '../days/day.service';
+import { createManyDays, findNextPlayableDay } from '../days/day.service';
 import { Fixture } from '../fixtures/fixture.model';
 import { CalendarInterface } from './calendar.model';
 import { DayInterface, CalendarMatchInterface } from '../days/day.model';
@@ -20,11 +20,11 @@ import {
 } from '../../utils/seasons';
 import {
   fetchOne,
-  findOneAndUpdate as updateCalendar,
-  findAndUpdate as updateCalendars,
-  fetchOneById,
   createCalendar,
   updateCalendarFields,
+  getCalendarById,
+  activateCalendarYear,
+  updateCalendarByYearString,
 } from './calendar.service';
 import log from '../../helpers/logger';
 import { CompetitionInterface } from '../competitions/competition.model';
@@ -130,7 +130,7 @@ export function setupDaysInYear(
 ) {
   const fetchCalendar = () => {
     // this is the Calendar ID!
-    return fetchOneById(req.params.id);
+    return getCalendarById(req.params.id) as Promise<CalendarInterface>;
   };
 
   let _calendar: CalendarInterface;
@@ -278,7 +278,10 @@ export function setupDaysInYear(
   const saveCalendar = (calendarDays: string[]) => {
     const calendarID: string = _calendar._id as string;
 
-    updateCalendar({ _id: calendarID }, { Days: calendarDays })
+    // Days doesn't exist on Postgres - each Day already carries its own
+    // Calendar FK, set above in createDays - see ICalendarRepository's
+    // doc comment. Harmless no-op there, real array write on Mongo.
+    updateCalendarFields(calendarID, { Days: calendarDays } as any)
       .then((cal: any) => {
         log('Calendar Updated successfully!');
         // this can just go next tho :)
@@ -304,7 +307,7 @@ export function setupDaysInYear(
   // Here create the Calendar Days in the db...
   fetchCalendar()
     .then(createDays)
-    .then(createMany)
+    .then(createManyDays)
     .then((days: any) => {
       // get ids...
       log('Days created successfully!');
@@ -325,7 +328,7 @@ export function setupDaysInYear2(
 ) {
   const fetchCalendar = () => {
     // this is the Calendar ID!
-    return fetchOneById(req.params.id);
+    return getCalendarById(req.params.id) as Promise<CalendarInterface>;
   };
 
   const DAYS_IN_YEAR = 365;
@@ -505,7 +508,9 @@ export function setupDaysInYear2(
   const saveCalendar = (calendarDays: string[]) => {
     const calendarID: string = _calendar._id as string;
 
-    updateCalendar({ _id: calendarID }, { Days: calendarDays })
+    // Days doesn't exist on Postgres - see the equivalent comment in
+    // setupDaysInYear's saveCalendar above.
+    updateCalendarFields(calendarID, { Days: calendarDays } as any)
       .then((cal: any) => {
         log('Calendar Updated successfully: Days added!');
         // this can just go next tho :)
@@ -532,7 +537,7 @@ export function setupDaysInYear2(
   fetchCalendar()
     .then(createDays)
     .then(arrangeFixturesInDays)
-    .then(createMany)
+    .then(createManyDays)
     .then((days: any) => {
       // get ids...
       log('Days created successfully!');
@@ -565,31 +570,18 @@ export async function changeCurrentDay(year: string, currentDay: DayInterface) {
   // matches should be played in sequence
   // Added in JUl-11-21: Also, a day that actually has matches shey?
   const getNextDay = async () => {
-    const query = {
-      $nor: [{ 'Matches.Played': true }],
-      Year: year,
-      isFree: false,
-      Day: { $gt: currentDay.Day },
-    };
-
-    return findDay(query, false);
+    return findNextPlayableDay(year, currentDay.Day as number);
   };
 
-  function updateCurrentDay(nextfreeday: DayInterface) {
+  function updateCurrentDay(nextfreeday: DayInterface | null) {
     // if this doesn't return a calendar, doesn't that mean all games have been played in all days?
 
     if (nextfreeday == null) {
       // If there is no nextFreeDay (last playable match of the Year), so maybe just keep the Calendat CurrentDay
-      return updateCalendar(
-        { YearString: year },
-        { CurrentDay: currentDay.Day }
-      );
+      return updateCalendarByYearString(year, { CurrentDay: currentDay.Day });
     }
 
-    return updateCalendar(
-      { YearString: year },
-      { CurrentDay: nextfreeday.Day }
-    );
+    return updateCalendarByYearString(year, { CurrentDay: nextfreeday.Day });
   }
 
   return getNextDay().then(updateCurrentDay);
@@ -629,9 +621,7 @@ export function startYear(req: Request, res: Response) {
     }
     // Set the rest to false and this one to true...
     // There should be only ONE active calendar at a time.
-    return updateCalendars({}, [
-      { $set: { isActive: { $eq: ['$YearString', year] }, CurrentDay: 0 } },
-    ]);
+    return activateCalendarYear(year);
   };
 
   fetchSeasons()
@@ -707,7 +697,11 @@ function getSkip(page: number, length: number) {
 export async function endYear(req: Request, res: Response, next: NextFunction) {
   const id = req.params.id;
 
-  const currentCalendar = await fetchOneById(id);
+  const currentCalendar = await getCalendarById(id);
+
+  if (!currentCalendar) {
+    return respond.fail(res, 404, 'Calendar not found!');
+  }
 
   if (!currentCalendar.isActive && currentCalendar.isEnded) {
     // Calendar must already be ended.

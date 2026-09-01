@@ -2,6 +2,7 @@ import { ManagerInterface } from '../controllers/managers/manager.model';
 
 export interface IManagerFilter {
   isEmployed?: boolean;
+  Club?: string;
 }
 
 export interface IManagerReadOptions {

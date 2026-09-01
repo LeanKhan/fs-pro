@@ -4,7 +4,7 @@
 
 import { Router } from 'express';
 import {
-  createNewUser,
+  createUser,
   getUserById,
   getUserByUsername,
   updateUserFields,
@@ -37,27 +37,27 @@ const router = Router();
  *   }
  * }
  *
- * Registration is Club-coupled (a new user's id is written straight into
- * Mongo's Club.User) and stays fully on the raw Mongo path - see the User
- * conversion plan / FUTURE-PLANS.md for why.
+ * Registration chains into `updateClubs` (Club-coupled - a new user's id
+ * is written into the club's `User` FK), which is fully repository-backed
+ * now, so `createUser` is too - `req.body.clubs` reads whatever `Clubs`
+ * comes back from the repository, `undefined` on Postgres (the array
+ * doesn't exist there) same as a fresh Mongo user's always-empty one; a
+ * registration payload never actually includes `Clubs` (see the shape
+ * above), so `updateClubs`'s `Promise.all([])` is a no-op either way.
  */
 router.post(
   '/join',
   async (req, res, next) => {
-    const response = await createNewUser(req.body.data);
-
-    if (!response.error) {
-      req.body.userID = response.result._doc._id;
-      req.body.clubs = response.result._doc.Clubs;
-
+    try {
+      const user: any = await createUser(req.body.data);
+      req.body.userID = user._id;
+      req.body.clubs = user.Clubs ?? [];
       next();
-
-      // respond.success(res, 200, 'User created successfully', response.result);
-    } else {
-      if (response.result.code === 11000) {
-        respond.fail(res, 400, 'Username already exists!', response.result);
+    } catch (error: any) {
+      if (error.code === 11000 || error?.cause?.code === '23505') {
+        respond.fail(res, 400, 'Username already exists!', error);
       } else {
-        respond.fail(res, 400, 'Error creating user', response.result);
+        respond.fail(res, 400, 'Error creating user', error);
       }
     }
   },

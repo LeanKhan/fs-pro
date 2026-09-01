@@ -2,8 +2,8 @@
 import { Request, Response, NextFunction } from 'express';
 import respond from '../helpers/responseHandler';
 import {
-  createNew,
-  findByIdAndUpdate,
+  createSeasonRecord,
+  updateSeasonFields,
 } from '../controllers/seasons/season.service';
 import {
   addSeason,
@@ -17,7 +17,7 @@ import {
   RoundRobin,
   fixtureInterface,
 } from '../utils/seasons';
-import { fetchOne } from '../controllers/calendar/calendar.service';
+import { getCalendarByYearString } from '../controllers/calendar/calendar.service';
 import { CalendarInterface } from '../controllers/calendar/calendar.model';
 import { incrementCounter } from '../utils/counter';
 import log from '../helpers/logger';
@@ -42,7 +42,7 @@ export async function create(
   log(year);
 
   const findCalendar = () => {
-    return fetchOne({ YearString: year });
+    return getCalendarByYearString(year);
   };
 
   const newSeason = (cal: CalendarInterface) => {
@@ -62,7 +62,7 @@ export async function create(
       )}`,
     };
 
-    return createNew(data).catch((err: any) => {
+    return createSeasonRecord(data).catch((err: any) => {
       throw err;
     });
   };
@@ -71,8 +71,11 @@ export async function create(
   let season_code: string;
 
   const addSeasonToComp = (season: any) => {
-    season_id = season._doc._id;
-    season_code = season._doc.SeasonCode;
+    // createSeasonRecord (repository-backed, both backends) always returns
+    // a plain object - no `._doc` (that was Mongoose Document-specific,
+    // left over from when this called the raw `.save()`).
+    season_id = season._id;
+    season_code = season.SeasonCode;
 
     return addSeason(competitionID, season_id);
   };
@@ -132,7 +135,12 @@ export async function create(
   };
 
   const saveFixtures = (fixtureIds: string[]) => {
-    return findByIdAndUpdate(season_id, { Fixtures: fixtureIds });
+    // Fixtures doesn't exist on Postgres (dropped in favor of the reverse
+    // fixtures.Season FK, already set on each fixture at creation time via
+    // generateFixtureObject's `Season: data.seasonId` - see
+    // FUTURE-PLANS.md) - updateSeasonFields silently ignores the unknown
+    // key there, and still writes the real array field on Mongo.
+    return updateSeasonFields(season_id, { Fixtures: fixtureIds } as any);
   };
 
   // TODO: Make standings separate collection
@@ -160,7 +168,7 @@ export async function create(
     /**
      * This is the Updated Season!
      */
-    return findByIdAndUpdate(season_id, { Standings: weeks });
+    return updateSeasonFields(season_id, { Standings: weeks });
   };
 
   return findCalendar()
@@ -197,7 +205,7 @@ export function createSeason(req: Request, res: Response, next: NextFunction) {
   log(year);
 
   const findCalendar = () => {
-    return fetchOne({ YearString: year });
+    return getCalendarByYearString(year);
   };
 
   // Add the Calendar's id to season...
@@ -217,7 +225,7 @@ export function createSeason(req: Request, res: Response, next: NextFunction) {
     req.body.data.SeasonCode = seasonCode;
     req.body.data.Calendar = cal._id;
     req.body.data.Year = cal.YearString;
-    return createNew(req.body.data).catch((err: any) => {
+    return createSeasonRecord(req.body.data).catch((err: any) => {
       throw err;
     });
   };
@@ -226,7 +234,10 @@ export function createSeason(req: Request, res: Response, next: NextFunction) {
     .then(newSeason)
     .then((season: any) => {
       void incrementCounter('season_counter');
-      req.body.seasonMongoID = season._doc._id;
+      // createSeasonRecord (repository-backed, both backends) always
+      // returns a plain object - no `._doc` (Mongoose-Document-specific,
+      // left over from the raw `.save()` this used to call).
+      req.body.seasonMongoID = season._id;
       return next();
     })
     .catch((error) => {
@@ -381,7 +392,7 @@ export function setInitialStandings(
     weeks.push(week);
   }
 
-  findByIdAndUpdate(seasonId, { Standings: weeks })
+  updateSeasonFields(seasonId, { Standings: weeks })
     .then((season: any) => {
       next();
     })

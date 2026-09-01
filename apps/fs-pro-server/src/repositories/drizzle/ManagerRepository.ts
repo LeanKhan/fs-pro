@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { ManagerInterface } from '../../controllers/managers/manager.model';
 import * as schema from '../../db/drizzle/full-schema';
@@ -57,8 +57,12 @@ export class DrizzleManagerRepository implements IManagerRepository {
   }
 
   async findAll(filter: IManagerFilter = {}, options: IManagerReadOptions = {}): Promise<ManagerInterface[]> {
+    const conditions = [];
+    if (filter.isEmployed !== undefined) conditions.push(eq(managers.isEmployed, filter.isEmployed));
+    if (filter.Club !== undefined) conditions.push(eq(managers.Club, filter.Club));
+
     const rows = await this.db.query.managers.findMany({
-      where: filter.isEmployed !== undefined ? eq(managers.isEmployed, filter.isEmployed) : undefined,
+      where: conditions.length ? and(...conditions) : undefined,
       with: { nationality: true, ...(options.withClub ? { club: true } : {}) },
     });
     return rows.map(toManager);

@@ -5,11 +5,9 @@ import { allPlayerStats } from '../players/player.service';
 import { Fixture } from '../fixtures/fixture.model';
 import { PlayerInterface } from '../players/player.model';
 import responseHandler from '../../helpers/responseHandler';
-import {capitalize} from '../../helpers/misc';
 import { AwardInterface } from './awards.model';
 import { createAwards } from '.';
-import { fetchOne } from '../managers/manager.service';
-import { Types } from 'mongoose';
+import { getManagers } from '../managers/manager.service';
 
 export async function giveAwards(req: Request, res: Response) {
   const season_id = req.params.id;
@@ -62,9 +60,9 @@ export async function giveAwards(req: Request, res: Response) {
 
     // create object for Winning Manager...
 
-    const winningManager = await fetchOne({
+    const [winningManager] = await getManagers({
       isEmployed: true,
-      Club: new Types.ObjectId(req.body.seasonChampions),
+      Club: req.body.seasonChampions,
     });
 
     if (winningManager) {

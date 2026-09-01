@@ -64,7 +64,11 @@ export function fetchAll(
   }
 
   if(sort) {
-      return DB.Models.Season.find(query).sort(sort).lean().exec();
+      // Mongoose's .sort() wants { [fieldName]: 1 | -1 }, not { field, dir }
+      // - passing the latter directly throws "Invalid sort value" (every
+      // caller of this function passes the { field, dir } shape, so this
+      // branch was never actually reachable without crashing before).
+      return DB.Models.Season.find(query).sort({ [sort.field]: sort.dir }).lean().exec();
   }
 
   return DB.Models.Season.find(query).lean().exec();
@@ -164,16 +168,6 @@ export function findOneAndUpdate(
  */
 export function findAndUpdate(query: Record<string, unknown>, update: any) {
   return DB.Models.Season.updateMany(query, update).lean().exec();
-}
-
-/**
- * create new season
- */
-
-export function createNew(data: any) {
-  const SEASON = new DB.Models.Season(data);
-
-  return SEASON.save();
 }
 
 export function deleteById(id: string) {

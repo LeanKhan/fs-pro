@@ -1,3 +1,4 @@
+import DB from '../../db';
 import {
   IMatchDetails,
   IMatchEvent,
@@ -5,14 +6,13 @@ import {
 } from '../../classes/Match';
 import { ClubStandings } from '../seasons/season.model';
 import { findOneAndUpdate as updateSeason } from '../seasons/season.service';
-import { findOneAndUpdate } from '../fixtures/fixture.service';
-import { findOneAndUpdate as updateDay, findOne } from '../days/day.service';
-import { Types } from 'mongoose';
+import { updateFixtureFields } from '../fixtures/fixture.service';
+import { markMatchPlayed } from '../days/day.service';
 import { CalendarMatchInterface, DayInterface } from '../days/day.model';
 import log from '../../helpers/logger';
-import { createMany as insertManyPlayerMatchStats } from '../player-match/player-match.service';
+import { createManyPlayerMatches } from '../player-match/player-match.service';
 import { PlayerMatchDetailsInterface } from '../player-match/player-match.model';
-import { createNew } from '../club-match/club-match.service';
+import { createClubMatch, updateClubMatchFields } from '../club-match/club-match.service';
 
 interface Team {
   id: string;
@@ -63,17 +63,34 @@ export async function updateFixture(
   //  Find that particular fixture that has not been played of course...
 
   const savePlayerAndClubStats = async (club: IMatchSideDetails) => {
+    // ClubMatchDetails is created first (with an empty PlayerStats) so each
+    // PlayerMatchDetails row can set its own ClubMatchDetails FK back to it
+    // - the reverse FK Postgres uses instead of a PlayerStats array (that
+    // array doesn't exist on Postgres at all). This is the opposite order
+    // from before (PlayerMatchDetails used to be created first, purely to
+    // get ids for Mongo's array) - harmless reorder on Mongo, since nothing
+    // there depends on which side gets created first.
+    const clubMatch: any = await createClubMatch({ ...club, Fixture: fixture_id, PlayerStats: [] } as any);
+    const clubMatchId = clubMatch._id;
+
     if (saveStats) {
       club.PlayerStats = club.PlayerStats.map((p: any) => ({
         ...p,
         Fixture: fixture_id,
+        ClubMatchDetails: clubMatchId,
       }));
 
-      const res = await insertManyPlayerMatchStats(
+      const res = await createManyPlayerMatches(
         club.PlayerStats as PlayerMatchDetailsInterface[]
       );
       // res is the ids...
       club.PlayerStats = res.map((r: any) => r._id) as string[];
+
+      if (DB.ormType !== 'drizzle') {
+        // Mongo still needs the real PlayerStats array write - Postgres
+        // derives it via the reverse FK set above.
+        await updateClubMatchFields(clubMatchId, { PlayerStats: club.PlayerStats } as any);
+      }
     } else {
       // Not counting this match toward permanent player stats history -
       // skip the PlayerMatch inserts entirely. The club's box score (goals,
@@ -82,9 +99,7 @@ export async function updateFixture(
       club.PlayerStats = [];
     }
 
-    // then we save this one too lol and
-
-    return (await createNew({ ...club, Fixture: fixture_id })).result._doc._id;
+    return clubMatchId;
   };
 
   const [homeMatchDetailsID, awayMatchDetailsID] = await Promise.all([
@@ -93,19 +108,16 @@ export async function updateFixture(
   ]);
 
   return {
-    fixture: await findOneAndUpdate(
-      { _id: fixture_id },
-      {
-        Played: true,
-        PlayedAt: new Date(),
-        Details: matchDetails,
-        Events,
-        HomeSideDetails: homeMatchDetailsID,
-        AwaySideDetails: awayMatchDetailsID,
-        HomeManager: home.manager,
-        AwayManager: away.manager,
-      }
-    ),
+    fixture: await updateFixtureFields(fixture_id, {
+      Played: true,
+      PlayedAt: new Date(),
+      Details: matchDetails,
+      Events,
+      HomeSideDetails: homeMatchDetailsID,
+      AwaySideDetails: awayMatchDetailsID,
+      HomeManager: home.manager,
+      AwayManager: away.manager,
+    } as any),
     HSD,
     ASD,
   };
@@ -187,8 +199,6 @@ export function updateStandings(
     awayTable.Losses = 0;
   }
 
-  const query = { 'Matches.Fixture': new Types.ObjectId(fixture_id) };
-
   let currentDay: DayInterface;
 
   // TODO: handle cases where there's no match that day
@@ -200,12 +210,8 @@ export function updateStandings(
    *
    */
   const getWeekAndUpdateMatch = async () => {
-    return updateDay(query, { $set: { 'Matches.$.Played': true } })
-      .then((day) => {
-        if (!day) {
-          throw new Error(`Match Day does not exist!`);
-        }
-
+    return markMatchPlayed(fixture_id)
+      .then((day: DayInterface) => {
         currentDay = day;
 
         // Then find the array position...

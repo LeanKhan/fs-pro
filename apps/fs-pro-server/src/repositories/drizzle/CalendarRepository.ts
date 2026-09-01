@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { CalendarInterface } from '../../controllers/calendar/calendar.model';
 import * as schema from '../../db/drizzle/full-schema';
@@ -27,8 +27,12 @@ export class DrizzleCalendarRepository implements ICalendarRepository {
   }
 
   async findAll(filter: ICalendarFilter = {}): Promise<CalendarInterface[]> {
+    const conditions = [];
+    if (filter.isActive !== undefined) conditions.push(eq(calendars.isActive, filter.isActive));
+    if (filter.YearString !== undefined) conditions.push(eq(calendars.YearString, filter.YearString));
+
     const rows = await this.db.query.calendars.findMany({
-      where: filter.isActive !== undefined ? eq(calendars.isActive, filter.isActive) : undefined,
+      where: conditions.length ? and(...conditions) : undefined,
     });
     return rows.map(toCalendar);
   }
@@ -58,5 +62,13 @@ export class DrizzleCalendarRepository implements ICalendarRepository {
       throw new Error(`Calendar [${id}] does not exist`);
     }
     return toCalendar(calendar);
+  }
+
+  async activateYear(yearString: string): Promise<void> {
+    await this.db.update(calendars).set({ isActive: false, CurrentDay: 0, updatedAt: new Date() });
+    await this.db
+      .update(calendars)
+      .set({ isActive: true, updatedAt: new Date() })
+      .where(eq(calendars.YearString, yearString));
   }
 }
