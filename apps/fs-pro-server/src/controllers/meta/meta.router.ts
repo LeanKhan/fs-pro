@@ -34,7 +34,12 @@ const VALID_BACKENDS: BackendChoice[] = ['mongo', 'drizzle', 'prisma'];
  * repository now, including the delete itself (`IManagerRepository.delete`)
  * - closed a real gap where deleting a Postgres-native manager under
  * `backend=drizzle` used to fail after already clearing the club's Manager
- * field.
+ * field. End-of-year age progression (`incrementAllManagersAge`) is
+ * converted too - a single SQL `Age = Age + 1`, since it's unconditional
+ * with no per-row value. The one remaining raw read (`fetchOne`, used by
+ * `awards.controller.ts` to find a club's current manager by
+ * `{ isEmployed, Club }`) stays raw - that's Award's territory, not
+ * Manager's, and Award isn't converted yet.
  *
  * 'Club (partial)': fetch-by-id (no populate)/create/update (plain
  * fields)/delete go through the repository, as does every Manager
@@ -47,13 +52,16 @@ const VALID_BACKENDS: BackendChoice[] = ['mongo', 'drizzle', 'prisma'];
  * `$lookup`/`$group` aggregate). `/clubs/fetch`'s arbitrary Mongo query
  * object and the CSV bulk import stay raw.
  *
- * 'Competition (partial)': fetch-by-id (populate=false only)/create/update
- * (plain fields)/delete go through the repository. The default
- * populate=true (Clubs/Seasons) and the Club/Season membership routes
- * (add-club, add-season) stay raw - `Competition.Clubs` maps to two
- * different mechanisms on Postgres depending on competition type (a club's
- * `League` FK, or the `competitionClubs` join table for cups/tournaments),
- * which needs real branching logic, not a mechanical conversion.
+ * 'Competition (partial)': fetch-by-id (both populate=true and false)/
+ * create/update (plain fields)/delete all go through the repository now.
+ * `populate=true` composes two reverse lookups (`Clubs.League`,
+ * `Seasons.Competition`) instead of a single populated read -
+ * `Competition.Clubs`/`Seasons` don't exist on Postgres. `add-club` writes
+ * `Club.League`/`LeagueCode` directly (the live code never actually used
+ * the `competitionClubs` join table - that's unused infrastructure for a
+ * cup/tournament-membership feature nothing exercises yet); `add-season`
+ * is a no-op under this backend, since `Seasons.Competition` is already
+ * set at season-creation time. `GET /all`'s arbitrary query stays raw.
  *
  * 'Calendar (partial)': fetch-by-id/fetch-all/create/update (plain
  * fields)/delete go through the repository (used by `POST /calendar/new`

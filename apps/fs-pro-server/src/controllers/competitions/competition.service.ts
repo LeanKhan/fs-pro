@@ -2,6 +2,8 @@ import DB from '../../db';
 import { CompetitionInterface, CompetitionModel } from './competition.model';
 import { CompetitionRepositoryFactory } from '../../repositories/CompetitionRepositoryFactory';
 import { ICompetitionFilter } from '../../repositories/CompetitionRepository';
+import { getClubs } from '../clubs/club.service';
+import { getSeasons } from '../seasons/season.service';
 
 /**
  * Repository-backed functions below are for the identity/CRUD surface that
@@ -40,6 +42,27 @@ export async function deleteCompetitionById(id: string) {
 }
 
 /**
+ * Repository-backed equivalent of the raw `fetchOneById(id, true)`'s
+ * default populate - `Competition.Clubs`/`Competition.Seasons` don't exist
+ * on Postgres (dropped in favor of the reverse `Clubs.League` FK and
+ * `Seasons.Competition` FK respectively - see `addClubToCompetition`'s doc
+ * comment for why `Clubs.League`, not the `competitionClubs` join table),
+ * so this composes the two reverse lookups instead of a single populated
+ * read.
+ */
+export async function getCompetitionWithClubsAndSeasons(id: string) {
+  const [competition, clubs, seasons] = await Promise.all([
+    getCompetitionById(id),
+    getClubs({ League: id }),
+    getSeasons({ Competition: id }),
+  ]);
+
+  if (!competition) return null;
+
+  return { ...competition, Clubs: clubs, Seasons: seasons };
+}
+
+/**
  * fetchAll Competitions
  */
 export function fetchAll(query = {}, select = '') {
@@ -56,25 +79,6 @@ export function fetchAll(query = {}, select = '') {
  */
 export function findOne(query: Record<string, any>) {
   return DB.Models.Competition.findOne(query).lean().exec();
-}
-
-/**
- * FetchOneById
- *
- * Fetch a specific competition by its id
- * @param {string} id
- */
-export function fetchOneById(id: string, populate = true) {
-
-  if(populate){
-  return DB.Models.Competition.findById(id)
-    .populate('Clubs')
-    .populate('Seasons')
-    .lean();
-  }
-
-  return DB.Models.Competition.findById(id)
-    .lean();
 }
 
 export function fetchCompetition(id: string, select = '-Seasons') {
