@@ -1,6 +1,9 @@
 {
   "$schema": "https://turborepo.com/schema.json",
-  "globalDependencies": ["**/.env.*local", ".env"],
+  "globalDependencies": [
+    "**/.env.*local",
+    ".env"
+  ],
   "globalEnv": [
     "VITE_APP_API_BASE_URL",
     "DEV_MONGO_URL",
@@ -11,7 +14,9 @@
   ],
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "inputs": [
         ".env.production.local",
         ".env.production",
@@ -19,21 +24,17 @@
         ".env"
       ]
     },
-    "lint": {
-      "inputs": [
-        ".env.development.local",
-        ".env.development",
-        ".env.local",
-        ".env"
-      ],
-      "dependsOn": ["^lint"]
-    },
     "dev": {
       "cache": false,
       "persistent": true
     },
     "test": {
-      "inputs": [".env.test.local", ".env.test", ".env.local", ".env"]
+      "inputs": [
+        ".env.test.local",
+        ".env.test",
+        ".env.local",
+        ".env"
+      ]
     }
   }
 }
