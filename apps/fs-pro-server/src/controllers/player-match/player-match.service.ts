@@ -1,13 +1,6 @@
-import DB from '../../db';
 import { PlayerMatchDetailsInterface } from './player-match.model';
 import { PlayerMatchRepositoryFactory } from '../../repositories/PlayerMatchRepositoryFactory';
-// import { PlayerMatchDetailsInterface } from './day.model';
 
-/**
- * Repository-backed - the only real call site is `game/functions.ts`'s
- * `savePlayerAndClubStats` (via `createManyPlayerMatches`). Every other
- * function below is dead code (no remaining callers), left as-is.
- */
 let playerMatchRepo: ReturnType<typeof PlayerMatchRepositoryFactory.create> | null = null;
 
 function getPlayerMatchRepo() {
@@ -33,96 +26,4 @@ export async function deletePlayerMatchById(id: string) {
   return getPlayerMatchRepo().delete(id);
 }
 
-/**
- * fetchAll PlayerMatchDetails
- */
-export function fetchAll(query: Record<string, unknown> = {}) {
-  return DB.Models.PlayerMatch.find(query).lean().exec();
-}
-
-/**
- * fetch many PlayerMatchDetails
- * @param query
- */
-export function fetchMany(
-  query: Record<string, unknown> = {},
-  populate: string
-) {
-  if (populate)
-    return DB.Models.PlayerMatch.find(query).populate(populate).lean().exec();
-
-  return DB.Models.PlayerMatch.find(query).lean().exec();
-}
-
-/**
- * Fetch One By Id
- *
- * Fetch a specific day by its id
- * @param id
- */
-export function fetchOneById(
-  id: string,
-  populate: string | Record<string, unknown> | boolean = 'PlayerStats'
-): Promise<PlayerMatchDetailsInterface> {
-  if (populate)
-    return DB.Models.PlayerMatch.findById(id).populate(populate).lean().exec();
-
-  return DB.Models.PlayerMatch.findById(id).lean().exec();
-}
-
-/**
- * Find a One Day By any condition...
- *
- *
- * @param query the condition e.g Matche.length == 0
- */
-export function findOne(
-  query: any,
-  populate: string | Record<string, unknown> | boolean = 'PlayerStats'
-): Promise<PlayerMatchDetailsInterface> {
-  if (populate)
-    return DB.Models.PlayerMatch.findOne(query)
-      .populate(populate)
-      .lean()
-      .exec();
-
-  return DB.Models.PlayerMatch.findOne(query).lean().exec();
-}
-
-/**
- * create new day
- * @param data
- */
-export function createNew(data: any) {
-  const $PlayerMatchDetails = new DB.Models.PlayerMatch(data);
-
-  return $PlayerMatchDetails
-    .save()
-    .then((p: any) => {
-      return { error: false, result: p };
-    })
-    .catch((error: any) => ({ error: true, result: error }));
-}
-
-/**
- * Delete a Day by its id
- * @param id
- */
-export function deleteById(id: string) {
-  return DB.Models.PlayerMatch.findByIdAndDelete(id).lean().exec();
-}
-
-/**
- * Find one Day and update
- * @param {} query
- * @param update
- */
-export function findOneAndUpdate(
-  query: Record<string, unknown>,
-  update: any
-): Promise<PlayerMatchDetailsInterface> {
-  return DB.Models.PlayerMatch.findOneAndUpdate(query, update, { new: true })
-    .lean()
-    .exec();
-}
 

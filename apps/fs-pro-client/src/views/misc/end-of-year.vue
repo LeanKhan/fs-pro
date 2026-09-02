@@ -1,9 +1,9 @@
 <template>
   <div id="end-of-year">
-    <v-card v-if="calendar">
+    <v-card>
       <v-card-text class="justify-center text-center">
-        <v-card-title>End Year {{ calendar.YearString }} !</v-card-title>
-        <p v-if="!calendar.isEnded && !ended">
+        <v-card-title>End Year {{ year }} !</v-card-title>
+        <p v-if="!ended">
           <v-btn
             color="accent"
             :loading="loading"
@@ -15,8 +15,7 @@
         </p>
 
         <p v-else>
-          {{ calendar.YearString }} ended successfully! Admin will start a new
-          year soon :)
+          {{ year }} ended successfully! Admin will start a new year soon :)
 
           <v-btn block color="success" @click="$router.push('/u')">
             Continue
@@ -33,18 +32,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { ref } from 'vue';
+import { useRoute } from 'vue-router';
 import { useStore } from '@/store';
 import { $axios } from '@/services/api';
 
 const route = useRoute();
-const router = useRouter();
 const store = useStore();
 
 const loading = ref(false);
 const ended = ref(false);
-const calendar = ref<any>({});
+const year = route.params.year as string;
 
 function endYear() {
   const ans = confirm('Are you sure you want to end this Year?');
@@ -52,37 +50,19 @@ function endYear() {
 
   loading.value = true;
   $axios
-    .post(`/calendar/${route.params.calendar_id}/end`)
+    .post(`/calendar/end-season/${year}`)
     .then((response) => {
       if (response.data.success) {
-        console.log(response.data);
-        calendar.value = response.data.payload;
         ended.value = true;
-        // Set new current Calendar! This should return null...
         store.setCalendar();
+        store.setSeasons();
       }
     })
     .catch((error) => {
-      console.log('Error ending Calendar => ', error);
-      calendar.value = error;
+      console.log('Error ending Year => ', error);
     })
     .finally(() => {
       loading.value = false;
     });
 }
-
-onMounted(() => {
-  loading.value = true;
-  $axios
-    .get('/calendar/current')
-    .then((response) => {
-      calendar.value = response.data.payload;
-    })
-    .catch((err) => {
-      console.log('Error fetching current Calendar => ', err);
-    })
-    .finally(() => {
-      loading.value = false;
-    });
-});
 </script>

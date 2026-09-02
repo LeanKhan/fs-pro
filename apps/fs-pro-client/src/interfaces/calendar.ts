@@ -1,34 +1,19 @@
 import { IFixture } from './fixture';
-export interface ICalendarMatch {
-  Fixture: IFixture;
-  MatchType: string;
-  Time: string;
-  Competition: string;
-  Played: boolean;
-  Week: number;
-}
 
-export interface IDay {
-  Matches: ICalendarMatch[];
-  isFree: boolean;
-  Day?: number;
-  Year: string;
-  Calendar: string;
-}
-
+/** The one perpetual Calendar - a game-world clock, independent of the
+ * real-world date. `CurrentDate` is the in-game date, not "today". */
 export interface ICalendar {
   _id?: string;
-  Name: string;
-  /** Like JUN-2020 */
-  YearString: string;
-  /** Like 06-2020 */
-  YearDigits: string;
-  /** The present day of the year */
-  CurrentDay?: number;
-  /** If the Calendar is the active one */
-  isActive: boolean;
-  /** Array of the ids of Days */
-  Days: string[];
+  CurrentDay: number;
+  CurrentDate: string;
+}
 
-  allSeasonsCompleted?: any;
+/** Client-side grouping of Fixtures scheduled on the same absolute day -
+ * built by grouping the flat `GET /fixtures?scheduledDayFrom=&scheduledDayTo=`
+ * response, since Fixtures own their own schedule now (no more `Day.Matches`
+ * array from the server). */
+export interface IDayGroup {
+  Day: number;
+  isFree: boolean;
+  Matches: IFixture[];
 }

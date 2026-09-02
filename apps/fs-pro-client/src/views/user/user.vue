@@ -14,6 +14,7 @@ const store = useStore();
 
 onMounted(async () => {
   await store.setCalendar();
+  await store.setSeasons();
   await store.setUserClubs();
 });
 </script>

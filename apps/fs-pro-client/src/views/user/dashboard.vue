@@ -6,7 +6,7 @@
         v-if="calendar"
         class="text-subtitle-1 font-weight-bold text-indigo"
       >
-        Day {{ calendar.CurrentDay }} - Year {{ calendar.YearString }}
+        Day {{ calendar.CurrentDay }} - {{ formattedGameDate }}
       </v-toolbar-title>
 
       <v-spacer></v-spacer>
@@ -28,14 +28,6 @@
             {{ league.Name }}
           </option>
         </select>
-
-        <v-btn
-          color="warning"
-          v-if="calendar && calendar.allSeasonsCompleted"
-          @click="endYear"
-        >
-          END YEAR
-        </v-btn>
       </v-toolbar-items>
     </v-toolbar>
 
@@ -165,6 +157,8 @@ import StandingsScroller from '@/components/seasons/standings-scroller.vue';
 import FixtureCard from '@/components/user-dashboard/fixture-card.vue';
 import DayFixturesList from '@/components/user-dashboard/day-fixtures-list.vue';
 import { $axios } from '@/services/api';
+import { groupFixturesByDay } from '@/helpers/calendar';
+import { IFixture } from '@/interfaces/fixture';
 
 const router = useRouter();
 const store = useStore();
@@ -178,21 +172,23 @@ const seasonTab = ref<any>(null);
 const leagues = ref<any>([]);
 const selectedLeagueId = ref('');
 const selectedLeague = ref<any>({});
-const selectedMatch = ref<any>('');
+const selectedMatch = ref<IFixture | null>(null);
 const days = ref<any>([]);
 const seasons = ref<any>([]);
 
 const calendar = computed(() => store.calendar);
 const currentDay = computed(() => store.calendar?.CurrentDay);
 const lobby = computed(() => store.lobby);
-const yearString = computed(() => store.calendar?.YearString);
+const formattedGameDate = computed(() =>
+  calendar.value?.CurrentDate ? new Date(calendar.value.CurrentDate).toDateString() : ''
+);
 
 const selectedDay = computed(() => days.value[selectedDayIndex.value]);
 
 watch(
   currentDay,
   () => {
-    if (currentDay.value) getDays();
+    if (currentDay.value !== undefined) getDays();
   },
   { immediate: true }
 );
@@ -203,52 +199,49 @@ watch(lobby, (toLobby) => {
   }
 });
 
-function endYear() {
-  router.push(`/finish/year/${calendar.value?._id}`);
-}
-
 function changeSelectedLeague(league_id: string) {
   if (league_id) {
-    store.setSelectedLeague(league_id);
+    // day.vue matches fixtures by LeagueCode (the only league identifier a
+    // bare Fixture carries), so the store keeps the code, not the id.
+    const league = leagues.value.find((l: any) => l._id === league_id);
+    store.setSelectedLeague(league?.CompetitionCode ?? '');
     getLeagues(league_id);
     fetchCurrentSeason();
   }
 }
 
-function matchSelected(match: any) {
-  selectedLeagueId.value = match.CompetitionId;
-  changeSelectedLeague(match.CompetitionId);
+function matchSelected(match: IFixture) {
+  const league = leagues.value.find(
+    (l: any) => l.CompetitionCode === match.LeagueCode
+  );
+  if (league) {
+    selectedLeagueId.value = league._id;
+    changeSelectedLeague(league._id);
+  }
   selectedMatch.value = match;
 }
 
 async function getDays() {
-  const limit = 7;
-  const week =
-    calendar.value?.CurrentDay === 0
-      ? 1
-      : Math.ceil((calendar.value?.CurrentDay || 0) / limit);
+  const from = currentDay.value ?? 0;
+  const to = from + 13;
 
   try {
     const response = await $axios.get(
-      `/calendar/${yearString.value}/days?paginate=true&populate=true&limit=${limit}&week=${week}&not_played=true`
+      `/fixtures?scheduledDayFrom=${from}&scheduledDayTo=${to}`
     );
-    days.value = response.data.payload;
+    days.value = groupFixturesByDay(response.data.payload as IFixture[]);
   } catch (error) {
-    console.error('Error getting days of Calendar Year:', error);
+    console.error('Error getting upcoming fixtures:', error);
   }
 }
 
 async function getLeagues(league_id?: string) {
   try {
     if (league_id) {
-      const query = JSON.stringify({ _id: league_id });
-      const response = await $axios.get(`/competitions/all?query=${query}`);
+      const response = await $axios.get(`/competitions/all?id=${league_id}`);
       selectedLeague.value = response.data.payload[0];
     } else {
-      const query = JSON.stringify({ Type: 'league' });
-      const response = await $axios.get(
-        `/competitions/all?select=Name+Type+CompetitionCode&query=${query}`
-      );
+      const response = await $axios.get('/competitions/all?type=league');
       leagues.value = response.data.payload;
     }
   } catch (error) {
@@ -257,13 +250,10 @@ async function getLeagues(league_id?: string) {
 }
 
 async function fetchCurrentSeason() {
-  if (calendar.value?.YearString) {
+  if (selectedLeagueId.value) {
     try {
       const response = await $axios.get(
-        `/seasons?query=${JSON.stringify({
-          Year: calendar.value.YearString,
-          Competition: selectedLeagueId.value,
-        })}`
+        `/seasons?competition=${selectedLeagueId.value}&current=true`
       );
       if (response.data.success) {
         seasons.value = response.data.payload;

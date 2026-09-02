@@ -1,10 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-import log from '../../helpers/logger';
-import DB from '../../db';
 import { PlayerInterface } from '../../interfaces/Player';
 import { calculatePlayerValue } from '../../utils/players';
 import { PlayerMatchDetailsInterface } from '../player-match/player-match.model';
-import { Types } from 'mongoose';
 import { PlayerRepositoryFactory } from '../../repositories/PlayerRepositoryFactory';
 import { IPlayerFilter } from '../../repositories/PlayerRepository';
 import { DrizzleDatabase } from '../../db/drizzle';
@@ -12,11 +9,10 @@ import { players, playerMatchDetails, fixtures, seasons } from '../../db/drizzle
 import { eq, desc, inArray, sql as drizzleSql } from 'drizzle-orm';
 
 /**
- * Repository-backed functions below are for the identity/CRUD surface that
- * has no arbitrary-query or Mongo-operator update in play - `update()` only
- * accepts plain fields. `updatePlayersDetails` (end-of-year progression),
- * `toggleSigned`, `updatePlayers` (bulk), and every aggregate-pipeline stats
- * function below stay on the raw functions, unchanged. See FUTURE-PLANS.md.
+ * Repository-backed functions below cover the identity/CRUD surface,
+ * add/remove-from-club, bulk create, age progression, and every
+ * aggregate-pipeline stats function - all plain SQL now, no arbitrary-query
+ * surface left. See FUTURE-PLANS.md for the conversion writeup.
  */
 let playerRepo: ReturnType<typeof PlayerRepositoryFactory.create> | null = null;
 
@@ -49,30 +45,14 @@ export async function createPlayer(data: Partial<PlayerInterface>) {
 }
 
 /**
- * fetchAllPlayers
- *
- * fetch multiple Players based on query
- * default behaviour is to send all players in the db
- */
-export function fetchAll(query: Record<string, unknown> = {}) {
-  return DB.Models.Player.find(query).lean().exec();
-}
-
-export function updateById(id: string, update: any): Promise<PlayerInterface> {
-  return DB.Models.Player.findByIdAndUpdate(id, update, { new: true })
-    .lean()
-    .exec();
-}
-/**
  * Toggle Signed
  *
  * Despite the name, this always sets `isSigned` to `!value` (not a real
  * toggle against current state) - callers pass the *current* isSigned
  * value and get the flipped one back, unchanged from the original
- * behavior. Repository-backed under `backend=drizzle` (a plain 3-field
- * write, no operators - `Club`/`ClubCode` are direct columns on `players`,
- * so this is the actual "add/remove player to/from club" write on
- * Postgres, not `Club.Players` which doesn't exist there).
+ * behavior. A plain 3-field write, no operators - `Club`/`ClubCode` are
+ * direct columns on `players`, so this is the actual "add/remove player
+ * to/from club" write.
  * @param playerId
  * @param value
  */
@@ -83,52 +63,25 @@ export function toggleSigned(
   clubId: string | null
 ) {
   const fields = { isSigned: !value, ClubCode: clubCode, Club: clubId } as unknown as Partial<PlayerInterface>;
-
-  if (DB.ormType === 'drizzle') {
-    return updatePlayerFields(playerId, fields);
-  }
-
-  return DB.Models.Player.findByIdAndUpdate(playerId, {
-    $set: fields,
-  })
-    .lean()
-    .exec();
+  return updatePlayerFields(playerId, fields);
 }
 
 /**
  * Sign many Players to a Club in one write - the bulk equivalent of
- * `toggleSigned`, used by `PUT /clubs/:id/add-many-players`. Repository
- * `updateManyByIds` under `backend=drizzle` (plain fields, no operators);
- * unchanged raw `updateMany` on Mongo.
+ * `toggleSigned`, used by `PUT /clubs/:id/add-many-players`.
  */
 export function signManyPlayersToClub(playerIds: string[], clubCode: string, clubId: string) {
   const fields = { isSigned: true, ClubCode: clubCode, Club: clubId } as unknown as Partial<PlayerInterface>;
-
-  if (DB.ormType === 'drizzle') {
-    return getPlayerRepo().updateManyByIds(playerIds, fields);
-  }
-
-  const pIds = playerIds.map((p) => new Types.ObjectId(p));
-  return DB.Models.Player.updateMany({ _id: { $in: pIds } }, { $set: fields }, { multi: true });
-}
-
-export function updatePlayers(query: any, update: any) {
-  return DB.Models.Player.updateMany(query, update, { multi: true });
+  return getPlayerRepo().updateManyByIds(playerIds, fields);
 }
 
 /**
- * Increment every Player's Age by 1 - same treatment, and same reasoning,
- * as `manager.service.ts`'s `incrementAllManagersAge`: unconditional, fixed
- * `+1` for every row, so it's one SQL statement under `backend=drizzle`
- * instead of a per-row read-modify-write.
+ * Increment every Player's Age by 1 - unconditional, fixed `+1` for every
+ * row, so it's one SQL statement instead of a per-row read-modify-write.
  */
 export function incrementAllPlayersAge() {
-  if (DB.ormType === 'drizzle') {
-    const db = DrizzleDatabase.getInstance().database;
-    return db.update(players).set({ Age: drizzleSql`${players.Age} + 1` });
-  }
-
-  return updatePlayers({}, { $inc: { Age: 1 } });
+  const db = DrizzleDatabase.getInstance().database;
+  return db.update(players).set({ Age: drizzleSql`${players.Age} + 1` });
 }
 
 /** `id` -> `_id` remap applied to the batch-fetched Player/Fixture rows
@@ -193,276 +146,132 @@ async function attachPlayersAndFixtures(
   }));
 }
 
-export async function getPlayerStats(calendar_id: string) {
-  if (DB.ormType === 'drizzle') {
-    const db = DrizzleDatabase.getInstance().database;
-    const rows = await db
-      .select({
-        playerId: playerMatchDetails.Player,
-        goals: drizzleSql<number>`sum(${playerMatchDetails.Goals})`,
-        saves: drizzleSql<number>`sum(${playerMatchDetails.Saves})`,
-        passes: drizzleSql<number>`sum(${playerMatchDetails.Passes})`,
-        tackles: drizzleSql<number>`sum(${playerMatchDetails.Tackles})`,
-        assists: drizzleSql<number>`sum(${playerMatchDetails.Assists})`,
-        clean_sheets: drizzleSql<number>`sum(${playerMatchDetails.CleanSheets})`,
-        dribbles: drizzleSql<number>`sum(${playerMatchDetails.Dribbles})`,
-        points: drizzleSql<number>`avg(${playerMatchDetails.Points})`,
-        form: drizzleSql<number>`avg(${playerMatchDetails.Form})`,
-      })
-      .from(playerMatchDetails)
-      .innerJoin(fixtures, eq(playerMatchDetails.Fixture, fixtures.id))
-      .innerJoin(seasons, eq(fixtures.Season, seasons.id))
-      .where(eq(seasons.Calendar, calendar_id))
-      .groupBy(playerMatchDetails.Player)
-      .orderBy(desc(drizzleSql`avg(${playerMatchDetails.Points})`));
+/** Aggregate player stats accumulated during one game-world Year cycle
+ * (`Season.Year`) - was keyed by Calendar id before the Calendar became a
+ * singleton with no per-year identity of its own. */
+export async function getPlayerStats(year: string) {
+  const db = DrizzleDatabase.getInstance().database;
+  const rows = await db
+    .select({
+      playerId: playerMatchDetails.Player,
+      goals: drizzleSql<number>`sum(${playerMatchDetails.Goals})`,
+      saves: drizzleSql<number>`sum(${playerMatchDetails.Saves})`,
+      passes: drizzleSql<number>`sum(${playerMatchDetails.Passes})`,
+      tackles: drizzleSql<number>`sum(${playerMatchDetails.Tackles})`,
+      assists: drizzleSql<number>`sum(${playerMatchDetails.Assists})`,
+      clean_sheets: drizzleSql<number>`sum(${playerMatchDetails.CleanSheets})`,
+      dribbles: drizzleSql<number>`sum(${playerMatchDetails.Dribbles})`,
+      points: drizzleSql<number>`avg(${playerMatchDetails.Points})`,
+      form: drizzleSql<number>`avg(${playerMatchDetails.Form})`,
+    })
+    .from(playerMatchDetails)
+    .innerJoin(fixtures, eq(playerMatchDetails.Fixture, fixtures.id))
+    .innerJoin(seasons, eq(fixtures.Season, seasons.id))
+    .where(eq(seasons.Year, year))
+    .groupBy(playerMatchDetails.Player)
+    .orderBy(desc(drizzleSql`avg(${playerMatchDetails.Points})`));
 
-    return attachPlayersAndFixtures(rows.filter((r): r is typeof r & { playerId: string } => !!r.playerId));
-  }
-
-  return DB.Models.PlayerMatch.aggregate(
-    [
-      {
-        $lookup: {
-          from: 'Fixtures',
-          localField: 'Fixture',
-          foreignField: '_id',
-          as: 'fixture',
-        },
-      },
-      { $unwind: '$fixture' },
-      {
-        $lookup: {
-          from: 'Seasons',
-          localField: 'fixture.Season',
-          foreignField: '_id',
-          as: 'season',
-        },
-      },
-      { $unwind: '$season' },
-      { $match: { 'season.Calendar': new Types.ObjectId(calendar_id) } }, // Filter by the Year
-      {
-        $group: {
-          _id: '$Player',
-          goals: { $sum: '$Goals' },
-          saves: { $sum: '$Saves' },
-          passes: { $sum: '$Passes' },
-          tackles: { $sum: '$Tackles' },
-          assists: { $sum: '$Assists' },
-          clean_sheets: { $sum: '$CleanSheets' },
-          dribbles: { $sum: '$Dribbles' },
-          points: { $avg: '$Points' },
-          form: { $avg: '$Form' },
-        },
-      },
-      {
-        $lookup: {
-          from: 'Players',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'player',
-        },
-      }, // Get the Player's details
-      { $unwind: '$player' },
-      { $sort: { points: -1 } },
-    ],
-    () => {
-      log('Player Match Details Aggregate performed!');
-    }
-  );
+  return attachPlayersAndFixtures(rows.filter((r): r is typeof r & { playerId: string } => !!r.playerId));
 }
 
-export function getSpecificPlayerStats(matcher: any, sorter: any) {
-  return DB.Models.PlayerMatch.aggregate(
-    [
-      {
-        $lookup: {
-          from: 'Fixtures',
-          localField: 'Fixture',
-          foreignField: '_id',
-          as: 'fixture',
-        },
-      },
-      { $unwind: '$fixture' },
-      {
-        $lookup: {
-          from: 'Seasons',
-          localField: 'fixture.Season',
-          foreignField: '_id',
-          as: 'season',
-        },
-      },
-      { $unwind: '$season' },
-      { $match: matcher }, // Filter by the Year
-      {
-        $group: {
-          _id: '$Player',
-          goals: { $sum: '$Goals' },
-          saves: { $sum: '$Saves' },
-          passes: { $sum: '$Passes' },
-          tackles: { $sum: '$Tackles' },
-          assists: { $sum: '$Assists' },
-          clean_sheets: { $sum: '$CleanSheets' },
-          dribbles: { $sum: '$Dribbles' },
-          points: { $avg: '$Points' },
-          form: { $avg: '$Form' },
-        },
-      },
-      {
-        $lookup: {
-          from: 'Players',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'player',
-        },
-      }, // Get the Player's details
-      { $unwind: '$player' },
-      { $sort: sorter },
-    ],
-    () => {
-      log('Player Match Details Aggregate performed!');
-    }
-  );
+const STAT_SORT_COLUMNS = {
+  goals: drizzleSql<number>`sum(${playerMatchDetails.Goals})`,
+  saves: drizzleSql<number>`sum(${playerMatchDetails.Saves})`,
+  passes: drizzleSql<number>`sum(${playerMatchDetails.Passes})`,
+  tackles: drizzleSql<number>`sum(${playerMatchDetails.Tackles})`,
+  assists: drizzleSql<number>`sum(${playerMatchDetails.Assists})`,
+  clean_sheets: drizzleSql<number>`sum(${playerMatchDetails.CleanSheets})`,
+  dribbles: drizzleSql<number>`sum(${playerMatchDetails.Dribbles})`,
+  points: drizzleSql<number>`avg(${playerMatchDetails.Points})`,
+  form: drizzleSql<number>`avg(${playerMatchDetails.Form})`,
+} as const;
+
+export type PlayerStatSortKey = keyof typeof STAT_SORT_COLUMNS;
+
+/**
+ * Top players by a given cumulative/average stat, optionally scoped to one
+ * Competition (by code) - replaces the old raw `getSpecificPlayerStats`,
+ * which took a fully arbitrary Mongo `$match`/`$sort` object built straight
+ * from client query params. The real (and only documented) use of that was
+ * "filter by season.CompetitionCode, sort by one computed stat" - this
+ * covers exactly that with a fixed, injection-safe column lookup instead of
+ * an open-ended match/sort object.
+ */
+export async function getSpecificPlayerStats(
+  competitionCode: string | undefined,
+  sortBy: PlayerStatSortKey = 'points',
+  sortDir: 'asc' | 'desc' = 'desc'
+) {
+  const db = DrizzleDatabase.getInstance().database;
+  const sortColumn = STAT_SORT_COLUMNS[sortBy] ?? STAT_SORT_COLUMNS.points;
+
+  const rows = await db
+    .select({
+      playerId: playerMatchDetails.Player,
+      goals: STAT_SORT_COLUMNS.goals,
+      saves: STAT_SORT_COLUMNS.saves,
+      passes: STAT_SORT_COLUMNS.passes,
+      tackles: STAT_SORT_COLUMNS.tackles,
+      assists: STAT_SORT_COLUMNS.assists,
+      clean_sheets: STAT_SORT_COLUMNS.clean_sheets,
+      dribbles: STAT_SORT_COLUMNS.dribbles,
+      points: STAT_SORT_COLUMNS.points,
+      form: STAT_SORT_COLUMNS.form,
+    })
+    .from(playerMatchDetails)
+    .innerJoin(fixtures, eq(playerMatchDetails.Fixture, fixtures.id))
+    .innerJoin(seasons, eq(fixtures.Season, seasons.id))
+    .where(competitionCode !== undefined ? eq(seasons.CompetitionCode, competitionCode) : undefined)
+    .groupBy(playerMatchDetails.Player)
+    .orderBy(sortDir === 'asc' ? sortColumn : desc(sortColumn));
+
+  return attachPlayersAndFixtures(rows.filter((r): r is typeof r & { playerId: string } => !!r.playerId));
 }
 
 export async function allPlayerStats(
   season: string
 ): Promise<PlayerMatchDetailsInterface[]> {
-  if (DB.ormType === 'drizzle') {
-    const db = DrizzleDatabase.getInstance().database;
-    const rows = await db
-      .select({
-        playerId: playerMatchDetails.Player,
-        // Mongo's `$first` after `$unwind` picks an arbitrary member of
-        // the group - min() here is just as arbitrary but deterministic.
-        // Confirmed the only consumer (awards.controller.ts) never reads
-        // any field off this fixture, so which one is picked doesn't
-        // matter functionally.
-        // min() has no built-in overload for uuid - cast to text for the
-        // comparison (arbitrary either way, see comment above).
-        fixtureId: drizzleSql<string>`min(${playerMatchDetails.Fixture}::text)`,
-        goals: drizzleSql<number>`sum(${playerMatchDetails.Goals})`,
-        saves: drizzleSql<number>`sum(${playerMatchDetails.Saves})`,
-        passes: drizzleSql<number>`sum(${playerMatchDetails.Passes})`,
-        tackles: drizzleSql<number>`sum(${playerMatchDetails.Tackles})`,
-        assists: drizzleSql<number>`sum(${playerMatchDetails.Assists})`,
-        clean_sheets: drizzleSql<number>`sum(${playerMatchDetails.CleanSheets})`,
-        dribbles: drizzleSql<number>`sum(${playerMatchDetails.Dribbles})`,
-        points: drizzleSql<number>`avg(${playerMatchDetails.Points})`,
-        form: drizzleSql<number>`avg(${playerMatchDetails.Form})`,
-        count: drizzleSql<number>`count(*)`,
-      })
-      .from(playerMatchDetails)
-      .innerJoin(fixtures, eq(playerMatchDetails.Fixture, fixtures.id))
-      .where(eq(fixtures.Season, season))
-      .groupBy(playerMatchDetails.Player);
+  const db = DrizzleDatabase.getInstance().database;
+  const rows = await db
+    .select({
+      playerId: playerMatchDetails.Player,
+      // Mongo's `$first` after `$unwind` picks an arbitrary member of
+      // the group - min() here is just as arbitrary but deterministic.
+      // Confirmed the only consumer (awards.controller.ts) never reads
+      // any field off this fixture, so which one is picked doesn't
+      // matter functionally.
+      // min() has no built-in overload for uuid - cast to text for the
+      // comparison (arbitrary either way, see comment above).
+      fixtureId: drizzleSql<string>`min(${playerMatchDetails.Fixture}::text)`,
+      goals: drizzleSql<number>`sum(${playerMatchDetails.Goals})`,
+      saves: drizzleSql<number>`sum(${playerMatchDetails.Saves})`,
+      passes: drizzleSql<number>`sum(${playerMatchDetails.Passes})`,
+      tackles: drizzleSql<number>`sum(${playerMatchDetails.Tackles})`,
+      assists: drizzleSql<number>`sum(${playerMatchDetails.Assists})`,
+      clean_sheets: drizzleSql<number>`sum(${playerMatchDetails.CleanSheets})`,
+      dribbles: drizzleSql<number>`sum(${playerMatchDetails.Dribbles})`,
+      points: drizzleSql<number>`avg(${playerMatchDetails.Points})`,
+      form: drizzleSql<number>`avg(${playerMatchDetails.Form})`,
+      count: drizzleSql<number>`count(*)`,
+    })
+    .from(playerMatchDetails)
+    .innerJoin(fixtures, eq(playerMatchDetails.Fixture, fixtures.id))
+    .where(eq(fixtures.Season, season))
+    .groupBy(playerMatchDetails.Player);
 
-    return attachPlayersAndFixtures(
-      rows.filter((r): r is typeof r & { playerId: string } => !!r.playerId)
-    ) as unknown as Promise<PlayerMatchDetailsInterface[]>;
-  }
-
-  return DB.Models.PlayerMatch.aggregate(
-    [
-      {
-        $lookup: {
-          from: 'Fixtures',
-          localField: 'Fixture',
-          foreignField: '_id',
-          as: 'fixture',
-        },
-      },
-      { $unwind: '$fixture' },
-      { $match: { 'fixture.Season': new Types.ObjectId(season) } },
-       {
-        $lookup: {
-          from: 'Players',
-          localField: 'Player',
-          foreignField: '_id',
-          as: 'player',
-        },
-      },
-      { $unwind: '$player' },
-    {
-        $group: {
-          _id: '$Player',
-          goals: { $sum: '$Goals' },
-          saves: { $sum: '$Saves' },
-          passes: { $sum: '$Passes' },
-          tackles: { $sum: '$Tackles' },
-          assists: { $sum: '$Assists' },
-          clean_sheets: { $sum: '$CleanSheets' },
-          dribbles: { $sum: '$Dribbles' },
-          points: { $avg: '$Points' },
-          form: { $avg: '$Form' },
-          player: { "$first": "$player" },
-          fixture: { "$first": "$fixture" },
-         count: { $sum: 1 }
-        }
-      },
-    ],
-    () => {
-      log('Player Match Stats for entire Season gotten!');
-    }
-  );
+  return attachPlayersAndFixtures(
+    rows.filter((r): r is typeof r & { playerId: string } => !!r.playerId)
+  ) as unknown as Promise<PlayerMatchDetailsInterface[]>;
 }
-
-/**
- *
- * [
-      {
-        $lookup: {
-          from: 'Fixtures',
-          localField: 'Fixture',
-          foreignField: '_id',
-          as: 'fixture',
-        },
-      },
-      { $unwind: '$fixture' },
-      { $match: { 'fixture.Season': ObjectId("60f23609a730eb4838371762") } },
-       {
-        $lookup: {
-          from: 'Players',
-          localField: 'Player',
-          foreignField: '_id',
-          as: 'player',
-        },
-      },
-      { $unwind: '$player' },
-          {
-        $group: {
-          _id: '$Player',
-          goals: { $sum: '$Goals' },
-          saves: { $sum: '$Saves' },
-          passes: { $sum: '$Passes' },
-          tackles: { $sum: '$Tackles' },
-          assists: { $sum: '$Assists' },
-          clean_sheets: { $sum: '$CleanSheets' },
-          dribbles: { $sum: '$Dribbles' },
-          points: { $avg: '$Points' },
-          form: { $avg: '$Form' },
-          player: { "$first": "$player" },
-          fixture: { "$first": "$fixture" },
-         count: { $sum: 1 }
-        }
-      },
-
-      { $sort: {'points': -1} }
-    ]
- * */
-
 
 /**
  * Create Many Players
  */
 export function createMany(playerObjects: any[]) {
-  if (DB.ormType === 'drizzle') {
-    if (!playerObjects.length) return Promise.resolve([]);
-    const db = DrizzleDatabase.getInstance().database;
-    return db
-      .insert(players)
-      .values(playerObjects.map((p) => ({ ...p, updatedAt: new Date() })))
-      .returning();
-  }
-
-  return DB.Models.Player.insertMany(playerObjects, { ordered: true });
+  if (!playerObjects.length) return Promise.resolve([]);
+  const db = DrizzleDatabase.getInstance().database;
+  return db
+    .insert(players)
+    .values(playerObjects.map((p) => ({ ...p, updatedAt: new Date() })))
+    .returning();
 }

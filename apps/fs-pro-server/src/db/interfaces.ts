@@ -1,8 +1,5 @@
-import { Model } from 'mongoose';
-
 /**
  * Database abstraction layer interfaces
- * Allows switching between MongoDB and PostgreSQL
  */
 
 export interface IModels {
@@ -43,15 +40,4 @@ export interface IDatabase {
    * Get the raw database connection (for advanced usage)
    */
   getConnection(): any;
-}
-
-export enum DatabaseType {
-  MONGODB = 'mongodb',
-  POSTGRESQL = 'postgresql',
-}
-
-export enum ORMType {
-  MONGOOSE = 'mongoose',
-  PRISMA = 'prisma',
-  DRIZZLE = 'drizzle',
 }

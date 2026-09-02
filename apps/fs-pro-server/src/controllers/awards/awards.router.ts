@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { fetchAll } from '.';
 import respond from '../../helpers/responseHandler';
-import {setupRoutes} from '../../helpers/queries';
 
 const router = Router();
 
@@ -24,7 +23,5 @@ router.get('/season/:season_id/', (req, res) => {
       respond.fail(res, 400, 'Error fetching Season Awards', err);
     });
 });
-
-setupRoutes(router, 'Award');
 
 export default router;

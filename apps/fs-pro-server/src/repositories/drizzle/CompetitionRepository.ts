@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { CompetitionInterface } from '../../controllers/competitions/competition.model';
 import * as schema from '../../db/drizzle/full-schema';
@@ -41,8 +41,13 @@ export class DrizzleCompetitionRepository implements ICompetitionRepository {
   }
 
   async findAll(filter: ICompetitionFilter = {}): Promise<CompetitionInterface[]> {
+    const conditions = [];
+    if (filter.Type !== undefined) conditions.push(eq(competitions.Type, filter.Type));
+    if (filter.Division !== undefined) conditions.push(eq(competitions.Division, filter.Division));
+    if (filter.Country !== undefined) conditions.push(eq(competitions.Country, filter.Country));
+
     const rows = await this.db.query.competitions.findMany({
-      where: filter.Type !== undefined ? eq(competitions.Type, filter.Type) : undefined,
+      where: conditions.length ? and(...conditions) : undefined,
       with: { country: true },
     });
     return rows.map(toCompetition);

@@ -173,10 +173,8 @@ const fetchUserClubs = async () => {
   }
 
   try {
-    const query = JSON.stringify({ _id: { $in: user.value.clubs } });
-    const select = JSON.stringify('ClubCode Name _id');
     const response = await $axios.get(
-      `/clubs/fetch?q=${query}&select=${select}`
+      `/clubs/all?ids=${user.value.clubs.join(',')}`
     );
 
     console.log('Clubs From User => ', response.data.success);
