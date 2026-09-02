@@ -89,12 +89,8 @@
           "name": "Awards_Club_Clubs__id_fk",
           "tableFrom": "Awards",
           "tableTo": "Clubs",
-          "columnsFrom": [
-            "Club"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["Club"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -102,12 +98,8 @@
           "name": "Awards_Season_Seasons__id_fk",
           "tableFrom": "Awards",
           "tableTo": "Seasons",
-          "columnsFrom": [
-            "Season"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["Season"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -117,9 +109,7 @@
         "Awards_mongoId_unique": {
           "name": "Awards_mongoId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "mongoId"
-          ]
+          "columns": ["mongoId"]
         }
       },
       "policies": {},
@@ -178,9 +168,7 @@
         "Calendars_singleton_unique": {
           "name": "Calendars_singleton_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "singleton"
-          ]
+          "columns": ["singleton"]
         }
       },
       "policies": {},
@@ -313,12 +301,8 @@
           "name": "ClubMatchDetails_Club_Clubs__id_fk",
           "tableFrom": "ClubMatchDetails",
           "tableTo": "Clubs",
-          "columnsFrom": [
-            "Club"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["Club"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -326,12 +310,8 @@
           "name": "ClubMatchDetails_Fixture_Fixtures__id_fk",
           "tableFrom": "ClubMatchDetails",
           "tableTo": "Fixtures",
-          "columnsFrom": [
-            "Fixture"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["Fixture"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -341,9 +321,7 @@
         "ClubMatchDetails_mongoId_unique": {
           "name": "ClubMatchDetails_mongoId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "mongoId"
-          ]
+          "columns": ["mongoId"]
         }
       },
       "policies": {},
@@ -519,12 +497,8 @@
           "name": "Clubs_Manager_Managers__id_fk",
           "tableFrom": "Clubs",
           "tableTo": "Managers",
-          "columnsFrom": [
-            "Manager"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["Manager"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -532,12 +506,8 @@
           "name": "Clubs_AddressCountry_Places__id_fk",
           "tableFrom": "Clubs",
           "tableTo": "Places",
-          "columnsFrom": [
-            "AddressCountry"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["AddressCountry"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -545,12 +515,8 @@
           "name": "Clubs_League_Competitions__id_fk",
           "tableFrom": "Clubs",
           "tableTo": "Competitions",
-          "columnsFrom": [
-            "League"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["League"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -558,12 +524,8 @@
           "name": "Clubs_User_Users__id_fk",
           "tableFrom": "Clubs",
           "tableTo": "Users",
-          "columnsFrom": [
-            "User"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["User"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -573,23 +535,17 @@
         "Clubs_mongoId_unique": {
           "name": "Clubs_mongoId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "mongoId"
-          ]
+          "columns": ["mongoId"]
         },
         "Clubs_Name_unique": {
           "name": "Clubs_Name_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "Name"
-          ]
+          "columns": ["Name"]
         },
         "Clubs_ClubCode_unique": {
           "name": "Clubs_ClubCode_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "ClubCode"
-          ]
+          "columns": ["ClubCode"]
         }
       },
       "policies": {},
@@ -639,12 +595,8 @@
           "name": "CompetitionClubs_Competition_Competitions__id_fk",
           "tableFrom": "CompetitionClubs",
           "tableTo": "Competitions",
-          "columnsFrom": [
-            "Competition"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["Competition"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -652,12 +604,8 @@
           "name": "CompetitionClubs_Club_Clubs__id_fk",
           "tableFrom": "CompetitionClubs",
           "tableTo": "Clubs",
-          "columnsFrom": [
-            "Club"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["Club"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -667,10 +615,7 @@
         "CompetitionClubs_Competition_Club_unique": {
           "name": "CompetitionClubs_Competition_Club_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "Competition",
-            "Club"
-          ]
+          "columns": ["Competition", "Club"]
         }
       },
       "policies": {},
@@ -796,12 +741,8 @@
           "name": "Competitions_Country_Places__id_fk",
           "tableFrom": "Competitions",
           "tableTo": "Places",
-          "columnsFrom": [
-            "Country"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["Country"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -811,23 +752,17 @@
         "Competitions_mongoId_unique": {
           "name": "Competitions_mongoId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "mongoId"
-          ]
+          "columns": ["mongoId"]
         },
         "Competitions_CompetitionCode_unique": {
           "name": "Competitions_CompetitionCode_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "CompetitionCode"
-          ]
+          "columns": ["CompetitionCode"]
         },
         "Competitions_CompetitionID_unique": {
           "name": "Competitions_CompetitionID_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "CompetitionID"
-          ]
+          "columns": ["CompetitionID"]
         }
       },
       "policies": {},
@@ -885,9 +820,7 @@
         "Days_Index_unique": {
           "name": "Days_Index_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "Index"
-          ]
+          "columns": ["Index"]
         }
       },
       "policies": {},
@@ -1144,12 +1077,8 @@
           "name": "Fixtures_Season_Seasons__id_fk",
           "tableFrom": "Fixtures",
           "tableTo": "Seasons",
-          "columnsFrom": [
-            "Season"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["Season"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1157,12 +1086,8 @@
           "name": "Fixtures_ReverseFixture_Fixtures__id_fk",
           "tableFrom": "Fixtures",
           "tableTo": "Fixtures",
-          "columnsFrom": [
-            "ReverseFixture"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["ReverseFixture"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1170,12 +1095,8 @@
           "name": "Fixtures_HomeTeam_Clubs__id_fk",
           "tableFrom": "Fixtures",
           "tableTo": "Clubs",
-          "columnsFrom": [
-            "HomeTeam"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["HomeTeam"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1183,12 +1104,8 @@
           "name": "Fixtures_AwayTeam_Clubs__id_fk",
           "tableFrom": "Fixtures",
           "tableTo": "Clubs",
-          "columnsFrom": [
-            "AwayTeam"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["AwayTeam"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1196,12 +1113,8 @@
           "name": "Fixtures_HomeSideDetails_ClubMatchDetails__id_fk",
           "tableFrom": "Fixtures",
           "tableTo": "ClubMatchDetails",
-          "columnsFrom": [
-            "HomeSideDetails"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["HomeSideDetails"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1209,12 +1122,8 @@
           "name": "Fixtures_AwaySideDetails_ClubMatchDetails__id_fk",
           "tableFrom": "Fixtures",
           "tableTo": "ClubMatchDetails",
-          "columnsFrom": [
-            "AwaySideDetails"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["AwaySideDetails"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1222,12 +1131,8 @@
           "name": "Fixtures_HomeManager_Managers__id_fk",
           "tableFrom": "Fixtures",
           "tableTo": "Managers",
-          "columnsFrom": [
-            "HomeManager"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["HomeManager"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1235,12 +1140,8 @@
           "name": "Fixtures_AwayManager_Managers__id_fk",
           "tableFrom": "Fixtures",
           "tableTo": "Managers",
-          "columnsFrom": [
-            "AwayManager"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["AwayManager"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1250,9 +1151,7 @@
         "Fixtures_mongoId_unique": {
           "name": "Fixtures_mongoId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "mongoId"
-          ]
+          "columns": ["mongoId"]
         }
       },
       "policies": {},
@@ -1371,12 +1270,8 @@
           "name": "Managers_Club_Clubs__id_fk",
           "tableFrom": "Managers",
           "tableTo": "Clubs",
-          "columnsFrom": [
-            "Club"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["Club"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1384,12 +1279,8 @@
           "name": "Managers_Nationality_Places__id_fk",
           "tableFrom": "Managers",
           "tableTo": "Places",
-          "columnsFrom": [
-            "Nationality"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["Nationality"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1399,16 +1290,12 @@
         "Managers_mongoId_unique": {
           "name": "Managers_mongoId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "mongoId"
-          ]
+          "columns": ["mongoId"]
         },
         "Managers_Key_unique": {
           "name": "Managers_Key_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "Key"
-          ]
+          "columns": ["Key"]
         }
       },
       "policies": {},
@@ -1489,12 +1376,8 @@
           "name": "MatchReplays_Fixture_Fixtures__id_fk",
           "tableFrom": "MatchReplays",
           "tableTo": "Fixtures",
-          "columnsFrom": [
-            "Fixture"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["Fixture"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1504,16 +1387,12 @@
         "MatchReplays_mongoId_unique": {
           "name": "MatchReplays_mongoId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "mongoId"
-          ]
+          "columns": ["mongoId"]
         },
         "MatchReplays_Fixture_unique": {
           "name": "MatchReplays_Fixture_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "Fixture"
-          ]
+          "columns": ["Fixture"]
         }
       },
       "policies": {},
@@ -1594,16 +1473,12 @@
         "Places_mongoId_unique": {
           "name": "Places_mongoId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "mongoId"
-          ]
+          "columns": ["mongoId"]
         },
         "Places_Code_unique": {
           "name": "Places_Code_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "Code"
-          ]
+          "columns": ["Code"]
         }
       },
       "policies": {},
@@ -1756,12 +1631,8 @@
           "name": "PlayerMatchDetails_Player_Players__id_fk",
           "tableFrom": "PlayerMatchDetails",
           "tableTo": "Players",
-          "columnsFrom": [
-            "Player"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["Player"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1769,12 +1640,8 @@
           "name": "PlayerMatchDetails_Fixture_Fixtures__id_fk",
           "tableFrom": "PlayerMatchDetails",
           "tableTo": "Fixtures",
-          "columnsFrom": [
-            "Fixture"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["Fixture"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1782,12 +1649,8 @@
           "name": "PlayerMatchDetails_ClubMatchDetails_ClubMatchDetails__id_fk",
           "tableFrom": "PlayerMatchDetails",
           "tableTo": "ClubMatchDetails",
-          "columnsFrom": [
-            "ClubMatchDetails"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["ClubMatchDetails"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1797,9 +1660,7 @@
         "PlayerMatchDetails_mongoId_unique": {
           "name": "PlayerMatchDetails_mongoId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "mongoId"
-          ]
+          "columns": ["mongoId"]
         }
       },
       "policies": {},
@@ -1968,12 +1829,8 @@
           "name": "Players_Nationality_Places__id_fk",
           "tableFrom": "Players",
           "tableTo": "Places",
-          "columnsFrom": [
-            "Nationality"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["Nationality"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1981,12 +1838,8 @@
           "name": "Players_Club_Clubs__id_fk",
           "tableFrom": "Players",
           "tableTo": "Clubs",
-          "columnsFrom": [
-            "Club"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["Club"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1996,16 +1849,12 @@
         "Players_mongoId_unique": {
           "name": "Players_mongoId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "mongoId"
-          ]
+          "columns": ["mongoId"]
         },
         "Players_PlayerID_unique": {
           "name": "Players_PlayerID_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "PlayerID"
-          ]
+          "columns": ["PlayerID"]
         }
       },
       "policies": {},
@@ -2140,12 +1989,8 @@
           "name": "Seasons_Winner_Clubs__id_fk",
           "tableFrom": "Seasons",
           "tableTo": "Clubs",
-          "columnsFrom": [
-            "Winner"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["Winner"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2153,12 +1998,8 @@
           "name": "Seasons_Competition_Competitions__id_fk",
           "tableFrom": "Seasons",
           "tableTo": "Competitions",
-          "columnsFrom": [
-            "Competition"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["Competition"],
+          "columnsTo": ["_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2168,9 +2009,7 @@
         "Seasons_SeasonCode_unique": {
           "name": "Seasons_SeasonCode_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "SeasonCode"
-          ]
+          "columns": ["SeasonCode"]
         }
       },
       "policies": {},
@@ -2265,16 +2104,12 @@
         "Users_mongoId_unique": {
           "name": "Users_mongoId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "mongoId"
-          ]
+          "columns": ["mongoId"]
         },
         "Users_Username_unique": {
           "name": "Users_Username_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "Username"
-          ]
+          "columns": ["Username"]
         }
       },
       "policies": {},

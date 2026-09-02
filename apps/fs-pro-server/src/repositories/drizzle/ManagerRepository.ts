@@ -3,7 +3,11 @@ import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { ManagerInterface } from '../../controllers/managers/manager.model';
 import * as schema from '../../db/drizzle/full-schema';
 import { managers, places, clubs } from '../../db/drizzle/schema';
-import { IManagerRepository, IManagerFilter, IManagerReadOptions } from '../ManagerRepository';
+import {
+  IManagerRepository,
+  IManagerFilter,
+  IManagerReadOptions,
+} from '../ManagerRepository';
 
 type DrizzleDb = PostgresJsDatabase<typeof schema>;
 type ManagerRow = typeof managers.$inferSelect;
@@ -28,7 +32,11 @@ function toManager(
     // the same id/mongoId remap applied to the nested object too.
     Nationality: nationality
       ? (() => {
-          const { id: placeId, mongoId: placeMongoId, ...placeRest } = nationality;
+          const {
+            id: placeId,
+            mongoId: placeMongoId,
+            ...placeRest
+          } = nationality;
           return { _id: placeId, ...placeRest };
         })()
       : rest.Nationality,
@@ -38,7 +46,12 @@ function toManager(
     ...(club !== undefined
       ? {
           Club: club
-            ? { _id: club.id, Name: club.Name, ClubCode: club.ClubCode, LeagueCode: club.LeagueCode }
+            ? {
+                _id: club.id,
+                Name: club.Name,
+                ClubCode: club.ClubCode,
+                LeagueCode: club.LeagueCode,
+              }
             : rest.Club,
         }
       : {}),
@@ -48,7 +61,10 @@ function toManager(
 export class DrizzleManagerRepository implements IManagerRepository {
   constructor(private db: DrizzleDb) {}
 
-  async findById(id: string, options: IManagerReadOptions = {}): Promise<ManagerInterface | null> {
+  async findById(
+    id: string,
+    options: IManagerReadOptions = {}
+  ): Promise<ManagerInterface | null> {
     const manager = await this.db.query.managers.findFirst({
       where: eq(managers.id, id),
       with: { nationality: true, ...(options.withClub ? { club: true } : {}) },
@@ -56,10 +72,15 @@ export class DrizzleManagerRepository implements IManagerRepository {
     return manager ? toManager(manager) : null;
   }
 
-  async findAll(filter: IManagerFilter = {}, options: IManagerReadOptions = {}): Promise<ManagerInterface[]> {
+  async findAll(
+    filter: IManagerFilter = {},
+    options: IManagerReadOptions = {}
+  ): Promise<ManagerInterface[]> {
     const conditions = [];
-    if (filter.isEmployed !== undefined) conditions.push(eq(managers.isEmployed, filter.isEmployed));
-    if (filter.Club !== undefined) conditions.push(eq(managers.Club, filter.Club));
+    if (filter.isEmployed !== undefined)
+      conditions.push(eq(managers.isEmployed, filter.isEmployed));
+    if (filter.Club !== undefined)
+      conditions.push(eq(managers.Club, filter.Club));
 
     const rows = await this.db.query.managers.findMany({
       where: conditions.length ? and(...conditions) : undefined,
@@ -71,16 +92,25 @@ export class DrizzleManagerRepository implements IManagerRepository {
   async create(data: Partial<ManagerInterface>): Promise<ManagerInterface> {
     const [manager] = await this.db
       .insert(managers)
-      .values({ ...(data as typeof managers.$inferInsert), updatedAt: new Date() })
+      .values({
+        ...(data as typeof managers.$inferInsert),
+        updatedAt: new Date(),
+      })
       .returning();
 
     return toManager(manager);
   }
 
-  async update(id: string, data: Partial<ManagerInterface>): Promise<ManagerInterface | null> {
+  async update(
+    id: string,
+    data: Partial<ManagerInterface>
+  ): Promise<ManagerInterface | null> {
     const [manager] = await this.db
       .update(managers)
-      .set({ ...(data as Partial<typeof managers.$inferInsert>), updatedAt: new Date() })
+      .set({
+        ...(data as Partial<typeof managers.$inferInsert>),
+        updatedAt: new Date(),
+      })
       .where(eq(managers.id, id))
       .returning();
 
@@ -88,7 +118,10 @@ export class DrizzleManagerRepository implements IManagerRepository {
   }
 
   async delete(id: string): Promise<ManagerInterface> {
-    const [manager] = await this.db.delete(managers).where(eq(managers.id, id)).returning();
+    const [manager] = await this.db
+      .delete(managers)
+      .where(eq(managers.id, id))
+      .returning();
     if (!manager) {
       throw new Error(`Manager [${id}] does not exist`);
     }

@@ -37,9 +37,18 @@ export interface IManagerReadOptions {
  * behavior exactly.
  */
 export interface IManagerRepository {
-  findById(id: string, options?: IManagerReadOptions): Promise<ManagerInterface | null>;
-  findAll(filter?: IManagerFilter, options?: IManagerReadOptions): Promise<ManagerInterface[]>;
+  findById(
+    id: string,
+    options?: IManagerReadOptions
+  ): Promise<ManagerInterface | null>;
+  findAll(
+    filter?: IManagerFilter,
+    options?: IManagerReadOptions
+  ): Promise<ManagerInterface[]>;
   create(data: Partial<ManagerInterface>): Promise<ManagerInterface>;
-  update(id: string, data: Partial<ManagerInterface>): Promise<ManagerInterface | null>;
+  update(
+    id: string,
+    data: Partial<ManagerInterface>
+  ): Promise<ManagerInterface | null>;
   delete(id: string): Promise<ManagerInterface>;
 }

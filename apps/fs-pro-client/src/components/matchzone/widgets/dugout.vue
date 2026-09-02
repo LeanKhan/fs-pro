@@ -52,7 +52,10 @@
             v-else
             :home="match.Home"
             :away="match.Away"
-            :matchDetails="{ Home: match.HomeSideDetails, Away: match.AwaySideDetails }"
+            :matchDetails="{
+              Home: match.HomeSideDetails,
+              Away: match.AwaySideDetails,
+            }"
           ></results>
 
           <h4 class="dugout-section-title mt-4">MOTM</h4>

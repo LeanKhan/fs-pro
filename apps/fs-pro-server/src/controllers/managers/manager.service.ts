@@ -1,7 +1,13 @@
 import { ManagerInterface } from './manager.model';
-import { ITactic, tacticFromManager } from '../../state/PersistentState/Formations';
+import {
+  ITactic,
+  tacticFromManager,
+} from '../../state/PersistentState/Formations';
 import { ManagerRepositoryFactory } from '../../repositories/ManagerRepositoryFactory';
-import { IManagerFilter, IManagerReadOptions } from '../../repositories/ManagerRepository';
+import {
+  IManagerFilter,
+  IManagerReadOptions,
+} from '../../repositories/ManagerRepository';
 import { DrizzleDatabase } from '../../db/drizzle';
 import { managers } from '../../db/drizzle/schema';
 import { sql as drizzleSql } from 'drizzle-orm';
@@ -16,7 +22,8 @@ import { sql as drizzleSql } from 'drizzle-orm';
  * below) - its Club-side write goes through `club.service.ts`'s
  * `appendClubRecord`. See FUTURE-PLANS.md for the full writeup.
  */
-let managerRepo: ReturnType<typeof ManagerRepositoryFactory.create> | null = null;
+let managerRepo: ReturnType<typeof ManagerRepositoryFactory.create> | null =
+  null;
 
 function getManagerRepo() {
   if (!managerRepo) {
@@ -25,11 +32,17 @@ function getManagerRepo() {
   return managerRepo;
 }
 
-export async function getManagerById(id: string, options?: IManagerReadOptions) {
+export async function getManagerById(
+  id: string,
+  options?: IManagerReadOptions
+) {
   return getManagerRepo().findById(id, options);
 }
 
-export async function getManagers(filter?: IManagerFilter, options?: IManagerReadOptions) {
+export async function getManagers(
+  filter?: IManagerFilter,
+  options?: IManagerReadOptions
+) {
   return getManagerRepo().findAll(filter, options);
 }
 
@@ -37,7 +50,10 @@ export async function createManager(data: Partial<ManagerInterface>) {
   return getManagerRepo().create(data);
 }
 
-export async function updateManager(id: string, data: Partial<ManagerInterface>) {
+export async function updateManager(
+  id: string,
+  data: Partial<ManagerInterface>
+) {
   return getManagerRepo().update(id, data);
 }
 
@@ -58,8 +74,14 @@ export async function appendManagerRecord(
   record: unknown
 ) {
   const manager = await getManagerRepo().findById(id);
-  const records = [...((manager?.Records as unknown as unknown[]) ?? []), record];
-  return getManagerRepo().update(id, { ...fields, Records: records } as Partial<ManagerInterface>);
+  const records = [
+    ...((manager?.Records as unknown as unknown[]) ?? []),
+    record,
+  ];
+  return getManagerRepo().update(id, {
+    ...fields,
+    Records: records,
+  } as Partial<ManagerInterface>);
 }
 
 /**
@@ -75,7 +97,9 @@ export async function appendManagerRecord(
  * convert and worth converting: it's on the critical path for every match
  * kickoff.
  */
-export async function resolveManagerTactic(managerId: unknown): Promise<ITactic> {
+export async function resolveManagerTactic(
+  managerId: unknown
+): Promise<ITactic> {
   if (!managerId) {
     return tacticFromManager(null);
   }
@@ -84,7 +108,10 @@ export async function resolveManagerTactic(managerId: unknown): Promise<ITactic>
     const manager = await getManagerById(managerId as string);
     return tacticFromManager(manager);
   } catch (err) {
-    console.error('Error resolving manager tactic, falling back to default =>', err);
+    console.error(
+      'Error resolving manager tactic, falling back to default =>',
+      err
+    );
     return tacticFromManager(null);
   }
 }

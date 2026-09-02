@@ -44,7 +44,10 @@ router.get('/:id', (req: Request, res: Response) => {
   // populate defaults to true (populates Clubs/Seasons via the reverse
   // Clubs.League/Seasons.Competition FKs, since neither array exists on
   // Postgres) - both branches are repository-backed now.
-  const response = populate === 'false' ? getCompetitionById(req.params.id) : getCompetitionWithClubsAndSeasons(req.params.id);
+  const response =
+    populate === 'false'
+      ? getCompetitionById(req.params.id)
+      : getCompetitionWithClubsAndSeasons(req.params.id);
 
   response
     .then((competition: any) => {

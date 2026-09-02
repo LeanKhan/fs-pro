@@ -6,7 +6,9 @@
     "dev": "vite",
     "build": "vite build",
     "serve": "vite preview",
-    "lint": "eslint --ext .js,.vue,.ts src"
+    "lint": "eslint --ext .js,.vue,.ts src",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check"
   },
   "dependencies": {
     "@vueuse/core": "^10.5.0",
@@ -24,12 +26,9 @@
     "@typescript-eslint/parser": "^6.7.5",
     "@vitejs/plugin-vue": "^6.0.1",
     "@vue/compiler-sfc": "^3.3.4",
-    "@vue/eslint-config-prettier": "^8.0.0",
     "@vue/eslint-config-typescript": "^12.0.0",
     "eslint": "^8.51.0",
-    "eslint-plugin-prettier": "^5.0.0",
     "eslint-plugin-vue": "^9.17.0",
-    "prettier": "^3.0.3",
     "sass": "^1.69.3",
     "typescript": "~5.2.2",
     "vite": "^7.1.6",

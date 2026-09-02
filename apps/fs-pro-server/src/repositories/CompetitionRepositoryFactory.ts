@@ -4,6 +4,8 @@ import { DrizzleDatabase } from '../db/drizzle';
 
 export class CompetitionRepositoryFactory {
   static create(): ICompetitionRepository {
-    return new DrizzleCompetitionRepository(DrizzleDatabase.getInstance().database);
+    return new DrizzleCompetitionRepository(
+      DrizzleDatabase.getInstance().database
+    );
   }
 }

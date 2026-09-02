@@ -77,7 +77,7 @@ router.get('/', (req, res) => {
     log(`Error parsing JSON => ${err}`);
   }
 
-/** e.g to fetch all countries: options => {Type: 'country'} */
+  /** e.g to fetch all countries: options => {Type: 'country'} */
   getAllPlaces(options)
     .then((places: any[]) => {
       respond.success(res, 200, 'Places fetched successfully', places);
@@ -86,7 +86,6 @@ router.get('/', (req, res) => {
       respond.fail(res, 400, 'Error fetching players', err);
     });
 });
-
 
 /**
  * @openapi
@@ -109,7 +108,7 @@ router.get('/', (req, res) => {
  */
 router.get('/country', (req, res) => {
   // Get Place by name slug
-  getAllPlaces({Type: 'country'})
+  getAllPlaces({ Type: 'country' })
     .then((p: any) => {
       respond.success(res, 200, 'Countries fetched successfully', p);
     })
@@ -117,7 +116,6 @@ router.get('/country', (req, res) => {
       respond.fail(res, 400, 'Error fetching Countries', err);
     });
 });
-
 
 /**
  * @openapi
@@ -194,7 +192,7 @@ router.get('/name/:name', (req, res) => {
 
 /** DELETE PLACE BY ID */
 // router.delete('/:id', (req, res) => {
-  // TODO: COMPLETE!
+// TODO: COMPLETE!
 // });
 
 /**

@@ -11,7 +11,8 @@ import { IFixtureFilter } from '../../repositories/FixtureRepository';
  * `HomeSideDetails`/`AwaySideDetails` populated (each with `PlayerStats`) -
  * see IFixtureRepository's doc comment.
  */
-let fixtureRepo: ReturnType<typeof FixtureRepositoryFactory.create> | null = null;
+let fixtureRepo: ReturnType<typeof FixtureRepositoryFactory.create> | null =
+  null;
 
 function getFixtureRepo() {
   if (!fixtureRepo) {
@@ -52,7 +53,11 @@ export async function getFixturesByDay(day: number) {
 
 /** Every fixture scheduled within an inclusive day range - powers the
  * dashboard's "upcoming days" view. */
-export async function getFixturesInRange(from: number, to: number, opts?: { played?: boolean }) {
+export async function getFixturesInRange(
+  from: number,
+  to: number,
+  opts?: { played?: boolean }
+) {
   return getFixtureRepo().findAll({
     scheduledDayFrom: from,
     scheduledDayTo: to,
@@ -71,12 +76,18 @@ export async function allFixturesPlayedForDay(day: number): Promise<boolean> {
  * fixture - used by `calendar.service.ts`'s `advanceDayIfDone` to find where
  * to move `CurrentDay`/`CurrentDate` to. `null` if there's nothing left
  * scheduled (end of the current season cycle). */
-export async function findNextUnplayedDay(afterDay: number): Promise<{ day: number; date: Date } | null> {
-  const upcoming = await getFixtureRepo().findAll({ scheduledDayFrom: afterDay + 1, Played: false });
+export async function findNextUnplayedDay(
+  afterDay: number
+): Promise<{ day: number; date: Date } | null> {
+  const upcoming = await getFixtureRepo().findAll({
+    scheduledDayFrom: afterDay + 1,
+    Played: false,
+  });
   if (upcoming.length === 0) return null;
 
-  const next = upcoming.reduce((min, f) => (f.ScheduledDay! < min.ScheduledDay! ? f : min));
+  const next = upcoming.reduce((min, f) =>
+    f.ScheduledDay! < min.ScheduledDay! ? f : min
+  );
 
   return { day: next.ScheduledDay!, date: next.ScheduledDate! };
 }
-

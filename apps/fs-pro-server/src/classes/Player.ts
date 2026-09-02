@@ -1,7 +1,7 @@
 import {
   PlayerInterface,
   IPlayerAttributes,
-  IGameStats
+  IGameStats,
 } from '../interfaces/Player';
 
 import { Role } from '../controllers/players/player.model';

@@ -31,7 +31,9 @@ import { getClubById } from '../clubs/club.service';
 /** Fetches a Season by id, but only returns it if it's still in progress -
  * replaces the raw `fetchSeason({_id, isStarted: true, isFinished: false})`
  * query both call sites below used to make. */
-async function getInProgressSeason(id: string): Promise<SeasonInterface | null> {
+async function getInProgressSeason(
+  id: string
+): Promise<SeasonInterface | null> {
   const season = await getSeasonById(id);
   return season && season.isStarted && !season.isFinished ? season : null;
 }
@@ -180,7 +182,11 @@ async function play(fixture_id: string) {
     );
   };
 
-  const afterMatch = async ({ homeTable, awayTable, allMatchesPlayedThatDay }: AfterMatchParams) => {
+  const afterMatch = async ({
+    homeTable,
+    awayTable,
+    allMatchesPlayedThatDay,
+  }: AfterMatchParams) => {
     /** If all matches scheduled for this day have been played, advance the
      * Calendar's CurrentDay/CurrentDate to the next day with an unplayed
      * fixture. */
@@ -202,7 +208,9 @@ async function play(fixture_id: string) {
     // season.Competition maybe find the competition and do the needful...
 
     try {
-      season = CurrentMatch.season_id ? await getInProgressSeason(CurrentMatch.season_id) : null;
+      season = CurrentMatch.season_id
+        ? await getInProgressSeason(CurrentMatch.season_id)
+        : null;
       // We also need to get the associated calendar day...
       if (season) {
         //  if this fixture's
@@ -221,7 +229,6 @@ async function play(fixture_id: string) {
        */
       CurrentMatch.App!.endGame();
       log('GAME ENDED from App');
-
 
       // console.log(`The Match instances ${Match.instances}`);
       // console.log(`The Game instances ${Game.instances}`);
@@ -252,8 +259,7 @@ async function play(fixture_id: string) {
   // [4] Play Match
   log('Here in startGame!');
   // NOTE: removing static App method.
-  return CurrentMatch.App
-    .startGame()
+  return CurrentMatch.App.startGame()
     ?.then(async (m) => {
       // Fire-and-forget: stream the recorded match live over sockets,
       // keyed by fixture_id (known ahead of the kickoff call, unlike
@@ -290,7 +296,11 @@ async function play(fixture_id: string) {
       let AwaySideDetails;
 
       try {
-        const { fixture: matchFixture, HSD, ASD } = await updateFixture(
+        const {
+          fixture: matchFixture,
+          HSD,
+          ASD,
+        } = await updateFixture(
           m.Details,
           m.Events,
           homeObj,
@@ -298,7 +308,6 @@ async function play(fixture_id: string) {
           fixture_id,
           isFriendly ? fixture.SaveStats === true : true
         );
-
 
         if (!fixture) {
           throw new Error('Error updating Fixture, Match not found!');
@@ -353,9 +362,7 @@ async function play(fixture_id: string) {
         // }});
       }
     })
-    .then((result: any) =>
-      isFriendly ? result : updateRelatedData(result)
-    )
+    .then((result: any) => (isFriendly ? result : updateRelatedData(result)))
     .then((result: any) => (isFriendly ? result : afterMatch(result)));
 
   // [5] Update standings and shii... do later :)
@@ -367,15 +374,14 @@ export async function restPlayGameNew(
   next: NextFunction
 ) {
   const fixture_id = req.params.fixture;
-  const send_other_results = req.query.send_other_results == "true";
-  const simulate_rest  = req.query.simulate_rest == "true";
+  const send_other_results = req.query.send_other_results == 'true';
+  const simulate_rest = req.query.simulate_rest == 'true';
   // Play the 'main' fixture
   play(fixture_id)
     .then(async (d) => {
-
       const results: GameResults = {
         main: d,
-        others: []
+        others: [],
       };
 
       // for the other matches
@@ -387,52 +393,53 @@ export async function restPlayGameNew(
         const scheduledDay = d.main?.match?.ScheduledDay;
 
         if (scheduledDay == null) {
-          return responseHandler.fail(
-              res,
-              400,
-              'Match Day not found!'
-            );
+          return responseHandler.fail(res, 400, 'Match Day not found!');
         }
 
         const dayFixtures = await getFixturesByDay(scheduledDay);
         // Don't play last matches!
-        const fixtures_not_played = dayFixtures.filter((f) => !f.Played).map((f) => f._id);
+        const fixtures_not_played = dayFixtures
+          .filter((f) => !f.Played)
+          .map((f) => f._id);
 
         try {
+          // const fixtures_not_played_endpoints = fixtures_not_played
+          // .map(f => `http://${req.header('Host')}/api/game/kickoff/${f}`);
 
-        // const fixtures_not_played_endpoints = fixtures_not_played
-        // .map(f => `http://${req.header('Host')}/api/game/kickoff/${f}`);
+          // NOTE: doing this in a foreach would not be synchronous (one by one)
+          for (let index = 0; index < fixtures_not_played.length; index++) {
+            // let r = await axios.get(fixtures_not_played_endpoints[index]);
+            let r = await play(fixtures_not_played[index].toString());
+            let result: any;
+            if ((r as any).data && (r as any).data.payload) {
+              result = (r as any).data.payload;
+            } else {
+              result = r;
+            }
+            results.others.push(result);
+          }
 
-        // NOTE: doing this in a foreach would not be synchronous (one by one)
-        for (let index = 0; index < fixtures_not_played.length; index++){
-          // let r = await axios.get(fixtures_not_played_endpoints[index]);
-          let r = await play(fixtures_not_played[index].toString());
-          let result: any;
-          if((r as any).data && (r as any).data.payload) {
-            result = (r as any).data.payload;
-          } else {
-            result = r;
-          };
-          results.others.push(result);
+          // console.log(results);
+          // return responseHandler.success(
+          //    res,
+          //    200,
+          //    '[New] Match(es) Played successfully!',
+          //    results
+          //  );
+        } catch (error: any) {
+          console.log(error);
+          return responseHandler.fail(
+            res,
+            400,
+            '[New] Error Playing Match(es) and updating Standings! ',
+            {
+              msg: error.toString(),
+              error,
+              fixture_id,
+              matchErrorResponseCode: 2,
+            }
+          );
         }
-
-        // console.log(results);
-           // return responseHandler.success(
-           //    res,
-           //    200,
-           //    '[New] Match(es) Played successfully!',
-           //    results
-           //  );
-
-      } catch (error: any) {
-        console.log(error);
-         return responseHandler.fail(
-        res,
-        400,
-        '[New] Error Playing Match(es) and updating Standings! ',
-        { msg: error.toString(), error, fixture_id, matchErrorResponseCode: 2 }
-      );
-      }
       }
 
       return responseHandler.success(
@@ -549,7 +556,11 @@ export async function restPlayGame(
       let AwaySideDetails;
 
       try {
-        const { fixture: matchFixture, HSD, ASD } = await updateFixture(
+        const {
+          fixture: matchFixture,
+          HSD,
+          ASD,
+        } = await updateFixture(
           m.Details,
           m.Events,
           homeObj,
@@ -607,14 +618,8 @@ export function restUpdateStandings(
 ) {
   // Soon we will be getting it from the fixture object...
   const { fixture: fixture_id } = req.params;
-  const {
-    match,
-    home,
-    away,
-    season_id,
-    HomeSideDetails,
-    AwaySideDetails,
-  } = req.body;
+  const { match, home, away, season_id, HomeSideDetails, AwaySideDetails } =
+    req.body;
 
   updateStandings(
     HomeSideDetails,
@@ -784,8 +789,16 @@ export async function restRewatchMatch(req: Request, res: Response) {
 
   startMatchReplay(
     {
-      Home: { _id: replay.Home.id, Name: replay.Home.name, ClubCode: replay.Home.code },
-      Away: { _id: replay.Away.id, Name: replay.Away.name, ClubCode: replay.Away.code },
+      Home: {
+        _id: replay.Home.id,
+        Name: replay.Home.name,
+        ClubCode: replay.Home.code,
+      },
+      Away: {
+        _id: replay.Away.id,
+        Name: replay.Away.name,
+        ClubCode: replay.Away.code,
+      },
       Frames: replay.Frames,
       Details: replay.Details,
     },
@@ -793,7 +806,9 @@ export async function restRewatchMatch(req: Request, res: Response) {
     replay.TickMs
   );
 
-  return responseHandler.success(res, 202, 'Match replay started', { fixture_id });
+  return responseHandler.success(res, 202, 'Match replay started', {
+    fixture_id,
+  });
 }
 
 /**
@@ -802,10 +817,15 @@ export async function restRewatchMatch(req: Request, res: Response) {
  * what a valid ITactic looks like.
  */
 export function restTacticOptions(req: Request, res: Response) {
-  return responseHandler.success(res, 200, 'Tactic options fetched successfully', {
-    formations: Object.keys(formationShapes),
-    styles: Object.keys(PLAYING_STYLES),
-  });
+  return responseHandler.success(
+    res,
+    200,
+    'Tactic options fetched successfully',
+    {
+      formations: Object.keys(formationShapes),
+      styles: Object.keys(PLAYING_STYLES),
+    }
+  );
 }
 
 /**
@@ -815,18 +835,29 @@ export function restTacticOptions(req: Request, res: Response) {
  * play()'s isFriendly branch above for how kickoff treats it differently.
  */
 export async function restCreateFriendly(req: Request, res: Response) {
-  const { homeClubId, awayClubId, homeTactic, awayTactic, saveStats } = req.body;
+  const { homeClubId, awayClubId, homeTactic, awayTactic, saveStats } =
+    req.body;
 
   if (!homeClubId || !awayClubId) {
-    return responseHandler.fail(res, 400, 'homeClubId and awayClubId are required', {
-      matchErrorResponseCode: 1,
-    });
+    return responseHandler.fail(
+      res,
+      400,
+      'homeClubId and awayClubId are required',
+      {
+        matchErrorResponseCode: 1,
+      }
+    );
   }
 
   if (homeClubId === awayClubId) {
-    return responseHandler.fail(res, 400, 'homeClubId and awayClubId must be different clubs', {
-      matchErrorResponseCode: 2,
-    });
+    return responseHandler.fail(
+      res,
+      400,
+      'homeClubId and awayClubId must be different clubs',
+      {
+        matchErrorResponseCode: 2,
+      }
+    );
   }
 
   try {
@@ -836,9 +867,14 @@ export async function restCreateFriendly(req: Request, res: Response) {
     ]);
 
     if (!homeClub || !awayClub) {
-      return responseHandler.fail(res, 404, 'One or both clubs could not be found', {
-        matchErrorResponseCode: 3,
-      });
+      return responseHandler.fail(
+        res,
+        404,
+        'One or both clubs could not be found',
+        {
+          matchErrorResponseCode: 3,
+        }
+      );
     }
 
     const result = await createFixture({
@@ -855,9 +891,14 @@ export async function restCreateFriendly(req: Request, res: Response) {
       SaveStats: saveStats === true,
     } as any);
 
-    return responseHandler.success(res, 200, 'Friendly fixture created successfully', {
-      fixture_id: result._id,
-    });
+    return responseHandler.success(
+      res,
+      200,
+      'Friendly fixture created successfully',
+      {
+        fixture_id: result._id,
+      }
+    );
   } catch (error: any) {
     console.error('Error creating friendly fixture =>', error);
     return responseHandler.fail(res, 400, 'Error creating friendly fixture', {

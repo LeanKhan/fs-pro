@@ -25,7 +25,8 @@
           </v-list-item>
 
           <v-card-text>
-            Country: {{ competition.Country?.Name }} Type: {{ competition.Type }}
+            Country: {{ competition.Country?.Name }} Type:
+            {{ competition.Type }}
           </v-card-text>
 
           <v-divider></v-divider>

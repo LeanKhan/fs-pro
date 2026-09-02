@@ -266,7 +266,9 @@ export const fixtures = pgTable(
     Played: boolean('Played').notNull().default(false),
     Tie: text('Tie'),
     Stage: text('Stage').notNull().default('lg-match'),
-    ReverseFixture: uuid('ReverseFixture').references((): AnyPgColumn => fixtures.id),
+    ReverseFixture: uuid('ReverseFixture').references(
+      (): AnyPgColumn => fixtures.id
+    ),
     PlayedAt: timestamp('PlayedAt', { precision: 3 }),
     Home: text('Home'),
     Away: text('Away'),
@@ -275,8 +277,12 @@ export const fixtures = pgTable(
     Details: jsonb('Details').$type<Record<string, unknown> | null>(),
     Events: jsonArray('Events'),
     Type: text('Type'),
-    HomeSideDetails: uuid('HomeSideDetails').references((): AnyPgColumn => clubMatchDetails.id),
-    AwaySideDetails: uuid('AwaySideDetails').references((): AnyPgColumn => clubMatchDetails.id),
+    HomeSideDetails: uuid('HomeSideDetails').references(
+      (): AnyPgColumn => clubMatchDetails.id
+    ),
+    AwaySideDetails: uuid('AwaySideDetails').references(
+      (): AnyPgColumn => clubMatchDetails.id
+    ),
     HomeManager: uuid('HomeManager').references(() => managers.id),
     AwayManager: uuid('AwayManager').references(() => managers.id),
     HomeTactic: text('HomeTactic'),
@@ -314,7 +320,10 @@ export const fixtures = pgTable(
 export const matchReplays = pgTable('MatchReplays', {
   id: uuid('_id').primaryKey().defaultRandom(),
   mongoId: text('mongoId').unique(),
-  Fixture: uuid('Fixture').notNull().unique().references(() => fixtures.id),
+  Fixture: uuid('Fixture')
+    .notNull()
+    .unique()
+    .references(() => fixtures.id),
   Home: jsonb('Home').$type<Record<string, unknown> | null>(),
   Away: jsonb('Away').$type<Record<string, unknown> | null>(),
   Frames: jsonArray('Frames'),
@@ -331,7 +340,9 @@ export const playerMatchDetails = pgTable('PlayerMatchDetails', {
   /** Doesn't exist as a field in the current Mongoose model - added so
    * clubMatchDetails.PlayerStats (an array with no referential integrity)
    * can be dropped in favor of this one-to-many FK instead. */
-  ClubMatchDetails: uuid('ClubMatchDetails').references(() => clubMatchDetails.id),
+  ClubMatchDetails: uuid('ClubMatchDetails').references(
+    () => clubMatchDetails.id
+  ),
   Goals: integer('Goals').notNull().default(0),
   Saves: integer('Saves').notNull().default(0),
   YellowCards: integer('YellowCards').notNull().default(0),

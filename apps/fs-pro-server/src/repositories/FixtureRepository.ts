@@ -42,6 +42,9 @@ export interface IFixtureRepository {
    * time (Season/HomeTeam/AwayTeam), so this is a plain bulk insert, not a
    * different write shape from `create()`. */
   createMany(data: Partial<FixtureInterface>[]): Promise<FixtureInterface[]>;
-  update(id: string, data: Partial<FixtureInterface>): Promise<FixtureInterface | null>;
+  update(
+    id: string,
+    data: Partial<FixtureInterface>
+  ): Promise<FixtureInterface | null>;
   delete(id: string): Promise<FixtureInterface>;
 }

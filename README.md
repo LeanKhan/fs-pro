@@ -1,12 +1,13 @@
-
 <p align="center" width="100%">
     <img width="33%" src="https://fspro-cdn.sturves.tech/logo-new.png">
 </p>
 
 ## FSPro Football Simulator
+
 Pre general release version
 
 FSPro is a football simulation game, still in progress but already you can:
+
 - create seasons
 - play matches
 - argue with your brother about who _actually_ won the league...
@@ -27,6 +28,7 @@ apps
 ```
 
 ### To get started with FSPro
+
 - You should have a MongoDB database
 - Clone/Fork the repository locally
 - Create the .env files in server and client root folders following their respective .env.example (include the database connection string here)
@@ -37,8 +39,8 @@ apps
 
 ### You can find sample data for your DB and information on how to play on our new docs site: https://fspro.sturves.tech/
 
-
 ## What's next?
+
 - Migrate fs-pro-client from Vue 2 to Vue 3
 - General refactoring
 - Allow any clubs and any leagues. Right now, clubs and leagues are hardcoded. This should change...

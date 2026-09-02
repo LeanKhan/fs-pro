@@ -11,7 +11,9 @@ type FixtureRow = typeof fixtures.$inferSelect;
 
 /** Same `id` -> `_id` remap every other Drizzle repository does, applied to
  * the season itself and to each populated Fixture. */
-function toSeason(row: SeasonRow & { fixtures?: FixtureRow[] }): SeasonInterface {
+function toSeason(
+  row: SeasonRow & { fixtures?: FixtureRow[] }
+): SeasonInterface {
   const { id, fixtures: fixtureRows, ...rest } = row;
 
   return {
@@ -20,7 +22,11 @@ function toSeason(row: SeasonRow & { fixtures?: FixtureRow[] }): SeasonInterface
     ...(fixtureRows !== undefined
       ? {
           Fixtures: fixtureRows.map((f) => {
-            const { id: fixtureId, mongoId: fixtureMongoId, ...fixtureRest } = f;
+            const {
+              id: fixtureId,
+              mongoId: fixtureMongoId,
+              ...fixtureRest
+            } = f;
             return { _id: fixtureId, ...fixtureRest };
           }),
         }
@@ -41,9 +47,12 @@ export class DrizzleSeasonRepository implements ISeasonRepository {
 
   async findAll(filter: ISeasonFilter = {}): Promise<SeasonInterface[]> {
     const conditions = [];
-    if (filter.Competition !== undefined) conditions.push(eq(seasons.Competition, filter.Competition));
-    if (filter.Year !== undefined) conditions.push(eq(seasons.Year, filter.Year));
-    if (filter.SeasonCode !== undefined) conditions.push(eq(seasons.SeasonCode, filter.SeasonCode));
+    if (filter.Competition !== undefined)
+      conditions.push(eq(seasons.Competition, filter.Competition));
+    if (filter.Year !== undefined)
+      conditions.push(eq(seasons.Year, filter.Year));
+    if (filter.SeasonCode !== undefined)
+      conditions.push(eq(seasons.SeasonCode, filter.SeasonCode));
 
     const rows = await this.db.query.seasons.findMany({
       where: conditions.length ? and(...conditions) : undefined,
@@ -54,16 +63,25 @@ export class DrizzleSeasonRepository implements ISeasonRepository {
   async create(data: Partial<SeasonInterface>): Promise<SeasonInterface> {
     const [season] = await this.db
       .insert(seasons)
-      .values({ ...(data as typeof seasons.$inferInsert), updatedAt: new Date() })
+      .values({
+        ...(data as typeof seasons.$inferInsert),
+        updatedAt: new Date(),
+      })
       .returning();
 
     return toSeason(season);
   }
 
-  async update(id: string, data: Partial<SeasonInterface>): Promise<SeasonInterface | null> {
+  async update(
+    id: string,
+    data: Partial<SeasonInterface>
+  ): Promise<SeasonInterface | null> {
     const [season] = await this.db
       .update(seasons)
-      .set({ ...(data as Partial<typeof seasons.$inferInsert>), updatedAt: new Date() })
+      .set({
+        ...(data as Partial<typeof seasons.$inferInsert>),
+        updatedAt: new Date(),
+      })
       .where(eq(seasons.id, id))
       .returning();
 
@@ -71,7 +89,10 @@ export class DrizzleSeasonRepository implements ISeasonRepository {
   }
 
   async delete(id: string): Promise<SeasonInterface> {
-    const [season] = await this.db.delete(seasons).where(eq(seasons.id, id)).returning();
+    const [season] = await this.db
+      .delete(seasons)
+      .where(eq(seasons.id, id))
+      .returning();
     if (!season) {
       throw new Error(`Season [${id}] does not exist`);
     }

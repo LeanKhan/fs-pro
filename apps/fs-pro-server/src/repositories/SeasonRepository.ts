@@ -33,6 +33,9 @@ export interface ISeasonRepository {
   findById(id: string): Promise<SeasonInterface | null>;
   findAll(filter?: ISeasonFilter): Promise<SeasonInterface[]>;
   create(data: Partial<SeasonInterface>): Promise<SeasonInterface>;
-  update(id: string, data: Partial<SeasonInterface>): Promise<SeasonInterface | null>;
+  update(
+    id: string,
+    data: Partial<SeasonInterface>
+  ): Promise<SeasonInterface | null>;
   delete(id: string): Promise<SeasonInterface>;
 }

@@ -23,8 +23,10 @@ export class DrizzleDayRepository implements IDayRepository {
 
   async findAll(filter: IDayFilter = {}): Promise<DayInterface[]> {
     const conditions = [];
-    if (filter.indexFrom !== undefined) conditions.push(gte(days.Index, filter.indexFrom));
-    if (filter.indexTo !== undefined) conditions.push(lte(days.Index, filter.indexTo));
+    if (filter.indexFrom !== undefined)
+      conditions.push(gte(days.Index, filter.indexFrom));
+    if (filter.indexTo !== undefined)
+      conditions.push(lte(days.Index, filter.indexTo));
 
     const rows = await this.db.query.days.findMany({
       where: conditions.length ? and(...conditions) : undefined,
@@ -41,10 +43,16 @@ export class DrizzleDayRepository implements IDayRepository {
     return toDay(day);
   }
 
-  async update(id: string, data: Partial<DayInterface>): Promise<DayInterface | null> {
+  async update(
+    id: string,
+    data: Partial<DayInterface>
+  ): Promise<DayInterface | null> {
     const [day] = await this.db
       .update(days)
-      .set({ ...(data as Partial<typeof days.$inferInsert>), updatedAt: new Date() })
+      .set({
+        ...(data as Partial<typeof days.$inferInsert>),
+        updatedAt: new Date(),
+      })
       .where(eq(days.id, id))
       .returning();
 

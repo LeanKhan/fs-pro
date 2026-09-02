@@ -4,6 +4,8 @@ import { DrizzleDatabase } from '../db/drizzle';
 
 export class CalendarRepositoryFactory {
   static create(): ICalendarRepository {
-    return new DrizzleCalendarRepository(DrizzleDatabase.getInstance().database);
+    return new DrizzleCalendarRepository(
+      DrizzleDatabase.getInstance().database
+    );
   }
 }

@@ -7,15 +7,18 @@ const router = Router();
 /** FETCH ALL Awards */
 router.get('/season/:season_id/', (req, res) => {
   // get all season awards...
-   const { populate, recipient } = req.query;
+  const { populate, recipient } = req.query;
 
-   if(!recipient) {
-     // error! Recipient must be supplied!
-     return       respond.fail(res, 400, 'Award recipient must be indicated!');
+  if (!recipient) {
+    // error! Recipient must be supplied!
+    return respond.fail(res, 400, 'Award recipient must be indicated!');
+  }
 
-   }
-
-  fetchAll({ Season: req.params.season_id }, typeof recipient === 'string' ? recipient : '', typeof populate === 'string' ? populate : '')
+  fetchAll(
+    { Season: req.params.season_id },
+    typeof recipient === 'string' ? recipient : '',
+    typeof populate === 'string' ? populate : ''
+  )
     .then((awards) => {
       respond.success(res, 200, 'Season Awards fetched successfully', awards);
     })

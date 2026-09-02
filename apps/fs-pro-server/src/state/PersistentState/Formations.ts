@@ -215,7 +215,10 @@ export const DEFAULT_TACTIC: ITactic = {
  * same way when a manager has no preference set (or doesn't exist).
  */
 export function tacticFromManager(
-  manager: { PreferredFormation?: string; PreferredStyle?: string } | null | undefined
+  manager:
+    | { PreferredFormation?: string; PreferredStyle?: string }
+    | null
+    | undefined
 ): ITactic {
   if (!manager) {
     return DEFAULT_TACTIC;
@@ -250,8 +253,7 @@ export function resolveFormation(
   }
 
   return shape.map((slot) => {
-    const xFrac =
-      attackingDirection === 'left-to-right' ? slot.x : 1 - slot.x;
+    const xFrac = attackingDirection === 'left-to-right' ? slot.x : 1 - slot.x;
 
     return {
       positions: slot.positions,

@@ -1,4 +1,4 @@
-Short answer: no, this can't be "just a frontend thing." You need a few new backend concepts because right now your `Place` model has no notion of *where* it sits on a map, *who* created it, or *what world* it belongs to. Drawing pixels is the easy part — the hard part is representing territory as data you can validate, persist, and sync across players.
+Short answer: no, this can't be "just a frontend thing." You need a few new backend concepts because right now your `Place` model has no notion of _where_ it sits on a map, _who_ created it, or _what world_ it belongs to. Drawing pixels is the easy part — the hard part is representing territory as data you can validate, persist, and sync across players.
 
 Here's a plan.
 
@@ -56,9 +56,9 @@ Square grid is simpler to implement than hex (no offset-coordinate math), and fo
 3. On submit, backend validates in a transaction:
    - All selected tiles belong to the target world and are unclaimed.
    - Selected tiles form one contiguous region (BFS/flood fill over the selection).
-   - Optional rule: must be adjacent to an existing claimed tile or a map edge (prevents floating islands, if you don't want that) — or skip this if you *do* want floating islands.
+   - Optional rule: must be adjacent to an existing claimed tile or a map edge (prevents floating islands, if you don't want that) — or skip this if you _do_ want floating islands.
    - Size within min/max bounds you define.
-4. If valid: create the `Place` (or attach to an existing one from your existing data set, since you said you already have Place *data* — so this might be "claim tiles for Place X" rather than creating a brand-new Place), and bulk-update the `Tile` rows with `placeId`.
+4. If valid: create the `Place` (or attach to an existing one from your existing data set, since you said you already have Place _data_ — so this might be "claim tiles for Place X" rather than creating a brand-new Place), and bulk-update the `Tile` rows with `placeId`.
 5. Once a `Place` has tiles, your existing League/Club creation flow just works, since it already keys off `Place`.
 
 That last point matters: since Leagues/Clubs already reference `Place`, you don't need to touch that part of your schema at all. Worldbuilding only needs to answer "does this Place exist and have territory yet," which is exactly what tile-claiming gives you.
@@ -73,6 +73,7 @@ That last point matters: since Leagues/Clubs already reference `Place`, you don'
 ## 4. Frontend
 
 Genuinely the simpler half once the above exists:
+
 - A canvas/SVG grid renderer with pan & zoom.
 - A "paint mode" for selecting tiles (drag-select, highlight, submit).
 - Color/texture per `Place` (you already have `Picture` — could reuse as a texture fill or flag icon).

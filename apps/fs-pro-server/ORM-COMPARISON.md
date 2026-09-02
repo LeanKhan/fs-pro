@@ -4,22 +4,23 @@ Both ORMs work with the abstraction layer. Here's a detailed comparison.
 
 ## Quick Comparison
 
-| Feature | Prisma | Drizzle |
-|---------|---------|---------|
-| **Type Safety** | ⭐⭐⭐⭐ Excellent | ⭐⭐⭐⭐⭐ Best-in-class |
-| **Performance** | ⭐⭐⭐ Good | ⭐⭐⭐⭐⭐ Fastest |
-| **Learning Curve** | ⭐⭐⭐⭐ Easy | ⭐⭐⭐ SQL knowledge helps |
-| **Documentation** | ⭐⭐⭐⭐⭐ Comprehensive | ⭐⭐⭐ Growing |
-| **Ecosystem** | ⭐⭐⭐⭐⭐ Mature | ⭐⭐⭐ Emerging |
-| **Bundle Size** | ⭐⭐ Large (25MB+) | ⭐⭐⭐⭐⭐ Tiny (100KB) |
-| **Migrations** | ⭐⭐⭐⭐⭐ Automated | ⭐⭐⭐⭐ Manual but flexible |
-| **GUI Tools** | ⭐⭐⭐⭐⭐ Prisma Studio | ⭐⭐⭐⭐ Drizzle Studio |
+| Feature            | Prisma                   | Drizzle                      |
+| ------------------ | ------------------------ | ---------------------------- |
+| **Type Safety**    | ⭐⭐⭐⭐ Excellent       | ⭐⭐⭐⭐⭐ Best-in-class     |
+| **Performance**    | ⭐⭐⭐ Good              | ⭐⭐⭐⭐⭐ Fastest           |
+| **Learning Curve** | ⭐⭐⭐⭐ Easy            | ⭐⭐⭐ SQL knowledge helps   |
+| **Documentation**  | ⭐⭐⭐⭐⭐ Comprehensive | ⭐⭐⭐ Growing               |
+| **Ecosystem**      | ⭐⭐⭐⭐⭐ Mature        | ⭐⭐⭐ Emerging              |
+| **Bundle Size**    | ⭐⭐ Large (25MB+)       | ⭐⭐⭐⭐⭐ Tiny (100KB)      |
+| **Migrations**     | ⭐⭐⭐⭐⭐ Automated     | ⭐⭐⭐⭐ Manual but flexible |
+| **GUI Tools**      | ⭐⭐⭐⭐⭐ Prisma Studio | ⭐⭐⭐⭐ Drizzle Studio      |
 
 ## Code Examples
 
 ### Schema Definition
 
 #### Prisma
+
 ```prisma
 // schema.prisma
 model Place {
@@ -38,6 +39,7 @@ model Place {
 ```
 
 #### Drizzle
+
 ```typescript
 // src/db/drizzle/schema/places.ts
 import { pgTable, uuid, varchar, timestamp } from 'drizzle-orm/pg-core';
@@ -58,19 +60,20 @@ export const places = pgTable('places', {
 ### Basic Queries
 
 #### Prisma
+
 ```typescript
 // Find all
 const places = await prisma.place.findMany();
 
 // Find by ID
 const place = await prisma.place.findUnique({
-  where: { id: '123' }
+  where: { id: '123' },
 });
 
 // Find with filter
 const eastPlaces = await prisma.place.findMany({
   where: { region: 'east' },
-  orderBy: { name: 'asc' }
+  orderBy: { name: 'asc' },
 });
 
 // Create
@@ -79,23 +82,24 @@ const newPlace = await prisma.place.create({
     fullname: 'Republic of Bellean',
     name: 'Bellean',
     code: 'BELL',
-    region: 'east'
-  }
+    region: 'east',
+  },
 });
 
 // Update
 await prisma.place.update({
   where: { id: '123' },
-  data: { region: 'west' }
+  data: { region: 'west' },
 });
 
 // Delete
 await prisma.place.delete({
-  where: { id: '123' }
+  where: { id: '123' },
 });
 ```
 
 #### Drizzle
+
 ```typescript
 import { db } from './db/drizzle';
 import { places } from './db/drizzle/schema/places';
@@ -125,25 +129,21 @@ const [newPlace] = await db
     fullname: 'Republic of Bellean',
     name: 'Bellean',
     code: 'BELL',
-    region: 'east'
+    region: 'east',
   })
   .returning();
 
 // Update
-await db
-  .update(places)
-  .set({ region: 'west' })
-  .where(eq(places.id, '123'));
+await db.update(places).set({ region: 'west' }).where(eq(places.id, '123'));
 
 // Delete
-await db
-  .delete(places)
-  .where(eq(places.id, '123'));
+await db.delete(places).where(eq(places.id, '123'));
 ```
 
 ### Relations
 
 #### Prisma
+
 ```prisma
 model Place {
   id      String   @id
@@ -163,11 +163,12 @@ model Player {
 // Query with relations
 const place = await prisma.place.findUnique({
   where: { id: '123' },
-  include: { players: true }
+  include: { players: true },
 });
 ```
 
 #### Drizzle
+
 ```typescript
 export const places = pgTable('places', {
   id: uuid('id').primaryKey(),
@@ -189,13 +190,14 @@ export const placesRelations = relations(places, ({ many }) => ({
 // Query with relations
 const place = await db.query.places.findFirst({
   where: eq(places.id, '123'),
-  with: { players: true }
+  with: { players: true },
 });
 ```
 
 ### Complex Queries
 
 #### Prisma
+
 ```typescript
 const results = await prisma.player.findMany({
   where: {
@@ -203,27 +205,22 @@ const results = await prisma.player.findMany({
       { rating: { gte: 80 } },
       { age: { lte: 25 } },
       {
-        OR: [
-          { position: 'ATT' },
-          { position: 'MID' }
-        ]
-      }
-    ]
+        OR: [{ position: 'ATT' }, { position: 'MID' }],
+      },
+    ],
   },
   include: {
     club: true,
-    place: true
+    place: true,
   },
-  orderBy: [
-    { rating: 'desc' },
-    { age: 'asc' }
-  ],
+  orderBy: [{ rating: 'desc' }, { age: 'asc' }],
   take: 10,
-  skip: 0
+  skip: 0,
 });
 ```
 
 #### Drizzle
+
 ```typescript
 import { and, or, gte, lte, inArray } from 'drizzle-orm';
 
@@ -236,10 +233,7 @@ const results = await db
     and(
       gte(players.rating, 80),
       lte(players.age, 25),
-      or(
-        eq(players.position, 'ATT'),
-        eq(players.position, 'MID')
-      )
+      or(eq(players.position, 'ATT'), eq(players.position, 'MID'))
     )
   )
   .orderBy(desc(players.rating), asc(players.age))
@@ -250,6 +244,7 @@ const results = await db
 ### Raw SQL
 
 #### Prisma
+
 ```typescript
 const result = await prisma.$queryRaw`
   SELECT p.*, c.name as club_name
@@ -260,6 +255,7 @@ const result = await prisma.$queryRaw`
 ```
 
 #### Drizzle
+
 ```typescript
 const result = await db.execute(sql`
   SELECT p.*, c.name as club_name
@@ -272,14 +268,17 @@ const result = await db.execute(sql`
 ## Performance Comparison
 
 ### Query Speed (approximate)
+
 - **Drizzle**: 0.5-1ms per query
 - **Prisma**: 2-5ms per query
 
 ### Bundle Size
+
 - **Drizzle**: ~100KB
 - **Prisma**: ~25MB (node_modules)
 
 ### Cold Start
+
 - **Drizzle**: Instant
 - **Prisma**: 2-3 seconds (client generation)
 
@@ -288,6 +287,7 @@ const result = await db.execute(sql`
 ### Prisma
 
 #### ✅ Pros
+
 - Mature and battle-tested
 - Excellent documentation
 - Great tooling (Studio, migrations)
@@ -298,6 +298,7 @@ const result = await db.execute(sql`
 - Built-in connection pooling
 
 #### ❌ Cons
+
 - Slower than Drizzle
 - Large bundle size
 - Code generation required
@@ -308,6 +309,7 @@ const result = await db.execute(sql`
 ### Drizzle
 
 #### ✅ Pros
+
 - Extremely fast
 - Tiny bundle size
 - SQL-like syntax
@@ -318,6 +320,7 @@ const result = await db.execute(sql`
 - Better for complex queries
 
 #### ❌ Cons
+
 - Younger ecosystem
 - Less documentation
 - Smaller community
@@ -328,6 +331,7 @@ const result = await db.execute(sql`
 ## When to Choose Each
 
 ### Choose Prisma if:
+
 1. You're new to ORMs or SQL
 2. You want extensive documentation
 3. You need mature tooling
@@ -337,6 +341,7 @@ const result = await db.execute(sql`
 7. You're building a standard CRUD app
 
 ### Choose Drizzle if:
+
 1. Performance is critical
 2. You know SQL well
 3. You need fine-grained control
@@ -350,6 +355,7 @@ const result = await db.execute(sql`
 Good news: **You can switch between them anytime!** The abstraction layer supports both.
 
 ### Switch from Prisma to Drizzle
+
 ```bash
 # Install Drizzle
 npm install drizzle-orm postgres drizzle-kit
@@ -362,6 +368,7 @@ npm run dev:server
 ```
 
 ### Switch from Drizzle to Prisma
+
 ```bash
 # Set environment variable
 USE_DRIZZLE=false
@@ -375,12 +382,14 @@ npm run dev:server
 Given your project characteristics:
 
 ### Use **Drizzle** if:
+
 - You have complex game statistics queries
 - Performance is important for real-time features
 - You're comfortable with SQL
 - You want a smaller production bundle
 
 ### Use **Prisma** if:
+
 - You want to migrate quickly
 - You prefer better tooling and documentation
 - Your team is less familiar with SQL
@@ -389,6 +398,7 @@ Given your project characteristics:
 ## My Recommendation
 
 Start with **Prisma** for these reasons:
+
 1. ✅ Faster migration (better docs)
 2. ✅ Easier for team members
 3. ✅ Better tooling (Studio is amazing)
@@ -399,6 +409,7 @@ The abstraction layer means you're **not locked in**. Start with Prisma, and if 
 ## Hybrid Approach (Best of Both Worlds)
 
 You can even use both:
+
 ```typescript
 // Use Prisma for most CRUD operations
 const user = await prisma.user.findUnique({ where: { id } });
@@ -408,7 +419,7 @@ const stats = await drizzleDb
   .select({
     player: players.name,
     goals: sum(playerMatches.goals),
-    assists: sum(playerMatches.assists)
+    assists: sum(playerMatches.assists),
   })
   .from(playerMatches)
   .where(eq(playerMatches.seasonId, currentSeason))

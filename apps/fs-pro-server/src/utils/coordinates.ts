@@ -339,7 +339,11 @@ export default class Coordinates {
    * Used to judge whether a defender is actually standing in a passing
    * lane, rather than just "close to the receiver".
    */
-  public distanceToSegment(point: ICoordinate, a: ICoordinate, b: ICoordinate): number {
+  public distanceToSegment(
+    point: ICoordinate,
+    a: ICoordinate,
+    b: ICoordinate
+  ): number {
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const lengthSquared = dx * dx + dy * dy;
@@ -377,7 +381,9 @@ export default class Coordinates {
     });
 
     if (limit !== undefined) {
-      plyrs = plyrs.filter((p) => this.distanceToSegment(p.BlockPosition, a, b) <= limit);
+      plyrs = plyrs.filter(
+        (p) => this.distanceToSegment(p.BlockPosition, a, b) <= limit
+      );
     }
 
     return plyrs[0];

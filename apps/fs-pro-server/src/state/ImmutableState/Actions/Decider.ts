@@ -101,7 +101,12 @@ export class Decider {
         break;
       case 'ATT':
         if (player.WithBall) {
-          const shot = this.tryShoot(player, attackingSide, defendingSide, 'ATT');
+          const shot = this.tryShoot(
+            player,
+            attackingSide,
+            defendingSide,
+            'ATT'
+          );
 
           if (shot) {
             this.strategy = shot;
@@ -128,14 +133,23 @@ export class Decider {
               false
             );
           } else {
-            this.strategy = this.whatKindaPass(player, attackingSide, defendingSide);
+            this.strategy = this.whatKindaPass(
+              player,
+              attackingSide,
+              defendingSide
+            );
           }
         }
         break;
       case 'DEF':
         if (player.WithBall) {
           // Defenders should be passing!
-          const shot = this.tryShoot(player, attackingSide, defendingSide, 'DEF');
+          const shot = this.tryShoot(
+            player,
+            attackingSide,
+            defendingSide,
+            'DEF'
+          );
 
           if (shot) {
             this.strategy = shot;
@@ -152,7 +166,11 @@ export class Decider {
             // but what kind of pass?
             // It is possible for this to result in a 'move' strategy i.e
             // closest teammate is too far away
-            this.strategy = this.whatKindaPass(player, attackingSide, defendingSide);
+            this.strategy = this.whatKindaPass(
+              player,
+              attackingSide,
+              defendingSide
+            );
           }
         }
         break;
@@ -175,16 +193,32 @@ export class Decider {
     position: 'ATT' | 'MID' | 'DEF'
   ): IStrategy | undefined {
     const profile = SHOOT_PROFILES[position];
-    const mindset = player.Attributes.AttackingMindset ? 'withMindset' : 'without';
+    const mindset = player.Attributes.AttackingMindset
+      ? 'withMindset'
+      : 'without';
     const shoot = profile.shoot[mindset];
     const longShot = profile.longShot[mindset];
 
-    if (this.chanceToShoot(player, attackingSide, defendingSide, shoot.threshold, shoot.distance)) {
+    if (
+      this.chanceToShoot(
+        player,
+        attackingSide,
+        defendingSide,
+        shoot.threshold,
+        shoot.distance
+      )
+    ) {
       return { type: 'shoot', detail: 'normal' };
     }
 
     if (
-      this.chanceToShoot(player, attackingSide, defendingSide, longShot.threshold, longShot.distance)
+      this.chanceToShoot(
+        player,
+        attackingSide,
+        defendingSide,
+        longShot.threshold,
+        longShot.distance
+      )
     ) {
       return { type: 'shoot', detail: 'long' };
     }
@@ -206,7 +240,8 @@ export class Decider {
     return defendingSide.ActivePlayers.filter((opponent) => {
       return (
         opponent.Position !== 'GK' &&
-        CO.co.calculateDistance(player.BlockPosition, opponent.BlockPosition) <= scaledRadius
+        CO.co.calculateDistance(player.BlockPosition, opponent.BlockPosition) <=
+          scaledRadius
       );
     }).length;
   }
@@ -228,7 +263,8 @@ export class Decider {
     pressureRadius = 3
   ): number {
     const composure = (player.Attributes.Mental - 50) * 0.3;
-    const pressure = this.countPressure(player, defendingSide, pressureRadius) * 8;
+    const pressure =
+      this.countPressure(player, defendingSide, pressureRadius) * 8;
     const tempoBias = (attackingSide.Tactic.style.tempo - 0.5) * 20;
 
     return Math.min(100, Math.max(0, base + composure - pressure + tempoBias));
@@ -450,14 +486,19 @@ export class Decider {
     distance: number
   ) {
     const inRange =
-      CO.co.calculateDistance(player.BlockPosition, attackingSide.ScoringSide) <=
-      CO.co.scaleDistance(distance);
+      CO.co.calculateDistance(
+        player.BlockPosition,
+        attackingSide.ScoringSide
+      ) <= CO.co.scaleDistance(distance);
 
     if (!inRange) {
       return false;
     }
 
-    return this.gimmeAChance() <= this.confidenceThreshold(player, attackingSide, defendingSide, threshold);
+    return (
+      this.gimmeAChance() <=
+      this.confidenceThreshold(player, attackingSide, defendingSide, threshold)
+    );
   }
 
   /**
@@ -532,8 +573,20 @@ export class Decider {
     const pos = player.Position === 'ATT';
 
     if (
-      this.passability(player, attackingSide, defendingSide, passingDistance, !pos) &&
-      this.gimmeAChance() <= this.confidenceThreshold(player, attackingSide, defendingSide, threshold)
+      this.passability(
+        player,
+        attackingSide,
+        defendingSide,
+        passingDistance,
+        !pos
+      ) &&
+      this.gimmeAChance() <=
+        this.confidenceThreshold(
+          player,
+          attackingSide,
+          defendingSide,
+          threshold
+        )
     ) {
       //  If the closest teammate is also an attacker then pass
       strategy = { type: 'pass', detail: 'short' };
@@ -567,8 +620,7 @@ export class Decider {
     // rather than swarming the ball), the single closest teammate's lane
     // being blocked is common - that shouldn't kill the whole pass
     // evaluation when another nearby teammate is completely open.
-    const candidates = attackingSide.ActivePlayers
-      .filter((p) => p !== player)
+    const candidates = attackingSide.ActivePlayers.filter((p) => p !== player)
       .sort(
         (a, b) =>
           CO.co.calculateDistance(player.BlockPosition, a.BlockPosition) -
