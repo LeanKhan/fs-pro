@@ -10,8 +10,9 @@ import Referee from '../classes/Referee';
 import { Actions } from '../state/ImmutableState/Actions/Actions';
 import { matchEvents, createMatchEvent } from '../utils/events';
 import { ClubInterface as IClub } from './clubs/club.model';
-import CO from '../utils/coordinates';
+import CO, { default as Coordinates } from '../utils/coordinates';
 import log from '../helpers/logger';
+import { ITactic } from '../state/PersistentState/Formations';
 
 // import log from ''
 
@@ -38,7 +39,7 @@ export default class Game implements GameClass {
   public MatchSettings: any;
   public Co: Coordinates;
   private Clubs: IClub[];
-  private PlayingField: IBlock[];
+  private Field: Field;
   private MatchActions: Actions;
 
   constructor(
@@ -47,14 +48,19 @@ export default class Game implements GameClass {
     ball: { color: string; cb: IBlock },
     ref: { fname: string; lname: string; level: string },
     centerBlock: any,
-    playingField: Field['PlayingField'],
+    field: Field,
     Co: Coordinates
   ) {
 
     this.Co = Co;
+    this.Field = field;
 
-    this.homePost = this.Co.coordinateToBlock({ x: 0, y: 5 });
-    this.awayPost = this.Co.coordinateToBlock({ x: 14, y: 5 })
+    // Goal posts are resolved as fractions of the pitch (0 = one end,
+    // 1 = the other), so they land in the right place regardless of the
+    // grid's actual xBlocks/yBlocks. Previously these were hardcoded as
+    // {x:0,y:5}/{x:14,y:5}, which only lined up with a 15x11 grid.
+    this.homePost = this.Field.getBlockByFraction(0, 0.5);
+    this.awayPost = this.Field.getBlockByFraction(1, 0.5);
 
     // save match config and all
     this.MatchSettings = {};
@@ -79,16 +85,8 @@ export default class Game implements GameClass {
       centerBlock
     );
     this.Clubs = clubs;
-    // this.homePost = hp;
-    // this.awayPost = ap;
 
     this.MatchBall = new Ball('#ffffff', centerBlock, this.Match.id);
-
-    this.PlayingField = playingField;
-
-    // this.Referee = ref;
-
-    // let ball = new Ball('#ffffff', centerBlock);
 
     this.Referee = new Referee('Anjus', 'Banjus', 'normal', this.MatchBall, this.Match);
 
@@ -117,46 +115,53 @@ export default class Game implements GameClass {
     this.Match.Away.setPlayers();
   }
 
-  /** Initial Club Formations */
-  public setClubFormations(homeFormation: string, awayFormation: string) {
+  /**
+   * Initial Club Tactics (formation + playing style)
+   *
+   * @param homeTactic e.g. { formationName: '433', styleName: 'Balanced' }
+   * (not tied to a side - attacking direction is derived from each
+   * MatchSide's ScoringSide)
+   * @param awayTactic
+   */
+  public setClubFormations(homeTactic: ITactic, awayTactic: ITactic) {
 
-    this.MatchSettings.homeFormation = homeFormation;
-    this.MatchSettings.awayFormation = awayFormation;
+    this.MatchSettings.homeTactic = homeTactic;
+    this.MatchSettings.awayTactic = awayTactic;
 
     this.Match.Home.setFormation(
-      this.MatchSettings.homeFormation,
+      this.MatchSettings.homeTactic,
       this.MatchBall,
-      this.PlayingField
+      this.Field
     );
 
     this.Match.Away.setFormation(
-      this.MatchSettings.awayFormation,
+      this.MatchSettings.awayTactic,
       this.MatchBall,
-      this.PlayingField
+      this.Field
     );
   }
 
-  /** Swap Club Formations at half time... */
+  /** Swap ends at half time, keeping each side's tactic as-is. */
   public swapClubFormations() {
     // copy value
-    let awayF = this.MatchSettings.awayFormation;
-    let homeF = this.MatchSettings.homeFormation;
+    let awayTactic = this.MatchSettings.awayTactic;
+    let homeTactic = this.MatchSettings.homeTactic;
 
-    this.MatchSettings.homeFormation = awayF;
-    this.MatchSettings.awayFormation = homeF;
+    this.MatchSettings.homeTactic = awayTactic;
+    this.MatchSettings.awayTactic = homeTactic;
 
-    this.Match.Home.changeFormation(
-      this.MatchSettings.homeFormation,
-      this.PlayingField,
+    this.Match.Home.changeTactic(
+      this.MatchSettings.homeTactic,
+      this.Field,
       // new scoring side
       this.homePost,
       // new keeping side
       this.awayPost
     );
 
-    this.Match.Away.changeFormation(
-      this.MatchSettings.awayFormation,
-      this.PlayingField,
+    this.Match.Away.changeTactic(
+      this.MatchSettings.awayTactic,
+      this.Field,
       // new scoring side
       this.awayPost,
       // new keeping side
@@ -164,11 +169,64 @@ export default class Game implements GameClass {
     );
   }
 
+  /**
+   * Change a side's tactic at any point in the match, not just half-time.
+   * Emits a matchEvents event so the change lands in Match.Events/Frames
+   * automatically, same as every other in-match action - no replay-system
+   * changes needed for this to show up in a live watch.
+   */
+  public changeTactic(side: 'home' | 'away', tactic: ITactic) {
+    const matchSide = side === 'home' ? this.Match.Home : this.Match.Away;
+
+    matchSide.changeTactic(
+      tactic,
+      this.Field,
+      matchSide.ScoringSide,
+      matchSide.KeepingSide
+    );
+
+    if (side === 'home') {
+      this.MatchSettings.homeTactic = tactic;
+    } else {
+      this.MatchSettings.awayTactic = tactic;
+    }
+
+    createMatchEvent(
+      this.Match.id,
+      `${matchSide.Name} [${matchSide.ClubCode}] changed tactics to ${tactic.formationName} (${tactic.styleName})`,
+      'match'
+    );
+
+    matchEvents.emit(`${this.Match.id}-tactic-changed`, { side, tactic });
+  }
+
   public getMatch() {
     return this.Match;
   }
 
   public setPlayingSides() {
+    // Ball possession should always be single-owner - if it ever isn't,
+    // something upstream (a foul/restart racing an ordinary tackle/dribble
+    // ball-move, the exact class of bug fixed in FieldPlayer.move() and
+    // Actions.tackle()) has regressed. Warn loudly instead of silently
+    // picking whichever holder Array.find() happens to see first.
+    const holders = [...this.Match.Home.StartingSquad, ...this.Match.Away.StartingSquad].filter(
+      (p) => p.WithBall
+    );
+    if (holders.length > 1) {
+      // NOTE: Block objects hold an `occupant` back-reference to a player
+      // (whose own Ball -> Position can cycle back to a Block) - JSON.
+      // stringify-ing one directly throws "Converting circular structure
+      // to JSON" and crashes the whole match. Pick plain x/y instead.
+      const ballPos = this.MatchBall.Position;
+      console.warn(
+        `[possession] ${holders.length} players simultaneously have WithBall (ball @ x:${ballPos.x},y:${ballPos.y}): `,
+        holders.map(
+          (p) => `${p.FirstName} ${p.LastName} [${p.ClubCode}] @ x:${p.BlockPosition.x},y:${p.BlockPosition.y}`
+        )
+      );
+    }
+
     if (
       this.Match.Home.StartingSquad.find((p) => {
         return p.WithBall;
@@ -182,19 +240,15 @@ export default class Game implements GameClass {
         return p.WithBall;
       }) as IFieldPlayer;
 
-      // log(`Active player AS => ${this.ActivePlayerAS.LastName}`);
-
       this.DS = this.Match.Away;
 
       // Set the activePlayer in the defending team to be the player closest to
       // the ball
       this.ActivePlayerDS = this.Co.findClosestFieldPlayer(
         this.MatchBall.Position,
-        this.DS.StartingSquad
+        this.DS.ActivePlayers
       );
-      // log(`Active player DS => ${this.ActivePlayerDS.LastName});
 
-      // return {activePlayerAS, AS, activePlayerDS, DS};
       return {
         activePlayerAS: this.ActivePlayerAS,
         AS: this.AS,
@@ -214,18 +268,14 @@ export default class Game implements GameClass {
         return p.WithBall;
       }) as IFieldPlayer;
 
-      // log(`Attacking player AS => ${this.ActivePlayerAS.LastName}`);
-
       this.DS = this.Match.Home;
 
       // Set the activePlayer in the defending team to be the player closest to
       // the ball
       this.ActivePlayerDS = this.Co.findClosestFieldPlayer(
         this.MatchBall.Position,
-        this.DS.StartingSquad
+        this.DS.ActivePlayers
       );
-
-      // log(`Active player DS => ${this.ActivePlayerDS.LastName});
 
       return {
         activePlayerAS: this.ActivePlayerAS,
@@ -235,38 +285,37 @@ export default class Game implements GameClass {
       };
     } else {
       this.AS = undefined;
-      // this.ActivePlayerAS = undefined;
       this.DS = undefined;
-      // this.ActivePlayerDS = undefined;
       return false;
     }
-    // this.MatchActions.setSides(this.ActivePlayerAS, this.AS, this.ActivePlayerDS, this.DS);
   }
 
   public moveTowardsBall() {
     this.ActivePlayerAS = this.Co.findClosestFieldPlayer(
       this.MatchBall.Position,
-      this.Match.Home.StartingSquad
+      this.Match.Home.ActivePlayers
     );
 
-    this.MatchActions.move(
-      this.ActivePlayerAS,
-      'towards ball',
-      this.MatchBall.Position
-    );
+    if (this.ActivePlayerAS) {
+      this.MatchActions.move(
+        this.ActivePlayerAS,
+        'towards ball',
+        this.MatchBall.Position
+      );
+    }
 
     this.ActivePlayerDS = this.Co.findClosestFieldPlayer(
       this.MatchBall.Position,
-      this.Match.Away.StartingSquad
+      this.Match.Away.ActivePlayers
     );
 
-    this.MatchActions.move(
-      this.ActivePlayerDS,
-      'towards ball',
-      this.MatchBall.Position
-    );
-
-    // this.matchComments();
+    if (this.ActivePlayerDS) {
+      this.MatchActions.move(
+        this.ActivePlayerDS,
+        'towards ball',
+        this.MatchBall.Position
+      );
+    }
   }
 
   public matchComments() {
@@ -275,35 +324,20 @@ export default class Game implements GameClass {
     if(!this.ActivePlayerDS || !this.ActivePlayerAS){
       return _log('NO ACTIVE PLAYERS');
     }
-
-    // _log(
-    //   `Ball is at ${JSON.stringify({
-    //     x: this.MatchBall.Position.x,
-    //     y: this.MatchBall.Position.y,
-    //     key: this.MatchBall.Position.key,
-    //   })}`
-    // );
-    // _log(`
-    //   ActivePlayerAS is ${this.ActivePlayerAS!.FirstName} ${
-    //   this.ActivePlayerAS!.LastName
-    // } of [${this.ActivePlayerAS!.ClubCode}] at ${JSON.stringify({
-    //   x: this.ActivePlayerAS!.BlockPosition.x,
-    //   y: this.ActivePlayerAS!.BlockPosition.y,
-    //   key: this.ActivePlayerAS!.BlockPosition.key,
-    // })}
-    //   ActivePlayerDS is ${this.ActivePlayerDS!.FirstName} ${
-    //   this.ActivePlayerDS?.LastName
-    // } of [${this.ActivePlayerDS?.ClubCode}] at ${JSON.stringify({
-    //   x: this.ActivePlayerDS!.BlockPosition.x,
-    //   y: this.ActivePlayerDS!.BlockPosition.y,
-    //   key: this.ActivePlayerDS!.BlockPosition.key,
-    // })}
-    //   `);
   }
 
   public startHalf() {
     createMatchEvent(this.Match.id, 'Match Kick-Off', 'match');
     log('Half is starting!');
+
+    // Unlike half-time/post-goal/post-ball-out restarts, the very first
+    // kickoff never goes through the `-reset-ball-position` event chain, so
+    // nothing ever gave a player the ball here - no formation slot sits
+    // exactly on the center block, so every match previously started with
+    // WithBall false for all 22 players. Reusing the Referee's restart
+    // handler here gives kickoff the same explicit possession assignment.
+    this.Referee.handleMatchRestart();
+
     return this.gamePlay();
   }
 
@@ -323,16 +357,10 @@ export default class Game implements GameClass {
   }
 
   private gameLoop(timestart = 0, timeend = 90) {
-    // TODO: work on this, use it more and betterly
     this.matchComments();
     return new Promise((resolve, reject) => {
       for (let i = timestart; i < timeend; i++) {
-        // console.log(`------------Loop Position ${i + 1}---------`);
         const playingSides = this.setPlayingSides();
-
-         // matchEvents.emit(`${this.Match.id}-setting-playing-sides`, playingSides);
-
-        // TODO: do error handling here, so throw any error that may arise from here.
 
         this.Match.setCurrentTime(Math.round((i + 1) / 2));
 
@@ -348,9 +376,10 @@ export default class Game implements GameClass {
             this.ActivePlayerDS as IFieldPlayer
           );
           const playingSides = this.setPlayingSides();
-          // matchEvents.emit(`${this.Match.id}-setting-playing-sides`, playingSides);
           this.Match.recordPossession(this.AS);
         }
+
+        this.Match.captureFrame(i, this.MatchBall.Position);
 
         this.matchComments();
       }

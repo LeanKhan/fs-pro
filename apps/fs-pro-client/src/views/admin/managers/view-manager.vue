@@ -22,7 +22,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 
 const router = useRouter();
 const route = useRoute();

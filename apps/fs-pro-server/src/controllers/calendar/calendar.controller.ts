@@ -5,11 +5,8 @@
 /* eslint-disable no-useless-catch */
 import { Request, Response, NextFunction } from 'express';
 import respond from '../../helpers/responseHandler';
-import {
-  fetchAll as fetchAllSeasons,
-  findAndUpdate as updateManySeasons,
-} from '../seasons/season.service';
-import { createMany, findOne as findDay } from '../days/day.service';
+import { getSeasons, getSeasonById, updateSeasonFields } from '../seasons/season.service';
+import { createManyDays, findNextPlayableDay } from '../days/day.service';
 import { Fixture } from '../fixtures/fixture.model';
 import { CalendarInterface } from './calendar.model';
 import { DayInterface, CalendarMatchInterface } from '../days/day.model';
@@ -19,16 +16,17 @@ import {
   randomCode,
 } from '../../utils/seasons';
 import {
-  createNew,
   fetchOne,
-  findOneAndUpdate as updateCalendar,
-  findAndUpdate as updateCalendars,
-  fetchOneById,
+  createCalendar,
+  updateCalendarFields,
+  getCalendarById,
+  activateCalendarYear,
+  updateCalendarByYearString,
 } from './calendar.service';
 import log from '../../helpers/logger';
 import { CompetitionInterface } from '../competitions/competition.model';
 import { SeasonInterface } from '../seasons/season.model';
-import { fetchAll } from '../competitions/competition.service';
+import { getCompetitions } from '../competitions/competition.service';
 import { create } from '../../middleware/seasons';
 import { prolegate } from '../seasons/season.controller';
 
@@ -64,12 +62,12 @@ export function createCalendarYear(req: Request, res: Response) {
     Days: [],
   };
 
-  return createNew(calendar)
-    .then((c) => {
+  return createCalendar(calendar)
+    .then((c: any) => {
       console.log('Calendar Year created successfully!');
       return respond.success(res, 200, 'Calendar Year created succesfully!', c);
     })
-    .catch((e) => {
+    .catch((e: any) => {
       console.log(`Calendar Year could not be created!`);
       console.error(e);
       return respond.fail(res, 400, 'Failed to create Calendar Year ', e);
@@ -88,7 +86,7 @@ export async function createSeasonsInTheYear(
   res: Response,
   next: NextFunction
 ) {
-  const competitions: CompetitionInterface[] = await fetchAll();
+  const competitions: CompetitionInterface[] = await getCompetitions();
   const year: string = req.params.year.trim().toUpperCase();
 
   // create a season for all competitions that are available.
@@ -114,6 +112,20 @@ export async function createSeasonsInTheYear(
     });
 }
 
+/**
+ * `getSeasons()` (list) doesn't populate `Fixtures` the way `getSeasonById()`
+ * (single) always does - on Mongo this went unnoticed because `Season.Fixtures`
+ * is a real stored array of ids even without `.populate()`, but Postgres has
+ * no such column at all (reverse `fixtures.Season` FK instead), so a season
+ * fetched via `getSeasons()` there has no `Fixtures` key whatsoever. Both
+ * `setupDaysInYear`/`setupDaysInYear2` below read `.Fixtures` off every
+ * season they process, so each needs the fully-hydrated version.
+ */
+async function hydrateSeasonFixtures(seasonStubs: { _id?: string }[]): Promise<SeasonInterface[]> {
+  const hydrated = await Promise.all(seasonStubs.map((s) => getSeasonById(s._id as string)));
+  return hydrated.filter((s): s is SeasonInterface => !!s);
+}
+
 /** NEW
  * Start Calendar Year...
  *
@@ -129,7 +141,7 @@ export function setupDaysInYear(
 ) {
   const fetchCalendar = () => {
     // this is the Calendar ID!
-    return fetchOneById(req.params.id);
+    return getCalendarById(req.params.id) as Promise<CalendarInterface>;
   };
 
   let _calendar: CalendarInterface;
@@ -137,10 +149,8 @@ export function setupDaysInYear(
   const createDays = async (calendar: CalendarInterface) => {
     _calendar = calendar;
 
-    const competitions: CompetitionInterface[] = await fetchAll();
-    const seasons: SeasonInterface[] = await fetchAllSeasons({
-      Year: _calendar.YearString,
-    });
+    const competitions: CompetitionInterface[] = await getCompetitions() as CompetitionInterface[];
+    const seasons: SeasonInterface[] = await hydrateSeasonFixtures(await getSeasons({ Year: _calendar.YearString }));
 
     /**
      * TODO URGENT APRIL 26 2022
@@ -188,9 +198,11 @@ export function setupDaysInYear(
             {
               Fixture: fixture._id,
               Competition: fixture.LeagueCode,
+              CompetitionId: typeof fixture.Season === 'string' ? fixture.Season : '',
               MatchType: fixture.Type,
               Played: false,
               Time: `${1}`,
+              FixtureIndex: index,
               Week: Math.ceil((index + 1) / firstDivisionMatchesPerWeek),
             },
           ];
@@ -208,9 +220,11 @@ export function setupDaysInYear(
           const Match: CalendarMatchInterface = {
             Fixture: secondDivisionFixtures[index]._id,
             Competition: secondDivisionFixtures[index].LeagueCode,
+            CompetitionId: typeof secondDivisionFixtures[index].Season === 'string' ? secondDivisionFixtures[index].Season : '',
             MatchType: secondDivisionFixtures[index].Type,
             Played: false,
             Time: `${2}`,
+            FixtureIndex: index,
             Week: Math.ceil((index + 1) / secondDivisionMatchesPerWeek),
           };
           return {
@@ -273,7 +287,10 @@ export function setupDaysInYear(
   const saveCalendar = (calendarDays: string[]) => {
     const calendarID: string = _calendar._id as string;
 
-    updateCalendar({ _id: calendarID }, { Days: calendarDays })
+    // Days doesn't exist on Postgres - each Day already carries its own
+    // Calendar FK, set above in createDays - see ICalendarRepository's
+    // doc comment. Harmless no-op there, real array write on Mongo.
+    updateCalendarFields(calendarID, { Days: calendarDays } as any)
       .then((cal: any) => {
         log('Calendar Updated successfully!');
         // this can just go next tho :)
@@ -299,7 +316,7 @@ export function setupDaysInYear(
   // Here create the Calendar Days in the db...
   fetchCalendar()
     .then(createDays)
-    .then(createMany)
+    .then(createManyDays)
     .then((days: any) => {
       // get ids...
       log('Days created successfully!');
@@ -320,7 +337,7 @@ export function setupDaysInYear2(
 ) {
   const fetchCalendar = () => {
     // this is the Calendar ID!
-    return fetchOneById(req.params.id);
+    return getCalendarById(req.params.id) as Promise<CalendarInterface>;
   };
 
   const DAYS_IN_YEAR = 365;
@@ -347,7 +364,7 @@ export function setupDaysInYear2(
       };
     }
 
-    const competitions: CompetitionInterface[] = await fetchAll();
+    const competitions: CompetitionInterface[] = await getCompetitions();
 
     /**
      * TODO URGENT APRIL 26 2022
@@ -361,14 +378,16 @@ export function setupDaysInYear2(
     // get all competitions... TODO: use Mongo to query
     const AllLeagues = competitions
       .filter((c) => c.Type === 'league')
-      .map((c) => c._id); // only get leagues
+      .map((c) => c._id)
+      .filter((id): id is string => !!id); // only get leagues
 
-// Get all Seasons in this new year that
-// belong to a League and sort by their Competition Code.
-    const AllLeagueSeasonsThisYear: SeasonInterface[] = await fetchAllSeasons({
-      Year: _calendar.YearString,
-      Competition: { $in: AllLeagues },
-    }, false, false, {"CompetitionCode": 1});
+// Get all Seasons in this new year that belong to a League - one query per
+// league competition (there's only ever a handful), since the repository's
+// typed filter doesn't support Mongo-style $in membership.
+    const seasonsPerLeague = await Promise.all(
+      AllLeagues.map((competitionId: string) => getSeasons({ Year: _calendar.YearString, Competition: competitionId }))
+    );
+    const AllLeagueSeasonsThisYear: SeasonInterface[] = await hydrateSeasonFixtures(seasonsPerLeague.flat());
 
     return { days: freeDays, seasons: AllLeagueSeasonsThisYear };
   };
@@ -500,7 +519,9 @@ export function setupDaysInYear2(
   const saveCalendar = (calendarDays: string[]) => {
     const calendarID: string = _calendar._id as string;
 
-    updateCalendar({ _id: calendarID }, { Days: calendarDays })
+    // Days doesn't exist on Postgres - see the equivalent comment in
+    // setupDaysInYear's saveCalendar above.
+    updateCalendarFields(calendarID, { Days: calendarDays } as any)
       .then((cal: any) => {
         log('Calendar Updated successfully: Days added!');
         // this can just go next tho :)
@@ -527,7 +548,7 @@ export function setupDaysInYear2(
   fetchCalendar()
     .then(createDays)
     .then(arrangeFixturesInDays)
-    .then(createMany)
+    .then(createManyDays)
     .then((days: any) => {
       // get ids...
       log('Days created successfully!');
@@ -560,31 +581,18 @@ export async function changeCurrentDay(year: string, currentDay: DayInterface) {
   // matches should be played in sequence
   // Added in JUl-11-21: Also, a day that actually has matches shey?
   const getNextDay = async () => {
-    const query = {
-      $nor: [{ 'Matches.Played': true }],
-      Year: year,
-      isFree: false,
-      Day: { $gt: currentDay.Day },
-    };
-
-    return findDay(query, false);
+    return findNextPlayableDay(year, currentDay.Day as number);
   };
 
-  function updateCurrentDay(nextfreeday: DayInterface) {
+  function updateCurrentDay(nextfreeday: DayInterface | null) {
     // if this doesn't return a calendar, doesn't that mean all games have been played in all days?
 
     if (nextfreeday == null) {
       // If there is no nextFreeDay (last playable match of the Year), so maybe just keep the Calendat CurrentDay
-      return updateCalendar(
-        { YearString: year },
-        { CurrentDay: currentDay.Day }
-      );
+      return updateCalendarByYearString(year, { CurrentDay: currentDay.Day });
     }
 
-    return updateCalendar(
-      { YearString: year },
-      { CurrentDay: nextfreeday.Day }
-    );
+    return updateCalendarByYearString(year, { CurrentDay: nextfreeday.Day });
   }
 
   return getNextDay().then(updateCurrentDay);
@@ -601,32 +609,32 @@ export function startYear(req: Request, res: Response) {
     );
   }
 
-  const fetchSeasons = () => {
+  const fetchSeasons = async () => {
     // this is the wrong query. Fetch seasons that have not started and are 'pending' state
-    const query = {
-      Year: year,
-      Status: 'pending',
-      isStarted: false,
-      isFinished: false,
-    };
+    const candidates: any[] = await getSeasons({ Year: year });
+    const pending = candidates.filter(
+      (s) => s.Status === 'pending' && !s.isStarted && !s.isFinished
+    );
 
-    return updateManySeasons(query, {
-      isStarted: true,
-      StartDate: new Date(),
-      Status: 'started',
-    });
+    return Promise.all(
+      pending.map((s) =>
+        updateSeasonFields(s._id, {
+          isStarted: true,
+          StartDate: new Date(),
+          Status: 'started',
+        })
+      )
+    );
   };
 
-  const startCalendarYear = (seasons: any) => {
+  const startCalendarYear = (seasons: any[]) => {
     // This means the Seasons were not found and updated :o
-    if (seasons.n === 0 && seasons.nModified === 0) {
+    if (seasons.length === 0) {
       throw new Error('No seasons found!');
     }
     // Set the rest to false and this one to true...
     // There should be only ONE active calendar at a time.
-    return updateCalendars({}, [
-      { $set: { isActive: { $eq: ['$YearString', year] }, CurrentDay: 0 } },
-    ]);
+    return activateCalendarYear(year);
   };
 
   fetchSeasons()
@@ -649,14 +657,14 @@ export function startYear(req: Request, res: Response) {
 // TODO: add the _id of Calendar to Season
 
 export async function getCurrentCalendar(req: Request, res: Response) {
-  const skip = getSkip(parseInt(req.query.page || 1), 14);
-  const limit = parseInt(req.query.limit || 14);
+  const skip = getSkip(parseInt(String(req.query.page || 1)), 14);
+  const limit = parseInt(String(req.query.limit || 14));
   let response;
 
   let populate;
 
   try {
-    populate = JSON.parse(req.query.populate);
+    populate = req.query.populate && typeof req.query.populate === 'string' && JSON.parse(req.query.populate);
   } catch (error) {
     log("Couldn't parse populate query param");
     populate = false;
@@ -702,7 +710,11 @@ function getSkip(page: number, length: number) {
 export async function endYear(req: Request, res: Response, next: NextFunction) {
   const id = req.params.id;
 
-  const currentCalendar = await fetchOneById(id);
+  const currentCalendar = await getCalendarById(id);
+
+  if (!currentCalendar) {
+    return respond.fail(res, 404, 'Calendar not found!');
+  }
 
   if (!currentCalendar.isActive && currentCalendar.isEnded) {
     // Calendar must already be ended.
@@ -715,9 +727,7 @@ export async function endYear(req: Request, res: Response, next: NextFunction) {
     );
   }
 
-  const all_seasons: SeasonInterface[] = await fetchAllSeasons({
-    Calendar: id,
-  });
+  const all_seasons: SeasonInterface[] = await getSeasons({ Calendar: id }) as SeasonInterface[];
 
   // actually check if Calendar is not already ended :)
 
@@ -740,7 +750,7 @@ export async function endYear(req: Request, res: Response, next: NextFunction) {
         console.log('Seasons prolegated Successfully!');
         // No, time to update Calendar!
         // TODO: This should get Player of the Year etc...
-        updateCalendar({ _id: id }, { isActive: false, isEnded: true })
+        updateCalendarFields(id, { isActive: false, isEnded: true })
           .then((c) => {
             console.log('Calendar Year Ended Successfully! :)');
             // Move to the Updating Players part...

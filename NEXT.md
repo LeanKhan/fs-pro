@@ -1,0 +1,3 @@
+- Connect queing to actual gameplay so match data updates
+- Prevent replaying a match unless admin overridden
+- Drizzle schema doesn't seem to respect relationships! Compare with Prisma schema.

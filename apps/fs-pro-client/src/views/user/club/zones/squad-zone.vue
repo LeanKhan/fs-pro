@@ -12,12 +12,14 @@
             "
           >
             <thead>
-              <th style="border: solid 1px white; padding: 4px 4px">
-                Player (POS)
-              </th>
-              <th style="border: solid 1px white; padding: 4px 4px">Age</th>
-              <th style="border: solid 1px white; padding: 4px 4px">Prev.</th>
-              <th style="border: solid 1px white; padding: 4px 4px">Curr.</th>
+              <tr>
+                <th style="border: solid 1px white; padding: 4px 4px">
+                  Player (POS)
+                </th>
+                <th style="border: solid 1px white; padding: 4px 4px">Age</th>
+                <th style="border: solid 1px white; padding: 4px 4px">Prev.</th>
+                <th style="border: solid 1px white; padding: 4px 4px">Curr.</th>
+              </tr>
             </thead>
             <tbody>
               <tr v-for="(player, i) in club.Players" :key="i">
@@ -68,19 +70,11 @@
 </template>
 
 <script setup lang="ts">
-import { getCurrentInstance } from 'vue';
-
-const instance = getCurrentInstance();
+import { currency } from '@/helpers/misc';
 
 defineProps<{
   club: any;
 }>();
-
-function currency(stuff: any) {
-  if (instance) {
-    return instance.appContext.config.globalProperties.$filters.currency(stuff);
-  }
-}
 </script>
 
 <style scoped>

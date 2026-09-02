@@ -1,31 +1,36 @@
 import { Router } from 'express';
 import respond from '../../helpers/responseHandler';
-import { fetchOneById, deleteByRemove } from './fixture.service';
+import { fetchOneById, getFixtureById, deleteFixtureById } from './fixture.service';
 import { setupRoutes } from '../../helpers/queries';
 
 const router = Router();
 
 /** Get Fixture by id */
 router.get('/:id', (req, res) => {
-  let p = false;
+  let p: any = false;
 
   try {
-    p = JSON.parse(req.query.populate);
+    p = typeof req.query.populate === 'string' && JSON.parse(req.query.populate);
   } catch (err) {
     console.log('Error parsing populate string, Fixture', err);
   }
 
-  fetchOneById(req.params.id, p)
-    .then((fixture) => {
+  // An extra ?populate= path needs the raw arbitrary-populate function -
+  // HomeSideDetails/AwaySideDetails+PlayerStats are always populated
+  // either way, by the repository or by fetchOneById's own default.
+  const response = p ? fetchOneById(req.params.id, p) : getFixtureById(req.params.id);
+
+  response
+    .then((fixture: any) => {
       respond.success(res, 200, 'Fixture fetched successfully', fixture);
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error fetching Fixture', err);
     });
 });
 
 router.delete('/:id', (req, res) => {
-  deleteByRemove(req.params.id)
+  deleteFixtureById(req.params.id)
     .then((calendar: any) => {
       respond.success(res, 200, 'Fixture deleted successfully :)', calendar);
     })

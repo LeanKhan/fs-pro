@@ -1,43 +1,18 @@
 <template>
-  <div>
-    <!-- For the stats gan -->
-    <v-table v-if="matchDetails">
-      <tbody>
-        <tr>
-          <td>
-            <v-avatar tile size="30">
-              <v-icon style="font-size: 30px; height: 30px" size="large">
-                custom:{{ home }}
-              </v-icon>
-            </v-avatar>
-          </td>
-
-          <td>-</td>
-
-          <td>
-            <v-avatar tile size="30">
-              <v-icon style="font-size: 30px; height: 30px" size="large">
-                custom:{{ away }}
-              </v-icon>
-            </v-avatar>
-          </td>
-        </tr>
-        <tr class="pa-0" v-for="(stat, i) in statLabels" :key="i">
-          <td class="pa-0">
-            {{ matchDetails.Home[stat.key] }}
-          </td>
-
-          <td class="font-weight-bold text-body-2 text-white text-center pa-0">
-            {{ stat.label }}
-          </td>
-
-          <td class="pa-0">
-            {{ matchDetails.Away[stat.key] }}
-          </td>
-        </tr>
-      </tbody>
-    </v-table>
-  </div>
+  <table v-if="matchDetails" class="results-table">
+    <tbody>
+      <tr class="results-badges">
+        <td><img class="results-badge" :src="`/club-icons/${home}.svg`" /></td>
+        <td>-</td>
+        <td><img class="results-badge" :src="`/club-icons/${away}.svg`" /></td>
+      </tr>
+      <tr v-for="(stat, i) in statLabels" :key="i">
+        <td>{{ matchDetails.Home[stat.key] }}</td>
+        <td class="results-label">{{ stat.label }}</td>
+        <td>{{ matchDetails.Away[stat.key] }}</td>
+      </tr>
+    </tbody>
+  </table>
 </template>
 <script setup lang="ts">
 import { ref } from 'vue';
@@ -59,37 +34,24 @@ const statLabels = ref([
   { label: 'Yellow Cards', key: 'YellowCards' },
   { label: 'Red Cards', key: 'RedCards' },
 ]);
-
-/** MatchSide Details
- *   Score: 0,
-        Possession: 0,
-        TimesWithBall: 0,
-        Goals: 0,
-        TotalShots: 0,
-        ShotsOnTarget: 0,
-        ShotsOffTarget: 0,
-        Fouls: 0,
-        YellowCards: 0,
-        RedCards: 0,
-        Passes: 0,
-*/
-
-/** Match Details
- * Title: string;
-  LeagueName: string;
-  Draw: boolean;
-  Played: boolean;
-  Time: Date;
-  FirstHalfScore: string;
-  FullTimeScore: string;
-  HomeTeamScore: number;
-  AwayTeamScore: number;
-  Winner: string | null;
-  Loser: string | null;
-  MOTM: any;
-  TotalPasses: number;
-  Goals: number;
-  HomeTeamDetails: IMatchSideDetails;
-  AwayTeamDetails: IMatchSideDetails;
- */
 </script>
+
+<style scoped>
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.results-table td {
+  padding: 6px 4px;
+  text-align: center;
+}
+.results-badges .results-badge {
+  width: 30px;
+  height: 30px;
+}
+.results-label {
+  font-weight: 700;
+  opacity: 0.85;
+}
+</style>

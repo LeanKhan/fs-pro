@@ -4,8 +4,9 @@ import { Router, Request, Response } from 'express';
 import {
   fetchAll,
   fetchOneById,
-  deleteByRemove,
-  findByIdAndUpdate,
+  getSeasonById,
+  updateSeasonFields,
+  deleteSeasonById,
 } from './season.service';
 import { SeasonInterface } from './season.model';
 import {
@@ -34,7 +35,7 @@ router.get('/', (req: Request, res: Response) => {
   // TODO: review all these your service then, async/awaits.
   let {query, select, populate, sort} = req.query;
 
-  if(query){
+  if(query && typeof query === 'string'){
     try {
       query = JSON.parse(query);
     } catch (err) {
@@ -43,7 +44,7 @@ router.get('/', (req: Request, res: Response) => {
     }
   }
 
-  fetchAll(query, populate, select, sort)
+  fetchAll(query as Record<string, unknown>, typeof populate === 'string' ? populate : false, typeof select === 'string' ? select : undefined, {field: 'CompetitionCode', dir: 1})
     .then((seasons: any) => {
       return respond.success(res, 200, 'Seasons fetched successfully', seasons);
     })
@@ -74,7 +75,9 @@ router.post(
   (req, res) => {
     const fixtureIds = req.body.fixtureIds;
 
-    findByIdAndUpdate(req.params.id, { Fixtures: fixtureIds })
+    // Fixtures doesn't exist on Postgres - see saveFixtures's comment in
+    // middleware/seasons.ts for why this is a safe no-op there.
+    updateSeasonFields(req.params.id, { Fixtures: fixtureIds } as any)
       .then((season: any) => {
         respond.success(
           res,
@@ -91,7 +94,7 @@ router.post(
 
 /** Start Season */
 router.patch('/:id/start', (req, res) => {
-  findByIdAndUpdate(req.params.id, {
+  updateSeasonFields(req.params.id, {
     isStarted: true,
     StartDate: new Date(),
   })
@@ -108,7 +111,7 @@ router.post('/:id/finish', finishSeason, giveAwards);
 
 /** Get all Fixtures in Season */
 router.get('/:id/fixtures', (req, res) => {
-  fetchAllFixtures({ Season: req.params.id }, req.query.select || "")
+  fetchAllFixtures({ Season: req.params.id }, typeof req.query.select === 'string' ? req.query.select : "")
     .then((fixtures: any) => {
       respond.success(
         res,
@@ -139,13 +142,18 @@ router.get('/:id', (req: Request, res: Response) => {
   const {populate} = req.query;
   let p;
   try {
-    p = JSON.parse(populate);
+    p = populate && typeof populate === 'string' && JSON.parse(populate);
   } catch(e) {
     console.error(e);
     console.log('Could not parse Season populate')
   }
 
-  fetchOneById(id, false, p)
+  // No explicit ?populate= needs the repository's own default (Fixtures) -
+  // an explicit one (anything other than the default) stays on the raw
+  // arbitrary-populate path.
+  const response = p ? fetchOneById(id, false, p) : getSeasonById(id);
+
+  response
     .then((season: any) => {
       if (!season.Title)
         return respond.success(res, 404, 'Season not found!', season);
@@ -188,7 +196,7 @@ router.delete('/:id', (req: Request, res: Response) => {
   }
 
   const deleteSeason = () => {
-    return deleteByRemove(id);
+    return deleteSeasonById(id);
   };
 
 

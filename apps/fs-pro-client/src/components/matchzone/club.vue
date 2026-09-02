@@ -1,60 +1,25 @@
 <template>
-  <div class="align-center d-flex flex-column" :class="isHome">
-    <v-card-subtitle>
-      {{ clubName }} -
-      <b>{{ clubCode }}</b>
-    </v-card-subtitle>
-
-    <v-badge
-      v-if="winner == side"
-      bordered
-      top
-      color="gold"
-      dot
-      offset-x="10"
-      offset-y="10"
-    >
-      <v-avatar tile size="30px">
-        <v-icon color="gold" style="font-size: 30px; height: 30px" large>
-          mdi-trophy
-        </v-icon>
-      </v-avatar>
-    </v-badge>
-
-    <v-avatar tile size="100px">
-      <v-img
-        :src="`${api}/img/clubs/logos/${clubCode}.png`"
-        width="100px"
-      ></v-img>
-    </v-avatar>
-
-    <div>
-      <v-rating
-        :value="clubRating"
-        :half-increments="true"
-        :readonly="true"
-        size="14px"
-        :color="isHome ? 'deep-purple darken-3' : 'pink accent-3'"
-        background-color="secondary lighten-1"
-      ></v-rating>
-      <span class="caption text-muted ml-1">
-        {{ $filters.roundTo(clubRating, 1) }}
-      </span>
+  <div class="club-widget" :class="{ home: isHome, away: !isHome }">
+    <div class="club-name">
+      {{ clubName }} <b>{{ clubCode }}</b>
     </div>
 
-    <div class="caption" v-if="clubStandings.standing">
-      <span class="ma-0 pr-2">
-        {{ $filters.ordinal(clubStandings.position) }}
-      </span>
-      -
-      <span class="ma-0 pl-2">{{ clubStandings.standing.Points }} Pts</span>
+    <div class="club-badge-wrap">
+      <span v-if="winner === side" class="trophy" title="Winner">🏆</span>
+      <img class="club-badge" :src="`/club-icons/${clubCode}.svg`" />
+    </div>
+
+    <div class="club-rating">★ {{ roundTo(clubRating, 1) }}</div>
+
+    <div v-if="clubStandings?.standing" class="club-standing">
+      {{ ordinal(clubStandings.position) }} - {{ clubStandings.standing.Points }} Pts
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, getCurrentInstance } from 'vue';
-import { apiUrl } from '@/store';
+import { computed } from 'vue';
+import { ordinal, roundTo } from '@/helpers/misc';
 
 interface Props {
   clubName: any;
@@ -67,10 +32,9 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const instance = getCurrentInstance();
-const $filters = instance?.appContext.config.globalProperties.$filters;
-
-const api = ref(apiUrl);
+defineOptions({
+  name: 'MatchClub',
+});
 
 const clubRating = computed(() => {
   if (props.rating) {
@@ -84,3 +48,43 @@ const side = computed(() => {
   return props.isHome ? 'home' : 'away';
 });
 </script>
+
+<style scoped>
+.club-widget {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  min-width: 0;
+}
+.club-name {
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+.club-badge-wrap {
+  position: relative;
+  margin: 2px 0;
+}
+.club-badge {
+  width: 32px;
+  height: 32px;
+}
+.trophy {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 12px;
+}
+.club-rating {
+  color: #e9b34a;
+  font-size: 10px;
+}
+.club-standing {
+  opacity: 0.6;
+  font-size: 9px;
+}
+</style>

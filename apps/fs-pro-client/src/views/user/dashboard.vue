@@ -1,6 +1,6 @@
 <template>
   <v-card background="transparent" color="transparent">
-    <v-toolbar dense>
+    <v-toolbar density="compact">
       <!-- Current day -->
       <v-toolbar-title
         v-if="calendar"
@@ -89,7 +89,15 @@
                   variant="text"
                   size="small"
                   color="indigo"
-                  to="u/fixtures"
+                  to="/u/friendly"
+                >
+                  Play Friendly
+                </v-btn>
+                <v-btn
+                  variant="text"
+                  size="small"
+                  color="indigo"
+                  to="/u/fixtures"
                 >
                   View All
                 </v-btn>
@@ -156,12 +164,15 @@ import DayScroll from '@/components/calendar/day-scroll.vue';
 import StandingsScroller from '@/components/seasons/standings-scroller.vue';
 import FixtureCard from '@/components/user-dashboard/fixture-card.vue';
 import DayFixturesList from '@/components/user-dashboard/day-fixtures-list.vue';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 
 const router = useRouter();
 const store = useStore();
 
-const match = ref({});
+defineOptions({
+  name: 'UserDashboard',
+});
+
 const selectedDayIndex = ref(0);
 const seasonTab = ref<any>(null);
 const leagues = ref<any>([]);
@@ -180,21 +191,17 @@ const selectedDay = computed(() => days.value[selectedDayIndex.value]);
 
 watch(
   currentDay,
-  (day) => {
-    if (day) getDays(day);
+  () => {
+    if (currentDay.value) getDays();
   },
   { immediate: true }
 );
 
-watch(
-  lobby,
-  (toLobby) => {
-    if (toLobby) {
-      router.push('/u/lobby');
-    }
-  },
-  { immediate: true }
-);
+watch(lobby, (toLobby) => {
+  if (toLobby && router.currentRoute.value.name !== 'User Lobby') {
+    router.push('/u/lobby');
+  }
+});
 
 function endYear() {
   router.push(`/finish/year/${calendar.value?._id}`);
@@ -204,7 +211,7 @@ function changeSelectedLeague(league_id: string) {
   if (league_id) {
     store.setSelectedLeague(league_id);
     getLeagues(league_id);
-    fetchCurrentSeason(league_id);
+    fetchCurrentSeason();
   }
 }
 
@@ -214,7 +221,7 @@ function matchSelected(match: any) {
   selectedMatch.value = match;
 }
 
-async function getDays(day: number) {
+async function getDays() {
   const limit = 7;
   const week =
     calendar.value?.CurrentDay === 0
@@ -249,7 +256,7 @@ async function getLeagues(league_id?: string) {
   }
 }
 
-async function fetchCurrentSeason(league_id: string) {
+async function fetchCurrentSeason() {
   if (calendar.value?.YearString) {
     try {
       const response = await $axios.get(
@@ -272,9 +279,6 @@ function selectDay(val: number) {
 }
 
 onMounted(() => {
-  if (lobby.value) {
-    router.push('/u/lobby');
-  }
   getLeagues();
 });
 </script>

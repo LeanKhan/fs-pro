@@ -3,6 +3,56 @@ import { MatchSide } from '../../../classes/MatchSide';
 import CO from '../../../utils/coordinates';
 import { getResult } from '../../../utils/probability';
 
+interface IShootProfile {
+  threshold: number;
+  distance: number;
+}
+
+interface IOutfieldShootProfile {
+  shoot: { withMindset: IShootProfile; without: IShootProfile };
+  longShot: { withMindset: IShootProfile; without: IShootProfile };
+}
+
+/**
+ * Base shoot/long-shot thresholds and distances per outfield position.
+ * These are still hand-tuned constants, but centralising them here means
+ * makeDecision no longer repeats the same shoot/long-shot branch three
+ * times with inline magic numbers - and `confidenceThreshold` below is
+ * what actually adjusts them per-attempt (composure, pressure).
+ */
+const SHOOT_PROFILES: Record<'ATT' | 'MID' | 'DEF', IOutfieldShootProfile> = {
+  MID: {
+    shoot: {
+      withMindset: { threshold: 70, distance: 2 },
+      without: { threshold: 50, distance: 2 },
+    },
+    longShot: {
+      withMindset: { threshold: 50, distance: 3 },
+      without: { threshold: 30, distance: 3 },
+    },
+  },
+  ATT: {
+    shoot: {
+      withMindset: { threshold: 90, distance: 3 },
+      without: { threshold: 60, distance: 3 },
+    },
+    longShot: {
+      withMindset: { threshold: 60, distance: 5 },
+      without: { threshold: 40, distance: 5 },
+    },
+  },
+  DEF: {
+    shoot: {
+      withMindset: { threshold: 40, distance: 3 },
+      without: { threshold: 30, distance: 2 },
+    },
+    longShot: {
+      withMindset: { threshold: 70, distance: 5 },
+      without: { threshold: 40, distance: 3 },
+    },
+  },
+};
+
 export class Decider {
   public teams: MatchSide[];
 
@@ -31,31 +81,11 @@ export class Decider {
       // If this guy is a midfielder...
       case 'MID':
         if (player.WithBall) {
-          // Check mindsets...
-          if (player.Attributes.AttackingMindset) {
-            // If Midfielder with ball has attacking mindset...
-            // check if he is close to the scoring post... and if his chance in 70%
-            if (this.chanceToShoot(player, attackingSide, 70, 2)) {
-              this.strategy = { type: 'shoot', detail: 'normal' };
-            } else if (this.chanceToShoot(player, attackingSide, 50, 3)) {
-              // If not close to the post, what can he do? Move forward!
-              this.strategy = { type: 'shoot', detail: 'long' };
-            } else if (this.gimmeAChance() <= 80) {
-              this.strategy = this.whatKindaPass(player, attackingSide);
-            } else {
-              this.strategy = { type: 'move', detail: 'normal' };
-            }
-          } else {
-            if (this.chanceToShoot(player, attackingSide, 50, 2)) {
-              this.strategy = { type: 'shoot', detail: 'normal' };
-            } else if (this.chanceToShoot(player, attackingSide, 30, 3)) {
-              this.strategy = { type: 'shoot', detail: 'long' };
-            } else if (this.gimmeAChance() <= 80) {
-              this.strategy = this.whatKindaPass(player, attackingSide);
-            } else {
-              this.strategy = { type: 'move', detail: 'normal' };
-            }
-          }
+          this.strategy =
+            this.tryShoot(player, attackingSide, defendingSide, 'MID') ??
+            (this.gimmeAChance() <= 80
+              ? this.whatKindaPass(player, attackingSide, defendingSide)
+              : { type: 'move', detail: 'normal' });
         }
         break;
       case 'GK':
@@ -63,6 +93,7 @@ export class Decider {
           this.strategy = this.keeperPass(
             player,
             attackingSide,
+            defendingSide,
             80
             // player.Attributes.Keeping
           );
@@ -70,102 +101,137 @@ export class Decider {
         break;
       case 'ATT':
         if (player.WithBall) {
-          if (
-            this.chanceToShoot(
-              player,
-              attackingSide,
-              player.Attributes.AttackingMindset ? 90 : 60,
-              3
-            )
-          ) {
-            this.strategy = { type: 'shoot', detail: 'normal' };
-          } else if (
-            this.chanceToShoot(
-              player,
-              attackingSide,
-              player.Attributes.AttackingMindset ? 60 : 40,
-              5
-            )
-          ) {
-            // If not close to the post, what can he do? Move forward!
-            this.strategy = { type: 'shoot', detail: 'long' };
+          const shot = this.tryShoot(player, attackingSide, defendingSide, 'ATT');
+
+          if (shot) {
+            this.strategy = shot;
           } else if (this.isClosestToPost(player, attackingSide)) {
             // If the player is near the post, he should keep on moving...
             this.strategy = this.chanceToMoveForward(
               player,
               attackingSide,
+              defendingSide,
               30,
               true,
               2
             );
-          } else {
+          } else if (player.Attributes.AttackingMindset) {
             // here player is neither shooting or moving forward, therefore pass!
             // but what kind of pass?
             // It is possible for this to result in a 'move' strategy i.e
             // closest teammate is too far away
-            if (player.Attributes.AttackingMindset) {
-              this.strategy = this.chanceToMoveForward(
-                player,
-                attackingSide,
-                30,
-                false
-              );
-            } else {
-              this.strategy = this.whatKindaPass(player, attackingSide);
-            }
+            this.strategy = this.chanceToMoveForward(
+              player,
+              attackingSide,
+              defendingSide,
+              30,
+              false
+            );
+          } else {
+            this.strategy = this.whatKindaPass(player, attackingSide, defendingSide);
           }
         }
         break;
       case 'DEF':
         if (player.WithBall) {
           // Defenders should be passing!
-          if (player.Attributes.AttackingMindset) {
-            if (this.chanceToShoot(player, attackingSide, 40, 3)) {
-              this.strategy = { type: 'shoot', detail: 'normal' };
-            } else if (this.chanceToShoot(player, attackingSide, 70, 5)) {
-              // If not close to the post, what can he do? Move forward!
-              this.strategy = { type: 'shoot', detail: 'long' };
-            } else if (this.isClosestToPost(player, attackingSide)) {
-              this.strategy = this.chanceToMoveForward(
-                player,
-                attackingSide,
-                50,
-                true
-              );
-            } else {
-              // here player is neither shooting or moving forward, therefore pass!
-              // but what kind of pass?
-              // It is possible for this to result in a 'move' strategy i.e
-              // closest teammate is too far away
-              this.strategy = this.whatKindaPass(player, attackingSide);
-            }
+          const shot = this.tryShoot(player, attackingSide, defendingSide, 'DEF');
+
+          if (shot) {
+            this.strategy = shot;
+          } else if (this.isClosestToPost(player, attackingSide)) {
+            this.strategy = this.chanceToMoveForward(
+              player,
+              attackingSide,
+              defendingSide,
+              player.Attributes.AttackingMindset ? 50 : 40,
+              true
+            );
           } else {
-            // reduced threshold from 3 -> 2.
-            if (this.chanceToShoot(player, attackingSide, 30, 2)) {
-              this.strategy = { type: 'shoot', detail: 'normal' };
-            } else if (this.chanceToShoot(player, attackingSide, 40, 3)) {
-              // If not close to the post, what can he do? Move forward!
-              this.strategy = { type: 'shoot', detail: 'long' };
-            } else if (this.isClosestToPost(player, attackingSide)) {
-              this.strategy = this.chanceToMoveForward(
-                player,
-                attackingSide,
-                40,
-                true
-              );
-            } else {
-              // here player is neither shooting or moving forward, therefore pass!
-              // but what kind of pass?
-              // It is possible for this to result in a 'move' strategy i.e
-              // closest teammate is too far away
-              this.strategy = this.whatKindaPass(player, attackingSide);
-            }
+            // here player is neither shooting or moving forward, therefore pass!
+            // but what kind of pass?
+            // It is possible for this to result in a 'move' strategy i.e
+            // closest teammate is too far away
+            this.strategy = this.whatKindaPass(player, attackingSide, defendingSide);
           }
         }
         break;
     }
 
     return this.strategy;
+  }
+
+  /**
+   * Try to shoot (normal, then long) for the given outfield position,
+   * folding in the player's composure and how much pressure they're under
+   * (see `confidenceThreshold`). Returns undefined if neither attempt
+   * clears its chance roll, meaning the caller should fall back to
+   * passing/moving.
+   */
+  private tryShoot(
+    player: IFieldPlayer,
+    attackingSide: MatchSide,
+    defendingSide: MatchSide,
+    position: 'ATT' | 'MID' | 'DEF'
+  ): IStrategy | undefined {
+    const profile = SHOOT_PROFILES[position];
+    const mindset = player.Attributes.AttackingMindset ? 'withMindset' : 'without';
+    const shoot = profile.shoot[mindset];
+    const longShot = profile.longShot[mindset];
+
+    if (this.chanceToShoot(player, attackingSide, defendingSide, shoot.threshold, shoot.distance)) {
+      return { type: 'shoot', detail: 'normal' };
+    }
+
+    if (
+      this.chanceToShoot(player, attackingSide, defendingSide, longShot.threshold, longShot.distance)
+    ) {
+      return { type: 'shoot', detail: 'long' };
+    }
+
+    return undefined;
+  }
+
+  /**
+   * How many opposing outfield players are pressuring this player, i.e.
+   * within `radius` blocks of him.
+   */
+  private countPressure(
+    player: IFieldPlayer,
+    defendingSide: MatchSide,
+    radius: number
+  ): number {
+    const scaledRadius = CO.co.scaleDistance(radius);
+
+    return defendingSide.ActivePlayers.filter((opponent) => {
+      return (
+        opponent.Position !== 'GK' &&
+        CO.co.calculateDistance(player.BlockPosition, opponent.BlockPosition) <= scaledRadius
+      );
+    }).length;
+  }
+
+  /**
+   * Adjusts a base confidence threshold by the player's composure (Mental),
+   * how many opponents are pressuring him, and his own team's playing style.
+   * A composed player under little pressure gets a higher effective
+   * threshold (more likely to take the shot/attempt); a low-Mental player
+   * swarmed by defenders gets a much lower one (more likely to bail into a
+   * pass instead). A higher-tempo style nudges every such attempt more
+   * eager; a patient style nudges it more cautious.
+   */
+  private confidenceThreshold(
+    player: IFieldPlayer,
+    attackingSide: MatchSide,
+    defendingSide: MatchSide,
+    base: number,
+    pressureRadius = 3
+  ): number {
+    const composure = (player.Attributes.Mental - 50) * 0.3;
+    const pressure = this.countPressure(player, defendingSide, pressureRadius) * 8;
+    const tempoBias = (attackingSide.Tactic.style.tempo - 0.5) * 20;
+
+    return Math.min(100, Math.max(0, base + composure - pressure + tempoBias));
   }
 
   /**
@@ -193,15 +259,26 @@ export class Decider {
     switch (type) {
       case 'short':
         if (interceptor) {
+          // Checked real generated attributes (src/scripts/
+          // checkAttributeDistribution.ts): passing-relevant stats and
+          // Tackling are both clustered ~65-70 for every position - nearly
+          // identical. Any duel formula that weighs them head-on lands
+          // close to 50/50 regardless of threshold tuning, but real short
+          // passes complete 70-92% of the time even under some pressure -
+          // being NEAR the lane isn't the same as actually cutting the
+          // pass out. So the interceptor's Tackling is discounted (70%)
+          // AND weighted mostly toward luck (20%), while the passer stays
+          // skill-dominated (90%) - not just a threshold nudge, an
+          // intentional structural bias toward the passer.
           result = getResult(
             [
               { v: passer.Attributes.ShortPass, p: 50 },
               { v: passer.Attributes.Mental, p: 25 },
               { v: reciever.Attributes.Control, p: 25 },
             ],
-            [interceptor.Attributes.Tackling],
-            80,
-            80
+            [interceptor.Attributes.Tackling * 0.7],
+            90,
+            20
           );
         } else {
           const tally =
@@ -226,11 +303,14 @@ export class Decider {
       case 'long':
         // let chance = Math.round(Math.random() * 100);
         if (interceptor) {
+          // Same rebalancing as the short-pass case above, and for the same
+          // reason (LongPass/Mental cluster in the same ~65-70 range as
+          // Tackling in the real data).
           result = getResult(
             [passer.Attributes.LongPass, passer.Attributes.Mental],
-            [interceptor.Attributes.Tackling],
-            70,
-            60
+            [interceptor.Attributes.Tackling * 0.7],
+            85,
+            20
           );
         } else {
           // TODO: Chance would be form...
@@ -269,12 +349,30 @@ export class Decider {
     dribbler: IFieldPlayer,
     opponent: IFieldPlayer
   ): boolean {
-    const chance = this.gimmeAChance();
-    const tally =
-      dribbler.Attributes.Dribbling / 2 +
-      dribbler.Attributes.Speed / 2 -
-      opponent.Attributes.Tackling;
-    return chance <= tally;
+    // Previously: chance <= (Dribbling+Speed)/2 - Tackling, with chance
+    // drawn uniformly from 0-100. At roughly EQUAL attributes (the common
+    // case) that tally is close to 0, and since chance can never be
+    // negative, success was only possible in the rare case chance rolled
+    // exactly 0 - a genuine 50/50 matchup succeeded well under 5% of the
+    // time instead of ~50%. Switched to the same getResult() duel used for
+    // every other contest in this file (tackles, shots, passes), which
+    // doesn't have that asymmetry.
+    // Unlike short passing (70-92% real completion, structurally favored
+    // above), dribbling past a defender is a lower-percentage, riskier
+    // action even for a good dribbler - real success rates run closer to
+    // 40-55%. So this stays a genuinely even-ish duel rather than getting
+    // the same passer-favoring treatment: the defender is weighted
+    // slightly MORE on skill (80%) than the dribbler (65%), since actual
+    // attribute values cluster together the same way passing/Tackling do.
+    return getResult(
+      [
+        { v: dribbler.Attributes.Dribbling, p: 60 },
+        { v: dribbler.Attributes.Speed, p: 40 },
+      ],
+      [opponent.Attributes.Tackling],
+      65,
+      80
+    );
   }
 
   /**
@@ -347,15 +445,19 @@ export class Decider {
   private chanceToShoot(
     player: IFieldPlayer,
     attackingSide: MatchSide,
+    defendingSide: MatchSide,
     threshold: number,
     distance: number
   ) {
-    return (
-      CO.co.calculateDistance(
-        player.BlockPosition,
-        attackingSide.ScoringSide
-      ) <= distance && this.gimmeAChance() <= threshold
-    );
+    const inRange =
+      CO.co.calculateDistance(player.BlockPosition, attackingSide.ScoringSide) <=
+      CO.co.scaleDistance(distance);
+
+    if (!inRange) {
+      return false;
+    }
+
+    return this.gimmeAChance() <= this.confidenceThreshold(player, attackingSide, defendingSide, threshold);
   }
 
   /**
@@ -406,6 +508,7 @@ export class Decider {
   private chanceToMoveForward(
     player: IFieldPlayer,
     attackingSide: MatchSide,
+    defendingSide: MatchSide,
     threshold: number,
     teammatePosition: boolean,
     passingDistance = 4
@@ -429,8 +532,8 @@ export class Decider {
     const pos = player.Position === 'ATT';
 
     if (
-      this.passability(player, attackingSide, passingDistance, !pos) &&
-      this.gimmeAChance() <= threshold
+      this.passability(player, attackingSide, defendingSide, passingDistance, !pos) &&
+      this.gimmeAChance() <= this.confidenceThreshold(player, attackingSide, defendingSide, threshold)
     ) {
       //  If the closest teammate is also an attacker then pass
       strategy = { type: 'pass', detail: 'short' };
@@ -444,37 +547,81 @@ export class Decider {
   /**
    * Passability
    *
-   * This determines if passing is a good move for the player
+   * This determines if passing is a good move for the player: is a
+   * suitable teammate close enough, AND is the lane to them actually clear
+   * of defenders (rather than just checking distance to the receiver).
    * @param {IFieldPlayer} player
    * @param {MatchSide} attackingSide
+   * @param {MatchSide} defendingSide
    * @param {number} distance max distance a teammate should be
    */
   private passability(
     player: IFieldPlayer,
     attackingSide: MatchSide,
+    defendingSide: MatchSide,
     distance: number,
     teammatePosition: boolean
   ): boolean {
-    const teammate = CO.co.findClosestPlayer(
-      player.BlockPosition,
-      attackingSide.StartingSquad,
-      player,
-      true
-    );
+    // Check the several closest teammates, not just the single nearest one.
+    // With realistic defensive shape (players spread across a formation
+    // rather than swarming the ball), the single closest teammate's lane
+    // being blocked is common - that shouldn't kill the whole pass
+    // evaluation when another nearby teammate is completely open.
+    const candidates = attackingSide.ActivePlayers
+      .filter((p) => p !== player)
+      .sort(
+        (a, b) =>
+          CO.co.calculateDistance(player.BlockPosition, a.BlockPosition) -
+          CO.co.calculateDistance(player.BlockPosition, b.BlockPosition)
+      )
+      .slice(0, 3);
 
-    const teammateIsClose =
-      CO.co.calculateDistance(player.BlockPosition, teammate.BlockPosition) <=
-      distance;
+    const scaledDistance = CO.co.scaleDistance(distance);
 
-    if (teammatePosition) {
-      // Pass to Attackers or Midfielders
+    return candidates.some((teammate) => {
+      const teammateIsClose =
+        CO.co.calculateDistance(player.BlockPosition, teammate.BlockPosition) <=
+        scaledDistance;
+
+      if (!teammateIsClose) {
+        return false;
+      }
+
+      const laneIsClear = this.laneIsClear(player, teammate, defendingSide);
+
+      if (teammatePosition) {
+        // Pass to Attackers or Midfielders
+        return (
+          (teammate.Position === 'ATT' || teammate.Position === 'MID') &&
+          laneIsClear
+        );
+      }
+
+      return laneIsClear;
+    });
+  }
+
+  /**
+   * Is the straight line between player and teammate free of defenders?
+   * Uses actual lane geometry (perpendicular distance to the pass line)
+   * rather than just proximity to the receiver.
+   */
+  private laneIsClear(
+    player: IFieldPlayer,
+    teammate: IFieldPlayer,
+    defendingSide: MatchSide,
+    laneWidth = 1.5
+  ): boolean {
+    return !defendingSide.ActivePlayers.some((opponent) => {
       return (
-        (teammate.Position === 'ATT' || teammate.Position === 'MID') &&
-        teammateIsClose
+        opponent.Position !== 'GK' &&
+        CO.co.distanceToSegment(
+          opponent.BlockPosition,
+          player.BlockPosition,
+          teammate.BlockPosition
+        ) <= laneWidth
       );
-    }
-
-    return teammateIsClose;
+    });
   }
 
   /**
@@ -491,19 +638,21 @@ export class Decider {
     distance: number,
     ownPost = false
   ): boolean {
+    const scaledDistance = CO.co.scaleDistance(distance);
+
     if (ownPost) {
       return (
         CO.co.calculateDistance(
           player.BlockPosition,
           attackingSide.KeepingSide
-        ) <= distance
+        ) <= scaledDistance
       );
     } else {
       return (
         CO.co.calculateDistance(
           player.BlockPosition,
           attackingSide.ScoringSide
-        ) <= distance
+        ) <= scaledDistance
       );
     }
   }
@@ -523,7 +672,7 @@ export class Decider {
     return (
       CO.co.findClosestPlayerInclusive(
         attackingSide.ScoringSide,
-        attackingSide.StartingSquad
+        attackingSide.ActivePlayers
       ) === player
     );
   }
@@ -539,12 +688,13 @@ export class Decider {
    */
   private whatKindaPass(
     player: IFieldPlayer,
-    attackingSide: MatchSide
+    attackingSide: MatchSide,
+    defendingSide: MatchSide
   ): IStrategy {
     let strategy: IStrategy = { type: 'pass', detail: 'short' };
 
     if (CO.co.atExtremeBlock(player.BlockPosition)) {
-      if (this.passability(player, attackingSide, 4, true)) {
+      if (this.passability(player, attackingSide, defendingSide, 4, true)) {
         return { type: 'pass', detail: 'short' };
       } else {
         return { type: 'pass', detail: 'long' };
@@ -560,10 +710,10 @@ export class Decider {
     }
 
     // Check if his closest teammate is 3 steps away or less
-    if (this.passability(player, attackingSide, 4, true)) {
+    if (this.passability(player, attackingSide, defendingSide, 4, true)) {
       strategy = { type: 'pass', detail: 'short' };
     } else if (
-      this.passability(player, attackingSide, 7, true) &&
+      this.passability(player, attackingSide, defendingSide, 7, true) &&
       !this.isClosestToPost(player, attackingSide)
     ) {
       strategy = { type: 'pass', detail: 'long' };
@@ -586,11 +736,12 @@ export class Decider {
   private keeperPass(
     player: IFieldPlayer,
     attackingSide: MatchSide,
+    defendingSide: MatchSide,
     chance: number
   ): IStrategy {
     let strategy: IStrategy = { type: 'pass', detail: 'long' };
 
-    if (this.passability(player, attackingSide, 3, false)) {
+    if (this.passability(player, attackingSide, defendingSide, 3, false)) {
       if (
         player.Attributes.LongPass > player.Attributes.ShortPass &&
         this.gimmeAChance() <= chance

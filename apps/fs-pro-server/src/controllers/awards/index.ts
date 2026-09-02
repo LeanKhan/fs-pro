@@ -2,28 +2,70 @@
 
 import DB from '../../db';
 import respond from '../../helpers/responseHandler';
-import {capitalize} from '../../helpers/misc';
 import { Request, Response } from 'express';
 import { AwardInterface } from './awards.model';
+import { AwardRepositoryFactory } from '../../repositories/AwardRepositoryFactory';
+import { IAwardFilter } from '../../repositories/AwardRepository';
+import { getPlayerById } from '../players/player.service';
+import { getManagerById } from '../managers/manager.service';
+import { getClubById } from '../clubs/club.service';
+import { getSeasonById } from '../seasons/season.service';
 
-/** SERVICES  */
-export function fetchAll(
-  query: Record<string, unknown> = {},
+let awardRepo: ReturnType<typeof AwardRepositoryFactory.create> | null = null;
+
+function getAwardRepo() {
+  if (!awardRepo) {
+    awardRepo = AwardRepositoryFactory.create();
+  }
+  return awardRepo;
+}
+
+/** Batch-resolves a set of Awards' `id` field (`Recipient`/`Club`/`Season`)
+ * against distinct ids via `getById`, merging the results back - one query
+ * per distinct id, not per Award (a season only ever has a handful of
+ * Awards, so this stays simple rather than adding an `ids`-batch filter to
+ * four different repositories for one small read). */
+async function attachField<T extends Record<string, any>>(
+  rows: T[],
+  field: keyof T,
+  getById: (id: string) => Promise<any>
+): Promise<T[]> {
+  const ids = [...new Set(rows.map((r) => r[field]).filter(Boolean))] as string[];
+  const resolved = await Promise.all(ids.map((id) => getById(id)));
+  const map = new Map(ids.map((id, i) => [id, resolved[i]]));
+  return rows.map((r) => (r[field] ? { ...r, [field]: map.get(r[field] as string) ?? r[field] } : r));
+}
+
+/**
+ * `SERVICES`
+ *
+ * `Recipient` is polymorphic - `recipient` ('player' or 'manager') tells us
+ * which repository to resolve it against, replacing the old runtime
+ * `model: capitalize(recipient)` Mongoose populate (there's no equivalent
+ * "populate against whichever model this string names" on Postgres, and
+ * genuinely doesn't need one - two known types, a small switch is simpler
+ * than what it replaces).
+ */
+export async function fetchAll(
+  query: IAwardFilter = {},
   recipient: string,
   populate: string
 ): Promise<AwardInterface[]> {
-  if (populate == 'club-season') {
-    return DB.Models.Award.find(query).populate({path: 'Recipient', model: capitalize(recipient)}).populate('Club').populate('Season').lean().exec();
+  let awardRows: any[] = await getAwardRepo().findAll(query);
+  if (!populate) return awardRows;
+
+  const getRecipientById = recipient === 'manager' ? getManagerById : getPlayerById;
+  awardRows = await attachField(awardRows, 'Recipient', getRecipientById);
+
+  if (populate === 'club' || populate === 'club-season') {
+    awardRows = await attachField(awardRows, 'Club', getClubById);
   }
 
-  if (populate == 'club') {
-    return DB.Models.Award.find(query).populate({path: 'Recipient', model: capitalize(recipient)}).populate('Club').lean().exec();
+  if (populate === 'club-season') {
+    awardRows = await attachField(awardRows, 'Season', getSeasonById);
   }
 
-  if (populate == 'recipient') {
-    return DB.Models.Award.find(query).populate({path: 'Recipient', model: capitalize(recipient)}).lean().exec();
-  }
-  return DB.Models.Award.find(query).lean().exec();
+  return awardRows;
 }
 
 /**
@@ -66,22 +108,8 @@ export function fetchOne(query: any): Promise<AwardInterface> {
 /**
  * Create Many Award docs
  */
-export function createAwards(awards: any[]) {
-  return DB.Models.Award.insertMany(awards, { ordered: true });
-}
-
-/**
- * create new Award
- */
-
-export function createNew(data: any) {
-  const _ = new DB.Models.Award(data);
-
-  return _.save()
-    .then((award) => {
-      return { error: false, result: award };
-    })
-    .catch((error) => ({ error: true, result: error }));
+export function createAwards(awards: Partial<AwardInterface>[]) {
+  return getAwardRepo().createMany(awards);
 }
 
 // controller

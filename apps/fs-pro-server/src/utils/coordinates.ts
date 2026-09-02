@@ -8,6 +8,7 @@ export default class Coordinates {
   public Field: Field;
   private PlayingField;
   private mapWidth;
+  private mapHeight;
 
   public static get co() {
     return Coordinates._co;
@@ -17,6 +18,7 @@ export default class Coordinates {
     this.Field = new Field();
     this.PlayingField = this.Field.PlayingField;
     this.mapWidth = this.Field.mapWidth;
+    this.mapHeight = this.Field.mapHeight;
     Coordinates._co = this;
   }
 
@@ -86,10 +88,6 @@ export default class Coordinates {
   ): IFieldPlayer {
     let plyrs = players;
 
-    // plyrs = players.filter(p => {
-    //   return !(ref.x === p.BlockPosition.x && ref.y === p.BlockPosition.y);
-    // });
-
     plyrs = plyrs.sort((a, b) => {
       return this.calculateDistance(ref, a.BlockPosition) <
         this.calculateDistance(ref, b.BlockPosition)
@@ -136,10 +134,6 @@ export default class Coordinates {
   ) {
     let plyrs = players;
 
-    // plyrs = players.filter(p => {
-    //   return !(ref.x === p.BlockPosition.x && ref.y === p.BlockPosition.y);
-    // });
-
     plyrs = plyrs.sort((a, b) => {
       return this.calculateDistance(ref, a.BlockPosition) <
         this.calculateDistance(ref, b.BlockPosition)
@@ -163,8 +157,7 @@ export default class Coordinates {
     originPlayer?: IFieldPlayer,
     limit?: number
   ) {
-    // const plyrs = players;
-    // Remove Golakeepers
+    // Remove Goalkeepers
     let plyrs: IFieldPlayer[] = players.filter((p) => {
       return p.Position !== 'GK';
     });
@@ -237,8 +230,7 @@ export default class Coordinates {
     originPlayer: IFieldPlayer,
     players: IFieldPlayer[]
   ) {
-    // const plyrs = players;
-    // Remove Golakeepers
+    // Remove Goalkeepers
     let plyrs: IFieldPlayer[] = players.filter((p) => {
       return p.Position === position;
     });
@@ -288,8 +280,6 @@ export default class Coordinates {
    * Find the absolute distance between two coordinates
    * less is better :)
    *
-   *
-   *
    * @param {ICoordinate} ref  - Coordinate you are comparing with
    * @param {ICoordinate} pos - Coordinate you are comparing with reference
    */
@@ -298,7 +288,31 @@ export default class Coordinates {
   }
 
   /**
+   * Every distance THRESHOLD in Decider.ts/Actions.ts (how close a
+   * teammate needs to be to pass to, how near the post counts as a
+   * shooting chance, etc.) was hand-tuned in block-counts against the
+   * original 15x11 grid. When the grid was widened to 33x21 for more
+   * realistic spacing (see FieldGrid.ts), those constants were never
+   * rescaled - the same "4 blocks away" now covers less than half the real
+   * pitch distance it used to, so on the finer grid almost nothing ever
+   * reads as "close enough", starving passing/shooting decisions in favour
+   * of a `move` fallback. This scales a threshold that was calibrated for
+   * the original 15-wide grid up to whatever grid is actually in play, so
+   * it keeps meaning the same real-world distance regardless of
+   * resolution - the same reasoning FormationSlot's fractional x/y already
+   * uses, applied to these threshold constants too.
+   */
+  public scaleDistance(distanceAt15WideGrid: number): number {
+    const REFERENCE_WIDTH = 15;
+    return distanceAt15WideGrid * (this.mapWidth / REFERENCE_WIDTH);
+  }
+
+  /**
    * Find the coordinate you want to move to
+   *
+   * Both axes are resolved independently so a target that is off-axis
+   * (e.g. up and to the left) produces a diagonal single-step path instead
+   * of one that only ever moves along x or y.
    *
    * @param ref
    * @param pos
@@ -310,11 +324,63 @@ export default class Coordinates {
 
     if (x !== 0) {
       path.x = x < 0 ? -1 : 1;
-    } else if (y !== 0) {
+    }
+
+    if (y !== 0) {
       path.y = y < 0 ? -1 : 1;
     }
 
     return path;
+  }
+
+  /**
+   * Perpendicular distance from a point to the segment a-b.
+   *
+   * Used to judge whether a defender is actually standing in a passing
+   * lane, rather than just "close to the receiver".
+   */
+  public distanceToSegment(point: ICoordinate, a: ICoordinate, b: ICoordinate): number {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const lengthSquared = dx * dx + dy * dy;
+
+    if (lengthSquared === 0) {
+      return this.calculateDistance(point, a);
+    }
+
+    let t = ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared;
+    t = Math.max(0, Math.min(1, t));
+
+    const projection = { x: a.x + t * dx, y: a.y + t * dy };
+    return Math.hypot(point.x - projection.x, point.y - projection.y);
+  }
+
+  /**
+   * Find the player whose position lies closest to the line between a and b
+   * (e.g. a pass lane), rather than closest to either endpoint.
+   *
+   * @param limit only consider players within this lane distance
+   */
+  public findClosestToSegment(
+    a: ICoordinate,
+    b: ICoordinate,
+    players: IFieldPlayer[],
+    limit?: number
+  ): IFieldPlayer | undefined {
+    let plyrs = players.filter((p) => p.Position !== 'GK');
+
+    plyrs = plyrs.sort((x, y) => {
+      return (
+        this.distanceToSegment(x.BlockPosition, a, b) -
+        this.distanceToSegment(y.BlockPosition, a, b)
+      );
+    });
+
+    if (limit !== undefined) {
+      plyrs = plyrs.filter((p) => this.distanceToSegment(p.BlockPosition, a, b) <= limit);
+    }
+
+    return plyrs[0];
   }
 
   /**
@@ -350,18 +416,26 @@ export default class Coordinates {
     return path;
   }
 
+  /**
+   * Is this position on the boundary of the pitch?
+   *
+   * Previously hardcoded to a 15x11 grid (x === 14, y === 10). Now reads
+   * the actual grid size off this.mapWidth/mapHeight, so it stays correct
+   * whatever xBlocks/yBlocks Field is constructed with.
+   */
   public atExtremeBlock(pos: ICoordinate) {
-    return pos.x === 0 || pos.x === 14 || pos.y === 0 || pos.y === 10;
+    return (
+      pos.x === 0 ||
+      pos.x === this.mapWidth - 1 ||
+      pos.y === 0 ||
+      pos.y === this.mapHeight - 1
+    );
   }
 
-public getBlocksAround(Block: IBlock, radius: number): any[] {
+  public getBlocksAround(Block: IBlock, radius: number): any[] {
     // Get the blocks around for each side.
     const blocks: any[] = [];
     for (let side = 1; side <= 4; side++) {
-      // const block = this.BlockPosition.y - 1 < 0 ? undefined : coordinateToBlock({
-      //   x: this.BlockPosition.x,
-      //   y: this.BlockPosition.y - 1,
-      // });
       switch (side) {
         case 1:
           // Top side
@@ -394,7 +468,7 @@ public getBlocksAround(Block: IBlock, radius: number): any[] {
           // Right side
           for (let r = 1; r <= radius; r++) {
             const block =
-              Block.x + r > 14
+              Block.x + r > this.mapWidth - 1
                 ? undefined
                 : this.coordinateToBlock({
                     x: Block.x + r,
@@ -407,7 +481,7 @@ public getBlocksAround(Block: IBlock, radius: number): any[] {
           // Bottom side
           for (let r = 1; r <= radius; r++) {
             const block =
-              Block.y + r > 10
+              Block.y + r > this.mapHeight - 1
                 ? undefined
                 : this.coordinateToBlock({
                     x: Block.x,

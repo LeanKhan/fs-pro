@@ -10,6 +10,17 @@ export default defineConfig({
     },
   },
   plugins: [vue(), vuetify({ autoImport: true })],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vue: ['vue', 'vue-router', 'pinia'],
+          vuetify: ['vuetify'],
+          vendor: ['@vueuse/core', 'axios', 'socket.io-client'],
+        },
+      },
+    },
+  },
   server: {
     port: 8080,
   },

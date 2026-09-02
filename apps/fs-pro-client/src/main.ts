@@ -3,27 +3,17 @@ import { createPinia } from 'pinia';
 import App from './App.vue';
 import router from './router';
 import { createVuetify } from 'vuetify';
-import * as components from 'vuetify/components';
-import * as directives from 'vuetify/directives';
-import { Manager } from 'socket.io-client';
-import axios from 'axios';
-import { apiUrl } from '@/store';
+import { $axios } from '@/services/api';
+import { appSocket } from '@/services/socket';
 import 'vuetify/styles';
 import { mdi } from 'vuetify/iconsets/mdi';
-import { ordinal, roundTo } from './helpers/misc';
+import { currency, ordinal, roundTo } from './helpers/misc';
 import { customIcons } from './plugins/customIcons';
+import { useStore } from './store';
 
-const manager = new Manager(apiUrl, { autoConnect: false });
-
-const socket = manager.socket('/');
-
-export const $axios = axios.create({
-  baseURL: `${apiUrl}/api`,
-});
+export { $axios };
 
 const vuetify = createVuetify({
-  components,
-  directives,
   theme: {
     defaultTheme: 'dark',
     themes: {
@@ -45,23 +35,31 @@ const vuetify = createVuetify({
   },
 });
 
-const formatter = new Intl.NumberFormat('en-US', {
-  style: 'decimal',
-  minimumFractionDigits: 2,
-});
-
 const app = createApp(App);
 
-app.config.globalProperties.$socket = manager;
+app.config.globalProperties.$socket = appSocket;
 app.config.globalProperties.$axios = $axios;
 
 app.use(createPinia());
 app.use(router);
 app.use(vuetify);
 
+// A component throwing during render/update otherwise fails silently -
+// vue-router has already committed the URL by the time the new view's
+// render throws, so without this the visible symptom is "the route
+// changed but the page never rendered." Surface the existing error
+// overlay instead so there's always a way back.
+app.config.errorHandler = (err, _instance, info) => {
+  console.error('[global error]', err, {
+    info,
+    route: router.currentRoute.value.path,
+  });
+  useStore().setErrorOverlay(true);
+};
+
 // Global filters
 app.config.globalProperties.$filters = {
-  currency: (value: number) => `${formatter.format(value)}`,
+  currency,
   roundTo: roundTo,
   ordinal: ordinal,
 };

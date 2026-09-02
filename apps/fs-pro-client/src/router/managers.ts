@@ -1,10 +1,10 @@
-import { RouteConfig } from 'vue-router';
+import type { RouteRecordRaw } from 'vue-router';
 import ManagersHome from '@/views/admin/managers/dashboard.vue';
 import ViewManager from '@/views/admin/managers/view-manager.vue';
 import ManagerForm from '@/views/admin/managers/manager-form.vue';
 import ManagerHome from '@/views/admin/managers/manager-home.vue';
 
-const routes: RouteConfig = {
+const routes = {
   path: 'managers',
   component: () =>
     import(
@@ -43,6 +43,6 @@ const routes: RouteConfig = {
       ],
     },
   ],
-};
+} as RouteRecordRaw;
 
 export default routes;

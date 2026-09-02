@@ -1,9 +1,15 @@
 import { Club } from './Club';
 import { IFieldPlayer, PlayerInterface } from '../interfaces/Player';
 import FieldPlayer from './FieldPlayer';
-import { IBlock } from '../state/ImmutableState/FieldGrid';
+import Field, { IBlock } from '../state/ImmutableState/FieldGrid';
 import Ball from './Ball';
-import { formations, FormationItem } from '../state/PersistentState/Formations';
+import {
+  resolveTactic,
+  ResolvedFormationSlot,
+  AttackingDirection,
+  ITactic,
+  IActiveTactic,
+} from '../state/PersistentState/Formations';
 import Player from './Player';
 import { ClubInterface } from '../controllers/clubs/club.model';
 import { sortFromKeeperDown } from '../utils/players';
@@ -22,7 +28,7 @@ export class MatchSide extends Club {
   public StartingSquad: IFieldPlayer[] = [];
   public Substitutes: IFieldPlayer[] = [];
   public MatchSquad: Player[] = [];
-  public Formation: FormationItem[] = [];
+  public Tactic!: IActiveTactic;
   /**
    * ScoringSide is where this team will be scoring
    * that is, it is the opponents post :p
@@ -42,99 +48,100 @@ export class MatchSide extends Club {
     this.KeepingSide = keepingSide;
   }
 
+  /**
+   * Outfield players currently available for selection - excludes anyone
+   * sent off. StartingSquad itself stays the full original 11 always, so
+   * end-of-match reporting (getPlayerStats) and formation setup keep
+   * working unchanged; gameplay logic (marking, passing targets, restarts,
+   * who's closest to the ball) should query this instead.
+   */
+  public get ActivePlayers(): IFieldPlayer[] {
+    return this.StartingSquad.filter((p) => p.MatchStatus !== 'sent-off');
+  }
+
   public setPlayers() {
     this.MatchSquad = this.Players.map((p: PlayerInterface, i) => {
       return new Player(p);
     });
   }
 
-  public setFormation(formation: string, ball: Ball, fieldPlay: IBlock[]) {
-    this.Formation = formations[formation];
+  /**
+   * Resolve which way this side is currently attacking, based on which
+   * post is further along the x-axis. This stays correct automatically
+   * across the half-time end-swap, since ScoringSide/KeepingSide get
+   * swapped there rather than direction being tracked separately.
+   */
+  private getAttackingDirection(): AttackingDirection {
+    return this.ScoringSide.x >= this.KeepingSide.x
+      ? 'left-to-right'
+      : 'right-to-left';
+  }
 
-    log('Formation =>', formations);
+  public setFormation(tactic: ITactic, ball: Ball, field: Field) {
+    const direction = this.getAttackingDirection();
 
-    const currentFormation = [...formations[formation]];
+    this.Tactic = resolveTactic(tactic, field, direction);
 
-    log('Current Formation =>', currentFormation);
+    log('Tactic =>', this.Tactic);
+
+    const currentFormation = [...this.Tactic.slots];
 
     // Sort them here...
     this.MatchSquad = sortFromKeeperDown(this.MatchSquad);
 
     this.StartingSquad = this.MatchSquad.map((p: PlayerInterface, i) => {
-      // const startingBlock = fieldPlay[this.Formation[i]];
-      // Find the first starting block that is for this player's position
-      // const startingBlock = fieldPlay.find(())
-
+      // Find the first formation slot that fits this player's position
       const { block: startingBlock, index: foundIndex } = this.getBlock(
-        fieldPlay,
         p,
         currentFormation
       );
 
-      // Sort players by position!
-
-      // log(
-      //   `currentFormation & player =>
-      //   ${currentFormation.length},
-      //   ${p.Position}`
-      // ); REVERT?
-
-      // log(`index => ${foundIndex}`); REVERT?
-
       currentFormation.splice(foundIndex, 1);
-
-      // console.log(`${p.ClubCode} ${p.LastName} [${p.Position}] initial position => `, startingBlock);
 
       return new FieldPlayer(p, true, startingBlock, ball);
     });
   }
 
-  public changeFormation(formation: string, fieldPlay: IBlock[], scoringSide: IBlock, keepingSide: IBlock) {
-
+  /**
+   * Resolve and apply a new tactic (formation + playing style), reassigning
+   * every player to their new slot. Callable at any point in a match, not
+   * just half-time - half-time is just one caller of this (see
+   * Game.swapClubFormations), and it's what backs the eventual "change
+   * tactics mid-match" capability.
+   */
+  public changeTactic(
+    tactic: ITactic,
+    field: Field,
+    scoringSide: IBlock,
+    keepingSide: IBlock
+  ) {
     this.ScoringSide = scoringSide;
     this.KeepingSide = keepingSide;
 
-    this.Formation = formations[formation];
+    const direction = this.getAttackingDirection();
 
-    log('Formation =>', formations);
+    this.Tactic = resolveTactic(tactic, field, direction);
 
-    const currentFormation = [...formations[formation]];
+    log('Tactic =>', this.Tactic);
 
-    // console.log('Current Formation for =>', this.ClubCode, currentFormation);
+    const currentFormation = [...this.Tactic.slots];
 
     // Sort them here...
-    this.StartingSquad = sortFromKeeperDown(this.StartingSquad);
+    this.StartingSquad = sortFromKeeperDown(
+      this.StartingSquad
+    ) as IFieldPlayer[];
 
-    // just change each startingswaud player to the new block position
-
-    this.StartingSquad.forEach((player: FieldPlayer, i) => {
-      // const startingBlock = fieldPlay[this.Formation[i]];
-      // Find the first starting block that is for this player's position
-      // const startingBlock = fieldPlay.find(())
-
+    // just change each StartingSquad player to the new block position
+    this.StartingSquad.forEach((player: IFieldPlayer, i) => {
       const { block: newStartingBlock, index: foundIndex } = this.getBlock(
-        fieldPlay,
         player,
         currentFormation
       );
 
-      // Sort players by position!
-
-      // log(
-      //   `currentFormation & player =>
-      //   ${currentFormation.length},
-      //   ${p.Position}`
-      // ); REVERT?
-
-      // log(`index => ${foundIndex}`); REVERT?
-
       currentFormation.splice(foundIndex, 1);
-
-      // console.log(`${player.ClubCode} ${player.LastName} [${player.Position}] [${player.BlockPosition.key}] new position => `, newStartingBlock);
 
       player.changePosition(newStartingBlock);
       player.changeStartingPosition(newStartingBlock);
-      // return new FieldPlayer(p, true, startingBlock, ball);
     });
   }
 
@@ -146,20 +153,7 @@ export class MatchSide extends Club {
 
   public rollCall() {
     log('------ ======== -----');
-
     log('ROLL-CALL WAS ERE - DELETE SOON :)');
-
-    // TODO: revert some of that log() stuff so that objects can print
-
-    // log(
-    //   this.StartingSquad.map((p) => ({
-    //     Name: p.FirstName + ' ' + p.LastName,
-    //     Club: p.ClubCode,
-    //     Position: p.Position,
-    //     Block: p.BlockPosition.key,
-    //   }), 'table')
-    // ); REVERT
-
     log('-----------');
   }
 
@@ -179,30 +173,26 @@ export class MatchSide extends Club {
     return null;
   }
 
-  public getBlock(
-    fp: IBlock[],
-    p: PlayerInterface,
-    formation: FormationItem[]
-  ) {
-    // TODO: CLEAN THIS UP
-
-    // Find the first position where the player's position is accomadated
+  /**
+   * Find the first resolved formation slot that accommodates this player's
+   * position, falling back to the first slot if nothing matches.
+   */
+  public getBlock(p: PlayerInterface, formation: ResolvedFormationSlot[]) {
     if (formation.length === 1) {
-      return { block: fp[formation[0].block], index: 0 };
+      return { block: formation[0].block, index: 0 };
     }
+
     let index = -1;
-    let formationBlock = formation.find((pick, id) => {
+    let formationSlot = formation.find((slot, id) => {
       index = id;
-      return pick.positions.includes(p.Position);
+      return slot.positions.includes(p.Position);
     });
 
-    if (!formationBlock) {
+    if (!formationSlot) {
       // give him something...
-      formationBlock = formation[0];
+      formationSlot = formation[0];
     }
 
-    // log(`player => ${p.PlayerID}, ${formationBlock}, ${p.Position}`); REVERT
-
-    return { block: fp[formationBlock.block], index };
+    return { block: formationSlot.block, index };
   }
 }

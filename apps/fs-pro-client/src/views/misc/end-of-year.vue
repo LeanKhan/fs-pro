@@ -36,7 +36,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from '@/store';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 
 const route = useRoute();
 const router = useRouter();

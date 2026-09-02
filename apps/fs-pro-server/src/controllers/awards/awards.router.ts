@@ -16,7 +16,7 @@ router.get('/season/:season_id/', (req, res) => {
 
    }
 
-  fetchAll({ Season: req.params.season_id }, recipient, populate)
+  fetchAll({ Season: req.params.season_id }, typeof recipient === 'string' ? recipient : '', typeof populate === 'string' ? populate : '')
     .then((awards) => {
       respond.success(res, 200, 'Season Awards fetched successfully', awards);
     })

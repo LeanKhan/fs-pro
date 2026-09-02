@@ -1,12 +1,13 @@
 import { Router, Request, Response } from 'express';
 import {
   fetchAll,
-  fetchOneById,
-  createNew,
-  update,
-  deleteByRemove,
+  getCompetitionById,
+  getCompetitionWithClubsAndSeasons,
+  createCompetition,
+  updateCompetitionFields,
+  deleteCompetitionById,
 } from './competition.service';
-import { fetchAll as fetchAllSeasons } from '../seasons/season.service';
+import { getSeasons } from '../seasons/season.service';
 import respond from '../../helpers/responseHandler';
 import { incrementCounter, getCurrentCounter } from '../../utils/counter';
 import { addClubToCompetition } from './competition.controller';
@@ -19,7 +20,7 @@ router.get('/all', (req: Request, res: Response) => {
 
   let {query, select} = req.query;
 
-  if(query){
+  if(query && typeof query === 'string'){
     try {
       query = JSON.parse(query);
     } catch (err) {
@@ -28,8 +29,8 @@ router.get('/all', (req: Request, res: Response) => {
     }
   }
 
-  fetchAll(query, select)
-    .then((competitions) => {
+  fetchAll(query, typeof select === 'string' ? select : undefined)
+    .then((competitions: any) => {
       return respond.success(
         res,
         200,
@@ -37,7 +38,7 @@ router.get('/all', (req: Request, res: Response) => {
         competitions
       );
     })
-    .catch((err) => {
+    .catch((err: any) => {
       return respond.fail(res, 400, 'Error fetching Competitions', err);
     });
 });
@@ -45,10 +46,13 @@ router.get('/all', (req: Request, res: Response) => {
 /** Get Competition by id */
 router.get('/:id', (req: Request, res: Response) => {
   const { populate } = req.query;
-  const response = fetchOneById(req.params.id, populate != 'false');
+  // populate defaults to true (populates Clubs/Seasons via the reverse
+  // Clubs.League/Seasons.Competition FKs, since neither array exists on
+  // Postgres) - both branches are repository-backed now.
+  const response = populate === 'false' ? getCompetitionById(req.params.id) : getCompetitionWithClubsAndSeasons(req.params.id);
 
   response
-    .then((competition) => {
+    .then((competition: any) => {
       respond.success(
         res,
         200,
@@ -56,17 +60,17 @@ router.get('/:id', (req: Request, res: Response) => {
         competition
       );
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error fetching Competition', err);
     });
 });
 
 /** Get all the seasons */
 router.get('/:id/seasons/all', (req: Request, res: Response) => {
-  const response = fetchAllSeasons({ Competition: req.params.id });
+  const response = getSeasons({ Competition: req.params.id });
 
   response
-    .then((seasons) => {
+    .then((seasons: any) => {
       respond.success(
         res,
         200,
@@ -74,17 +78,17 @@ router.get('/:id/seasons/all', (req: Request, res: Response) => {
         seasons
       );
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error fetching seasons in competition', err);
     });
 });
 
-/** Update Competition by id */
+/** Update Competition by id - plain fields only, no Mongo $push/$addToSet */
 router.post('/:id/update', (req: Request, res: Response) => {
-  const response = update(req.params.id, req.body.data);
+  const response = updateCompetitionFields(req.params.id, req.body.data);
 
   response
-    .then((competition) => {
+    .then((competition: any) => {
       respond.success(
         res,
         200,
@@ -92,36 +96,33 @@ router.post('/:id/update', (req: Request, res: Response) => {
         competition
       );
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error in updating Competition', err);
     });
 });
 
 /** Delete Competition by id */
 router.delete('/:id', (req: Request, res: Response) => {
-  deleteByRemove(req.params.id)
-    .then((data) => {
+  deleteCompetitionById(req.params.id)
+    .then((data: any) => {
       respond.success(res, 200, 'Competition deleted successfully', data);
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error deleting Competition', err);
     });
 });
 
 /** Create new Competition */
 router.post('/new', getCurrentCounter, async (req: Request, res: Response) => {
-  const response = await createNew(req.body.data);
-
-  if (!response.error) {
-    respond.success(
-      res,
-      200,
-      'Competition created successfully',
-      response.result
-    );
+  try {
+    const competition = await createCompetition(req.body.data);
+    // incrementCounter before respond.success - if it throws, the catch
+    // below must still be the only response sent (see FUTURE-PLANS.md for
+    // the double-response crash this ordering used to cause).
     void incrementCounter('competition_counter');
-  } else {
-    respond.fail(res, 400, 'Error creating competition', response.result);
+    respond.success(res, 200, 'Competition created successfully', competition);
+  } catch (error) {
+    respond.fail(res, 400, 'Error creating competition', error);
   }
 });
 

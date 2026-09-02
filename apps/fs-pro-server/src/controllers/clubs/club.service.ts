@@ -4,6 +4,68 @@ import { Types } from 'mongoose';
 import { Club, ClubInterface } from './club.model';
 import log from '../../helpers/logger';
 import { IClub } from '../../interfaces/Club';
+import { ClubRepositoryFactory } from '../../repositories/ClubRepositoryFactory';
+import { IClubFilter, IClubReadOptions } from '../../repositories/ClubRepository';
+import { DrizzleDatabase } from '../../db/drizzle';
+import { players } from '../../db/drizzle/schema';
+import { eq, sql as drizzleSql } from 'drizzle-orm';
+
+/**
+ * Repository-backed functions below are for the identity/CRUD surface that
+ * has no Mongo-operator ($set/$push/$unset) update in play. `update()` on
+ * the repository only ever accepts plain fields - every caller below that
+ * used to build a `$push`/`$unset` update object (hiring/firing a manager,
+ * clearing a club's owner) goes through `appendClubRecord`, which reads the
+ * current Records array and writes the appended version back as a plain
+ * field, instead. See FUTURE-PLANS.md for the full Club conversion writeup.
+ */
+let clubRepo: ReturnType<typeof ClubRepositoryFactory.create> | null = null;
+
+function getClubRepo() {
+  if (!clubRepo) {
+    clubRepo = ClubRepositoryFactory.create();
+  }
+  return clubRepo;
+}
+
+export async function getClubById(id: string, options?: IClubReadOptions) {
+  return getClubRepo().findById(id, options);
+}
+
+export async function getClubs(filter?: IClubFilter, options?: IClubReadOptions) {
+  return getClubRepo().findAll(filter, options);
+}
+
+export async function createClub(data: Partial<ClubInterface>) {
+  return getClubRepo().create(data);
+}
+
+export async function updateClubFields(id: string, data: Partial<ClubInterface>) {
+  return getClubRepo().update(id, data);
+}
+
+export async function deleteClubById(id: string) {
+  return getClubRepo().delete(id);
+}
+
+/**
+ * Update a Club's plain fields and append one entry to its Records array in
+ * the same write - replaces the `$push: { Records: ... }` pattern every
+ * Mongo-operator call site used, since the repository's `update()` doesn't
+ * support operators. Read-modify-write is safe here: every real caller
+ * (hiring/firing a manager, a manager's DELETE route clearing its club)
+ * already reads the club first for other reasons, so this isn't adding an
+ * extra round trip in practice.
+ */
+export async function appendClubRecord(
+  id: string,
+  fields: Record<string, unknown>,
+  record: unknown
+) {
+  const club = await getClubRepo().findById(id);
+  const records = [...(club?.Records ?? []), record];
+  return getClubRepo().update(id, { ...fields, Records: records } as Partial<ClubInterface>);
+}
 
 /**
  * fetchAllClubs mate
@@ -29,25 +91,6 @@ export function fetchClubs(
   return DB.Models.Club.find(condition).populate('Players').lean().exec();
 }
 
-export function deleteById(id: string) {
-  return DB.Models.Club.findByIdAndDelete(id).lean().exec();
-}
-/**
- * Delete Club by Id using 'remove' method
- *
- * @param id Club Id
- * @returns
- */
-export async function deleteByRemove(id: string) {
-
-  const doc = await DB.Models.Club.findById(id);
-
-   if(!doc) {
-     throw new Error(`Club [${id}] does not exist`);
-   }
-
-   return doc.remove();
-  }
 
 /**
  * fecthSingleClubById
@@ -105,14 +148,39 @@ export function addPlayerToClub(clubId: string, playerId: string) {
 /**
  * Calculate the clubs Average Rating...
  *
+ * Mongo groups by `$lookup`-ing `Club.Players` (an array of ids) into
+ * `Players`; Postgres has no such array (dropped in favor of the reverse
+ * `players.Club` FK - see FUTURE-PLANS.md), so the Drizzle branch just
+ * groups `players` directly by `Club = clubId` instead. Same output shape
+ * either way: `{ position, avg_rating, count }[]`.
+ *
  * @param clubId
  */
-export function calculateClubsTotalRatings(clubId: string) {
+export async function calculateClubsTotalRatings(clubId: string) {
+  if (DB.ormType === 'drizzle') {
+    const db = DrizzleDatabase.getInstance().database;
+    const rows = await db
+      .select({
+        position: players.Position,
+        avg_rating: drizzleSql<number>`avg(${players.Rating})`,
+        count: drizzleSql<number>`count(*)`,
+      })
+      .from(players)
+      .where(eq(players.Club, clubId))
+      .groupBy(players.Position);
+
+    return rows.map((r) => ({
+      position: r.position,
+      avg_rating: Number(r.avg_rating),
+      count: Number(r.count),
+    }));
+  }
+
   // TODO: Guy! Just do the calculation yourself!
   // Do first stage grouping...
   return DB.Models.Club.aggregate(
     [
-      { $match: { _id: Types.ObjectId(clubId) } },
+      { $match: { _id: new Types.ObjectId(clubId) } },
       {
         $lookup: {
           from: 'Players',
@@ -154,8 +222,8 @@ export function createNewClub(_club: any) {
   const CLUB = new DB.Models.Club(_club);
 
   return CLUB.save()
-    .then((club) => ({ error: false, result: club }))
-    .catch((error) => ({ error: true, result: error }));
+    .then((club: any) => ({ error: false, result: club }))
+    .catch((error: any) => ({ error: true, result: error }));
 }
 
 // Clubs _must_ always be in a league

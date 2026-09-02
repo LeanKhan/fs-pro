@@ -1,5 +1,71 @@
 import DB from '../../db';
 import { CalendarInterface } from './calendar.model';
+import { CalendarRepositoryFactory } from '../../repositories/CalendarRepositoryFactory';
+import { ICalendarFilter } from '../../repositories/CalendarRepository';
+import { getDaysForCalendarPage } from '../days/day.service';
+
+/**
+ * Repository-backed functions below cover the identity/CRUD surface plus
+ * `activateCalendarYear` (the `startYear` multi-row `isActive` flip) - see
+ * ICalendarRepository's doc comment for exactly what each covers and why.
+ */
+let calendarRepo: ReturnType<typeof CalendarRepositoryFactory.create> | null = null;
+
+function getCalendarRepo() {
+  if (!calendarRepo) {
+    calendarRepo = CalendarRepositoryFactory.create();
+  }
+  return calendarRepo;
+}
+
+export async function getCalendarById(id: string) {
+  return getCalendarRepo().findById(id);
+}
+
+export async function getCalendars(filter?: ICalendarFilter) {
+  return getCalendarRepo().findAll(filter);
+}
+
+export async function createCalendar(data: Partial<CalendarInterface>) {
+  return getCalendarRepo().create(data);
+}
+
+export async function updateCalendarFields(id: string, data: Partial<CalendarInterface>) {
+  return getCalendarRepo().update(id, data);
+}
+
+export async function deleteCalendarById(id: string) {
+  return getCalendarRepo().delete(id);
+}
+
+export async function activateCalendarYear(yearString: string) {
+  return getCalendarRepo().activateYear(yearString);
+}
+
+/**
+ * Looks a calendar up by its (in-practice-unique) `YearString` and applies a
+ * plain-field update - a read-then-write replacement for the raw
+ * `findOneAndUpdate({ YearString }, ...)` call sites (`changeCurrentDay`,
+ * `middleware/seasons.ts`'s season-creation lookup), since the repository's
+ * `update()` only takes an id.
+ */
+export async function updateCalendarByYearString(yearString: string, data: Partial<CalendarInterface>) {
+  const [calendar] = await getCalendars({ YearString: yearString });
+  if (!calendar) {
+    return null;
+  }
+  return updateCalendarFields(calendar._id as string, data);
+}
+
+/**
+ * Same read-by-`YearString` lookup as above, but for callers that only need
+ * the record (`middleware/seasons.ts`'s `findCalendar` - was the raw
+ * `fetchOne({ YearString })`).
+ */
+export async function getCalendarByYearString(yearString: string) {
+  const [calendar] = await getCalendars({ YearString: yearString });
+  return calendar ?? null;
+}
 
 /**
  * fetchAll
@@ -9,60 +75,34 @@ export function fetchAll(query: unknown = {}) {
 }
 
 /**
- * FetchOneById
- *
- * Fetch a specific season by its id
- * @param id
- */
-export function fetchOneById(id: string) {
-  return DB.Models.Calendar.findById(id).lean().exec();
-}
-
-/**
   fetch one calendar based on query
 */
-export function fetchOne(
-  query: unknown,
+export async function fetchOne(
+  query: ICalendarFilter & { _id?: string },
   populate: boolean | string = false,
   paginate: { skip: number; limit: number } = { skip: 0, limit: 14 }
-): Promise<CalendarInterface> {
-  if (populate && paginate) {
-    // Use $slice: [skip, limit] to 'paginate' array in a way...
-    return DB.Models.Calendar.findOne(query, {
-      Days: { $slice: [paginate.skip, paginate.limit] },
-    })
-      .populate({
-        path: 'Days',
-        model: 'Day',
-      })
-      .lean()
-      .exec();
+): Promise<CalendarInterface | null> {
+  let calendar: CalendarInterface | null;
+
+  if (query._id) {
+    calendar = await getCalendarById(query._id);
+  } else {
+    const { isActive, YearString } = query;
+    const [firstCalendar] = await getCalendars({ isActive, YearString });
+    calendar = firstCalendar ?? null;
   }
 
-  return DB.Models.Calendar.findOne(query).lean().exec();
-}
+  if (!calendar || !populate) {
+    return calendar;
+  }
 
-export function findOneAndUpdate(
-  query: unknown,
-  update: any
-): Promise<CalendarInterface> {
-  return DB.Models.Calendar.findOneAndUpdate(query, update, { new: true })
-    .lean()
-    .exec();
-}
+  const calendarDays = await getDaysForCalendarPage({
+    Calendar: calendar._id as string,
+    skip: paginate.skip,
+    limit: paginate.limit,
+  });
 
-/** updates many.
- *
- * can use with aggregation pipeline to conditionally
- * update docs...
- */
-export function findAndUpdate(query: unknown, update: any) {
-  return DB.Models.Calendar.updateMany(query, update, {
-    multi: true,
-    new: true,
-  })
-    .lean()
-    .exec();
+  return { ...calendar, Days: calendarDays as any };
 }
 
 /** update Calendar */
@@ -74,16 +114,6 @@ export function updateCalendar(id: string, update: any) {
 
 export function createCalendars(Calendars: any[]) {
   return DB.Models.Calendar.insertMany(Calendars, { ordered: true });
-}
-
-/**
- * create new Calendar year...
- */
-
-export function createNew(data: any) {
-  const Calendar = new DB.Models.Calendar(data);
-
-  return Calendar.save();
 }
 
 export function deleteById(id: string) {
@@ -110,16 +140,3 @@ export async function deleteByRemove(id: string) {
   return doc.remove();
 };
 
-export async function deleteDayByRemove(id: string) {
-  /**
-  * Delete the Calendar, then Days, Seasons & Fixtures, then
-  */
-
-  const doc = await DB.Models.Day.findById(id);
-
-  if(!doc) {
-    throw new Error(`Day ${id} does not exist on Calendar`);
-  }
-
-  return doc.remove();
-}
