@@ -66,7 +66,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, getCurrentInstance } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 import Standings from '@/components/seasons/standings-component.vue';
 const instance = getCurrentInstance();
 

@@ -2,6 +2,7 @@ import {
   IFieldPlayer,
   IPositions,
   PlayerInterface,
+  PlayerMatchStatus,
 } from '../interfaces/Player';
 import Player from './Player';
 import Ball from './Ball';
@@ -25,7 +26,8 @@ export default class FieldPlayer
   public BallPosition: ICoordinate;
   public WithBall: boolean;
   public Ball: Ball;
-  private StartingPosition: IBlock;
+  public StartingPosition: IBlock;
+  public MatchStatus: PlayerMatchStatus = 'active';
   // public Team: MatchSide;
 
   /**
@@ -80,8 +82,6 @@ export default class FieldPlayer
   }
 
   public updateBallPosition(pos: IBlock) {
-    // log(`New Position x,y,key => ${pos.x}, ${pos.y}, ${pos.key}`);
-    // this.Ball.Position = pos;
     this.BallPosition = pos;
     // UPDATE: The ball updates it's position by itself :)
     this.checkWithBall();
@@ -122,7 +122,19 @@ export default class FieldPlayer
       And is at {x: ${this.BlockPosition.x}, y: ${this.BlockPosition.y}}
       `
     );
-    this.checkWithBall();
+    // Deliberately NOT calling checkWithBall() here. WithBall must only
+    // ever change because the BALL moved (see the ballMove listener below,
+    // which fires for every player on every real pass/shot/tackle/restart)
+    // - never merely because THIS player's own unrelated positional
+    // movement (marking, pressing, holding shape) happened to land on
+    // whatever block the ball is currently resting on. That coincidence
+    // was silently handing possession to bystanders with no pass, tackle,
+    // dribble, or interception ever attempted, and no event ever logged -
+    // the root cause of matches with 99% possession and 0 passes for one
+    // side. The carry-forward case just above (this.WithBall already true
+    // -> move the ball too) still keeps a genuine dribble/carry in sync,
+    // since that re-fires the ballMove listener for everyone including
+    // this player.
   }
 
   public substitute() {
@@ -141,8 +153,15 @@ export default class FieldPlayer
    *
    * Get first blocks around the player
    * Circumference: 1
+   *
+   * Bounds are read off the block's own Field reference, so this works for
+   * whatever grid size Field was constructed with - previously hardcoded
+   * to 14/10, which only matched a 15x11 grid.
    */
   public checkNextBlocks() {
+    const maxX = this.BlockPosition.Field.mapWidth - 1;
+    const maxY = this.BlockPosition.Field.mapHeight - 1;
+
     const around: IPositions = {
       top: undefined,
       left: undefined,
@@ -164,21 +183,20 @@ export default class FieldPlayer
             y: this.BlockPosition.y,
           });
     around.right =
-      this.BlockPosition.x + 1 > 14
+      this.BlockPosition.x + 1 > maxX
         ? undefined
         : CO.co.coordinateToBlock({
             x: this.BlockPosition.x + 1,
             y: this.BlockPosition.y,
           });
     around.bottom =
-      this.BlockPosition.y + 1 > 10
+      this.BlockPosition.y + 1 > maxY
         ? undefined
         : CO.co.coordinateToBlock({
             x: this.BlockPosition.x,
             y: this.BlockPosition.y + 1,
           });
 
-    // log(`Players around: `, JSON.stringify(around));
     return around;
   }
 
@@ -187,13 +205,12 @@ export default class FieldPlayer
    * @param radius how many block around?
    */
   public getBlocksAround(radius: number): any[] {
+    const maxX = this.BlockPosition.Field.mapWidth - 1;
+    const maxY = this.BlockPosition.Field.mapHeight - 1;
+
     // Get the blocks around for each side.
     const blocks: any[] = [];
     for (let side = 1; side <= 4; side++) {
-      // const block = this.BlockPosition.y - 1 < 0 ? undefined : coordinateToBlock({
-      //   x: this.BlockPosition.x,
-      //   y: this.BlockPosition.y - 1,
-      // });
       switch (side) {
         case 1:
           // Top side
@@ -226,7 +243,7 @@ export default class FieldPlayer
           // Right side
           for (let r = 1; r <= radius; r++) {
             const block =
-              this.BlockPosition.x + r > 14
+              this.BlockPosition.x + r > maxX
                 ? undefined
                 : CO.co.coordinateToBlock({
                     x: this.BlockPosition.x + r,
@@ -239,7 +256,7 @@ export default class FieldPlayer
           // Bottom side
           for (let r = 1; r <= radius; r++) {
             const block =
-              this.BlockPosition.y + r > 10
+              this.BlockPosition.y + r > maxY
                 ? undefined
                 : CO.co.coordinateToBlock({
                     x: this.BlockPosition.x,
@@ -274,10 +291,6 @@ export default class FieldPlayer
   private checkWithBall() {
     this.WithBall =
       this.BlockPosition.key === this.Ball.Position.key ? true : false;
-
-    // if (this.WithBall) {
-    //   log(`${this.LastName} is now with the ball :)`);
-    // }
   }
   private setBlockOccupant(who: any, pos: ICoordinate): void {
     CO.co.coordinateToBlock(pos).occupant = who;

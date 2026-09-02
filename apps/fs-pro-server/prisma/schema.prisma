@@ -1,0 +1,203 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Place {
+  id       String  @id @default(uuid()) @map("_id") @db.Uuid
+  mongoId  String? @unique // Original MongoDB ObjectID
+  Fullname String
+  Name     String
+  Code     String  @unique
+  Region   String?
+  Type     String?
+  Picture  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Places")
+}
+
+model Award {
+  id        String  @id @default(uuid()) @map("_id") @db.Uuid
+  mongoId   String? @unique // Original MongoDB ObjectID
+  Name      String
+  Type      String // manager/player
+  Period    String // season/year/all-time
+  Category  String
+  Recipient String // ObjectId reference stored as string
+  Club      String? // ObjectId reference stored as string
+  Remarks   String?
+  Season    String? // ObjectId reference stored as string
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Awards")
+}
+
+model User {
+  id       String   @id @default(uuid()) @map("_id") @db.Uuid
+  mongoId  String?  @unique // Original MongoDB ObjectID
+  FullName String
+  Password String // Hashed password
+  Age      Int?
+  Username String   @unique
+  Avatar   String   @default("default-avatar.png")
+  Alerts   Json? // Stored as JSON object
+  Clubs    String[] // Array of Club ObjectIds stored as strings
+  isAdmin  Boolean  @default(false)
+  Session  String? // Session ID
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Users")
+}
+
+model Manager {
+  id           String  @id @default(uuid()) @map("_id") @db.Uuid
+  mongoId      String? @unique // Original MongoDB ObjectID
+  Key          String  @unique
+  FirstName    String
+  LastName     String
+  Age          Int
+  Picture      String?
+  Club         String? // ObjectId reference stored as string
+  Nationality  String? // ObjectId reference to Place stored as string
+  NationalTeam Boolean @default(false)
+  Records      Json[] // Array of records
+  isEmployed   Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Managers")
+}
+
+model Competition {
+  id              String   @id @default(uuid()) @map("_id") @db.Uuid
+  mongoId         String?  @unique // Original MongoDB ObjectID
+  Name            String
+  Type            String
+  CompetitionCode String   @unique
+  CompetitionID   String   @unique
+  League          Boolean  @default(false)
+  Tournament      Boolean  @default(false)
+  Cup             Boolean  @default(false)
+  Division        Int      @default(0) // 0, 1, 2, or 3
+  NumberOfTeams   Int
+  NumberOfWeeks   Int
+  TeamsPromoted   Int?
+  TeamsRelegated  Int?
+  Country         String?  // ObjectId reference to Place stored as string
+  Clubs           String[] // Array of Club ObjectIds stored as strings
+  Seasons         String[] // Array of Season ObjectIds stored as strings
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Competitions")
+}
+
+model Club {
+  id              String  @id @default(uuid()) @map("_id") @db.Uuid
+  mongoId         String? @unique // Original MongoDB ObjectID
+  Name            String  @unique
+  ClubCode        String  @unique
+  AttackingClass  Int?
+  DefensiveClass  Int?
+  Rating          Int     @default(0)
+  GK_Rating       Int     @default(0)
+  ATT_Rating      Int     @default(0)
+  DEF_Rating      Int     @default(0)
+  MID_Rating      Int     @default(0)
+  Manager         String? // ObjectId reference stored as string
+  assets          Json? // Object with Kit, Logo, Stadium, MainColor
+  Stats           Json? // Object with LeagueTitles, Cups, MatchesWon, etc.
+  Address         Json? // Object with Section, City, Country
+  Budget          Int?
+  Transactions    Json?
+  Records         Json[]
+  Stadium         Json? // Object with Name, Capacity, Location
+  LeagueCode      String?
+  League          String? // ObjectId reference to Competition stored as string
+  Players         String[] // Array of Player ObjectIds stored as strings
+  User            String? // ObjectId reference to User stored as string
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Clubs")
+}
+
+model Calendar {
+  id                   String   @id @default(uuid()) @map("_id") @db.Uuid
+  mongoId              String?  @unique // Original MongoDB ObjectID
+  Name                 String
+  YearString           String   // Like JUN-2020
+  YearDigits           String   // Like 06-2020
+  CurrentDay           Int?     // The present day of the year
+  isActive             Boolean  @default(false)
+  isEnded              Boolean  @default(false)
+  allSeasonsCompleted  Boolean  @default(false)
+  Days                 String[] // Array of Day ObjectIds stored as strings
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Calendars")
+}
+
+model Day {
+  id       String  @id @default(uuid()) @map("_id") @db.Uuid
+  mongoId  String? @unique // Original MongoDB ObjectID
+  Matches  Json[]  // Array of CalendarMatch objects
+  isFree   Boolean
+  Day      Int?
+  Year     String
+  Calendar String? // ObjectId reference to Calendar stored as string
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Days")
+}
+
+model Season {
+  id              String   @id @default(uuid()) @map("_id") @db.Uuid
+  mongoId         String?  @unique // Original MongoDB ObjectID
+  SeasonCode      String   @unique
+  Title           String
+  StartDate       DateTime
+  EndDate         DateTime
+  Winner          String?  // ObjectId reference to Club stored as string
+  Promoted        String[] // Array of Club ObjectIds stored as strings
+  Relegated       String[] // Array of Club ObjectIds stored as strings
+  isFinished      Boolean  @default(false)
+  isStarted       Boolean  @default(false)
+  Status          String   @default("Pending")
+  Year            String?
+  Calendar        String?  // ObjectId reference to Calendar stored as string
+  Competition     String?  // ObjectId reference to Competition stored as string
+  CompetitionCode String
+  Fixtures        String[] // Array of Fixture ObjectIds stored as strings
+  Standings       Json[]   // Array of WeekStandings objects
+  Logs            Json[]   // Array of Log objects
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Seasons")
+}

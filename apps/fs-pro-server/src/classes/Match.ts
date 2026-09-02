@@ -2,8 +2,8 @@ import { ClubInterface as Club } from '../controllers/clubs/club.model';
 import { MatchSide } from './MatchSide';
 import { matchEvents, createMatchEvent, ballMove } from '../utils/events';
 import { IBlock } from '../state/ImmutableState/FieldGrid';
-import { IFieldPlayer, IPlayerStats } from '../interfaces/Player';
-import { IShot, IPass, GamePoints, ITackle, IDribble } from './Referee';
+import { IFieldPlayer, IPlayerStats, PlayerMatchStatus } from '../interfaces/Player';
+import { IShot, IPass, GamePoints, ITackle, IDribble, IFoul, ISentOff } from './Referee';
 import log from '../helpers/logger';
 import { generateRandomNDigits } from '../helpers/misc';
 
@@ -26,6 +26,9 @@ export class Match implements IMatch, MatchClass {
   public Details!: IMatchDetails;
   public Events: IMatchEvent[];
   public Actions: IMatchAction[] = [];
+  /** Per-tick position/event snapshots, used to replay the match live over sockets. */
+  public Frames: IMatchFrame[] = [];
+  private lastFrameEventIndex = 0;
   private CurrentTime = 0;
   private Teams: MatchSide[];
 
@@ -121,7 +124,7 @@ export class Match implements IMatch, MatchClass {
       this.Actions.push({
         type: 'goal',
         // save player's actual ID from now on!
-        playerID: data.shooter._id,
+        playerID: data.shooter._id!,
         playerTeam: data.shooter.ClubCode!,
         timestamp: this.getCurrentTime,
       });
@@ -188,7 +191,7 @@ export class Match implements IMatch, MatchClass {
       // add to match actions...
       this.Actions.push({
         type: 'pass',
-        playerID: data.passer._id,
+        playerID: data.passer._id!,
         playerTeam: data.passer.ClubCode!,
         timestamp: this.getCurrentTime,
       });
@@ -234,7 +237,7 @@ export class Match implements IMatch, MatchClass {
 
       this.Actions.push({
         type: 'interception',
-        playerID: data.interceptor._id,
+        playerID: data.interceptor._id!,
         playerTeam: data.interceptor.ClubCode!,
         timestamp: this.getCurrentTime,
       });
@@ -288,6 +291,58 @@ export class Match implements IMatch, MatchClass {
           )} at ${this.getCurrentTime} mins`
         );
       }
+    });
+
+    matchEvents.on(`${this.id}-game-halt`, (data: IFoul) => {
+      // Previously nothing ever tracked fouls/cards at all - Referee.foul()
+      // existed and was fully wired to emit this by the time this listener
+      // was added, but the stats it should feed (Fouls/YellowCards/
+      // RedCards, all already present on IMatchSideDetails) never moved.
+      const offendingSide =
+        data.subject.ClubCode === this.Home.ClubCode
+          ? this.Details.HomeTeamDetails
+          : this.Details.AwayTeamDetails;
+
+      offendingSide.Fouls++;
+      if (data.reason === 'yellow card') {
+        offendingSide.YellowCards++;
+      }
+      // RedCards is tracked below, off the -player-sent-off event instead -
+      // a second yellow is ALSO a red card (a send-off), and counting it
+      // here too (keyed off data.reason === 'red card') would miss that
+      // case while double-counting a straight red.
+
+      createMatchEvent(
+        this.id,
+        `${data.subject.FirstName} ${data.subject.LastName} [${data.subject.ClubCode}] ` +
+          `committed a foul on ${data.object.FirstName} ${data.object.LastName}` +
+          (data.reason !== 'foul' ? ` (${data.reason})` : ''),
+        'foul',
+        data.subject._id,
+        data.subject.ClubCode
+      );
+
+      log(`Foul: ${data.reason} by ${data.subject.FirstName} ${data.subject.LastName}`);
+    });
+
+    matchEvents.on(`${this.id}-player-sent-off`, (data: ISentOff) => {
+      const offendingSide =
+        data.player.ClubCode === this.Home.ClubCode
+          ? this.Details.HomeTeamDetails
+          : this.Details.AwayTeamDetails;
+
+      offendingSide.RedCards++;
+
+      createMatchEvent(
+        this.id,
+        `${data.player.FirstName} ${data.player.LastName} [${data.player.ClubCode}] has been sent off` +
+          (data.secondYellow ? ' (second yellow card)' : ' (red card)'),
+        'foul',
+        data.player._id,
+        data.player.ClubCode
+      );
+
+      log(`${data.player.FirstName} ${data.player.LastName} sent off (${data.secondYellow ? 'second yellow' : 'red card'})`);
     });
 
     matchEvents.on(`${this.id}-reset-formations`, () => {
@@ -369,8 +424,8 @@ export class Match implements IMatch, MatchClass {
   }
 
   public setPlayerStats() {
-    this.Details.HomeTeamDetails.PlayerStats = this.Home.getPlayerStats();
-    this.Details.AwayTeamDetails.PlayerStats = this.Away.getPlayerStats();
+    this.Details.HomeTeamDetails.PlayerStats = this.Home.getPlayerStats() as any;
+    this.Details.AwayTeamDetails.PlayerStats = this.Away.getPlayerStats() as any;
   }
 
   public endMatch() {
@@ -420,6 +475,44 @@ export class Match implements IMatch, MatchClass {
     // log(this.Actions, 'table'); TODO: UNCOMMENT O
   }
 
+  /**
+   * Snapshot all player/ball positions plus any new Events entries since the
+   * last snapshot. Called once per gameLoop tick so the match can be
+   * replayed live afterwards (see src/realtime/matchBroadcaster.ts) without
+   * slowing down the simulation itself.
+   */
+  public captureFrame(tick: number, ballPosition: { x: number; y: number }): void {
+    const events = this.Events.slice(this.lastFrameEventIndex);
+    this.lastFrameEventIndex = this.Events.length;
+
+    this.Frames.push({
+      tick,
+      minute: this.getCurrentTime,
+      half: tick < 90 ? 1 : 2,
+      ball: { x: ballPosition.x, y: ballPosition.y },
+      players: [
+        ...this.Home.StartingSquad.map((p) => this.toFramePlayer(p, 'home')),
+        ...this.Away.StartingSquad.map((p) => this.toFramePlayer(p, 'away')),
+      ],
+      events,
+    });
+  }
+
+  private toFramePlayer(p: IFieldPlayer, side: 'home' | 'away'): IMatchFramePlayer {
+    return {
+      id: p._id!,
+      side,
+      num: p.ShirtNumber,
+      pos: p.Position,
+      x: p.BlockPosition.x,
+      y: p.BlockPosition.y,
+      withBall: p.WithBall,
+      matchStatus: p.MatchStatus,
+      yellowCards: p.GameStats.YellowCards,
+      redCards: p.GameStats.RedCards,
+    };
+  }
+
   public calculatePosession() {
     const totalPossession =
       this.Details.HomeTeamDetails.TimesWithBall +
@@ -462,12 +555,34 @@ export interface IMatchData {
 }
 
 export interface IMatchEvent {
-  type: 'match' | 'shot' | 'miss' | 'save' | 'goal' | 'dribble' | 'tackle';
+  type: 'match' | 'shot' | 'miss' | 'save' | 'goal' | 'dribble' | 'tackle' | 'pass' | 'interception' | 'foul';
   message: string;
   time?: string;
   playerID?: string;
   playerTeamID?: string;
   data?: any;
+}
+
+export interface IMatchFramePlayer {
+  id: string;
+  side: 'home' | 'away';
+  num: string;
+  pos: string;
+  x: number;
+  y: number;
+  withBall: boolean;
+  matchStatus: PlayerMatchStatus;
+  yellowCards: number;
+  redCards: number;
+}
+
+export interface IMatchFrame {
+  tick: number;
+  minute: number;
+  half: 1 | 2;
+  ball: { x: number; y: number };
+  players: IMatchFramePlayer[];
+  events: IMatchEvent[];
 }
 
 export interface IMatchDetails {
@@ -522,7 +637,7 @@ export interface IMatchSideDetails {
 }
 
 interface IMatchAction {
-  type: 'pass' | 'goal';
+  type: 'pass' | 'goal' | 'interception';
   playerID: string;
   playerTeam: string;
   timestamp: number;

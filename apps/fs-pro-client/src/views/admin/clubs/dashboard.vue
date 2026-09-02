@@ -24,7 +24,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 import type { Club } from '@/interfaces/club';
 import AllClubsTable from '@/components/clubs/allclubs-table.vue';
 

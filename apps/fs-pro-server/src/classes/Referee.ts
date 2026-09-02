@@ -31,13 +31,15 @@ export default class Referee {
     this.MatchBall = ball;
     this.Match = m;
 
-    matchEvents.on(`${this.Match.id}-reset-ball-position`, () => {
-      this.handleMatchRestart();
-    });
+    if (this.Match) {
+      matchEvents.on(`${this.Match.id}-reset-ball-position`, () => {
+        this.handleMatchRestart();
+      });
 
-    matchEvents.on(`${this.Match.id}-ball-out`, (outData) => {
-      this.handleBallOut(outData);
-    });
+      matchEvents.on(`${this.Match.id}-ball-out`, (outData) => {
+        this.handleBallOut(outData);
+      });
+    }
   }
 
   public assignMatch(match: Match) {
@@ -46,62 +48,64 @@ export default class Referee {
   }
 
   /**
+   * Move a player back to a specific block only if it's actually free (or
+   * already theirs) - guards the handful of direct repositioning calls in
+   * this class (keeper resets, sent-off replacements) against silently
+   * displacing whoever another part of the engine still thinks occupies
+   * that block, which is exactly the class of desync that produced the
+   * ball-possession corruption fixed in FieldPlayer.move()/Actions.tackle().
+   */
+  private moveToBlockIfFree(player: IFieldPlayer, target: IBlock) {
+    if (target.occupant !== null && target.occupant !== player) {
+      return;
+    }
+    player.move(CO.co.calculateDifference(target, player.BlockPosition));
+  }
+
+  /**
    * Handle foul
    * @param subject The tackler (the offender)
    * @param object The Offended (the victim) ?
    */
   public foul(subject: IFieldPlayer, object: IFieldPlayer) {
-    const chance = Math.round(Math.random() * 12);
-    log(`Referees difficulty => ${chance}`);
-    let level = 0;
-    switch (this.Difficulty) {
-      case 'tough':
-        level = 8;
-        break;
+    // Previously: chance (0-12) >= level ? yellow : chance < level ? red :
+    // foul. Since >= and < are complementary and exhaustive over the same
+    // range, the third branch was dead code - every foul resolved to
+    // EITHER a yellow or a red, with roughly a 46% chance of red at the
+    // default difficulty. Real fouls draw a card only a minority of the
+    // time, and red cards are rare even among those. Replaced with a
+    // proper three-way split on a 0-100 roll, most fouls drawing no card.
+    const chance = Math.round(Math.random() * 100);
+    const difficultyMultiplier =
+      this.Difficulty === 'tough' ? 1.5 : this.Difficulty === 'lenient' ? 0.6 : 1;
 
-      case 'lenient':
-        level = 4;
-        break;
-      case 'normal':
-        level = 6;
-        break;
-    }
-    if (chance >= level) {
-      matchEvents.emit(`${this.Match.id}-game-halt`, {
-        reason: 'yellow card',
-        subject,
-        object,
-        where: subject.BlockPosition,
-        interruption: true,
-      } as IFoul);
-    } else if (chance < level) {
-      matchEvents.emit(`${this.Match.id}-game-halt`, {
-        reason: 'red card',
-        subject,
-        object,
-        where: subject.BlockPosition,
-        interruption: true,
-      } as IFoul);
-    } else {
-      matchEvents.emit(`${this.Match.id}-game-halt`, {
-        reason: 'foul',
-        subject,
-        object,
-        where: subject.BlockPosition,
-        interruption: true,
-      } as IFoul);
-    }
+    const redThreshold = 3 * difficultyMultiplier; // ~2-4.5% of fouls
+    const yellowThreshold = 25 * difficultyMultiplier; // next ~15-37% of fouls
+
+    const reason: IFoul['reason'] =
+      chance <= redThreshold ? 'red card' : chance <= yellowThreshold ? 'yellow card' : 'foul';
+
+    log(`Referee ruling: ${reason} (roll ${chance}, difficulty ${this.Difficulty})`);
+
+    matchEvents.emit(`${this.Match!.id}-game-halt`, {
+      reason,
+      subject,
+      object,
+      where: subject.BlockPosition,
+      interruption: true,
+    } as IFoul);
   }
 
   public handleFoul(data: IFoul, matchActions: Actions) {
     switch (data.reason) {
       case 'yellow card':
         log('yellow card! [Y]');
-        // Get freekick taker
+        this.bookPlayer(data.subject, 'yellow');
         this.setUpSetPiece(data, data.where);
         break;
       case 'red card':
         log('red card! [R]');
+        this.bookPlayer(data.subject, 'red');
         this.setUpSetPiece(data, data.where);
         break;
       case 'foul':
@@ -113,6 +117,54 @@ export default class Referee {
     }
   }
 
+  /**
+   * Applies a card's real effect. This is the template for future
+   * match-dynamic incidents (injury, morale-affecting events, etc.):
+   * mutate player state once, emit an event, and let the rest of the
+   * simulation - which already reads MatchStatus/ActivePlayers/Attributes -
+   * react naturally. No special-casing needed anywhere else.
+   */
+  private bookPlayer(player: IFieldPlayer, card: 'yellow' | 'red') {
+    if (card === 'yellow') {
+      player.GameStats.YellowCards++;
+      if (player.GameStats.YellowCards >= 2) {
+        this.sendOff(player, true);
+        return;
+      }
+    } else {
+      this.sendOff(player, false);
+    }
+  }
+
+  /** Removes a player from ActivePlayers for the rest of the match. */
+  private sendOff(player: IFieldPlayer, secondYellow: boolean) {
+    if (player.MatchStatus === 'sent-off') {
+      return; // already off - avoid double-counting a repeat incident
+    }
+
+    player.MatchStatus = 'sent-off';
+    player.GameStats.RedCards++;
+
+    // Fouls are usually committed by the non-possessing side, but if this
+    // player somehow has the ball, hand it to the nearest active teammate
+    // rather than leaving it with someone no longer in the match.
+    if (player.WithBall) {
+      const team = this.Teams!.find((t) => t.ClubCode === player.ClubCode);
+      const replacement = team
+        ? CO.co.findClosestFieldPlayer(player.BlockPosition, team.ActivePlayers, player)
+        : undefined;
+
+      if (replacement) {
+        replacement.changePosition(player.BlockPosition);
+        this.MatchBall.move(
+          CO.co.calculateDifference(replacement.BlockPosition, this.MatchBall.Position)
+        );
+      }
+    }
+
+    matchEvents.emit(`${this.Match!.id}-player-sent-off`, { player, secondYellow } as ISentOff);
+  }
+
   public setUpSetPiece(foulData: IFoul, where: IBlock) {
     const i = this.Teams!.findIndex(
       (t) => t.ClubCode === foulData.object.ClubCode
@@ -120,7 +172,12 @@ export default class Referee {
 
     //  Get distance from ScoringSide
     const distance = CO.co.calculateDistance(this.Teams![i].ScoringSide, where);
-    if (distance < 2) {
+    // Calibrated for the original 15-wide grid, same as every other
+    // distance threshold in Decider.ts - see Coordinates.scaleDistance.
+    const penaltyDistance = CO.co.scaleDistance(2);
+    const freeKickDistance = CO.co.scaleDistance(5);
+
+    if (distance < penaltyDistance) {
       log('<== Penalty Kick ==>');
 
       // Get an attacker or midfielder to take the PK
@@ -129,21 +186,31 @@ export default class Referee {
       );
       const taker = playerFunc.getRandomATTMID(this.Teams![teamIndex]);
 
-      // Move involved players away
-      // Move tackled
-      const b1 = playerFunc.findRandomFreeBlock(foulData.object);
-
-      const p1 = CO.co.findPath(b1, foulData.object.BlockPosition);
-      foulData.object.move(p1);
-
-      // Move tackler
+      // Move the tackler away from the penalty spot
       const b2 = playerFunc.findRandomFreeBlock(foulData.subject);
-
       const p2 = CO.co.findPath(b2, foulData.subject.BlockPosition);
-      foulData.object.move(p2);
+      foulData.subject.move(p2);
 
-      // Give him the ball :)
-    } else if (distance >= 2 && distance < 5) {
+      // Give the taker the ball at the penalty spot - previously this was
+      // just a comment ("Give him the ball :)"), so nobody ever actually
+      // had the ball after a penalty was awarded. Now the taker gets
+      // possession the same way every other restart does (see
+      // Referee.handleMatchRestart), and the normal decision loop takes it
+      // from there - this close to goal, Decider will very likely choose
+      // to shoot on its own, so no separate "penalty" shot logic is needed.
+      const takerPath = CO.co.calculateDifference(
+        foulData.where,
+        taker.BlockPosition
+      );
+      taker.move(takerPath);
+      taker.Ball.move(
+        CO.co.calculateDifference(taker.BlockPosition, taker.Ball.Position)
+      );
+
+      log(
+        `${taker.FirstName} ${taker.LastName} [${taker.Position}] is taking the penalty`
+      );
+    } else if (distance >= penaltyDistance && distance < freeKickDistance) {
       log('<== Set Piece Free Kick! ==>');
 
       // Move freekick taker to spot
@@ -233,17 +300,12 @@ export default class Referee {
       defendingSide.StartingSquad
     ) as IFieldPlayer;
 
-    keeper.move(
-      CO.co.calculateDifference(
-        keeper.StartingPosition,
-        keeper.BlockPosition
-      )
-    );
+    this.moveToBlockIfFree(keeper, keeper.StartingPosition);
 
     switch (data.result) {
       case 'goal':
         // Emit goal event
-        matchEvents.emit(`${this.Match.id}-goal!`, data);
+        matchEvents.emit(`${this.Match!.id}-goal!`, data);
 
         // Move ball to keeper position
         keeper.Ball.move(
@@ -253,14 +315,14 @@ export default class Referee {
         // Move players to starting position
 
         createMatchEvent(
-          this.Match.id,
+          this.Match!.id,
           `${data.shooter.FirstName} ${data.shooter.LastName} [${data.shooter.ClubCode}] scored`,
           'goal',
           data.shooter._id,
           data.shooter.ClubCode
         );
 
-        matchEvents.emit(`${this.Match.id}-reset-formations`);
+        matchEvents.emit(`${this.Match!.id}-reset-formations`);
 
         // matchEvents.emit(`${this.Match.id}-set-playing-sides`);
         break;
@@ -268,20 +330,20 @@ export default class Referee {
         log('missed shot');
         // matchEvents.emit(`${this.Match.id}-set-playing-sides`);
 
-        keeper.move(
-          CO.co.calculateDifference(
-            keeper.StartingPosition,
-            keeper.BlockPosition
-          )
+        this.moveToBlockIfFree(keeper, keeper.StartingPosition);
+
+        // Move ball to keeper position (goal kick) - this was commented
+        // out with a note claiming it's "handled in Actions", but
+        // Actions.shoot() sends an off-target shot to a random UNOCCUPIED
+        // block near the goal by design, so nobody ever had the ball after
+        // a miss. That left the match with no active player until someone
+        // incidentally wandered onto that exact block.
+        keeper.Ball.move(
+          CO.co.calculateDifference(keeper.BlockPosition, keeper.Ball.Position)
         );
 
-        // Move ball to keeper position
-        // keeper.Ball.move(
-        //   CO.co.calculateDifference(keeper.BlockPosition, keeper.Ball.Position)
-        // );
-
         createMatchEvent(
-          this.Match.id,
+          this.Match!.id,
           `${data.shooter.FirstName} ${data.shooter.LastName} [${data.shooter.ClubCode}] missed a shot`,
           'miss',
           data.shooter._id,
@@ -291,36 +353,34 @@ export default class Referee {
         // console.log('Keeper when ball out -> ', keeper);
 
         // NOTE: This is already handled in the Actions class
-        // matchEvents.emit(`${this.Match.id}-reset-formations`);
-        matchEvents.emit(`${this.Match.id}-missed-shot`, data);
+        // matchEvents.emit(`${this.Match!.id}-reset-formations`);
+        matchEvents.emit(`${this.Match!.id}-missed-shot`, data);
         break;
       case 'save':
         log('shot saved');
 
-        keeper.move(
-          CO.co.calculateDifference(
-            keeper.StartingPosition,
-            keeper.BlockPosition
-          )
-        );
+        this.moveToBlockIfFree(keeper, keeper.StartingPosition);
 
-        // Move ball to keeper position
-        // Missing a shot is already handled by Actions
-        // keeper.Ball.move(
-        //   CO.co.calculateDifference(keeper.BlockPosition, keeper.Ball.Position)
-        // );
+        // Move ball to keeper position - was commented out (same stale
+        // "handled elsewhere" assumption as the miss case above).
+        // Actions.shoot() sends a saved shot to the exact goal-line block,
+        // not to wherever the keeper actually stands, so nothing ever gave
+        // the keeper possession after a save without this.
+        keeper.Ball.move(
+          CO.co.calculateDifference(keeper.BlockPosition, keeper.Ball.Position)
+        );
 
         // console.log('Player shot -> ', data.shooter);
         // console.log('Keeper caught -> ', keeper);
 
         createMatchEvent(
-          this.Match.id,
+          this.Match!.id,
           `${data.keeper.FirstName} ${data.keeper.LastName} [${data.keeper.ClubCode}] saved a shot from ${data.shooter.FirstName} ${data.shooter.LastName}`,
           'save',
           data.keeper._id,
           data.keeper.ClubCode
         );
-        matchEvents.emit(`${this.Match.id}-saved-shot`, data);
+        matchEvents.emit(`${this.Match!.id}-saved-shot`, data);
         // reset formations here also...
         break;
       default:
@@ -343,21 +403,51 @@ export default class Referee {
       * Find the opposing team and give them the ball...
       * */
      // NOTE: THIS IS VERY TEMPORARY!
-      matchEvents.emit(`${this.Match.id}-reset-formations`);
+      matchEvents.emit(`${this.Match!.id}-reset-formations`);
   }
 
+  /**
+   * Restart play from the center circle - kickoff, after a goal, after the
+   * ball goes out. Previously this only moved the BALL to the center
+   * block; nothing ever gave a player possession, and FieldPlayer.WithBall
+   * only becomes true when a player's own block happens to exactly
+   * coincide with the ball's. Since no formation slot sits exactly at the
+   * center circle, that coincidence was rare, so most matches spent nearly
+   * the whole simulation with no active player at all (Game.setPlayingSides
+   * finds nobody WithBall, falls back to moveTowardsBall() every tick,
+   * and takeAction() - where all passing/shooting/tackling logic lives -
+   * never runs). Now the nearest outfield player is physically placed on
+   * the ball's new block before it moves there, so WithBall is
+   * unambiguously true for them the moment the ball arrives.
+   */
   public handleMatchRestart() {
-    // move ball to centerBlock
-    console.log('Handling Match Restart! ', this.Match.CenterBlock.key);
+    const centerBlock = this.Match!.CenterBlock;
+
+    console.log('Handling Match Restart! ', centerBlock.key);
+
+    const taker = this.pickRestartTaker();
+    if (taker) {
+      taker.changePosition(centerBlock);
+    }
+
+    // Moving the ball fires the ball-moved event every player already
+    // listens to, which re-checks WithBall for all of them - so this must
+    // happen AFTER placing the taker, not before.
     this.MatchBall.move(
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      CO.co.calculateDifference(
-        this.Match!.CenterBlock,
-        this.MatchBall.Position
-      )
+      CO.co.calculateDifference(centerBlock, this.MatchBall.Position)
+    );
+  }
+
+  /** Whichever outfield player is currently closest to the center circle -
+   * a simple, stateless heuristic for "who takes the restart", not a claim
+   * about which team actually earned it (kickoff/goal/throw-in possession
+   * rules aren't modeled here). */
+  private pickRestartTaker(): IFieldPlayer | undefined {
+    const allPlayers = this.Match!.Home.ActivePlayers.concat(
+      this.Match!.Away.ActivePlayers
     );
 
-
+    return CO.co.findClosestFieldPlayer(this.Match!.CenterBlock, allPlayers);
   }
 }
 
@@ -371,11 +461,17 @@ export interface IReferee {
   handleShot(data: IShot, matchActions: Actions): void;
 }
 
+export interface ISentOff {
+  player: IFieldPlayer;
+  /** Whether this dismissal came from a second yellow rather than a straight red. */
+  secondYellow: boolean;
+}
+
 /**
  * Reason this
  */
 export interface IFoul {
-  reason: string;
+  reason: 'foul' | 'yellow card' | 'red card';
   subject: IFieldPlayer;
   object: IFieldPlayer;
   where: IBlock;

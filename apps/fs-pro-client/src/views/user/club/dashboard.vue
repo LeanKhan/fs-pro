@@ -4,7 +4,7 @@
       <v-toolbar>
         <!-- Current day -->
         <v-toolbar-title>
-          <template v-if="club && season">
+          <template v-if="club && season && club.League">
             <v-icon size="x-large">custom:{{ club.ClubCode }}</v-icon>
             <v-chip
               size="small"
@@ -190,7 +190,7 @@ import { ClubZone, SquadZone, TransferZone } from './zones';
 import DayScroll from '@/components/calendar/day-scroll.vue';
 import StandingsScroller from '@/components/seasons/standings-scroller.vue';
 import { ICalendar, IDay } from '@/interfaces/calendar';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 
 const route = useRoute();
 const router = useRouter();

@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 import SeasonsTable from '@/components/seasons/seasons-table.vue';
 import type { Season } from '@/interfaces/season';
 

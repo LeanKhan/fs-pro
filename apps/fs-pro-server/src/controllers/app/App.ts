@@ -2,7 +2,10 @@
 import Coordinates from '../../utils/coordinates';
 import { matchEvents } from '../../utils/events';
 import { fetchClubs } from '../clubs/club.service';
+import { IClub } from '../../interfaces/Club';
 import Game from '../Game';
+import { resolveManagerTactic } from '../managers/manager.service';
+import { ITactic } from '../../state/PersistentState/Formations';
 
 export default class App {
   public static instance: App;
@@ -24,31 +27,40 @@ export default class App {
   private Coordinates!: Coordinates;
 
   constructor() {
-    // this.Coordinates = new Coordinates();
     App.instances++;
   }
 
   /** Setup Game => Run this first */
+  /**
+   * @param prefetchedClubs when provided (e.g. from a worker_thread that
+   * can't touch the DB itself), used instead of fetching clubs here.
+   * @param prefetchedTactics same idea, for each side's starting tactic -
+   * when provided, skips the manager lookup entirely (a worker_thread has
+   * no DB connection to do that lookup with).
+   */
   public async setupGame(
     clubs: string[],
-    sides: { home: string; away: string }
+    sides: { home: string; away: string },
+    prefetchedClubs?: IClub[],
+    prefetchedTactics?: { home: ITactic; away: ITactic }
   ) {
     try {
       this.Coordinates = new Coordinates();
 
-      const teams = await fetchClubs({ _id: { $in: clubs } });
+      const teams = prefetchedClubs ?? (await fetchClubs({ _id: { $in: clubs } }));
 
-      const centerBlock = this.Coordinates.Field.PlayingField[82];
+      // Kickoff spot, resolved as the exact center of the pitch regardless
+      // of grid resolution (previously PlayingField[82], a flat-index hack
+      // that only pointed to the center on a 15x11 grid).
+      const centerBlock = this.Coordinates.Field.getBlockByFraction(0.5, 0.5);
 
       this.Game = new Game(
-        teams,
+        teams as any,
         sides,
-        // homePost,
-        // awayPost,
         { color: '#ffffff', cb: centerBlock },
         { fname: 'Anjus', lname: 'Banjus', level: 'normal' },
         centerBlock,
-        this.Coordinates.Field.PlayingField,
+        this.Coordinates.Field,
         this.Coordinates
       );
 
@@ -56,14 +68,25 @@ export default class App {
 
       this.Game.setClubPlayers();
 
-      this.Game.setClubFormations('HOME-433', 'AWAY-433');
+      // Formation shapes are no longer HOME/AWAY-specific - each side's
+      // attacking direction is derived from its ScoringSide/KeepingSide.
+      const homeClub = teams.find((c) => c._id?.toString() === sides.home);
+      const awayClub = teams.find((c) => c._id?.toString() === sides.away);
+
+      const tactics =
+        prefetchedTactics ?? {
+          home: await resolveManagerTactic(homeClub?.Manager),
+          away: await resolveManagerTactic(awayClub?.Manager),
+        };
+
+      this.Game.setClubFormations(tactics.home, tactics.away);
 
       this.listenForGameEvents();
 
       return this.Game;
     } catch (err) {
       console.log('Error setting up game! (in App) =>', err);
-      throw new Error(err);
+      throw new Error(err as any);
     }
   }
 
@@ -71,12 +94,7 @@ export default class App {
   public startGame() {
     try {
       return this.Game!.startHalf();
-
-      // After here, the game should start!
     } catch (error) {
-      // TODO: !!! SEARCH FOR THIS log(..., any) in the code
-      // Done! RegExp used: log\(.*, [a-zA-Z]*\) this finds expressions
-      // that look like log(..., ...)
       console.log('Error starting game! =>', error);
     }
   }
@@ -85,15 +103,13 @@ export default class App {
   public endGame() {
     try {
       this.Game = undefined;
-
-      // After here, the game should start!
     } catch (error) {
       console.log('Error ending game! =>', error);
     }
   }
 
   public listenForGameEvents() {
-    matchEvents.on(`${this.Game.Match.id}-set-playing-sides`, () => {
+    matchEvents.on(`${this.Game!.Match.id}-set-playing-sides`, () => {
       const playingSides = this.Game!.setPlayingSides();
 
       matchEvents.emit(`${this.Game!.Match.id}-setting-playing-sides`, playingSides);

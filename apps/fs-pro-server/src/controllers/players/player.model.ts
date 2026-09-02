@@ -236,13 +236,13 @@ export class Player {
       { timestamps: true }
     );
 
-    const populate = function (next: any) {
+    const populate = function (this: IPlayer & Document, next: any) {
       this.populate('Nationality');
       next();
     };
 
 
-    PlayerSchema.post('remove', async function(doc, next) {
+    PlayerSchema.post('remove', async function(this: IPlayer & Document, doc, next) {
 
       await DB.Models.Club.updateOne(
         { Players : this._id},

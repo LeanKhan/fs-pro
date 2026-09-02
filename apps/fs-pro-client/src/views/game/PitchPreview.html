@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Pitch Preview — Formation Resolver</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:        #0c1710;
+    --panel:      #12241a;
+    --panel-line: #23392c;
+    --pitch-a:    #1b4d33;
+    --pitch-b:    #1f5539;
+    --chalk:      #eef3ec;
+    --chalk-dim:  rgba(238,243,236,0.35);
+    --home:       #2a5db0;
+    --home-dim:   #1b3b70;
+    --away:       #b0342a;
+    --away-dim:   #701d17;
+    --amber:      #e9b34a;
+    --muted:      #8ba597;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--chalk);
+    font-family: 'IBM Plex Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 28px 16px;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 1180px;
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 32px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    margin: 0;
+    color: var(--chalk);
+  }
+
+  h1 span { color: var(--amber); }
+
+  .subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 260px;
+    gap: 16px;
+  }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .pitch-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 33 / 21;
+    background:
+      repeating-linear-gradient(
+        90deg,
+        var(--pitch-a) 0,
+        var(--pitch-a) calc(100% / 12),
+        var(--pitch-b) calc(100% / 12),
+        var(--pitch-b) calc(100% / 6)
+      );
+    border: 3px solid var(--chalk);
+    border-radius: 3px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px -20px rgba(0,0,0,0.7);
+  }
+
+  svg.markings, svg.grid-overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
+  svg.markings line, svg.markings circle, svg.markings rect {
+    stroke: var(--chalk-dim);
+    fill: none;
+    stroke-width: 0.25;
+    vector-effect: non-scaling-stroke;
+  }
+  svg.grid-overlay line { stroke: rgba(238,243,236,0.12); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  svg.grid-overlay { display: none; }
+  .app.show-grid svg.grid-overlay { display: block; }
+
+  .player {
+    position: absolute;
+    width: 5.2%;
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    color: var(--chalk);
+    border: 2px solid rgba(255,255,255,0.85);
+    cursor: pointer;
+    transition: left 500ms cubic-bezier(.4,0,.2,1), top 500ms cubic-bezier(.4,0,.2,1),
+                box-shadow 150ms ease, transform 150ms ease;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.45);
+    user-select: none;
+  }
+  .player:hover { transform: translate(-50%, -50%) scale(1.15); z-index: 5; }
+  .player.selected { box-shadow: 0 0 0 3px var(--amber), 0 2px 6px rgba(0,0,0,0.5); z-index: 6; }
+  .player.home { background: var(--home); }
+  .player.away { background: var(--away); }
+  .player.gk { filter: brightness(1.35); }
+
+  .ball {
+    position: absolute;
+    width: 1.6%;
+    aspect-ratio: 1;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.4);
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-line);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .panel h2 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 6px 0;
+    border-bottom: 1px solid var(--panel-line);
+    padding-bottom: 8px;
+  }
+
+  .controls { display: flex; flex-direction: column; gap: 8px; }
+
+  button {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    background: transparent;
+    color: var(--chalk);
+    border: 1px solid var(--panel-line);
+    border-radius: 6px;
+    padding: 9px 10px;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 150ms ease, background 150ms ease;
+  }
+  button:hover { border-color: var(--amber); background: rgba(233,179,74,0.08); }
+  button .dot { color: var(--amber); margin-right: 6px; }
+
+  input[type="text"] {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    background: transparent;
+    color: var(--chalk);
+    border: 1px solid var(--panel-line);
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+  input[type="text"]::placeholder { color: var(--muted); }
+
+  .status {
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .status.live { color: var(--amber); }
+
+  .player.with-ball { box-shadow: 0 0 0 3px var(--amber), 0 2px 6px rgba(0,0,0,0.5); }
+
+  .legend { display: flex; gap: 14px; font-size: 11px; color: var(--muted); }
+  .legend .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+
+  .inspector {
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--chalk);
+  }
+  .inspector .empty { color: var(--muted); }
+  .inspector .row { display: flex; justify-content: space-between; gap: 10px; }
+  .inspector .k { color: var(--muted); }
+  .inspector .v { color: var(--amber); }
+  .inspector .positions { color: var(--chalk); word-break: break-word; }
+
+  .meta {
+    margin-top: 14px;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <header>
+    <div>
+      <h1>Pitch <span>Preview</span></h1>
+      <div class="subtitle">Field → Formations → resolveFormation(), rendered live</div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div>
+      <div class="pitch-wrap" id="pitchWrap">
+        <svg class="markings" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <rect x="1" y="1" width="98" height="98" />
+          <line x1="50" y1="1" x2="50" y2="99" />
+          <circle cx="50" cy="50" r="9" />
+          <circle cx="50" cy="50" r="0.6" fill="var(--chalk-dim)" />
+          <rect x="1" y="30" width="14" height="40" />
+          <rect x="1" y="40" width="5" height="20" />
+          <rect x="85" y="30" width="14" height="40" />
+          <rect x="94" y="40" width="5" height="20" />
+        </svg>
+        <svg class="grid-overlay" id="gridOverlay" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+        <div class="ball" id="ballEl"></div>
+        <div id="playerLayer"></div>
+      </div>
+      <div class="meta" id="metaLine"></div>
+    </div>
+
+    <div class="panel">
+      <div>
+        <h2>Live Match</h2>
+        <div class="controls">
+          <input id="fixtureIdInput" type="text" placeholder="fixture id" />
+          <button id="watchBtn"><span class="dot">▶</span>Watch</button>
+          <button id="kickoffBtn"><span class="dot">⚽</span>Watch + Kick Off</button>
+        </div>
+        <div class="status" id="connStatus">Disconnected</div>
+      </div>
+
+      <div>
+        <h2>Controls</h2>
+        <div class="controls">
+          <button id="toggleGrid"><span class="dot">▤</span>Toggle grid overlay</button>
+          <button id="swapEnds"><span class="dot">⇄</span>Swap ends (half-time)</button>
+        </div>
+      </div>
+
+      <div>
+        <h2>Legend</h2>
+        <div class="legend">
+          <div><span class="swatch" style="background:var(--home)"></span>Home</div>
+          <div><span class="swatch" style="background:var(--away)"></span>Away</div>
+          <div><span class="swatch" style="background:var(--amber)"></span>Ball</div>
+        </div>
+      </div>
+
+      <div>
+        <h2>Inspector</h2>
+        <div class="inspector" id="inspector">
+          <div class="empty">Click a player to see the exact resolved IBlock.</div>
+        </div>
+      </div>
+
+      <div>
+        <h2>Events</h2>
+        <div class="inspector" id="eventLog">
+          <div class="empty">Waiting for a match…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------------------------------------------------------------
+   This is a direct JS port of FieldGrid.ts + Formations.ts, so the
+   positions rendered below are exactly what resolveFormation() would
+   hand a MatchSide in the real engine - not a mocked-up layout.
+------------------------------------------------------------------*/
+
+const DEFAULT_X_BLOCKS = 33;
+const DEFAULT_Y_BLOCKS = 21;
+
+class Field {
+  constructor(xBlocks = DEFAULT_X_BLOCKS, yBlocks = DEFAULT_Y_BLOCKS) {
+    this.mapWidth = xBlocks;
+    this.mapHeight = yBlocks;
+    this.PlayingField = this.createGrid(xBlocks, yBlocks);
+  }
+  createGrid(xBlocks, yBlocks) {
+    const blocks = [];
+    let n = 0;
+    for (let y = 0; y < yBlocks; y++) {
+      for (let x = 0; x < xBlocks; x++) {
+        blocks.push({ x, y, key: `P${n}`, occupant: null });
+        n++;
+      }
+    }
+    return blocks;
+  }
+  getBlockAt(x, y) {
+    return this.PlayingField.find(b => b.x === x && b.y === y);
+  }
+  getBlockByFraction(xFrac, yFrac) {
+    const xC = Math.min(Math.max(xFrac, 0), 1);
+    const yC = Math.min(Math.max(yFrac, 0), 1);
+    const x = Math.round(xC * (this.mapWidth - 1));
+    const y = Math.round(yC * (this.mapHeight - 1));
+    return this.getBlockAt(x, y);
+  }
+}
+
+const formationShapes = {
+  '433': [
+    { positions: ['GK'],               x: 0.04, y: 0.5, num: 1 },
+    { positions: ['DEF'],               x: 0.18, y: 0.15, num: 2 },
+    { positions: ['DEF'],               x: 0.18, y: 0.38, num: 4 },
+    { positions: ['DEF','MID'],         x: 0.18, y: 0.62, num: 5 },
+    { positions: ['DEF','MID'],         x: 0.18, y: 0.85, num: 3 },
+    { positions: ['MID','DEF'],         x: 0.45, y: 0.3,  num: 6 },
+    { positions: ['MID','DEF','ATT'],   x: 0.45, y: 0.5,  num: 8 },
+    { positions: ['MID','ATT'],         x: 0.45, y: 0.7,  num: 10 },
+    { positions: ['ATT','MID'],         x: 0.75, y: 0.2,  num: 7 },
+    { positions: ['ATT','MID'],         x: 0.75, y: 0.8,  num: 11 },
+    { positions: ['ATT','MID'],         x: 0.75, y: 0.5,  num: 9 },
+  ]
+};
+
+function resolveFormation(name, field, direction) {
+  const shape = formationShapes[name];
+  return shape.map(slot => {
+    const xFrac = direction === 'left-to-right' ? slot.x : 1 - slot.x;
+    return {
+      positions: slot.positions,
+      num: slot.num,
+      block: field.getBlockByFraction(xFrac, slot.y),
+    };
+  });
+}
+
+/* ---------------------------- render ---------------------------- */
+
+const field = new Field();
+let homeDirection = 'left-to-right';
+let awayDirection = 'right-to-left';
+
+const playerLayer = document.getElementById('playerLayer');
+const inspector = document.getElementById('inspector');
+const metaLine = document.getElementById('metaLine');
+const gridOverlay = document.getElementById('gridOverlay');
+const ballEl = document.getElementById('ballEl');
+const eventLog = document.getElementById('eventLog');
+const connStatus = document.getElementById('connStatus');
+const fixtureIdInput = document.getElementById('fixtureIdInput');
+const watchBtn = document.getElementById('watchBtn');
+const kickoffBtn = document.getElementById('kickoffBtn');
+const swapEndsBtn = document.getElementById('swapEnds');
+
+function toPct(block) {
+  return {
+    left: (block.x / (field.mapWidth - 1)) * 100,
+    top: (block.y / (field.mapHeight - 1)) * 100,
+  };
+}
+
+function buildGridOverlay() {
+  const svgns = 'http://www.w3.org/2000/svg';
+  gridOverlay.innerHTML = '';
+  for (let x = 0; x <= field.mapWidth; x++) {
+    const px = (x / field.mapWidth) * 100;
+    const l = document.createElementNS(svgns, 'line');
+    l.setAttribute('x1', px); l.setAttribute('x2', px);
+    l.setAttribute('y1', 0);  l.setAttribute('y2', 100);
+    gridOverlay.appendChild(l);
+  }
+  for (let y = 0; y <= field.mapHeight; y++) {
+    const py = (y / field.mapHeight) * 100;
+    const l = document.createElementNS(svgns, 'line');
+    l.setAttribute('y1', py); l.setAttribute('y2', py);
+    l.setAttribute('x1', 0);  l.setAttribute('x2', 100);
+    gridOverlay.appendChild(l);
+  }
+}
+
+function renderTeam(side, direction, side2) {
+  const resolved = resolveFormation('433', field, direction);
+  resolved.forEach(slot => {
+    let el = document.getElementById(`p-${side}-${slot.num}`);
+    if (!el) {
+      el = document.createElement('div');
+      el.id = `p-${side}-${slot.num}`;
+      el.className = `player ${side}` + (slot.positions[0] === 'GK' ? ' gk' : '');
+      el.textContent = slot.positions[0];
+      playerLayer.appendChild(el);
+      el.addEventListener('click', () => selectPlayer(el, side, slot));
+    }
+    const pct = toPct(slot.block);
+    el.style.left = pct.left + '%';
+    el.style.top = pct.top + '%';
+    el.__slot = slot;
+    el.__side = side;
+  });
+  return resolved;
+}
+
+function selectPlayer(el, side, slot) {
+  document.querySelectorAll('.player.selected').forEach(p => p.classList.remove('selected'));
+  el.classList.add('selected');
+  inspector.innerHTML = `
+    <div class="row"><span class="k">side</span><span class="v">${side}</span></div>
+    <div class="row"><span class="k">key</span><span class="v">${slot.block.key}</span></div>
+    <div class="row"><span class="k">x</span><span class="v">${slot.block.x}</span></div>
+    <div class="row"><span class="k">y</span><span class="v">${slot.block.y}</span></div>
+    <div class="row"><span class="k">positions</span></div>
+    <div class="positions">${JSON.stringify(slot.positions)}</div>
+  `;
+}
+
+function renderAll() {
+  renderTeam('home', homeDirection);
+  renderTeam('away', awayDirection);
+  metaLine.innerHTML = `
+    <span>${field.mapWidth} × ${field.mapHeight} grid · ${field.mapWidth * field.mapHeight} cells · ratio ${(field.mapWidth/field.mapHeight).toFixed(2)}:1</span>
+    <span>home attacks ${homeDirection} · away attacks ${awayDirection}</span>
+  `;
+}
+
+buildGridOverlay();
+renderAll();
+
+document.getElementById('toggleGrid').addEventListener('click', () => {
+  document.getElementById('app').classList.toggle('show-grid');
+});
+
+swapEndsBtn.addEventListener('click', () => {
+  homeDirection = homeDirection === 'left-to-right' ? 'right-to-left' : 'left-to-right';
+  awayDirection = awayDirection === 'left-to-right' ? 'right-to-left' : 'left-to-right';
+  renderAll();
+});
+
+/* ------------------------- live match replay -------------------------
+   Debug workflow: enter the FIXTURE id (not the internal match.id, which
+   doesn't exist until the match starts simulating) and click "Watch + Kick
+   Off" - it joins the fixture's room first, then calls
+   /api/game/enqueue/:fixture, which just acks immediately and queues the
+   match for a background worker to simulate (see src/jobs/matchQueue.ts) -
+   NOT the synchronous /api/game/kickoff-new/:fixture the real app still
+   uses. "Watch" alone just joins the room, for watching a match kicked off
+   some other way (the Vue app, curl, Postman, or this queue). There's no
+   server-side catch-up buffer for late joiners in v1 - if you join after
+   the match has already started simulating, you'll only see whatever
+   frames haven't gone out yet.
+------------------------------------------------------------------------*/
+
+const DEFAULT_SERVER = 'http://localhost:3000';
+const REPLAY_NAMESPACE = '/match-replay';
+const MAX_EVENT_ROWS = 200;
+
+const queryParams = new URLSearchParams(location.search);
+const serverUrl = queryParams.get('server') || DEFAULT_SERVER;
+fixtureIdInput.value = queryParams.get('match') || '';
+
+let socket = null;
+let mode = 'idle'; // 'idle' | 'live'
+let totalFrames = 0;
+let socketIoScriptPromise = null;
+
+function setStatus(text, live) {
+  connStatus.textContent = text;
+  connStatus.classList.toggle('live', !!live);
+}
+
+function connectSocket() {
+  if (socket) return socket;
+
+  socket = io(serverUrl + REPLAY_NAMESPACE, { transports: ['websocket', 'polling'] });
+
+  socket.on('connect', () => {
+    console.log('[replay] connected', socket.id);
+    setStatus('Connected, not watching');
+  });
+
+  socket.on('disconnect', () => {
+    console.log('[replay] disconnected');
+    setStatus('Disconnected');
+  });
+
+  socket.on('connect_error', (err) => {
+    console.error('[replay] connect_error', err);
+    setStatus(`Connect error: ${err.message || err}`);
+  });
+
+  socket.on('match-replay-start', onReplayStart);
+  socket.on('match-frame', onFrame);
+  socket.on('match-replay-end', onReplayEnd);
+
+  return socket;
+}
+
+function loadSocketIoClient() {
+  if (window.io) return Promise.resolve();
+  if (socketIoScriptPromise) return socketIoScriptPromise;
+
+  socketIoScriptPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = `${serverUrl.replace(/\/$/, '')}/socket.io/socket.io.js`;
+    script.onload = resolve;
+    script.onerror = () => reject(new Error(`Could not load Socket.IO client from ${script.src}`));
+    document.head.appendChild(script);
+  });
+
+  return socketIoScriptPromise;
+}
+
+function onReplayStart(payload) {
+  console.log('[replay] match-replay-start', payload);
+  mode = 'live';
+  totalFrames = payload.totalFrames;
+
+  playerLayer.innerHTML = '';
+  eventLog.innerHTML = '';
+  document.querySelectorAll('.player.selected').forEach((p) => p.classList.remove('selected'));
+
+  // Direction is already baked into each frame's x/y - swapping ends
+  // manually no longer means anything once real coordinates are live.
+  swapEndsBtn.disabled = true;
+  swapEndsBtn.title = 'Not applicable while a live match is driving positions';
+
+  metaLine.innerHTML = `
+    <span>${payload.home.name} [${payload.home.code}] vs ${payload.away.name} [${payload.away.code}]</span>
+    <span>fixture ${payload.fixtureId} · ${payload.totalFrames} frames @ ${payload.tickMs}ms</span>
+  `;
+
+  setStatus(`Live: ${payload.home.code} vs ${payload.away.code} - frame 0/${totalFrames}`, true);
+}
+
+function onFrame(frame) {
+  console.log('[replay] frame', frame.tick, frame);
+  renderLiveFrame(frame);
+  appendEvents(frame.events);
+  setStatus(`Live: frame ${frame.tick + 1}/${totalFrames} (t=${frame.minute}')`, true);
+}
+
+function onReplayEnd(payload) {
+  console.log('[replay] match-replay-end', payload);
+  const details = payload.details || {};
+  setStatus(`Replay ended, final: ${details.HomeTeamScore ?? '?'} - ${details.AwayTeamScore ?? '?'}`, true);
+}
+
+function renderLiveFrame(frame) {
+  frame.players.forEach((p) => {
+    let el = document.getElementById(`p-${p.id}`);
+    if (!el) {
+      el = document.createElement('div');
+      el.id = `p-${p.id}`;
+      el.className = `player ${p.side}` + (p.pos === 'GK' ? ' gk' : '');
+      el.textContent = p.pos;
+      playerLayer.appendChild(el);
+      el.addEventListener('click', () => selectLivePlayer(el, p));
+    }
+    // toPct() only reads .x/.y, so it works on a frame player exactly like
+    // it works on a resolved formation slot's block.
+    const pct = toPct(p);
+    el.style.left = pct.left + '%';
+    el.style.top = pct.top + '%';
+    el.classList.toggle('with-ball', !!p.withBall);
+    el.__player = p;
+  });
+
+  const ballPct = toPct(frame.ball);
+  ballEl.style.left = ballPct.left + '%';
+  ballEl.style.top = ballPct.top + '%';
+}
+
+function selectLivePlayer(el, p) {
+  document.querySelectorAll('.player.selected').forEach((x) => x.classList.remove('selected'));
+  el.classList.add('selected');
+  inspector.innerHTML = `
+    <div class="row"><span class="k">side</span><span class="v">${p.side}</span></div>
+    <div class="row"><span class="k">num</span><span class="v">${p.num}</span></div>
+    <div class="row"><span class="k">pos</span><span class="v">${p.pos}</span></div>
+    <div class="row"><span class="k">x</span><span class="v">${p.x}</span></div>
+    <div class="row"><span class="k">y</span><span class="v">${p.y}</span></div>
+    <div class="row"><span class="k">withBall</span><span class="v">${p.withBall}</span></div>
+  `;
+}
+
+function appendEvents(events) {
+  if (!events || !events.length) return;
+  events.forEach((ev) => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = `<span class="k">${ev.time || ''}'</span> <span class="v">[${ev.type}]</span> ${ev.message}`;
+    eventLog.prepend(row);
+  });
+  while (eventLog.children.length > MAX_EVENT_ROWS) {
+    eventLog.lastElementChild.remove();
+  }
+}
+
+/**
+ * Load the client, connect, and join `fixtureId`'s room. Resolves once
+ * `watch-match` has actually been emitted on an open socket - callers that
+ * also need to trigger kickoff should await this FIRST, so the room is
+ * joined before the server ever starts pushing frames (no catch-up buffer).
+ */
+async function ensureWatching(fixtureId) {
+  setStatus('Loading Socket.IO client...');
+  await loadSocketIoClient();
+
+  const s = connectSocket();
+
+  return new Promise((resolve) => {
+    const join = () => {
+      s.emit('watch-match', fixtureId);
+      console.log('[replay] watch-match emitted for', fixtureId);
+      setStatus(`Connected, watching ${fixtureId}`);
+      resolve(s);
+    };
+
+    if (s.connected) {
+      join();
+    } else {
+      s.once('connect', join);
+    }
+  });
+}
+
+watchBtn.addEventListener('click', async () => {
+  const fixtureId = fixtureIdInput.value.trim();
+  if (!fixtureId) {
+    alert('Enter a fixture id first');
+    return;
+  }
+
+  try {
+    await ensureWatching(fixtureId);
+  } catch (err) {
+    console.error('[replay] socket.io client load failed', err);
+    setStatus(err.message || String(err));
+  }
+});
+
+/**
+ * PitchPreview otherwise has no way to make a match actually happen - this
+ * joins the room first (so no frames are missed), then calls the queue
+ * endpoint (/api/game/enqueue/:fixture) instead of the synchronous kickoff
+ * endpoint the real client uses. That endpoint just acks immediately - the
+ * actual simulation runs in a worker_thread and the result streams back
+ * over the socket already joined above, so the whole record-then-replay
+ * loop can be exercised from this one file without curl/Postman/the Vue app.
+ */
+kickoffBtn.addEventListener('click', async () => {
+  const fixtureId = fixtureIdInput.value.trim();
+  if (!fixtureId) {
+    alert('Enter a fixture id first');
+    return;
+  }
+
+  kickoffBtn.disabled = true;
+
+  try {
+    await ensureWatching(fixtureId);
+
+    const url = `${serverUrl.replace(/\/$/, '')}/api/game/enqueue/${fixtureId}`;
+    console.log('[replay] enqueueing match', url);
+    setStatus(`Watching ${fixtureId}, enqueueing...`);
+
+    const res = await fetch(url, { credentials: 'include' });
+    if (!res.ok) {
+      throw new Error(`Enqueue request failed: HTTP ${res.status}`);
+    }
+    console.log('[replay] match enqueued - waiting for match-replay-start');
+  } catch (err) {
+    console.error('[replay] enqueue failed', err);
+    setStatus(err.message || String(err));
+  } finally {
+    kickoffBtn.disabled = false;
+  }
+});
+</script>
+
+</body>
+</html>

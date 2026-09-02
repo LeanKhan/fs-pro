@@ -3,14 +3,12 @@ import { Request, Response, Router } from 'express';
 import respond from '../../helpers/responseHandler';
 import {
   fetchAll,
-  createNewPlayer,
-  fetchOneById,
-  updateById,
-  deletePlayer,
-  deleteByRemove,
   updatePlayers,
   getSpecificPlayerStats,
-  findOnePlayer,
+  getPlayerById,
+  updatePlayerFields,
+  deletePlayerById,
+  createPlayer,
 } from './player.service';
 import { PlayerInterface } from './player.model';
 import { generatePlayers } from './player.controller';
@@ -33,14 +31,14 @@ const router = Router();
  * Fetch all Players
  */
 router.get('/all', (req, res) => {
-  let options = req.query.options || {};
+  let options: Record<string, string> = {};
   // This prevents the app from crashing if there's
   // an error parsing object :)
   try {
     if (req.query.options) {
-      options = JSON.parse(req.query.options);
+      options = JSON.parse(req.query.options.toString());
     }
-  } catch (err) {
+  } catch (err: any) {
     log(`Error parsing JSON => ${err}`);
       return respond.fail(res, 400, 'Error fetching players: Parsing Options', err.toString());
   }
@@ -82,7 +80,7 @@ router.post('/:id/update', (req, res) => {
   const { id } = req.params;
   const { data } = req.body;
 
-  updateById(id, data)
+  updatePlayerFields(id, data)
     .then((player: any) => {
       respond.success(res, 200, 'Player updated successfully', player);
     })
@@ -108,24 +106,26 @@ router.post('/new', getCurrentCounter, async (req, res) => {
     req.body.data.Age
   );
 
-  const response = await createNewPlayer({
-    ...req.body.data,
-    Rating: new_rating,
-    Value: new_value,
-  });
-
-  if (!response.error) {
-    respond.success(res, 200, 'Player created successfully', response.result);
+  try {
+    const created = await createPlayer({
+      ...req.body.data,
+      Rating: new_rating,
+      Value: new_value,
+    });
+    // incrementCounter before respond.success - if it throws, the catch
+    // below must still be the only response sent (see FUTURE-PLANS.md for
+    // the double-response crash this ordering used to cause).
     void incrementCounter('player_counter');
-  } else {
-    respond.fail(res, 400, 'Error creating player', response.result);
+    respond.success(res, 200, 'Player created successfully', created);
+  } catch (error) {
+    respond.fail(res, 400, 'Error creating player', error);
   }
 });
 
 router.get('/:id/rating', async (req, res) => {
   const { id } = req.params;
 
-  const player = (await fetchOneById(id)) as PlayerInterface;
+  const player = (await getPlayerById(id)) as PlayerInterface;
 
   if (!player) return respond.fail(res, 400, 'Player not found!');
 
@@ -148,10 +148,10 @@ router.get('/:id/rating', async (req, res) => {
 
 router.get('/appearance', (req, res) => {
   fetchAppearance()
-    .then((features) => {
+    .then((features: any) => {
       respond.success(res, 200, 'Fetched Appearance successfully', features);
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error fetching appearance features', err);
     });
 });
@@ -180,12 +180,18 @@ router.get('/stats', async (req: Request, res: Response) => {
   const matchObject: { [key: string]: any } = {};
   const sortObject: { [key: string]: any } = {};
 
-  matchObject[match_k] = match_v;
+  if (match_k) {
+    matchObject[match_k.toString()] = match_v;
+  }
 
   try {
-    sortObject[sort_k] = parseInt(sort_v);
-    if (Types.ObjectId(match_v)) {
-      matchObject[match_k] = Types.ObjectId(match_v);
+    if (sort_k && sort_v) {
+      sortObject[sort_k.toString()] = parseInt(sort_v.toString());
+    }
+    if (match_k && match_v) {
+      if (new Types.ObjectId(match_v.toString())) {
+        matchObject[match_k.toString()] = new Types.ObjectId(match_v.toString());
+      }
     }
   } catch (error) {
     console.error(error);
@@ -197,7 +203,7 @@ router.get('/stats', async (req: Request, res: Response) => {
       return respond.success(
         res,
         200,
-        `The Best 5 Players by ${sort_k.toUpperCase()}`,
+        `The Best 5 Players by ${sort_k?.toString().toUpperCase() ?? 'UNKNOWN'}`,
         updated.slice(0, 5)
       );
     })
@@ -206,10 +212,10 @@ router.get('/stats', async (req: Request, res: Response) => {
     });
 });
 
-router.put('/works/add-roles', (req, res) => {
+router.put('/works/add-roles/:id', (req, res) => {
   const { id } = req.params;
 
-  fetchOneById(id)
+  getPlayerById(id)
     .then((player: any) => {
       respond.success(res, 200, 'Player fetched successfully', player);
     })
@@ -243,7 +249,7 @@ router.get('/generate-players', generatePlayers);
 router.get('/:id', (req, res) => {
   const { id } = req.params;
 
-  fetchOneById(id)
+  getPlayerById(id)
     .then((player: any) => {
       respond.success(res, 200, 'Player fetched successfully', player);
     })
@@ -256,7 +262,7 @@ router.get('/:id', (req, res) => {
 router.delete('/:id', (req, res) => {
   const { id } = req.params;
 
-  deleteByRemove(id)
+  deletePlayerById(id)
     .then((player: any) => {
       respond.success(res, 200, 'Player deleted successfully', player);
     })

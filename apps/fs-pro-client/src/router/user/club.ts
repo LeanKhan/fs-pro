@@ -1,7 +1,7 @@
-import { RouteConfig } from 'vue-router';
+import type { RouteRecordRaw } from 'vue-router';
 import ClubDashboard from '@/views/user/club/dashboard.vue';
 
-const routes: RouteConfig = {
+const routes = {
   path: 'clubs',
   component: () =>
     import(/* webpackChunkName: "clubs" */ '../../views/user/club/club.vue'),
@@ -13,6 +13,6 @@ const routes: RouteConfig = {
       meta: { title: 'Home' },
     },
   ],
-};
+} as RouteRecordRaw;
 
 export default routes;

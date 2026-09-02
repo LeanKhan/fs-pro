@@ -1,0 +1,301 @@
+import { Router } from 'express';
+import DB from '../../db';
+import {
+  BackendChoice,
+  isValidBackend,
+  persistBackend,
+  clearPersistedBackend,
+  readPersistedBackend,
+} from '../../db/backendChoice';
+import respond from '../../helpers/responseHandler';
+
+const router = Router();
+
+const VALID_BACKENDS: BackendChoice[] = ['mongo', 'drizzle', 'prisma'];
+
+/**
+ * Entities with a real repository (Mongo + Drizzle implementations) reached
+ * by at least some of their routes - everything else still reads/writes
+ * through `DB.Models.X` directly and, while `backend` is `drizzle`,
+ * transparently falls back to a live Mongo connection (see
+ * `db/drizzle/index.ts`) rather than actually touching Postgres. Update
+ * this list as each entity gets converted (see FUTURE-PLANS.md).
+ *
+ * 'User (partial)': identity-only routes (login, fetch-by-id,
+ * change-password, update, logout, /enter) plus all the club-ownership
+ * routes (/add-club(s), /clubs/:id, populate=true) go through repositories
+ * now - ownership reads/writes go through `ClubRepository`'s `Clubs.User`
+ * reverse FK instead of the old `Users.Clubs` array, which Postgres never
+ * had. Registration (`POST /join`) is repository-backed too now
+ * (`createUser`, hashing the password the same way `update()` already
+ * did) - `updateClubs`, the one real Club-coupling in that chain, was
+ * already fully converted. `addClubsToUser` (CSV bulk import's redundant
+ * `Users.Clubs` re-sync, `Clubs.User` is the real ownership write either
+ * way) is a no-op under `backend=drizzle`. See FUTURE-PLANS.md for the full
+ * writeup.
+ *
+ * 'Manager (partial)': fetch/create/update/`populate=Club`/DELETE (incl.
+ * `resolveManagerTactic`, used on every match kickoff) all go through the
+ * repository now, including the delete itself (`IManagerRepository.delete`)
+ * - closed a real gap where deleting a Postgres-native manager under
+ * `backend=drizzle` used to fail after already clearing the club's Manager
+ * field. End-of-year age progression (`incrementAllManagersAge`) is
+ * converted too - a single SQL `Age = Age + 1`, since it's unconditional
+ * with no per-row value. The one remaining raw read (`fetchOne`, used by
+ * `awards.controller.ts` to find a club's current manager by
+ * `{ isEmployed, Club }`) stays raw - that's Award's territory, not
+ * Manager's, and Award isn't converted yet.
+ *
+ * 'Club (partial)': fetch-by-id (no populate)/create/update (plain
+ * fields)/delete go through the repository, as does every Manager
+ * hire/fire/removal write via `appendClubRecord` (a read-modify-write
+ * replacement for the old `$push`/`$unset` operator updates), `GET
+ * /clubs/all` (now with `Players`/`Manager` populated via the repository),
+ * and add/remove/add-many-player (writes `Player.Club`/`ClubCode` via the
+ * Player repository - `Club.Players` doesn't exist on Postgres - and the
+ * ratings recalculation, via a SQL `GROUP BY` replacing the old
+ * `$lookup`/`$group` aggregate). `/clubs/fetch`'s arbitrary Mongo query
+ * object and the CSV bulk import stay raw.
+ *
+ * 'Competition (partial)': fetch-by-id (both populate=true and false)/
+ * create/update (plain fields)/delete all go through the repository now.
+ * `populate=true` composes two reverse lookups (`Clubs.League`,
+ * `Seasons.Competition`) instead of a single populated read -
+ * `Competition.Clubs`/`Seasons` don't exist on Postgres. `add-club` writes
+ * `Club.League`/`LeagueCode` directly (the live code never actually used
+ * the `competitionClubs` join table - that's unused infrastructure for a
+ * cup/tournament-membership feature nothing exercises yet); `add-season`
+ * is a no-op under this backend, since `Seasons.Competition` is already
+ * set at season-creation time. `GET /all`'s arbitrary query stays raw.
+ *
+ * 'Calendar (partial)': fetch-by-id/fetch-all/create/update (plain
+ * fields)/delete go through the repository (used by `POST /calendar/new`
+ * and `POST /:id/end`'s isActive/isEnded write), as does the whole
+ * Days-array-building game loop's Calendar-side reads/writes -
+ * `createSeasonsInTheYear` (no Calendar calls of its own, routes entirely
+ * through Season/Competition), `setup-and-start`/`setup-days-and-start`'s
+ * calendar lookup and `Days` write (a no-op on Postgres, each Day already
+ * carries its own `Calendar` FK), `startYear`'s multi-row `isActive` flip
+ * (`activateYear()` - two plain updates on Postgres in place of Mongo's
+ * per-row-computed aggregation pipeline), and the `YearString`-keyed
+ * lookups used throughout season-creation and `changeCurrentDay`. Only
+ * `GET /calendar/current`'s arbitrary populate+pagination stays raw. Day
+ * itself has no repository at all yet - its real read path
+ * (`GET /:year/days`) needs `Matches.Fixture` populate; Fixture is
+ * converted now, so Day is next in the Phase B order.
+ *
+ * 'Player (partial)': fetch-by-id/create/update (plain fields)/delete go
+ * through the repository, as does `toggleSigned`/`signManyPlayersToClub`
+ * (add/remove player to/from a club - the actual Postgres-side ownership
+ * write, since `players.Club` is a direct column there), bulk player
+ * generation (`createMany`), end-of-year age progression
+ * (`incrementAllPlayersAge` - one SQL `Age = Age + 1`, unconditional so no
+ * per-row write needed), and `getPlayerStats`/`allPlayerStats` (SQL
+ * joins+`GROUP BY` replacing the old `$lookup`/`$group` aggregates -
+ * verified identical row counts, and for `getPlayerStats`, identical
+ * top-ranked player, against the same live data on both backends). `GET
+ * /all` (arbitrary query), bulk `update-many`, `getSpecificPlayerStats`
+ * (genuinely arbitrary match/sort objects, unlike the other two stats
+ * functions), and end-of-year rating progression (per-player operator
+ * updates with dynamic values) stay raw.
+ *
+ * 'Fixture (partial)': fetch-by-id (no extra populate)/create/update
+ * (plain fields)/delete go through the repository - `findById` always
+ * comes with `HomeSideDetails`/`AwaySideDetails` (each with `PlayerStats`)
+ * populated, matching the raw path's own default. The match engine's own
+ * fixture-state write (`game/functions.ts`'s `updateFixture` - Played,
+ * PlayedAt, Details, Events, Home/AwaySideDetails, Home/AwayManager, all
+ * plain fields by id) and the friendly-fixture create path
+ * (`game.controller.ts`'s `restCreateFriendly`) are converted too. Only
+ * the explicit `?populate=` path on `GET /fixtures/:id` stays raw.
+ *
+ * 'Season (partial)': fetch-by-id (no extra populate)/create/update (plain
+ * fields)/delete go through the repository - `findById` always comes with
+ * `Fixtures` populated (matching the raw path's own default), and
+ * `PATCH /:id/start`'s isolated `{ isStarted, StartDate }` write is
+ * converted too, as are the fixture-generation/standings/prolegation game
+ * loop's own plain-field writes (`saveFixtures`, `setInitialStandings`,
+ * `generate-fixtures` in `middleware/seasons.ts`/`season.router.ts`) -
+ * `Fixtures` doesn't exist on Postgres (reverse `fixtures.Season` FK
+ * instead), so that key is a no-op there. `GET /`'s arbitrary
+ * query/populate/select/sort combo, and the finish-season flow's mixed
+ * `$push`/`$set` operator update (`season.controller.ts`), stay raw.
+ *
+ * 'Day (partial)': first entity with a genuinely new repository shape -
+ * `Matches` is a jsonb array of embedded match summaries on Postgres, not
+ * a relation, so `Matches.Fixture` populate is a batch fetch+merge against
+ * `FixtureRepository` (`day.service.ts`'s `attachFixturesToDays`) rather
+ * than a nested Drizzle `with`. Covers every real call site: `GET
+ * /:year/days` (`getDaysForYear`), `GET /day-of-fixture/:fixture`
+ * (`findDayByFixtureId`), `changeCurrentDay`'s next-playable-day lookup
+ * (`findNextPlayableDay`), the match engine's own `Matches.$.Played` write
+ * (`markMatchPlayed` - a read-modify-write replacing Mongo's positional
+ * update, since Postgres has no per-array-element update via a plain
+ * `set()`), and Day creation (`createManyDays`, used by the
+ * Days-array-building game loop).
+ *
+ * 'ClubMatch (partial)'/'PlayerMatch (partial)': identity/CRUD go through
+ * their repositories, including the one real call site for each
+ * (`game/functions.ts`'s `savePlayerAndClubStats`, the match engine's
+ * persistence write) - ClubMatchDetails is now created *before* its
+ * PlayerMatchDetails rows so each can set the reverse
+ * `playerMatchDetails.ClubMatchDetails` FK back to it (Postgres has no
+ * `PlayerStats` array to populate after the fact, unlike Mongo, which
+ * still gets a real array backfill write for compatibility).
+ *
+ * 'Award (partial)': `fetchAll`/`createAwards` (the two real call sites -
+ * `GET /awards/season/:id` and `giveAwards`' bulk create) go through the
+ * repository. `Recipient` is polymorphic (Player or Manager, depending on
+ * `Type` - Postgres can't FK one column against two tables) - resolving it
+ * (plus `Club`/`Season`, at higher `populate` levels) is a small batch
+ * fetch+merge in `awards/index.ts` against each type's own repository,
+ * replacing the old runtime `model: capitalize(recipient)` Mongoose
+ * populate. `giveAwards`'s winning-manager lookup also moved off a raw
+ * `manager.service.ts` `fetchOne` onto `getManagers({isEmployed, Club})`
+ * (added `Club` to `IManagerFilter` for this).
+ *
+ * 'MatchReplay': the smallest of the "new repo" entities - exactly two
+ * call sites (`saveReplay`/`fetchReplay`), both now repository-backed. A
+ * "save" is always an upsert keyed on the unique `Fixture` FK (a fixture
+ * can in principle be replayed more than once in dev/testing, latest wins)
+ * - Postgres does this with a real `onConflictDoUpdate`, Mongo keeps its
+ * existing `findOneAndUpdate({upsert: true})`. Nothing left raw.
+ *
+ * 'Place': the Phase B cleanup pass found `places.controller.ts` (its
+ * pre-repository raw `fetchAll`/`fetchOneById`/`fetchOne`/`allCountries`)
+ * had zero callers left anywhere - `places.router.ts` was already fully
+ * repository-backed - so the file was deleted outright rather than left as
+ * dead weight. `helpers/misc.ts`'s one other raw `DB.Models.Place` read
+ * sits inside an explicitly commented-out, "DO NOT TOUCH" function -
+ * intentionally left alone. This closes Phase B: every entity in the
+ * plan's suggested order is now converted.
+ */
+const CONVERTED_ENTITIES = [
+  'Place',
+  'User (partial)',
+  'Manager (partial)',
+  'Club (partial)',
+  'Competition (partial)',
+  'Calendar (partial)',
+  'Player (partial)',
+  'Fixture (partial)',
+  'Season (partial)',
+  'Day (partial)',
+  'ClubMatch (partial)',
+  'PlayerMatch (partial)',
+  'Award (partial)',
+  'MatchReplay',
+];
+
+/**
+ * @openapi
+ * /meta/db:
+ *   get:
+ *     tags: [Meta]
+ *     summary: Current database backend status
+ *     description: >
+ *       Shows which backend this process actually booted with, and whether
+ *       a different choice is persisted for the *next* restart (see
+ *       POST /meta/db/backend). Only entities listed in `convertedEntities`
+ *       are genuinely reading/writing that backend - everything else falls
+ *       back to Mongo regardless of `backend`, mid-migration.
+ *     responses:
+ *       200:
+ *         description: OK
+ */
+router.get('/db', (req, res) => {
+  const pending = readPersistedBackend();
+
+  respond.success(res, 200, 'Database status fetched successfully', {
+    backend: DB.backend,
+    ormType: DB.ormType,
+    databaseType: DB.databaseType,
+    convertedEntities: CONVERTED_ENTITIES,
+    pendingBackend: pending && pending !== DB.backend ? pending : null,
+  });
+});
+
+/**
+ * @openapi
+ * /meta/db/backend:
+ *   post:
+ *     tags: [Meta]
+ *     summary: Set which database backend the NEXT restart should use (dev/testing only)
+ *     description: >
+ *       Persists the chosen backend to a small state file. Does NOT restart
+ *       the process itself and does NOT hot-swap the backend in place - both
+ *       were tried and reverted. Hot-swapping broke because Mongoose's model
+ *       registry is global: reconstructing the Mongo connection a second
+ *       time in the same process throws `OverwriteModelError` for any model
+ *       without an explicit re-registration guard. Self-triggering a
+ *       restart was also tried (`process.exit()`) and doesn't reliably come
+ *       back up: `ts-node-dev --respawn` only respawns on a *file-change*
+ *       event, not a plain process exit, and that'd be even less
+ *       predictable under nodemon/PM2/plain `node`. So: after calling this,
+ *       restart the server yourself (Ctrl+C, then re-run it) - it'll boot
+ *       into whatever backend you set here.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [backend]
+ *             properties:
+ *               backend:
+ *                 type: string
+ *                 enum: [mongo, drizzle, prisma]
+ *     responses:
+ *       200:
+ *         description: Persisted - restart the server manually to apply it
+ *       400:
+ *         description: Invalid backend name
+ */
+router.post('/db/backend', (req, res) => {
+  const backend = req.body?.backend as unknown;
+
+  if (!isValidBackend(backend)) {
+    return respond.fail(
+      res,
+      400,
+      `backend must be one of: ${VALID_BACKENDS.join(', ')}`
+    );
+  }
+
+  persistBackend(backend);
+
+  respond.success(
+    res,
+    200,
+    `Backend set to ${backend} for the next restart - stop and re-run the server to apply it`,
+    { backend, currentBackend: DB.backend }
+  );
+});
+
+/**
+ * @openapi
+ * /meta/db/backend:
+ *   delete:
+ *     tags: [Meta]
+ *     summary: Clear the persisted backend override (dev/testing only)
+ *     description: >
+ *       Removes the state file POST /meta/db/backend writes, so the next
+ *       restart goes back to whatever USE_POSTGRESQL/USE_DRIZZLE says in
+ *       `.env`. Does not restart the process - same as the POST route,
+ *       restart manually to apply it.
+ *     responses:
+ *       200:
+ *         description: Override cleared - restart the server manually to apply it
+ */
+router.delete('/db/backend', (req, res) => {
+  clearPersistedBackend();
+
+  respond.success(
+    res,
+    200,
+    'Backend override cleared for the next restart - stop and re-run the server to apply it',
+    { currentBackend: DB.backend }
+  );
+});
+
+export default router;

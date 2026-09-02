@@ -2,6 +2,13 @@ import { IBlock } from '../state/ImmutableState/FieldGrid';
 import Ball from '../classes/Ball';
 import { Role } from '../controllers/players/player.model';
 
+/**
+ * A player's current standing in the match. Deliberately a string union,
+ * not a bare `sentOff: boolean` - future match-dynamic incidents (an
+ * injury, say) extend this with a new value instead of needing a redesign.
+ */
+export type PlayerMatchStatus = 'active' | 'sent-off';
+
 export interface IFieldPlayer extends PlayerInterface {
   Points: number;
   Substitute: boolean;
@@ -10,9 +17,11 @@ export interface IFieldPlayer extends PlayerInterface {
   StartingPosition: IBlock;
   WithBall: boolean;
   Ball: Ball;
+  MatchStatus: PlayerMatchStatus;
   // Team: MatchSide;
   move(pos: any): void;
   changePosition(pos: IBlock): void;
+  changeStartingPosition(block: IBlock): void;
   pass(pos: any): void;
   shoot(pos: any): void;
   updateBallPosition(pos: any): void;

@@ -3,6 +3,44 @@
 import DB from '../../db';
 import { Season, SeasonInterface } from './season.model';
 // import { incrementCounter } from '../../utils/counter';
+import { SeasonRepositoryFactory } from '../../repositories/SeasonRepositoryFactory';
+import { ISeasonFilter } from '../../repositories/SeasonRepository';
+
+/**
+ * Repository-backed functions below cover the identity/CRUD surface with no
+ * arbitrary-query/populate or game-loop operator update in play -
+ * `update()` only accepts plain fields, and `findById` always comes back
+ * with `Fixtures` populated (matching the raw path's own default). See
+ * ISeasonRepository's doc comment for what stays raw and why.
+ */
+let seasonRepo: ReturnType<typeof SeasonRepositoryFactory.create> | null = null;
+
+function getSeasonRepo() {
+  if (!seasonRepo) {
+    seasonRepo = SeasonRepositoryFactory.create();
+  }
+  return seasonRepo;
+}
+
+export async function getSeasonById(id: string) {
+  return getSeasonRepo().findById(id);
+}
+
+export async function getSeasons(filter?: ISeasonFilter) {
+  return getSeasonRepo().findAll(filter);
+}
+
+export async function createSeasonRecord(data: Partial<SeasonInterface>) {
+  return getSeasonRepo().create(data);
+}
+
+export async function updateSeasonFields(id: string, data: Partial<SeasonInterface>) {
+  return getSeasonRepo().update(id, data);
+}
+
+export async function deleteSeasonById(id: string) {
+  return getSeasonRepo().delete(id);
+}
 
 /**
  * fetchAll
@@ -26,7 +64,11 @@ export function fetchAll(
   }
 
   if(sort) {
-      return DB.Models.Season.find(query).sort(sort).lean().exec();
+      // Mongoose's .sort() wants { [fieldName]: 1 | -1 }, not { field, dir }
+      // - passing the latter directly throws "Invalid sort value" (every
+      // caller of this function passes the { field, dir } shape, so this
+      // branch was never actually reachable without crashing before).
+      return DB.Models.Season.find(query).sort({ [sort.field]: sort.dir }).lean().exec();
   }
 
   return DB.Models.Season.find(query).lean().exec();
@@ -128,31 +170,7 @@ export function findAndUpdate(query: Record<string, unknown>, update: any) {
   return DB.Models.Season.updateMany(query, update).lean().exec();
 }
 
-/**
- * create new season
- */
-
-export function createNew(data: any) {
-  const SEASON = new DB.Models.Season(data);
-
-  return SEASON.save();
-}
-
 export function deleteById(id: string) {
   return DB.Models.Season.findByIdAndDelete(id).lean().exec();
 }
 
-// Find way to make this reusable.
-export async function deleteByRemove(id: string) {
-/**
-  * Delete the Season
-  */
-
- const doc = await DB.Models.Season.findById(id);
-
- if(!doc) {
-   throw new Error(`Season ${id} does not exist`);
- }
-
- return doc.remove();
-}

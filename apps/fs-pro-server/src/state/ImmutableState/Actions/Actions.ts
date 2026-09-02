@@ -13,6 +13,7 @@ import {
   IPass,
   IDribble,
   ITackle,
+  IFoul,
 } from '../../../classes/Referee';
 import { Decider, IStrategy } from './Decider';
 import { Match, IMatchData } from '../../../classes/Match';
@@ -51,8 +52,12 @@ export class Actions {
 
     this.decider = new Decider(this.teams);
 
-    matchEvents.on(`${this.match.id}-game-halt`, (data) => {
-      this.interruption = true;
+    matchEvents.on(`${this.match.id}-game-halt`, (data: IFoul) => {
+      this.interruption = data.interruption;
+      // Referee.foul() already emits this, but nothing ever actually ran
+      // the free-kick/penalty/card setup it implies - handleFoul()
+      // (fully written, never called) does that.
+      this.referee.handleFoul(data, this);
     });
 
     matchEvents.on(`${this.match.id}-shot`, (data: IShot) => {
@@ -149,7 +154,12 @@ export class Actions {
       case 'move':
         log('Move attempt');
 
-        this.move(attackingPlayer, 'forward', attackingSide.ScoringSide);
+        // Routed through movePlayersForward (not a raw move(...ScoringSide))
+        // so the ball carrier's own decided movement gets the same
+        // shape-aware, tactic-biased target as everyone else - otherwise
+        // the player WITH the ball beelines dead straight for the exact
+        // goal block regardless of their formation slot.
+        this.movePlayersForward(attackingPlayer, attackingSide);
 
         break;
     }
@@ -190,7 +200,7 @@ export class Actions {
       case 'short':
         teammate = CO.co.findClosestPlayer(
           player.BlockPosition,
-          squad.StartingSquad,
+          squad.ActivePlayers,
           player
         );
         break;
@@ -198,7 +208,7 @@ export class Actions {
       case 'long':
         teammate = CO.co.findLongPlayer(
           player.BlockPosition,
-          squad.StartingSquad,
+          squad.ActivePlayers,
           player
         );
         interceptorDistance = 3;
@@ -209,7 +219,7 @@ export class Actions {
           squad.KeepingSide,
           'GK',
           player,
-          squad.StartingSquad
+          squad.ActivePlayers
         );
         interceptorDistance = 3;
         break;
@@ -219,12 +229,22 @@ export class Actions {
     }
 
     /**
-     * Find an opponent closest to the teammate to intercept...
+     * Find the opponent best placed to intercept - i.e. standing closest to
+     * the actual passing lane between player and teammate, not merely
+     * closest to the receiver. Deliberately NOT run through
+     * Coordinates.scaleDistance() - unlike the REACH thresholds in
+     * Decider.ts (how far you can pass/shoot to), this is a LANE-WIDTH
+     * concept like Decider.laneIsClear's laneWidth: how close a defender
+     * must be to the actual pass line to plausibly stick a leg out and cut
+     * it out. The finer 33x21 grid gives that a smaller, more precise
+     * real-world footprint, which is correct, not stale - scaling it up
+     * (as briefly tried) made interceptors show up far more often than
+     * intended and tanked pass completion into the 30s%.
      */
-    const interceptor = CO.co.findClosestFieldPlayer(
+    const interceptor = CO.co.findClosestToSegment(
+      player.BlockPosition,
       teammate.BlockPosition,
-      defendingSide.StartingSquad,
-      undefined,
+      defendingSide.ActivePlayers,
       interceptorDistance
     );
 
@@ -248,7 +268,15 @@ export class Actions {
        * pass the player, the reciever and the nearest interceptor if possible...
        */
 
-      const fail = this.decider.getPassResult(
+      // getPassResult() returns true when the PASSER wins the duel (per
+      // getResult(passerStats, interceptorStats, ...) => $a > $b). This was
+      // previously named `fail` and checked as `if (!fail)`, which
+      // inverted the outcome - a pass only "succeeded" when the formula
+      // said the INTERCEPTOR won. Every threshold tuned in
+      // Decider.getPassResult to favor the passer was therefore making
+      // interceptions MORE likely, not less - this is the actual reason
+      // completion rate never responded to that tuning.
+      const passSucceeds = this.decider.getPassResult(
         player,
         teammate,
         type,
@@ -256,7 +284,7 @@ export class Actions {
         interceptor
       );
 
-      if (!fail) {
+      if (passSucceeds) {
         player.pass(
           CO.co.calculateDifference(
             teammate.BlockPosition,
@@ -385,6 +413,28 @@ export class Actions {
           if (!opponentBlock) {
             if (this.makeMove(player, path, around)) {
               situation.status = true;
+            } else if (player.WithBall) {
+              // path was {x:0,y:0} - this player already reached their
+              // computed forward-shape target (see getShapeTarget) and
+              // there's no marking opponent to dribble/tackle past either.
+              // That target never changes on its own, so without this
+              // fallback the ball carrier would freeze in place holding
+              // the ball for the rest of the match (observed for 65+
+              // straight ticks in a real game). Look up the player's own
+              // squad directly rather than assuming this.attackingSide/
+              // defendingSide line up with them - move() is also called
+              // for defending-side players elsewhere in this class.
+              const playerSquad = this.teams.find((t) => t.ClubCode === player.ClubCode);
+              const opponentSquad = this.teams.find((t) => t.ClubCode !== player.ClubCode);
+              if (playerSquad && opponentSquad) {
+                this.pass(player, 'short', playerSquad, opponentSquad);
+                situation = {
+                  status: true,
+                  reason: `move ${type} had nowhere further to go, passed instead`,
+                };
+              } else {
+                situation.status = false;
+              }
             } else {
               situation.status = false;
             }
@@ -457,11 +507,24 @@ export class Actions {
         * - if dribble is successful, swap positions of players.
         * */
 
-      // TODO: Ideally, player should just jump over another player.
       if(player.WithBall){
         console.log('With ball and tightly marked :/');
 
         if(marker) {
+          // Give the player a real chance to pass out of trouble instead of
+          // ALWAYS dribbling/contesting the tackle - previously dribble-or-
+          // tackle was the only option ever considered here, so two closely
+          // matched players (e.g. a winger and their marking fullback) could
+          // keep re-contesting the exact same duel indefinitely, since
+          // nothing ever routed the ball away from them.
+          if (
+            this.attackingSide &&
+            this.defendingSide &&
+            this.decider.gimmeAChance() <= 50
+          ) {
+            this.pass(player, 'short', this.attackingSide, this.defendingSide);
+            return { status: true, reason: 'passed out of tight marking' };
+          }
 
           let successOfTightDribble = this.decider.getDribbleResult(
               player,
@@ -469,17 +532,18 @@ export class Actions {
             );
 
             if(successOfTightDribble) {
-              // swap positions away from this guy
-              // get free blocks around marker and move player there.
+              // swap positions away from this guy - a full jump to the
+              // target block (not a single step), so the player actually
+              // clears the contested area in one go. A 1-block-per-tick
+              // shuffle here let an equally fast marker re-close the gap
+              // just as quickly, recreating the same jam next tick.
               situation = {
                   status: true,
                   reason: 'dribbled successfully while tightly marked',
                 }
 
-              let toMoveTo = playerFunc.findRandomFreeBlock(marker, 5);
-              let path = CO.co.findPath(toMoveTo, player.BlockPosition);
-
-              player.move(path);
+              const toMoveTo = playerFunc.findFarthestFreeBlock(marker, 5);
+              player.move(CO.co.calculateDifference(toMoveTo, player.BlockPosition));
 
               matchEvents.emit(`${this.match.id}-dribble`, {
               dribbler: player,
@@ -487,19 +551,32 @@ export class Actions {
             } as IDribble);
             createMatchEvent(
               this.match.id,
-              `${player.FirstName} ${player.LastName} [${player.ClubCode}] 
+              `${player.FirstName} ${player.LastName} [${player.ClubCode}]
               dribbled ${marker.FirstName} ${marker.LastName}`,
               'dribble',
               player._id,
               player.ClubCode
             );
             } else {
-              // do a successful tackle, already predetermined
-              this.tackle(player, marker, true);
-                situation = {
-                  status: true,
-                  reason: 'tackle successful in close position, possession lost',
-                };
+              // Real tackle odds, not a forced win - and whoever ends up
+              // with the ball jumps clear of the contested area afterwards.
+              // Without this, neither player's position ever changes here
+              // (tackle() only moves the ball), so the very next tick
+              // re-triggers this exact same "no free block" branch - just
+              // with roles reversed - producing an endless tackle-trade
+              // between the same two players instead of the duel resolving.
+              const tackleSuccess = this.tackle(player, marker);
+              const ballHolder = tackleSuccess ? marker : player;
+
+              const escapeTo = playerFunc.findFarthestFreeBlock(ballHolder, 5);
+              ballHolder.move(CO.co.calculateDifference(escapeTo, ballHolder.BlockPosition));
+
+              situation = {
+                status: tackleSuccess,
+                reason: tackleSuccess
+                  ? 'tackle successful in close position, possession lost'
+                  : 'tackle failed in close position, possession kept',
+              };
             }
         } else if (markerTeammate) {
           // pass
@@ -508,13 +585,8 @@ export class Actions {
                 reason: `move ${type} | ran away from closely marking teammate XD`,
           };
 
-            let toMoveTo = playerFunc.findRandomFreeBlock(markerTeammate, 5);
-            let path = CO.co.findPath(toMoveTo, player.BlockPosition);
-
-            player.move(path);
-
-        // do a dribble
-        // this.pass(player, 'long', this.attackingSide, this.defendingSide);
+            const toMoveTo = playerFunc.findFarthestFreeBlock(markerTeammate, 5);
+            player.move(CO.co.calculateDifference(toMoveTo, player.BlockPosition));
       }
     } else {
         // I guess do nothing lol
@@ -526,11 +598,39 @@ export class Actions {
   }
 
   public movePlayersForward(player: IFieldPlayer, team: MatchSide) {
-    this.move(player, 'forward', team.ScoringSide);
+    // Bias toward goal, not the goal block itself - a higher defensive
+    // line pushes further forward, but every player advances from THEIR
+    // OWN slot (see getShapeTarget), preserving width instead of the whole
+    // line collapsing onto the single ScoringSide point.
+    const bias = 0.2 + team.Tactic.style.defensiveLineHeight * 0.5;
+    const target = this.getShapeTarget(player, team.ScoringSide, bias);
+    this.move(player, 'forward', target);
   }
 
   public movePlayersBackward(player: IFieldPlayer, team: MatchSide) {
-    this.move(player, 'fallback', team.KeepingSide);
+    // Inverse of the above: a deep/low-block style retreats further when
+    // regrouping, a high-line style barely drops off.
+    const bias = 0.2 + (1 - team.Tactic.style.defensiveLineHeight) * 0.5;
+    const target = this.getShapeTarget(player, team.KeepingSide, bias);
+    this.move(player, 'fallback', target);
+  }
+
+  /**
+   * A point between a player's formation slot (FieldPlayer.StartingPosition
+   * - the stable per-player "home" block, kept current by
+   * MatchSide.setFormation/changeTactic) and a destination block, blended
+   * by `bias` (0 = stay at the slot, 1 = the destination itself). Only x
+   * moves - y stays at the player's own slot, so the team's shape/width is
+   * preserved instead of every player converging on one shared point.
+   */
+  private getShapeTarget(
+    player: IFieldPlayer,
+    destination: IBlock,
+    bias: number
+  ): IBlock {
+    const home = player.StartingPosition;
+    const x = Math.round(home.x + (destination.x - home.x) * bias);
+    return CO.co.coordinateToBlock({ x, y: home.y });
   }
 
   /**
@@ -577,9 +677,13 @@ export class Actions {
     const teamIndex = this.teams.findIndex(
       (t) => t.ClubCode === player.ClubCode
     );
-    const keeper = this.teams[teamIndex].ScoringSide.occupant;
-    // console.log(this.teams[teamIndex].ClubCode);
-    // console.log(this.teams[teamIndex].ScoringSide.occupant);
+    // Found by Position, not by exact block occupancy - the goalkeeper
+    // isn't guaranteed to be standing precisely on the ScoringSide block at
+    // the moment of the shot (more so on a finer-resolution grid), and
+    // `.occupant` being null here was reaching downstream code that assumes
+    // there's always a real keeper (e.g. Match.ts's goal handler).
+    const defendingTeam = this.teams[teamIndex === 0 ? 1 : 0];
+    const keeper = playerFunc.getGK(defendingTeam.StartingSquad) as IFieldPlayer;
 
     const result = this.decider.getShotResult(player, keeper as IFieldPlayer);
 
@@ -723,78 +827,87 @@ export class Actions {
     });
   }
 
+  /**
+   * Resolve a (possibly diagonal) single-step path into an actual move.
+   *
+   * `path` can have both x and y set (e.g. moving up-and-left). The
+   * diagonal target block isn't tracked by `around` (which only knows the
+   * four cardinal neighbours), so it's looked up directly via `blockAt`.
+   * If the diagonal is blocked or off the pitch, each axis is tried on its
+   * own before falling back to any free block around the player.
+   */
   private makeMove(
     player: IFieldPlayer,
     path: ICoordinate,
     around: IPositions
   ) {
-    switch (path.x) {
-      case -1:
-        const b1 = around.left as IBlock;
-        if (b1.occupant == null) {
-          player.move(path);
-          return true;
-        } else {
-          const b = playerFunc.findFreeBlock(around) as IBlock;
-          if (b === undefined) {
-            return false;
-          } else {
-            const p = CO.co.findPath(b, player.BlockPosition);
-            player.move(p);
-            return true;
-          }
-        }
+    const { x, y } = path;
 
-      case 1:
-        const b2 = around.right as IBlock;
-        if (b2.occupant == null) {
-          player.move(path);
-          return true;
-        } else {
-          const b = playerFunc.findFreeBlock(around) as IBlock;
-          if (b === undefined) {
-            return false;
-          } else {
-            const p = CO.co.findPath(b, player.BlockPosition);
-            player.move(p);
-            return true;
-          }
-        }
+    if (x !== 0 && y !== 0) {
+      const diagonal = this.blockAt(player.BlockPosition, x, y);
+      if (diagonal && diagonal.occupant == null) {
+        player.move(path);
+        return true;
+      }
+
+      const horizontal = x === -1 ? around.left : around.right;
+      if (horizontal && horizontal.occupant == null) {
+        player.move({ x, y: 0 });
+        return true;
+      }
+
+      const vertical = y === -1 ? around.top : around.bottom;
+      if (vertical && vertical.occupant == null) {
+        player.move({ x: 0, y });
+        return true;
+      }
+
+      return this.moveToAnyFreeBlock(player, around);
     }
 
-    switch (path.y) {
-      case -1:
-        const b3 = around.top as IBlock;
-        if (b3.occupant == null) {
-          player.move(path);
-          return true;
-        } else {
-          const b = playerFunc.findFreeBlock(around) as IBlock;
-          if (b === undefined) {
-            return false;
-          } else {
-            const p = CO.co.findPath(b, player.BlockPosition);
-            player.move(p);
-            return true;
-          }
-        }
-
-      case 1:
-        const b4 = around.bottom as IBlock;
-        if (b4.occupant == null) {
-          player.move(path);
-          return true;
-        } else {
-          const b = playerFunc.findFreeBlock(around) as IBlock;
-          if (b === undefined) {
-            return false;
-          } else {
-            const p = CO.co.findPath(b, player.BlockPosition);
-            player.move(p);
-            return true;
-          }
-        }
+    if (x !== 0) {
+      const target = x === -1 ? around.left : around.right;
+      if (target && target.occupant == null) {
+        player.move(path);
+        return true;
+      }
+      return this.moveToAnyFreeBlock(player, around);
     }
+
+    if (y !== 0) {
+      const target = y === -1 ? around.top : around.bottom;
+      if (target && target.occupant == null) {
+        player.move(path);
+        return true;
+      }
+      return this.moveToAnyFreeBlock(player, around);
+    }
+
+    return false;
+  }
+
+  /** Bounds-checked lookup of the block offset from `pos` by (dx, dy). */
+  private blockAt(pos: IBlock, dx: number, dy: number): IBlock | undefined {
+    const maxX = pos.Field.mapWidth - 1;
+    const maxY = pos.Field.mapHeight - 1;
+    const x = pos.x + dx;
+    const y = pos.y + dy;
+
+    if (x < 0 || x > maxX || y < 0 || y > maxY) {
+      return undefined;
+    }
+
+    return CO.co.coordinateToBlock({ x, y });
+  }
+
+  private moveToAnyFreeBlock(player: IFieldPlayer, around: IPositions): boolean {
+    const free = playerFunc.findFreeBlock(around) as IBlock;
+    if (free === undefined) {
+      return false;
+    }
+    const p = CO.co.findPath(free, player.BlockPosition);
+    player.move(p);
+    return true;
   }
 
   private successfulDribble(
@@ -803,7 +916,23 @@ export class Actions {
     around: IPositions,
     dribbled: IFieldPlayer
   ) {
-    this.makeMove(player, path, around);
+    // `path` is the player's general forward-shape step for this tick,
+    // computed once at the top of move() - it's frequently {x:0,y:0} once
+    // a player has already reached their current shape target. makeMove()
+    // correctly no-ops in that case, but this function used to log a
+    // "successful dribble" regardless, leaving the player and their
+    // marker frozen on the exact same blocks. Since nothing about that
+    // state ever changes on its own, the very next tick re-rolled the same
+    // dribble and repeated the fake "success" indefinitely - a real match
+    // was observed with a player stuck like this for 38 straight ticks.
+    // Falling back to a genuine escape step away from the just-beaten
+    // marker guarantees a dribble that actually succeeded always moves
+    // the player somewhere.
+    const moved = this.makeMove(player, path, around);
+    if (!moved) {
+      const escapeTo = playerFunc.findFarthestFreeBlock(dribbled, 3);
+      player.move(CO.co.calculateDifference(escapeTo, player.BlockPosition));
+    }
     matchEvents.emit(`${this.match.id}-dribble`, {
       dribbler: player,
       dribbled,
@@ -820,39 +949,66 @@ export class Actions {
 
   private tackle(player: IFieldPlayer, tackler: IFieldPlayer, predetermined = false) {
     // log(`${tackler.LastName} is tackling ${player.LastName}`);
-    // const success = this.decider.getTackleResult(tackler, player);
-    const success = predetermined ? true : Math.round(Math.random() * 12) >= 6;
+    const success = predetermined ? true : this.decider.getTackleResult(tackler, player);
 
-    if (success) {
+    // A mistimed/aggressive tackle can draw a foul independent of whether
+    // it actually wins the ball - higher Aggression and lower Tackling
+    // skill make it more likely. Previously nothing in the engine ever
+    // called Referee.foul() at all, despite the whole foul/card/set-piece
+    // system (Referee.foul/handleFoul/setUpSetPiece) already being fully
+    // written and simply never wired up - fouls were always exactly 0.
+    const foulChance = Math.max(
+      0,
+      Math.min(100, 30 + (tackler.Attributes.Aggression - tackler.Attributes.Tackling) * 0.3)
+    );
+    const fouled = this.decider.gimmeAChance() <= foulChance;
+    if (fouled) {
+      this.referee.foul(tackler, player);
+    }
+
+    matchEvents.emit(`${this.match.id}-tackle`, {
+      tackler,
+      tackled: player,
+      success,
+    } as ITackle);
+
+    // A foul on this exact attempt already routed the restart (free-kick/
+    // penalty taker + ball placement) through Referee.setUpSetPiece(),
+    // which moves the ball relative to its own actual current position.
+    // Unconditionally also moving it here - using a diff computed from the
+    // pre-foul tackler/player positions - would stomp that correct
+    // placement with a bogus offset, stranding the ball on an arbitrary,
+    // almost certainly unoccupied block for the rest of the half (nothing
+    // else ever explicitly reclaims it). Skip the ball move (and the
+    // "tackled the ball from" narrative, which would contradict the foul
+    // that was just called on the same challenge) whenever fouled.
+    if (success && !fouled) {
       tackler.Ball.move(
         CO.co.calculateDifference(tackler.BlockPosition, player.BlockPosition)
       );
-      matchEvents.emit(`${this.match.id}-tackle`, {
-        tackler,
-        tackled: player,
-        success,
-      } as ITackle);
       createMatchEvent(
         this.match.id,
-        `${tackler.FirstName} ${tackler.LastName} [${tackler.ClubCode}] 
+        `${tackler.FirstName} ${tackler.LastName} [${tackler.ClubCode}]
         tackled the ball from ${player.FirstName} ${player.LastName}`,
         'tackle',
         tackler.PlayerID,
         tackler.ClubCode
       );
-      return true;
-    } else {
-      matchEvents.emit(`${this.match.id}-tackle`, {
-        tackler,
-        tackled: player,
-        success,
-      } as ITackle);
-      return false;
     }
+
+    return success;
   }
 
   private markBall(player: IFieldPlayer) {
     this.move(player, 'towards ball', player.Ball.Position);
+  }
+
+  /** Hold formation shape instead of chasing the ball - what every
+   * non-pressing player does now, instead of piling on (see pressureBall). */
+  private holdShape(player: IFieldPlayer, team: MatchSide) {
+    const bias = 1 - team.Tactic.style.positionalDiscipline;
+    const target = this.getShapeTarget(player, player.Ball.Position, bias);
+    this.move(player, 'hold shape', target);
   }
 
   private pushForward(team: MatchSide) {
@@ -883,9 +1039,29 @@ export class Actions {
     // Find midfielders and attackers
     const defendingPlayers = playerFunc.getATTMID(team);
 
-    defendingPlayers.forEach((p) => {
-      this.markBall(p);
-    });
+    if (defendingPlayers.length === 0) {
+      return;
+    }
+
+    // Only the nearest few (per the team's playing style) actually close
+    // the ball down - previously EVERY ATT/MID player beelined for the
+    // exact ball coordinate every tick, which just swarmed the ball
+    // carrier (whoever got there first tackled it, nobody held a passing
+    // lane open). Everyone else holds their formation shape instead.
+    const ballPosition = defendingPlayers[0].Ball.Position;
+    const pressingIntensity = team.Tactic.style.pressingIntensity;
+
+    const sortedByBallDistance = [...defendingPlayers].sort(
+      (a, b) =>
+        CO.co.calculateDistance(a.BlockPosition, ballPosition) -
+        CO.co.calculateDistance(b.BlockPosition, ballPosition)
+    );
+
+    const pressers = sortedByBallDistance.slice(0, pressingIntensity);
+    const holders = sortedByBallDistance.slice(pressingIntensity);
+
+    pressers.forEach((p) => this.markBall(p));
+    holders.forEach((p) => this.holdShape(p, team));
   }
 }
 

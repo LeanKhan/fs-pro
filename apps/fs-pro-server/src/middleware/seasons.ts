@@ -1,13 +1,15 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Request, Response, NextFunction } from 'express';
+import DB from '../db';
 import respond from '../helpers/responseHandler';
 import {
-  createNew,
-  findByIdAndUpdate,
+  createSeasonRecord,
+  getSeasons,
+  updateSeasonFields,
 } from '../controllers/seasons/season.service';
 import {
   addSeason,
-  fetchCompetition,
+  getCompetitionWithClubsAndSeasons,
 } from '../controllers/competitions/competition.service';
 import { CompetitionInterface } from '../controllers/competitions/competition.model';
 import { createFixtures } from '../controllers/fixtures/fixture.service';
@@ -17,7 +19,7 @@ import {
   RoundRobin,
   fixtureInterface,
 } from '../utils/seasons';
-import { fetchOne } from '../controllers/calendar/calendar.service';
+import { getCalendarByYearString } from '../controllers/calendar/calendar.service';
 import { CalendarInterface } from '../controllers/calendar/calendar.model';
 import { incrementCounter } from '../utils/counter';
 import log from '../helpers/logger';
@@ -34,15 +36,21 @@ export async function create(
   competitionID: string,
   year: string
 ) {
-  const p = await incrementCounter('season_counter');
-  console.log('Counter incremented successfully!');
-
   const seasonCode = competitionCode.toUpperCase() + '-' + year;
+  const [existingSeason] = await getSeasons({ SeasonCode: seasonCode });
+
+  if (existingSeason) {
+    console.log(`Season ${seasonCode} already exists. Skipping creation.`);
+    return existingSeason;
+  }
+
+  await incrementCounter('season_counter');
+  console.log('Counter incremented successfully!');
 
   log(year);
 
   const findCalendar = () => {
-    return fetchOne({ YearString: year });
+    return getCalendarByYearString(year);
   };
 
   const newSeason = (cal: CalendarInterface) => {
@@ -60,9 +68,15 @@ export async function create(
       Title: `Season-${competitionCode}-${year}-${Math.round(
         Math.random() * 10
       )}`,
+      // Placeholders - Postgres's Seasons.StartDate/EndDate are NOT NULL
+      // (Mongo's schema never required them), and neither is meaningfully
+      // set until the season actually starts/ends (PATCH /:id/start and
+      // the finish-season flow both overwrite these with the real value).
+      StartDate: new Date(),
+      EndDate: new Date(),
     };
 
-    return createNew(data).catch((err) => {
+    return createSeasonRecord(data).catch((err: any) => {
       throw err;
     });
   };
@@ -71,8 +85,19 @@ export async function create(
   let season_code: string;
 
   const addSeasonToComp = (season: any) => {
-    season_id = season._doc._id;
-    season_code = season._doc.SeasonCode;
+    // createSeasonRecord (repository-backed, both backends) always returns
+    // a plain object - no `._doc` (that was Mongoose Document-specific,
+    // left over from when this called the raw `.save()`).
+    season_id = season._id;
+    season_code = season.SeasonCode;
+
+    if (DB.ormType === 'drizzle') {
+      // Competition.Seasons doesn't exist on Postgres - Seasons.Competition
+      // (set above, in `data.Competition = competitionID`) already carries
+      // this relationship, nothing left to write. Same no-op as
+      // competition.controller.ts's addSeasonToCompetition.
+      return Promise.resolve(null);
+    }
 
     return addSeason(competitionID, season_id);
   };
@@ -80,7 +105,7 @@ export async function create(
   let competition: CompetitionInterface;
 
   const generateFixtures2 = async () => {
-    competition = await fetchCompetition(competitionID);
+    competition = await getCompetitionWithClubsAndSeasons(competitionID) as CompetitionInterface;
 
     const matchesPerWeek = competition.Clubs.length / 2;
 
@@ -119,20 +144,25 @@ export async function create(
     // respond.success(res, 200, 'Success creating Fixtures', fixtureObjects);
 
     return createFixtures(fixtureObjects)
-      .then((fixtures) => {
-        const fixtureIds: string[] = fixtures.map((fixture) => {
+      .then((fixtures: any) => {
+        const fixtureIds: string[] = fixtures.map((fixture: any) => {
           return fixture._id;
         });
 
         return fixtureIds;
       })
-      .catch((err) => {
+      .catch((err: any) => {
         throw err;
       });
   };
 
   const saveFixtures = (fixtureIds: string[]) => {
-    return findByIdAndUpdate(season_id, { Fixtures: fixtureIds });
+    // Fixtures doesn't exist on Postgres (dropped in favor of the reverse
+    // fixtures.Season FK, already set on each fixture at creation time via
+    // generateFixtureObject's `Season: data.seasonId` - see
+    // FUTURE-PLANS.md) - updateSeasonFields silently ignores the unknown
+    // key there, and still writes the real array field on Mongo.
+    return updateSeasonFields(season_id, { Fixtures: fixtureIds } as any);
   };
 
   // TODO: Make standings separate collection
@@ -160,7 +190,7 @@ export async function create(
     /**
      * This is the Updated Season!
      */
-    return findByIdAndUpdate(season_id, { Standings: weeks });
+    return updateSeasonFields(season_id, { Standings: weeks });
   };
 
   return findCalendar()
@@ -197,7 +227,7 @@ export function createSeason(req: Request, res: Response, next: NextFunction) {
   log(year);
 
   const findCalendar = () => {
-    return fetchOne({ YearString: year });
+    return getCalendarByYearString(year);
   };
 
   // Add the Calendar's id to season...
@@ -217,7 +247,11 @@ export function createSeason(req: Request, res: Response, next: NextFunction) {
     req.body.data.SeasonCode = seasonCode;
     req.body.data.Calendar = cal._id;
     req.body.data.Year = cal.YearString;
-    return createNew(req.body.data).catch((err) => {
+    // Placeholders if the client didn't send them - see the equivalent
+    // comment in the internal create()'s newSeason above for why.
+    req.body.data.StartDate = req.body.data.StartDate ?? new Date();
+    req.body.data.EndDate = req.body.data.EndDate ?? new Date();
+    return createSeasonRecord(req.body.data).catch((err: any) => {
       throw err;
     });
   };
@@ -226,7 +260,10 @@ export function createSeason(req: Request, res: Response, next: NextFunction) {
     .then(newSeason)
     .then((season: any) => {
       void incrementCounter('season_counter');
-      req.body.seasonMongoID = season._doc._id;
+      // createSeasonRecord (repository-backed, both backends) always
+      // returns a plain object - no `._doc` (Mongoose-Document-specific,
+      // left over from the raw `.save()` this used to call).
+      req.body.seasonMongoID = season._id;
       return next();
     })
     .catch((error) => {
@@ -255,7 +292,7 @@ export function fetchCompetitionClubs(
 ) {
   const { competitionId } = req.body.data as GenerateFixturesBody;
 
-  fetchCompetition(competitionId)
+  getCompetitionWithClubsAndSeasons(competitionId)
     .then((value: any) => {
       req.body.competition = value;
       next();
@@ -339,15 +376,15 @@ export function generateFixtures(
   // respond.success(res, 200, 'Success creating Fixtures', fixtureObjects);
 
   createFixtures(fixtureObjects)
-    .then((fixtures) => {
-      const fixtureIds: string[] = fixtures.map((fixture) => {
+    .then((fixtures: any) => {
+      const fixtureIds: string[] = fixtures.map((fixture: any) => {
         return fixture._id;
       });
 
       req.body.fixtureIds = fixtureIds;
       next();
     })
-    .catch((err) => {
+    .catch((err: any) => {
       respond.fail(res, 400, 'Error creating Fixtures', err);
     });
 }
@@ -381,7 +418,7 @@ export function setInitialStandings(
     weeks.push(week);
   }
 
-  findByIdAndUpdate(seasonId, { Standings: weeks })
+  updateSeasonFields(seasonId, { Standings: weeks })
     .then((season: any) => {
       next();
     })

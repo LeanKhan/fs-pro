@@ -1,25 +1,33 @@
 import respond from '../../helpers/responseHandler';
 import { NextFunction, Request, Response } from 'express';
 import { ManagerInterface } from '../managers/manager.model';
-import { updateById, fetchOneById } from '../managers/manager.service';
+import { getManagerById, appendManagerRecord } from '../managers/manager.service';
 import { update as updateCompetition } from '../competitions/competition.service';
 import {
   createMany,
-  fetchSingleClubById,
-  updateClub,
-  updateClubsById,
+  getClubById,
+  updateClubFields,
+  appendClubRecord,
 } from './club.service';
 import log from '../../helpers/logger';
 import { readCSVFileAsync, readCSVFileUploadAsync } from '../../utils/csv';
 import multer from 'multer';
 import { addClubsToUser } from '../user/user.service';
+import { IClub } from '../../interfaces/Club';
 
 export const upload_csv = multer({ dest: 'tmp/csv/' });
 
+/**
+ * A club's `User` field is a pure Club-side write (the Mongo `Users.Clubs`
+ * array is a separate, redundant field - see FUTURE-PLANS.md for why that
+ * one stays unconverted), so this can go through the repository directly,
+ * on whichever backend is live.
+ */
 export function updateClubs(req: Request, res: Response, next: NextFunction) {
   const { clubs, userID } = req.body;
-  updateClubsById(clubs, { User: userID })
-    .then((cl: any) => {
+
+  Promise.all(((clubs ?? []) as string[]).map((clubId) => updateClubFields(clubId, { User: userID })))
+    .then(() => {
       return next();
     })
     .catch((err: any) => {
@@ -36,18 +44,22 @@ export function addManagerToClub(req: Request, res: Response) {
   // Fetch Manager first and even confirm if they exist!
 
   const fetchManager = () => {
-    return fetchOneById(manager);
+    return getManagerById(manager);
   };
 
   // Club should not already have a manager!
 
-  const getClubData = (m: ManagerInterface) => {
+  const getClubData = (m: ManagerInterface | null) => {
     if (!m) {
       throw new Error('Manager does not exist!');
     }
 
-    return fetchSingleClubById(club_id, false)
+    return getClubById(club_id)
       .then((club) => {
+        if (!club) {
+          throw new Error('Club does not exist!');
+        }
+
         if (club.Manager) {
           // club already has a manager, kill it off!
           return respond.fail(
@@ -57,21 +69,7 @@ export function addManagerToClub(req: Request, res: Response) {
           );
         }
 
-        return {
-          $set: {
-            isEmployed: true,
-            Club: club._id,
-          },
-          $push: {
-            Records: {
-              type: 'hired',
-              title: `${m.FirstName} ${m.LastName} joined ${club.Name} as their new manager`,
-              date: new Date(),
-              details,
-              club: club._id,
-            },
-          },
-        };
+        return { club, manager: m };
       })
       .catch((err) => {
         throw err;
@@ -80,23 +78,38 @@ export function addManagerToClub(req: Request, res: Response) {
 
   // TODO: make all this record more information in 'Records'
 
-  const updateManager = (update: any) => {
-    return updateById(manager, update);
+  // Both writes below go through the repository's plain-field `update` +
+  // a read-modify-write Records append (`appendManagerRecord`/
+  // `appendClubRecord`) instead of the `$set`/`$push` operator object this
+  // used to build - see FUTURE-PLANS.md for the Club conversion writeup.
+  const updateManager = (data: any) => {
+    const { club, manager: m } = data;
+    return appendManagerRecord(
+      m._id,
+      { isEmployed: true, Club: club._id },
+      {
+        type: 'hired',
+        title: `${m.FirstName} ${m.LastName} joined ${club.Name} as their new manager`,
+        date: new Date(),
+        details,
+        club: club._id,
+      }
+    ).then(() => data);
   };
 
-  const _updateClub = (m: ManagerInterface) => {
-    return updateClub(club_id, {
-      Manager: m._id,
-      $push: {
-        Records: {
-          type: 'manager-hire',
-          title: `Hired ${m.FirstName} ${m.LastName} as new manager!`,
-          date: new Date(),
-          details,
-          manager: m._id,
-        },
-      },
-    });
+  const _updateClub = (data: any) => {
+    const { club, manager: m } = data;
+    return appendClubRecord(
+      club._id,
+      { Manager: m._id },
+      {
+        type: 'manager-hire',
+        title: `Hired ${m.FirstName} ${m.LastName} as new manager!`,
+        date: new Date(),
+        details,
+        manager: m._id,
+      }
+    );
   };
 
   fetchManager()
@@ -118,28 +131,13 @@ export function removeManagerFromClub(req: Request, res: Response) {
   const details = req.query.reason || '';
 
   const getClubData = () => {
-    return fetchSingleClubById(id, false)
+    return getClubById(id)
       .then((club) => {
-        return {
-          update: {
-            $set: {
-              isEmployed: false,
-            },
-            $unset: {
-              Club: 1,
-            },
-            $push: {
-              Records: {
-                type: 'manager-leaving',
-                title: `Left ${club.Name} as their new manager.`,
-                date: new Date(),
-                club: club._id,
-                details,
-              },
-            },
-          },
-          manager: club.Manager,
-        };
+        if (!club) {
+          throw new Error('Club does not exist!');
+        }
+
+        return { managerId: club.Manager, clubName: club.Name };
       })
       .catch((err) => {
         throw err;
@@ -147,22 +145,35 @@ export function removeManagerFromClub(req: Request, res: Response) {
   };
 
   const updateManager = (data: any) => {
-    return updateById(data.manager, data.update);
+    return appendManagerRecord(
+      data.managerId,
+      { isEmployed: false, Club: null },
+      {
+        type: 'manager-leaving',
+        title: `Left ${data.clubName} as their new manager.`,
+        date: new Date(),
+        club: id,
+        details,
+      }
+    );
   };
 
-  const _updateClub = (m: ManagerInterface) => {
-    return updateClub(id, {
-      $unset: { Manager: 1 },
-      $push: {
-        Records: {
-          type: 'manager-leaving',
-          title: `Manager ${m.FirstName} ${m.LastName} left the club`,
-          date: new Date(),
-          manager: m._id,
-          details,
-        },
-      },
-    });
+  const _updateClub = (m: ManagerInterface | null) => {
+    if (!m) {
+      throw new Error('Manager does not exist!');
+    }
+
+    return appendClubRecord(
+      id,
+      { Manager: null },
+      {
+        type: 'manager-leaving',
+        title: `Manager ${m.FirstName} ${m.LastName} left the club`,
+        date: new Date(),
+        manager: m._id,
+        details,
+      }
+    );
   };
 
   getClubData()
@@ -181,8 +192,8 @@ export function removeManagerFromClub(req: Request, res: Response) {
 // TODO: add Manager, League, LeagueCcode, Players
 // Rating and the Position Ratings
 
-const groupBy = function (data, key) {
-  return data.reduce(function (storage, item) {
+const groupBy = function (data: any[], key: string) {
+  return data.reduce(function (storage: any, item: any) {
     const group = item[key];
 
     storage[group] = storage[group] || [];
@@ -190,7 +201,7 @@ const groupBy = function (data, key) {
     storage[group].push(item);
 
     return storage;
-  }, {});
+  }, {} as Record<string, any[]>);
 };
 
 /**
@@ -201,7 +212,7 @@ const groupBy = function (data, key) {
  */
 export async function createManyClubsFromCSV(req: Request, res: Response) {
 
-  let data: { data: any[]; rowCount: number } = [];
+  let data: { data: any[]; rowCount: number } = { data: [], rowCount: 0 };
 
   // const saveClubsInCompetition = (competition_id: string, club_ids: string[]) => {
   //   return updateCompetition(competition_id, { $addToSet: { Clubs: {$each: club_ids} } });
@@ -211,12 +222,12 @@ export async function createManyClubsFromCSV(req: Request, res: Response) {
   const saveClubsInCompetition = (clubs: IClub[]) => {
     const competition_clubs = groupBy(clubs, 'League');
 
-    const all_club_ids = {};
+    const all_club_ids: Record<string, string[]> = {};
 
-    const promise_array = [];
+    const promise_array: Promise<any>[] = [];
 
     for (const u of Object.keys(competition_clubs)) {
-      all_club_ids[u] = competition_clubs[u].map((i) => i._id);
+      all_club_ids[u] = competition_clubs[u].map((i: any) => i._id);
     }
 
     for (const k of Object.keys(all_club_ids)) {
@@ -229,12 +240,12 @@ export async function createManyClubsFromCSV(req: Request, res: Response) {
   const saveClubsInUser = (clubs: IClub[]) => {
     const user_clubs = groupBy(clubs, 'User');
 
-    const all_club_ids = {};
+    const all_club_ids: Record<string, string[]> = {};
 
-    const promise_array = [];
+    const promise_array: Promise<any>[] = [];
 
     for (const u of Object.keys(user_clubs)) {
-      all_club_ids[u] = user_clubs[u].map((i) => i._id);
+      all_club_ids[u] = user_clubs[u].map((i: any) => i._id);
     }
 
     for (const u of Object.keys(all_club_ids)) {
@@ -245,18 +256,22 @@ export async function createManyClubsFromCSV(req: Request, res: Response) {
   };
 
   try {
+    if (!req.file) {
+      return respond.fail(res, 400, 'No file uploaded', null);
+    }
+
     data = await readCSVFileUploadAsync(req.file.path);
     // let club_ids = [];
     // the next thing for this would be to use the
     // generated objects to create Mongoose records
-    let club_ids = [];
-    let created_clubs = [];
+    let club_ids: string[] = [];
+    let created_clubs: any[] = [];
     createMany(data.data)
     .then((clubs: any) => {
       // get ids...
       club_ids = clubs.map((club: any) => club._id);
       created_clubs = clubs;
-      return  Promise.all[saveClubsInUser(clubs), saveClubsInCompetition(clubs)]
+      return  Promise.all([saveClubsInUser(clubs), saveClubsInCompetition(clubs)])
       // return clubs;
     })
     // .then(saveClubsInUser)
@@ -278,6 +293,6 @@ export async function createManyClubsFromCSV(req: Request, res: Response) {
 
   } catch (err) {
     console.error('ERROR READING CSV ', err);
-    return respond.fail(res, 400, 'Error reading CSV File', err.toString());
+    return respond.fail(res, 400, 'Error reading CSV File', (err as Error).toString());
   }
 }

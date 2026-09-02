@@ -6,6 +6,7 @@ import {
   IMatchSideDetails,
 } from '../../classes/Match';
 import { ClubInterface } from '../clubs/club.model';
+import { ITactic } from '../../state/PersistentState/Formations';
 
 export interface Fixture {
   _id: string;
@@ -34,6 +35,16 @@ export interface Fixture {
   HomeManager: string;
   AwayManager: string;
   isFinalMatch: boolean;
+  /** Explicit per-match tactic override - set only for friendlies created
+   * via POST /api/game/friendly. Absent for season fixtures, which always
+   * resolve tactics from each club's Manager instead (see Game.controller's
+   * play()). */
+  HomeTactic?: ITactic;
+  AwayTactic?: ITactic;
+  /** Whether this match's result should count toward permanent player/club
+   * stats history. Only meaningful for friendlies - real fixtures are
+   * always persisted in full regardless of this field. */
+  SaveStats?: boolean;
 }
 
 declare interface IFixture extends Document {
@@ -58,6 +69,9 @@ declare interface IFixture extends Document {
   HomeSideDetails: IMatchSideDetails;
   AwaySideDetails: IMatchSideDetails;
   Events: IMatchEvent[];
+  HomeTactic?: ITactic;
+  AwayTactic?: ITactic;
+  SaveStats?: boolean;
 }
 
 const MatchEventSchema: Schema = new Schema({
@@ -135,18 +149,25 @@ export class Fixture {
           type: Boolean,
           default: false,
         },
+        HomeTactic: { type: Schema.Types.Mixed },
+        AwayTactic: { type: Schema.Types.Mixed },
+        SaveStats: { type: Boolean },
       },
       { timestamps: true }
     );
 
-    FixtureSchema.post('remove', async function(next) {
+    FixtureSchema.post('remove', async function(this: IFixture & Document, doc) {
+      // Post-remove hooks receive (doc, next) - the missing `doc` param
+      // here meant `next` was actually bound to the removed document, so
+      // calling it as a callback threw `TypeError: next is not a function`
+      // on every single Fixture removal. Async hooks don't need `next()`
+      // at all (Mongoose waits on the returned promise), so it's dropped
+      // instead of just re-added.
       await DB.Models.Season.updateOne(
           { Fixtures : this._id},
           { $pull: { Fixtures: this._id } },
           { multi: true })  //if reference exists in multiple documents
       .exec();
-
-      next();
   });
 
     this._model = model<IFixture>('Fixture', FixtureSchema, 'Fixtures');

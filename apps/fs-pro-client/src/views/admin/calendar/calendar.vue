@@ -94,7 +94,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useStore } from '@/store';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 
 const store = useStore();
 

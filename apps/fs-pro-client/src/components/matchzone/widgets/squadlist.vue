@@ -1,8 +1,8 @@
 <template>
   <v-list density="compact" lines="two">
     <squad-player
-      v-for="(player, i) in squad"
-      :key="i"
+      v-for="(player, i) in sortedSquad"
+      :key="player._id || i"
       :player="player"
       :matchFinished="matchFinished"
     ></squad-player>
@@ -21,7 +21,11 @@ const props = withDefaults(defineProps<Props>(), {
   matchFinished: false,
 });
 
-const list = computed(() => {
-  return props.squad.sort();
+defineOptions({
+  name: 'SquadList',
+});
+
+const sortedSquad = computed(() => {
+  return [...props.squad].sort();
 });
 </script>

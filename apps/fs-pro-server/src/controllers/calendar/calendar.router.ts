@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { Types } from 'mongoose';
 import respond from '../../helpers/responseHandler';
-import { fetchOneById, fetchAll, deleteByRemove, deleteDayByRemove } from './calendar.service';
+import { getCalendarById, getCalendars, deleteCalendarById } from './calendar.service';
 import {
   getCurrentCalendar,
   startYear,
@@ -11,7 +10,7 @@ import {
   createSeasonsInTheYear,
   endYear,
 } from './calendar.controller';
-import { fetchMany, findOne as findDay } from '../days/day.service';
+import { getDaysForYear, findDayByFixtureId, deleteDayById } from '../days/day.service';
 import { updatePlayersDetails } from '../players/player.controller';
 import { updateAllClubsRating } from '../../middleware/club';
 import { setupRoutes } from '../../helpers/queries';
@@ -26,7 +25,7 @@ const router = Router();
 
 /** Get Calendar by id */
 router.get('/calendars/:id', (req, res) => {
-  const response = fetchOneById(req.params.id);
+  const response = getCalendarById(req.params.id);
 
   response
     .then((fixture: any) => {
@@ -39,7 +38,7 @@ router.get('/calendars/:id', (req, res) => {
 
 /** Delete Calendar by id */
 router.delete('/calendars/:id', (req, res) => {
-  deleteByRemove(req.params.id)
+  deleteCalendarById(req.params.id)
     .then((calendar: any) => {
       respond.success(res, 200, 'Calendar deleted successfully :)', calendar);
     })
@@ -49,7 +48,7 @@ router.delete('/calendars/:id', (req, res) => {
 });
 
 router.delete('/days/:id', (req, res) => {
-  deleteDayByRemove(req.params.id)
+  deleteDayById(req.params.id)
     .then((calendar: any) => {
       respond.success(res, 200, 'Calendar Day deleted successfully :)', calendar);
     })
@@ -62,7 +61,7 @@ router.delete('/days/:id', (req, res) => {
 
 /** Get all Calendars */
 router.get('/calendars', (req, res) => {
-  const response = fetchAll();
+  const response = getCalendars();
 
   response
     .then((calendars: any) => {
@@ -81,20 +80,15 @@ router.get('/calendars', (req, res) => {
 /** Get days of a Calendar by Year */
 router.get('/:year/days', (req: Request, res: Response) => {
   const { year } = req.params;
-  const { paginate = false, populate = false, not_played = true ,limit } = req.query;
+  const { paginate = false, not_played = true, limit } = req.query;
 
-  let query = { Year: year };
+  const shouldPaginate = JSON.parse(paginate as string);
 
-  if (not_played) {
-    query = { ...query,  "isFree": false, "Matches.Played": false }
-  }
-
-  fetchMany(
-    query,
-    JSON.parse(populate),
-    JSON.parse(paginate),
-    limit
-  )
+  getDaysForYear({
+    Year: year,
+    ...(not_played ? { isFree: false, notPlayed: true } : {}),
+    ...(shouldPaginate ? { limit: parseInt(limit as string) } : {}),
+  })
     .then((days: any) => {
       return respond.success(
         res,
@@ -119,10 +113,7 @@ router.get('/day-of-fixture/:fixture', (req: Request, res: Response) => {
         return respond.fail(res, 400, 'No fixture sent');
   }
 
-  findDay(
-    { 'Matches.Fixture': Types.ObjectId(fixture_id) },
-    true
-  ).then((day: any) => {
+  findDayByFixtureId(fixture_id).then((day: any) => {
       return respond.success(
         res,
         200,

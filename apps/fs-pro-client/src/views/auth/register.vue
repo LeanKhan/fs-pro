@@ -116,7 +116,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore, apiUrl } from '@/store';
-import { $axios } from '@/main';
+import { $axios } from '@/services/api';
 
 const router = useRouter();
 const store = useStore();

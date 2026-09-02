@@ -5,7 +5,7 @@ export interface ProcessData {
     args: Record<string, any>;
 }
 
-const scripts = {
+const scripts: Record<string, { path: string }> = {
     "player_names": {
         path: "../scripts/python_names.bat"
     }
@@ -21,7 +21,7 @@ const scripts = {
  */
 export function runScript(script: string, action: string, data: any): Promise<any> {
     return new Promise((resolve, reject) => {
-        exec(`${scripts[script].path} ${data}`, (error, stdout, stderr) => {
+        exec(`${scripts[script]?.path} ${data}`, (error, stdout, stderr) => {
             if (error) {
                 console.error(`error: ${error}`);
                 reject(error);
@@ -41,7 +41,7 @@ export function runScript(script: string, action: string, data: any): Promise<an
 
 export function runSpawn(script: string, args: string[], data?: ProcessData) {
     return new Promise((resolve, reject) => {
-        const path = require.resolve(`${scripts[script].path}`);
+        const path = require.resolve(`${scripts[script]?.path}`);
         
         const p = spawn(path, args);
 
@@ -79,14 +79,14 @@ export function runSpawn(script: string, args: string[], data?: ProcessData) {
             // console.log('Processed data => ', dataString);
 
             if (errorString) {
-                console.log(`ERROR FROM ${scripts[script].path} SCRIPT -> error ${errorString}`);
+                console.log(`ERROR FROM ${scripts[script]?.path} SCRIPT -> error ${errorString}`);
                 return reject(errorString);
             }
             return resolve(dataString);
         });
-        
+
         if(data){
-            p.stdin.write(JSON.stringify(data), (err: Error) => {
+            p.stdin.write(JSON.stringify(data), (err: Error | null | undefined) => {
             // NOTE: trying not to spam the stdout...
 
             // console.log('Done writing!');

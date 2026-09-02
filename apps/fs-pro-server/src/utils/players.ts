@@ -19,7 +19,7 @@ import { Role, Roles } from '../controllers/players/player.model';
  * @param team
  */
 function getATTMID(team: MatchSide) {
-  return team.StartingSquad.filter((player) => {
+  return team.ActivePlayers.filter((player) => {
     if (
       (player.Position === 'ATT' && !player.WithBall) ||
       (player.Position === 'MID' && !player.WithBall)
@@ -36,7 +36,7 @@ function getATTMID(team: MatchSide) {
  * @param team
  */
 function getATTMIDNoFilter(team: MatchSide) {
-  return team.StartingSquad.filter((player) => {
+  return team.ActivePlayers.filter((player) => {
     if (player.Position === 'ATT' || player.Position === 'MID') {
       return true;
     } else {
@@ -70,6 +70,38 @@ function findRandomFreeBlock(player: IFieldPlayer, radius: number = 3): IBlock {
 }
 
 /**
+ * Like findRandomFreeBlock, but biased toward the farthest free blocks
+ * instead of picking uniformly at random among all of them.
+ *
+ * Used when a player needs to actually put distance between themselves and
+ * a marker (escaping a tight-marking duel) - a uniform-random pick is just
+ * as likely to land one block away as five, which barely counts as an
+ * escape and lets an equally fast marker re-close the gap almost
+ * immediately.
+ */
+function findFarthestFreeBlock(player: IFieldPlayer, radius: number = 5): IBlock {
+  const circumference = (player.getBlocksAround(radius) as IBlock[]).filter((block) => {
+    return block !== undefined && block.occupant === null;
+  });
+
+  if (circumference.length === 0) {
+    return player.BlockPosition;
+  }
+
+  const distanceFromPlayer = (block: IBlock) =>
+    Math.abs(block.x - player.BlockPosition.x) + Math.abs(block.y - player.BlockPosition.y);
+
+  const maxDistance = Math.max(...circumference.map(distanceFromPlayer));
+  const farthestBlocks = circumference.filter(
+    (block) => distanceFromPlayer(block) === maxDistance
+  );
+
+  const randomIndex = Math.round(Math.random() * (farthestBlocks.length - 1));
+
+  return farthestBlocks[randomIndex];
+}
+
+/**
  * Get a random Attacker or Midfielder - No filter
  *
  */
@@ -100,13 +132,26 @@ function getRandomDEF(team: MatchSide) {
 /**
  *
  * Find a free block around
+ *
+ * Bounds are checked against the block's own Field.mapWidth/mapHeight
+ * (with a proper AND) instead of the old `||` chain hardcoded to 11/6,
+ * which was almost always true regardless of position and only matched
+ * the old 15x11 grid anyway. In practice `around` entries already come
+ * pre-filtered by checkNextBlocks(), so this is a defensive re-check.
+ *
  * @param around
  */
 function findFreeBlock(around: IPositions) {
   for (const key in around) {
     if (around.hasOwnProperty(key) && around[key] !== undefined) {
       const block = around[key] as IBlock;
-      if (block.x >= 0 || block.y >= 0 || block.x <= 11 || block.y <= 6) {
+      const inBounds =
+        block.x >= 0 &&
+        block.y >= 0 &&
+        block.x <= block.Field.mapWidth - 1 &&
+        block.y <= block.Field.mapHeight - 1;
+
+      if (inBounds) {
         if (block.occupant == null) {
           return block;
         }
@@ -474,7 +519,7 @@ function generatePlayer({position, firstname, lastname, nationality}:
           Control: randomBetween(20, 60),
           Tackling: randomBetween(20, 60),
           Dribbling: randomBetween(20, 60),
-          Setpiece: randomBetween(20, 60),
+          SetPiece: randomBetween(20, 60),
           Strength: randomBetween(20, 60),
           Stamina: randomBetween(20, 60),
           Vision: randomBetween(20, 60),
@@ -490,7 +535,8 @@ function generatePlayer({position, firstname, lastname, nationality}:
           AttackingMindset: false, // random
           DefensiveMindset: false, // random
         },
-        isSigned: false
+        isSigned: false,
+        Value: 0
       };
 
       // set nationality
@@ -510,7 +556,7 @@ function generatePlayer({position, firstname, lastname, nationality}:
       obj.Age = randomBetween(18, 30);
 
       // set Position
-      obj.Role = pickRandomFromArray(Roles[obj.Position]);
+      obj.Role = pickRandomFromArray(Roles[obj.Position as keyof typeof Roles]);
 
       // set Preferred Foot
       obj.Attributes.PreferredFoot = pickRandomFromArray(['left', 'right']);
@@ -520,14 +566,14 @@ function generatePlayer({position, firstname, lastname, nationality}:
       obj.Attributes.DefensiveMindset = pickRandomFromArray([true, false]);
 
       // set Position specific attributes
-      attributesToIncrease[obj.Position].forEach(attr => {
-        obj.Attributes[attr] = 64;
+      attributesToIncrease[obj.Position as keyof typeof attributesToIncrease].forEach(attr => {
+        (obj.Attributes as any)[attr] = 64;
       });
 
       console.log('Generated Player payload => ', obj)
 
       // set Rating
-      obj.Rating = calculatePlayerRating(obj.Attributes, obj.Position, obj.Role);
+      obj.Rating = calculatePlayerRating(obj.Attributes, obj.Position, obj.Role as Role);
 
       // set Value
       // you need Player's Rating to calculate their Value
@@ -540,6 +586,7 @@ export {
   getATTMID,
   findFreeBlock,
   findRandomFreeBlock,
+  findFarthestFreeBlock,
   getRandomATTMID,
   getGK,
   calculatePlayerValue,

@@ -1,7 +1,7 @@
 import respond from '../../helpers/responseHandler';
 import { NextFunction, Request, Response } from 'express';
-import { getPlayerStats, updateById, updatePlayers, createMany } from './player.service';
-import { updateManagers } from '../managers/manager.service';
+import { getPlayerStats, updateById, incrementAllPlayersAge, createMany } from './player.service';
+import { incrementAllManagersAge } from '../managers/manager.service';
 import { newAttributeRatings, generatePlayer } from '../../utils/players';
 import { PlayerInterface, IPlayerAttributes } from '../../interfaces/Player';
 import { runSpawn } from '../../utils/scripts';
@@ -36,8 +36,8 @@ export function updatePlayersDetails(
   };
 
   const increaseAllPeoplesAge = () => {
-    return Promise.all([updatePlayers({}, { $inc: { Age: 1 } }),
-     updateManagers({}, { $inc: { Age: 1 } })]);
+    return Promise.all([incrementAllPlayersAge(),
+     incrementAllManagersAge()]);
   }
 
   const updPlayer = (data: {
@@ -102,12 +102,12 @@ export function updatePlayersDetails(
     .then(addAttributes)
     .then(updPlayers)
     .then(increaseAllPeoplesAge)
-    .then((updates) => {
+    .then((updates: any) => {
       console.log('Finished updating players! => ', updates);
       return next(); // next, update all clubs
       // return respond.success(res, 200, 'Player details updated successfully');
     })
-    .catch((err) => {
+    .catch((err: any) => {
       console.log('Error updating Player values and ending year! => ', err);
       return respond.fail(res, 400, 'Error updating Player values', err);
     });
@@ -131,10 +131,10 @@ export function generatePlayers(req: Request, res: Response, next: NextFunction)
       );
 
       const generated_players = names.map(p => generatePlayer({
-        position,
+        position: String(position),
         firstname: p[0],
         lastname: p[1],
-        nationality: culture
+        nationality: String(culture)
       }));
 
       return generated_players;
@@ -142,8 +142,8 @@ export function generatePlayers(req: Request, res: Response, next: NextFunction)
 
 
   // TODO: finish up by then saving to database
-  runSpawn('player_names', ['generate', number, 'f_l', culture])
-  .then(generatePlayerObjects)
+  runSpawn('player_names', ['generate', String(number), 'f_l', String(culture)])
+  .then((player_names: unknown) => generatePlayerObjects(player_names as string))
   .then(createMany)
   .then((generated_players: any[]) => {
           return respond.success(res, 200, 'Players generated successfully!', generated_players);
