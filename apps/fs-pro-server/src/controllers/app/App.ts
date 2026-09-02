@@ -54,10 +54,15 @@ export default class App {
       // HomeManager/AwayManager) expects that shape, matching IClub.Manager.
       const teams =
         prefetchedClubs ??
-        (await getClubs({ ids: clubs }, { withPlayersAndManager: true })).map((c) => ({
-          ...c,
-          Manager: c.Manager && typeof c.Manager === 'object' ? (c.Manager as unknown as { _id: string })._id : c.Manager,
-        }));
+        (await getClubs({ ids: clubs }, { withPlayersAndManager: true })).map(
+          (c) => ({
+            ...c,
+            Manager:
+              c.Manager && typeof c.Manager === 'object'
+                ? (c.Manager as unknown as { _id: string })._id
+                : c.Manager,
+          })
+        );
 
       // Kickoff spot, resolved as the exact center of the pitch regardless
       // of grid resolution (previously PlayingField[82], a flat-index hack
@@ -83,11 +88,10 @@ export default class App {
       const homeClub = teams.find((c) => c._id?.toString() === sides.home);
       const awayClub = teams.find((c) => c._id?.toString() === sides.away);
 
-      const tactics =
-        prefetchedTactics ?? {
-          home: await resolveManagerTactic(homeClub?.Manager),
-          away: await resolveManagerTactic(awayClub?.Manager),
-        };
+      const tactics = prefetchedTactics ?? {
+        home: await resolveManagerTactic(homeClub?.Manager),
+        away: await resolveManagerTactic(awayClub?.Manager),
+      };
 
       this.Game.setClubFormations(tactics.home, tactics.away);
 
@@ -122,7 +126,10 @@ export default class App {
     matchEvents.on(`${this.Game!.Match.id}-set-playing-sides`, () => {
       const playingSides = this.Game!.setPlayingSides();
 
-      matchEvents.emit(`${this.Game!.Match.id}-setting-playing-sides`, playingSides);
+      matchEvents.emit(
+        `${this.Game!.Match.id}-setting-playing-sides`,
+        playingSides
+      );
     });
   }
 }

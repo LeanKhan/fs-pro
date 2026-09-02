@@ -6,7 +6,10 @@ import {
   RequestHandler,
 } from 'express';
 import respond from '../helpers/responseHandler';
-import { toggleSigned, signManyPlayersToClub } from '../controllers/players/player.service';
+import {
+  toggleSigned,
+  signManyPlayersToClub,
+} from '../controllers/players/player.service';
 
 export const updatePlayerSigning: RequestHandler = async (
   req: Request,

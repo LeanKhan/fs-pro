@@ -1,7 +1,10 @@
 // Exposes functions that are used to interact with the DB directly
 import { ClubInterface } from './club.model';
 import { ClubRepositoryFactory } from '../../repositories/ClubRepositoryFactory';
-import { IClubFilter, IClubReadOptions } from '../../repositories/ClubRepository';
+import {
+  IClubFilter,
+  IClubReadOptions,
+} from '../../repositories/ClubRepository';
 import { DrizzleDatabase } from '../../db/drizzle';
 import { players } from '../../db/drizzle/schema';
 import { eq, sql as drizzleSql } from 'drizzle-orm';
@@ -28,7 +31,10 @@ export async function getClubById(id: string, options?: IClubReadOptions) {
   return getClubRepo().findById(id, options);
 }
 
-export async function getClubs(filter?: IClubFilter, options?: IClubReadOptions) {
+export async function getClubs(
+  filter?: IClubFilter,
+  options?: IClubReadOptions
+) {
   return getClubRepo().findAll(filter, options);
 }
 
@@ -40,7 +46,10 @@ export async function createManyClubs(data: Partial<ClubInterface>[]) {
   return getClubRepo().createMany(data);
 }
 
-export async function updateClubFields(id: string, data: Partial<ClubInterface>) {
+export async function updateClubFields(
+  id: string,
+  data: Partial<ClubInterface>
+) {
   return getClubRepo().update(id, data);
 }
 
@@ -64,7 +73,10 @@ export async function appendClubRecord(
 ) {
   const club = await getClubRepo().findById(id);
   const records = [...(club?.Records ?? []), record];
-  return getClubRepo().update(id, { ...fields, Records: records } as Partial<ClubInterface>);
+  return getClubRepo().update(id, {
+    ...fields,
+    Records: records,
+  } as Partial<ClubInterface>);
 }
 
 /**

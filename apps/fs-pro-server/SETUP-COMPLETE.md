@@ -5,6 +5,7 @@ Your fs-pro-server now supports both MongoDB and PostgreSQL databases!
 ## 🎉 What's Been Set Up
 
 ### Infrastructure
+
 - ✅ Prisma ORM installed and configured
 - ✅ Database abstraction layer created
 - ✅ MongoDB implementation (maintains existing functionality)
@@ -12,6 +13,7 @@ Your fs-pro-server now supports both MongoDB and PostgreSQL databases!
 - ✅ Environment-based database switching
 
 ### Files Created
+
 ```
 apps/fs-pro-server/
 ├── prisma/
@@ -30,6 +32,7 @@ apps/fs-pro-server/
 ```
 
 ### New Scripts
+
 ```bash
 npm run prisma:generate  # Generate Prisma client
 npm run prisma:migrate   # Run database migrations
@@ -40,7 +43,9 @@ npm run db:test          # Test database connection
 ## 🚀 Quick Start
 
 ### Continue with MongoDB (No Changes Required)
+
 Your app will work exactly as before:
+
 ```bash
 npm run dev
 ```
@@ -48,6 +53,7 @@ npm run dev
 ### Try PostgreSQL
 
 1. **Set up PostgreSQL**:
+
    ```bash
    # Option 1: Docker
    docker run --name fspro-postgres -e POSTGRES_PASSWORD=secret -p 5432:5432 -d postgres
@@ -57,6 +63,7 @@ npm run dev
    ```
 
 2. **Update .env**:
+
    ```bash
    USE_POSTGRESQL=true
    DATABASE_URL="postgresql://postgres:secret@localhost:5432/fspro?schema=public"
@@ -70,6 +77,7 @@ npm run dev
 ## 📚 Next Steps
 
 ### For Development (Continue with MongoDB)
+
 No action needed! Your app works as before.
 
 ### For Migration (Start with PostgreSQL)
@@ -79,6 +87,7 @@ No action needed! Your app works as before.
    - [MIGRATION-EXAMPLE.md](MIGRATION-EXAMPLE.md) - Detailed example
 
 2. **Start with a simple model** (recommended: Places):
+
    ```bash
    # Add model to prisma/schema.prisma
    # Run migration
@@ -93,6 +102,7 @@ No action needed! Your app works as before.
 4. **Write data migration script**
 
 5. **Test with PostgreSQL**:
+
    ```bash
    USE_POSTGRESQL=true npm run dev
    ```
@@ -102,12 +112,14 @@ No action needed! Your app works as before.
 ## 🔄 Switching Databases
 
 ### Use MongoDB (Default)
+
 ```bash
 # .env
 USE_POSTGRESQL=false
 ```
 
 ### Use PostgreSQL
+
 ```bash
 # .env
 USE_POSTGRESQL=true
@@ -119,19 +131,25 @@ DATABASE_URL="postgresql://..."
 ## 🛠️ Tools Available
 
 ### Prisma Studio
+
 Visual database editor:
+
 ```bash
 npm run prisma:studio
 ```
 
 ### Connection Test
+
 Verify your database setup:
+
 ```bash
 npm run db:test
 ```
 
 ### Generate Client
+
 After schema changes:
+
 ```bash
 npm run prisma:generate
 ```
@@ -173,6 +191,7 @@ npm run prisma:generate
 ## 🎊 You're Ready!
 
 Your dual database infrastructure is complete. You can:
+
 - ✅ Continue development with MongoDB (no changes needed)
 - ✅ Start migrating to PostgreSQL incrementally
 - ✅ Switch between databases instantly

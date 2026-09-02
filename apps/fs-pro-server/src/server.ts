@@ -22,7 +22,6 @@ const app: Application = express();
 
 import { Server } from 'http';
 
-
 const http = new Server(app);
 
 const port = process.env.PORT || 3000;
@@ -98,9 +97,7 @@ app.use(express.static(path.join(__dirname, '../assets')));
 // MongoDB Database Connection
 
 app.get('/', (req, res) => {
-  res
-    .status(200)
-    .send('<p>Welcome to FS-PRO <i>Server</i></p> enjoy!');
+  res.status(200).send('<p>Welcome to FS-PRO <i>Server</i></p> enjoy!');
 });
 
 // REST API docs + tester - see src/docs/swagger.ts. Includes a runtime
@@ -138,28 +135,25 @@ io.use((socket: Socket, next: (err?: Error) => void) => {
   if (socket.request.headers.cookie) {
     const cookies = cookie.parse(socket.request.headers.cookie);
     if (cookies['fspro.sid'] && sessionID) {
-      store.get(
-        sessionID,
-        (err: any, sess: SessionData | null | undefined) => {
-          if (!err) {
-            if (sess) {
-              if (process.env.NODE_ENV!.trim() === 'dev') {
-                console.log('Client authenticated successfully!');
-              }
-              log('Cookie found');
-              next();
-            } else {
-              if (process.env.NODE_ENV!.trim() === 'dev') {
-                console.log('Invalid Cookie!');
-              }
-              log('Invalid cookie');
-              next(new Error('Cookie is expired!'));
+      store.get(sessionID, (err: any, sess: SessionData | null | undefined) => {
+        if (!err) {
+          if (sess) {
+            if (process.env.NODE_ENV!.trim() === 'dev') {
+              console.log('Client authenticated successfully!');
             }
+            log('Cookie found');
+            next();
           } else {
-            next(err);
+            if (process.env.NODE_ENV!.trim() === 'dev') {
+              console.log('Invalid Cookie!');
+            }
+            log('Invalid cookie');
+            next(new Error('Cookie is expired!'));
           }
+        } else {
+          next(err);
         }
-      );
+      });
     } else {
       // delete session :)
       if (sessionID) {

@@ -71,10 +71,22 @@ const eventClass = (type: string) => {
   border-radius: 50%;
   flex-shrink: 0;
 }
-.dot-yellow { background: #e9b34a; }
-.dot-blue { background: #3b82f6; }
-.dot-red { background: #ef4444; }
-.dot-green { background: #22c55e; }
-.dot-orange { background: #f97316; }
-.dot-grey { background: #8ba597; }
+.dot-yellow {
+  background: #e9b34a;
+}
+.dot-blue {
+  background: #3b82f6;
+}
+.dot-red {
+  background: #ef4444;
+}
+.dot-green {
+  background: #22c55e;
+}
+.dot-orange {
+  background: #f97316;
+}
+.dot-grey {
+  background: #8ba597;
+}
 </style>

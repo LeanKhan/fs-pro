@@ -3,7 +3,10 @@ import { Worker } from 'worker_threads';
 import { getFixtureById } from '../controllers/fixtures/fixture.service';
 import { getClubs } from '../controllers/clubs/club.service';
 import { resolveManagerTactic } from '../controllers/managers/manager.service';
-import { startMatchReplay, IReplayableMatch } from '../realtime/matchBroadcaster';
+import {
+  startMatchReplay,
+  IReplayableMatch,
+} from '../realtime/matchBroadcaster';
 import { ITactic } from '../state/PersistentState/Formations';
 
 /**
@@ -30,7 +33,10 @@ const inFlight = new Set<string>();
  * pipeline (e.g. via PitchPreview.html) without touching the existing
  * synchronous play()/restPlayGame flow real clients still use.
  */
-export function enqueueMatchPlay(fixtureId: string): { queued: boolean; reason?: string } {
+export function enqueueMatchPlay(fixtureId: string): {
+  queued: boolean;
+  reason?: string;
+} {
   if (inFlight.has(fixtureId) || queue.includes(fixtureId)) {
     return { queued: false, reason: 'Match already queued or in progress' };
   }
@@ -108,7 +114,11 @@ interface IWorkerMessage {
 /** Builds an Error whose .stack is the ORIGINAL failure's stack (from
  * inside the worker) rather than this call site, so `console.error`ing it
  * upstream actually shows where in the simulation things broke. */
-function workerFailure(fixtureId: string, msg: IWorkerMessage | undefined, fallback: string): Error {
+function workerFailure(
+  fixtureId: string,
+  msg: IWorkerMessage | undefined,
+  fallback: string
+): Error {
   const message = msg?.error || fallback;
   const error = new Error(`[worker:${fixtureId}] ${message}`);
   if (msg?.stack) {
@@ -127,7 +137,10 @@ function runInWorker(
 ): Promise<IReplayableMatch> {
   return new Promise((resolve, reject) => {
     const isTs = __filename.endsWith('.ts');
-    const workerPath = path.join(__dirname, `matchSimWorker.${isTs ? 'ts' : 'js'}`);
+    const workerPath = path.join(
+      __dirname,
+      `matchSimWorker.${isTs ? 'ts' : 'js'}`
+    );
 
     const worker = new Worker(workerPath, {
       workerData,
@@ -138,7 +151,13 @@ function runInWorker(
       if (msg.ok && msg.result) {
         resolve(msg.result);
       } else {
-        reject(workerFailure(fixtureId, msg, 'Worker reported failure with no error message'));
+        reject(
+          workerFailure(
+            fixtureId,
+            msg,
+            'Worker reported failure with no error message'
+          )
+        );
       }
       worker.terminate();
     });
@@ -150,7 +169,9 @@ function runInWorker(
 
     worker.on('exit', (code) => {
       if (code !== 0) {
-        const error = new Error(`matchSimWorker for ${fixtureId} exited with code ${code}`);
+        const error = new Error(
+          `matchSimWorker for ${fixtureId} exited with code ${code}`
+        );
         console.error(`[queue] ${error.message}`);
         reject(error);
       }

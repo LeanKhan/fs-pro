@@ -29,8 +29,10 @@ const router = Router();
 router.get('/all', (req, res) => {
   const filter: { Club?: string; ClubCode?: string; isSigned?: boolean } = {};
   if (typeof req.query.club === 'string') filter.Club = req.query.club;
-  if (typeof req.query.clubCode === 'string') filter.ClubCode = req.query.clubCode;
-  if (typeof req.query.isSigned === 'string') filter.isSigned = req.query.isSigned === 'true';
+  if (typeof req.query.clubCode === 'string')
+    filter.ClubCode = req.query.clubCode;
+  if (typeof req.query.isSigned === 'string')
+    filter.isSigned = req.query.isSigned === 'true';
 
   getPlayers(filter)
     .then((players: any) => {
@@ -149,8 +151,13 @@ router.get('/appearance', (req, res) => {
  * Use like this -> {{url}}/players/stats?competitionCode=EFL&sortBy=goals&sortDir=desc
  */
 router.get('/stats', async (req: Request, res: Response) => {
-  const competitionCode = typeof req.query.competitionCode === 'string' ? req.query.competitionCode : undefined;
-  const sortBy = (typeof req.query.sortBy === 'string' ? req.query.sortBy : 'points') as PlayerStatSortKey;
+  const competitionCode =
+    typeof req.query.competitionCode === 'string'
+      ? req.query.competitionCode
+      : undefined;
+  const sortBy = (
+    typeof req.query.sortBy === 'string' ? req.query.sortBy : 'points'
+  ) as PlayerStatSortKey;
   const sortDir = req.query.sortDir === 'asc' ? 'asc' : 'desc';
 
   await getSpecificPlayerStats(competitionCode, sortBy, sortDir)

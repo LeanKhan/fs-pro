@@ -17,12 +17,21 @@ export class DrizzleMatchReplayRepository implements IMatchReplayRepository {
   constructor(private db: DrizzleDb) {}
 
   async findByFixtureId(fixtureId: string): Promise<MatchReplayRecord | null> {
-    const row = await this.db.query.matchReplays.findFirst({ where: eq(matchReplays.Fixture, fixtureId) });
+    const row = await this.db.query.matchReplays.findFirst({
+      where: eq(matchReplays.Fixture, fixtureId),
+    });
     return row ? toMatchReplay(row) : null;
   }
 
-  async upsertByFixtureId(fixtureId: string, data: Partial<MatchReplayRecord>): Promise<MatchReplayRecord> {
-    const values = { ...(data as typeof matchReplays.$inferInsert), Fixture: fixtureId, updatedAt: new Date() };
+  async upsertByFixtureId(
+    fixtureId: string,
+    data: Partial<MatchReplayRecord>
+  ): Promise<MatchReplayRecord> {
+    const values = {
+      ...(data as typeof matchReplays.$inferInsert),
+      Fixture: fixtureId,
+      updatedAt: new Date(),
+    };
 
     const [row] = await this.db
       .insert(matchReplays)

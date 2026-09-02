@@ -11,7 +11,9 @@ type PlaceRow = typeof places.$inferSelect;
 
 /** Same `id` -> `_id` remap DrizzlePlaceRepository/DrizzleManagerRepository
  * do - Nationality gets the same nested-object treatment Manager's does. */
-function toPlayer(row: PlayerRow & { nationality?: PlaceRow | null }): PlayerInterface {
+function toPlayer(
+  row: PlayerRow & { nationality?: PlaceRow | null }
+): PlayerInterface {
   const { id, mongoId, nationality, ...rest } = row;
 
   return {
@@ -19,7 +21,11 @@ function toPlayer(row: PlayerRow & { nationality?: PlaceRow | null }): PlayerInt
     ...rest,
     Nationality: nationality
       ? (() => {
-          const { id: placeId, mongoId: placeMongoId, ...placeRest } = nationality;
+          const {
+            id: placeId,
+            mongoId: placeMongoId,
+            ...placeRest
+          } = nationality;
           return { _id: placeId, ...placeRest };
         })()
       : rest.Nationality,
@@ -39,9 +45,12 @@ export class DrizzlePlayerRepository implements IPlayerRepository {
 
   async findAll(filter: IPlayerFilter = {}): Promise<PlayerInterface[]> {
     const conditions = [];
-    if (filter.Club !== undefined) conditions.push(eq(players.Club, filter.Club));
-    if (filter.ClubCode !== undefined) conditions.push(eq(players.ClubCode, filter.ClubCode));
-    if (filter.isSigned !== undefined) conditions.push(eq(players.isSigned, filter.isSigned));
+    if (filter.Club !== undefined)
+      conditions.push(eq(players.Club, filter.Club));
+    if (filter.ClubCode !== undefined)
+      conditions.push(eq(players.ClubCode, filter.ClubCode));
+    if (filter.isSigned !== undefined)
+      conditions.push(eq(players.isSigned, filter.isSigned));
 
     const rows = await this.db.query.players.findMany({
       where: conditions.length ? and(...conditions) : undefined,
@@ -53,27 +62,42 @@ export class DrizzlePlayerRepository implements IPlayerRepository {
   async create(data: Partial<PlayerInterface>): Promise<PlayerInterface> {
     const [player] = await this.db
       .insert(players)
-      .values({ ...(data as typeof players.$inferInsert), updatedAt: new Date() })
+      .values({
+        ...(data as typeof players.$inferInsert),
+        updatedAt: new Date(),
+      })
       .returning();
 
     return toPlayer(player);
   }
 
-  async update(id: string, data: Partial<PlayerInterface>): Promise<PlayerInterface | null> {
+  async update(
+    id: string,
+    data: Partial<PlayerInterface>
+  ): Promise<PlayerInterface | null> {
     const [player] = await this.db
       .update(players)
-      .set({ ...(data as Partial<typeof players.$inferInsert>), updatedAt: new Date() })
+      .set({
+        ...(data as Partial<typeof players.$inferInsert>),
+        updatedAt: new Date(),
+      })
       .where(eq(players.id, id))
       .returning();
 
     return player ? toPlayer(player) : null;
   }
 
-  async updateManyByIds(ids: string[], data: Partial<PlayerInterface>): Promise<void> {
+  async updateManyByIds(
+    ids: string[],
+    data: Partial<PlayerInterface>
+  ): Promise<void> {
     if (!ids.length) return;
     await this.db
       .update(players)
-      .set({ ...(data as Partial<typeof players.$inferInsert>), updatedAt: new Date() })
+      .set({
+        ...(data as Partial<typeof players.$inferInsert>),
+        updatedAt: new Date(),
+      })
       .where(inArray(players.id, ids));
   }
 
@@ -81,9 +105,14 @@ export class DrizzlePlayerRepository implements IPlayerRepository {
     // No ON DELETE CASCADE on playerMatchDetails.Player - delete this
     // player's match-stat history first, matching the Mongo hook's
     // `PlayerMatch.deleteMany({ Player: this._id })` half of the cascade.
-    await this.db.delete(playerMatchDetails).where(eq(playerMatchDetails.Player, id));
+    await this.db
+      .delete(playerMatchDetails)
+      .where(eq(playerMatchDetails.Player, id));
 
-    const [player] = await this.db.delete(players).where(eq(players.id, id)).returning();
+    const [player] = await this.db
+      .delete(players)
+      .where(eq(players.id, id))
+      .returning();
     if (!player) {
       throw new Error(`Player [${id}] does not exist`);
     }

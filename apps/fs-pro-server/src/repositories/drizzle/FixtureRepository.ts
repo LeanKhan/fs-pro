@@ -2,7 +2,11 @@ import { and, eq, gte, inArray, lte } from 'drizzle-orm';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { Fixture as FixtureInterface } from '../../controllers/fixtures/fixture.model';
 import * as schema from '../../db/drizzle/full-schema';
-import { fixtures, clubMatchDetails, playerMatchDetails } from '../../db/drizzle/schema';
+import {
+  fixtures,
+  clubMatchDetails,
+  playerMatchDetails,
+} from '../../db/drizzle/schema';
 import { IFixtureRepository, IFixtureFilter } from '../FixtureRepository';
 
 type DrizzleDb = PostgresJsDatabase<typeof schema>;
@@ -18,7 +22,9 @@ function remapId<T extends { id: string; mongoId: string | null }>(row: T) {
   return { _id: id, ...rest };
 }
 
-function toSideDetails(row: (ClubMatchDetailsRow & { playerStats?: PlayerMatchDetailsRow[] }) | null) {
+function toSideDetails(
+  row: (ClubMatchDetailsRow & { playerStats?: PlayerMatchDetailsRow[] }) | null
+) {
   if (!row) return undefined;
   const { playerStats, ...rest } = row;
   return {
@@ -33,8 +39,12 @@ function toSideDetails(row: (ClubMatchDetailsRow & { playerStats?: PlayerMatchDe
  * comment for why that's the baseline shape, not an opt-in. */
 function toFixture(
   row: FixtureRow & {
-    homeSideDetails?: (ClubMatchDetailsRow & { playerStats?: PlayerMatchDetailsRow[] }) | null;
-    awaySideDetails?: (ClubMatchDetailsRow & { playerStats?: PlayerMatchDetailsRow[] }) | null;
+    homeSideDetails?:
+      | (ClubMatchDetailsRow & { playerStats?: PlayerMatchDetailsRow[] })
+      | null;
+    awaySideDetails?:
+      | (ClubMatchDetailsRow & { playerStats?: PlayerMatchDetailsRow[] })
+      | null;
   }
 ): FixtureInterface {
   const { id, mongoId, homeSideDetails, awaySideDetails, ...rest } = row;
@@ -42,8 +52,10 @@ function toFixture(
   return {
     _id: id,
     ...rest,
-    HomeSideDetails: toSideDetails(homeSideDetails ?? null) ?? rest.HomeSideDetails,
-    AwaySideDetails: toSideDetails(awaySideDetails ?? null) ?? rest.AwaySideDetails,
+    HomeSideDetails:
+      toSideDetails(homeSideDetails ?? null) ?? rest.HomeSideDetails,
+    AwaySideDetails:
+      toSideDetails(awaySideDetails ?? null) ?? rest.AwaySideDetails,
   } as unknown as FixtureInterface;
 }
 
@@ -63,12 +75,18 @@ export class DrizzleFixtureRepository implements IFixtureRepository {
 
   async findAll(filter: IFixtureFilter = {}): Promise<FixtureInterface[]> {
     const conditions = [];
-    if (filter.Season !== undefined) conditions.push(eq(fixtures.Season, filter.Season));
-    if (filter.Played !== undefined) conditions.push(eq(fixtures.Played, filter.Played));
-    if (filter.ids !== undefined) conditions.push(inArray(fixtures.id, filter.ids));
-    if (filter.scheduledDay !== undefined) conditions.push(eq(fixtures.ScheduledDay, filter.scheduledDay));
-    if (filter.scheduledDayFrom !== undefined) conditions.push(gte(fixtures.ScheduledDay, filter.scheduledDayFrom));
-    if (filter.scheduledDayTo !== undefined) conditions.push(lte(fixtures.ScheduledDay, filter.scheduledDayTo));
+    if (filter.Season !== undefined)
+      conditions.push(eq(fixtures.Season, filter.Season));
+    if (filter.Played !== undefined)
+      conditions.push(eq(fixtures.Played, filter.Played));
+    if (filter.ids !== undefined)
+      conditions.push(inArray(fixtures.id, filter.ids));
+    if (filter.scheduledDay !== undefined)
+      conditions.push(eq(fixtures.ScheduledDay, filter.scheduledDay));
+    if (filter.scheduledDayFrom !== undefined)
+      conditions.push(gte(fixtures.ScheduledDay, filter.scheduledDayFrom));
+    if (filter.scheduledDayTo !== undefined)
+      conditions.push(lte(fixtures.ScheduledDay, filter.scheduledDayTo));
 
     const rows = await this.db.query.fixtures.findMany({
       where: conditions.length ? and(...conditions) : undefined,
@@ -83,26 +101,42 @@ export class DrizzleFixtureRepository implements IFixtureRepository {
   async create(data: Partial<FixtureInterface>): Promise<FixtureInterface> {
     const [fixture] = await this.db
       .insert(fixtures)
-      .values({ ...(data as typeof fixtures.$inferInsert), updatedAt: new Date() })
+      .values({
+        ...(data as typeof fixtures.$inferInsert),
+        updatedAt: new Date(),
+      })
       .returning();
 
     return toFixture(fixture);
   }
 
-  async createMany(data: Partial<FixtureInterface>[]): Promise<FixtureInterface[]> {
+  async createMany(
+    data: Partial<FixtureInterface>[]
+  ): Promise<FixtureInterface[]> {
     if (data.length === 0) return [];
     const rows = await this.db
       .insert(fixtures)
-      .values(data.map((d) => ({ ...(d as typeof fixtures.$inferInsert), updatedAt: new Date() })))
+      .values(
+        data.map((d) => ({
+          ...(d as typeof fixtures.$inferInsert),
+          updatedAt: new Date(),
+        }))
+      )
       .returning();
 
     return rows.map((row) => toFixture(row));
   }
 
-  async update(id: string, data: Partial<FixtureInterface>): Promise<FixtureInterface | null> {
+  async update(
+    id: string,
+    data: Partial<FixtureInterface>
+  ): Promise<FixtureInterface | null> {
     const [fixture] = await this.db
       .update(fixtures)
-      .set({ ...(data as Partial<typeof fixtures.$inferInsert>), updatedAt: new Date() })
+      .set({
+        ...(data as Partial<typeof fixtures.$inferInsert>),
+        updatedAt: new Date(),
+      })
       .where(eq(fixtures.id, id))
       .returning();
 
@@ -110,7 +144,10 @@ export class DrizzleFixtureRepository implements IFixtureRepository {
   }
 
   async delete(id: string): Promise<FixtureInterface> {
-    const [fixture] = await this.db.delete(fixtures).where(eq(fixtures.id, id)).returning();
+    const [fixture] = await this.db
+      .delete(fixtures)
+      .where(eq(fixtures.id, id))
+      .returning();
     if (!fixture) {
       throw new Error(`Fixture [${id}] does not exist`);
     }

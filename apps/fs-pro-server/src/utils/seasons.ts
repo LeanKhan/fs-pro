@@ -294,7 +294,7 @@ function sumStandings(
 function sortStandings(standings: ClubStandings[]) {
   return standings.sort((a, b) => {
     if (b.Points === a.Points) {
-       // return b.GD - a.GF;
+      // return b.GD - a.GF;
       if (b.GD === a.GD) {
         return b.GF - a.GF;
       } else {

@@ -40,10 +40,19 @@ export interface IClubReadOptions {
  * create-without-delete gap found (and fixed) twice already.
  */
 export interface IClubRepository {
-  findById(id: string, options?: IClubReadOptions): Promise<ClubInterface | null>;
-  findAll(filter?: IClubFilter, options?: IClubReadOptions): Promise<ClubInterface[]>;
+  findById(
+    id: string,
+    options?: IClubReadOptions
+  ): Promise<ClubInterface | null>;
+  findAll(
+    filter?: IClubFilter,
+    options?: IClubReadOptions
+  ): Promise<ClubInterface[]>;
   create(data: Partial<ClubInterface>): Promise<ClubInterface>;
   createMany(data: Partial<ClubInterface>[]): Promise<ClubInterface[]>;
-  update(id: string, data: Partial<ClubInterface>): Promise<ClubInterface | null>;
+  update(
+    id: string,
+    data: Partial<ClubInterface>
+  ): Promise<ClubInterface | null>;
   delete(id: string): Promise<ClubInterface>;
 }

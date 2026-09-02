@@ -88,7 +88,7 @@ import { PostgreSQLDatabase } from '../../db/postgresql';
 import { IPlace } from '../../controllers/places/places.model';
 
 export class SQLPlaceRepository implements IPlaceRepository {
-  private prisma = (PostgreSQLDatabase.getInstance().getConnection() as any);
+  private prisma = PostgreSQLDatabase.getInstance().getConnection() as any;
 
   async findById(id: string): Promise<IPlace | null> {
     return this.prisma.place.findUnique({ where: { id } });
@@ -273,7 +273,7 @@ const sqlResult = await sqlRepo.findAll();
 if (mongoResult.length !== sqlResult.length) {
   console.warn('Data mismatch!', {
     mongo: mongoResult.length,
-    sql: sqlResult.length
+    sql: sqlResult.length,
   });
 }
 ```

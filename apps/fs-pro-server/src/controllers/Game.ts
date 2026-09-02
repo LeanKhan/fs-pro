@@ -51,7 +51,6 @@ export default class Game implements GameClass {
     field: Field,
     Co: Coordinates
   ) {
-
     this.Co = Co;
     this.Field = field;
 
@@ -88,13 +87,18 @@ export default class Game implements GameClass {
 
     this.MatchBall = new Ball('#ffffff', centerBlock, this.Match.id);
 
-    this.Referee = new Referee('Anjus', 'Banjus', 'normal', this.MatchBall, this.Match);
+    this.Referee = new Referee(
+      'Anjus',
+      'Banjus',
+      'normal',
+      this.MatchBall,
+      this.Match
+    );
 
-    this.MatchActions = new Actions(this.Referee, [
-      this.Match.Home,
-      this.Match.Away,
-    ],
-    this.Match
+    this.MatchActions = new Actions(
+      this.Referee,
+      [this.Match.Home, this.Match.Away],
+      this.Match
     );
 
     /* ---------- COUNT CLASS INSTANCES ----------- */
@@ -124,7 +128,6 @@ export default class Game implements GameClass {
    * @param awayTactic
    */
   public setClubFormations(homeTactic: ITactic, awayTactic: ITactic) {
-
     this.MatchSettings.homeTactic = homeTactic;
     this.MatchSettings.awayTactic = awayTactic;
 
@@ -210,9 +213,10 @@ export default class Game implements GameClass {
     // ball-move, the exact class of bug fixed in FieldPlayer.move() and
     // Actions.tackle()) has regressed. Warn loudly instead of silently
     // picking whichever holder Array.find() happens to see first.
-    const holders = [...this.Match.Home.StartingSquad, ...this.Match.Away.StartingSquad].filter(
-      (p) => p.WithBall
-    );
+    const holders = [
+      ...this.Match.Home.StartingSquad,
+      ...this.Match.Away.StartingSquad,
+    ].filter((p) => p.WithBall);
     if (holders.length > 1) {
       // NOTE: Block objects hold an `occupant` back-reference to a player
       // (whose own Ball -> Position can cycle back to a Block) - JSON.
@@ -222,7 +226,8 @@ export default class Game implements GameClass {
       console.warn(
         `[possession] ${holders.length} players simultaneously have WithBall (ball @ x:${ballPos.x},y:${ballPos.y}): `,
         holders.map(
-          (p) => `${p.FirstName} ${p.LastName} [${p.ClubCode}] @ x:${p.BlockPosition.x},y:${p.BlockPosition.y}`
+          (p) =>
+            `${p.FirstName} ${p.LastName} [${p.ClubCode}] @ x:${p.BlockPosition.x},y:${p.BlockPosition.y}`
         )
       );
     }
@@ -321,7 +326,7 @@ export default class Game implements GameClass {
   public matchComments() {
     const _log = console.log;
 
-    if(!this.ActivePlayerDS || !this.ActivePlayerAS){
+    if (!this.ActivePlayerDS || !this.ActivePlayerAS) {
       return _log('NO ACTIVE PLAYERS');
     }
   }

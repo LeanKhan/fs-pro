@@ -27,10 +27,14 @@ async function attachField<T extends Record<string, any>>(
   field: keyof T,
   getById: (id: string) => Promise<any>
 ): Promise<T[]> {
-  const ids = [...new Set(rows.map((r) => r[field]).filter(Boolean))] as string[];
+  const ids = [
+    ...new Set(rows.map((r) => r[field]).filter(Boolean)),
+  ] as string[];
   const resolved = await Promise.all(ids.map((id) => getById(id)));
   const map = new Map(ids.map((id, i) => [id, resolved[i]]));
-  return rows.map((r) => (r[field] ? { ...r, [field]: map.get(r[field] as string) ?? r[field] } : r));
+  return rows.map((r) =>
+    r[field] ? { ...r, [field]: map.get(r[field] as string) ?? r[field] } : r
+  );
 }
 
 /**
@@ -51,7 +55,8 @@ export async function fetchAll(
   let awardRows: any[] = await getAwardRepo().findAll(query);
   if (!populate) return awardRows;
 
-  const getRecipientById = recipient === 'manager' ? getManagerById : getPlayerById;
+  const getRecipientById =
+    recipient === 'manager' ? getManagerById : getPlayerById;
   awardRows = await attachField(awardRows, 'Recipient', getRecipientById);
 
   if (populate === 'club' || populate === 'club-season') {

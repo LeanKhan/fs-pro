@@ -11,7 +11,9 @@ import { getSeasons } from '../seasons/season.service';
  * Season-coupled) and any arbitrary-query fetch stay on the raw functions
  * below/exported, unchanged. See FUTURE-PLANS.md for the full writeup.
  */
-let competitionRepo: ReturnType<typeof CompetitionRepositoryFactory.create> | null = null;
+let competitionRepo: ReturnType<
+  typeof CompetitionRepositoryFactory.create
+> | null = null;
 
 function getCompetitionRepo() {
   if (!competitionRepo) {
@@ -32,7 +34,10 @@ export async function createCompetition(data: Partial<CompetitionInterface>) {
   return getCompetitionRepo().create(data);
 }
 
-export async function updateCompetitionFields(id: string, data: Partial<CompetitionInterface>) {
+export async function updateCompetitionFields(
+  id: string,
+  data: Partial<CompetitionInterface>
+) {
   return getCompetitionRepo().update(id, data);
 }
 
@@ -60,4 +65,3 @@ export async function getCompetitionWithClubsAndSeasons(id: string) {
 
   return { ...competition, Clubs: clubs, Seasons: seasons };
 }
-

@@ -37,7 +37,10 @@ export interface IPlayerRepository {
   findById(id: string): Promise<PlayerInterface | null>;
   findAll(filter?: IPlayerFilter): Promise<PlayerInterface[]>;
   create(data: Partial<PlayerInterface>): Promise<PlayerInterface>;
-  update(id: string, data: Partial<PlayerInterface>): Promise<PlayerInterface | null>;
+  update(
+    id: string,
+    data: Partial<PlayerInterface>
+  ): Promise<PlayerInterface | null>;
   updateManyByIds(ids: string[], data: Partial<PlayerInterface>): Promise<void>;
   delete(id: string): Promise<PlayerInterface>;
 }

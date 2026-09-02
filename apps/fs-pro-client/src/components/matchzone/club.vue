@@ -1,7 +1,8 @@
 <template>
   <div class="club-widget" :class="{ home: isHome, away: !isHome }">
     <div class="club-name">
-      {{ clubName }} <b>{{ clubCode }}</b>
+      {{ clubName }}
+      <b>{{ clubCode }}</b>
     </div>
 
     <div class="club-badge-wrap">
@@ -12,7 +13,8 @@
     <div class="club-rating">★ {{ roundTo(clubRating, 1) }}</div>
 
     <div v-if="clubStandings?.standing" class="club-standing">
-      {{ ordinal(clubStandings.position) }} - {{ clubStandings.standing.Points }} Pts
+      {{ ordinal(clubStandings.position) }} -
+      {{ clubStandings.standing.Points }} Pts
     </div>
   </div>
 </template>

@@ -1,0 +1,17 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "extends": ["../../.oxlintrc.json"],
+  "env": {
+    "node": true
+  },
+  "rules": {
+    "no-unused-vars": "off",
+    "typescript/no-non-null-assertion": "off",
+    "typescript/explicit-module-boundary-types": "off",
+    "typescript/no-unsafe-assignment": "warn",
+    "typescript/no-unsafe-call": "warn",
+    "typescript/no-unsafe-return": "warn",
+    "typescript/restrict-plus-operands": "warn",
+    "typescript/restrict-template-expressions": "warn"
+  }
+}

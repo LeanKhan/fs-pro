@@ -224,7 +224,9 @@ async function fetchPlayers() {
   const clubId = route.params.id;
 
   try {
-    const response = await $axios.get(`/players/all?clubCode=${club.value.ClubCode}`);
+    const response = await $axios.get(
+      `/players/all?clubCode=${club.value.ClubCode}`
+    );
     if (response.data.success) {
       club.value.Players = response.data.payload;
     }

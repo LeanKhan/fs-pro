@@ -180,7 +180,9 @@ const calendar = computed(() => store.calendar);
 const currentDay = computed(() => store.calendar?.CurrentDay);
 const lobby = computed(() => store.lobby);
 const formattedGameDate = computed(() =>
-  calendar.value?.CurrentDate ? new Date(calendar.value.CurrentDate).toDateString() : ''
+  calendar.value?.CurrentDate
+    ? new Date(calendar.value.CurrentDate).toDateString()
+    : ''
 );
 
 const selectedDay = computed(() => days.value[selectedDayIndex.value]);

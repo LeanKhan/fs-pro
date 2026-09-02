@@ -4,6 +4,8 @@ import { DrizzleDatabase } from '../db/drizzle';
 
 export class ClubMatchRepositoryFactory {
   static create(): IClubMatchRepository {
-    return new DrizzleClubMatchRepository(DrizzleDatabase.getInstance().database);
+    return new DrizzleClubMatchRepository(
+      DrizzleDatabase.getInstance().database
+    );
   }
 }

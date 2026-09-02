@@ -7,5 +7,8 @@ import { MatchReplayRecord } from '../controllers/match-replays/match-replay.mod
  */
 export interface IMatchReplayRepository {
   findByFixtureId(fixtureId: string): Promise<MatchReplayRecord | null>;
-  upsertByFixtureId(fixtureId: string, data: Partial<MatchReplayRecord>): Promise<MatchReplayRecord>;
+  upsertByFixtureId(
+    fixtureId: string,
+    data: Partial<MatchReplayRecord>
+  ): Promise<MatchReplayRecord>;
 }

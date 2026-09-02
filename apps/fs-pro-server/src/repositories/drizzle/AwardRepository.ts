@@ -18,7 +18,10 @@ export class DrizzleAwardRepository implements IAwardRepository {
 
   async findAll(filter: IAwardFilter = {}): Promise<AwardInterface[]> {
     const rows = await this.db.query.awards.findMany({
-      where: filter.Season !== undefined ? eq(awards.Season, filter.Season) : undefined,
+      where:
+        filter.Season !== undefined
+          ? eq(awards.Season, filter.Season)
+          : undefined,
     });
     return rows.map(toAward);
   }
@@ -27,7 +30,12 @@ export class DrizzleAwardRepository implements IAwardRepository {
     if (data.length === 0) return [];
     const rows = await this.db
       .insert(awards)
-      .values(data.map((d) => ({ ...(d as typeof awards.$inferInsert), updatedAt: new Date() })))
+      .values(
+        data.map((d) => ({
+          ...(d as typeof awards.$inferInsert),
+          updatedAt: new Date(),
+        }))
+      )
       .returning();
 
     return rows.map(toAward);
