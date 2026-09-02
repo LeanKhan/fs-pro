@@ -44,6 +44,7 @@ export class DrizzleSeasonRepository implements ISeasonRepository {
     if (filter.Competition !== undefined) conditions.push(eq(seasons.Competition, filter.Competition));
     if (filter.Calendar !== undefined) conditions.push(eq(seasons.Calendar, filter.Calendar));
     if (filter.Year !== undefined) conditions.push(eq(seasons.Year, filter.Year));
+    if (filter.SeasonCode !== undefined) conditions.push(eq(seasons.SeasonCode, filter.SeasonCode));
 
     const rows = await this.db.query.seasons.findMany({
       where: conditions.length ? and(...conditions) : undefined,

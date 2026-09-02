@@ -41,6 +41,10 @@ export async function deleteFixtureById(id: string) {
   return getFixtureRepo().delete(id);
 }
 
+export async function createFixtures(fixtures: Partial<Fixture>[]) {
+  return getFixtureRepo().createMany(fixtures);
+}
+
 /**
  * fetchAll
  */
@@ -82,10 +86,6 @@ export function fetchOneById(
   }
 
   return DB.Models.Fixture.findById(id).populate(h).populate(a).lean().exec();
-}
-
-export function createFixtures(fixtures: any[]) {
-  return DB.Models.Fixture.insertMany(fixtures, { ordered: true });
 }
 
 export function deleteById(id: string) {

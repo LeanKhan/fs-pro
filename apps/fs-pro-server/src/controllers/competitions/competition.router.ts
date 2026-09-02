@@ -7,7 +7,7 @@ import {
   updateCompetitionFields,
   deleteCompetitionById,
 } from './competition.service';
-import { fetchAll as fetchAllSeasons } from '../seasons/season.service';
+import { getSeasons } from '../seasons/season.service';
 import respond from '../../helpers/responseHandler';
 import { incrementCounter, getCurrentCounter } from '../../utils/counter';
 import { addClubToCompetition } from './competition.controller';
@@ -67,7 +67,7 @@ router.get('/:id', (req: Request, res: Response) => {
 
 /** Get all the seasons */
 router.get('/:id/seasons/all', (req: Request, res: Response) => {
-  const response = fetchAllSeasons({ Competition: req.params.id }, false, false, {field: 'CompetitionCode', dir: 1});
+  const response = getSeasons({ Competition: req.params.id });
 
   response
     .then((seasons: any) => {

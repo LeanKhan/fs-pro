@@ -24,6 +24,11 @@ export class MongoFixtureRepository implements IFixtureRepository {
     return fixture.toObject();
   }
 
+  async createMany(data: Partial<FixtureInterface>[]): Promise<FixtureInterface[]> {
+    const rows = await DB.Models.Fixture.insertMany(data, { ordered: true });
+    return rows.map((r: any) => (r.toObject ? r.toObject() : r));
+  }
+
   async update(id: string, data: Partial<FixtureInterface>): Promise<FixtureInterface | null> {
     return DB.Models.Fixture.findByIdAndUpdate(id, data, { new: true }).lean().exec();
   }

@@ -1,13 +1,15 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Request, Response, NextFunction } from 'express';
+import DB from '../db';
 import respond from '../helpers/responseHandler';
 import {
   createSeasonRecord,
+  getSeasons,
   updateSeasonFields,
 } from '../controllers/seasons/season.service';
 import {
   addSeason,
-  fetchCompetition,
+  getCompetitionWithClubsAndSeasons,
 } from '../controllers/competitions/competition.service';
 import { CompetitionInterface } from '../controllers/competitions/competition.model';
 import { createFixtures } from '../controllers/fixtures/fixture.service';
@@ -34,10 +36,16 @@ export async function create(
   competitionID: string,
   year: string
 ) {
-  const p = await incrementCounter('season_counter');
-  console.log('Counter incremented successfully!');
-
   const seasonCode = competitionCode.toUpperCase() + '-' + year;
+  const [existingSeason] = await getSeasons({ SeasonCode: seasonCode });
+
+  if (existingSeason) {
+    console.log(`Season ${seasonCode} already exists. Skipping creation.`);
+    return existingSeason;
+  }
+
+  await incrementCounter('season_counter');
+  console.log('Counter incremented successfully!');
 
   log(year);
 
@@ -60,6 +68,12 @@ export async function create(
       Title: `Season-${competitionCode}-${year}-${Math.round(
         Math.random() * 10
       )}`,
+      // Placeholders - Postgres's Seasons.StartDate/EndDate are NOT NULL
+      // (Mongo's schema never required them), and neither is meaningfully
+      // set until the season actually starts/ends (PATCH /:id/start and
+      // the finish-season flow both overwrite these with the real value).
+      StartDate: new Date(),
+      EndDate: new Date(),
     };
 
     return createSeasonRecord(data).catch((err: any) => {
@@ -77,13 +91,21 @@ export async function create(
     season_id = season._id;
     season_code = season.SeasonCode;
 
+    if (DB.ormType === 'drizzle') {
+      // Competition.Seasons doesn't exist on Postgres - Seasons.Competition
+      // (set above, in `data.Competition = competitionID`) already carries
+      // this relationship, nothing left to write. Same no-op as
+      // competition.controller.ts's addSeasonToCompetition.
+      return Promise.resolve(null);
+    }
+
     return addSeason(competitionID, season_id);
   };
 
   let competition: CompetitionInterface;
 
   const generateFixtures2 = async () => {
-    competition = await fetchCompetition(competitionID);
+    competition = await getCompetitionWithClubsAndSeasons(competitionID) as CompetitionInterface;
 
     const matchesPerWeek = competition.Clubs.length / 2;
 
@@ -225,6 +247,10 @@ export function createSeason(req: Request, res: Response, next: NextFunction) {
     req.body.data.SeasonCode = seasonCode;
     req.body.data.Calendar = cal._id;
     req.body.data.Year = cal.YearString;
+    // Placeholders if the client didn't send them - see the equivalent
+    // comment in the internal create()'s newSeason above for why.
+    req.body.data.StartDate = req.body.data.StartDate ?? new Date();
+    req.body.data.EndDate = req.body.data.EndDate ?? new Date();
     return createSeasonRecord(req.body.data).catch((err: any) => {
       throw err;
     });
@@ -266,7 +292,7 @@ export function fetchCompetitionClubs(
 ) {
   const { competitionId } = req.body.data as GenerateFixturesBody;
 
-  fetchCompetition(competitionId)
+  getCompetitionWithClubsAndSeasons(competitionId)
     .then((value: any) => {
       req.body.competition = value;
       next();

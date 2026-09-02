@@ -4,6 +4,7 @@ export interface ISeasonFilter {
   Competition?: string;
   Calendar?: string;
   Year?: string;
+  SeasonCode?: string;
 }
 
 /**
