@@ -2,10 +2,8 @@ import swaggerJsdoc from 'swagger-jsdoc';
 
 /**
  * Built from `@openapi` JSDoc blocks on route files (see `apis` below), not
- * hand-written - so it grows incrementally as each entity gets converted to
- * the repository pattern, same as `places.router.ts` already is. A route
- * with no `@openapi` block simply doesn't appear here yet; that's expected
- * mid-migration, not a bug in this file.
+ * hand-written - so it grows incrementally as each route gets one. A route
+ * with no `@openapi` block simply doesn't appear here yet.
  *
  * `apis` is resolved relative to `apps/fs-pro-server` (wherever the process
  * is started from) and reads the `.ts` source directly via `swagger-jsdoc`'s
@@ -21,22 +19,15 @@ const options: swaggerJsdoc.Options = {
       title: 'FS Pro API',
       version: '1.0.0',
       description:
-        'REST API docs for the FS Pro server, generated from JSDoc annotations on route ' +
-        'files as each one gets migrated to the Mongo/Postgres repository pattern.\n\n' +
-        'Use `GET /meta/db` to see which backend is currently active, and ' +
-        '`POST /meta/db/backend` (try it right here) to set which backend (`mongo`, ' +
-        '`drizzle`, or `prisma`) the server should use next - then restart the server ' +
-        'yourself (it does not restart itself) and re-run any request below to see it hit ' +
-        'the new backend.',
+        'REST API docs for the FS Pro server, generated from JSDoc annotations on route files. ' +
+        'Postgres (via Drizzle) is the only backend - see `GET /meta/db` for a trivial health check.',
     },
     servers: [{ url: '/api', description: 'Relative to wherever the server is running' }],
     tags: [
-      { name: 'Meta', description: 'Server/DB introspection and setting the next backend to boot into' },
+      { name: 'Meta', description: 'Server/DB health check' },
       {
         name: 'Places',
-        description:
-          'Countries/regions/cities reference data - fully wired to the repository ' +
-          'pattern (Mongo + Drizzle), see repositories/{mongo,drizzle}/PlaceRepository.ts',
+        description: 'Countries/regions/cities reference data - see repositories/drizzle/PlaceRepository.ts',
       },
     ],
   },
