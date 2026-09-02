@@ -1483,7 +1483,18 @@ first~~ - done, see the "User Phase B follow-up" entry above.
 
 ### Global, perpetual calendar (remove the Year-bootstrap ritual)
 
-**Status:** Idea only, agreed direction - not started.
+**Status:** Done. `Calendars` is now a true singleton table (`CurrentDay`/
+`CurrentDate` only - no `YearString`/`YearDigits`/real-world-date
+derivation), and `Fixtures` own their own schedule directly
+(`ScheduledDay`/`ScheduledDate` columns) instead of a `Day.Matches` array -
+"what's playing on day N" is a plain indexed column filter now, not a jsonb
+query. `setupDaysInYear`/`setupDaysInYear2`'s two competing schedulers were
+collapsed into one, built on the already-correct `RoundRobin`/
+`generateFixtureObject` in `utils/seasons.ts`. Starting a new season cycle
+is now one action (`calendar.controller.ts`'s `startNextSeasonCycle`,
+`POST /calendar/seasons/next`), not the old four-step create-calendar →
+create-seasons → generate-days → start-year ritual. See CHANGELOG.md for
+the full writeup.
 
 **Context:** Raised after hitting friction manually setting up a season for
 testing. The current system ties "the current point in time" to a real
