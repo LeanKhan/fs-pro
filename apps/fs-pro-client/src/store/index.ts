@@ -1,21 +1,39 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { Club } from '@/interfaces/club';
+// import { Club } from '@/interfaces/club';
 import { $axios, apiUrl } from '@/services/api';
 import { ICalendar } from '@/interfaces/calendar';
 
 export { apiUrl };
 
-export interface User {
-  username: string;
-  clubs: string[];
-  isAdmin: boolean;
+type Country = {
+  _id: string;
+  Fullname: string;
+  Name: string;
+  Code: string;
+  Region: string;
+  Type: string;
+};
+
+type Address = {
+  Country: Country;
+};
+
+type Club = {
+  _id: string;
+  Name: string;
+  ClubCode: string;
+  Address: Address;
+};
+
+type User = {
   userID: string;
-  session: string;
+  username: string;
+  clubs: Club[];
+  isAdmin: boolean;
   avatar: string;
   fullname: string;
-}
-
+};
 export interface Toast {
   show: boolean;
   style: string;
@@ -33,7 +51,7 @@ export const useStore = defineStore('main', () => {
     clubs: [],
     isAdmin: false,
     userID: '',
-    session: '',
+    // session: '',
     avatar: '',
     fullname: '',
   });
@@ -68,7 +86,7 @@ export const useStore = defineStore('main', () => {
       clubs: [],
       isAdmin: false,
       userID: '',
-      session: '',
+      // session: '',
       avatar: '',
       fullname: '',
     };
@@ -100,8 +118,9 @@ export const useStore = defineStore('main', () => {
     }
 
     try {
+      console.log('Clubs => ', user.value);
       const response = await $axios.get(
-        `/clubs/all?ids=${user.value.clubs.join(',')}`
+        `/clubs/all?ids=${user.value.clubs.map((club) => club._id).join(',')}`
       );
 
       if (response.data.success) {

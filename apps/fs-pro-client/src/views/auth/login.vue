@@ -5,6 +5,16 @@
         <template v-if="!showForgotSection">
           <v-list-subheader>Login to FSPro</v-list-subheader>
 
+          <v-alert
+            v-if="loginError"
+            type="error"
+            variant="tonal"
+            density="compact"
+            class="mb-4"
+          >
+            {{ loginError }}
+          </v-alert>
+
           <v-text-field
             required
             type="text"
@@ -12,20 +22,23 @@
             :disabled="loading"
             :loading="loading"
             color="green"
-            v-model="form.Username"
-          ></v-text-field>
+            v-model="Username"
+          />
 
           <v-text-field
+            :append-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
+            :rules="[rules.required, rules.min]"
+            :type="showPassword ? 'text' : 'password'"
+            class="input-group--focused"
             required
-            type="text"
             label="Password"
             :disabled="loading"
             :loading="loading"
             color="green"
-            v-model="form.Password"
-          ></v-text-field>
+            v-model="Password"
+            @click:append="showPassword = !showPassword"
+          />
         </template>
-
         <template v-else>
           <v-list-subheader>Change Password</v-list-subheader>
 
@@ -53,7 +66,12 @@
         <!-- Forgot Password -->
         <div>
           Forgot your password?
-          <v-btn variant="outlined" @click="showForgot">Change Password</v-btn>
+          <v-btn
+            variant="outlined"
+            @click="showForgotSection = !showForgotSection"
+          >
+            {{ showForgotSection ? 'I remember now' : 'Change Password' }}
+          </v-btn>
         </div>
       </v-card-text>
 
@@ -87,6 +105,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from '@/store';
 import { $axios } from '@/services/api';
+import axios from 'axios';
 
 defineOptions({
   name: 'LoginView',
@@ -95,10 +114,18 @@ defineOptions({
 const router = useRouter();
 const store = useStore();
 
-const form = ref({
-  Username: '',
-  Password: '',
-});
+const Username = ref('');
+const Password = ref('');
+
+// New Form Refs
+
+const rules = {
+  required: (value: string) => !!value || 'Required.',
+  min: (v: string) => v.length >= 8 || 'Min 8 characters',
+  // passwordMatch
+};
+
+const showPassword = ref(true);
 
 const newForm = ref({
   Username: '',
@@ -107,13 +134,16 @@ const newForm = ref({
 
 const loading = ref(false);
 const showForgotSection = ref(false);
+const loginError = ref('');
 
 async function login() {
   loading.value = true;
+  loginError.value = '';
+
   try {
     const response = await $axios.post(
       '/users/login',
-      { data: { ...form.value } },
+      { data: { Username: Username.value, Password: Password.value } },
       { withCredentials: true }
     );
 
@@ -127,20 +157,22 @@ async function login() {
         username: response.data.payload.Username,
         userID: response.data.payload._id,
         clubs: response.data.payload.Clubs,
-        session: response.data.payload.Session,
+        //session: response.data.payload.Session,
         isAdmin: response.data.payload.isAdmin,
         avatar: response.data.payload.Avatar,
         fullname: response.data.payload.FullName,
       });
 
       router.push('/u');
-    } else {
-      store.showToast({
-        message: response.data.message,
-        style: 'error',
-      });
     }
   } catch (error) {
+    if (axios.isAxiosError(error)) {
+      loginError.value =
+        error.response?.data?.message ?? 'Unable to log in. Please try again.';
+    } else {
+      loginError.value = 'Unable to log in. Please try again.';
+    }
+
     console.error('Error logging in!', error);
   } finally {
     loading.value = false;
@@ -157,11 +189,12 @@ async function submitNewPassword() {
     );
 
     if (response.data.success) {
+      console.log('User => ', response.data.payload);
       store.setUser({
         username: response.data.payload.Username,
         userID: response.data.payload._id,
         clubs: response.data.payload.Clubs,
-        session: response.data.payload.Session,
+        // session: response.data.payload.Session,
         isAdmin: response.data.payload.isAdmin,
         avatar: response.data.payload.Avatar,
         fullname: response.data.payload.FullName,
@@ -175,9 +208,5 @@ async function submitNewPassword() {
     showForgotSection.value = false;
     loading.value = false;
   }
-}
-
-function showForgot() {
-  showForgotSection.value = true;
 }
 </script>
