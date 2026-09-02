@@ -60,7 +60,7 @@
 
       <v-dialog v-model="dialog" scrollable max-width="400px">
         <template v-slot:activator="{ isActive, props }">
-          <v-btn icon v-bind="props" v-on="isActive">
+          <v-btn icon v-bind="props">
             <v-icon>mdi-dots-vertical</v-icon>
           </v-btn>
         </template>

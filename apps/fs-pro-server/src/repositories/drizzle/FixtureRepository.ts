@@ -66,8 +66,20 @@ export class DrizzleFixtureRepository implements IFixtureRepository {
     const fixture = await this.db.query.fixtures.findFirst({
       where: eq(fixtures.id, id),
       with: {
-        homeSideDetails: { with: { playerStats: true } },
-        awaySideDetails: { with: { playerStats: true } },
+        homeTeam: true,
+        awayTeam: true,
+
+        homeSideDetails: {
+          with: {
+            playerStats: true,
+          },
+        },
+
+        awaySideDetails: {
+          with: {
+            playerStats: true,
+          },
+        },
       },
     });
     return fixture ? toFixture(fixture) : null;
@@ -87,12 +99,24 @@ export class DrizzleFixtureRepository implements IFixtureRepository {
       conditions.push(gte(fixtures.ScheduledDay, filter.scheduledDayFrom));
     if (filter.scheduledDayTo !== undefined)
       conditions.push(lte(fixtures.ScheduledDay, filter.scheduledDayTo));
-
     const rows = await this.db.query.fixtures.findMany({
       where: conditions.length ? and(...conditions) : undefined,
+
       with: {
-        homeSideDetails: { with: { playerStats: true } },
-        awaySideDetails: { with: { playerStats: true } },
+        homeTeam: true,
+        awayTeam: true,
+
+        homeSideDetails: {
+          with: {
+            playerStats: true,
+          },
+        },
+
+        awaySideDetails: {
+          with: {
+            playerStats: true,
+          },
+        },
       },
     });
     return rows.map(toFixture);
