@@ -37,7 +37,7 @@ export function uploader(request: Request, res: Response, next: NextFunction) {
 
   upload(request, res, (err) => {
     if (!err) {
-     return next();
+      return next();
     }
 
     console.log('Error uploading file!');
@@ -53,12 +53,13 @@ export function tmp_uploader(
 ) {
   const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-      cb(null,
-        path.join(__dirname, `../../../tmp/uploads`)
-      );
+      cb(null, path.join(__dirname, `../../../tmp/uploads`));
     },
     filename: (req, file, cb) => {
-        cb(null, file.originalname.split('.')[0] + path.extname(file.originalname));
+      cb(
+        null,
+        file.originalname.split('.')[0] + path.extname(file.originalname)
+      );
     },
   });
 

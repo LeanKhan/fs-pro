@@ -6,8 +6,8 @@ export function roundTo(number: number, decimalPlaces: number) {
 
   try {
     decimalPlaces -= 1;
-  } catch (error) {
-    throw new Error('decimalPlaces has to be a number!');
+  } catch (error: any) {
+    throw new Error('decimalPlaces has to be a number! => ', error);
   }
 
   if (isNaN(decimalPlaces) || decimalPlaces < 0) {

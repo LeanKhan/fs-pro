@@ -15,7 +15,12 @@ import { ClubMatchDetailsInterface } from '../controllers/club-match/club-match.
  */
 export interface IClubMatchRepository {
   findById(id: string): Promise<ClubMatchDetailsInterface | null>;
-  create(data: Partial<ClubMatchDetailsInterface>): Promise<ClubMatchDetailsInterface>;
-  update(id: string, data: Partial<ClubMatchDetailsInterface>): Promise<ClubMatchDetailsInterface | null>;
+  create(
+    data: Partial<ClubMatchDetailsInterface>
+  ): Promise<ClubMatchDetailsInterface>;
+  update(
+    id: string,
+    data: Partial<ClubMatchDetailsInterface>
+  ): Promise<ClubMatchDetailsInterface | null>;
   delete(id: string): Promise<ClubMatchDetailsInterface>;
 }

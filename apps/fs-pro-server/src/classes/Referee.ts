@@ -77,15 +77,25 @@ export default class Referee {
     // proper three-way split on a 0-100 roll, most fouls drawing no card.
     const chance = Math.round(Math.random() * 100);
     const difficultyMultiplier =
-      this.Difficulty === 'tough' ? 1.5 : this.Difficulty === 'lenient' ? 0.6 : 1;
+      this.Difficulty === 'tough'
+        ? 1.5
+        : this.Difficulty === 'lenient'
+          ? 0.6
+          : 1;
 
     const redThreshold = 3 * difficultyMultiplier; // ~2-4.5% of fouls
     const yellowThreshold = 25 * difficultyMultiplier; // next ~15-37% of fouls
 
     const reason: IFoul['reason'] =
-      chance <= redThreshold ? 'red card' : chance <= yellowThreshold ? 'yellow card' : 'foul';
+      chance <= redThreshold
+        ? 'red card'
+        : chance <= yellowThreshold
+          ? 'yellow card'
+          : 'foul';
 
-    log(`Referee ruling: ${reason} (roll ${chance}, difficulty ${this.Difficulty})`);
+    log(
+      `Referee ruling: ${reason} (roll ${chance}, difficulty ${this.Difficulty})`
+    );
 
     matchEvents.emit(`${this.Match!.id}-game-halt`, {
       reason,
@@ -151,18 +161,28 @@ export default class Referee {
     if (player.WithBall) {
       const team = this.Teams!.find((t) => t.ClubCode === player.ClubCode);
       const replacement = team
-        ? CO.co.findClosestFieldPlayer(player.BlockPosition, team.ActivePlayers, player)
+        ? CO.co.findClosestFieldPlayer(
+            player.BlockPosition,
+            team.ActivePlayers,
+            player
+          )
         : undefined;
 
       if (replacement) {
         replacement.changePosition(player.BlockPosition);
         this.MatchBall.move(
-          CO.co.calculateDifference(replacement.BlockPosition, this.MatchBall.Position)
+          CO.co.calculateDifference(
+            replacement.BlockPosition,
+            this.MatchBall.Position
+          )
         );
       }
     }
 
-    matchEvents.emit(`${this.Match!.id}-player-sent-off`, { player, secondYellow } as ISentOff);
+    matchEvents.emit(`${this.Match!.id}-player-sent-off`, {
+      player,
+      secondYellow,
+    } as ISentOff);
   }
 
   public setUpSetPiece(foulData: IFoul, where: IBlock) {
@@ -291,8 +311,7 @@ export default class Referee {
   }
 
   public handleShot(data: IShot, matchActions: Actions) {
-
- // Keeper to his StartingPosition
+    // Keeper to his StartingPosition
     const defendingSide = matchActions.getPlayingSides
       .defendingSide as MatchSide;
 
@@ -396,14 +415,14 @@ export default class Referee {
      * - continue the match...
      *  */
 
-     // TODO: FINISH!
-     console.log('<<< BALL OUT >>>', outData);
+    // TODO: FINISH!
+    console.log('<<< BALL OUT >>>', outData);
     //  console.log('Free blocks -> ', CO.co.getBlocksAround(outData.where, 3));
-     /**
-      * Find the opposing team and give them the ball...
-      * */
-     // NOTE: THIS IS VERY TEMPORARY!
-      matchEvents.emit(`${this.Match!.id}-reset-formations`);
+    /**
+     * Find the opposing team and give them the ball...
+     * */
+    // NOTE: THIS IS VERY TEMPORARY!
+    matchEvents.emit(`${this.Match!.id}-reset-formations`);
   }
 
   /**
@@ -518,5 +537,5 @@ export const GamePoints = {
   Tackle: 0.25,
   Dribble: 0.5,
   Assist: 0.5,
-  Interception: 0.25
+  Interception: 0.25,
 };

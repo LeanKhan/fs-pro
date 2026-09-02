@@ -13,7 +13,9 @@ type PlayerMatchRow = typeof playerMatchDetails.$inferSelect;
  * `PlayerStats` comes back as full PlayerMatchDetails rows (via the reverse
  * `playerMatchDetails.ClubMatchDetails` FK) rather than bare ids, matching
  * Mongo's own populated shape - see IClubMatchRepository's doc comment. */
-function toClubMatch(row: ClubMatchRow & { playerStats?: PlayerMatchRow[] }): ClubMatchDetailsInterface {
+function toClubMatch(
+  row: ClubMatchRow & { playerStats?: PlayerMatchRow[] }
+): ClubMatchDetailsInterface {
   const { id, mongoId, playerStats, ...rest } = row;
   return {
     _id: id,
@@ -36,19 +38,30 @@ export class DrizzleClubMatchRepository implements IClubMatchRepository {
     return row ? toClubMatch(row) : null;
   }
 
-  async create(data: Partial<ClubMatchDetailsInterface>): Promise<ClubMatchDetailsInterface> {
+  async create(
+    data: Partial<ClubMatchDetailsInterface>
+  ): Promise<ClubMatchDetailsInterface> {
     const [row] = await this.db
       .insert(clubMatchDetails)
-      .values({ ...(data as typeof clubMatchDetails.$inferInsert), updatedAt: new Date() })
+      .values({
+        ...(data as typeof clubMatchDetails.$inferInsert),
+        updatedAt: new Date(),
+      })
       .returning();
 
     return toClubMatch({ ...row, playerStats: [] });
   }
 
-  async update(id: string, data: Partial<ClubMatchDetailsInterface>): Promise<ClubMatchDetailsInterface | null> {
+  async update(
+    id: string,
+    data: Partial<ClubMatchDetailsInterface>
+  ): Promise<ClubMatchDetailsInterface | null> {
     const [row] = await this.db
       .update(clubMatchDetails)
-      .set({ ...(data as Partial<typeof clubMatchDetails.$inferInsert>), updatedAt: new Date() })
+      .set({
+        ...(data as Partial<typeof clubMatchDetails.$inferInsert>),
+        updatedAt: new Date(),
+      })
       .where(eq(clubMatchDetails.id, id))
       .returning();
 
@@ -56,7 +69,10 @@ export class DrizzleClubMatchRepository implements IClubMatchRepository {
   }
 
   async delete(id: string): Promise<ClubMatchDetailsInterface> {
-    const [row] = await this.db.delete(clubMatchDetails).where(eq(clubMatchDetails.id, id)).returning();
+    const [row] = await this.db
+      .delete(clubMatchDetails)
+      .where(eq(clubMatchDetails.id, id))
+      .returning();
     if (!row) {
       throw new Error(`ClubMatchDetails [${id}] does not exist`);
     }

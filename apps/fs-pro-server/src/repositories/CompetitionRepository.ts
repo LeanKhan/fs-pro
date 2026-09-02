@@ -28,6 +28,9 @@ export interface ICompetitionRepository {
   findById(id: string): Promise<CompetitionInterface | null>;
   findAll(filter?: ICompetitionFilter): Promise<CompetitionInterface[]>;
   create(data: Partial<CompetitionInterface>): Promise<CompetitionInterface>;
-  update(id: string, data: Partial<CompetitionInterface>): Promise<CompetitionInterface | null>;
+  update(
+    id: string,
+    data: Partial<CompetitionInterface>
+  ): Promise<CompetitionInterface | null>;
   delete(id: string): Promise<CompetitionInterface>;
 }

@@ -29,16 +29,30 @@ export interface IReplayableMatch {
  * only generated inside the same request that starts the replay, leaving no
  * practical window to join the room first.
  */
-export function replayMatch(match: IReplayableMatch, fixtureId: string, tickMs = DEFAULT_TICK_MS): Promise<void> {
+export function replayMatch(
+  match: IReplayableMatch,
+  fixtureId: string,
+  tickMs = DEFAULT_TICK_MS
+): Promise<void> {
   return new Promise((resolve) => {
     const room = getMatchReplayNamespace().to(fixtureId);
 
-    console.log(`[replay] starting ${fixtureId}: ${match.Frames.length} frames @ ${tickMs}ms`);
+    console.log(
+      `[replay] starting ${fixtureId}: ${match.Frames.length} frames @ ${tickMs}ms`
+    );
 
     room.emit('match-replay-start', {
       fixtureId,
-      home: { id: match.Home._id, name: match.Home.Name, code: match.Home.ClubCode },
-      away: { id: match.Away._id, name: match.Away.Name, code: match.Away.ClubCode },
+      home: {
+        id: match.Home._id,
+        name: match.Home.Name,
+        code: match.Home.ClubCode,
+      },
+      away: {
+        id: match.Away._id,
+        name: match.Away.Name,
+        code: match.Away.ClubCode,
+      },
       totalFrames: match.Frames.length,
       tickMs,
     });
@@ -62,7 +76,11 @@ export function replayMatch(match: IReplayableMatch, fixtureId: string, tickMs =
 }
 
 /** Fire-and-forget wrapper so callers don't need their own .catch. */
-export function startMatchReplay(match: IReplayableMatch, fixtureId: string, tickMs?: number): void {
+export function startMatchReplay(
+  match: IReplayableMatch,
+  fixtureId: string,
+  tickMs?: number
+): void {
   replayMatch(match, fixtureId, tickMs).catch((err) => {
     console.error(`[replay] error replaying match ${fixtureId}:`, err);
   });

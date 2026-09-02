@@ -1,7 +1,9 @@
 import { IReplayableMatch } from '../../realtime/matchBroadcaster';
 import { MatchReplayRepositoryFactory } from '../../repositories/MatchReplayRepositoryFactory';
 
-let matchReplayRepo: ReturnType<typeof MatchReplayRepositoryFactory.create> | null = null;
+let matchReplayRepo: ReturnType<
+  typeof MatchReplayRepositoryFactory.create
+> | null = null;
 
 function getMatchReplayRepo() {
   if (!matchReplayRepo) {

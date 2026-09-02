@@ -25,15 +25,20 @@ router.get('/', (req, res) => {
       options = JSON.parse(options);
     }
   } catch (err) {
-  return  respond.fail(res, 400, 'Error fetching players', (err as Error).toString());
-    log(`Error parsing JSON => ${err}`);
+    return respond.fail(
+      res,
+      400,
+      'Error fetching players',
+      (err as Error).toString()
+    );
   }
 
   // populate=Club now goes through the repository too, with Club selected
   // down to Name/ClubCode/LeagueCode (see IManagerReadOptions.withClub) -
   // same projection the old raw `.populate('Club', 'Name ClubCode
   // LeagueCode')` call used.
-  const populate = typeof req.query.populate === 'string' ? req.query.populate : undefined;
+  const populate =
+    typeof req.query.populate === 'string' ? req.query.populate : undefined;
   const response =
     populate === 'Club'
       ? getManagers(options as Record<string, unknown>, { withClub: true })
@@ -49,7 +54,6 @@ router.get('/', (req, res) => {
 });
 
 router.get('/unemployed', (req, res) => {
-
   getManagers({ isEmployed: false }, { withClub: true })
     .then((managers) => {
       respond.success(res, 200, 'Managers fetched successfully', managers);
@@ -65,7 +69,10 @@ router.get('/:id', (req, res) => {
   const { id } = req.params;
   let po = false;
   try {
-    po = req.query.populate && typeof req.query.populate === 'string' && JSON.parse(req.query.populate);
+    po =
+      req.query.populate &&
+      typeof req.query.populate === 'string' &&
+      JSON.parse(req.query.populate);
   } catch (err) {
     console.error('Error fetching manager, ', (err as Error).toString());
     return respond.fail(
@@ -76,7 +83,9 @@ router.get('/:id', (req, res) => {
     );
   }
 
-  const response = po ? getManagerById(id, { withClub: true }) : getManagerById(id);
+  const response = po
+    ? getManagerById(id, { withClub: true })
+    : getManagerById(id);
 
   response
     .then((m) => {

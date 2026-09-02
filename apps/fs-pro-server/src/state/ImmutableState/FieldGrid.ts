@@ -92,7 +92,7 @@ export default class Field {
           key: `P${blockNumber}`,
           isFlank: this.checkIfFlank(x, y, xBlocks, yBlocks),
           isEnds: this.checkIfEnds(x, y, xBlocks, yBlocks),
-          Field: this
+          Field: this,
         });
         // After each push increment the counter
         blockNumber++;

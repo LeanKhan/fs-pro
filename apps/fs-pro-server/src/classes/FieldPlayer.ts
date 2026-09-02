@@ -18,7 +18,8 @@ abstract class FieldPlayerClass {
 // tslint:disable-next-line: max-classes-per-file
 export default class FieldPlayer
   extends Player
-  implements IFieldPlayer, FieldPlayerClass {
+  implements IFieldPlayer, FieldPlayerClass
+{
   public static instances = 0;
   public Points = 0;
   public Substitute: boolean;
@@ -145,7 +146,7 @@ export default class FieldPlayer
     this.isStarting = true;
   }
 
-  public changeStartingPosition(block: IBlock){
+  public changeStartingPosition(block: IBlock) {
     this.StartingPosition = block;
   }
 

@@ -35,7 +35,10 @@ export class DrizzleCalendarRepository implements ICalendarRepository {
 
     const [updated] = await this.db
       .update(calendars)
-      .set({ ...(data as Partial<typeof calendars.$inferInsert>), updatedAt: new Date() })
+      .set({
+        ...(data as Partial<typeof calendars.$inferInsert>),
+        updatedAt: new Date(),
+      })
       .where(eq(calendars.id, _id as string))
       .returning();
 

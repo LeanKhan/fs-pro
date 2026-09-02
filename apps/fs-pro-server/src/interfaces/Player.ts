@@ -114,10 +114,10 @@ export interface IGameStats extends IPlayerStats {
 }
 
 export enum IPlayingPosition {
-  'ATT',
-  'DEF',
-  'GK',
-  'MID',
+  ATT,
+  DEF,
+  GK,
+  MID,
 }
 
 export const ST_Multipliers: Multipliers = {

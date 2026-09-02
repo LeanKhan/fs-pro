@@ -1,8 +1,12 @@
 import { CalendarInterface } from './calendar.model';
 import { CalendarRepositoryFactory } from '../../repositories/CalendarRepositoryFactory';
-import { allFixturesPlayedForDay, findNextUnplayedDay } from '../fixtures/fixture.service';
+import {
+  allFixturesPlayedForDay,
+  findNextUnplayedDay,
+} from '../fixtures/fixture.service';
 
-let calendarRepo: ReturnType<typeof CalendarRepositoryFactory.create> | null = null;
+let calendarRepo: ReturnType<typeof CalendarRepositoryFactory.create> | null =
+  null;
 
 function getCalendarRepo() {
   if (!calendarRepo) {
@@ -16,7 +20,9 @@ export async function getCalendar(): Promise<CalendarInterface> {
   return getCalendarRepo().get();
 }
 
-export async function updateCalendar(data: Partial<CalendarInterface>): Promise<CalendarInterface> {
+export async function updateCalendar(
+  data: Partial<CalendarInterface>
+): Promise<CalendarInterface> {
   return getCalendarRepo().update(data);
 }
 
@@ -28,7 +34,9 @@ export async function updateCalendar(data: Partial<CalendarInterface>): Promise<
  * arrays to answer the same two questions ("is today done" / "what's the
  * next playable day").
  */
-export async function advanceDayIfDone(scheduledDay: number): Promise<CalendarInterface | null> {
+export async function advanceDayIfDone(
+  scheduledDay: number
+): Promise<CalendarInterface | null> {
   const done = await allFixturesPlayedForDay(scheduledDay);
   if (!done) {
     return null;

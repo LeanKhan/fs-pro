@@ -31,7 +31,9 @@ async function main() {
   const sql = dz.sql;
 
   for (const { name, startWith } of SEQUENCES) {
-    await sql.unsafe(`CREATE SEQUENCE IF NOT EXISTS "${name}" START WITH ${startWith}`);
+    await sql.unsafe(
+      `CREATE SEQUENCE IF NOT EXISTS "${name}" START WITH ${startWith}`
+    );
     console.log(`Ensured sequence ${name} (start ${startWith})`);
   }
 

@@ -27,16 +27,31 @@ export const calculateClubRating: RequestHandler = (
       let total_rating: number | undefined;
 
       if (ratings.length !== 0) {
-        total_rating = ratings.reduce((sum: number, { avg_rating }: { avg_rating: number }) => {
-          return (sum += avg_rating);
-        }, 0);
+        total_rating = ratings.reduce(
+          (sum: number, { avg_rating }: { avg_rating: number }) => {
+            return (sum += avg_rating);
+          },
+          0
+        );
       }
 
-      const attClass = getRatingValues(ratings.find((r: RatingObject) => r.position === 'ATT')) +
-      getRatingValues(ratings.find((r: RatingObject) => r.position === 'MID')) / 2;
+      const attClass =
+        getRatingValues(
+          ratings.find((r: RatingObject) => r.position === 'ATT')
+        ) +
+        getRatingValues(
+          ratings.find((r: RatingObject) => r.position === 'MID')
+        ) /
+          2;
 
-      const defClass = getRatingValues(ratings.find((r: RatingObject) => r.position === 'GK')) +
-      getRatingValues(ratings.find((r: RatingObject) => r.position === 'DEF')) / 2;
+      const defClass =
+        getRatingValues(
+          ratings.find((r: RatingObject) => r.position === 'GK')
+        ) +
+        getRatingValues(
+          ratings.find((r: RatingObject) => r.position === 'DEF')
+        ) /
+          2;
 
       const avg_total_rating = total_rating ? total_rating / ratings.length : 0;
 
@@ -69,7 +84,12 @@ export const calculateClubRating: RequestHandler = (
         });
     })
     .catch((err: any) => {
-      return respond.fail(res, 400, 'Error updating Players and Clubs', err.toString());
+      return respond.fail(
+        res,
+        400,
+        'Error updating Players and Clubs',
+        err.toString()
+      );
     });
 };
 
@@ -86,19 +106,24 @@ export function updateAllClubsRating(req: Request, res: Response) {
         let total_rating: number | undefined;
 
         if (ratings.length !== 0) {
-          total_rating = ratings.reduce((sum: number, { avg_rating }: { avg_rating: number }) => {
-            return (sum += avg_rating);
-          }, 0);
+          total_rating = ratings.reduce(
+            (sum: number, { avg_rating }: { avg_rating: number }) => {
+              return (sum += avg_rating);
+            },
+            0
+          );
         }
 
         const attClass =
           (ratings.find((r: RatingObject) => r.position === 'ATT')!.avg_rating +
-            ratings.find((r: RatingObject) => r.position === 'MID')!.avg_rating) /
+            ratings.find((r: RatingObject) => r.position === 'MID')!
+              .avg_rating) /
           2;
 
         const defClass =
           (ratings.find((r: RatingObject) => r.position === 'GK')!.avg_rating +
-            ratings.find((r: RatingObject) => r.position === 'DEF')!.avg_rating) /
+            ratings.find((r: RatingObject) => r.position === 'DEF')!
+              .avg_rating) /
           2;
 
         const avg_total_rating = total_rating
@@ -132,8 +157,12 @@ export function updateAllClubsRating(req: Request, res: Response) {
   allClubs()
     .then(runAll)
     .then((c) => {
-      console.log('Calendar Year Ended Successfully!')
-      return respond.success(res, 200, 'Players and Clubs updated successfully! Year ENDED :)');
+      console.log('Calendar Year Ended Successfully!');
+      return respond.success(
+        res,
+        200,
+        'Players and Clubs updated successfully! Year ENDED :)'
+      );
     })
     .catch((err) => {
       console.log('Error updating Clubs!');

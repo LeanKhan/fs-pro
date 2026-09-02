@@ -1,32 +1,31 @@
 {
   "name": "fs-pro",
   "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "build": "turbo build",
     "dev": "dotenv -- turbo dev",
     "dev:client": "dotenv -- turbo dev --filter=fs-pro-client",
     "dev:server": "dotenv -- turbo dev --filter=fs-pro-server",
-    "lint": "turbo lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix"
   },
   "devDependencies": {
-    "@repo/eslint-config": "*",
     "@repo/typescript-config": "*",
     "dotenv-cli": "^7.4.1",
     "drizzle-orm": "^0.45.2",
+    "oxfmt": "^0.66.0",
+    "oxlint": "^1.81.0",
     "postgres": "^3.4.9",
-    "prettier": "^3.2.5",
     "turbo": "latest"
   },
   "engines": {
     "node": ">=18"
   },
-  "packageManager": "npm@8.19.2",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
-  "dependencies": {
-    "eslint-plugin-vuetify": "^2.5.3"
-  }
+  "packageManager": "npm@8.19.2"
 }

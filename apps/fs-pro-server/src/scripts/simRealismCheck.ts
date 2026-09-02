@@ -68,7 +68,9 @@ const REFERENCE_RANGES: Record<string, [number, number]> = {
 const MAX_TICKS_PER_MATCH = 180;
 const TICK_CAPPED_METRICS = new Set(['Passes per team']);
 
-function pickTwoDistinctClubs(clubs: ClubInterface[]): [ClubInterface, ClubInterface] {
+function pickTwoDistinctClubs(
+  clubs: ClubInterface[]
+): [ClubInterface, ClubInterface] {
   const a = clubs[Math.floor(Math.random() * clubs.length)];
   let b = clubs[Math.floor(Math.random() * clubs.length)];
   while (b._id === a._id) {
@@ -77,7 +79,10 @@ function pickTwoDistinctClubs(clubs: ClubInterface[]): [ClubInterface, ClubInter
   return [a, b];
 }
 
-async function simulateOneMatch(homeId: string, awayId: string): Promise<IMatchSummary | null> {
+async function simulateOneMatch(
+  homeId: string,
+  awayId: string
+): Promise<IMatchSummary | null> {
   const app = new App();
 
   await app.setupGame([homeId, awayId], { home: homeId, away: awayId });
@@ -87,7 +92,8 @@ async function simulateOneMatch(homeId: string, awayId: string): Promise<IMatchS
     return null;
   }
 
-  const countEvents = (type: string) => match.Events.filter((e) => e.type === type).length;
+  const countEvents = (type: string) =>
+    match.Events.filter((e) => e.type === type).length;
 
   const home = match.Details.HomeTeamDetails;
   const away = match.Details.AwayTeamDetails;
@@ -103,7 +109,8 @@ async function simulateOneMatch(homeId: string, awayId: string): Promise<IMatchS
     shotsPerTeam: (home.TotalShots + away.TotalShots) / 2,
     shotsOnTargetPerTeam: (home.ShotsOnTarget + away.ShotsOnTarget) / 2,
     passesPerTeam: completedPasses / 2,
-    passCompletionPct: passAttempts > 0 ? (completedPasses / passAttempts) * 100 : 0,
+    passCompletionPct:
+      passAttempts > 0 ? (completedPasses / passAttempts) * 100 : 0,
     tacklesPerTeam: countEvents('tackle') / 2,
     dribblesPerTeam: countEvents('dribble') / 2,
     interceptionsPerTeam: interceptions / 2,
@@ -125,14 +132,20 @@ function printReport(summaries: IMatchSummary[]): void {
     'Passes per team': summaries.map((s) => s.passesPerTeam),
     'Pass completion % (match-wide)': summaries.map((s) => s.passCompletionPct),
     'Tackles per team (approx.)': summaries.map((s) => s.tacklesPerTeam),
-    'Dribbles (successful) per team (approx.)': summaries.map((s) => s.dribblesPerTeam),
-    'Interceptions per team (approx.)': summaries.map((s) => s.interceptionsPerTeam),
+    'Dribbles (successful) per team (approx.)': summaries.map(
+      (s) => s.dribblesPerTeam
+    ),
+    'Interceptions per team (approx.)': summaries.map(
+      (s) => s.interceptionsPerTeam
+    ),
     'Fouls per team': summaries.map((s) => s.foulsPerTeam),
     'Yellow cards per team': summaries.map((s) => s.yellowCardsPerTeam),
     'Red cards per team': summaries.map((s) => s.redCardsPerTeam),
   };
 
-  console.log(`\n=== Realism check over ${summaries.length} simulated matches ===\n`);
+  console.log(
+    `\n=== Realism check over ${summaries.length} simulated matches ===\n`
+  );
 
   const rows = Object.entries(metrics).map(([label, values]) => {
     const mean = average(values);
@@ -147,7 +160,11 @@ function printReport(summaries: IMatchSummary[]): void {
       'Sim avg': mean.toFixed(1),
       'Sim min-max': `${min.toFixed(1)} - ${max.toFixed(1)}`,
       'Real-world range': `${lo} - ${hi}`,
-      Verdict: tickCapped ? 'CAPPED BY DESIGN' : inRange ? 'OK' : 'OUT OF RANGE',
+      Verdict: tickCapped
+        ? 'CAPPED BY DESIGN'
+        : inRange
+          ? 'OK'
+          : 'OUT OF RANGE',
     };
   });
 
@@ -182,9 +199,9 @@ async function main() {
   console.log(`Connecting to database...`);
   await DB.start();
 
-  const clubs = (await getClubs(undefined, { withPlayersAndManager: true })).filter(
-    (c: ClubInterface) => c.Players?.length >= 11
-  );
+  const clubs = (
+    await getClubs(undefined, { withPlayersAndManager: true })
+  ).filter((c: ClubInterface) => c.Players?.length >= 11);
 
   if (clubs.length < 2) {
     throw new Error(
@@ -192,7 +209,9 @@ async function main() {
     );
   }
 
-  console.log(`Simulating ${count} matches from a pool of ${clubs.length} clubs...\n`);
+  console.log(
+    `Simulating ${count} matches from a pool of ${clubs.length} clubs...\n`
+  );
 
   const summaries: IMatchSummary[] = [];
 
@@ -214,10 +233,15 @@ async function main() {
             `${summary.goalsTotal} goals, ${(summary.shotsPerTeam * 2).toFixed(0)} shots total`
         );
       } else {
-        console.log(`[${i + 1}/${count}] ${home.ClubCode} vs ${away.ClubCode} - simulation returned no result, skipped`);
+        console.log(
+          `[${i + 1}/${count}] ${home.ClubCode} vs ${away.ClubCode} - simulation returned no result, skipped`
+        );
       }
     } catch (err) {
-      console.error(`[${i + 1}/${count}] ${home.ClubCode} vs ${away.ClubCode} - failed:`, err);
+      console.error(
+        `[${i + 1}/${count}] ${home.ClubCode} vs ${away.ClubCode} - failed:`,
+        err
+      );
     }
   }
 

@@ -24,17 +24,6 @@
         ".env"
       ]
     },
-    "lint": {
-      "inputs": [
-        ".env.development.local",
-        ".env.development",
-        ".env.local",
-        ".env"
-      ],
-      "dependsOn": [
-        "^lint"
-      ]
-    },
     "dev": {
       "cache": false,
       "persistent": true

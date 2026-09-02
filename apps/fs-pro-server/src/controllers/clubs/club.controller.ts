@@ -1,7 +1,10 @@
 import respond from '../../helpers/responseHandler';
 import { NextFunction, Request, Response } from 'express';
 import { ManagerInterface } from '../managers/manager.model';
-import { getManagerById, appendManagerRecord } from '../managers/manager.service';
+import {
+  getManagerById,
+  appendManagerRecord,
+} from '../managers/manager.service';
 import {
   createManyClubs,
   getClubById,
@@ -25,7 +28,11 @@ export const upload_csv = multer({ dest: 'tmp/csv/' });
 export function updateClubs(req: Request, res: Response, next: NextFunction) {
   const { clubs, userID } = req.body;
 
-  Promise.all(((clubs ?? []) as string[]).map((clubId) => updateClubFields(clubId, { User: userID })))
+  Promise.all(
+    ((clubs ?? []) as string[]).map((clubId) =>
+      updateClubFields(clubId, { User: userID })
+    )
+  )
     .then(() => {
       return next();
     })
@@ -192,15 +199,18 @@ export function removeManagerFromClub(req: Request, res: Response) {
 // Rating and the Position Ratings
 
 const groupBy = function (data: any[], key: string) {
-  return data.reduce(function (storage: any, item: any) {
-    const group = item[key];
+  return data.reduce(
+    function (storage: any, item: any) {
+      const group = item[key];
 
-    storage[group] = storage[group] || [];
+      storage[group] = storage[group] || [];
 
-    storage[group].push(item);
+      storage[group].push(item);
 
-    return storage;
-  }, {} as Record<string, any[]>);
+      return storage;
+    },
+    {} as Record<string, any[]>
+  );
 };
 
 /**
@@ -210,7 +220,6 @@ const groupBy = function (data: any[], key: string) {
  *
  */
 export async function createManyClubsFromCSV(req: Request, res: Response) {
-
   let data: { data: any[]; rowCount: number } = { data: [], rowCount: 0 };
 
   // Competition.Clubs doesn't exist on Postgres - each club's own `League`
@@ -248,32 +257,43 @@ export async function createManyClubsFromCSV(req: Request, res: Response) {
     let club_ids: string[] = [];
     let created_clubs: any[] = [];
     createManyClubs(data.data)
-    .then((clubs: any) => {
-      // get ids...
-      club_ids = clubs.map((club: any) => club._id);
-      created_clubs = clubs;
-      return  Promise.all([saveClubsInUser(clubs), saveClubsInCompetition(clubs)])
-      // return clubs;
-    })
-    // .then(saveClubsInUser)
-    .then((c: any) => {
-      console.log('Updated Users and  Clubs => ', c);
-      return club_ids;
-    })
-    // .then(saveClubsInCompetition)
-    .then((comp: any) => {
-
-      log('Clubs created successfully from upload');
-      return respond.success(res, 200, 'Clubs created and Competition updated successfully!', created_clubs);
-    })
-    .catch((err: any) => {
-      console.error(err);
-      console.log('Failed to create Clubs and update Competition!', err);
-      return respond.fail(res, 400, 'Failed to add Days to Calendar', err);
-    });
-
+      .then((clubs: any) => {
+        // get ids...
+        club_ids = clubs.map((club: any) => club._id);
+        created_clubs = clubs;
+        return Promise.all([
+          saveClubsInUser(clubs),
+          saveClubsInCompetition(clubs),
+        ]);
+        // return clubs;
+      })
+      // .then(saveClubsInUser)
+      .then((c: any) => {
+        console.log('Updated Users and  Clubs => ', c);
+        return club_ids;
+      })
+      // .then(saveClubsInCompetition)
+      .then((comp: any) => {
+        log('Clubs created successfully from upload');
+        return respond.success(
+          res,
+          200,
+          'Clubs created and Competition updated successfully!',
+          created_clubs
+        );
+      })
+      .catch((err: any) => {
+        console.error(err);
+        console.log('Failed to create Clubs and update Competition!', err);
+        return respond.fail(res, 400, 'Failed to add Days to Calendar', err);
+      });
   } catch (err) {
     console.error('ERROR READING CSV ', err);
-    return respond.fail(res, 400, 'Error reading CSV File', (err as Error).toString());
+    return respond.fail(
+      res,
+      400,
+      'Error reading CSV File',
+      (err as Error).toString()
+    );
   }
 }

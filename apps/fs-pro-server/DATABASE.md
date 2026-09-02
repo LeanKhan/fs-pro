@@ -32,10 +32,12 @@ DATABASE_URL="postgresql://user:password@localhost:5432/fspro?schema=public"
 ### 1. Install PostgreSQL
 
 **Option A: Local Installation**
+
 - Download from [postgresql.org](https://www.postgresql.org/download/)
 - Or use Docker: `docker run --name fspro-postgres -e POSTGRES_PASSWORD=mysecret -p 5432:5432 -d postgres`
 
 **Option B: Cloud Database**
+
 - [Supabase](https://supabase.com) (Free tier available)
 - [Neon](https://neon.tech) (Free tier available)
 - [Railway](https://railway.app) (Free tier available)
@@ -146,17 +148,20 @@ npx prisma db push
 ## Troubleshooting
 
 ### "Prisma Client not found"
+
 ```bash
 cd apps/fs-pro-server
 npx prisma generate
 ```
 
 ### Connection errors
+
 - Check `DATABASE_URL` format
 - Ensure PostgreSQL is running
 - Verify credentials and database exists
 
 ### TypeScript errors
+
 ```bash
 npm run tsc
 ```

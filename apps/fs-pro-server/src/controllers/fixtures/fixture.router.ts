@@ -1,6 +1,10 @@
 import { Router } from 'express';
 import respond from '../../helpers/responseHandler';
-import { getFixtureById, getFixtures, deleteFixtureById } from './fixture.service';
+import {
+  getFixtureById,
+  getFixtures,
+  deleteFixtureById,
+} from './fixture.service';
 
 const router = Router();
 
@@ -8,14 +12,22 @@ const router = Router();
  * `scheduledDayFrom`/`scheduledDayTo` range (optionally narrowed to
  * `played`) - powers the client's "upcoming days" dashboard view. */
 router.get('/', (req, res) => {
-  const { season, scheduledDay, scheduledDayFrom, scheduledDayTo, played } = req.query;
+  const { season, scheduledDay, scheduledDayFrom, scheduledDayTo, played } =
+    req.query;
 
   getFixtures({
     Season: typeof season === 'string' ? season : undefined,
     Played: typeof played === 'string' ? played === 'true' : undefined,
-    scheduledDay: typeof scheduledDay === 'string' ? parseInt(scheduledDay, 10) : undefined,
-    scheduledDayFrom: typeof scheduledDayFrom === 'string' ? parseInt(scheduledDayFrom, 10) : undefined,
-    scheduledDayTo: typeof scheduledDayTo === 'string' ? parseInt(scheduledDayTo, 10) : undefined,
+    scheduledDay:
+      typeof scheduledDay === 'string' ? parseInt(scheduledDay, 10) : undefined,
+    scheduledDayFrom:
+      typeof scheduledDayFrom === 'string'
+        ? parseInt(scheduledDayFrom, 10)
+        : undefined,
+    scheduledDayTo:
+      typeof scheduledDayTo === 'string'
+        ? parseInt(scheduledDayTo, 10)
+        : undefined,
   })
     .then((fixtures) => {
       respond.success(res, 200, 'Fixtures fetched successfully', fixtures);

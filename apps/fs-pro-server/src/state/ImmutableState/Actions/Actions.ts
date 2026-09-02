@@ -65,9 +65,12 @@ export class Actions {
       this.referee.handleShot(data, this);
     });
 
-    matchEvents.on(`${this.match.id}-setting-playing-sides`, (data: IMatchData) => {
-      this.setSides(data);
-    });
+    matchEvents.on(
+      `${this.match.id}-setting-playing-sides`,
+      (data: IMatchData) => {
+        this.setSides(data);
+      }
+    );
   }
 
   get getPlayingSides(): IMatchData {
@@ -307,7 +310,7 @@ export class Actions {
         matchEvents.emit(`${this.match.id}-pass-intercepted`, {
           passer: player,
           interceptor: interceptor,
-          intercepted: true
+          intercepted: true,
         } as IPass);
 
         situation = { status: true, reason: 'pass intercepted' };
@@ -339,8 +342,8 @@ export class Actions {
           // const ball = ref;
 
           situation = {
-              status: true,
-              reason: 'move towards ball'
+            status: true,
+            reason: 'move towards ball',
           };
 
           // // Find the path to the ball
@@ -361,15 +364,15 @@ export class Actions {
           // }
           break;
 
-      case 'fallback':
+        case 'fallback':
           // const keepingSide = ref;
 
           // // Find the path to the ball
           // path = CO.co.findPath(keepingSide, player.BlockPosition);
 
-           situation = {
-              status: true,
-              reason: 'move fallback',
+          situation = {
+            status: true,
+            reason: 'move fallback',
           };
 
           // Make move towards that path
@@ -389,128 +392,124 @@ export class Actions {
           break;
 
         case 'forward':
-
           situation = { status: true, reason: 'move forward' };
 
-        break;
-      };
+          break;
+      }
 
-          const opponentBlock = this.findMarkingOpponent(
-            player,
-            around
-          ) as IFieldPlayer;
+      const opponentBlock = this.findMarkingOpponent(
+        player,
+        around
+      ) as IFieldPlayer;
 
-          log('Moving Forward!');
-          // r being where you want to move the player to
-          const r = ref;
+      log('Moving Forward!');
+      // r being where you want to move the player to
+      const r = ref;
 
-          // asin x: -1 or y: 1
-          // const p = CO.co.findPath(ref, player.BlockPosition);
+      // asin x: -1 or y: 1
+      // const p = CO.co.findPath(ref, player.BlockPosition);
 
-          // If there is no marking opponent nearby just move
-          // But if there is a marking opponent nearby, the opponent will try to take the ball from
-          // the attackingPlayer
-          if (!opponentBlock) {
-            if (this.makeMove(player, path, around)) {
-              situation.status = true;
-            } else if (player.WithBall) {
-              // path was {x:0,y:0} - this player already reached their
-              // computed forward-shape target (see getShapeTarget) and
-              // there's no marking opponent to dribble/tackle past either.
-              // That target never changes on its own, so without this
-              // fallback the ball carrier would freeze in place holding
-              // the ball for the rest of the match (observed for 65+
-              // straight ticks in a real game). Look up the player's own
-              // squad directly rather than assuming this.attackingSide/
-              // defendingSide line up with them - move() is also called
-              // for defending-side players elsewhere in this class.
-              const playerSquad = this.teams.find((t) => t.ClubCode === player.ClubCode);
-              const opponentSquad = this.teams.find((t) => t.ClubCode !== player.ClubCode);
-              if (playerSquad && opponentSquad) {
-                this.pass(player, 'short', playerSquad, opponentSquad);
-                situation = {
-                  status: true,
-                  reason: `move ${type} had nowhere further to go, passed instead`,
-                };
-              } else {
-                situation.status = false;
-              }
-            } else {
-              situation.status = false;
-            }
-            // If the player is with the ball and there is a bad guy around
-          } else if (player.WithBall && opponentBlock) {
-            // Tackle about to happen :0
-            log(
-              `Ball x,y => ${player.Ball.Position.x} ${player.Ball.Position.y}`
-            );
-            const success = this.decider.getDribbleResult(
-              player,
-              opponentBlock
-            );
-            if (success) {
-              // this.makeMove(player, p, around);
-              this.successfulDribble(player, path, around, opponentBlock);
-              // this.makeMove(player, p, around);
-              situation = {
-                status: true,
-                reason: `move ${type} successful via dribble`,
-              };
-          
+      // If there is no marking opponent nearby just move
+      // But if there is a marking opponent nearby, the opponent will try to take the ball from
+      // the attackingPlayer
+      if (!opponentBlock) {
+        if (this.makeMove(player, path, around)) {
+          situation.status = true;
+        } else if (player.WithBall) {
+          // path was {x:0,y:0} - this player already reached their
+          // computed forward-shape target (see getShapeTarget) and
+          // there's no marking opponent to dribble/tackle past either.
+          // That target never changes on its own, so without this
+          // fallback the ball carrier would freeze in place holding
+          // the ball for the rest of the match (observed for 65+
+          // straight ticks in a real game). Look up the player's own
+          // squad directly rather than assuming this.attackingSide/
+          // defendingSide line up with them - move() is also called
+          // for defending-side players elsewhere in this class.
+          const playerSquad = this.teams.find(
+            (t) => t.ClubCode === player.ClubCode
+          );
+          const opponentSquad = this.teams.find(
+            (t) => t.ClubCode !== player.ClubCode
+          );
+          if (playerSquad && opponentSquad) {
+            this.pass(player, 'short', playerSquad, opponentSquad);
+            situation = {
+              status: true,
+              reason: `move ${type} had nowhere further to go, passed instead`,
+            };
           } else {
-              if (this.tackle(player, opponentBlock)) {
-                situation = {
-                  status: false,
-                  reason: `move ${type} tackle successful, possession lost`,
-                };
-              } else {
-                this.makeMove(player, path, around);
-                situation = {
-                  status: true,
-                  reason: `move ${type} tackle failed, possession kept`,
-                };
-              }
-            }
-            // If the player is not with the ball even though bad guy around, still move.
+            situation.status = false;
+          }
+        } else {
+          situation.status = false;
+        }
+        // If the player is with the ball and there is a bad guy around
+      } else if (player.WithBall && opponentBlock) {
+        // Tackle about to happen :0
+        log(`Ball x,y => ${player.Ball.Position.x} ${player.Ball.Position.y}`);
+        const success = this.decider.getDribbleResult(player, opponentBlock);
+        if (success) {
+          // this.makeMove(player, p, around);
+          this.successfulDribble(player, path, around, opponentBlock);
+          // this.makeMove(player, p, around);
+          situation = {
+            status: true,
+            reason: `move ${type} successful via dribble`,
+          };
+        } else {
+          if (this.tackle(player, opponentBlock)) {
+            situation = {
+              status: false,
+              reason: `move ${type} tackle successful, possession lost`,
+            };
           } else {
-            if (this.makeMove(player, path, around)) {
-              situation = {
-                status: true,
-                reason: `move ${type} successful, tho bad guy`,
-              };
-            } else {
-              situation = {
-                status: false,
-                reason: `no where to move ${type}, tho bad guy`,
-              };
-            }
+            this.makeMove(player, path, around);
+            situation = {
+              status: true,
+              reason: `move ${type} tackle failed, possession kept`,
+            };
+          }
+        }
+        // If the player is not with the ball even though bad guy around, still move.
+      } else {
+        if (this.makeMove(player, path, around)) {
+          situation = {
+            status: true,
+            reason: `move ${type} successful, tho bad guy`,
+          };
+        } else {
+          situation = {
+            status: false,
+            reason: `no where to move ${type}, tho bad guy`,
+          };
+        }
       }
     } else {
-      console.log('In the empty else for Actions. No free block around player.');
+      console.log(
+        'In the empty else for Actions. No free block around player.'
+      );
       log(around);
       // situation = { status: false, reason: 'move towards ball successful' };
       // Player should pass now.
 
       // find the nearest Marker to this player.
-       const marker = this.findMarkingOpponent(
-            player,
-            around
-        ) as IFieldPlayer;
+      const marker = this.findMarkingOpponent(player, around) as IFieldPlayer;
 
-       const markerTeammate = this.findMarkingTeammate(
-            player,
-            around
-        ) as IFieldPlayer;
+      const markerTeammate = this.findMarkingTeammate(
+        player,
+        around
+      ) as IFieldPlayer;
 
-       /** 
-        * If a player has a marker nearby, do a dribble
-        * - if dribble is successful, swap positions of players.
-        * */
+      /**
+       * If a player has a marker nearby, do a dribble
+       * - if dribble is successful, swap positions of players.
+       * */
 
-      if(player.WithBall){
+      if (player.WithBall) {
         console.log('With ball and tightly marked :/');
 
-        if(marker) {
+        if (marker) {
           // Give the player a real chance to pass out of trouble instead of
           // ALWAYS dribbling/contesting the tackle - previously dribble-or-
           // tackle was the only option ever considered here, so two closely
@@ -527,27 +526,29 @@ export class Actions {
           }
 
           let successOfTightDribble = this.decider.getDribbleResult(
-              player,
-              marker
+            player,
+            marker
+          );
+
+          if (successOfTightDribble) {
+            // swap positions away from this guy - a full jump to the
+            // target block (not a single step), so the player actually
+            // clears the contested area in one go. A 1-block-per-tick
+            // shuffle here let an equally fast marker re-close the gap
+            // just as quickly, recreating the same jam next tick.
+            situation = {
+              status: true,
+              reason: 'dribbled successfully while tightly marked',
+            };
+
+            const toMoveTo = playerFunc.findFarthestFreeBlock(marker, 5);
+            player.move(
+              CO.co.calculateDifference(toMoveTo, player.BlockPosition)
             );
 
-            if(successOfTightDribble) {
-              // swap positions away from this guy - a full jump to the
-              // target block (not a single step), so the player actually
-              // clears the contested area in one go. A 1-block-per-tick
-              // shuffle here let an equally fast marker re-close the gap
-              // just as quickly, recreating the same jam next tick.
-              situation = {
-                  status: true,
-                  reason: 'dribbled successfully while tightly marked',
-                }
-
-              const toMoveTo = playerFunc.findFarthestFreeBlock(marker, 5);
-              player.move(CO.co.calculateDifference(toMoveTo, player.BlockPosition));
-
-              matchEvents.emit(`${this.match.id}-dribble`, {
+            matchEvents.emit(`${this.match.id}-dribble`, {
               dribbler: player,
-              dribbled: marker
+              dribbled: marker,
             } as IDribble);
             createMatchEvent(
               this.match.id,
@@ -557,40 +558,46 @@ export class Actions {
               player._id,
               player.ClubCode
             );
-            } else {
-              // Real tackle odds, not a forced win - and whoever ends up
-              // with the ball jumps clear of the contested area afterwards.
-              // Without this, neither player's position ever changes here
-              // (tackle() only moves the ball), so the very next tick
-              // re-triggers this exact same "no free block" branch - just
-              // with roles reversed - producing an endless tackle-trade
-              // between the same two players instead of the duel resolving.
-              const tackleSuccess = this.tackle(player, marker);
-              const ballHolder = tackleSuccess ? marker : player;
+          } else {
+            // Real tackle odds, not a forced win - and whoever ends up
+            // with the ball jumps clear of the contested area afterwards.
+            // Without this, neither player's position ever changes here
+            // (tackle() only moves the ball), so the very next tick
+            // re-triggers this exact same "no free block" branch - just
+            // with roles reversed - producing an endless tackle-trade
+            // between the same two players instead of the duel resolving.
+            const tackleSuccess = this.tackle(player, marker);
+            const ballHolder = tackleSuccess ? marker : player;
 
-              const escapeTo = playerFunc.findFarthestFreeBlock(ballHolder, 5);
-              ballHolder.move(CO.co.calculateDifference(escapeTo, ballHolder.BlockPosition));
+            const escapeTo = playerFunc.findFarthestFreeBlock(ballHolder, 5);
+            ballHolder.move(
+              CO.co.calculateDifference(escapeTo, ballHolder.BlockPosition)
+            );
 
-              situation = {
-                status: tackleSuccess,
-                reason: tackleSuccess
-                  ? 'tackle successful in close position, possession lost'
-                  : 'tackle failed in close position, possession kept',
-              };
-            }
+            situation = {
+              status: tackleSuccess,
+              reason: tackleSuccess
+                ? 'tackle successful in close position, possession lost'
+                : 'tackle failed in close position, possession kept',
+            };
+          }
         } else if (markerTeammate) {
           // pass
           situation = {
-                status: true,
-                reason: `move ${type} | ran away from closely marking teammate XD`,
+            status: true,
+            reason: `move ${type} | ran away from closely marking teammate XD`,
           };
 
-            const toMoveTo = playerFunc.findFarthestFreeBlock(markerTeammate, 5);
-            player.move(CO.co.calculateDifference(toMoveTo, player.BlockPosition));
-      }
-    } else {
+          const toMoveTo = playerFunc.findFarthestFreeBlock(markerTeammate, 5);
+          player.move(
+            CO.co.calculateDifference(toMoveTo, player.BlockPosition)
+          );
+        }
+      } else {
         // I guess do nothing lol
-        console.log('Not with ball. Everyone is blocking me :(. Will stay here')
+        console.log(
+          'Not with ball. Everyone is blocking me :(. Will stay here'
+        );
       }
     }
     // console.log('situation -> ', situation);
@@ -658,8 +665,8 @@ export class Actions {
     // Another function that makes midfielders and attackers move towards the ball
     // TODO: Change this depending on the playing style of Club...
     const shouldFallBack = this.decider.gimmeAChance();
-    if(shouldFallBack < 50){
-    this.pressureBall(defendingSide);
+    if (shouldFallBack < 50) {
+      this.pressureBall(defendingSide);
     } else {
       this.pushBackward(defendingSide);
     }
@@ -683,7 +690,9 @@ export class Actions {
     // `.occupant` being null here was reaching downstream code that assumes
     // there's always a real keeper (e.g. Match.ts's goal handler).
     const defendingTeam = this.teams[teamIndex === 0 ? 1 : 0];
-    const keeper = playerFunc.getGK(defendingTeam.StartingSquad) as IFieldPlayer;
+    const keeper = playerFunc.getGK(
+      defendingTeam.StartingSquad
+    ) as IFieldPlayer;
 
     const result = this.decider.getShotResult(player, keeper as IFieldPlayer);
 
@@ -713,7 +722,10 @@ export class Actions {
       // Here put the ball at a random block hehehe
       // find free blocks around the scoring and pick a random one...
 
-      let freeBlocksAroundScoringSide = CO.co.getBlocksAround(this.teams[teamIndex].ScoringSide!, 5);
+      let freeBlocksAroundScoringSide = CO.co.getBlocksAround(
+        this.teams[teamIndex].ScoringSide!,
+        5
+      );
 
       // Filter the undefined or occupied ones
       freeBlocksAroundScoringSide = freeBlocksAroundScoringSide.filter(
@@ -774,12 +786,8 @@ export class Actions {
    */
 
   private setSides(data: IMatchData) {
-    const {
-      activePlayerAS,
-      attackingSide,
-      activePlayerDS,
-      defendingSide,
-    } = data;
+    const { activePlayerAS, attackingSide, activePlayerDS, defendingSide } =
+      data;
 
     this.activePlayerAS = activePlayerAS;
     this.attackingSide = attackingSide;
@@ -799,8 +807,9 @@ export class Actions {
         const block = around[key] as IBlock;
         const occupant = block.occupant;
 
-        // if there is an occupant, push it!
-        occupant && arr.push(occupant);
+        if (occupant) {
+          arr.push(occupant);
+        }
       }
     }
 
@@ -818,7 +827,9 @@ export class Actions {
         const occupant = block.occupant;
 
         // if there is an occupant, push it!
-        occupant && arr.push(occupant);
+        if (occupant) {
+          arr.push(occupant);
+        }
       }
     }
 
@@ -900,7 +911,10 @@ export class Actions {
     return CO.co.coordinateToBlock({ x, y });
   }
 
-  private moveToAnyFreeBlock(player: IFieldPlayer, around: IPositions): boolean {
+  private moveToAnyFreeBlock(
+    player: IFieldPlayer,
+    around: IPositions
+  ): boolean {
     const free = playerFunc.findFreeBlock(around) as IBlock;
     if (free === undefined) {
       return false;
@@ -947,9 +961,15 @@ export class Actions {
     );
   }
 
-  private tackle(player: IFieldPlayer, tackler: IFieldPlayer, predetermined = false) {
+  private tackle(
+    player: IFieldPlayer,
+    tackler: IFieldPlayer,
+    predetermined = false
+  ) {
     // log(`${tackler.LastName} is tackling ${player.LastName}`);
-    const success = predetermined ? true : this.decider.getTackleResult(tackler, player);
+    const success = predetermined
+      ? true
+      : this.decider.getTackleResult(tackler, player);
 
     // A mistimed/aggressive tackle can draw a foul independent of whether
     // it actually wins the ball - higher Aggression and lower Tackling
@@ -959,7 +979,10 @@ export class Actions {
     // written and simply never wired up - fouls were always exactly 0.
     const foulChance = Math.max(
       0,
-      Math.min(100, 30 + (tackler.Attributes.Aggression - tackler.Attributes.Tackling) * 0.3)
+      Math.min(
+        100,
+        30 + (tackler.Attributes.Aggression - tackler.Attributes.Tackling) * 0.3
+      )
     );
     const fouled = this.decider.gimmeAChance() <= foulChance;
     if (fouled) {

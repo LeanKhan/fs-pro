@@ -4,7 +4,7 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
-This project partially adheres to [Semantic Versioning]() :)
+This project partially adheres to [Semantic Versioning](<>) :)
 
 Oya na
 

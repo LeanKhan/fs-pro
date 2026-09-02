@@ -7,7 +7,7 @@ export function addClubToCompetition(req: Request, res: Response) {
   const { id } = req.params;
   const { clubId: club, leagueCode } = req.body;
 
-  if(!club) {
+  if (!club) {
     return respond.fail(res, 400, 'No Club sent to add!');
   }
 
@@ -22,7 +22,10 @@ export function addClubToCompetition(req: Request, res: Response) {
       if (!comp) {
         throw new Error('Competition does not exist!');
       }
-      return updateClubFields(club, { LeagueCode: comp.CompetitionCode, League: comp._id });
+      return updateClubFields(club, {
+        LeagueCode: comp.CompetitionCode,
+        League: comp._id,
+      });
     })
     .then(() => {
       respond.success(

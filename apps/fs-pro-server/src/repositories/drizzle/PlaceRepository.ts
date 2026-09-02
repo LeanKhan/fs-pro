@@ -37,11 +37,16 @@ export class DrizzlePlaceRepository implements IPlaceRepository {
       filter.Type !== undefined ? eq(places.Type, filter.Type) : undefined,
       filter.Code !== undefined ? eq(places.Code, filter.Code) : undefined,
       filter.Name !== undefined ? eq(places.Name, filter.Name) : undefined,
-      filter.Region !== undefined ? eq(places.Region, filter.Region) : undefined,
+      filter.Region !== undefined
+        ? eq(places.Region, filter.Region)
+        : undefined,
     ].filter((c): c is NonNullable<typeof c> => c !== undefined);
 
     const rows = await (conditions.length
-      ? this.db.select().from(places).where(and(...conditions))
+      ? this.db
+          .select()
+          .from(places)
+          .where(and(...conditions))
       : this.db.select().from(places));
 
     return rows.map(toPlace);
@@ -60,7 +65,10 @@ export class DrizzlePlaceRepository implements IPlaceRepository {
   async create(data: Partial<IPlace>): Promise<IPlace> {
     const [place] = await this.db
       .insert(places)
-      .values({ ...(data as typeof places.$inferInsert), updatedAt: new Date() })
+      .values({
+        ...(data as typeof places.$inferInsert),
+        updatedAt: new Date(),
+      })
       .returning();
 
     return toPlace(place);
@@ -69,7 +77,10 @@ export class DrizzlePlaceRepository implements IPlaceRepository {
   async update(id: string, data: Partial<IPlace>): Promise<IPlace> {
     const [place] = await this.db
       .update(places)
-      .set({ ...(data as Partial<typeof places.$inferInsert>), updatedAt: new Date() })
+      .set({
+        ...(data as Partial<typeof places.$inferInsert>),
+        updatedAt: new Date(),
+      })
       .where(eq(places.id, id))
       .returning();
 
