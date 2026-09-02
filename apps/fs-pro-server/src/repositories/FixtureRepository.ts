@@ -34,6 +34,11 @@ export interface IFixtureRepository {
   findById(id: string): Promise<FixtureInterface | null>;
   findAll(filter?: IFixtureFilter): Promise<FixtureInterface[]>;
   create(data: Partial<FixtureInterface>): Promise<FixtureInterface>;
+  /** Bulk fixture-generation insert (season/day setup's round-robin
+   * schedule) - each fixture is already fully FK-correct at construction
+   * time (Season/HomeTeam/AwayTeam), so this is a plain bulk insert, not a
+   * different write shape from `create()`. */
+  createMany(data: Partial<FixtureInterface>[]): Promise<FixtureInterface[]>;
   update(id: string, data: Partial<FixtureInterface>): Promise<FixtureInterface | null>;
   delete(id: string): Promise<FixtureInterface>;
 }

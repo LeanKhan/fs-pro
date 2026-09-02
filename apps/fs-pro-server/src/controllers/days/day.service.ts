@@ -108,6 +108,40 @@ export async function getDaysForYear(filter: {
 }
 
 /**
+ * Paged Days for a Calendar, used by Calendar's `fetchOne(..., populate)`.
+ * This intentionally mirrors `Calendar.populate('Days')` only - it does not
+ * populate `Matches.Fixture`; routes that need that richer shape use
+ * `getDaysForYear`/`findDayByFixtureId`.
+ */
+export async function getDaysForCalendarPage(filter: {
+  Calendar: string;
+  skip?: number;
+  limit?: number;
+}): Promise<DayInterface[]> {
+  const skip = filter.skip ?? 0;
+  const limit = filter.limit ?? 14;
+
+  if (DB.ormType === 'drizzle') {
+    const db = DrizzleDatabase.getInstance().database;
+    const rows = await db.query.days.findMany({
+      where: eq(days.Calendar, filter.Calendar),
+      orderBy: asc(days.Day),
+      offset: skip,
+      limit,
+    });
+
+    return rows.map(remapRowId) as unknown as DayInterface[];
+  }
+
+  return DB.Models.Day.find({ Calendar: filter.Calendar })
+    .sort('Day')
+    .skip(skip)
+    .limit(limit)
+    .lean()
+    .exec();
+}
+
+/**
  * Finds the Day containing a given Fixture. Always populates
  * `Matches.Fixture` unless `populate: false` is explicitly passed
  * (`markMatchPlayed` needs the bare ids back, so it can write the array

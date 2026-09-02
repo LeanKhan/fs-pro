@@ -5,10 +5,7 @@
 /* eslint-disable no-useless-catch */
 import { Request, Response, NextFunction } from 'express';
 import respond from '../../helpers/responseHandler';
-import {
-  fetchAll as fetchAllSeasons,
-  findAndUpdate as updateManySeasons,
-} from '../seasons/season.service';
+import { getSeasons, getSeasonById, updateSeasonFields } from '../seasons/season.service';
 import { createManyDays, findNextPlayableDay } from '../days/day.service';
 import { Fixture } from '../fixtures/fixture.model';
 import { CalendarInterface } from './calendar.model';
@@ -29,7 +26,7 @@ import {
 import log from '../../helpers/logger';
 import { CompetitionInterface } from '../competitions/competition.model';
 import { SeasonInterface } from '../seasons/season.model';
-import { fetchAll } from '../competitions/competition.service';
+import { getCompetitions } from '../competitions/competition.service';
 import { create } from '../../middleware/seasons';
 import { prolegate } from '../seasons/season.controller';
 
@@ -89,7 +86,7 @@ export async function createSeasonsInTheYear(
   res: Response,
   next: NextFunction
 ) {
-  const competitions: CompetitionInterface[] = await fetchAll();
+  const competitions: CompetitionInterface[] = await getCompetitions();
   const year: string = req.params.year.trim().toUpperCase();
 
   // create a season for all competitions that are available.
@@ -115,6 +112,20 @@ export async function createSeasonsInTheYear(
     });
 }
 
+/**
+ * `getSeasons()` (list) doesn't populate `Fixtures` the way `getSeasonById()`
+ * (single) always does - on Mongo this went unnoticed because `Season.Fixtures`
+ * is a real stored array of ids even without `.populate()`, but Postgres has
+ * no such column at all (reverse `fixtures.Season` FK instead), so a season
+ * fetched via `getSeasons()` there has no `Fixtures` key whatsoever. Both
+ * `setupDaysInYear`/`setupDaysInYear2` below read `.Fixtures` off every
+ * season they process, so each needs the fully-hydrated version.
+ */
+async function hydrateSeasonFixtures(seasonStubs: { _id?: string }[]): Promise<SeasonInterface[]> {
+  const hydrated = await Promise.all(seasonStubs.map((s) => getSeasonById(s._id as string)));
+  return hydrated.filter((s): s is SeasonInterface => !!s);
+}
+
 /** NEW
  * Start Calendar Year...
  *
@@ -138,10 +149,8 @@ export function setupDaysInYear(
   const createDays = async (calendar: CalendarInterface) => {
     _calendar = calendar;
 
-    const competitions: CompetitionInterface[] = await fetchAll() as CompetitionInterface[];
-    const seasons: SeasonInterface[] = await fetchAllSeasons({
-      Year: _calendar.YearString,
-    }, false, false, {field: 'CompetitionCode', dir: 1}) as SeasonInterface[];
+    const competitions: CompetitionInterface[] = await getCompetitions() as CompetitionInterface[];
+    const seasons: SeasonInterface[] = await hydrateSeasonFixtures(await getSeasons({ Year: _calendar.YearString }));
 
     /**
      * TODO URGENT APRIL 26 2022
@@ -355,7 +364,7 @@ export function setupDaysInYear2(
       };
     }
 
-    const competitions: CompetitionInterface[] = await fetchAll();
+    const competitions: CompetitionInterface[] = await getCompetitions();
 
     /**
      * TODO URGENT APRIL 26 2022
@@ -369,14 +378,16 @@ export function setupDaysInYear2(
     // get all competitions... TODO: use Mongo to query
     const AllLeagues = competitions
       .filter((c) => c.Type === 'league')
-      .map((c) => c._id); // only get leagues
+      .map((c) => c._id)
+      .filter((id): id is string => !!id); // only get leagues
 
-// Get all Seasons in this new year that
-// belong to a League and sort by their Competition Code.
-    const AllLeagueSeasonsThisYear: SeasonInterface[] = await fetchAllSeasons({
-      Year: _calendar.YearString,
-      Competition: { $in: AllLeagues },
-    }, false, false, {field: "CompetitionCode", dir: 1});
+// Get all Seasons in this new year that belong to a League - one query per
+// league competition (there's only ever a handful), since the repository's
+// typed filter doesn't support Mongo-style $in membership.
+    const seasonsPerLeague = await Promise.all(
+      AllLeagues.map((competitionId: string) => getSeasons({ Year: _calendar.YearString, Competition: competitionId }))
+    );
+    const AllLeagueSeasonsThisYear: SeasonInterface[] = await hydrateSeasonFixtures(seasonsPerLeague.flat());
 
     return { days: freeDays, seasons: AllLeagueSeasonsThisYear };
   };
@@ -598,25 +609,27 @@ export function startYear(req: Request, res: Response) {
     );
   }
 
-  const fetchSeasons = () => {
+  const fetchSeasons = async () => {
     // this is the wrong query. Fetch seasons that have not started and are 'pending' state
-    const query = {
-      Year: year,
-      Status: 'pending',
-      isStarted: false,
-      isFinished: false,
-    };
+    const candidates: any[] = await getSeasons({ Year: year });
+    const pending = candidates.filter(
+      (s) => s.Status === 'pending' && !s.isStarted && !s.isFinished
+    );
 
-    return updateManySeasons(query, {
-      isStarted: true,
-      StartDate: new Date(),
-      Status: 'started',
-    });
+    return Promise.all(
+      pending.map((s) =>
+        updateSeasonFields(s._id, {
+          isStarted: true,
+          StartDate: new Date(),
+          Status: 'started',
+        })
+      )
+    );
   };
 
-  const startCalendarYear = (seasons: any) => {
+  const startCalendarYear = (seasons: any[]) => {
     // This means the Seasons were not found and updated :o
-    if (seasons.n === 0 && seasons.nModified === 0) {
+    if (seasons.length === 0) {
       throw new Error('No seasons found!');
     }
     // Set the rest to false and this one to true...
@@ -714,9 +727,7 @@ export async function endYear(req: Request, res: Response, next: NextFunction) {
     );
   }
 
-  const all_seasons: SeasonInterface[] = await fetchAllSeasons({
-    Calendar: id,
-  }, false, false, {field: 'CompetitionCode', dir: 1}) as SeasonInterface[];
+  const all_seasons: SeasonInterface[] = await getSeasons({ Calendar: id }) as SeasonInterface[];
 
   // actually check if Calendar is not already ended :)
 

@@ -81,14 +81,6 @@ export function findOne(query: Record<string, any>) {
   return DB.Models.Competition.findOne(query).lean().exec();
 }
 
-export function fetchCompetition(id: string, select = '-Seasons') {
-  return DB.Models.Competition.findById(id)
-    .select(select)
-    .populate('Clubs', 'ClubCode Name Address Stadium')
-    .lean()
-    .exec();
-}
-
 /**
  * create new competition
  */

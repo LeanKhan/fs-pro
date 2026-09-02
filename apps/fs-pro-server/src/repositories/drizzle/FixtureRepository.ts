@@ -86,6 +86,16 @@ export class DrizzleFixtureRepository implements IFixtureRepository {
     return toFixture(fixture);
   }
 
+  async createMany(data: Partial<FixtureInterface>[]): Promise<FixtureInterface[]> {
+    if (data.length === 0) return [];
+    const rows = await this.db
+      .insert(fixtures)
+      .values(data.map((d) => ({ ...(d as typeof fixtures.$inferInsert), updatedAt: new Date() })))
+      .returning();
+
+    return rows.map((row) => toFixture(row));
+  }
+
   async update(id: string, data: Partial<FixtureInterface>): Promise<FixtureInterface | null> {
     const [fixture] = await this.db
       .update(fixtures)

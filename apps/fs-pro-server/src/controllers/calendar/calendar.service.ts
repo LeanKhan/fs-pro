@@ -2,6 +2,7 @@ import DB from '../../db';
 import { CalendarInterface } from './calendar.model';
 import { CalendarRepositoryFactory } from '../../repositories/CalendarRepositoryFactory';
 import { ICalendarFilter } from '../../repositories/CalendarRepository';
+import { getDaysForCalendarPage } from '../days/day.service';
 
 /**
  * Repository-backed functions below cover the identity/CRUD surface plus
@@ -76,25 +77,32 @@ export function fetchAll(query: unknown = {}) {
 /**
   fetch one calendar based on query
 */
-export function fetchOne(
-  query: unknown,
+export async function fetchOne(
+  query: ICalendarFilter & { _id?: string },
   populate: boolean | string = false,
   paginate: { skip: number; limit: number } = { skip: 0, limit: 14 }
-): Promise<CalendarInterface> {
-  if (populate && paginate) {
-    // Use $slice: [skip, limit] to 'paginate' array in a way...
-    return DB.Models.Calendar.findOne(query, {
-      Days: { $slice: [paginate.skip, paginate.limit] },
-    })
-      .populate({
-        path: 'Days',
-        model: 'Day',
-      })
-      .lean()
-      .exec();
+): Promise<CalendarInterface | null> {
+  let calendar: CalendarInterface | null;
+
+  if (query._id) {
+    calendar = await getCalendarById(query._id);
+  } else {
+    const { isActive, YearString } = query;
+    const [firstCalendar] = await getCalendars({ isActive, YearString });
+    calendar = firstCalendar ?? null;
   }
 
-  return DB.Models.Calendar.findOne(query).lean().exec();
+  if (!calendar || !populate) {
+    return calendar;
+  }
+
+  const calendarDays = await getDaysForCalendarPage({
+    Calendar: calendar._id as string,
+    skip: paginate.skip,
+    limit: paginate.limit,
+  });
+
+  return { ...calendar, Days: calendarDays as any };
 }
 
 /** update Calendar */
