@@ -2,7 +2,6 @@ import { SeasonInterface } from '../controllers/seasons/season.model';
 
 export interface ISeasonFilter {
   Competition?: string;
-  Calendar?: string;
   Year?: string;
   SeasonCode?: string;
 }

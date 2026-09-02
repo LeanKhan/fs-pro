@@ -1,7 +1,7 @@
 import path from 'path';
 import { Worker } from 'worker_threads';
 import { getFixtureById } from '../controllers/fixtures/fixture.service';
-import { fetchClubs } from '../controllers/clubs/club.service';
+import { getClubs } from '../controllers/clubs/club.service';
 import { resolveManagerTactic } from '../controllers/managers/manager.service';
 import { startMatchReplay, IReplayableMatch } from '../realtime/matchBroadcaster';
 import { ITactic } from '../state/PersistentState/Formations';
@@ -69,7 +69,7 @@ async function runMatchJob(fixtureId: string): Promise<void> {
   const home = fixture.HomeTeam.toString();
   const away = fixture.AwayTeam.toString();
 
-  const clubs = await fetchClubs({ _id: { $in: [home, away] } });
+  const clubs = await getClubs({ ids: [home, away] });
   const homeClub = clubs.find((c: any) => c._id?.toString() === home);
   const awayClub = clubs.find((c: any) => c._id?.toString() === away);
 

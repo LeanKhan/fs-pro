@@ -176,11 +176,7 @@ const visibleClubs = computed(() => {
 
 async function getClubs() {
   try {
-    const query = JSON.stringify({ User: null });
-    const select = JSON.stringify('Name ClubCode LeagueCode _id');
-    const response = await $axios.get(
-      `/clubs/fetch?q=${query}&select=${select}`
-    );
+    const response = await $axios.get('/clubs/all?unclaimed=true');
     clubs.value = response.data.payload;
   } catch (error) {
     console.error('Error fetching clubs:', error);

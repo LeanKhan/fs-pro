@@ -2,17 +2,13 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 import { Router, Request, Response } from 'express';
 import {
-  fetchAll,
-  fetchOneById,
+  getSeasons,
   getSeasonById,
   updateSeasonFields,
   deleteSeasonById,
 } from './season.service';
 import { SeasonInterface } from './season.model';
-import {
-  fetchAll as fetchAllFixtures,
-  deleteAll as deleteManyFixtures,
-} from '../fixtures/fixture.service';
+import { getFixtures } from '../fixtures/fixture.service';
 import {
   createSeason,
   fetchCompetitionClubs,
@@ -21,32 +17,28 @@ import {
 } from '../../middleware/seasons';
 import { incrementCounter, getCurrentCounter } from '../../utils/counter';
 import { addSeasonToCompetition } from '../competitions/competition.controller';
-import { update as updateComp } from '../competitions/competition.service';
 import { finishSeason, getCurrentSeasons } from './season.controller';
 import respond from '../../helpers/responseHandler';
 import { compileStandings } from '../../utils/seasons';
 import { giveAwards } from '../awards/awards.controller';
-import { setupRoutes } from '../../helpers/queries';
 
 const router = Router();
 
-/** Get all Seasons */
+/** Get all Seasons - the real client filters are Year, Competition, and
+ * `current` (a competition's in-progress season - isStarted && !isFinished,
+ * there's only ever one at a time) - the previous arbitrary `?query={...}`
+ * JSON blob had no other caller. */
 router.get('/', (req: Request, res: Response) => {
-  // TODO: review all these your service then, async/awaits.
-  let {query, select, populate, sort} = req.query;
+  const { year, competition, current } = req.query;
 
-  if(query && typeof query === 'string'){
-    try {
-      query = JSON.parse(query);
-    } catch (err) {
-    // can't parse JSON
-    query = '';
-    }
-  }
-
-  fetchAll(query as Record<string, unknown>, typeof populate === 'string' ? populate : false, typeof select === 'string' ? select : undefined, {field: 'CompetitionCode', dir: 1})
-    .then((seasons: any) => {
-      return respond.success(res, 200, 'Seasons fetched successfully', seasons);
+  getSeasons({
+    Year: typeof year === 'string' ? year : undefined,
+    Competition: typeof competition === 'string' ? competition : undefined,
+  })
+    .then((seasons) => {
+      const filtered = current === 'true' ? seasons.filter((s) => s.isStarted && !s.isFinished) : seasons;
+      const sorted = [...filtered].sort((a, b) => a.CompetitionCode.localeCompare(b.CompetitionCode));
+      return respond.success(res, 200, 'Seasons fetched successfully', sorted);
     })
     .catch((err: any) => {
       return respond.fail(res, 400, 'Error fetching Seasons', err);
@@ -111,7 +103,7 @@ router.post('/:id/finish', finishSeason, giveAwards);
 
 /** Get all Fixtures in Season */
 router.get('/:id/fixtures', (req, res) => {
-  fetchAllFixtures({ Season: req.params.id }, typeof req.query.select === 'string' ? req.query.select : "")
+  getFixtures({ Season: req.params.id })
     .then((fixtures: any) => {
       respond.success(
         res,
@@ -139,24 +131,9 @@ router.get('/:id', (req: Request, res: Response) => {
     return respond.fail(res, 404, 'Please provide valid Season ID!');
   }
 
-  const {populate} = req.query;
-  let p;
-  try {
-    p = populate && typeof populate === 'string' && JSON.parse(populate);
-  } catch(e) {
-    console.error(e);
-    console.log('Could not parse Season populate')
-  }
-
-  // No explicit ?populate= needs the repository's own default (Fixtures) -
-  // an explicit one (anything other than the default) stays on the raw
-  // arbitrary-populate path.
-  const response = p ? fetchOneById(id, false, p) : getSeasonById(id);
-
-  response
+  getSeasonById(id)
     .then((season: any) => {
-      if (!season.Title)
-        return respond.success(res, 404, 'Season not found!', season);
+      if (!season) return respond.success(res, 404, 'Season not found!', season);
 
       season.CompiledStandings = compileStandings(season.Standings);
 
@@ -169,8 +146,10 @@ router.get('/:id', (req: Request, res: Response) => {
 
 // get current setInitialStandings
 router.get('/:id/standings', (req: Request, res: Response) => {
-  fetchOneById(req.params.id, 'Standings')
-    .then((s: any) => {
+  getSeasonById(req.params.id)
+    .then((s) => {
+      if (!s) return respond.fail(res, 404, 'Season not found!');
+
       const standings = compileStandings(s.Standings);
 
       respond.success(
@@ -210,7 +189,5 @@ router.delete('/:id', (req: Request, res: Response) => {
 });
 
 router.get('/:id/awards', giveAwards);
-
-setupRoutes(router, 'Season');
 
 export default router;

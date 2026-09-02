@@ -1,4 +1,3 @@
-import DB from '../../db';
 import { Fixture } from './fixture.model';
 import { FixtureRepositoryFactory } from '../../repositories/FixtureRepositoryFactory';
 import { IFixtureFilter } from '../../repositories/FixtureRepository';
@@ -45,67 +44,39 @@ export async function createFixtures(fixtures: Partial<Fixture>[]) {
   return getFixtureRepo().createMany(fixtures);
 }
 
-/**
- * fetchAll
- */
-export function fetchAll(query: Record<string, unknown> = {}, select = '') {
-  const h = { path: 'HomeSideDetails', populate: { path: 'PlayerStats' } };
-  const a = { path: 'AwaySideDetails', populate: { path: 'PlayerStats' } };
-  return DB.Models.Fixture.find(query)
-    .populate(h)
-    .select(select)
-    .populate(a)
-    .lean()
-    .exec();
+/** Every fixture scheduled on a given absolute day - the flat replacement
+ * for the old `Day.Matches` embedded array. */
+export async function getFixturesByDay(day: number) {
+  return getFixtureRepo().findAll({ scheduledDay: day });
 }
 
-/**
- * FetchOneById
- *
- * Fetch a specific fixture by its id
- * @param id
- */
-export function fetchOneById(
-  id: string,
-  populate: string | Record<string, unknown> | boolean = {
-    path: 'ClubMatchDetails',
-  }
-) {
-  const h = { path: 'HomeSideDetails', populate: { path: 'PlayerStats' } };
-  const a = { path: 'AwaySideDetails', populate: { path: 'PlayerStats' } };
-
-  console.log(populate);
-
-  if (populate) {
-    return DB.Models.Fixture.findById(id)
-      .populate(populate)
-      .populate(h)
-      .populate(a)
-      .lean()
-      .exec();
-  }
-
-  return DB.Models.Fixture.findById(id).populate(h).populate(a).lean().exec();
+/** Every fixture scheduled within an inclusive day range - powers the
+ * dashboard's "upcoming days" view. */
+export async function getFixturesInRange(from: number, to: number, opts?: { played?: boolean }) {
+  return getFixtureRepo().findAll({
+    scheduledDayFrom: from,
+    scheduledDayTo: to,
+    Played: opts?.played,
+  });
 }
 
-export function deleteById(id: string) {
-  return DB.Models.Fixture.findByIdAndDelete(id).lean().exec();
+/** Whether every fixture scheduled on a given day has been played -
+ * replaces `day.service.ts`'s old `Matches.every(m => m.Played)` check. */
+export async function allFixturesPlayedForDay(day: number): Promise<boolean> {
+  const dayFixtures = await getFixturesByDay(day);
+  return dayFixtures.length > 0 && dayFixtures.every((f) => f.Played);
 }
 
-export async function deleteByRemove(id: string) {
-  /**
-  * Delete the Fixture
-  */
+/** The next scheduled day, after `afterDay`, that still has an unplayed
+ * fixture - used by `calendar.service.ts`'s `advanceDayIfDone` to find where
+ * to move `CurrentDay`/`CurrentDate` to. `null` if there's nothing left
+ * scheduled (end of the current season cycle). */
+export async function findNextUnplayedDay(afterDay: number): Promise<{ day: number; date: Date } | null> {
+  const upcoming = await getFixtureRepo().findAll({ scheduledDayFrom: afterDay + 1, Played: false });
+  if (upcoming.length === 0) return null;
 
-  const doc = await DB.Models.Fixture.findById(id);
+  const next = upcoming.reduce((min, f) => (f.ScheduledDay! < min.ScheduledDay! ? f : min));
 
-  if(!doc) {
-    throw new Error(`Fixture ${id} does not exist`);
-  }
-
-  return doc.remove();
+  return { day: next.ScheduledDay!, date: next.ScheduledDate! };
 }
 
-export function deleteAll(query: Record<string, unknown>) {
-  return DB.Models.Fixture.deleteMany(query);
-}

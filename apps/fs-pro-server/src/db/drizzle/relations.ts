@@ -6,8 +6,6 @@ import {
   competitions,
   competitionClubs,
   clubs,
-  calendars,
-  days,
   seasons,
   players,
   fixtures,
@@ -72,22 +70,12 @@ export const clubsRelations = relations(clubs, ({ one, many }) => ({
   matchDetails: many(clubMatchDetails),
 }));
 
-export const calendarsRelations = relations(calendars, ({ many }) => ({
-  days: many(days),
-  seasons: many(seasons),
-}));
-
-export const daysRelations = relations(days, ({ one }) => ({
-  calendar: one(calendars, { fields: [days.Calendar], references: [calendars.id] }),
-}));
-
 export const seasonsRelations = relations(seasons, ({ one, many }) => ({
   winner: one(clubs, {
     fields: [seasons.Winner],
     references: [clubs.id],
     relationName: 'seasonWinner',
   }),
-  calendar: one(calendars, { fields: [seasons.Calendar], references: [calendars.id] }),
   competition: one(competitions, {
     fields: [seasons.Competition],
     references: [competitions.id],

@@ -2,6 +2,7 @@ import { PlayerInterface } from '../controllers/players/player.model';
 
 export interface IPlayerFilter {
   Club?: string;
+  ClubCode?: string;
   isSigned?: boolean;
 }
 

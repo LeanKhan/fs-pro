@@ -1,22 +1,16 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import {
   calculateClubsTotalRatings,
-  addPlayerToClub,
-  updateClubLeague,
-  updateClub,
   updateClubFields,
-  updateClubsById,
-  fetchAllClubs,
-  fetchClubs,
+  getClubs,
 } from '../controllers/clubs/club.service';
 import respond from '../helpers/responseHandler';
 import log from '../helpers/logger';
-import { IClub } from '../interfaces/Club';
-import DB from '../db';
+import { ClubInterface } from '../controllers/clubs/club.model';
 
 interface RatingObject {
   avg_rating: number;
-  position: string;
+  position: string | null;
 }
 
 function getRatingValues(rating_obj: RatingObject | undefined): number {
@@ -82,7 +76,7 @@ export const calculateClubRating: RequestHandler = (
 export function updateAllClubsRating(req: Request, res: Response) {
   // now, update all the Clubs... becasue by now, all clubs should have updated Squads...
   const allClubs = () => {
-    return fetchClubs({}, 'ClubCode');
+    return getClubs();
   };
 
   const updClub = (club_id: string) => {
@@ -129,7 +123,7 @@ export function updateAllClubsRating(req: Request, res: Response) {
       });
   };
 
-  const runAll = (clubs: IClub[]) => {
+  const runAll = (clubs: ClubInterface[]) => {
     const t = clubs.map((c) => updClub(c._id as string));
 
     return Promise.all(t);
@@ -158,38 +152,11 @@ export function addPlayerToClubMiddleware(
   res: Response,
   next: NextFunction
 ) {
-  // tslint:disable-next-line: variable-name
-  const { playerId } = req.body.data;
-
   // Club.Players doesn't exist on Postgres - ownership already lives on
   // the Player row (players.Club, just written by updatePlayerSigning
   // earlier in this same middleware chain), so there's nothing left to do
-  // here under that backend.
-  if (DB.ormType === 'drizzle') {
-    return next();
-  }
-
-  let _response;
-
-  if (req.query.remove) {
-    _response = updateClub(req.params.id, {
-      $pull: { Players: playerId },
-    });
-  } else {
-    _response = updateClub(req.params.id, {
-      $push: { Players: playerId },
-    });
-  }
-
-  _response
-    .then((club) => {
-      req.body.club = club;
-
-      next();
-    })
-    .catch((err) => {
-      respond.fail(res, 400, 'Error fetching Club', err.toString());
-    });
+  // here.
+  return next();
 }
 
 export function addManyPlayersToClub(
@@ -197,26 +164,9 @@ export function addManyPlayersToClub(
   res: Response,
   next: NextFunction
 ) {
-  // tslint:disable-next-line: variable-name
-  const { playerIds, clubId } = req.body.data;
-
   // Same reason as addPlayerToClubMiddleware above - nothing left to do on
-  // the Club row itself under this backend.
-  if (DB.ormType === 'drizzle') {
-    return next();
-  }
-
-  updateClub(clubId, {
-      $addToSet: { Players: {$each: playerIds} }
-    })
-    .then((club) => {
-      req.body.club = club;
-
-      next();
-    })
-    .catch((err) => {
-      respond.fail(res, 400, 'Error fetching Club', err.toString());
-    });
+  // the Club row itself.
+  return next();
 }
 
 export async function addLeagueToClub(
@@ -224,25 +174,23 @@ export async function addLeagueToClub(
   res: Response,
   next: NextFunction
 ) {
-  const _response = await updateClubLeague(
-    req.body.clubId,
-    req.body.leagueCode,
-    req.params.league_id
-  );
-
-  if (_response!.error) {
+  try {
+    const club = await updateClubFields(req.body.clubId, {
+      LeagueCode: req.body.leagueCode,
+      League: req.params.league_id,
+    });
     return respond.success(
       res,
       200,
       'Club added to competition successfully!',
-      _response!.result
+      club
     );
-  } else {
+  } catch (err: any) {
     return respond.fail(
       res,
       400,
       'Error adding player to club',
-      _response!.result
+      err.toString()
     );
   }
 }

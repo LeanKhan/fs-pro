@@ -43,6 +43,20 @@
       "when": 1788153783571,
       "tag": "0005_perfect_mathemanic",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788349652837,
+      "tag": "0006_calendar_fixture_redesign",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788350919993,
+      "tag": "0007_days_events_column_fix",
+      "breakpoints": true
     }
   ]
 }

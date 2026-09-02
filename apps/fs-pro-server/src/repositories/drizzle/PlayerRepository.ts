@@ -40,6 +40,7 @@ export class DrizzlePlayerRepository implements IPlayerRepository {
   async findAll(filter: IPlayerFilter = {}): Promise<PlayerInterface[]> {
     const conditions = [];
     if (filter.Club !== undefined) conditions.push(eq(players.Club, filter.Club));
+    if (filter.ClubCode !== undefined) conditions.push(eq(players.ClubCode, filter.ClubCode));
     if (filter.isSigned !== undefined) conditions.push(eq(players.isSigned, filter.isSigned));
 
     const rows = await this.db.query.players.findMany({

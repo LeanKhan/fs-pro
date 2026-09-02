@@ -2,7 +2,13 @@ import { ClubInterface } from '../controllers/clubs/club.model';
 
 export interface IClubFilter {
   User?: string;
+  /** Clubs with no owning User at all - powers registration's "pick an
+   * unclaimed club" list. */
+  unclaimed?: boolean;
   League?: string;
+  /** Batch-fetch by id - used by internal callers that build a
+   * `{_id: {$in: [...]}}`-style query (App.ts, matchQueue.ts). */
+  ids?: string[];
 }
 
 export interface IClubReadOptions {
@@ -37,6 +43,7 @@ export interface IClubRepository {
   findById(id: string, options?: IClubReadOptions): Promise<ClubInterface | null>;
   findAll(filter?: IClubFilter, options?: IClubReadOptions): Promise<ClubInterface[]>;
   create(data: Partial<ClubInterface>): Promise<ClubInterface>;
+  createMany(data: Partial<ClubInterface>[]): Promise<ClubInterface[]>;
   update(id: string, data: Partial<ClubInterface>): Promise<ClubInterface | null>;
   delete(id: string): Promise<ClubInterface>;
 }

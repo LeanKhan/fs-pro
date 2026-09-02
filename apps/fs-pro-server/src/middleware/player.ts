@@ -30,7 +30,7 @@ export const updatePlayerSigning: RequestHandler = async (
     );
   }
 
-  if (!resp.error) {
+  if (resp) {
     next();
   } else {
     respond.fail(res, 400, 'Error adding player to club');

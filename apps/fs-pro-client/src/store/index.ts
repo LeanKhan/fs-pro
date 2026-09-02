@@ -27,7 +27,6 @@ export interface Toast {
 
 export const useStore = defineStore('main', () => {
   // State
-  const yearString = ref('');
   const allClubs = ref<Club[]>([]);
   const user = ref<User>({
     username: '',
@@ -55,7 +54,6 @@ export const useStore = defineStore('main', () => {
 
   // Getters
   const isAuthenticated = computed(() => !!user.value.username);
-  const currentYear = computed(() => yearString.value);
 
   // Actions
   function setUser(payload: User) {
@@ -102,10 +100,8 @@ export const useStore = defineStore('main', () => {
     }
 
     try {
-      const query = JSON.stringify({ _id: { $in: user.value.clubs } });
-      const select = JSON.stringify('ClubCode Name _id');
       const response = await $axios.get(
-        `/clubs/fetch?q=${query}&select=${select}`
+        `/clubs/all?ids=${user.value.clubs.join(',')}`
       );
 
       if (response.data.success) {
@@ -118,28 +114,26 @@ export const useStore = defineStore('main', () => {
 
   async function setCalendar() {
     try {
-      const response = await $axios.get(
-        '/calendar/current?page=1&limit=14&populate=false'
-      );
+      const response = await $axios.get('/calendar/current');
       if (response.data.success) {
         calendar.value = response.data.payload;
-        lobby.value = !response.data.payload.YearString;
       }
     } catch (error) {
       console.error('Error fetching calendar:', error);
     }
   }
 
+  /** Every currently in-progress Season (across all Competitions) - also
+   * doubles as the "lobby" gate: if nothing has been started yet (a fresh
+   * game world, or between season cycles), the user is sent to the lobby
+   * screen to wait for an admin to start one. */
   async function setSeasons() {
-    if (calendar.value?.YearString) {
-      try {
-        const response = await $axios.get(
-          `/seasons/${calendar.value.YearString}/current`
-        );
-        seasons.value = response.data.payload;
-      } catch (error) {
-        console.error('Error fetching seasons:', error);
-      }
+    try {
+      const response = await $axios.get('/seasons?current=true');
+      seasons.value = response.data.payload;
+      lobby.value = response.data.payload.length === 0;
+    } catch (error) {
+      console.error('Error fetching seasons:', error);
     }
   }
 
@@ -184,7 +178,6 @@ export const useStore = defineStore('main', () => {
 
   return {
     // State
-    yearString,
     allClubs,
     user,
     calendar,
@@ -197,7 +190,6 @@ export const useStore = defineStore('main', () => {
 
     // Getters
     isAuthenticated,
-    currentYear,
 
     // Actions
     setUser,

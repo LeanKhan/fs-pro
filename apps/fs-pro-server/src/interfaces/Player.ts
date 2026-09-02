@@ -52,6 +52,7 @@ export interface PlayerInterface {
   isSigned: boolean;
   ClubCode?: string;
   Club?: string;
+  RatingsHistory?: Record<string, unknown>[];
 }
 
 // It's not all players that will have club :)

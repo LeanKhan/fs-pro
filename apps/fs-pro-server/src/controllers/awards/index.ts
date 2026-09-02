@@ -1,8 +1,5 @@
 // router
 
-import DB from '../../db';
-import respond from '../../helpers/responseHandler';
-import { Request, Response } from 'express';
 import { AwardInterface } from './awards.model';
 import { AwardRepositoryFactory } from '../../repositories/AwardRepositoryFactory';
 import { IAwardFilter } from '../../repositories/AwardRepository';
@@ -66,32 +63,6 @@ export async function fetchAll(
   }
 
   return awardRows;
-}
-
-/**
- * FetchOneById
- *
- * Fetch a specific Award by id
- * @param id
- */
-export function fetchOneById(
-  id: string,
-  populate = false
-): Promise<AwardInterface> {
-  if (populate) {
-    return DB.Models.Award.findById(id).populate('Club').lean().exec();
-  }
-  return DB.Models.Award.findById(id).lean().exec();
-}
-
-/**
- * Fetch one specific Award by a query
- *
- * Fetch a specific Award by id
- * @param query
- */
-export function fetchOne(query: any): Promise<AwardInterface> {
-  return DB.Models.Award.findOne(query).lean().exec();
 }
 
 /** ROUTER */
