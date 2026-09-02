@@ -31,7 +31,6 @@ router.get('/', (req, res) => {
       'Error fetching players',
       (err as Error).toString()
     );
-    log(`Error parsing JSON => ${err}`);
   }
 
   // populate=Club now goes through the repository too, with Club selected

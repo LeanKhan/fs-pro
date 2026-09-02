@@ -98,13 +98,9 @@ async function play(fixture_id: string) {
   let fixture: Fixture;
 
   // fetch fixture...
-  try {
-    // get fixture and its details...
-    fixture = (await getFixtureById(fixture_id)) as Fixture;
-    // We also need to get the associated calendar day...
-  } catch (error) {
-    throw error;
-  }
+  // get fixture and its details...
+  fixture = (await getFixtureById(fixture_id)) as Fixture;
+  // We also need to get the associated calendar day...
 
   if (!fixture) {
     throw new Error('Fixture not found [f =>' + fixture_id + ' ]');

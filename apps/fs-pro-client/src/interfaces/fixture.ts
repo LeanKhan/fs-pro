@@ -71,7 +71,7 @@ export interface IMatchSideDetails {
   [key: string]: any;
 }
 
-interface IMatchAction {
+export interface IMatchAction {
   type: 'pass' | 'goal';
   playerID: string;
   playerTeam: string;

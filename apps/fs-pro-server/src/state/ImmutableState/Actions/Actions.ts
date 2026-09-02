@@ -807,8 +807,9 @@ export class Actions {
         const block = around[key] as IBlock;
         const occupant = block.occupant;
 
-        // if there is an occupant, push it!
-        occupant && arr.push(occupant);
+        if (occupant) {
+          arr.push(occupant);
+        }
       }
     }
 
@@ -826,7 +827,9 @@ export class Actions {
         const occupant = block.occupant;
 
         // if there is an occupant, push it!
-        occupant && arr.push(occupant);
+        if (occupant) {
+          arr.push(occupant);
+        }
       }
     }
 

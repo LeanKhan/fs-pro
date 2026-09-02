@@ -218,9 +218,6 @@ export class Match implements IMatch, MatchClass {
 
       // // give receiver some passes
       data.receiver.increasePoints(-GamePoints.Pass / 2);
-      this.Home.ClubCode === data.passer.ClubCode
-        ? this.Details.HomeTeamDetails.Passes++
-        : this.Details.AwayTeamDetails.Passes++;
       log(`Pass from ${data.passer.LastName} to ${data.receiver.LastName}`);
     });
 
