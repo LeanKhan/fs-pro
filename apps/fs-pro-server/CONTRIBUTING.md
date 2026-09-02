@@ -96,13 +96,14 @@ If you've created a new branch to work on rather than working directly on `devel
 <!-- **test** – Mocha test files through Chai assertion library. - comming soon -->
 
 ### Writing le code
+
 Use these labels in addition to TODO in your comments
-FIXME:	something is broken
-HACK/OPTIMIZE:	the code is suboptimal and should be refactored
-BUG:	there is a bug in the code
-CHECKME/REVIEW:	the code needs to be reviewed
-DOCME:	the code needs to be documented (either in codebase or external documentation)
-TESTME:	the specified code needs to be tested or that tests need to be written for that selection o
+FIXME: something is broken
+HACK/OPTIMIZE: the code is suboptimal and should be refactored
+BUG: there is a bug in the code
+CHECKME/REVIEW: the code needs to be reviewed
+DOCME: the code needs to be documented (either in codebase or external documentation)
+TESTME: the specified code needs to be tested or that tests need to be written for that selection o
 from [https://goldin.io/blog/stop-using-todo](https://goldin.io/blog/stop-using-todo)
 
 ### VS CODE
@@ -110,10 +111,10 @@ from [https://goldin.io/blog/stop-using-todo](https://goldin.io/blog/stop-using-
 **Install Plugins** – Below plugins is recommende for installation
 
 1. ESLint
-2. Prettier
+2. Oxc / Oxfmt
 3. Editor Config For VS Code
 
-We expect that all team members use VS Code as we have a .editorconfig file that helps all team members maintain a similar code structure
+We expect that all team members use VS Code with the recommended Oxc extension. The repository's Oxfmt config keeps formatting consistent across local runs and CI checks.
 
 ### NAMING CONVENTION
 

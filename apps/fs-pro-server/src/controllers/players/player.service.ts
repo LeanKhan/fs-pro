@@ -5,7 +5,12 @@ import { PlayerMatchDetailsInterface } from '../player-match/player-match.model'
 import { PlayerRepositoryFactory } from '../../repositories/PlayerRepositoryFactory';
 import { IPlayerFilter } from '../../repositories/PlayerRepository';
 import { DrizzleDatabase } from '../../db/drizzle';
-import { players, playerMatchDetails, fixtures, seasons } from '../../db/drizzle/schema';
+import {
+  players,
+  playerMatchDetails,
+  fixtures,
+  seasons,
+} from '../../db/drizzle/schema';
 import { eq, desc, inArray, sql as drizzleSql } from 'drizzle-orm';
 
 /**
@@ -31,7 +36,10 @@ export async function getPlayers(filter?: IPlayerFilter) {
   return getPlayerRepo().findAll(filter);
 }
 
-export async function updatePlayerFields(id: string, data: Partial<PlayerInterface>) {
+export async function updatePlayerFields(
+  id: string,
+  data: Partial<PlayerInterface>
+) {
   return getPlayerRepo().update(id, data);
 }
 
@@ -40,7 +48,11 @@ export async function deletePlayerById(id: string) {
 }
 
 export async function createPlayer(data: Partial<PlayerInterface>) {
-  data.Value = calculatePlayerValue(data.Position as string, data.Rating as number, data.Age as number);
+  data.Value = calculatePlayerValue(
+    data.Position as string,
+    data.Rating as number,
+    data.Age as number
+  );
   return getPlayerRepo().create(data);
 }
 
@@ -62,7 +74,11 @@ export function toggleSigned(
   clubCode: string | null,
   clubId: string | null
 ) {
-  const fields = { isSigned: !value, ClubCode: clubCode, Club: clubId } as unknown as Partial<PlayerInterface>;
+  const fields = {
+    isSigned: !value,
+    ClubCode: clubCode,
+    Club: clubId,
+  } as unknown as Partial<PlayerInterface>;
   return updatePlayerFields(playerId, fields);
 }
 
@@ -70,8 +86,16 @@ export function toggleSigned(
  * Sign many Players to a Club in one write - the bulk equivalent of
  * `toggleSigned`, used by `PUT /clubs/:id/add-many-players`.
  */
-export function signManyPlayersToClub(playerIds: string[], clubCode: string, clubId: string) {
-  const fields = { isSigned: true, ClubCode: clubCode, Club: clubId } as unknown as Partial<PlayerInterface>;
+export function signManyPlayersToClub(
+  playerIds: string[],
+  clubCode: string,
+  clubId: string
+) {
+  const fields = {
+    isSigned: true,
+    ClubCode: clubCode,
+    Club: clubId,
+  } as unknown as Partial<PlayerInterface>;
   return getPlayerRepo().updateManyByIds(playerIds, fields);
 }
 
@@ -117,13 +141,20 @@ async function attachPlayersAndFixtures(
 ) {
   const db = DrizzleDatabase.getInstance().database;
   const playerIds = [...new Set(rows.map((r) => r.playerId))];
-  const fixtureIds = [...new Set(rows.map((r) => r.fixtureId).filter((id): id is string => !!id))];
+  const fixtureIds = [
+    ...new Set(rows.map((r) => r.fixtureId).filter((id): id is string => !!id)),
+  ];
 
   const [playerRows, fixtureRows] = await Promise.all([
     playerIds.length
-      ? db.query.players.findMany({ where: inArray(players.id, playerIds), with: { nationality: true } })
+      ? db.query.players.findMany({
+          where: inArray(players.id, playerIds),
+          with: { nationality: true },
+        })
       : Promise.resolve([]),
-    fixtureIds.length ? db.query.fixtures.findMany({ where: inArray(fixtures.id, fixtureIds) }) : Promise.resolve([]),
+    fixtureIds.length
+      ? db.query.fixtures.findMany({ where: inArray(fixtures.id, fixtureIds) })
+      : Promise.resolve([]),
   ]);
 
   const playerMap = new Map(playerRows.map((p) => [p.id, remapRowId(p)]));
@@ -141,7 +172,9 @@ async function attachPlayersAndFixtures(
     points: Number(r.points),
     form: Number(r.form),
     player: playerMap.get(r.playerId),
-    ...(r.fixtureId !== undefined ? { fixture: r.fixtureId ? fixtureMap.get(r.fixtureId) : undefined } : {}),
+    ...(r.fixtureId !== undefined
+      ? { fixture: r.fixtureId ? fixtureMap.get(r.fixtureId) : undefined }
+      : {}),
     ...(r.count !== undefined ? { count: Number(r.count) } : {}),
   }));
 }
@@ -171,7 +204,9 @@ export async function getPlayerStats(year: string) {
     .groupBy(playerMatchDetails.Player)
     .orderBy(desc(drizzleSql`avg(${playerMatchDetails.Points})`));
 
-  return attachPlayersAndFixtures(rows.filter((r): r is typeof r & { playerId: string } => !!r.playerId));
+  return attachPlayersAndFixtures(
+    rows.filter((r): r is typeof r & { playerId: string } => !!r.playerId)
+  );
 }
 
 const STAT_SORT_COLUMNS = {
@@ -221,11 +256,17 @@ export async function getSpecificPlayerStats(
     .from(playerMatchDetails)
     .innerJoin(fixtures, eq(playerMatchDetails.Fixture, fixtures.id))
     .innerJoin(seasons, eq(fixtures.Season, seasons.id))
-    .where(competitionCode !== undefined ? eq(seasons.CompetitionCode, competitionCode) : undefined)
+    .where(
+      competitionCode !== undefined
+        ? eq(seasons.CompetitionCode, competitionCode)
+        : undefined
+    )
     .groupBy(playerMatchDetails.Player)
     .orderBy(sortDir === 'asc' ? sortColumn : desc(sortColumn));
 
-  return attachPlayersAndFixtures(rows.filter((r): r is typeof r & { playerId: string } => !!r.playerId));
+  return attachPlayersAndFixtures(
+    rows.filter((r): r is typeof r & { playerId: string } => !!r.playerId)
+  );
 }
 
 export async function allPlayerStats(

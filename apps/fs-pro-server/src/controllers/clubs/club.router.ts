@@ -7,7 +7,10 @@ import {
   updateClubFields,
   deleteClubById,
 } from './club.service';
-import { updateManyPlayerSigning, updatePlayerSigning } from '../../middleware/player';
+import {
+  updateManyPlayerSigning,
+  updatePlayerSigning,
+} from '../../middleware/player';
 import {
   addManyPlayersToClub,
   addPlayerToClubMiddleware,
@@ -29,7 +32,8 @@ const router = Router();
  * needs Players/Manager populated. */
 router.get('/all', (req, res) => {
   const { ids, unclaimed } = req.query;
-  const idList = typeof ids === 'string' ? ids.split(',').filter(Boolean) : undefined;
+  const idList =
+    typeof ids === 'string' ? ids.split(',').filter(Boolean) : undefined;
 
   const response = idList
     ? getClubs({ ids: idList })
@@ -86,7 +90,8 @@ router.delete('/:id', (req, res) => {
 router.get('/:id', (req, res) => {
   // ?populate= is now just a boolean flag for withPlayersAndManager -
   // Address.Country comes back populated either way.
-  const populate = typeof req.query.populate === 'string' && req.query.populate !== 'false';
+  const populate =
+    typeof req.query.populate === 'string' && req.query.populate !== 'false';
 
   getClubById(req.params.id, { withPlayersAndManager: populate })
     .then((club) => {

@@ -29,7 +29,14 @@ dotenv.config();
 
 import { createDrizzleConnection } from '../../db/drizzle/client';
 
-const PRESERVED_TABLES = ['Clubs', 'Players', 'Managers', 'Users', 'Competitions', 'Places'];
+const PRESERVED_TABLES = [
+  'Clubs',
+  'Players',
+  'Managers',
+  'Users',
+  'Competitions',
+  'Places',
+];
 
 async function main() {
   const apply = process.argv.includes('--apply');
@@ -39,7 +46,11 @@ async function main() {
   try {
     await client`SELECT 1`;
 
-    console.log(apply ? 'Applying clean-slate reset...\n' : 'Dry run (pass --apply to actually delete):\n');
+    console.log(
+      apply
+        ? 'Applying clean-slate reset...\n'
+        : 'Dry run (pass --apply to actually delete):\n'
+    );
 
     const preservedBefore = await countRows(client, PRESERVED_TABLES);
 
@@ -57,8 +68,10 @@ async function main() {
         run: () => client`DELETE FROM "Awards"`,
       },
       {
-        label: 'Fixtures.HomeSideDetails/AwaySideDetails -> NULL (breaks the circular FK with ClubMatchDetails)',
-        run: () => client`UPDATE "Fixtures" SET "HomeSideDetails" = NULL, "AwaySideDetails" = NULL`,
+        label:
+          'Fixtures.HomeSideDetails/AwaySideDetails -> NULL (breaks the circular FK with ClubMatchDetails)',
+        run: () =>
+          client`UPDATE "Fixtures" SET "HomeSideDetails" = NULL, "AwaySideDetails" = NULL`,
       },
       {
         label: 'ClubMatchDetails',
@@ -85,14 +98,25 @@ async function main() {
     for (const step of steps) {
       if (apply) {
         const result = await step.run();
-        console.log(`  ${step.label}: ${(result as any).count ?? 0} row(s) affected`);
+        console.log(
+          `  ${step.label}: ${(result as any).count ?? 0} row(s) affected`
+        );
       } else {
         console.log(`  Would run: ${step.label}`);
       }
     }
 
     if (apply) {
-      const remaining = await countRows(client, ['Calendars', 'Days', 'Seasons', 'Fixtures', 'ClubMatchDetails', 'PlayerMatchDetails', 'MatchReplays', 'Awards']);
+      const remaining = await countRows(client, [
+        'Calendars',
+        'Days',
+        'Seasons',
+        'Fixtures',
+        'ClubMatchDetails',
+        'PlayerMatchDetails',
+        'MatchReplays',
+        'Awards',
+      ]);
       console.log('\nRow counts after reset (should all be 0):');
       for (const [table, count] of Object.entries(remaining)) {
         console.log(`  ${table}: ${count}`);
@@ -104,21 +128,30 @@ async function main() {
     for (const table of PRESERVED_TABLES) {
       const before = preservedBefore[table];
       const after = preservedAfter[table];
-      console.log(`  ${table}: ${before} -> ${after}${before !== after ? '  *** CHANGED ***' : ''}`);
+      console.log(
+        `  ${table}: ${before} -> ${after}${before !== after ? '  *** CHANGED ***' : ''}`
+      );
     }
 
     if (!apply) {
-      console.log('\nDry run only - nothing was deleted. Re-run with --apply to actually delete.');
+      console.log(
+        '\nDry run only - nothing was deleted. Re-run with --apply to actually delete.'
+      );
     }
   } finally {
     await client.end();
   }
 }
 
-async function countRows(client: ReturnType<typeof createDrizzleConnection>['client'], tables: string[]): Promise<Record<string, number>> {
+async function countRows(
+  client: ReturnType<typeof createDrizzleConnection>['client'],
+  tables: string[]
+): Promise<Record<string, number>> {
   const counts: Record<string, number> = {};
   for (const table of tables) {
-    const [{ count }] = await client.unsafe<{ count: string }[]>(`SELECT COUNT(*) as count FROM "${table}"`);
+    const [{ count }] = await client.unsafe<{ count: string }[]>(
+      `SELECT COUNT(*) as count FROM "${table}"`
+    );
     counts[table] = Number(count);
   }
   return counts;

@@ -10,7 +10,7 @@ const MATCH_REPLAY_NS = '/match-replay';
 let ioInstance: Server | undefined;
 
 export function registerIO(io: Server): void {
-  console.log('Registering IO')
+  console.log('Registering IO');
   ioInstance = io;
 
   io.of(MATCH_REPLAY_NS).on('connection', (socket: Socket) => {
@@ -31,7 +31,9 @@ export function registerIO(io: Server): void {
 
 export function getMatchReplayNamespace(): Namespace {
   if (!ioInstance) {
-    throw new Error('IO not registered yet - call registerIO() in server.ts first');
+    throw new Error(
+      'IO not registered yet - call registerIO() in server.ts first'
+    );
   }
   return ioInstance.of(MATCH_REPLAY_NS);
 }

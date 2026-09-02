@@ -22,19 +22,22 @@ const options: swaggerJsdoc.Options = {
         'REST API docs for the FS Pro server, generated from JSDoc annotations on route files. ' +
         'Postgres (via Drizzle) is the only backend - see `GET /meta/db` for a trivial health check.',
     },
-    servers: [{ url: '/api', description: 'Relative to wherever the server is running' }],
+    servers: [
+      {
+        url: '/api',
+        description: 'Relative to wherever the server is running',
+      },
+    ],
     tags: [
       { name: 'Meta', description: 'Server/DB health check' },
       {
         name: 'Places',
-        description: 'Countries/regions/cities reference data - see repositories/drizzle/PlaceRepository.ts',
+        description:
+          'Countries/regions/cities reference data - see repositories/drizzle/PlaceRepository.ts',
       },
     ],
   },
-  apis: [
-    './src/controllers/**/*.router.ts',
-    './src/controllers/meta/*.ts',
-  ],
+  apis: ['./src/controllers/**/*.router.ts', './src/controllers/meta/*.ts'],
 };
 
 export const swaggerSpec = swaggerJsdoc(options);

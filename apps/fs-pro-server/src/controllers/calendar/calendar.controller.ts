@@ -1,6 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import respond from '../../helpers/responseHandler';
-import { getSeasons, getSeasonById, updateSeasonFields } from '../seasons/season.service';
+import {
+  getSeasons,
+  getSeasonById,
+  updateSeasonFields,
+} from '../seasons/season.service';
 import { updateFixtureFields } from '../fixtures/fixture.service';
 import { getCalendar } from './calendar.service';
 import { CompetitionInterface } from '../competitions/competition.model';
@@ -19,8 +23,12 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * pass below reads `.Fixtures` off every season it processes, so each needs
  * the fully-hydrated version.
  */
-async function hydrateSeasonFixtures(seasonStubs: { _id?: string }[]): Promise<SeasonInterface[]> {
-  const hydrated = await Promise.all(seasonStubs.map((s) => getSeasonById(s._id as string)));
+async function hydrateSeasonFixtures(
+  seasonStubs: { _id?: string }[]
+): Promise<SeasonInterface[]> {
+  const hydrated = await Promise.all(
+    seasonStubs.map((s) => getSeasonById(s._id as string))
+  );
   return hydrated.filter((s): s is SeasonInterface => !!s);
 }
 
@@ -43,10 +51,17 @@ function arrangeSeasonFixturesAcrossDays(
     const MatchesPerWeek = s.Fixtures.length / s.Standings.length;
     const NumberOfWeeks = s.Standings.length;
 
-    function arrange(matchesInWeek: number, Fixture: number, Day: number): { Fixture: number; Day: number } {
+    function arrange(
+      matchesInWeek: number,
+      Fixture: number,
+      Day: number
+    ): { Fixture: number; Day: number } {
       if (matchesInWeek > 0 && matchesInWeek <= 3) {
         for (let a = 0; a < matchesInWeek; a++) {
-          scheduled.push({ fixtureId: s.Fixtures[Fixture - 1]._id as unknown as string, day: startDay + Day });
+          scheduled.push({
+            fixtureId: s.Fixtures[Fixture - 1]._id as unknown as string,
+            day: startDay + Day,
+          });
           Fixture++;
         }
         matchesInWeek -= matchesInWeek;
@@ -54,7 +69,10 @@ function arrangeSeasonFixturesAcrossDays(
 
       if (matchesInWeek >= 5) {
         for (let b = 0; b < 5; b++) {
-          scheduled.push({ fixtureId: s.Fixtures[Fixture - 1]._id as unknown as string, day: startDay + Day });
+          scheduled.push({
+            fixtureId: s.Fixtures[Fixture - 1]._id as unknown as string,
+            day: startDay + Day,
+          });
           Fixture++;
         }
         matchesInWeek -= 5;
@@ -93,28 +111,42 @@ function arrangeSeasonFixturesAcrossDays(
  * there's no more per-year Calendar to create/activate.
  */
 export async function startNextSeasonCycle(req: Request, res: Response) {
-  const Year: string | undefined = (req.body?.data?.Year ?? req.body?.Year)?.trim().toUpperCase();
+  const Year: string | undefined = (req.body?.data?.Year ?? req.body?.Year)
+    ?.trim()
+    .toUpperCase();
 
   if (!Year) {
-    return respond.fail(res, 400, 'Year is required to start a new season cycle');
+    return respond.fail(
+      res,
+      400,
+      'Year is required to start a new season cycle'
+    );
   }
 
   try {
     const competitions: CompetitionInterface[] = await getCompetitions();
     const calendar = await getCalendar();
 
-    await Promise.all(competitions.map((c) => create(c.CompetitionCode, c._id as string, Year)));
+    await Promise.all(
+      competitions.map((c) => create(c.CompetitionCode, c._id as string, Year))
+    );
 
     const seasonStubs = await getSeasons({ Year });
     const seasons = await hydrateSeasonFixtures(seasonStubs);
 
-    const scheduled = arrangeSeasonFixturesAcrossDays(seasons, calendar.CurrentDay);
+    const scheduled = arrangeSeasonFixturesAcrossDays(
+      seasons,
+      calendar.CurrentDay
+    );
 
     await Promise.all(
       scheduled.map(({ fixtureId, day }) =>
         updateFixtureFields(fixtureId, {
           ScheduledDay: day,
-          ScheduledDate: new Date(calendar.CurrentDate.getTime() + (day - calendar.CurrentDay) * DAY_MS),
+          ScheduledDate: new Date(
+            calendar.CurrentDate.getTime() +
+              (day - calendar.CurrentDay) * DAY_MS
+          ),
         })
       )
     );
@@ -129,19 +161,39 @@ export async function startNextSeasonCycle(req: Request, res: Response) {
       )
     );
 
-    return respond.success(res, 200, 'Next season cycle started successfully!', seasons);
+    return respond.success(
+      res,
+      200,
+      'Next season cycle started successfully!',
+      seasons
+    );
   } catch (err: any) {
     console.error(err);
-    return respond.fail(res, 400, 'Error starting next season cycle', err.toString());
+    return respond.fail(
+      res,
+      400,
+      'Error starting next season cycle',
+      err.toString()
+    );
   }
 }
 
 export async function getCurrentCalendar(req: Request, res: Response) {
   try {
     const calendar = await getCalendar();
-    return respond.success(res, 200, 'Fetched current Calendar successfully! :)', calendar);
+    return respond.success(
+      res,
+      200,
+      'Fetched current Calendar successfully! :)',
+      calendar
+    );
   } catch (error: any) {
-    return respond.fail(res, 400, 'Error fetching current Calendar', error.toString());
+    return respond.fail(
+      res,
+      400,
+      'Error fetching current Calendar',
+      error.toString()
+    );
   }
 }
 
@@ -151,7 +203,11 @@ export async function getCurrentCalendar(req: Request, res: Response) {
  * no Calendar-level `isActive`/`isEnded`/`allSeasonsCompleted` flag to flip
  * anymore, so this is scoped purely by Year.
  */
-export async function endSeasonCycle(req: Request, res: Response, next: NextFunction) {
+export async function endSeasonCycle(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
   const year = req.params.year?.trim().toUpperCase();
 
   if (!year) {
@@ -167,7 +223,11 @@ export async function endSeasonCycle(req: Request, res: Response, next: NextFunc
   const all_finished = all_seasons.every((s) => s.isFinished && s.isStarted);
 
   if (!all_finished) {
-    return respond.fail(res, 400, 'Not all Seasons for that Year are finished yet!');
+    return respond.fail(
+      res,
+      400,
+      'Not all Seasons for that Year are finished yet!'
+    );
   }
 
   try {

@@ -47,11 +47,7 @@
             ></v-text-field>
           </v-col>
           <v-col cols="6" class="d-flex align-center">
-            <v-btn
-              color="warning"
-              :disabled="!endYearInput"
-              @click="goEndYear"
-            >
+            <v-btn color="warning" :disabled="!endYearInput" @click="goEndYear">
               End Season Cycle
             </v-btn>
           </v-col>
@@ -89,7 +85,9 @@ const toast = ref({
 
 const calendar = computed(() => store.calendar);
 const formattedGameDate = computed(() =>
-  calendar.value?.CurrentDate ? new Date(calendar.value.CurrentDate).toDateString() : ''
+  calendar.value?.CurrentDate
+    ? new Date(calendar.value.CurrentDate).toDateString()
+    : ''
 );
 
 async function startNextSeasonCycle() {

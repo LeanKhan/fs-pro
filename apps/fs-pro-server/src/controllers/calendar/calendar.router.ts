@@ -23,10 +23,20 @@ router.get('/days', (req: Request, res: Response) => {
 
   getEvents(from, to)
     .then((days) => {
-      return respond.success(res, 200, 'Calendar events fetched successfully!', days);
+      return respond.success(
+        res,
+        200,
+        'Calendar events fetched successfully!',
+        days
+      );
     })
     .catch((err: any) => {
-      return respond.fail(res, 400, 'Error fetching Calendar events', err.toString());
+      return respond.fail(
+        res,
+        400,
+        'Error fetching Calendar events',
+        err.toString()
+      );
     });
 });
 
@@ -46,7 +56,12 @@ router.post('/seasons/next', startNextSeasonCycle);
 
 /** End a season cycle - prolegates every Season in `:year` once they're all
  * finished, then progresses Player/Club ratings for the new cycle. */
-router.post('/end-season/:year', endSeasonCycle, updatePlayersDetails, updateAllClubsRating);
+router.post(
+  '/end-season/:year',
+  endSeasonCycle,
+  updatePlayersDetails,
+  updateAllClubsRating
+);
 
 router.get('/:year/update-ages', updatePlayersDetails);
 

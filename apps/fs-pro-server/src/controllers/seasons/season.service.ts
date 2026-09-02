@@ -30,12 +30,13 @@ export async function createSeasonRecord(data: Partial<SeasonInterface>) {
   return getSeasonRepo().create(data);
 }
 
-export async function updateSeasonFields(id: string, data: Partial<SeasonInterface>) {
+export async function updateSeasonFields(
+  id: string,
+  data: Partial<SeasonInterface>
+) {
   return getSeasonRepo().update(id, data);
 }
 
 export async function deleteSeasonById(id: string) {
   return getSeasonRepo().delete(id);
 }
-
-

@@ -3,7 +3,11 @@ import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { ClubInterface } from '../../controllers/clubs/club.model';
 import * as schema from '../../db/drizzle/full-schema';
 import { clubs, places, players, managers } from '../../db/drizzle/schema';
-import { IClubRepository, IClubFilter, IClubReadOptions } from '../ClubRepository';
+import {
+  IClubRepository,
+  IClubFilter,
+  IClubReadOptions,
+} from '../ClubRepository';
 
 type DrizzleDb = PostgresJsDatabase<typeof schema>;
 type ClubRow = typeof clubs.$inferSelect;
@@ -39,11 +43,23 @@ function toClub(
     manager?: ManagerRow | null;
   }
 ): ClubInterface {
-  const { id, mongoId, addressCountry, Address, players: playerRows, manager, ...rest } = row;
+  const {
+    id,
+    mongoId,
+    addressCountry,
+    Address,
+    players: playerRows,
+    manager,
+    ...rest
+  } = row;
 
   const country = addressCountry
     ? (() => {
-        const { id: placeId, mongoId: placeMongoId, ...placeRest } = addressCountry;
+        const {
+          id: placeId,
+          mongoId: placeMongoId,
+          ...placeRest
+        } = addressCountry;
         return { _id: placeId, ...placeRest };
       })()
     : undefined;
@@ -51,38 +67,55 @@ function toClub(
   return {
     _id: id,
     ...rest,
-    Address: { ...(Address as Record<string, unknown> | null), Country: country },
+    Address: {
+      ...(Address as Record<string, unknown> | null),
+      Country: country,
+    },
     ...(playerRows !== undefined ? { Players: playerRows.map(remapId) } : {}),
-    ...(manager !== undefined ? { Manager: manager ? remapId(manager) : rest.Manager } : {}),
+    ...(manager !== undefined
+      ? { Manager: manager ? remapId(manager) : rest.Manager }
+      : {}),
   } as unknown as ClubInterface;
 }
 
 export class DrizzleClubRepository implements IClubRepository {
   constructor(private db: DrizzleDb) {}
 
-  async findById(id: string, options: IClubReadOptions = {}): Promise<ClubInterface | null> {
+  async findById(
+    id: string,
+    options: IClubReadOptions = {}
+  ): Promise<ClubInterface | null> {
     const club = await this.db.query.clubs.findFirst({
       where: eq(clubs.id, id),
       with: {
         addressCountry: true,
-        ...(options.withPlayersAndManager ? { players: true, manager: true } : {}),
+        ...(options.withPlayersAndManager
+          ? { players: true, manager: true }
+          : {}),
       },
     });
     return club ? toClub(club) : null;
   }
 
-  async findAll(filter: IClubFilter = {}, options: IClubReadOptions = {}): Promise<ClubInterface[]> {
+  async findAll(
+    filter: IClubFilter = {},
+    options: IClubReadOptions = {}
+  ): Promise<ClubInterface[]> {
     const conditions = [];
     if (filter.User !== undefined) conditions.push(eq(clubs.User, filter.User));
     if (filter.unclaimed) conditions.push(isNull(clubs.User));
-    if (filter.League !== undefined) conditions.push(eq(clubs.League, filter.League));
-    if (filter.ids !== undefined) conditions.push(inArray(clubs.id, filter.ids));
+    if (filter.League !== undefined)
+      conditions.push(eq(clubs.League, filter.League));
+    if (filter.ids !== undefined)
+      conditions.push(inArray(clubs.id, filter.ids));
 
     const rows = await this.db.query.clubs.findMany({
       where: conditions.length ? and(...conditions) : undefined,
       with: {
         addressCountry: true,
-        ...(options.withPlayersAndManager ? { players: true, manager: true } : {}),
+        ...(options.withPlayersAndManager
+          ? { players: true, manager: true }
+          : {}),
       },
     });
     return rows.map(toClub);
@@ -101,16 +134,27 @@ export class DrizzleClubRepository implements IClubRepository {
     if (data.length === 0) return [];
     const rows = await this.db
       .insert(clubs)
-      .values(data.map((d) => ({ ...(d as typeof clubs.$inferInsert), updatedAt: new Date() })))
+      .values(
+        data.map((d) => ({
+          ...(d as typeof clubs.$inferInsert),
+          updatedAt: new Date(),
+        }))
+      )
       .returning();
 
     return rows.map(toClub);
   }
 
-  async update(id: string, data: Partial<ClubInterface>): Promise<ClubInterface | null> {
+  async update(
+    id: string,
+    data: Partial<ClubInterface>
+  ): Promise<ClubInterface | null> {
     const [club] = await this.db
       .update(clubs)
-      .set({ ...(data as Partial<typeof clubs.$inferInsert>), updatedAt: new Date() })
+      .set({
+        ...(data as Partial<typeof clubs.$inferInsert>),
+        updatedAt: new Date(),
+      })
       .where(eq(clubs.id, id))
       .returning();
 
@@ -118,7 +162,10 @@ export class DrizzleClubRepository implements IClubRepository {
   }
 
   async delete(id: string): Promise<ClubInterface> {
-    const [club] = await this.db.delete(clubs).where(eq(clubs.id, id)).returning();
+    const [club] = await this.db
+      .delete(clubs)
+      .where(eq(clubs.id, id))
+      .returning();
     if (!club) {
       throw new Error(`Club [${id}] does not exist`);
     }

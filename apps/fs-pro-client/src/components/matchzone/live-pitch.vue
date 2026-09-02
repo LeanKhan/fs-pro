@@ -16,7 +16,14 @@
         v-for="p in frame?.players || []"
         :key="p.id"
         class="player"
-        :class="[p.side, { gk: p.pos === 'GK', 'with-ball': p.withBall, 'sent-off': p.matchStatus === 'sent-off' }]"
+        :class="[
+          p.side,
+          {
+            gk: p.pos === 'GK',
+            'with-ball': p.withBall,
+            'sent-off': p.matchStatus === 'sent-off',
+          },
+        ]"
         :style="playerStyle(p)"
         @mouseenter="hoveredId = p.id"
         @mouseleave="hoveredId = null"
@@ -32,16 +39,23 @@
         :style="toPct(hoveredPlayer)"
       >
         <div class="tooltip-name">
-          {{ hoveredPlayer.name }} <span class="tooltip-num">#{{ hoveredPlayer.num }}</span>
+          {{ hoveredPlayer.name }}
+          <span class="tooltip-num">#{{ hoveredPlayer.num }}</span>
         </div>
         <div class="tooltip-row">
           {{ hoveredPlayer.pos }} · ★ {{ hoveredPlayer.rating ?? '-' }}
         </div>
         <div class="tooltip-row">
-          <span v-if="hoveredPlayer.matchStatus === 'sent-off'" class="tooltip-red">
+          <span
+            v-if="hoveredPlayer.matchStatus === 'sent-off'"
+            class="tooltip-red"
+          >
             Sent off
           </span>
-          <span v-else-if="hoveredPlayer.yellowCards > 0" class="tooltip-yellow">
+          <span
+            v-else-if="hoveredPlayer.yellowCards > 0"
+            class="tooltip-yellow"
+          >
             {{ hoveredPlayer.yellowCards > 1 ? 'x2 ' : '' }}Yellow card
           </span>
           <span v-else>Active</span>
@@ -50,7 +64,11 @@
     </div>
 
     <div class="meta-line">
-      <span>{{ home?.name }} [{{ home?.code }}] vs {{ away?.name }} [{{ away?.code }}]</span>
+      <span>
+        {{ home?.name }} [{{ home?.code }}] vs {{ away?.name }} [{{
+          away?.code
+        }}]
+      </span>
       <span v-if="frame">{{ frame.minute }}' - half {{ frame.half }}</span>
     </div>
   </div>
@@ -70,7 +88,10 @@ const props = defineProps<{
   away?: { name: string; code: string };
   /** id -> squad info, so tooltips can show a name/rating without bloating
    * every frame with data that never changes tick to tick. */
-  players?: Record<string, { FirstName: string; LastName: string; Rating: number }>;
+  players?: Record<
+    string,
+    { FirstName: string; LastName: string; Rating: number }
+  >;
 }>();
 
 const hoveredId = ref<string | null>(null);
@@ -85,7 +106,9 @@ const hoveredPlayer = computed(() => {
 
   return {
     ...framePlayer,
-    name: info ? `${info.FirstName} ${info.LastName}` : `Player #${framePlayer.num}`,
+    name: info
+      ? `${info.FirstName} ${info.LastName}`
+      : `Player #${framePlayer.num}`,
     rating: info ? Math.round(info.Rating) : null,
   };
 });
@@ -171,7 +194,9 @@ svg.markings rect {
   background-color: #444;
   background-size: cover;
   background-position: center;
-  transition: left 280ms linear, top 280ms linear;
+  transition:
+    left 280ms linear,
+    top 280ms linear;
   cursor: pointer;
 }
 .player.home {
@@ -184,7 +209,9 @@ svg.markings rect {
   filter: brightness(1.35);
 }
 .player.with-ball {
-  box-shadow: 0 0 0 3px #e9b34a, 0 2px 6px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 0 0 3px #e9b34a,
+    0 2px 6px rgba(0, 0, 0, 0.5);
 }
 .player.sent-off {
   opacity: 0.3;
@@ -198,7 +225,9 @@ svg.markings rect {
   border-radius: 50%;
   background: #e9b34a;
   box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.4);
-  transition: left 280ms linear, top 280ms linear;
+  transition:
+    left 280ms linear,
+    top 280ms linear;
 }
 
 .player-tooltip {

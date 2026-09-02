@@ -32,11 +32,16 @@ export default class Ball implements IBall, BallClass {
 
   public move(pos: ICoordinate) {
     // console.log('Position => ', this.Position, 'pos => ', pos);
-    log(`old Coordinates ${JSON.stringify({ x: this.Position.x, y: this.Position.y })}`);
+    log(
+      `old Coordinates ${JSON.stringify({ x: this.Position.x, y: this.Position.y })}`
+    );
 
     log(`sent coordinates ${JSON.stringify({ x: pos.x, y: pos.y })}`);
 
-    const newCoordinates = { x: this.Position.x + pos.x, y: this.Position.y + pos.y };
+    const newCoordinates = {
+      x: this.Position.x + pos.x,
+      y: this.Position.y + pos.y,
+    };
 
     // this.Position.x += pos.x;
     // this.Position.y += pos.y;
@@ -50,12 +55,20 @@ export default class Ball implements IBall, BallClass {
       // meaning this ball would have gone out by the flanks
       // e.g original position is 8, 5 and the movement coords is 0, -6
       // the new position would be 8, -1 which is out.
-      const isGoingOutAtFlanks = this.Position.y + pos.y < 0 || this.Position.y + pos.y > this.Position.Field.mapHeight - 1;
-      const isGoingOutAtEnds = this.Position.x + pos.x < 0 || this.Position.x + pos.x > this.Position.Field.mapWidth - 1;
+      const isGoingOutAtFlanks =
+        this.Position.y + pos.y < 0 ||
+        this.Position.y + pos.y > this.Position.Field.mapHeight - 1;
+      const isGoingOutAtEnds =
+        this.Position.x + pos.x < 0 ||
+        this.Position.x + pos.x > this.Position.Field.mapWidth - 1;
 
-    matchEvents.emit(`${this.Match_id}-ball-out`, {
+      matchEvents.emit(`${this.Match_id}-ball-out`, {
         where: this.Position,
-        towards: isGoingOutAtEnds ? 'ends' : isGoingOutAtFlanks ? 'flanks' : 'idk'
+        towards: isGoingOutAtEnds
+          ? 'ends'
+          : isGoingOutAtFlanks
+            ? 'flanks'
+            : 'idk',
       });
     } else {
       this.Position = newPosition;

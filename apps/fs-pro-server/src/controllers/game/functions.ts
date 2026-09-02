@@ -5,7 +5,10 @@ import {
 } from '../../classes/Match';
 import { ClubStandings } from '../seasons/season.model';
 import { getSeasonById, updateSeasonFields } from '../seasons/season.service';
-import { updateFixtureFields, allFixturesPlayedForDay } from '../fixtures/fixture.service';
+import {
+  updateFixtureFields,
+  allFixturesPlayedForDay,
+} from '../fixtures/fixture.service';
 import { Fixture } from '../fixtures/fixture.model';
 import { createManyPlayerMatches } from '../player-match/player-match.service';
 import { PlayerMatchDetailsInterface } from '../player-match/player-match.model';
@@ -53,8 +56,8 @@ export async function updateFixture(
     AwaySideDetails.Won = MatchDetails.Winner!.id === away.id;
   }
 
-  const HSD = {...HomeSideDetails};
-  const ASD = {...AwaySideDetails};
+  const HSD = { ...HomeSideDetails };
+  const ASD = { ...AwaySideDetails };
 
   //  { _id: fixture_id, Played: false }, TODO - Change back to this!
   //  Find that particular fixture that has not been played of course...
@@ -67,7 +70,11 @@ export async function updateFixture(
     // from before (PlayerMatchDetails used to be created first, purely to
     // get ids for Mongo's array) - harmless reorder on Mongo, since nothing
     // there depends on which side gets created first.
-    const clubMatch: any = await createClubMatch({ ...club, Fixture: fixture_id, PlayerStats: [] } as any);
+    const clubMatch: any = await createClubMatch({
+      ...club,
+      Fixture: fixture_id,
+      PlayerStats: [],
+    } as any);
     const clubMatchId = clubMatch._id;
 
     if (saveStats) {
@@ -123,7 +130,11 @@ export async function updateStandings(
   home: Team,
   away: Team,
   seasonID: string
-): Promise<{ homeTable: ClubStandings; awayTable: ClubStandings; allMatchesPlayedThatDay: boolean }> {
+): Promise<{
+  homeTable: ClubStandings;
+  awayTable: ClubStandings;
+  allMatchesPlayedThatDay: boolean;
+}> {
   // Find out who...
   // HomeSideDetails.Won = MatchDetails.Winner?.id === home.id;
   // AwaySideDetails.Won = MatchDetails.Winner?.id === away.id;
@@ -221,7 +232,9 @@ export async function updateStandings(
     await updateSeasonFields(seasonID, { Standings: standings });
 
     const allMatchesPlayedThatDay =
-      fixture.ScheduledDay != null ? await allFixturesPlayedForDay(fixture.ScheduledDay) : true;
+      fixture.ScheduledDay != null
+        ? await allFixturesPlayedForDay(fixture.ScheduledDay)
+        : true;
 
     return { homeTable, awayTable, allMatchesPlayedThatDay };
   } catch (error) {

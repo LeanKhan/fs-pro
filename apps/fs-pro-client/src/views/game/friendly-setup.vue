@@ -113,7 +113,10 @@ const creating = ref(false);
 const error = ref('');
 
 const canSubmit = computed(
-  () => homeClubId.value && awayClubId.value && homeClubId.value !== awayClubId.value
+  () =>
+    homeClubId.value &&
+    awayClubId.value &&
+    homeClubId.value !== awayClubId.value
 );
 
 async function loadClubs() {
@@ -152,8 +155,14 @@ async function createFriendly() {
     const response = await $axios.post('/game/friendly', {
       homeClubId: homeClubId.value,
       awayClubId: awayClubId.value,
-      homeTactic: { formationName: homeFormation.value, styleName: homeStyle.value },
-      awayTactic: { formationName: awayFormation.value, styleName: awayStyle.value },
+      homeTactic: {
+        formationName: homeFormation.value,
+        styleName: homeStyle.value,
+      },
+      awayTactic: {
+        formationName: awayFormation.value,
+        styleName: awayStyle.value,
+      },
       saveStats: saveStats.value,
     });
 

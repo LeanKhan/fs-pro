@@ -1,6 +1,6 @@
-import { IFieldPlayer } from "@/interfaces/Player";
-import Field from "@/state/ImmutableState/FieldGrid";
-import CO from "@/utils/coordinates";
+import { IFieldPlayer } from '@/interfaces/Player';
+import Field from '@/state/ImmutableState/FieldGrid';
+import CO from '@/utils/coordinates';
 
 export default class Block {
   public x: number;
@@ -18,14 +18,14 @@ export default class Block {
    * @param yBlocks default is 11
    */
   constructor(
-  	  x: number,
-          y: number,
-          key: string,
-          field: Field,
-          isFlank: boolean,
-          isEnds: boolean,
-          occupant?: IFieldPlayer,
-  	) {
+    x: number,
+    y: number,
+    key: string,
+    field: Field,
+    isFlank: boolean,
+    isEnds: boolean,
+    occupant?: IFieldPlayer
+  ) {
     this.x = x;
     this.y = y;
     this.key = key;
@@ -33,17 +33,16 @@ export default class Block {
     this.isEnds = isEnds;
     this.Field = field;
     this.occupant = occupant || null;
+  }
 
-  };
-
-   /**
-    * Get the blocks around this block by radius.
-    *
-    * Bounds are read off this.Field.mapWidth/mapHeight rather than
-    * hardcoded, so this works for whatever grid size Field was
-    * constructed with.
-    */
-   public getBlocksAround(radius: number): any[] {
+  /**
+   * Get the blocks around this block by radius.
+   *
+   * Bounds are read off this.Field.mapWidth/mapHeight rather than
+   * hardcoded, so this works for whatever grid size Field was
+   * constructed with.
+   */
+  public getBlocksAround(radius: number): any[] {
     const maxX = this.Field.mapWidth - 1;
     const maxY = this.Field.mapHeight - 1;
 
@@ -111,9 +110,7 @@ export default class Block {
     }
     return blocks;
   }
-
-};
-
+}
 
 export interface ICoordinate {
   x: number;

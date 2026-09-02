@@ -305,6 +305,7 @@ Update `package.json`:
 ## Drizzle vs Prisma Comparison
 
 ### Prisma Example
+
 ```typescript
 // Create
 await prisma.place.create({
@@ -312,17 +313,18 @@ await prisma.place.create({
     fullname: 'Republic of Bellean',
     name: 'Bellean',
     code: 'BELL',
-  }
+  },
 });
 
 // Query
 const places = await prisma.place.findMany({
   where: { region: 'east' },
-  orderBy: { name: 'asc' }
+  orderBy: { name: 'asc' },
 });
 ```
 
 ### Drizzle Example
+
 ```typescript
 import { db } from './db/drizzle';
 import { places } from './db/drizzle/schema/places';
@@ -372,10 +374,7 @@ export class DrizzlePlaceRepository implements IPlaceRepository {
   }
 
   async create(data: Partial<IPlace>): Promise<IPlace> {
-    const [place] = await this.db
-      .insert(places)
-      .values(data)
-      .returning();
+    const [place] = await this.db.insert(places).values(data).returning();
 
     return place;
   }
@@ -399,17 +398,20 @@ export class DrizzlePlaceRepository implements IPlaceRepository {
 ## Switching Between ORMs
 
 ### Use MongoDB (Default)
+
 ```bash
 USE_POSTGRESQL=false
 ```
 
 ### Use PostgreSQL with Prisma
+
 ```bash
 USE_POSTGRESQL=true
 USE_DRIZZLE=false
 ```
 
 ### Use PostgreSQL with Drizzle
+
 ```bash
 USE_POSTGRESQL=true
 USE_DRIZZLE=true
@@ -418,6 +420,7 @@ USE_DRIZZLE=true
 ## Migration Commands
 
 ### Drizzle Kit Commands
+
 ```bash
 # Generate migration files
 npm run drizzle:generate
@@ -440,12 +443,14 @@ npm run drizzle:studio
 ## When to Use Each
 
 ### Use Prisma if:
+
 - You want a mature, well-documented ORM
 - You prefer GraphQL-like query syntax
 - You need comprehensive tooling (Studio, migrations)
 - You want extensive ecosystem support
 
 ### Use Drizzle if:
+
 - You want maximum performance
 - You prefer SQL-like syntax
 - You need fine-grained control

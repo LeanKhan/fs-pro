@@ -2,8 +2,20 @@ import { ClubInterface as Club } from '../controllers/clubs/club.model';
 import { MatchSide } from './MatchSide';
 import { matchEvents, createMatchEvent, ballMove } from '../utils/events';
 import { IBlock } from '../state/ImmutableState/FieldGrid';
-import { IFieldPlayer, IPlayerStats, PlayerMatchStatus } from '../interfaces/Player';
-import { IShot, IPass, GamePoints, ITackle, IDribble, IFoul, ISentOff } from './Referee';
+import {
+  IFieldPlayer,
+  IPlayerStats,
+  PlayerMatchStatus,
+} from '../interfaces/Player';
+import {
+  IShot,
+  IPass,
+  GamePoints,
+  ITackle,
+  IDribble,
+  IFoul,
+  ISentOff,
+} from './Referee';
 import log from '../helpers/logger';
 import { generateRandomNDigits } from '../helpers/misc';
 
@@ -48,7 +60,6 @@ export class Match implements IMatch, MatchClass {
     homePost: IBlock,
     centerBlock: IBlock
   ) {
-
     this.id = '' + generateRandomNDigits(5);
     this.Home = new MatchSide(home, awayPost, homePost);
     this.Away = new MatchSide(away, homePost, awayPost);
@@ -197,13 +208,13 @@ export class Match implements IMatch, MatchClass {
       });
 
       createMatchEvent(
-      this.id,
-      `${data.passer.FirstName} ${data.passer.LastName} [${data.passer.ClubCode}]
+        this.id,
+        `${data.passer.FirstName} ${data.passer.LastName} [${data.passer.ClubCode}]
        passed to ${data.receiver.FirstName} ${data.receiver.LastName} [${data.receiver.ClubCode}]`,
-      'pass',
-      data.passer._id,
-      data.passer.ClubCode
-        );
+        'pass',
+        data.passer._id,
+        data.passer.ClubCode
+      );
 
       // // give receiver some passes
       data.receiver.increasePoints(-GamePoints.Pass / 2);
@@ -227,13 +238,13 @@ export class Match implements IMatch, MatchClass {
       data.passer.increasePoints(-GamePoints.Interception);
 
       createMatchEvent(
-      this.id,
-      `${data.interceptor.FirstName} ${data.interceptor.LastName} [${data.interceptor.ClubCode}]
+        this.id,
+        `${data.interceptor.FirstName} ${data.interceptor.LastName} [${data.interceptor.ClubCode}]
        intercepted pass from ${data.passer.FirstName} ${data.passer.LastName} [${data.passer.ClubCode}]`,
-      'interception',
-      data.interceptor._id,
-      data.interceptor.ClubCode
-        );
+        'interception',
+        data.interceptor._id,
+        data.interceptor.ClubCode
+      );
 
       this.Actions.push({
         type: 'interception',
@@ -241,7 +252,6 @@ export class Match implements IMatch, MatchClass {
         playerTeam: data.interceptor.ClubCode!,
         timestamp: this.getCurrentTime,
       });
-
     });
 
     matchEvents.on(`${this.id}-dribble`, (data: IDribble) => {
@@ -322,7 +332,9 @@ export class Match implements IMatch, MatchClass {
         data.subject.ClubCode
       );
 
-      log(`Foul: ${data.reason} by ${data.subject.FirstName} ${data.subject.LastName}`);
+      log(
+        `Foul: ${data.reason} by ${data.subject.FirstName} ${data.subject.LastName}`
+      );
     });
 
     matchEvents.on(`${this.id}-player-sent-off`, (data: ISentOff) => {
@@ -342,7 +354,9 @@ export class Match implements IMatch, MatchClass {
         data.player.ClubCode
       );
 
-      log(`${data.player.FirstName} ${data.player.LastName} sent off (${data.secondYellow ? 'second yellow' : 'red card'})`);
+      log(
+        `${data.player.FirstName} ${data.player.LastName} sent off (${data.secondYellow ? 'second yellow' : 'red card'})`
+      );
     });
 
     matchEvents.on(`${this.id}-reset-formations`, () => {
@@ -363,13 +377,17 @@ export class Match implements IMatch, MatchClass {
 
       log(`Home Team => ${this.Home.ClubCode}`);
       this.Home.StartingSquad.forEach((p) => {
-        log(`[${p.FirstName} ${p.LastName}] - ${this.Home.ClubCode} ${p.Position}`);
+        log(
+          `[${p.FirstName} ${p.LastName}] - ${this.Home.ClubCode} ${p.Position}`
+        );
         log(p.GameStats, 'table'); // TODO -UNCOMMENT O
       });
 
       log(`Away Team => ${this.Away.ClubCode}`);
       this.Away.StartingSquad.forEach((p) => {
-        log(`[${p.FirstName} ${p.LastName}] - ${this.Away.ClubCode} ${p.Position}`);
+        log(
+          `[${p.FirstName} ${p.LastName}] - ${this.Away.ClubCode} ${p.Position}`
+        );
         log(p.GameStats, 'table'); // TODO - UNCOMMENT O
       });
 
@@ -424,8 +442,10 @@ export class Match implements IMatch, MatchClass {
   }
 
   public setPlayerStats() {
-    this.Details.HomeTeamDetails.PlayerStats = this.Home.getPlayerStats() as any;
-    this.Details.AwayTeamDetails.PlayerStats = this.Away.getPlayerStats() as any;
+    this.Details.HomeTeamDetails.PlayerStats =
+      this.Home.getPlayerStats() as any;
+    this.Details.AwayTeamDetails.PlayerStats =
+      this.Away.getPlayerStats() as any;
   }
 
   public endMatch() {
@@ -481,7 +501,10 @@ export class Match implements IMatch, MatchClass {
    * replayed live afterwards (see src/realtime/matchBroadcaster.ts) without
    * slowing down the simulation itself.
    */
-  public captureFrame(tick: number, ballPosition: { x: number; y: number }): void {
+  public captureFrame(
+    tick: number,
+    ballPosition: { x: number; y: number }
+  ): void {
     const events = this.Events.slice(this.lastFrameEventIndex);
     this.lastFrameEventIndex = this.Events.length;
 
@@ -498,7 +521,10 @@ export class Match implements IMatch, MatchClass {
     });
   }
 
-  private toFramePlayer(p: IFieldPlayer, side: 'home' | 'away'): IMatchFramePlayer {
+  private toFramePlayer(
+    p: IFieldPlayer,
+    side: 'home' | 'away'
+  ): IMatchFramePlayer {
     return {
       id: p._id!,
       side,
@@ -555,7 +581,17 @@ export interface IMatchData {
 }
 
 export interface IMatchEvent {
-  type: 'match' | 'shot' | 'miss' | 'save' | 'goal' | 'dribble' | 'tackle' | 'pass' | 'interception' | 'foul';
+  type:
+    | 'match'
+    | 'shot'
+    | 'miss'
+    | 'save'
+    | 'goal'
+    | 'dribble'
+    | 'tackle'
+    | 'pass'
+    | 'interception'
+    | 'foul';
   message: string;
   time?: string;
   playerID?: string;

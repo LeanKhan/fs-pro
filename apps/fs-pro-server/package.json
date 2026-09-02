@@ -2,10 +2,9 @@
   "name": "fs-pro-server",
   "version": "0.1.0",
   "description": "Game Server for FS PRO",
+  "license": "ISC",
+  "author": "@LeanKhan",
   "main": "server.js",
-  "engines": {
-    "node": ">=8.10.0"
-  },
   "scripts": {
     "tsc": "tsc",
     "dev": "set NODE_ENV=dev && npm run start-dev",
@@ -13,6 +12,8 @@
     "start-dev": "ts-node-dev --respawn --transpile-only ./src/server.ts",
     "prod": "tsc && node ./build/server.js",
     "lint": "eslint src/. --ext .ts",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
     "test": "echo \"Error: no test specified\" && exit 1",
     "drizzle:generate": "drizzle-kit generate",
     "drizzle:migrate": "drizzle-kit migrate",
@@ -24,29 +25,6 @@
     "setup:counter-sequences": "ts-node src/scripts/migration/setup-counter-sequences.ts",
     "setup:sessions-table": "ts-node src/scripts/migration/setup-sessions-table.ts",
     "reset:calendar-model": "ts-node src/scripts/migration/reset-calendar-model.ts"
-  },
-  "author": "@LeanKhan",
-  "license": "ISC",
-  "devDependencies": {
-    "@types/bcryptjs": "^2.4.2",
-    "@types/cookie": "^0.3.3",
-    "@types/cors": "^2.8.5",
-    "@types/dotenv": "^6.1.1",
-    "@types/express-session": "^1.17.0",
-    "@types/morgan": "^1.9.10",
-    "@types/swagger-jsdoc": "^6.0.4",
-    "@types/swagger-ui-express": "^4.1.8",
-    "@typescript-eslint/eslint-plugin": "^4.8.2",
-    "@typescript-eslint/parser": "^4.8.2",
-    "drizzle-kit": "^0.31.10",
-    "eslint": "^7.14.0",
-    "eslint-config-prettier": "^6.15.0",
-    "eslint-plugin-import": "^2.22.1",
-    "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-prettier": "^3.1.4",
-    "prettier": "^2.2.0",
-    "ts-node-dev": "^1.0.0-pre.39",
-    "typescript": "^5.9.3"
   },
   "dependencies": {
     "@types/express": "^4.16.1",
@@ -67,5 +45,26 @@
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
     "winston": "^3.7.2"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.2",
+    "@types/cookie": "^0.3.3",
+    "@types/cors": "^2.8.5",
+    "@types/dotenv": "^6.1.1",
+    "@types/express-session": "^1.17.0",
+    "@types/morgan": "^1.9.10",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
+    "@typescript-eslint/eslint-plugin": "^4.8.2",
+    "@typescript-eslint/parser": "^4.8.2",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^7.14.0",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-node": "^11.1.0",
+    "ts-node-dev": "^1.0.0-pre.39",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=8.10.0"
   }
 }

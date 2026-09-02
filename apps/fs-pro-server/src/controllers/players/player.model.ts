@@ -40,7 +40,7 @@ export const roles = [
   'GK',
 ] as const;
 
-export type Role = typeof roles[number];
+export type Role = (typeof roles)[number];
 
 export const Roles = {
   ATT: ['LW', 'RW', 'ST'],

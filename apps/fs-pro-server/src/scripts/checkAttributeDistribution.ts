@@ -26,14 +26,30 @@ async function main() {
     const group = byPos(pos);
     if (group.length === 0) continue;
     console.log(`\n${pos} (n=${group.length}):`);
-    console.log(`  Tackling:   ${avg(group.map((p: any) => p.Attributes.Tackling)).toFixed(1)}`);
-    console.log(`  ShortPass:  ${avg(group.map((p: any) => p.Attributes.ShortPass)).toFixed(1)}`);
-    console.log(`  LongPass:   ${avg(group.map((p: any) => p.Attributes.LongPass)).toFixed(1)}`);
-    console.log(`  Mental:     ${avg(group.map((p: any) => p.Attributes.Mental)).toFixed(1)}`);
-    console.log(`  Control:    ${avg(group.map((p: any) => p.Attributes.Control)).toFixed(1)}`);
-    console.log(`  Dribbling:  ${avg(group.map((p: any) => p.Attributes.Dribbling)).toFixed(1)}`);
-    console.log(`  Speed:      ${avg(group.map((p: any) => p.Attributes.Speed)).toFixed(1)}`);
-    console.log(`  Aggression: ${avg(group.map((p: any) => p.Attributes.Aggression)).toFixed(1)}`);
+    console.log(
+      `  Tackling:   ${avg(group.map((p: any) => p.Attributes.Tackling)).toFixed(1)}`
+    );
+    console.log(
+      `  ShortPass:  ${avg(group.map((p: any) => p.Attributes.ShortPass)).toFixed(1)}`
+    );
+    console.log(
+      `  LongPass:   ${avg(group.map((p: any) => p.Attributes.LongPass)).toFixed(1)}`
+    );
+    console.log(
+      `  Mental:     ${avg(group.map((p: any) => p.Attributes.Mental)).toFixed(1)}`
+    );
+    console.log(
+      `  Control:    ${avg(group.map((p: any) => p.Attributes.Control)).toFixed(1)}`
+    );
+    console.log(
+      `  Dribbling:  ${avg(group.map((p: any) => p.Attributes.Dribbling)).toFixed(1)}`
+    );
+    console.log(
+      `  Speed:      ${avg(group.map((p: any) => p.Attributes.Speed)).toFixed(1)}`
+    );
+    console.log(
+      `  Aggression: ${avg(group.map((p: any) => p.Attributes.Aggression)).toFixed(1)}`
+    );
   }
 }
 

@@ -1,6 +1,11 @@
 <template>
   <div class="motm">
-    <button v-if="!loadMOTM" class="motm-btn" :disabled="loading" @click="getMOTM()">
+    <button
+      v-if="!loadMOTM"
+      class="motm-btn"
+      :disabled="loading"
+      @click="getMOTM()"
+    >
       {{ loading ? 'Loading...' : 'Load' }}
     </button>
 

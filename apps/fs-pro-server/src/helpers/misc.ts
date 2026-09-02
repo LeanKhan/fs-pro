@@ -31,7 +31,7 @@ export function capitalize(text: string) {
 
 /** From https://stackoverflow.com/a/62943089 */
 export function generateRandomNDigits(n: number): number {
-  return Math.floor(Math.random() * (9 * (Math.pow(10, n)))) + (Math.pow(10, n));
+  return Math.floor(Math.random() * (9 * Math.pow(10, n))) + Math.pow(10, n);
 }
 
 // shuffle an array
@@ -69,18 +69,19 @@ export function shuffleArray(arr: unknown[]) {
 
 /**
  * Capitalize first letter of every word.
- * 
+ *
  * from => https://stackoverflow.com/a/32589289/10382407
  * */
 export function titleCase(str: string) {
-   var splitStr = str.toLowerCase().split(' ');
-   for (var i = 0; i < splitStr.length; i++) {
-       // You do not need to check if i is larger than splitStr length, as your for does that for you
-       // Assign it back to the array
-       splitStr[i] = splitStr[i].charAt(0).toUpperCase() + splitStr[i].substring(1);     
-   }
-   // Directly return the joined string
-   return splitStr.join(' '); 
+  var splitStr = str.toLowerCase().split(' ');
+  for (var i = 0; i < splitStr.length; i++) {
+    // You do not need to check if i is larger than splitStr length, as your for does that for you
+    // Assign it back to the array
+    splitStr[i] =
+      splitStr[i].charAt(0).toUpperCase() + splitStr[i].substring(1);
+  }
+  // Directly return the joined string
+  return splitStr.join(' ');
 }
 
 /** Select random element from array */

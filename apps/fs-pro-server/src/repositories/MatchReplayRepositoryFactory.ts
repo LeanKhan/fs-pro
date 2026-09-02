@@ -4,6 +4,8 @@ import { DrizzleDatabase } from '../db/drizzle';
 
 export class MatchReplayRepositoryFactory {
   static create(): IMatchReplayRepository {
-    return new DrizzleMatchReplayRepository(DrizzleDatabase.getInstance().database);
+    return new DrizzleMatchReplayRepository(
+      DrizzleDatabase.getInstance().database
+    );
   }
 }

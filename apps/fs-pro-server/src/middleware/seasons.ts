@@ -86,7 +86,9 @@ export async function create(
   let competition: CompetitionInterface;
 
   const generateFixtures2 = async () => {
-    competition = await getCompetitionWithClubsAndSeasons(competitionID) as CompetitionInterface;
+    competition = (await getCompetitionWithClubsAndSeasons(
+      competitionID
+    )) as CompetitionInterface;
 
     const matchesPerWeek = competition.Clubs.length / 2;
 

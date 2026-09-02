@@ -13,7 +13,11 @@ import { getClubs, updateClubFields } from '../clubs/club.service';
 import { ClubInterface } from '../clubs/club.model';
 import respond from '../../helpers/responseHandler';
 import { IUserLogin } from '../../interfaces/Response';
-import { initializeSession, initializeSessionForLogin, findSession } from '../../middleware/user';
+import {
+  initializeSession,
+  initializeSessionForLogin,
+  findSession,
+} from '../../middleware/user';
 import { updateClubs } from '../../controllers/clubs/club.controller';
 import { IUser } from './user.model';
 import { store } from '../../sessionStore';
@@ -109,9 +113,17 @@ router.post('/change-password', (req, res) => {
         return respond.fail(res, 404, 'Username does not exist');
       }
 
-      updateUserFields(result._id as unknown as string, { Password: NewPassword } as Partial<IUser>)
+      updateUserFields(
+        result._id as unknown as string,
+        { Password: NewPassword } as Partial<IUser>
+      )
         .then((user) => {
-          return respond.success(res, 200, 'Password changed successfully', user);
+          return respond.success(
+            res,
+            200,
+            'Password changed successfully',
+            user
+          );
         })
         .catch((error: any) => {
           return respond.fail(res, 400, 'Error changing password', error);
@@ -132,8 +144,8 @@ router.get('/:id', (req, res) => {
   // the owned-clubs list via a reverse lookup through the Club repository
   // instead of an array populate.
   const response = populate
-    ? Promise.all([getUserById(id), getClubs({ User: id })]).then(([user, clubs]) =>
-        user ? { ...user, Clubs: clubs } : user
+    ? Promise.all([getUserById(id), getClubs({ User: id })]).then(
+        ([user, clubs]) => (user ? { ...user, Clubs: clubs } : user)
       )
     : getUserById(id);
 
@@ -158,25 +170,29 @@ router.delete('/:id/logout', (req, res) => {
         return respond.fail(res, 404, 'Username does not exist');
       }
 
-      resolveUserSession(user.Session, user.Session, function (err: any, sess: any) {
-        if (sess) {
-          // If you find the session it means it's an old one so do this...
-          // set a new one, create a new cookie and send session data to client
-          store.destroy(user.Session, (destroyErr: any) => {
-            if (destroyErr) {
-              throw new Error('Error in destroying Session');
-            } else {
-              return respond.success(
-                res,
-                200,
-                'Client logged out successfully'
-              );
-            }
-          });
-        } else {
-          throw new Error('Session not found! Try reloading');
+      resolveUserSession(
+        user.Session,
+        user.Session,
+        function (err: any, sess: any) {
+          if (sess) {
+            // If you find the session it means it's an old one so do this...
+            // set a new one, create a new cookie and send session data to client
+            store.destroy(user.Session, (destroyErr: any) => {
+              if (destroyErr) {
+                throw new Error('Error in destroying Session');
+              } else {
+                return respond.success(
+                  res,
+                  200,
+                  'Client logged out successfully'
+                );
+              }
+            });
+          } else {
+            throw new Error('Session not found! Try reloading');
+          }
         }
-      });
+      );
     })
     .catch((error: any) => {
       return respond.fail(res, 400, 'Error logging out', error);
@@ -209,7 +225,11 @@ router.post('/:id/add-clubs', (req, res) => {
   const id = req.params.id;
   const { data } = req.body;
 
-  Promise.all(((data ?? []) as string[]).map((clubId) => updateClubFields(clubId, { User: id })))
+  Promise.all(
+    ((data ?? []) as string[]).map((clubId) =>
+      updateClubFields(clubId, { User: id })
+    )
+  )
     .then(() => getClubs({ User: id }))
     .then((clubs) => {
       respond.success(res, 200, 'Clubs added successfully', clubs);

@@ -23,7 +23,7 @@ raw-SQL rewrite" - turned out to be very doable once actually attempted.
 left anywhere (confirmed by grep) - deleted.
 
 **Converted `getPlayerStats`/`allPlayerStats`** (the two aggregate
-pipelines with a *fixed* shape - filter by a single calendar/season id,
+pipelines with a _fixed_ shape - filter by a single calendar/season id,
 not an arbitrary matcher). Both rewritten as a Drizzle `select` with
 `sum()`/`avg()`/`count()` and a `GROUP BY`, joining `playerMatchDetails` →
 `fixtures` (→ `seasons`, for `getPlayerStats`'s calendar filter) - direct
@@ -147,7 +147,7 @@ no raw fallback left for this route at all.
 conversion writeup assumed: despite `ICompetitionRepository`'s doc comment
 speculating a competition's `Type` (league vs. cup/tournament) would
 decide between `Clubs.League` and the `competitionClubs` join table, the
-*live* code only ever does one thing - unconditionally sets
+_live_ code only ever does one thing - unconditionally sets
 `Club.League`/`Club.LeagueCode`, regardless of `Type`. Checked: nothing in
 the app reads or writes `competitionClubs` anywhere except the one-time
 migration script - it's schema/relations infrastructure for a
@@ -205,7 +205,7 @@ overview/admin endpoint, not on any critical path.
 
 **Add/remove-player, the real fix.** `Club.Players` doesn't exist on
 Postgres (dropped in favor of the reverse `players.Club` FK) - so "add a
-player to a club" isn't a Club-side write at all there, it's a *Player*-side
+player to a club" isn't a Club-side write at all there, it's a _Player_-side
 write. `toggleSigned` (`player.service.ts`) is now backend-aware: Mongo
 keeps doing the `$set` update it always did; Drizzle calls the existing
 `updatePlayerFields` (plain fields - `Club`/`ClubCode`/`isSigned` are
@@ -288,7 +288,7 @@ true full-lifecycle proof. See the full plan for per-entity detail.
 
 1. **Counter system** (`utils/counter.ts`) used to be a hard Mongo
    dependency independent of any entity/model - `incrementCounter` read
-   `DB.db` directly (which resolves to the *Drizzle* object under
+   `DB.db` directly (which resolves to the _Drizzle_ object under
    `backend=drizzle`, not a Mongo driver handle - this is the exact crash
    already documented two entries below), and `getCurrentCounter`/
    `getCurrentCounter2` called `mongoose.connection.db` directly, bypassing
@@ -297,7 +297,7 @@ true full-lifecycle proof. See the full plan for per-entity detail.
    `competition_counter_seq`, `season_counter_seq`), created by a
    plain, re-runnable setup script
    (`scripts/migration/setup-counter-sequences.ts`, `npm run
-   setup:counter-sequences`) - deliberately **not** a Drizzle schema
+setup:counter-sequences`) - deliberately **not** a Drizzle schema
    migration, so `schema.ts` doesn't change. `utils/counter.ts` now
    branches on `DB.ormType`: the Mongo branch is untouched byte-for-byte,
    the new Drizzle branch calls `nextval()` on the matching sequence.
@@ -324,7 +324,7 @@ true full-lifecycle proof. See the full plan for per-entity detail.
    `pg` as a second Postgres client. Backed by a new `Sessions` table
    (`sid` text primary key, `session` jsonb, `expires` timestamptz),
    created by `scripts/migration/setup-sessions-table.ts` (`npm run
-   setup:sessions-table`) - same "plain setup script, not a schema
+setup:sessions-table`) - same "plain setup script, not a schema
    migration" reasoning as the counter sequences. Picks Mongo vs Postgres
    via `db/backendChoice.ts`'s `resolveBackend()` - deliberately **not**
    `db/index.ts` or `db/drizzle/index.ts`, both of which import
@@ -387,7 +387,7 @@ caller of this exact sort spec, not just Season's route). Also raw:
 fixture-generation/standings/prolegation game loop in
 `middleware/seasons.ts` and `season.controller.ts`. Every one of those
 `findByIdAndUpdate` calls is already plain-field (no Mongo operators - the
-codebase is consistent about that for Season), so they're *mechanically*
+codebase is consistent about that for Season), so they're _mechanically_
 convertible, but they're deep, sequential, tightly-coupled game-loop
 internals - not worth the risk of touching untested for this pass, unlike
 the one isolated `/:id/start` call that had no such coupling.
@@ -508,7 +508,7 @@ the DB-migration scope, but directly blocking the routes converted here):**
 1. `fixture.model.ts`'s `post('remove')` hook was declared
    `async function(this, next)` - a post-remove hook's real signature is
    `(doc, next)`, so the single declared parameter `next` was actually
-   bound to the removed *document*, not a callback. Calling `next()` then
+   bound to the removed _document_, not a callback. Calling `next()` then
    threw `TypeError: next is not a function` - on **every single** Fixture
    removal, silently after the deletion had already committed (so the
    document really was gone, but every caller saw an error instead of
@@ -518,16 +518,16 @@ the DB-migration scope, but directly blocking the routes converted here):**
    `next()` (unnecessary for an async hook - Mongoose waits on the
    returned promise instead).
 2. `POST /players/new` and `POST /competitions/new` called
-   `respond.success(...)` and *then* `void incrementCounter(...)` - if
+   `respond.success(...)` and _then_ `void incrementCounter(...)` - if
    `incrementCounter` throws, that throw now lands inside a `try` block
    whose `catch` calls `respond.fail(...)` on a response that was already
    sent, crashing the process with `Error: Cannot set headers after they
-   are sent to the client`. Hit this directly testing Player creation
+are sent to the client`. Hit this directly testing Player creation
    under `backend=drizzle`: `incrementCounter` reads `DB.db` (see
-   `db/index.ts`), which resolves to the *Drizzle* database object under
+   `db/index.ts`), which resolves to the _Drizzle_ database object under
    that backend, not a raw MongoDB driver handle - calling `.collection()`
    on it throws synchronously. Fixed by reordering both routes to call
-   `incrementCounter` *before* `respond.success` (matching the order
+   `incrementCounter` _before_ `respond.success` (matching the order
    `manager.router.ts`'s create route already used) - a thrown error now
    produces one clean `respond.fail`, not a crash. The underlying
    `incrementCounter`/`DB.db` mismatch under `backend=drizzle` is a
@@ -568,7 +568,7 @@ already do:
   this is a straight port, not a partial one.
 - `game.controller.ts` and `jobs/matchQueue.ts` both called
   `fetchOneById(id, false)` - passing `populate: false` skips the raw
-  function's *extra*-populate branch entirely, leaving it doing exactly
+  function's _extra_-populate branch entirely, leaving it doing exactly
   what `getFixtureById` (repository-backed, always includes
   `HomeSideDetails`/`AwaySideDetails`+`PlayerStats`) already does. Both
   swapped over.
@@ -768,14 +768,14 @@ through the repository interface, same precedent as Player's
   containment expression for.
 - **`findDayByFixtureId(fixtureId, {populate?})`** replaces the raw
   `findOne({'Matches.Fixture': id})` call sites (`GET
-  /day-of-fixture/:fixture`, `game.controller.ts`'s `simulate_rest` check).
+/day-of-fixture/:fixture`, `game.controller.ts`'s `simulate_rest` check).
   The Drizzle branch uses a raw jsonb containment query
   (`Matches @> '[{"Fixture": "<id>"}]'::jsonb`) - unlike `getDaysForYear`,
   this has no `Year` to scope the scan to, so it needs to be pushed down to
   the database rather than fetching every Day ever created.
 - **`findNextPlayableDay(year, afterDay)`** replaces `changeCurrentDay`'s
   `getNextDay` (`$nor: [{'Matches.Played': true}], Year, isFree: false, Day:
-  {$gt}` - "first non-free day after this one with nothing played yet").
+{$gt}` - "first non-free day after this one with nothing played yet").
   Same JS-side filter approach as `getDaysForYear`, plus an explicit
   `ORDER BY Day ASC` the original raw query didn't have (it relied on
   Mongo's natural/insertion order, which happens to already be ascending -
@@ -785,7 +785,7 @@ through the repository interface, same precedent as Player's
   `updateFixture`'s positional Mongo update (`findOneAndUpdate` +
   `$set: {'Matches.$.Played': true}`) - Postgres has no per-array-element
   update via Drizzle's plain `update()`, so this is a read-modify-write
-  instead (fetch the Day with *bare* Fixture ids via
+  instead (fetch the Day with _bare_ Fixture ids via
   `findDayByFixtureId(id, {populate: false})` - populating first would
   corrupt the write-back, replacing real ids with full objects - flip the
   one matching entry's `Played` in JS, write the whole array back). Safe
@@ -795,10 +795,10 @@ through the repository interface, same precedent as Player's
   `createMany` used by `setupDaysInYear`/`2`'s Day-building.
 - `DELETE /days/:id` (`calendar.router.ts`) swapped from
   `calendar.service.ts`'s raw `deleteDayByRemove` (a `doc.remove()` kept
-  only because Day's Mongoose model *used* to have a `post('remove')` hook
+  only because Day's Mongoose model _used_ to have a `post('remove')` hook
   - it's been commented out in `day.model.ts` for a while, so there's no
-  active cascade to preserve) to the new repository's plain `delete()`.
-  Removed the now-dead `deleteDayByRemove`.
+    active cascade to preserve) to the new repository's plain `delete()`.
+    Removed the now-dead `deleteDayByRemove`.
 
 Verified live on both backends: created two Days (one with a real Fixture
 match, one free) under a test Calendar year, confirmed `getDaysForYear`
@@ -862,7 +862,7 @@ above), so that blocker no longer holds - `updateClubs` (the middleware
 - Removed now-dead `user.service.ts` functions `createNewUser`,
   `updateUser` (no remaining callers after the above). Left `fetchUser`,
   `getUserSession`, `fetchOneUser`, `updateManyUsers`/`alertAllUsers`
-  alone - all already dead code with zero callers *before* this pass
+  alone - all already dead code with zero callers _before_ this pass
   started (confirmed by grep), not something this pass caused or is
   responsible for cleaning up.
 
@@ -896,7 +896,7 @@ pass.
 favor of the reverse `playerMatchDetails.ClubMatchDetails` FK
 (`schema.ts` even has a comment noting the field "doesn't exist in the
 current Mongoose model," added specifically for this). Mongo's old code
-created every `PlayerMatchDetails` row *first* (purely to collect their
+created every `PlayerMatchDetails` row _first_ (purely to collect their
 ids for the `ClubMatchDetails.PlayerStats` array), then created the
 `ClubMatchDetails` row last. Postgres needs the opposite: `ClubMatchDetails`
 has to exist first so each `PlayerMatchDetails` row can set its FK back to
@@ -947,7 +947,7 @@ alone.
 `.references()` at all (Postgres can't FK one column against two tables).
 Mongo's old `fetchAll` handled this with a runtime-computed
 `populate({path: 'Recipient', model: capitalize(recipient)})` - passing a
-model *name* as a string, resolved at populate time. There's no Postgres
+model _name_ as a string, resolved at populate time. There's no Postgres
 equivalent, and doesn't need one: `recipient` only ever means `'player'` or
 `'manager'`, so the new `fetchAll` (in `awards/index.ts`) picks
 `getPlayerById`/`getManagerById` with a two-way check and batch-resolves
@@ -1011,7 +1011,7 @@ ever exposed.
 
 Verified live on both backends: saved a replay for a test fixture, fetched
 it back with the nested `Home`/`Away` jsonb intact, then saved again with
-different `Frames`/`TickMs` and confirmed the *same* row updated (not a
+different `Frames`/`TickMs` and confirmed the _same_ row updated (not a
 duplicate) on both Mongo and Postgres.
 
 **Files:** `repositories/MatchReplayRepository.ts`,
@@ -1077,37 +1077,37 @@ the "set up a season/calendar" button) immediately after Phase B was
 declared complete - a reminder that "every entity's own routes work" isn't
 the same as "every internal call chain between entities works," especially
 for game-loop orchestration code (`calendar.controller.ts`,
-`middleware/seasons.ts`) that calls *other* entities' service functions
+`middleware/seasons.ts`) that calls _other_ entities' service functions
 internally, not just its own. Six distinct bugs, all in the same call
 chain, found and fixed one crash at a time:
 
 1. **`createSeasonsInTheYear` used Competition's raw, unconverted `fetchAll()`**
    (`competition.service.ts` - genuinely still needed for `GET
-   /competitions/all`'s arbitrary client query, but this internal
+/competitions/all`'s arbitrary client query, but this internal
    no-args call didn't need arbitrary anything). Under `backend=drizzle`
    this silently read from the Mongo fallback, handing back real Mongo
    ObjectIds - one of which then got passed straight into a Postgres
    `uuid` column insert (`Seasons.Competition`), throwing `invalid input
-   syntax for type uuid`. This was the original reported crash. Fixed:
+syntax for type uuid`. This was the original reported crash. Fixed:
    swapped to the already-repository-backed `getCompetitions()`.
 2. **`middleware/seasons.ts`'s `generateFixtures2`/`fetchCompetitionClubs`
    used Competition's raw `fetchCompetition()`** (`.populate('Clubs', ...)`
    - `Competition.Clubs` doesn't exist on Postgres at all). Fixed: swapped
-   to `getCompetitionWithClubsAndSeasons()` (already built for exactly
-   this reverse-lookup case, just never wired in here).
+     to `getCompetitionWithClubsAndSeasons()` (already built for exactly
+     this reverse-lookup case, just never wired in here).
 3. **`middleware/seasons.ts`'s `addSeasonToComp` unconditionally called
    Competition's raw `addSeason()`** (`$push: {Seasons: seasonId}`) -
    `competition.controller.ts`'s own `addSeasonToCompetition` had already
    been made a no-op under `backend=drizzle` for the exact same operation
    (`Seasons.Competition`, set at season-creation time, already carries
-   this), but this *other* code path calling the same raw function
+   this), but this _other_ code path calling the same raw function
    directly was missed. Fixed with the identical `DB.ormType ===
-   'drizzle'` no-op branch.
+'drizzle'` no-op branch.
 4. **`fixture.service.ts`'s `createFixtures()` (bulk fixture-generation
    insert) was still raw** `DB.Models.Fixture.insertMany(...)` - flagged
    in Fixture's own Phase B entry as "left raw, already FK-correct at
-   creation time," which turned out to describe the *data*, not the
-   *write path*: the data being FK-correct doesn't help if the insert
+   creation time," which turned out to describe the _data_, not the
+   _write path_: the data being FK-correct doesn't help if the insert
    itself goes to Mongo instead of Postgres. Added `createMany` to
    `IFixtureRepository`/both implementations, wired `fixture.service.ts`'s
    `createFixtures` through it.
@@ -1116,10 +1116,10 @@ chain, found and fixed one crash at a time:
    simple `{Year}`/`{Calendar}` equality filters that `getSeasons()`
    already supports natively - no reason these needed the raw path at
    all. `setupDaysInYear2`'s case needed a Mongo `$in` (seasons for a
-   *set* of competition ids) - `ISeasonFilter` doesn't support array
+   _set_ of competition ids) - `ISeasonFilter` doesn't support array
    membership, so this became one `getSeasons()` call per competition
    (there's only ever a handful) instead. `competition.router.ts`'s `GET
-   /:id/seasons/all` had the exact same simple-filter case and got the
+/:id/seasons/all` had the exact same simple-filter case and got the
    same fix.
 6. **`startYear`'s `fetchSeasons` used Season's raw `findAndUpdate()`**
    for a plain-field bulk update (`{isStarted: true, StartDate, Status}`
@@ -1128,7 +1128,7 @@ chain, found and fixed one crash at a time:
    pending/not-started/not-finished, then `updateSeasonFields` per match) -
    same small-cardinality reasoning as everywhere else in this migration.
    This was `season.service.ts`'s `findAndUpdate`'s only caller, but it's
-   *not* dead: `game/functions.ts`'s finish-season flow still needs the
+   _not_ dead: `game/functions.ts`'s finish-season flow still needs the
    genuinely-arbitrary-operator version.
 
 **Two more bugs surfaced only once the above were fixed and the flow could
@@ -1175,7 +1175,7 @@ created during verification were cleaned up afterward.
 `middleware/seasons.ts`.
 
 **Lesson for the remaining work (Phase C's audit, Phase D):** a fully
-Postgres-independent entity doesn't guarantee every *internal* caller of
+Postgres-independent entity doesn't guarantee every _internal_ caller of
 its service functions was updated to use the converted path - grep for
 every remaining raw `DB.Models.X` reference across the whole codebase
 (not just within each entity's own files) before declaring Phase C's
@@ -1256,7 +1256,7 @@ it was when this fix landed.
 backend shape, surfaced while testing #2:** `DELETE /clubs/:id`
 (`club.service.ts`'s `deleteByRemove`) is still raw
 `DB.Models.Club.findById(id).remove()`, which resolves to the Mongo
-*fallback* even under `backend=drizzle`. Created a throwaway club through
+_fallback_ even under `backend=drizzle`. Created a throwaway club through
 the now-repository-backed `POST /clubs/new` while testing, then couldn't
 delete it through the API at all (`DELETE /clubs/:id` silently no-op'd -
 `success: false` with no matching document) - had to delete it directly
@@ -1298,7 +1298,7 @@ Club is a much messier surface than Place/User/Manager, though: most of its
 raw functions build Mongo `$set`/`$push`/`$unset`/`$addToSet` operator
 objects (Records-array history log entries, `Players` array mutations), and
 `IClubRepository.update()` deliberately only accepts plain fields - no
-operator support. So the *converted* surface is narrower than "everything
+operator support. So the _converted_ surface is narrower than "everything
 that reads/writes a single Club by id": `findById` (no populate)/`findAll`
 (filter by `User` or `League`)/`create`/`update` (plain fields), plus a new
 `appendClubRecord(id, fields, record)` helper in `club.service.ts` that
@@ -1327,6 +1327,7 @@ Mongo. And `DELETE /managers/:id`'s Club-side write (clearing
 `appendClubRecord` instead of a raw `$unset`.
 
 **Left on the raw Mongo path, unchanged, and why:**
+
 - `GET /clubs/all`, `GET /clubs/fetch`, add/remove-player
   (`middleware/club.ts`), the CSV bulk import (`createManyClubsFromCSV`) -
   these need either Player data (Player isn't converted - `Club.Players` was
@@ -1350,7 +1351,7 @@ repository-backed. Tested directly under `backend=drizzle` against a
 manager that only exists in Postgres: the Club-side unset succeeded, but
 the final delete (`deleteByRemove` in `manager.service.ts`) was still raw
 `DB.Models.Manager.findById(id).remove()`, which - while `backend=drizzle` -
-resolved to the Mongo *fallback* connection, not Postgres, so it threw a
+resolved to the Mongo _fallback_ connection, not Postgres, so it threw a
 cast error on a Postgres UUID and left the manager orphaned. Fixed by
 adding `delete()` to `IManagerRepository`.
 
@@ -1400,7 +1401,7 @@ Club entry above.
 **Also found, not fixed (pre-existing, unrelated to this pass):**
 `getCurrentCounter` (`utils/counter.ts`), used by `POST /managers` (and
 `POST /competitions/new`, etc.) to generate a sequential id, crashes the
-*entire process* - not just the request - if `req.query.model` is missing
+_entire process_ - not just the request - if `req.query.model` is missing
 or the counter document isn't found (`counter` ends up `null`, then
 `counter!.sequence_value` throws past the `!err` check, uncaught). Hit this
 directly while testing: an unrelated `POST /managers` call without
@@ -1460,6 +1461,7 @@ registration is repository-backed now that Club is fully converted, so a
 first~~ - done, see the "User Phase B follow-up" entry above.
 
 **Also found, not fixed (pre-existing, unrelated to this pass):**
+
 - `GET /users/:id` returns the entire lean User document over the API,
   including the bcrypt password hash. Predates this migration; preserved
   as-is rather than silently changing response shape.
@@ -1549,19 +1551,20 @@ triggers "create a year" (not yet located - check
 `Actions.ts` currently reads a player's stats straight off the base object
 (`player.Attributes.Mental`, `tackler.Attributes.Aggression`, etc.) — these
 are permanent values set once at player generation. There's currently
-nothing that needs to *temporarily* change a stat mid-match, so building the
+nothing that needs to _temporarily_ change a stat mid-match, so building the
 indirection now would be speculative infrastructure with zero real
 consumers. Build it alongside the first feature that actually needs it
 (most likely [morale system](#morale-system) or [injury system](#injury-system)
 below).
 
-**Problem it solves:** Once something *does* need to temporarily adjust a
+**Problem it solves:** Once something _does_ need to temporarily adjust a
 stat, there are two bad options: mutating `Attributes` directly (fragile —
 needs manual bookkeeping to undo, risks leaking into persisted data), or
 updating every formula site individually for every new modifier type
 (error-prone, unbounded diff every time a new incident type is added).
 
 **Sketch:**
+
 ```ts
 // FieldPlayer.ts
 interface IAttributeModifier {
@@ -1576,17 +1579,26 @@ class FieldPlayer {
   public get EffectiveAttributes(): IPlayerAttributes {
     const effective = { ...this.Attributes };
     for (const mod of this.activeModifiers) {
-      effective[mod.attribute] = clamp(effective[mod.attribute] + mod.delta, 0, 100);
+      effective[mod.attribute] = clamp(
+        effective[mod.attribute] + mod.delta,
+        0,
+        100
+      );
     }
     return effective;
   }
 
-  public addModifier(mod: IAttributeModifier) { this.activeModifiers.push(mod); }
+  public addModifier(mod: IAttributeModifier) {
+    this.activeModifiers.push(mod);
+  }
   public removeModifiersFrom(source: string) {
-    this.activeModifiers = this.activeModifiers.filter((m) => m.source !== source);
+    this.activeModifiers = this.activeModifiers.filter(
+      (m) => m.source !== source
+    );
   }
 }
 ```
+
 `Decider.ts`/`Actions.ts` get switched from `player.Attributes.X` to
 `player.EffectiveAttributes.X` once, mechanically. After that, any new
 modifier type is just "register a modifier" — no further engine changes.
@@ -1647,7 +1659,7 @@ below were fixed).
 move, and `Actions.tackle()` no longer stomps a foul's correct ball
 placement with a stale post-foul ball-move), a rarer anomaly turned up via
 a defensive warning added to `Game.setPlayingSides()`: occasionally two
-players — sometimes on opposing teams, sometimes on the *same* team —
+players — sometimes on opposing teams, sometimes on the _same_ team —
 simultaneously satisfy `WithBall`. Frequency is inconsistent run to run
 (over a dozen distinct pairs in one 15-match batch, zero in the next 85
 matches, then a dozen more in the next 15). Confirmed (once the warning's
@@ -1700,7 +1712,7 @@ freezes — passes/dribbles now succeed and progress correctly, so the ball
 changes hands defensively less often than the reference bands assume).
 
 **Diagnosis so far:** Believed structural, not a formula bug — i.e. how
-often an attacker gets close enough to goal *with the ball* to justify a
+often an attacker gets close enough to goal _with the ball_ to justify a
 shot, rather than the shoot-decision formula itself being wrong. Not
 investigated further.
 
@@ -1790,7 +1802,7 @@ case since it's rare in practice.
 
 **Context:** Early in the session the user asked how formation/position
 could change mid-match given the match simulates all at once, then said
-"let's shelve this for later." The *engine* side ended up built anyway as
+"let's shelve this for later." The _engine_ side ended up built anyway as
 part of the broader tactics work — `Game.changeTactic(side, tactic)`
 mutates a live `MatchSide.Tactic` and emits a `-tactic-changed` event that
 already flows into `Match.Events`/replay frames with no extra plumbing. What
@@ -1951,6 +1963,7 @@ to keep in mind.
 
 Two Explore passes (this session) confirmed the football data model is
 mostly already there for the lighter, non-map first version:
+
 - **Competitions (Leagues)** and **Clubs** already have full working create
   endpoints (`POST /competitions/new`, `POST /clubs/new`) and admin forms.
 - **Places (Countries)** has a `createNew`/`createPlace` service function
@@ -1996,8 +2009,8 @@ in-progress discussion of what's missing from each.
 
 **Context:** Rather than the world-builder idea above, the agreed next
 phase is deepening the single-club game loop: first close the gaps in
-*manager* mode (the role that already partially exists - squad viewing,
-tactics, playing fixtures, standings), then add *owner* mode as a new layer
+_manager_ mode (the role that already partially exists - squad viewing,
+tactics, playing fixtures, standings), then add _owner_ mode as a new layer
 on top (finances, stadium, hiring/firing a manager, sponsorships,
 reputation) that doesn't exist in any form today. Concretely still missing
 from manager mode per this file's other entries: a real transfer market

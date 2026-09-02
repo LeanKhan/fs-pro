@@ -42,7 +42,13 @@ router.use('/awards', awards);
 router.use('/meta', meta);
 
 router.get('/random-test', (req, res) => {
-	res.send({o: req.originalUrl, p: req.path, h: req.header('Host'), oo: req.header('Origin'), s: req.socket.localPort});	
-})
+  res.send({
+    o: req.originalUrl,
+    p: req.path,
+    h: req.header('Host'),
+    oo: req.header('Origin'),
+    s: req.socket.localPort,
+  });
+});
 
 export default router;

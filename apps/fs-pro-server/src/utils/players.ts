@@ -2,7 +2,11 @@
 import { MatchSide } from '../classes/MatchSide';
 import { IBlock } from '../state/ImmutableState/FieldGrid';
 import { ratingFactors, postitionFactors, ageFactors } from './player-factors';
-import { shuffleArray, randomBetween, pickRandomFromArray } from '../helpers/misc';
+import {
+  shuffleArray,
+  randomBetween,
+  pickRandomFromArray,
+} from '../helpers/misc';
 import {
   IPositions,
   IFieldPlayer,
@@ -79,17 +83,23 @@ function findRandomFreeBlock(player: IFieldPlayer, radius: number = 3): IBlock {
  * escape and lets an equally fast marker re-close the gap almost
  * immediately.
  */
-function findFarthestFreeBlock(player: IFieldPlayer, radius: number = 5): IBlock {
-  const circumference = (player.getBlocksAround(radius) as IBlock[]).filter((block) => {
-    return block !== undefined && block.occupant === null;
-  });
+function findFarthestFreeBlock(
+  player: IFieldPlayer,
+  radius: number = 5
+): IBlock {
+  const circumference = (player.getBlocksAround(radius) as IBlock[]).filter(
+    (block) => {
+      return block !== undefined && block.occupant === null;
+    }
+  );
 
   if (circumference.length === 0) {
     return player.BlockPosition;
   }
 
   const distanceFromPlayer = (block: IBlock) =>
-    Math.abs(block.x - player.BlockPosition.x) + Math.abs(block.y - player.BlockPosition.y);
+    Math.abs(block.x - player.BlockPosition.x) +
+    Math.abs(block.y - player.BlockPosition.y);
 
   const maxDistance = Math.max(...circumference.map(distanceFromPlayer));
   const farthestBlocks = circumference.filter(
@@ -189,7 +199,7 @@ function calculatePlayerValue(pos: string, rating: number, age: number) {
 
   const position_multiplier = basevalue * getPositionMultiplier(pos);
 
-  const age_number = typeof age == "string" ? parseInt(age) : age;
+  const age_number = typeof age == 'string' ? parseInt(age) : age;
 
   const age_multiplier = basevalue * getAgeMultiplier(pos, age_number);
 
@@ -359,7 +369,7 @@ const attributesToIncrease: {
     'Agility',
     'Aggression',
     'Vision',
-    'Crossing'
+    'Crossing',
   ],
   GK: [
     'LongPass',
@@ -498,88 +508,102 @@ export function newAttributeRatings(player: PlayerInterface, pnts: number) {
   return { attributes: player.Attributes, new_rating, new_value };
 }
 
-function generatePlayer({position, firstname, lastname, nationality}:
-  {position: string, firstname: string, lastname: string, nationality: string}) {
-
+function generatePlayer({
+  position,
+  firstname,
+  lastname,
+  nationality,
+}: {
+  position: string;
+  firstname: string;
+  lastname: string;
+  nationality: string;
+}) {
   const obj = {
-        FirstName: firstname,
-        LastName: lastname,
-        Nationality: '', // set
-        Age: 0, // random
-        Position: position,
-        Rating: 0,
-        Role: '', // random
-        Attributes: {
-          PreferredFoot: '', // random
-          Speed: randomBetween(20, 60),
-          Shooting: randomBetween(20, 60),
-          LongPass: randomBetween(20, 60),
-          ShortPass: randomBetween(20, 60),
-          Mental: randomBetween(20, 60),
-          Control: randomBetween(20, 60),
-          Tackling: randomBetween(20, 60),
-          Dribbling: randomBetween(20, 60),
-          SetPiece: randomBetween(20, 60),
-          Strength: randomBetween(20, 60),
-          Stamina: randomBetween(20, 60),
-          Vision: randomBetween(20, 60),
-          ShotPower: randomBetween(20, 60),
-          Aggression: randomBetween(20, 60),
-          Interception: randomBetween(20, 60),
-          Keeping: randomBetween(20, 60),
-          Marking: randomBetween(20, 60),
-          Agility: randomBetween(20, 60),
-          Positioning: randomBetween(20, 60),
-          Crossing: randomBetween(20, 60),
-          LongShot: randomBetween(20, 60),
-          AttackingMindset: false, // random
-          DefensiveMindset: false, // random
-        },
-        isSigned: false,
-        Value: 0
-      };
+    FirstName: firstname,
+    LastName: lastname,
+    Nationality: '', // set
+    Age: 0, // random
+    Position: position,
+    Rating: 0,
+    Role: '', // random
+    Attributes: {
+      PreferredFoot: '', // random
+      Speed: randomBetween(20, 60),
+      Shooting: randomBetween(20, 60),
+      LongPass: randomBetween(20, 60),
+      ShortPass: randomBetween(20, 60),
+      Mental: randomBetween(20, 60),
+      Control: randomBetween(20, 60),
+      Tackling: randomBetween(20, 60),
+      Dribbling: randomBetween(20, 60),
+      SetPiece: randomBetween(20, 60),
+      Strength: randomBetween(20, 60),
+      Stamina: randomBetween(20, 60),
+      Vision: randomBetween(20, 60),
+      ShotPower: randomBetween(20, 60),
+      Aggression: randomBetween(20, 60),
+      Interception: randomBetween(20, 60),
+      Keeping: randomBetween(20, 60),
+      Marking: randomBetween(20, 60),
+      Agility: randomBetween(20, 60),
+      Positioning: randomBetween(20, 60),
+      Crossing: randomBetween(20, 60),
+      LongShot: randomBetween(20, 60),
+      AttackingMindset: false, // random
+      DefensiveMindset: false, // random
+    },
+    isSigned: false,
+    Value: 0,
+  };
 
-      // set nationality
-      switch(nationality) {
-        case 'kev':
-          obj.Nationality = '611fe72fb69949fd0152a092'
-        break;
-        case 'bellean':
-          obj.Nationality = '611fcd88b69949fd01529d6d'
-        break
-        default:
-        // default bellean :)
-          obj.Nationality = '611fcd88b69949fd01529d6d'
-      }
+  // set nationality
+  switch (nationality) {
+    case 'kev':
+      obj.Nationality = '611fe72fb69949fd0152a092';
+      break;
+    case 'bellean':
+      obj.Nationality = '611fcd88b69949fd01529d6d';
+      break;
+    default:
+      // default bellean :)
+      obj.Nationality = '611fcd88b69949fd01529d6d';
+  }
 
-      // set Age
-      obj.Age = randomBetween(18, 30);
+  // set Age
+  obj.Age = randomBetween(18, 30);
 
-      // set Position
-      obj.Role = pickRandomFromArray(Roles[obj.Position as keyof typeof Roles]);
+  // set Position
+  obj.Role = pickRandomFromArray(Roles[obj.Position as keyof typeof Roles]);
 
-      // set Preferred Foot
-      obj.Attributes.PreferredFoot = pickRandomFromArray(['left', 'right']);
+  // set Preferred Foot
+  obj.Attributes.PreferredFoot = pickRandomFromArray(['left', 'right']);
 
-      // set AttackingMindset DefensiveMindset
-      obj.Attributes.AttackingMindset = pickRandomFromArray([true, false]);
-      obj.Attributes.DefensiveMindset = pickRandomFromArray([true, false]);
+  // set AttackingMindset DefensiveMindset
+  obj.Attributes.AttackingMindset = pickRandomFromArray([true, false]);
+  obj.Attributes.DefensiveMindset = pickRandomFromArray([true, false]);
 
-      // set Position specific attributes
-      attributesToIncrease[obj.Position as keyof typeof attributesToIncrease].forEach(attr => {
-        (obj.Attributes as any)[attr] = 64;
-      });
+  // set Position specific attributes
+  attributesToIncrease[
+    obj.Position as keyof typeof attributesToIncrease
+  ].forEach((attr) => {
+    (obj.Attributes as any)[attr] = 64;
+  });
 
-      console.log('Generated Player payload => ', obj)
+  console.log('Generated Player payload => ', obj);
 
-      // set Rating
-      obj.Rating = calculatePlayerRating(obj.Attributes, obj.Position, obj.Role as Role);
+  // set Rating
+  obj.Rating = calculatePlayerRating(
+    obj.Attributes,
+    obj.Position,
+    obj.Role as Role
+  );
 
-      // set Value
-      // you need Player's Rating to calculate their Value
-      obj.Value = calculatePlayerValue(obj.Position, obj.Rating, obj.Age);
+  // set Value
+  // you need Player's Rating to calculate their Value
+  obj.Value = calculatePlayerValue(obj.Position, obj.Rating, obj.Age);
 
-      return obj;
+  return obj;
 }
 
 export {
@@ -591,5 +615,5 @@ export {
   getGK,
   calculatePlayerValue,
   sortFromKeeperDown,
-  generatePlayer
+  generatePlayer,
 };

@@ -70,44 +70,44 @@
 ])
  */
 
- function arrange(matches_in_week: any, Fixture: any, Day: any) {
-      debugger;
-      if (matches_in_week > 0 && matches_in_week <= 3){
-      for (let a = 0;a < matches_in_week; a++){
-        console.log(`Putting Fixture ${Fixture} in Day ${Day}`);
-        Fixture++;
-      }
-
-      matches_in_week -= matches_in_week;
+function arrange(matches_in_week: any, Fixture: any, Day: any) {
+  debugger;
+  if (matches_in_week > 0 && matches_in_week <= 3) {
+    for (let a = 0; a < matches_in_week; a++) {
+      console.log(`Putting Fixture ${Fixture} in Day ${Day}`);
+      Fixture++;
     }
 
-    if (matches_in_week >= 5){
-      // Fixture += 2;
-      for (let b = 0;b < 5; b++){
-        console.log(`Putting Fixture ${Fixture} in Day ${Day}`);
-        Fixture++;
-      }
+    matches_in_week -= matches_in_week;
+  }
 
-      matches_in_week -= 5;
+  if (matches_in_week >= 5) {
+    // Fixture += 2;
+    for (let b = 0; b < 5; b++) {
+      console.log(`Putting Fixture ${Fixture} in Day ${Day}`);
+      Fixture++;
     }
 
-    // finished arranging in current Day.
-    Day += 1;
+    matches_in_week -= 5;
+  }
 
-    if (Day % 2 == 0) {
-      Day += 1; // skip a day
-    }
+  // finished arranging in current Day.
+  Day += 1;
 
-    console.log(`Skipping Day ${Day}...`);
+  if (Day % 2 == 0) {
+    Day += 1; // skip a day
+  }
 
-    console.log(`--- Now in Day ${Day} ---`);
+  console.log(`Skipping Day ${Day}...`);
 
-    if (matches_in_week != 0){
-      return arrange(matches_in_week, Fixture, Day);      
-    }
+  console.log(`--- Now in Day ${Day} ---`);
 
-    return {Fixture, Day};
- }
+  if (matches_in_week != 0) {
+    return arrange(matches_in_week, Fixture, Day);
+  }
+
+  return { Fixture, Day };
+}
 
 const MatchesInWeek = 7;
 const NumberOfWeeks = 3;
@@ -122,7 +122,6 @@ function setupDays() {
   while (Fixture <= TotalFixtures) {
     let matches_in_week = MatchesInWeek;
 
-    ({Fixture, Day} = arrange(matches_in_week, Fixture, Day));
-
+    ({ Fixture, Day } = arrange(matches_in_week, Fixture, Day));
   }
 }

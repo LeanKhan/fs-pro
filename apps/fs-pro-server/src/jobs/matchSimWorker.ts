@@ -37,16 +37,28 @@ async function main() {
   const match = await app.startGame();
 
   if (!match) {
-    throw new Error('Simulation did not resolve a Match (startGame returned undefined)');
+    throw new Error(
+      'Simulation did not resolve a Match (startGame returned undefined)'
+    );
   }
 
-  console.log(`[worker] simulation finished, ${match.Frames.length} frames captured`);
+  console.log(
+    `[worker] simulation finished, ${match.Frames.length} frames captured`
+  );
 
   parentPort!.postMessage({
     ok: true,
     result: {
-      Home: { _id: match.Home._id, Name: match.Home.Name, ClubCode: match.Home.ClubCode },
-      Away: { _id: match.Away._id, Name: match.Away.Name, ClubCode: match.Away.ClubCode },
+      Home: {
+        _id: match.Home._id,
+        Name: match.Home.Name,
+        ClubCode: match.Home.ClubCode,
+      },
+      Away: {
+        _id: match.Away._id,
+        Name: match.Away.Name,
+        ClubCode: match.Away.ClubCode,
+      },
       Details: match.Details,
       Frames: match.Frames,
       Events: match.Events,
@@ -69,7 +81,11 @@ async function main() {
 function reportFailure(err: unknown) {
   console.error('[worker] simulation failed:', err);
   const error = err instanceof Error ? err : new Error(String(err));
-  parentPort!.postMessage({ ok: false, error: error.message, stack: error.stack });
+  parentPort!.postMessage({
+    ok: false,
+    error: error.message,
+    stack: error.stack,
+  });
 }
 
 main().catch(reportFailure);

@@ -10,7 +10,9 @@
         <span v-if="lastMatchOfSeason || fixture.isFinalMatch" class="mz-chip">
           LAST MATCH
         </span>
-        <span v-if="simulateRest" class="mz-chip mz-chip-accent">simulation</span>
+        <span v-if="simulateRest" class="mz-chip mz-chip-accent">
+          simulation
+        </span>
       </div>
 
       <div class="mz-header-actions">
@@ -37,7 +39,9 @@
       </div>
     </header>
 
-    <div v-if="!fixture.HomeTeam" class="mz-loading-screen">Loading match...</div>
+    <div v-if="!fixture.HomeTeam" class="mz-loading-screen">
+      Loading match...
+    </div>
 
     <div v-else class="mz-body">
       <main class="mz-main">
@@ -49,7 +53,9 @@
             :players="playersById"
           ></live-pitch>
 
-          <div v-if="!resultsReady" class="mz-pitch-overlay">{{ overlayText }}</div>
+          <div v-if="!resultsReady" class="mz-pitch-overlay">
+            {{ overlayText }}
+          </div>
         </div>
       </main>
 
@@ -100,7 +106,7 @@
 
         <div class="mz-fixture-meta">
           {{ fixture.SeasonCode }} - {{ fixture.Title }}
-          <span v-if="fixture.Stadium"> - {{ fixture.Stadium }}</span>
+          <span v-if="fixture.Stadium">- {{ fixture.Stadium }}</span>
         </div>
 
         <div class="mz-dugout">
@@ -183,13 +189,20 @@ const liveAway = computed(() => ({
 // id -> squad info, so the live pitch's hover tooltip can show a name/
 // rating without that data needing to travel on every single frame.
 const playersById = computed(() => {
-  const map: Record<string, { FirstName: string; LastName: string; Rating: number }> = {};
+  const map: Record<
+    string,
+    { FirstName: string; LastName: string; Rating: number }
+  > = {};
   const allPlayers = [
     ...(fixture.value.HomeTeam?.Players || []),
     ...(fixture.value.AwayTeam?.Players || []),
   ];
   allPlayers.forEach((p: any) => {
-    map[p._id] = { FirstName: p.FirstName, LastName: p.LastName, Rating: p.Rating };
+    map[p._id] = {
+      FirstName: p.FirstName,
+      LastName: p.LastName,
+      Rating: p.Rating,
+    };
   });
   return map;
 });
@@ -224,10 +237,10 @@ const HomeTeamScore = computed(() => {
 // the frame-stream's goal events instead of the final Details score (which
 // only exists once the whole match has finished and been persisted).
 const displayHomeScore = computed(() =>
-  matchFinished.value ? HomeTeamScore.value ?? 0 : liveHomeScore.value
+  matchFinished.value ? (HomeTeamScore.value ?? 0) : liveHomeScore.value
 );
 const displayAwayScore = computed(() =>
-  matchFinished.value ? AwayTeamScore.value ?? 0 : liveAwayScore.value
+  matchFinished.value ? (AwayTeamScore.value ?? 0) : liveAwayScore.value
 );
 
 const matchFinished = computed(() => fixture.value.Played);
@@ -350,7 +363,10 @@ async function playGame() {
   try {
     await replaySocket.watch(String(fixtureId.value));
   } catch (error) {
-    console.error('Error connecting to live match replay, falling back:', error);
+    console.error(
+      'Error connecting to live match replay, falling back:',
+      error
+    );
     watchingLive = false;
   }
 

@@ -9,7 +9,10 @@ import {
 import { SeasonInterface } from './season.model';
 import { compileStandings } from '../../utils/seasons';
 import { CompetitionInterface } from '../competitions/competition.model';
-import { getCompetitionById, getCompetitions } from '../competitions/competition.service';
+import {
+  getCompetitionById,
+  getCompetitions,
+} from '../competitions/competition.service';
 import { appendClubRecord } from '../clubs/club.service';
 
 export async function getCurrentSeasons(req: Request, res: Response) {
@@ -57,7 +60,9 @@ export async function finishSeason(
 
   try {
     season = await getSeasonById(season_id);
-    competition = season ? await getCompetitionById(season.Competition as string) : null;
+    competition = season
+      ? await getCompetitionById(season.Competition as string)
+      : null;
   } catch (error) {
     console.log(`Error! => ${error}`);
 
@@ -202,7 +207,9 @@ export async function prolegate(season_id: string) {
     // find the new Competition that is higher than current comp but
     // in the same country.
     const countryId =
-      typeof old_comp.Country === 'string' ? old_comp.Country : (old_comp.Country as any)?._id;
+      typeof old_comp.Country === 'string'
+        ? old_comp.Country
+        : (old_comp.Country as any)?._id;
 
     const [new_comp] = await getCompetitions({
       Division: old_comp.Division + diff,

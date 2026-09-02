@@ -94,7 +94,8 @@
                           <v-btn
                             :disabled="selectedDay.Matches[0].Played"
                             :to="
-                              '/matchzone/' + selectedDay.Matches[0]._id.toString()
+                              '/matchzone/' +
+                              selectedDay.Matches[0]._id.toString()
                             "
                           >
                             Play
@@ -177,14 +178,14 @@ import { groupFixturesByDay } from '@/helpers/calendar';
 import { IFixture } from '@/interfaces/fixture';
 
 const route = useRoute();
-const router = useRouter();
+
 const store = useStore();
 
 const club = ref<any>({});
 const clubLeague = ref<any>(null);
 const selectedDayIndex = ref(0);
 const tab = ref(null);
-const seasonTab = ref(null);
+
 const days = ref<IDayGroup[]>([]);
 const season = ref<any>({});
 
@@ -193,14 +194,18 @@ const calendar = computed(() => store.calendar);
 const clubDays = computed(() => {
   return days.value.map((day) => {
     const Matches = day.Matches.filter((match) => {
-      return match.Home === club.value.ClubCode || match.Away === club.value.ClubCode;
+      return (
+        match.Home === club.value.ClubCode || match.Away === club.value.ClubCode
+      );
     });
     return { ...day, isFree: Matches.length === 0, Matches };
   });
 });
 
 const selectedDay = computed<IDayGroup>(() => {
-  return days.value[selectedDayIndex.value] ?? { Day: 0, isFree: true, Matches: [] };
+  return (
+    days.value[selectedDayIndex.value] ?? { Day: 0, isFree: true, Matches: [] }
+  );
 });
 
 function selectDay(val: number) {
@@ -225,7 +230,9 @@ async function fetchCurrentSeason() {
 async function fetchClubLeague() {
   if (!club.value.League) return;
   try {
-    const response = await $axios.get(`/competitions/all?id=${club.value.League}`);
+    const response = await $axios.get(
+      `/competitions/all?id=${club.value.League}`
+    );
     clubLeague.value = response.data.payload[0];
   } catch (error) {
     console.error('Error fetching club league:', error);

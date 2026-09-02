@@ -36,8 +36,13 @@ router.get('/', (req: Request, res: Response) => {
     Competition: typeof competition === 'string' ? competition : undefined,
   })
     .then((seasons) => {
-      const filtered = current === 'true' ? seasons.filter((s) => s.isStarted && !s.isFinished) : seasons;
-      const sorted = [...filtered].sort((a, b) => a.CompetitionCode.localeCompare(b.CompetitionCode));
+      const filtered =
+        current === 'true'
+          ? seasons.filter((s) => s.isStarted && !s.isFinished)
+          : seasons;
+      const sorted = [...filtered].sort((a, b) =>
+        a.CompetitionCode.localeCompare(b.CompetitionCode)
+      );
       return respond.success(res, 200, 'Seasons fetched successfully', sorted);
     })
     .catch((err: any) => {
@@ -48,11 +53,9 @@ router.get('/', (req: Request, res: Response) => {
 router.get('/:id/is-finished', (req, res) => {
   // find a fixture with the seasonCode who's Played == true and isFinalMatch == true
 
-  if(!req.params.id) {
+  if (!req.params.id) {
     return respond.fail(res, 400, 'Season ID not sent');
   }
-
-
 });
 
 /** Create new Season */
@@ -133,7 +136,8 @@ router.get('/:id', (req: Request, res: Response) => {
 
   getSeasonById(id)
     .then((season: any) => {
-      if (!season) return respond.success(res, 404, 'Season not found!', season);
+      if (!season)
+        return respond.success(res, 404, 'Season not found!', season);
 
       season.CompiledStandings = compileStandings(season.Standings);
 
@@ -177,7 +181,6 @@ router.delete('/:id', (req: Request, res: Response) => {
   const deleteSeason = () => {
     return deleteSeasonById(id);
   };
-
 
   deleteSeason()
     .then((done) => {

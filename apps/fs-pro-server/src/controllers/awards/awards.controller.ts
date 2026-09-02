@@ -32,10 +32,7 @@ export async function giveAwards(req: Request, res: Response) {
       if (superlative == 'most') {
         // now find out what kind of most...
         allStats.sort((a, b) => {
-          return (
-            b[attribute] -
-            a[attribute]
-          );
+          return b[attribute] - a[attribute];
         });
       } else {
         return false;
@@ -83,14 +80,11 @@ export async function giveAwards(req: Request, res: Response) {
     // now create those awards...
     createAwards(awardObjects)
       .then((players: any) => {
-        responseHandler.success(
-          res,
-          200,
-          'Season ended successfully!',
-          {awardedPlayers: players,
+        responseHandler.success(res, 200, 'Season ended successfully!', {
+          awardedPlayers: players,
           standings: req.body.standings,
-          season: req.body.updatedSeason}
-        );
+          season: req.body.updatedSeason,
+        });
       })
       .catch((err: any) => {
         responseHandler.fail(res, 400, 'Error fetching Player', err);

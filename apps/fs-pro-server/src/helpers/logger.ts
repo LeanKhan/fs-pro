@@ -7,15 +7,13 @@ const show_logs = process.env.LOGGING?.trim() == 'true';
 // console.log(stop);
 
 const logger = createLogger({
-  format: format.combine(
-    prettyPrint(),
-    json()
-  ),
+  format: format.combine(prettyPrint(), json()),
   transports: [
-  new transports.Console(),
-  new transports.File({
-      filename: 'game-logs.log'
-    })]
+    new transports.Console(),
+    new transports.File({
+      filename: 'game-logs.log',
+    }),
+  ],
 });
 
 export default function log(message: string | any, type: any = 'log') {

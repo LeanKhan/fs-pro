@@ -1,5 +1,8 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
-import { getUserById, updateUserFields } from '../controllers/user/user.service';
+import {
+  getUserById,
+  updateUserFields,
+} from '../controllers/user/user.service';
 import { getClubs } from '../controllers/clubs/club.service';
 import responseHandler from '../helpers/responseHandler';
 import { store } from '../sessionStore';
@@ -150,7 +153,9 @@ export function findSession(req: Request, res: Response, next: NextFunction) {
               throw new Error('Error in setting Session' + `${err}`);
             }
 
-            updateUserFields(userID, { Session: req.sessionID } as Partial<IUser>)
+            updateUserFields(userID, {
+              Session: req.sessionID,
+            } as Partial<IUser>)
               .then(() => {
                 return responseHandler.success(
                   res,
@@ -160,7 +165,12 @@ export function findSession(req: Request, res: Response, next: NextFunction) {
                 );
               })
               .catch((updateErr: any) => {
-                responseHandler.fail(res, 400, 'Error in authentication', updateErr);
+                responseHandler.fail(
+                  res,
+                  400,
+                  'Error in authentication',
+                  updateErr
+                );
               });
           });
         } else {
@@ -169,10 +179,14 @@ export function findSession(req: Request, res: Response, next: NextFunction) {
 
           req.session!.save((sessionErr: any) => {
             if (sessionErr) {
-              throw new Error('Error in saving new user session' + `${sessionErr}`);
+              throw new Error(
+                'Error in saving new user session' + `${sessionErr}`
+              );
             }
 
-            updateUserFields(userID, { Session: req.sessionID } as Partial<IUser>)
+            updateUserFields(userID, {
+              Session: req.sessionID,
+            } as Partial<IUser>)
               .then(() => {
                 return responseHandler.success(
                   res,
@@ -182,7 +196,12 @@ export function findSession(req: Request, res: Response, next: NextFunction) {
                 );
               })
               .catch((updateErr: any) => {
-                responseHandler.fail(res, 400, 'Error in authentication', updateErr);
+                responseHandler.fail(
+                  res,
+                  400,
+                  'Error in authentication',
+                  updateErr
+                );
               });
           });
         }
