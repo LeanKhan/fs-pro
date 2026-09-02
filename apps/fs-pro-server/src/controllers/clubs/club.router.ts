@@ -1,8 +1,6 @@
 import { Router } from 'express';
 import respond from '../../helpers/responseHandler';
 import {
-  fetchSingleClubById,
-  fetchClubs,
   getClubById,
   getClubs,
   createClub,
@@ -21,13 +19,23 @@ import {
   createManyClubsFromCSV,
   removeManagerFromClub,
 } from './club.controller';
-import { setupRoutes } from '../../helpers/queries';
 
 const router = Router();
 
-/** Fetch all Clubs */
+/** Fetch all Clubs, optionally narrowed to a comma-separated list of ids
+ * (e.g. `?ids=a,b,c`, used by the client to resolve "my clubs" from the ids
+ * stored on the logged-in user) or to clubs with no owning User yet
+ * (`?unclaimed=true`, registration's "pick a club" list). Neither of these
+ * needs Players/Manager populated. */
 router.get('/all', (req, res) => {
-  const response = getClubs(undefined, { withPlayersAndManager: true });
+  const { ids, unclaimed } = req.query;
+  const idList = typeof ids === 'string' ? ids.split(',').filter(Boolean) : undefined;
+
+  const response = idList
+    ? getClubs({ ids: idList })
+    : unclaimed === 'true'
+      ? getClubs({ unclaimed: true })
+      : getClubs(undefined, { withPlayersAndManager: true });
 
   response
     .then((clubs: any) => {
@@ -35,33 +43,6 @@ router.get('/all', (req, res) => {
     })
     .catch((err: any) => {
       respond.fail(res, 400, 'Error fetching Clubs', err.toString());
-    });
-});
-
-/** Fetch Club by query */
-router.get('/fetch', (req, res) => {
-  // fetch clubs with query and all
-  let query;
-  let select: any;
-  try {
-    query = req.query.q || "{}";
-    query = JSON.parse(req.query.q as any);
-    select = req.query.select || {};
-    select = JSON.parse(select);
-  } catch (err) {
-    return respond.fail(res, 400, 'Error parsing JSON for Clubs query =>', {
-      error: err,
-      query,
-      select,
-    });
-  }
-
-  fetchClubs(query, select)
-    .then((clubs) => {
-      return respond.success(res, 200, 'Clubs fetched successfully', clubs);
-    })
-    .catch((err) => {
-      return respond.fail(res, 400, 'Error fetching Clubs', err.toString());
     });
 });
 
@@ -103,23 +84,17 @@ router.delete('/:id', (req, res) => {
 
 /** Fetch Club by id */
 router.get('/:id', (req, res) => {
-  try {
-    const populate = typeof req.query.populate === 'string' ? req.query.populate : false;
-    // An explicit ?populate= needs an arbitrary Mongo populate spec
-    // (`JSON.parse`d, can be any field/array of fields) - no repository
-    // equivalent for that, stays on the raw path. Plain fetches go through
-    // the repository (Address.Country still comes back populated either way).
-    const response = populate ? fetchSingleClubById(req.params.id, populate) : getClubById(req.params.id);
-    response
-      .then((club) => {
-        respond.success(res, 200, 'Club fetched successfully', club);
-      })
-      .catch((err) => {
-        respond.fail(res, 400, 'Error fetching Club', err.toString());
-      });
-  } catch (err: any) {
-    respond.fail(res, 400, 'Error fetching Club', err.toString());
-  }
+  // ?populate= is now just a boolean flag for withPlayersAndManager -
+  // Address.Country comes back populated either way.
+  const populate = typeof req.query.populate === 'string' && req.query.populate !== 'false';
+
+  getClubById(req.params.id, { withPlayersAndManager: populate })
+    .then((club) => {
+      respond.success(res, 200, 'Club fetched successfully', club);
+    })
+    .catch((err) => {
+      respond.fail(res, 400, 'Error fetching Club', err.toString());
+    });
 });
 
 /** Add Player to Club */
@@ -156,8 +131,6 @@ router.put(
   addPlayerToClubMiddleware,
   calculateClubRating
 );
-
-setupRoutes(router, 'Club');
 
 export default router;
 

@@ -36,7 +36,7 @@
       <v-window-item>
         <v-card-text>
           <day-fixtures-list
-            :Matches="currentDay?.Matches || []"
+            :Matches="dayFixtures || []"
             Detail="results"
             :MandatorySelect="false"
             @match-selected="matchSelected"
@@ -88,7 +88,7 @@ interface Props {
   awaySquad?: any;
   match?: any;
   matchFinished?: any;
-  currentDay?: any;
+  dayFixtures?: any[];
   currentFixture: any;
   liveEvents?: any[];
 }

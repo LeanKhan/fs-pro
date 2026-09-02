@@ -2,6 +2,8 @@ import { CompetitionInterface } from '../controllers/competitions/competition.mo
 
 export interface ICompetitionFilter {
   Type?: string;
+  Division?: number;
+  Country?: string;
 }
 
 /**

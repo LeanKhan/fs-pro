@@ -1,174 +1,53 @@
 import { Router, Request, Response } from 'express';
 import respond from '../../helpers/responseHandler';
-import { getCalendarById, getCalendars, deleteCalendarById } from './calendar.service';
 import {
   getCurrentCalendar,
-  startYear,
-  createCalendarYear,
-  setupDaysInYear,
-  setupDaysInYear2,
-  createSeasonsInTheYear,
-  endYear,
+  startNextSeasonCycle,
+  endSeasonCycle,
 } from './calendar.controller';
-import { getDaysForYear, findDayByFixtureId, deleteDayById } from '../days/day.service';
+import { getEvents, deleteDayById } from '../days/day.service';
 import { updatePlayersDetails } from '../players/player.controller';
 import { updateAllClubsRating } from '../../middleware/club';
-import { setupRoutes } from '../../helpers/queries';
 
 const router = Router();
 
-// TODO: change route scheme for Calendars to
+/** Get the singleton Calendar */
+router.get('/current', getCurrentCalendar);
 
-// /calendars/<action>
-// /calendars/<entity>/<action>
-// instead of /calendar/calendars/<entity>
+/** Calendar events (not matches) scheduled within an inclusive day range -
+ * fixtures on a given day come from `GET /fixtures?scheduledDay=...`
+ * instead, see `fixture.router.ts`. */
+router.get('/days', (req: Request, res: Response) => {
+  const from = parseInt(String(req.query.from ?? '0'), 10);
+  const to = parseInt(String(req.query.to ?? from), 10);
 
-/** Get Calendar by id */
-router.get('/calendars/:id', (req, res) => {
-  const response = getCalendarById(req.params.id);
-
-  response
-    .then((fixture: any) => {
-      respond.success(res, 200, 'Fixtured fetched successfully', fixture);
+  getEvents(from, to)
+    .then((days) => {
+      return respond.success(res, 200, 'Calendar events fetched successfully!', days);
     })
     .catch((err: any) => {
-      respond.fail(res, 400, 'Error fetching Fixture', err);
-    });
-});
-
-/** Delete Calendar by id */
-router.delete('/calendars/:id', (req, res) => {
-  deleteCalendarById(req.params.id)
-    .then((calendar: any) => {
-      respond.success(res, 200, 'Calendar deleted successfully :)', calendar);
-    })
-    .catch((err: any) => {
-      respond.fail(res, 400, 'Error deleting Calendar', err.toString());
+      return respond.fail(res, 400, 'Error fetching Calendar events', err.toString());
     });
 });
 
 router.delete('/days/:id', (req, res) => {
   deleteDayById(req.params.id)
-    .then((calendar: any) => {
-      respond.success(res, 200, 'Calendar Day deleted successfully :)', calendar);
+    .then((day: any) => {
+      respond.success(res, 200, 'Calendar Day deleted successfully :)', day);
     })
     .catch((err: any) => {
       respond.fail(res, 400, 'Error deleting Calendar Day', err.toString());
     });
 });
 
-// TODO: add delte by code endpoint... or modify above
+/** Start the next season cycle - one Season per Competition, fixtures
+ * generated and scheduled from the Calendar's current day. */
+router.post('/seasons/next', startNextSeasonCycle);
 
-/** Get all Calendars */
-router.get('/calendars', (req, res) => {
-  const response = getCalendars();
+/** End a season cycle - prolegates every Season in `:year` once they're all
+ * finished, then progresses Player/Club ratings for the new cycle. */
+router.post('/end-season/:year', endSeasonCycle, updatePlayersDetails, updateAllClubsRating);
 
-  response
-    .then((calendars: any) => {
-      respond.success(
-        res,
-        200,
-        'All Calendars fetched successfully',
-        calendars
-      );
-    })
-    .catch((err: any) => {
-      respond.fail(res, 400, 'Error fetching all Calendars', err);
-    });
-});
-
-/** Get days of a Calendar by Year */
-router.get('/:year/days', (req: Request, res: Response) => {
-  const { year } = req.params;
-  const { paginate = false, not_played = true, limit } = req.query;
-
-  const shouldPaginate = JSON.parse(paginate as string);
-
-  getDaysForYear({
-    Year: year,
-    ...(not_played ? { isFree: false, notPlayed: true } : {}),
-    ...(shouldPaginate ? { limit: parseInt(limit as string) } : {}),
-  })
-    .then((days: any) => {
-      return respond.success(
-        res,
-        200,
-        'Days of Calendar Year fetched successfully!',
-        days
-      );
-    })
-    .catch((err: any) => {
-      console.log(err);
-      console.error(err);
-      return respond.fail(res, 400, 'Error fetching days in calendar', err);
-    });
-});
-
-/** Get Days of Fixture */
-router.get('/day-of-fixture/:fixture', (req: Request, res: Response) => {
-
-  const fixture_id = req.params.fixture;
-
-  if(!fixture_id) {
-        return respond.fail(res, 400, 'No fixture sent');
-  }
-
-  findDayByFixtureId(fixture_id).then((day: any) => {
-      return respond.success(
-        res,
-        200,
-        'Day of Fixture fetched successfully!',
-        day
-      );
-    })
-    .catch((err: any) => {
-      return respond.fail(res, 400, 'Error fetching Day of Fixture', err);
-    });
-});
-
-/** Get current Calendar */
-router.get('/current', getCurrentCalendar);
-
-/** Create Calendar Year! */
-router.post('/new', createCalendarYear);
-
-/**
- * After a Year has been created, we must add Seasons to it and add Days to the Year
- * - Then the Calendar process is complete!
- * - A Calendar Year ends when a new one Starts
- * - Next, Start the Calendar and go and play matches! :)
- * This endpoint, setups Year and Activates it !
- */
-// router.post(
-//   '/:year/:id/setup-and-start',
-//   createSeasonsInTheYear,
-//   setupDaysInYear,
-//   startYear
-// );
-
-// FOR TESTING
-router.post(
-  '/:year/:id/setup-and-start',
-  createSeasonsInTheYear,
-  setupDaysInYear2,
-  startYear
-);
-
-router.post(
-  '/:year/:id/setup-days-and-start',
-  setupDaysInYear2,
-  startYear
-);
-
-/** Start Calendar Year... */
-router.post('/:year/:id/start', startYear);
-
-/** End Calendar Year... */
-router.post('/:id/end', endYear, updatePlayersDetails, updateAllClubsRating);
-// router.post('/:id/end', updatePlayersDetails, updateAllClubsRating);
-
-router.get('/:id/update-ages', updatePlayersDetails);
-
-setupRoutes(router, 'Calendar');
+router.get('/:year/update-ages', updatePlayersDetails);
 
 export default router;

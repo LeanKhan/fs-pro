@@ -1,21 +1,16 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-//   const { month, year } = req.query;
-//   const newYear = month.toUpperCase() + '-' + year;
 import { NextFunction, Request, Response } from 'express';
 import respond from '../../helpers/responseHandler';
 import {
-  fetchAll,
-  fetchOneById,
-  fetchSeason,
-  findByIdAndUpdate,
+  getSeasons,
+  getSeasonById,
+  updateSeasonFields,
 } from '../../controllers/seasons/season.service';
 import { SeasonInterface } from './season.model';
 import { compileStandings } from '../../utils/seasons';
 import { CompetitionInterface } from '../competitions/competition.model';
-import { updateCalendarFields } from '../calendar/calendar.service';
-import { findOne, update } from '../competitions/competition.service';
-import { updateClub } from '../clubs/club.service';
-// import { monthFromIndex } from '../../utils/seasons';
+import { getCompetitionById, getCompetitions } from '../competitions/competition.service';
+import { appendClubRecord } from '../clubs/club.service';
 
 export async function getCurrentSeasons(req: Request, res: Response) {
   /**
@@ -26,21 +21,8 @@ export async function getCurrentSeasons(req: Request, res: Response) {
 
   const year = req.params.year;
 
-  let populate;
-
   try {
-    populate = req.query.populate && typeof req.query.populate === 'string' && JSON.parse(req.query.populate);
-  } catch (error) {
-    console.log("Couldn't parse populate query param for Seasons");
-    populate = false;
-  }
-
-  // now find the seasons with these parameters [${compCode}-${Month}-${Year}]
-  // const seasons = findAll
-  // Find the seasons that are in these competitions and this year
-  const query = { Year: year };
-  try {
-    const seasons = await fetchAll(query, populate, false, {field: 'CompetitionCode', dir: 1});
+    const seasons = await getSeasons({ Year: year });
     if (seasons.length == 0) {
       return respond.fail(res, 404, 'No Seasons found!', seasons);
     }
@@ -70,18 +52,12 @@ export async function finishSeason(
     });
   }
 
-  let season: SeasonInterface;
-
-  // season.Competition maybe find the competition and do the needful...
+  let season: SeasonInterface | null;
+  let competition: CompetitionInterface | null;
 
   try {
-    // TODO: IMPORTANT (!) REVERT THIS O!
-    const q = { _id: season_id, isStarted: true };
-    // const q = { _id: season_id, isStarted: true, isFinished: false };
-    // get fixture and its details...
-    // tho, part of the query should be the year. Year should be the CurrentYear
-    season = await fetchSeason(q, false, 'Competition Fixtures');
-    // We also need to get the associated calendar day...
+    season = await getSeasonById(season_id);
+    competition = season ? await getCompetitionById(season.Competition as string) : null;
   } catch (error) {
     console.log(`Error! => ${error}`);
 
@@ -96,7 +72,7 @@ export async function finishSeason(
     );
   }
 
-  if (!season) {
+  if (!season || !season.isStarted || !competition) {
     /**
      * This means:
      * - Id is wrong,
@@ -129,11 +105,11 @@ export async function finishSeason(
     }
 
     const standings = compileStandings(season.Standings);
-    const cmp = season.Competition as CompetitionInterface;
+    const cmp = competition;
     // TODO: Do Best Player etc...
 
     const updateSeason = () => {
-      const prolegated: any =
+      const prolegated =
         cmp.Division == 1 && cmp.League
           ? {
               Relegated: standings
@@ -149,54 +125,29 @@ export async function finishSeason(
 
       req.body.seasonChampions = standings[0].ClubID;
 
-      return findByIdAndUpdate(season_id, {
+      return updateSeasonFields(season_id, {
         isStarted: true,
         isFinished: true,
         Status: 'finished',
         EndDate: new Date(),
         Winner: standings[0].ClubID, // Winner of the League
-        $push: {
-          Logs: [
-            {
-              title: `Season finished`,
-              content: 'Season finished!',
-              date: new Date(),
-            },
-          ],
-        },
-        $set: prolegated,
-      });
-    };
-
-    const checkOtherSeasons = async (season: SeasonInterface) => {
-      // Find all seasons in the year
-      const all_seasons: SeasonInterface[] = await fetchAll({
-        Calendar: season.Calendar,
-        Year: season.Year,
-      }, false, false, {field: 'CompetitionCode', dir: 1});
-
-      const all_finished = all_seasons.every(
-        (s) => s.isFinished && s.isStarted
-      );
-
-      if (all_finished) {
-        await updateCalendarFields(season.Calendar as string, { allSeasonsCompleted: true });
-      }
-
-      return season;
+        Logs: [
+          ...(season!.Logs ?? []),
+          {
+            title: `Season finished`,
+            content: 'Season finished!',
+            date: new Date(),
+          },
+        ],
+        ...prolegated,
+      } as Partial<SeasonInterface>);
     };
 
     updateSeason()
-      .then(checkOtherSeasons)
       .then((updatedSeason: any) => {
         req.body.updatedSeason = updatedSeason;
         req.body.standings = standings;
         return next();
-        // return respond.success(res, 200, 'Season Ended Successfully!', {
-        //   // this should also have the Season object to send back to the Client...
-        //   standings,
-        //   season: updatedSeason
-        // });
       })
       .catch((err: any) => {
         console.error(err);
@@ -218,11 +169,14 @@ export async function finishSeason(
  * @returns
  */
 export async function prolegate(season_id: string) {
-  const season: SeasonInterface = await fetchOneById(
-    season_id,
-    '-Fixtures',
-    'Competition'
-  );
+  const season = await getSeasonById(season_id);
+  if (!season) {
+    throw new Error(`Season [${season_id}] does not exist`);
+  }
+  const cmp = await getCompetitionById(season.Competition as string);
+  if (!cmp) {
+    throw new Error(`Competition for Season [${season_id}] does not exist`);
+  }
 
   const moveClub = async (
     club_id: string,
@@ -247,42 +201,44 @@ export async function prolegate(season_id: string) {
 
     // find the new Competition that is higher than current comp but
     // in the same country.
-    const new_comp: CompetitionInterface = await findOne({
+    const countryId =
+      typeof old_comp.Country === 'string' ? old_comp.Country : (old_comp.Country as any)?._id;
+
+    const [new_comp] = await getCompetitions({
       Division: old_comp.Division + diff,
-      Country: old_comp.Country
+      Country: countryId,
     });
+
+    if (!new_comp) {
+      throw new Error(
+        `No competition found for Division ${old_comp.Division + diff} in the same country as ${old_comp.Name}`
+      );
+    }
 
     const record_msg = `Got ${type == 'up' ? 'Promoted' : 'Relegated'} to ${
       new_comp.Name
     }`;
 
     try {
-      //  Remove from old... add to new
-      await update(old_comp._id as string, { $pull: { Clubs: club_id } });
-
-      await update(new_comp._id as string, { $push: { Clubs: club_id } });
-
-      // update Club also..
-      await updateClub(club_id, {
-        League: new_comp._id,
-        LeagueCode: new_comp.CompetitionCode,
-        $push: {
-          Records: {
-            title: 'League Movement',
-            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-            data: `From (${old_comp.Name}) ${old_comp._id} to (${new_comp.Name}) ${new_comp._id}`,
-            content: record_msg,
-            date: new Date(),
-          },
-        },
-      });
+      // Competition.Clubs doesn't exist on Postgres (dropped in favor of
+      // the reverse Clubs.League FK, set right below) - nothing to update
+      // on either Competition row.
+      await appendClubRecord(
+        club_id,
+        { League: new_comp._id, LeagueCode: new_comp.CompetitionCode },
+        {
+          title: 'League Movement',
+          data: `From (${old_comp.Name}) ${old_comp._id} to (${new_comp.Name}) ${new_comp._id}`,
+          content: record_msg,
+          date: new Date(),
+        }
+      );
     } catch (error) {
       console.error(error);
       throw error;
     }
   };
 
-  const cmp = season.Competition as CompetitionInterface;
   let move_type: 'up' | 'down';
   switch (cmp.Division) {
     case 1:

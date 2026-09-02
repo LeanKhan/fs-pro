@@ -2,9 +2,9 @@
 import { Request, Response, Router } from 'express';
 import respond from '../../helpers/responseHandler';
 import {
-  fetchAll,
-  updatePlayers,
+  getPlayers,
   getSpecificPlayerStats,
+  PlayerStatSortKey,
   getPlayerById,
   updatePlayerFields,
   deletePlayerById,
@@ -19,31 +19,20 @@ import {
 } from '../../utils/players';
 import { fetchAppearance } from '../../utils/appearance';
 import { runSpawn } from '../../utils/scripts';
-import log from '../../helpers/logger';
-import { baseQuery, setupRoutes } from '../../helpers/queries';
 import { titleCase } from '../../helpers/misc';
-import { Types } from 'mongoose';
-import { fetchAllClubs, fetchClubs } from '../clubs/club.service';
 
 const router = Router();
 
 /**
- * Fetch all Players
+ * Fetch all Players, optionally filtered by Club/ClubCode/isSigned
  */
 router.get('/all', (req, res) => {
-  let options: Record<string, string> = {};
-  // This prevents the app from crashing if there's
-  // an error parsing object :)
-  try {
-    if (req.query.options) {
-      options = JSON.parse(req.query.options.toString());
-    }
-  } catch (err: any) {
-    log(`Error parsing JSON => ${err}`);
-      return respond.fail(res, 400, 'Error fetching players: Parsing Options', err.toString());
-  }
+  const filter: { Club?: string; ClubCode?: string; isSigned?: boolean } = {};
+  if (typeof req.query.club === 'string') filter.Club = req.query.club;
+  if (typeof req.query.clubCode === 'string') filter.ClubCode = req.query.clubCode;
+  if (typeof req.query.isSigned === 'string') filter.isSigned = req.query.isSigned === 'true';
 
-  fetchAll(options)
+  getPlayers(filter)
     .then((players: any) => {
       return respond.success(res, 200, 'Players fetched successfully', players);
     })
@@ -156,54 +145,21 @@ router.get('/appearance', (req, res) => {
     });
 });
 
-router.patch('/update-many', (req, res) => {
-  const { update, query } = req.body;
-
-  if (!update || !query)
-    return respond.fail(res, 400, 'Please provide a Query or Update !');
-
-  updatePlayers(query, update)
-    .then((updated: any) => {
-      respond.success(res, 200, 'Updated many players successfully!', updated);
-    })
-    .catch((err: any) => {
-      respond.fail(res, 400, 'Error updating many players', err);
-    });
-});
-
 /**
- * Use like this -> {{url}}/players/stats?match_k=season.CompetitionCode&match_v=EFL&sort_k=goals&sort_v=-1
+ * Use like this -> {{url}}/players/stats?competitionCode=EFL&sortBy=goals&sortDir=desc
  */
 router.get('/stats', async (req: Request, res: Response) => {
-  const { match_k, sort_k, match_v, sort_v } = req.query;
+  const competitionCode = typeof req.query.competitionCode === 'string' ? req.query.competitionCode : undefined;
+  const sortBy = (typeof req.query.sortBy === 'string' ? req.query.sortBy : 'points') as PlayerStatSortKey;
+  const sortDir = req.query.sortDir === 'asc' ? 'asc' : 'desc';
 
-  const matchObject: { [key: string]: any } = {};
-  const sortObject: { [key: string]: any } = {};
-
-  if (match_k) {
-    matchObject[match_k.toString()] = match_v;
-  }
-
-  try {
-    if (sort_k && sort_v) {
-      sortObject[sort_k.toString()] = parseInt(sort_v.toString());
-    }
-    if (match_k && match_v) {
-      if (new Types.ObjectId(match_v.toString())) {
-        matchObject[match_k.toString()] = new Types.ObjectId(match_v.toString());
-      }
-    }
-  } catch (error) {
-    console.error(error);
-  }
-
-  await getSpecificPlayerStats(matchObject, sortObject)
+  await getSpecificPlayerStats(competitionCode, sortBy, sortDir)
     .then((updated: any) => {
       // get only the top 5
       return respond.success(
         res,
         200,
-        `The Best 5 Players by ${sort_k?.toString().toUpperCase() ?? 'UNKNOWN'}`,
+        `The Best 5 Players by ${sortBy.toUpperCase()}`,
         updated.slice(0, 5)
       );
     })
@@ -270,7 +226,5 @@ router.delete('/:id', (req, res) => {
       respond.fail(res, 400, 'Error deleting Player => ', err.toString());
     });
 });
-
-setupRoutes(router, 'Player');
 
 export default router;

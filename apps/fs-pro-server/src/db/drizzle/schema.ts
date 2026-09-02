@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { numeric, real } from 'drizzle-orm/pg-core';
 import {
   boolean,
+  index,
   integer,
   jsonb,
   pgTable,
@@ -158,37 +159,42 @@ export const clubs = pgTable('Clubs', {
   // Players dropped - it's the exact inverse of players.Club below.
 });
 
+/**
+ * One perpetual timeline shared by the whole game world (no multi-tenancy
+ * anywhere - Clubs are globally unique, only claimed by Users via a nullable
+ * FK), so there's exactly one row here, ever - not one per real-world year
+ * the way Mongo's Calendar was. `singleton` exists purely to carry a real
+ * UNIQUE constraint enforcing that at the database level; nothing ever sets
+ * it to anything but `true`. `calendar.service.ts`'s `getCalendar()` is the
+ * only code that should read/write this table.
+ */
 export const calendars = pgTable('Calendars', {
   id: uuid('_id').primaryKey().defaultRandom(),
-  mongoId: text('mongoId').unique(),
-  Name: text('Name').notNull(),
-  YearString: text('YearString').notNull(),
-  YearDigits: text('YearDigits').notNull(),
-  CurrentDay: integer('CurrentDay'),
-  isActive: boolean('isActive').notNull().default(false),
-  isEnded: boolean('isEnded').notNull().default(false),
-  allSeasonsCompleted: boolean('allSeasonsCompleted').notNull().default(false),
+  singleton: boolean('singleton').notNull().default(true).unique(),
+  CurrentDay: integer('CurrentDay').notNull().default(0),
+  CurrentDate: timestamp('CurrentDate', { precision: 3 }).notNull(),
   ...timestamps,
-  // Days dropped - it's the exact inverse of days.Calendar below.
 });
 
+/**
+ * Sparse - a row only exists for a day that actually needs one (a real,
+ * non-match calendar event). Matches are no longer embedded here at all
+ * (see fixtures.ScheduledDay/ScheduledDate below) - that was the entire
+ * reason `day.service.ts` needed jsonb-array workarounds for every query
+ * the calendar/game loop made. `Index` is a global absolute day number
+ * (counts up forever from the start of the game world), not scoped to any
+ * particular year.
+ */
 export const days = pgTable('Days', {
   id: uuid('_id').primaryKey().defaultRandom(),
-  mongoId: text('mongoId').unique(),
-  /** Array of embedded match summaries (Mongo subdocuments, not a separate
-   * collection) - each entry already carries its own Fixture/CompetitionId
-   * as plain data, so this stays jsonb rather than a child table. */
-  Matches: jsonArray('Matches'),
-  isFree: boolean('isFree').notNull(),
-  Day: integer('Day'),
-  Year: text('Year').notNull(),
-  Calendar: uuid('Calendar').references(() => calendars.id),
+  Index: integer('Index').notNull().unique(),
+  Date: timestamp('Date', { precision: 3 }).notNull(),
+  Events: jsonArray('Events'),
   ...timestamps,
 });
 
 export const seasons = pgTable('Seasons', {
   id: uuid('_id').primaryKey().defaultRandom(),
-  mongoId: text('mongoId').unique(),
   SeasonCode: text('SeasonCode').notNull().unique(),
   Title: text('Title').notNull(),
   StartDate: timestamp('StartDate', { precision: 3 }).notNull(),
@@ -205,14 +211,18 @@ export const seasons = pgTable('Seasons', {
   isFinished: boolean('isFinished').notNull().default(false),
   isStarted: boolean('isStarted').notNull().default(false),
   Status: text('Status').notNull().default('Pending'),
+  /** The game-world "year cycle" this season belongs to (was
+   * `Calendar`-derived - a singleton Calendar has nothing left to derive it
+   * from, so callers pass it directly - see `calendar.controller.ts`'s
+   * `startNextSeasonCycle`). */
   Year: text('Year'),
-  Calendar: uuid('Calendar').references(() => calendars.id),
   Competition: uuid('Competition').references(() => competitions.id),
   CompetitionCode: text('CompetitionCode').notNull(),
   Standings: jsonArray('Standings'),
   Logs: jsonArray('Logs'),
   ...timestamps,
   // Fixtures dropped - it's the exact inverse of fixtures.Season below.
+  // Calendar dropped - redundant once Calendar is a singleton.
 });
 
 export const players = pgTable('Players', {
@@ -241,41 +251,55 @@ export const players = pgTable('Players', {
   ...timestamps,
 });
 
-export const fixtures = pgTable('Fixtures', {
-  id: uuid('_id').primaryKey().defaultRandom(),
-  mongoId: text('mongoId').unique(),
-  Title: text('Title'),
-  FixtureCode: text('FixtureCode'),
-  SeasonCode: text('SeasonCode'),
-  LeagueCode: text('LeagueCode'),
-  Week: integer('Week'),
-  Season: uuid('Season').references(() => seasons.id),
-  Stadium: text('Stadium'),
-  Played: boolean('Played').notNull().default(false),
-  Tie: text('Tie'),
-  Stage: text('Stage').notNull().default('lg-match'),
-  ReverseFixture: uuid('ReverseFixture').references((): AnyPgColumn => fixtures.id),
-  PlayedAt: timestamp('PlayedAt', { precision: 3 }),
-  Home: text('Home'),
-  Away: text('Away'),
-  HomeTeam: uuid('HomeTeam').references(() => clubs.id),
-  AwayTeam: uuid('AwayTeam').references(() => clubs.id),
-  Details: jsonb('Details').$type<Record<string, unknown> | null>(),
-  Events: jsonArray('Events'),
-  Type: text('Type'),
-  HomeSideDetails: uuid('HomeSideDetails').references((): AnyPgColumn => clubMatchDetails.id),
-  AwaySideDetails: uuid('AwaySideDetails').references((): AnyPgColumn => clubMatchDetails.id),
-  HomeManager: uuid('HomeManager').references(() => managers.id),
-  AwayManager: uuid('AwayManager').references(() => managers.id),
-  HomeTactic: text('HomeTactic'),
-  AwayTactic: text('AwayTactic'),
-  /** Whether this match's result should count toward permanent player/club
-   * stats history. Only meaningful for friendlies - real fixtures are
-   * always persisted in full regardless of this field. */
-  SaveStats: boolean('SaveStats'),
-  isFinalMatch: boolean('isFinalMatch').notNull().default(false),
-  ...timestamps,
-});
+export const fixtures = pgTable(
+  'Fixtures',
+  {
+    id: uuid('_id').primaryKey().defaultRandom(),
+    mongoId: text('mongoId').unique(),
+    Title: text('Title'),
+    FixtureCode: text('FixtureCode'),
+    SeasonCode: text('SeasonCode'),
+    LeagueCode: text('LeagueCode'),
+    Week: integer('Week'),
+    Season: uuid('Season').references(() => seasons.id),
+    Stadium: text('Stadium'),
+    Played: boolean('Played').notNull().default(false),
+    Tie: text('Tie'),
+    Stage: text('Stage').notNull().default('lg-match'),
+    ReverseFixture: uuid('ReverseFixture').references((): AnyPgColumn => fixtures.id),
+    PlayedAt: timestamp('PlayedAt', { precision: 3 }),
+    Home: text('Home'),
+    Away: text('Away'),
+    HomeTeam: uuid('HomeTeam').references(() => clubs.id),
+    AwayTeam: uuid('AwayTeam').references(() => clubs.id),
+    Details: jsonb('Details').$type<Record<string, unknown> | null>(),
+    Events: jsonArray('Events'),
+    Type: text('Type'),
+    HomeSideDetails: uuid('HomeSideDetails').references((): AnyPgColumn => clubMatchDetails.id),
+    AwaySideDetails: uuid('AwaySideDetails').references((): AnyPgColumn => clubMatchDetails.id),
+    HomeManager: uuid('HomeManager').references(() => managers.id),
+    AwayManager: uuid('AwayManager').references(() => managers.id),
+    HomeTactic: text('HomeTactic'),
+    AwayTactic: text('AwayTactic'),
+    /** Whether this match's result should count toward permanent player/club
+     * stats history. Only meaningful for friendlies - real fixtures are
+     * always persisted in full regardless of this field. */
+    SaveStats: boolean('SaveStats'),
+    isFinalMatch: boolean('isFinalMatch').notNull().default(false),
+    /** The Day.Index this fixture is scheduled to play on - replaces the old
+     * `Day.Matches` embedded array (this Fixture owning its own schedule
+     * makes "which day is this on"/"what's playing on day N" plain column
+     * reads/filters instead of jsonb queries). Nullable - friendlies and
+     * not-yet-scheduled fixtures have neither this nor ScheduledDate. */
+    ScheduledDay: integer('ScheduledDay'),
+    ScheduledDate: timestamp('ScheduledDate', { precision: 3 }),
+    ...timestamps,
+  },
+  (t) => [
+    index('fixtures_scheduled_day_idx').on(t.ScheduledDay),
+    index('fixtures_season_scheduled_day_idx').on(t.Season, t.ScheduledDay),
+  ]
+);
 
 /**
  * One record per Fixture (see match-replays/match-replay.model.ts), holding

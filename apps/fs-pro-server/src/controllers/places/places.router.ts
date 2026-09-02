@@ -7,7 +7,6 @@ import {
 } from './places.service';
 import respond from '../../helpers/responseHandler';
 import log from '../../helpers/logger';
-import {baseQuery, setupRoutes} from '../../helpers/queries';
 
 const router = Router();
 
@@ -245,8 +244,6 @@ router.put('/:id', (req, res) => {
       respond.fail(res, 400, 'Error updating Place', err);
     });
 });
-
-setupRoutes(router, 'Place');
 
 /** Update all Models NOT NEEDED FOR NOW! */
 // router.put('/work/update-all-models', updateAllModels);

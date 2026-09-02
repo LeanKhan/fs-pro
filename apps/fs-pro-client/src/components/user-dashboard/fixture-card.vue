@@ -1,7 +1,7 @@
 <template>
   <v-card height="300px">
     <v-card-subtitle>
-      {{ Match.Fixture.LeagueCode }}
+      {{ Match.LeagueCode }}
       <v-icon size="small" color="amber-lighten-3">mdi-trophy</v-icon>
     </v-card-subtitle>
     <p class="mb-0 mt-0 text-caption">
@@ -11,20 +11,20 @@
 
     <v-card-text>
       <v-avatar>
-        <v-icon>custom:{{ Match.Fixture.Home }}</v-icon>
+        <v-icon>custom:{{ Match.Home }}</v-icon>
       </v-avatar>
       vs
       <v-avatar>
-        <v-icon>custom:{{ Match.Fixture.Away }}</v-icon>
+        <v-icon>custom:{{ Match.Away }}</v-icon>
       </v-avatar>
 
       <div class="pa-0 text-center">
         <p class="mb-2 text-caption text-white">
-          {{ Match.Fixture.Title }}
+          {{ Match.Title }}
         </p>
 
         <p class="mb-0 text-caption">
-          {{ Match.Fixture.Stadium }}
+          {{ Match.Stadium }}
         </p>
       </div>
     </v-card-text>
@@ -34,8 +34,8 @@
         variant="flat"
         color="success"
         block
-        :disabled="Match.Fixture.Played"
-        :to="'/matchzone/' + Match.Fixture._id.toString()"
+        :disabled="Match.Played"
+        :to="'/matchzone/' + Match._id.toString()"
       >
         Play
       </v-btn>
@@ -44,10 +44,10 @@
 </template>
 
 <script setup lang="ts">
-import { ICalendarMatch } from '@/interfaces/calendar';
+import { IFixture } from '@/interfaces/fixture';
 
 interface Props {
-  Match: ICalendarMatch;
+  Match: IFixture;
 }
 
 defineProps<Props>();

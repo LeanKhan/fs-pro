@@ -1,26 +1,34 @@
 import { Router } from 'express';
 import respond from '../../helpers/responseHandler';
-import { fetchOneById, getFixtureById, deleteFixtureById } from './fixture.service';
-import { setupRoutes } from '../../helpers/queries';
+import { getFixtureById, getFixtures, deleteFixtureById } from './fixture.service';
 
 const router = Router();
 
-/** Get Fixture by id */
+/** List Fixtures by typed filters - `season`, an exact `scheduledDay`, or a
+ * `scheduledDayFrom`/`scheduledDayTo` range (optionally narrowed to
+ * `played`) - powers the client's "upcoming days" dashboard view. */
+router.get('/', (req, res) => {
+  const { season, scheduledDay, scheduledDayFrom, scheduledDayTo, played } = req.query;
+
+  getFixtures({
+    Season: typeof season === 'string' ? season : undefined,
+    Played: typeof played === 'string' ? played === 'true' : undefined,
+    scheduledDay: typeof scheduledDay === 'string' ? parseInt(scheduledDay, 10) : undefined,
+    scheduledDayFrom: typeof scheduledDayFrom === 'string' ? parseInt(scheduledDayFrom, 10) : undefined,
+    scheduledDayTo: typeof scheduledDayTo === 'string' ? parseInt(scheduledDayTo, 10) : undefined,
+  })
+    .then((fixtures) => {
+      respond.success(res, 200, 'Fixtures fetched successfully', fixtures);
+    })
+    .catch((err: any) => {
+      respond.fail(res, 400, 'Error fetching Fixtures', err.toString());
+    });
+});
+
+/** Get Fixture by id - always comes back with HomeSideDetails/
+ * AwaySideDetails+PlayerStats populated, see IFixtureRepository. */
 router.get('/:id', (req, res) => {
-  let p: any = false;
-
-  try {
-    p = typeof req.query.populate === 'string' && JSON.parse(req.query.populate);
-  } catch (err) {
-    console.log('Error parsing populate string, Fixture', err);
-  }
-
-  // An extra ?populate= path needs the raw arbitrary-populate function -
-  // HomeSideDetails/AwaySideDetails+PlayerStats are always populated
-  // either way, by the repository or by fetchOneById's own default.
-  const response = p ? fetchOneById(req.params.id, p) : getFixtureById(req.params.id);
-
-  response
+  getFixtureById(req.params.id)
     .then((fixture: any) => {
       respond.success(res, 200, 'Fixture fetched successfully', fixture);
     })
@@ -38,7 +46,5 @@ router.delete('/:id', (req, res) => {
       respond.fail(res, 400, 'Error deleting Fixture', err.toString());
     });
 });
-
-setupRoutes(router, 'Fixture');
 
 export default router;

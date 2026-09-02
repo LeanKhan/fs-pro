@@ -1,19 +1,16 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, gte, lte } from 'drizzle-orm';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { DayInterface } from '../../controllers/days/day.model';
 import * as schema from '../../db/drizzle/full-schema';
 import { days } from '../../db/drizzle/schema';
-import { IDayRepository } from '../DayRepository';
+import { IDayRepository, IDayFilter } from '../DayRepository';
 
 type DrizzleDb = PostgresJsDatabase<typeof schema>;
 type DayRow = typeof days.$inferSelect;
 
-/** Same `id` -> `_id` remap every other Drizzle repository does. `Matches`
- * comes back as bare Fixture ids, same as it's stored - the populate merge
- * happens in `day.service.ts`, not here. */
 function toDay(row: DayRow): DayInterface {
-  const { id, mongoId, ...rest } = row;
-  return { _id: id, ...rest } as unknown as DayInterface;
+  const { id, ...rest } = row;
+  return { _id: id, ...rest };
 }
 
 export class DrizzleDayRepository implements IDayRepository {
@@ -24,6 +21,17 @@ export class DrizzleDayRepository implements IDayRepository {
     return day ? toDay(day) : null;
   }
 
+  async findAll(filter: IDayFilter = {}): Promise<DayInterface[]> {
+    const conditions = [];
+    if (filter.indexFrom !== undefined) conditions.push(gte(days.Index, filter.indexFrom));
+    if (filter.indexTo !== undefined) conditions.push(lte(days.Index, filter.indexTo));
+
+    const rows = await this.db.query.days.findMany({
+      where: conditions.length ? and(...conditions) : undefined,
+    });
+    return rows.map(toDay);
+  }
+
   async create(data: Partial<DayInterface>): Promise<DayInterface> {
     const [day] = await this.db
       .insert(days)
@@ -31,16 +39,6 @@ export class DrizzleDayRepository implements IDayRepository {
       .returning();
 
     return toDay(day);
-  }
-
-  async createMany(data: Partial<DayInterface>[]): Promise<DayInterface[]> {
-    if (data.length === 0) return [];
-    const rows = await this.db
-      .insert(days)
-      .values(data.map((d) => ({ ...(d as typeof days.$inferInsert), updatedAt: new Date() })))
-      .returning();
-
-    return rows.map(toDay);
   }
 
   async update(id: string, data: Partial<DayInterface>): Promise<DayInterface | null> {

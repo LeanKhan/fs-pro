@@ -1,6 +1,6 @@
 import respond from '../../helpers/responseHandler';
 import { NextFunction, Request, Response } from 'express';
-import { getPlayerStats, updateById, incrementAllPlayersAge, createMany } from './player.service';
+import { getPlayerStats, getPlayerById, updatePlayerFields, incrementAllPlayersAge, createMany } from './player.service';
 import { incrementAllManagersAge } from '../managers/manager.service';
 import { newAttributeRatings, generatePlayer } from '../../utils/players';
 import { PlayerInterface, IPlayerAttributes } from '../../interfaces/Player';
@@ -12,11 +12,10 @@ export function updatePlayersDetails(
   res: Response,
   next: NextFunction
 ) {
-  // get the year id and year string
-  const { id } = req.params;
+  const { year } = req.params;
 
   const $getPlayerStats = () => {
-    return getPlayerStats(id);
+    return getPlayerStats(year);
   };
 
   const updPlayers = (ar: any[]) => {
@@ -40,7 +39,7 @@ export function updatePlayersDetails(
      incrementAllManagersAge()]);
   }
 
-  const updPlayer = (data: {
+  const updPlayer = async (data: {
     player_id: string;
     attributes: IPlayerAttributes;
     new_rating: number;
@@ -48,45 +47,45 @@ export function updatePlayersDetails(
     old_rating: number;
     old_value: number;
   }) => {
-    return updateById(data.player_id, {
-      // add new Attributes...
-      $set: {
-        Attributes: data.attributes,
-        Rating: data.new_rating,
-        Value: data.new_value,
+    const player = await getPlayerById(data.player_id);
+    const ratingsHistory = [
+      ...(player?.RatingsHistory ?? []),
+      {
+        date: new Date().toString(),
+        year,
+        rating: data.new_rating,
+        value: data.new_value,
+        old_rating: data.old_rating,
+        old_value: data.old_value,
       },
-      $push: {
-        RatingsHistory: {
-          date: new Date().toString(),
-          calendar: id,
-          rating: data.new_rating,
-          value: data.new_value,
-          old_rating: data.old_rating,
-          old_value: data.old_value,
-        },
-      },
+    ];
+
+    return updatePlayerFields(data.player_id, {
+      Attributes: data.attributes,
+      Rating: data.new_rating,
+      Value: data.new_value,
+      RatingsHistory: ratingsHistory,
     });
   };
 
-  const addAttributes = (
-    agg: { points: number; player: PlayerInterface }[]
-  ) => {
-
+  const addAttributes = (agg: Awaited<ReturnType<typeof getPlayerStats>>) => {
     console.log('agg', agg.length);
     const toDo: any[] = [];
 
     try {
-      agg.forEach((p, i) => {
+      agg.forEach((p) => {
+        if (!p.player) return;
+        const player = p.player as unknown as PlayerInterface;
         const { attributes, new_rating, new_value } = newAttributeRatings(
-          p.player,
+          player,
           p.points
         );
         toDo.push({
           attributes,
           new_rating,
           new_value,
-          old_rating: p.player.Rating,
-          old_value: p.player.Value,
+          old_rating: player.Rating,
+          old_value: player.Value,
           player_id: p.player._id,
         });
       });

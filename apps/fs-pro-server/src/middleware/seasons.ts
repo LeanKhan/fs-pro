@@ -1,16 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Request, Response, NextFunction } from 'express';
-import DB from '../db';
 import respond from '../helpers/responseHandler';
 import {
   createSeasonRecord,
   getSeasons,
   updateSeasonFields,
 } from '../controllers/seasons/season.service';
-import {
-  addSeason,
-  getCompetitionWithClubsAndSeasons,
-} from '../controllers/competitions/competition.service';
+import { getCompetitionWithClubsAndSeasons } from '../controllers/competitions/competition.service';
 import { CompetitionInterface } from '../controllers/competitions/competition.model';
 import { createFixtures } from '../controllers/fixtures/fixture.service';
 import {
@@ -19,8 +15,6 @@ import {
   RoundRobin,
   fixtureInterface,
 } from '../utils/seasons';
-import { getCalendarByYearString } from '../controllers/calendar/calendar.service';
-import { CalendarInterface } from '../controllers/calendar/calendar.model';
 import { incrementCounter } from '../utils/counter';
 import log from '../helpers/logger';
 import { ClubInterface } from '../controllers/clubs/club.model';
@@ -49,21 +43,12 @@ export async function create(
 
   log(year);
 
-  const findCalendar = () => {
-    return getCalendarByYearString(year);
-  };
-
-  const newSeason = (cal: CalendarInterface) => {
-    if (!cal) {
-      throw new Error('Calendar does not exist!');
-    }
-
+  const newSeason = () => {
     const data = {
       SeasonCode: seasonCode,
       CompetitionCode: competitionCode,
       Competition: competitionID,
-      Calendar: cal._id,
-      Year: cal.YearString,
+      Year: year,
       Status: 'pending',
       Title: `Season-${competitionCode}-${year}-${Math.round(
         Math.random() * 10
@@ -91,15 +76,11 @@ export async function create(
     season_id = season._id;
     season_code = season.SeasonCode;
 
-    if (DB.ormType === 'drizzle') {
-      // Competition.Seasons doesn't exist on Postgres - Seasons.Competition
-      // (set above, in `data.Competition = competitionID`) already carries
-      // this relationship, nothing left to write. Same no-op as
-      // competition.controller.ts's addSeasonToCompetition.
-      return Promise.resolve(null);
-    }
-
-    return addSeason(competitionID, season_id);
+    // Competition.Seasons doesn't exist on Postgres - Seasons.Competition
+    // (set above, in `data.Competition = competitionID`) already carries
+    // this relationship, nothing left to write. Same no-op as
+    // competition.controller.ts's addSeasonToCompetition.
+    return Promise.resolve(null);
   };
 
   let competition: CompetitionInterface;
@@ -193,8 +174,7 @@ export async function create(
     return updateSeasonFields(season_id, { Standings: weeks });
   };
 
-  return findCalendar()
-    .then(newSeason)
+  return newSeason()
     .then(addSeasonToComp)
     .then(generateFixtures2)
     .then(createF)
@@ -226,27 +206,9 @@ export function createSeason(req: Request, res: Response, next: NextFunction) {
 
   log(year);
 
-  const findCalendar = () => {
-    return getCalendarByYearString(year);
-  };
-
-  // Add the Calendar's id to season...
-  // maybe get it from the client? or find it?
-  // UPDATE: no need, we can just use the Year to find it?
-
-  // You should only be able to create a Season when there's
-  // a calendar... So maybe create the season in the Current Year
-  // using the Current Calendar...
-
-  // TODO: URGENT! AND IMPORTANT! COMPLETE THIS WORK
-  // TEST CREATING A SEASON LIKE THIS
-  const newSeason = (cal: CalendarInterface) => {
-    if (!cal) {
-      throw new Error('Calendar does not exist!');
-    }
+  const newSeason = () => {
     req.body.data.SeasonCode = seasonCode;
-    req.body.data.Calendar = cal._id;
-    req.body.data.Year = cal.YearString;
+    req.body.data.Year = year;
     // Placeholders if the client didn't send them - see the equivalent
     // comment in the internal create()'s newSeason above for why.
     req.body.data.StartDate = req.body.data.StartDate ?? new Date();
@@ -256,8 +218,7 @@ export function createSeason(req: Request, res: Response, next: NextFunction) {
     });
   };
 
-  findCalendar()
-    .then(newSeason)
+  newSeason()
     .then((season: any) => {
       void incrementCounter('season_counter');
       // createSeasonRecord (repository-backed, both backends) always

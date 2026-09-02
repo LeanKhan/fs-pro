@@ -1,4 +1,3 @@
-import DB from '../../db';
 import { ManagerInterface } from './manager.model';
 import { ITactic, tacticFromManager } from '../../state/PersistentState/Formations';
 import { ManagerRepositoryFactory } from '../../repositories/ManagerRepositoryFactory';
@@ -91,16 +90,6 @@ export async function resolveManagerTactic(managerId: unknown): Promise<ITactic>
 }
 
 /**
- * Fetch one specific Manager by a query
- *
- * Fetch a specific Manager by id
- * @param query
- */
-export function fetchOne(query: any): Promise<ManagerInterface> {
-  return DB.Models.Manager.findOne(query).lean().exec();
-}
-
-/**
  * Increment every Manager's Age by 1 - end-of-year progression, called
  * alongside Player's own age-progression bulk update (see
  * `player.controller.ts`'s `increaseAllPeoplesAge`). Unlike most bulk
@@ -110,10 +99,6 @@ export function fetchOne(query: any): Promise<ManagerInterface> {
  * "Age" + 1` under `backend=drizzle` - no per-row read-modify-write needed.
  */
 export function incrementAllManagersAge() {
-  if (DB.ormType === 'drizzle') {
-    const db = DrizzleDatabase.getInstance().database;
-    return db.update(managers).set({ Age: drizzleSql`${managers.Age} + 1` });
-  }
-
-  return DB.Models.Manager.updateMany({}, { $inc: { Age: 1 } });
+  const db = DrizzleDatabase.getInstance().database;
+  return db.update(managers).set({ Age: drizzleSql`${managers.Age} + 1` });
 }

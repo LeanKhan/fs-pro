@@ -50,9 +50,7 @@ const store = useStore();
 const tab = ref(0);
 const fixtures = ref({});
 const fixturesLoading = ref(false);
-const selectedYear = ref('');
 
-const currentYear = computed(() => store.currentYear);
 const seasons = computed(() => store.seasons as any);
 const selectedSeason = computed(() => seasons.value[tab.value] as any);
 
@@ -61,11 +59,12 @@ watch(tab, () => {
 });
 
 async function getFixtures() {
+  if (!selectedSeason.value) return;
+
   fixturesLoading.value = true;
   try {
-    const select = JSON.stringify('Title Home Away Details Played');
     const response = await $axios.get(
-      `/seasons/${selectedSeason.value._id}/fixtures?select=${select}`
+      `/seasons/${selectedSeason.value._id}/fixtures`
     );
     fixtures.value = response.data.payload;
   } catch (error) {
@@ -75,23 +74,18 @@ async function getFixtures() {
   }
 }
 
-async function fetchCurrentSeasons() {
-  if (store.calendar?.YearString) {
-    try {
-      const response = await $axios.get(
-        `/seasons?query=${JSON.stringify({ Year: currentYear.value })}`
-      );
-      if (response.data.success) {
-        store.seasons = response.data.payload;
-      }
-    } catch (error) {
-      console.error('Error fetching current Seasons:', error);
-    }
-  }
-}
-
 onMounted(() => {
-  getFixtures();
-  fetchCurrentSeasons();
+  // `store.seasons` (every currently in-progress Season) is already loaded
+  // app-wide by user.vue's onMounted - just wait for it if it hasn't landed
+  // yet.
+  if (seasons.value.length > 0) {
+    getFixtures();
+  }
+});
+
+watch(seasons, () => {
+  if (seasons.value.length > 0 && tab.value === 0) {
+    getFixtures();
+  }
 });
 </script>
