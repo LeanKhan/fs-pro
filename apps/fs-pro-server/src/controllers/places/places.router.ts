@@ -19,7 +19,7 @@ const router = Router();
  *       properties:
  *         _id:
  *           type: string
- *           description: Mongo ObjectId hex string or Postgres UUID, depending on the active backend (see GET /meta/db)
+ *           description: Postgres UUID
  *         Fullname:
  *           type: string
  *           example: Republic of Simeone
