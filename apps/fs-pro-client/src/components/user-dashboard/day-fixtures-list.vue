@@ -10,25 +10,25 @@
     >
       <template v-slot:prepend>
         <div class="d-flex align-center">
-          <v-icon>custom:{{ match.Fixture.Home }}</v-icon>
+          <v-icon>custom:{{ match.Home }}</v-icon>
           <span class="mx-1">vs</span>
-          <v-icon>custom:{{ match.Fixture.Away }}</v-icon>
+          <v-icon>custom:{{ match.Away }}</v-icon>
         </div>
       </template>
 
       <div v-if="Detail == 'details'">
         <v-list-item-title>
-          {{ match.Fixture.Title }}
+          {{ match.Title }}
         </v-list-item-title>
 
         <v-list-item-subtitle>
-          {{ match.Competition }}
+          {{ match.LeagueCode }}
         </v-list-item-subtitle>
       </div>
 
-      <div v-if="Detail == 'results' && match.Fixture.Details">
-        {{ match.Fixture.Details.HomeTeamScore }} :
-        {{ match.Fixture.Details.AwayTeamScore }}
+      <div v-if="Detail == 'results' && match.Details">
+        {{ match.Details.HomeTeamScore }} :
+        {{ match.Details.AwayTeamScore }}
       </div>
     </v-list-item>
   </v-list>
@@ -36,10 +36,10 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { ICalendarMatch } from '@/interfaces/calendar';
+import { IFixture } from '@/interfaces/fixture';
 
 interface Props {
-  Matches: ICalendarMatch[];
+  Matches: IFixture[];
   Detail?: 'details' | 'results';
   MandatorySelect?: boolean;
 }
@@ -49,7 +49,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-  'match-selected': [match: ICalendarMatch];
+  'match-selected': [match: IFixture];
 }>();
 
 const selectedMatch = ref<any>(null);

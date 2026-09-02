@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import {
-  fetchAll,
+  getCompetitions,
   getCompetitionById,
   getCompetitionWithClubsAndSeasons,
   createCompetition,
@@ -11,25 +11,20 @@ import { getSeasons } from '../seasons/season.service';
 import respond from '../../helpers/responseHandler';
 import { incrementCounter, getCurrentCounter } from '../../utils/counter';
 import { addClubToCompetition } from './competition.controller';
-import { setupRoutes } from '../../helpers/queries';
 
 const router = Router();
 
-/** Get all Competitions */
+/** Get all Competitions - `id`/`type` are the only real client filters
+ * (the previous arbitrary `?query={...}` JSON blob had no other caller). */
 router.get('/all', (req: Request, res: Response) => {
+  const { id, type } = req.query;
 
-  let {query, select} = req.query;
+  const response =
+    typeof id === 'string'
+      ? getCompetitionById(id).then((c) => (c ? [c] : []))
+      : getCompetitions({ Type: typeof type === 'string' ? type : undefined });
 
-  if(query && typeof query === 'string'){
-    try {
-      query = JSON.parse(query);
-    } catch (err) {
-    // can't parse JSON
-    query = '';
-    }
-  }
-
-  fetchAll(query, typeof select === 'string' ? select : undefined)
+  response
     .then((competitions: any) => {
       return respond.success(
         res,
@@ -128,7 +123,5 @@ router.post('/new', getCurrentCounter, async (req: Request, res: Response) => {
 
 /** Add Club to Competition */
 router.post('/:id/add-club', addClubToCompetition);
-
-setupRoutes(router, 'Competition');
 
 export default router;

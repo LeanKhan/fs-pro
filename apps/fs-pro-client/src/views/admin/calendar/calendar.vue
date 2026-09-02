@@ -3,81 +3,59 @@
     <v-card :loading="loading">
       <v-toolbar>
         <v-toolbar-title class="text-subtitle-1 font-weight-bold text-indigo">
-          Current Calendar: {{ calendar?.YearString }}
+          Day {{ calendar?.CurrentDay }} - {{ formattedGameDate }}
         </v-toolbar-title>
-
-        <v-toolbar-items>
-          <v-btn
-            color="warning"
-            v-if="calendar?.allSeasonsCompleted"
-            @click="endYear"
-          >
-            END YEAR
-          </v-btn>
-        </v-toolbar-items>
       </v-toolbar>
+    </v-card>
 
-      <v-card-title>New Calendar...</v-card-title>
+    <v-card class="mt-3">
+      <v-card-title>Start Next Season Cycle</v-card-title>
       <v-card-text>
         <v-row>
           <v-col cols="6">
+            <v-text-field
+              v-model="year"
+              label="Year label (e.g. XPY-2029)"
+              hint="A free-form label for this season cycle - doesn't need to match the real-world year."
+              persistent-hint
+            ></v-text-field>
+          </v-col>
+          <v-col cols="6" class="d-flex align-center">
             <v-btn
               color="primary"
-              :disabled="loading"
+              :disabled="loading || !year"
               :loading="loading"
-              @click="createNewYear"
+              @click="startNextSeasonCycle"
             >
-              New Calendar Year
+              Start Next Season Cycle
             </v-btn>
-            <br />
-            <v-checkbox
-              v-model="randomMonth"
-              label="Random Month"
-              hint="Random Month like 'CGB'"
-            ></v-checkbox>
-          </v-col>
-          <v-col cols="6">
-            <v-input readonly :value="new Date().getFullYear()"></v-input>
           </v-col>
         </v-row>
       </v-card-text>
     </v-card>
 
-    <v-card>
-      <v-card-title>Calendars</v-card-title>
-
+    <v-card class="mt-3">
+      <v-card-title>End a Season Cycle</v-card-title>
       <v-card-text>
-        <ul>
-          <li v-for="cndr in calendars" :key="cndr._id">
-            {{ cndr.YearString }}
-
-            <v-chip size="small">
-              {{ cndr.isActive ? 'Active' : 'Not Active' }}
-            </v-chip>
-
-            <v-chip size="small" v-if="cndr.isEnded">Ended</v-chip>
-
+        <v-row>
+          <v-col cols="6">
+            <v-text-field
+              v-model="endYearInput"
+              label="Year label to end"
+              hint="Prolegates every Season in that Year cycle, once they've all finished."
+              persistent-hint
+            ></v-text-field>
+          </v-col>
+          <v-col cols="6" class="d-flex align-center">
             <v-btn
-              v-if="cndr.Days && cndr.Days.length > 0"
-              variant="text"
-              size="small"
-              @click="startCalendarYear(cndr.YearString, cndr._id)"
+              color="warning"
+              :disabled="!endYearInput"
+              @click="goEndYear"
             >
-              Start Year
+              End Season Cycle
             </v-btn>
-
-            <v-btn
-              v-else-if="!cndr.Days || cndr.Days.length == 0"
-              variant="text"
-              size="small"
-              class="ml-2"
-              color="accent"
-              @click="setupAndStartCalendarYear(cndr.YearString, cndr._id)"
-            >
-              Setup &amp; Start
-            </v-btn>
-          </li>
-        </ul>
+          </v-col>
+        </v-row>
       </v-card-text>
     </v-card>
 
@@ -93,116 +71,58 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useStore } from '@/store';
 import { $axios } from '@/services/api';
 
 const store = useStore();
+const router = useRouter();
 
 const loading = ref(false);
-const calendars = ref<any[]>([]);
-const randomMonth = ref(false);
+const year = ref('');
+const endYearInput = ref('');
 const toast = ref({
   show: false,
   color: 'success',
-  message: 'Inside Calendar!',
+  message: '',
 });
 
-const calendar = computed(() => store.calendar) || {};
+const calendar = computed(() => store.calendar);
+const formattedGameDate = computed(() =>
+  calendar.value?.CurrentDate ? new Date(calendar.value.CurrentDate).toDateString() : ''
+);
 
-async function createNewYear() {
+async function startNextSeasonCycle() {
+  if (!year.value) return;
   loading.value = true;
 
   try {
-    const response = await $axios.post(
-      `/calendar/new${randomMonth.value ? '?override_month=true' : ''}`
-    );
-
+    await $axios.post('/calendar/seasons/next', { data: { Year: year.value } });
     toast.value = {
       show: true,
       color: 'success',
-      message: 'Calendar created successfully!',
+      message: 'Next season cycle started successfully!',
     };
-
-    await getCalendars();
-  } catch (error) {
-    console.error('Error creating calendar:', error);
-    toast.value = {
-      show: true,
-      color: 'error',
-      message: 'Error creating calendar',
-    };
-  } finally {
-    loading.value = false;
-  }
-}
-
-async function getCalendars() {
-  try {
-    const response = await $axios.get('/calendar/calendars');
-    calendars.value = response.data.payload;
-  } catch (error) {
-    console.error('Error fetching calendars:', error);
-  }
-}
-
-async function startCalendarYear(year: string, id: string) {
-  loading.value = true;
-
-  try {
-    const response = await $axios.post(`/calendar/${year}/${id}/start`);
-
-    toast.value = {
-      show: true,
-      color: 'success',
-      message: 'Year started successfully!',
-    };
-
     await store.setCalendar();
+    await store.setSeasons();
   } catch (error) {
-    console.error('Error starting calendar year:', error);
+    console.error('Error starting next season cycle:', error);
     toast.value = {
       show: true,
       color: 'error',
-      message: 'Error starting year',
+      message: 'Error starting next season cycle',
     };
   } finally {
     loading.value = false;
   }
 }
 
-async function setupAndStartCalendarYear(year: string, id: string) {
-  loading.value = true;
-
-  try {
-    const response = await $axios.post(
-      `/calendar/${year}/${id}/setup-and-start`
-    );
-
-    toast.value = {
-      show: true,
-      color: 'success',
-      message: 'Calendar Year setup & started successfully!',
-    };
-
-    await store.setCalendar();
-  } catch (error) {
-    console.error('Error setting up calendar year:', error);
-    toast.value = {
-      show: true,
-      color: 'error',
-      message: 'Error setting up & starting Year!',
-    };
-  } finally {
-    loading.value = false;
-  }
-}
-
-function endYear() {
-  // Implementation for ending the year
-  console.log('Ending year...');
+function goEndYear() {
+  if (!endYearInput.value) return;
+  router.push(`/finish/year/${endYearInput.value}`);
 }
 
 onMounted(() => {
-  getCalendars();
+  store.setCalendar();
 });
 </script>

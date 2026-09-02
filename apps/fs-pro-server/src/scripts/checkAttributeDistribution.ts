@@ -7,7 +7,7 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 import DB from '../db';
-import { fetchAllClubs } from '../controllers/clubs/club.service';
+import { getClubs } from '../controllers/clubs/club.service';
 
 function avg(values: number[]): number {
   return values.reduce((a, b) => a + b, 0) / values.length;
@@ -15,7 +15,7 @@ function avg(values: number[]): number {
 
 async function main() {
   await DB.start();
-  const clubs = await fetchAllClubs();
+  const clubs = await getClubs(undefined, { withPlayersAndManager: true });
   const players = clubs.flatMap((c: any) => c.Players || []);
 
   console.log(`Total players: ${players.length}`);

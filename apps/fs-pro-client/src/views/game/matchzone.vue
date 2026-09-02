@@ -111,7 +111,7 @@
             :awaySquad="mappedAwaySquad"
             :match="fixture"
             :matchFinished="matchFinished"
-            :currentDay="currentDay"
+            :dayFixtures="dayFixtures"
             :currentFixture="fixture._id"
             :liveEvents="liveEvents"
             @match-selected="matchSelected"
@@ -149,7 +149,7 @@ defineOptions({
 
 const whistle = ref<HTMLAudioElement>();
 const fixture = ref<any>({});
-const currentDay = ref<any>({});
+const dayFixtures = ref<any[]>([]);
 const allReady = ref(false);
 const openLobby = ref(false);
 const kickoffTimer = ref(0);
@@ -466,17 +466,18 @@ async function watchReplay() {
 }
 
 async function getFixtureDay() {
-  // Friendlies are season-less Fixtures - there's no Calendar Day entry to
-  // look up for them.
-  if (fixture.value.Type === 'friendly') return;
+  // Friendlies are season-less Fixtures with no ScheduledDay to look up.
+  if (fixture.value.Type === 'friendly' || fixture.value.ScheduledDay == null) {
+    return;
+  }
 
   try {
     const response = await $axios.get(
-      `/calendar/day-of-fixture/${fixtureId.value}`
+      `/fixtures?scheduledDay=${fixture.value.ScheduledDay}`
     );
-    currentDay.value = response.data.payload;
+    dayFixtures.value = response.data.payload;
   } catch (error) {
-    console.error('Error fetching Day of Fixture:', error);
+    console.error('Error fetching fixtures for this day:', error);
   }
 }
 
@@ -495,7 +496,7 @@ async function getStandings() {
 
 async function matchSelected(match: any) {
   if (fixture.value.Played) {
-    await router.push({ params: { fixture: match.Fixture._id } });
+    await router.push({ params: { fixture: match._id } });
   }
 }
 

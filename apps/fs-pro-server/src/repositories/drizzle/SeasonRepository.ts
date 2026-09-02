@@ -12,7 +12,7 @@ type FixtureRow = typeof fixtures.$inferSelect;
 /** Same `id` -> `_id` remap every other Drizzle repository does, applied to
  * the season itself and to each populated Fixture. */
 function toSeason(row: SeasonRow & { fixtures?: FixtureRow[] }): SeasonInterface {
-  const { id, mongoId, fixtures: fixtureRows, ...rest } = row;
+  const { id, fixtures: fixtureRows, ...rest } = row;
 
   return {
     _id: id,
@@ -42,7 +42,6 @@ export class DrizzleSeasonRepository implements ISeasonRepository {
   async findAll(filter: ISeasonFilter = {}): Promise<SeasonInterface[]> {
     const conditions = [];
     if (filter.Competition !== undefined) conditions.push(eq(seasons.Competition, filter.Competition));
-    if (filter.Calendar !== undefined) conditions.push(eq(seasons.Calendar, filter.Calendar));
     if (filter.Year !== undefined) conditions.push(eq(seasons.Year, filter.Year));
     if (filter.SeasonCode !== undefined) conditions.push(eq(seasons.SeasonCode, filter.SeasonCode));
 

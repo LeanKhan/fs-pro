@@ -124,9 +124,8 @@ const close = (): void => {
 };
 
 onMounted(() => {
-  const options = JSON.stringify({ isSigned: false });
   $axios
-    .get(`/players/all?options=${options}`)
+    .get('/players/all?isSigned=false')
     .then((res: any) => {
       players.value = res.data.payload as Player[];
     })

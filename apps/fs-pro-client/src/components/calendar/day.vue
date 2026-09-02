@@ -30,13 +30,13 @@
           <template v-else>
             <div v-if="isClub">
               <v-icon size="large">
-                custom:{{ day.Matches[0] ? day.Matches[0].Fixture.Home : 'NA' }}
+                custom:{{ day.Matches[0] ? day.Matches[0].Home : 'NA' }}
               </v-icon>
 
               <span>vs</span>
 
               <v-icon size="large">
-                custom:${{ day.Matches[0] ? day.Matches[0].Fixture.Away : 'NA' }}
+                custom:${{ day.Matches[0] ? day.Matches[0].Away : 'NA' }}
               </v-icon>
             </div>
 
@@ -71,7 +71,7 @@
             <v-list density="compact">
               <v-list-item v-for="(m, i) in day.Matches" :key="i">
                 <v-list-item-title>
-                  {{ m.Fixture.Title }}
+                  {{ m.Title }}
                 </v-list-item-title>
               </v-list-item>
             </v-list>
@@ -107,7 +107,7 @@ const $selectedLeague = computed(() => {
 const leagueMatch = computed(() => {
   if ($selectedLeague.value) {
     return props.day.Matches.find(
-      (m: any) => m.CompetitionId === $selectedLeague.value
+      (m: any) => m.LeagueCode === $selectedLeague.value
     );
   }
   return null;
@@ -116,8 +116,8 @@ const leagueMatch = computed(() => {
 const isClub = computed(() => {
   if (props.club) {
     return (
-      leagueMatch.value?.Fixture.Home === props.club ||
-      leagueMatch.value?.Fixture.Away === props.club
+      leagueMatch.value?.Home === props.club ||
+      leagueMatch.value?.Away === props.club
     );
   }
   return false;

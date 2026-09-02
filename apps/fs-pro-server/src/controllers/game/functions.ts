@@ -1,18 +1,15 @@
-import DB from '../../db';
 import {
   IMatchDetails,
   IMatchEvent,
   IMatchSideDetails,
 } from '../../classes/Match';
 import { ClubStandings } from '../seasons/season.model';
-import { findOneAndUpdate as updateSeason } from '../seasons/season.service';
-import { updateFixtureFields } from '../fixtures/fixture.service';
-import { markMatchPlayed } from '../days/day.service';
-import { CalendarMatchInterface, DayInterface } from '../days/day.model';
-import log from '../../helpers/logger';
+import { getSeasonById, updateSeasonFields } from '../seasons/season.service';
+import { updateFixtureFields, allFixturesPlayedForDay } from '../fixtures/fixture.service';
+import { Fixture } from '../fixtures/fixture.model';
 import { createManyPlayerMatches } from '../player-match/player-match.service';
 import { PlayerMatchDetailsInterface } from '../player-match/player-match.model';
-import { createClubMatch, updateClubMatchFields } from '../club-match/club-match.service';
+import { createClubMatch } from '../club-match/club-match.service';
 
 interface Team {
   id: string;
@@ -85,12 +82,6 @@ export async function updateFixture(
       );
       // res is the ids...
       club.PlayerStats = res.map((r: any) => r._id) as string[];
-
-      if (DB.ormType !== 'drizzle') {
-        // Mongo still needs the real PlayerStats array write - Postgres
-        // derives it via the reverse FK set above.
-        await updateClubMatchFields(clubMatchId, { PlayerStats: club.PlayerStats } as any);
-      }
     } else {
       // Not counting this match toward permanent player stats history -
       // skip the PlayerMatch inserts entirely. The club's box score (goals,
@@ -125,14 +116,14 @@ export async function updateFixture(
   // Here we just need to save this data in the database...
 }
 
-export function updateStandings(
+export async function updateStandings(
   homeDetails: IMatchSideDetails,
   awayDetails: IMatchSideDetails,
-  fixture_id: string,
+  fixture: Fixture,
   home: Team,
   away: Team,
   seasonID: string
-) {
+): Promise<{ homeTable: ClubStandings; awayTable: ClubStandings; allMatchesPlayedThatDay: boolean }> {
   // Find out who...
   // HomeSideDetails.Won = MatchDetails.Winner?.id === home.id;
   // AwaySideDetails.Won = MatchDetails.Winner?.id === away.id;
@@ -199,79 +190,42 @@ export function updateStandings(
     awayTable.Losses = 0;
   }
 
-  let currentDay: DayInterface;
-
-  // TODO: handle cases where there's no match that day
-
-  // We need to update the Day Match to Played!
-  // Update the array element that matches that query
   /**
-   * Updates the Match entry in Day and returns the week of the match
-   *
+   * Update the standings based on the match result :) - a read-modify-write
+   * against `Season.Standings` since Postgres has no positional-array-
+   * element update the way Mongo's `arrayFilters`/`$[home]`/`$[away]` did;
+   * safe since two matches never update the same season+week concurrently.
+   * `fixture.Week` is a stored column, so no Day lookup is needed to find
+   * which week this match belongs to.
    */
-  const getWeekAndUpdateMatch = async () => {
-    return markMatchPlayed(fixture_id)
-      .then((day: DayInterface) => {
-        currentDay = day;
-
-        // Then find the array position...
-        const matchIndex = day.Matches.findIndex(
-          (m) => m.Fixture.toString() === fixture_id
-        );
-
-        return { week: day.Matches[matchIndex].Week, matches: day.Matches };
-      })
-      .catch((err) => {
-        log(`err => ${err}`);
-        throw new Error(err);
-      });
-  };
-
-  /**
-   * Update the standings based on the match result :)
-   *
-   * @param {number} week
-   */
-  const updateTable = async ({
-    week,
-    matches,
-  }: {
-    week: number;
-    matches: CalendarMatchInterface[];
-  }) => {
-    const options = {
-      upsert: false,
-      arrayFilters: [
-        {
-          'home.ClubCode': home.clubCode,
-        },
-        {
-          'away.ClubCode': away.clubCode,
-        },
-      ],
-    };
-
-    const hw = `Standings.${week - 1}.Table.$[home]`;
-    const aw = `Standings.${week - 1}.Table.$[away]`;
-
-    try {
-      await updateSeason(
-        { _id: seasonID.toString() },
-        {
-          $set: {
-            [hw]: homeTable,
-            [aw]: awayTable,
-          },
-        },
-        options
-      );
-
-      return { homeTable, awayTable, matches, currentDay };
-    } catch (error) {
-      console.error('Error updating Season! :(', error);
-      throw new Error(error as any);
+  try {
+    const week = fixture.Week as number;
+    const season = await getSeasonById(seasonID);
+    if (!season) {
+      throw new Error('Season does not exist!');
     }
-  };
 
-  return getWeekAndUpdateMatch().then(updateTable);
+    const standings = season.Standings.map((weekStandings, i) => {
+      if (i !== week - 1) return weekStandings;
+
+      return {
+        ...weekStandings,
+        Table: weekStandings.Table.map((row: ClubStandings) => {
+          if (row.ClubCode === home.clubCode) return homeTable;
+          if (row.ClubCode === away.clubCode) return awayTable;
+          return row;
+        }),
+      };
+    });
+
+    await updateSeasonFields(seasonID, { Standings: standings });
+
+    const allMatchesPlayedThatDay =
+      fixture.ScheduledDay != null ? await allFixturesPlayedForDay(fixture.ScheduledDay) : true;
+
+    return { homeTable, awayTable, allMatchesPlayedThatDay };
+  } catch (error) {
+    console.error('Error updating Season! :(', error);
+    throw new Error(error as any);
+  }
 }

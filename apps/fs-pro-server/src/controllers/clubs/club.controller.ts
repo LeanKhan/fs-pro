@@ -2,9 +2,8 @@ import respond from '../../helpers/responseHandler';
 import { NextFunction, Request, Response } from 'express';
 import { ManagerInterface } from '../managers/manager.model';
 import { getManagerById, appendManagerRecord } from '../managers/manager.service';
-import { update as updateCompetition } from '../competitions/competition.service';
 import {
-  createMany,
+  createManyClubs,
   getClubById,
   updateClubFields,
   appendClubRecord,
@@ -214,28 +213,10 @@ export async function createManyClubsFromCSV(req: Request, res: Response) {
 
   let data: { data: any[]; rowCount: number } = { data: [], rowCount: 0 };
 
-  // const saveClubsInCompetition = (competition_id: string, club_ids: string[]) => {
-  //   return updateCompetition(competition_id, { $addToSet: { Clubs: {$each: club_ids} } });
-  // };
-
-  // REFACTOR: turn into resuable function
-  const saveClubsInCompetition = (clubs: IClub[]) => {
-    const competition_clubs = groupBy(clubs, 'League');
-
-    const all_club_ids: Record<string, string[]> = {};
-
-    const promise_array: Promise<any>[] = [];
-
-    for (const u of Object.keys(competition_clubs)) {
-      all_club_ids[u] = competition_clubs[u].map((i: any) => i._id);
-    }
-
-    for (const k of Object.keys(all_club_ids)) {
-      promise_array.push(updateCompetition(k, { $addToSet: { Clubs: {$each: all_club_ids[k]} } }));
-    }
-
-    return Promise.all(promise_array);
-  };
+  // Competition.Clubs doesn't exist on Postgres - each club's own `League`
+  // field (already set from the CSV row when created via createManyClubs)
+  // is the reverse FK source of truth, so there's nothing left to sync here.
+  const saveClubsInCompetition = (clubs: IClub[]) => Promise.resolve(null);
 
   const saveClubsInUser = (clubs: IClub[]) => {
     const user_clubs = groupBy(clubs, 'User');
@@ -266,7 +247,7 @@ export async function createManyClubsFromCSV(req: Request, res: Response) {
     // generated objects to create Mongoose records
     let club_ids: string[] = [];
     let created_clubs: any[] = [];
-    createMany(data.data)
+    createManyClubs(data.data)
     .then((clubs: any) => {
       // get ids...
       club_ids = clubs.map((club: any) => club._id);

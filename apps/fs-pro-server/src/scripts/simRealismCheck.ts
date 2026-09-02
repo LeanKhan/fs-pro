@@ -19,8 +19,8 @@ dotenv.config();
 
 import DB from '../db';
 import App from '../controllers/app/App';
-import { fetchAllClubs } from '../controllers/clubs/club.service';
-import { IClub } from '../interfaces/Club';
+import { getClubs } from '../controllers/clubs/club.service';
+import { ClubInterface } from '../controllers/clubs/club.model';
 
 interface IMatchSummary {
   homeClub: string;
@@ -68,7 +68,7 @@ const REFERENCE_RANGES: Record<string, [number, number]> = {
 const MAX_TICKS_PER_MATCH = 180;
 const TICK_CAPPED_METRICS = new Set(['Passes per team']);
 
-function pickTwoDistinctClubs(clubs: IClub[]): [IClub, IClub] {
+function pickTwoDistinctClubs(clubs: ClubInterface[]): [ClubInterface, ClubInterface] {
   const a = clubs[Math.floor(Math.random() * clubs.length)];
   let b = clubs[Math.floor(Math.random() * clubs.length)];
   while (b._id === a._id) {
@@ -182,7 +182,9 @@ async function main() {
   console.log(`Connecting to database...`);
   await DB.start();
 
-  const clubs = (await fetchAllClubs()).filter((c: IClub) => c.Players?.length >= 11);
+  const clubs = (await getClubs(undefined, { withPlayersAndManager: true })).filter(
+    (c: ClubInterface) => c.Players?.length >= 11
+  );
 
   if (clubs.length < 2) {
     throw new Error(
@@ -196,7 +198,7 @@ async function main() {
 
   for (let i = 0; i < count; i++) {
     const [home, away] = pickTwoDistinctClubs(clubs);
-    // .lean() gives a real Mongoose ObjectId at runtime despite IClub._id's
+    // .lean() gives a real Mongoose ObjectId at runtime despite ClubInterface._id's
     // `string` type - String(...) converts it properly; the `as string`
     // cast alone would just lie to TypeScript and break identity checks
     // downstream (Game's constructor matches clubs by this exact string).

@@ -22,6 +22,10 @@ export interface IFixture {
   HomeSideDetails: IMatchSideDetails;
   AwaySideDetails: IMatchSideDetails;
   Events: IMatchEvent[];
+  /** The absolute Calendar day this fixture is scheduled to play on -
+   * nullable for friendlies/unscheduled fixtures. */
+  ScheduledDay?: number | null;
+  ScheduledDate?: string | null;
 }
 
 export interface IMatchEvent {

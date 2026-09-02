@@ -171,7 +171,7 @@ const routes: RouteRecordRaw[] = [
         name: 'Finish Season',
       },
       {
-        path: '/finish/year/:calendar_id',
+        path: '/finish/year/:year',
         component: () =>
           import(
             /* webpackChunkName: "finish_year" */ '../views/misc/end-of-year.vue'

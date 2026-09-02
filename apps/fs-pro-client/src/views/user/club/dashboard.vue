@@ -4,13 +4,13 @@
       <v-toolbar>
         <!-- Current day -->
         <v-toolbar-title>
-          <template v-if="club && season && club.League">
+          <template v-if="club && season && clubLeague">
             <v-icon size="x-large">custom:{{ club.ClubCode }}</v-icon>
             <v-chip
               size="small"
               class="ml-1 text-subtitle-1 font-weight-bold text-white"
             >
-              {{ club.League.Name }}
+              {{ clubLeague.Name }}
             </v-chip>
           </template>
         </v-toolbar-title>
@@ -55,9 +55,7 @@
                             style="font-size: 70px; height: 70px"
                             size="x-large"
                           >
-                            custom:{{
-                              selectedDay.Matches[competitionIndex].Fixture.Home
-                            }}
+                            custom:{{ selectedDay.Matches[0].Home }}
                           </v-icon>
                         </v-avatar>
 
@@ -68,35 +66,25 @@
                             style="font-size: 70px; height: 70px"
                             size="x-large"
                           >
-                            custom:{{
-                              selectedDay.Matches[competitionIndex].Fixture.Away
-                            }}
+                            custom:{{ selectedDay.Matches[0].Away }}
                           </v-icon>
                         </v-avatar>
                         <span>AWAY</span>
 
                         <div class="pa-0 text-center">
                           <p class="mb-2 text-caption text-white">
-                            {{
-                              selectedDay.Matches[competitionIndex].Fixture
-                                .Title
-                            }}
+                            {{ selectedDay.Matches[0].Title }}
                           </p>
 
                           <p class="mb-0 text-caption">
-                            {{
-                              selectedDay.Matches[competitionIndex].Fixture
-                                .Stadium
-                            }}
+                            {{ selectedDay.Matches[0].Stadium }}
                           </p>
                         </div>
                       </v-col>
 
                       <v-col cols="3">
                         <v-card-subtitle>
-                          {{
-                            selectedDay.Matches[competitionIndex].Competition
-                          }}
+                          {{ selectedDay.Matches[0].LeagueCode }}
                           <v-icon size="large" color="amber-lighten-3">
                             mdi-trophy
                           </v-icon>
@@ -104,15 +92,9 @@
 
                         <template v-if="season && season.isStarted">
                           <v-btn
-                            :disabled="
-                              selectedDay.Matches[competitionIndex].Fixture
-                                .Played
-                            "
+                            :disabled="selectedDay.Matches[0].Played"
                             :to="
-                              '/matchzone/' +
-                              selectedDay.Matches[
-                                competitionIndex
-                              ].Fixture._id.toString()
+                              '/matchzone/' + selectedDay.Matches[0]._id.toString()
                             "
                           >
                             Play
@@ -189,64 +171,36 @@ import { useStore } from '@/store';
 import { ClubZone, SquadZone, TransferZone } from './zones';
 import DayScroll from '@/components/calendar/day-scroll.vue';
 import StandingsScroller from '@/components/seasons/standings-scroller.vue';
-import { ICalendar, IDay } from '@/interfaces/calendar';
+import { IDayGroup } from '@/interfaces/calendar';
 import { $axios } from '@/services/api';
+import { groupFixturesByDay } from '@/helpers/calendar';
+import { IFixture } from '@/interfaces/fixture';
 
 const route = useRoute();
 const router = useRouter();
 const store = useStore();
 
 const club = ref<any>({});
+const clubLeague = ref<any>(null);
 const selectedDayIndex = ref(0);
 const tab = ref(null);
 const seasonTab = ref(null);
-const days = ref<IDay[]>([]);
-const competitions = ref<IDay[]>([]);
+const days = ref<IDayGroup[]>([]);
 const season = ref<any>({});
-const limit = ref(14);
 
-const calendar = computed<ICalendar>(() => store.calendar!);
-const yearString = computed(() => store.calendar?.YearString);
+const calendar = computed(() => store.calendar);
 
 const clubDays = computed(() => {
   return days.value.map((day) => {
     const Matches = day.Matches.filter((match) => {
-      return match.Fixture.LeagueCode == club.value.LeagueCode;
+      return match.Home === club.value.ClubCode || match.Away === club.value.ClubCode;
     });
-    return { ...day, Matches };
+    return { ...day, isFree: Matches.length === 0, Matches };
   });
 });
 
-const competitionIndex = computed(() => {
-  let index = 0;
-  switch (club.value.LeagueCode) {
-    case 'EFL':
-      index = 0;
-      break;
-    case 'EBSL':
-      index = 1;
-      break;
-  }
-  return index;
-});
-
-const selectedDay = computed(() => {
-  if (days.value) {
-    return days.value[selectedDayIndex.value];
-  }
-  return { isFree: false } as IDay;
-});
-
-const isClub = computed(() => {
-  if (club.value) {
-    return (
-      selectedDay.value.Matches[competitionIndex.value].Fixture.Home ==
-        club.value ||
-      selectedDay.value.Matches[competitionIndex.value].Fixture.Away ==
-        club.value
-    );
-  }
-  return false;
+const selectedDay = computed<IDayGroup>(() => {
+  return days.value[selectedDayIndex.value] ?? { Day: 0, isFree: true, Matches: [] };
 });
 
 function selectDay(val: number) {
@@ -254,13 +208,10 @@ function selectDay(val: number) {
 }
 
 async function fetchCurrentSeason() {
-  if (calendar.value && calendar.value.YearString) {
+  if (club.value.League) {
     try {
       const response = await $axios.get(
-        `/seasons?query=${JSON.stringify({
-          Year: calendar.value.YearString,
-          Competition: club.value.League,
-        })}`
+        `/seasons?competition=${club.value.League}&current=true`
       );
       if (response.data.success) {
         season.value = response.data.payload[0];
@@ -271,23 +222,22 @@ async function fetchCurrentSeason() {
   }
 }
 
-async function fetchClub(clubId: string) {
-  const populate = [
-    {
-      path: 'Players',
-      select:
-        'FirstName LastName Fullname Rating Position Nationality RatingsHistory Age',
-    },
-    { path: 'Manager' },
-    { path: 'League', select: '-Clubs -Seasons' },
-  ];
-
+async function fetchClubLeague() {
+  if (!club.value.League) return;
   try {
-    const response = await $axios.get(
-      `/clubs/${clubId}?populate=${JSON.stringify(populate)}`
-    );
+    const response = await $axios.get(`/competitions/all?id=${club.value.League}`);
+    clubLeague.value = response.data.payload[0];
+  } catch (error) {
+    console.error('Error fetching club league:', error);
+  }
+}
+
+async function fetchClub(clubId: string) {
+  try {
+    const response = await $axios.get(`/clubs/${clubId}?populate=true`);
     if (response.data.success) {
       club.value = response.data.payload;
+      await fetchClubLeague();
     }
   } catch (error) {
     console.error('Error fetching club:', error);
@@ -295,13 +245,16 @@ async function fetchClub(clubId: string) {
 }
 
 async function getDays() {
-  const query = `/calendar/${yearString.value}/days?paginate=true&populate=true&limit=${limit.value}&not_played=true`;
+  const from = calendar.value?.CurrentDay ?? 0;
+  const to = from + 13;
 
   try {
-    const response = await $axios.get(query);
-    days.value = response.data.payload;
+    const response = await $axios.get(
+      `/fixtures?scheduledDayFrom=${from}&scheduledDayTo=${to}`
+    );
+    days.value = groupFixturesByDay(response.data.payload as IFixture[]);
   } catch (error) {
-    console.error('Error getting Days of Calendar Year:', error);
+    console.error('Error getting upcoming fixtures:', error);
   }
 }
 
@@ -312,7 +265,6 @@ function refresh() {
 onMounted(() => {
   const clubId = route.params.id as string;
   getDays();
-  fetchClub(clubId);
-  fetchCurrentSeason();
+  fetchClub(clubId).then(fetchCurrentSeason);
 });
 </script>

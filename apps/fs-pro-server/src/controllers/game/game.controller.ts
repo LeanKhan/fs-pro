@@ -2,11 +2,10 @@
 
 import { Request, Response, NextFunction } from 'express';
 
-import { getFixtureById } from '../fixtures/fixture.service';
-import { findDayByFixtureId } from '../days/day.service';
+import { getFixtureById, getFixturesByDay } from '../fixtures/fixture.service';
 import { Fixture } from '../fixtures/fixture.model';
 import { updateFixture, updateStandings } from './functions';
-import { changeCurrentDay } from '../calendar/calendar.controller';
+import { advanceDayIfDone } from '../calendar/calendar.service';
 import responseHandler from '../../helpers/responseHandler';
 import { Match } from '../../classes/Match';
 import Ball from '../../classes/Ball';
@@ -15,9 +14,8 @@ import App from '../app/App';
 import Game from '../Game';
 import log from '../../helpers/logger';
 import { SeasonInterface, ClubStandings } from '../seasons/season.model';
-import { fetchSeason } from '../seasons/season.service';
+import { getSeasonById } from '../seasons/season.service';
 import axios from 'axios';
-import { CalendarMatchInterface, DayInterface } from '../days/day.model';
 import { startMatchReplay } from '../../realtime/matchBroadcaster';
 import { enqueueMatchPlay } from '../../jobs/matchQueue';
 import { saveReplay, fetchReplay } from '../match-replays/match-replay.service';
@@ -28,7 +26,15 @@ import {
   PLAYING_STYLES,
 } from '../../state/PersistentState/Formations';
 import { createFixture } from '../fixtures/fixture.service';
-import { fetchSingleClubById } from '../clubs/club.service';
+import { getClubById } from '../clubs/club.service';
+
+/** Fetches a Season by id, but only returns it if it's still in progress -
+ * replaces the raw `fetchSeason({_id, isStarted: true, isFinished: false})`
+ * query both call sites below used to make. */
+async function getInProgressSeason(id: string): Promise<SeasonInterface | null> {
+  const season = await getSeasonById(id);
+  return season && season.isStarted && !season.isFinished ? season : null;
+}
 
 interface TeamObject {
   id: string;
@@ -60,8 +66,7 @@ interface UpdateRelatedDataParams {
 interface AfterMatchParams {
   homeTable: ClubStandings;
   awayTable: ClubStandings;
-  matches: CalendarMatchInterface[];
-  currentDay: DayInterface;
+  allMatchesPlayedThatDay: boolean;
 }
 
 interface PlayResult {
@@ -168,29 +173,20 @@ async function play(fixture_id: string) {
     return updateStandings(
       HomeSideDetails,
       AwaySideDetails,
-      fixture_id,
+      match,
       home,
       away,
       season_id
     );
   };
 
-  const afterMatch = async ({ homeTable, awayTable, matches, currentDay }: AfterMatchParams) => {
-    // Check if we need to update Calendar day
-    const allMatchesPlayed = matches.every((m) => m.Played);
-
-    /** If all matches in the Day have been played, we can change the
-     * CurrentDay...
-     */
-    if (allMatchesPlayed) {
-      // We have to get this from the kini...
-      // TODO there should be a better way to get these constants...
-      const currentYear = CurrentMatch.SeasonCode!.split('-')
-        .splice(1)
-        .join('-');
-
+  const afterMatch = async ({ homeTable, awayTable, allMatchesPlayedThatDay }: AfterMatchParams) => {
+    /** If all matches scheduled for this day have been played, advance the
+     * Calendar's CurrentDay/CurrentDate to the next day with an unplayed
+     * fixture. */
+    if (allMatchesPlayedThatDay && CurrentMatch.match?.ScheduledDay != null) {
       try {
-        await changeCurrentDay(currentYear, currentDay);
+        await advanceDayIfDone(CurrentMatch.match.ScheduledDay);
         // App._app.endGame();
       } catch (error: any) {
         console.log('Error changing current Calendar Day!', error);
@@ -200,20 +196,13 @@ async function play(fixture_id: string) {
     }
 
     // check the fixture position...
-    let season: SeasonInterface;
+    let season: SeasonInterface | null;
     let lastMatchOfSeason;
 
     // season.Competition maybe find the competition and do the needful...
 
     try {
-      const q = {
-        _id: CurrentMatch.season_id,
-        isStarted: true,
-        isFinished: false,
-      };
-      // get fixture and its details...
-      // tho, part of the query should be the year. Year should be the CurrentYear
-      season = await fetchSeason(q, 'Fixtures', false);
+      season = CurrentMatch.season_id ? await getInProgressSeason(CurrentMatch.season_id) : null;
       // We also need to get the associated calendar day...
       if (season) {
         //  if this fixture's
@@ -395,9 +384,9 @@ export async function restPlayGameNew(
 
       if (simulate_rest) {
         // call siumlate sequence...
-        const matchDay = await findDayByFixtureId(fixture_id, { populate: false });
+        const scheduledDay = d.main?.match?.ScheduledDay;
 
-        if (!matchDay || matchDay.isFree) {
+        if (scheduledDay == null) {
           return responseHandler.fail(
               res,
               400,
@@ -405,9 +394,9 @@ export async function restPlayGameNew(
             );
         }
 
-        const matches_not_played = matchDay.Matches.filter((m) => !m.Played);
+        const dayFixtures = await getFixturesByDay(scheduledDay);
         // Don't play last matches!
-        const fixtures_not_played = matches_not_played.map((m) => m.Fixture);
+        const fixtures_not_played = dayFixtures.filter((f) => !f.Played).map((f) => f._id);
 
         try {
 
@@ -630,27 +619,20 @@ export function restUpdateStandings(
   updateStandings(
     HomeSideDetails,
     AwaySideDetails,
-    fixture_id,
+    match,
     home,
     away,
     season_id
   )
-    .then(async ({ homeTable, awayTable, matches, currentDay }) => {
-      // Check if we need to update Calendar day
-      const allMatchesPlayed = matches.every((m) => m.Played);
-
+    .then(async ({ homeTable, awayTable, allMatchesPlayedThatDay }) => {
       // move current Day!
       req.body.homeTable = homeTable;
       req.body.awayTable = awayTable;
 
-      /** If all matches in the Day have been played, we can change the
-       * CurrentDay...
-       */
-      if (allMatchesPlayed) {
-        // We have to get this from the kini...
-        // TODO there should be a better way to get these constants...
-        const currentYear = req.body.SeasonCode.split('-').splice(1).join('-');
-        changeCurrentDay(currentYear, currentDay)
+      /** If all matches scheduled for this day have been played, advance
+       * the Calendar's CurrentDay/CurrentDate. */
+      if (allMatchesPlayedThatDay && match?.ScheduledDay != null) {
+        advanceDayIfDone(match.ScheduledDay)
           .then(() => {
             console.log('Current Day changed successfully!');
             // App._app.endGame();
@@ -668,16 +650,13 @@ export function restUpdateStandings(
       }
 
       // check the fixture position...
-      let season: SeasonInterface;
+      let season: SeasonInterface | null;
       let lastMatchOfSeason;
 
       // season.Competition maybe find the competition and do the needful...
 
       try {
-        const q = { _id: season_id, isStarted: true, isFinished: false };
-        // get fixture and its details...
-        // tho, part of the query should be the year. Year should be the CurrentYear
-        season = await fetchSeason(q, 'Fixtures', false);
+        season = await getInProgressSeason(season_id);
         // We also need to get the associated calendar day...
         if (season) {
           //  if this fixture's
@@ -852,8 +831,8 @@ export async function restCreateFriendly(req: Request, res: Response) {
 
   try {
     const [homeClub, awayClub] = await Promise.all([
-      fetchSingleClubById(homeClubId, false),
-      fetchSingleClubById(awayClubId, false),
+      getClubById(homeClubId),
+      getClubById(awayClubId),
     ]);
 
     if (!homeClub || !awayClub) {

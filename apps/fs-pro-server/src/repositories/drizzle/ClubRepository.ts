@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { ClubInterface } from '../../controllers/clubs/club.model';
 import * as schema from '../../db/drizzle/full-schema';
@@ -74,7 +74,9 @@ export class DrizzleClubRepository implements IClubRepository {
   async findAll(filter: IClubFilter = {}, options: IClubReadOptions = {}): Promise<ClubInterface[]> {
     const conditions = [];
     if (filter.User !== undefined) conditions.push(eq(clubs.User, filter.User));
+    if (filter.unclaimed) conditions.push(isNull(clubs.User));
     if (filter.League !== undefined) conditions.push(eq(clubs.League, filter.League));
+    if (filter.ids !== undefined) conditions.push(inArray(clubs.id, filter.ids));
 
     const rows = await this.db.query.clubs.findMany({
       where: conditions.length ? and(...conditions) : undefined,
@@ -93,6 +95,16 @@ export class DrizzleClubRepository implements IClubRepository {
       .returning();
 
     return toClub(club);
+  }
+
+  async createMany(data: Partial<ClubInterface>[]): Promise<ClubInterface[]> {
+    if (data.length === 0) return [];
+    const rows = await this.db
+      .insert(clubs)
+      .values(data.map((d) => ({ ...(d as typeof clubs.$inferInsert), updatedAt: new Date() })))
+      .returning();
+
+    return rows.map(toClub);
   }
 
   async update(id: string, data: Partial<ClubInterface>): Promise<ClubInterface | null> {
