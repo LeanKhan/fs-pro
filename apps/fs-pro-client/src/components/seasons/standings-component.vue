@@ -7,7 +7,6 @@
       :headers="headers"
       :items="SortedTable"
       item-key="ClubCode"
-      no-data-text="No Standings for this week..."
       class="elevation-1"
       disable-pagination
       hide-default-footer
@@ -31,9 +30,6 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   weekly: false,
 });
-
-// private Table: IWeek['Table'] =
-// props.WeekStandings.Table || props.WeekStandings;
 
 const headers = ref<any[]>([
   {
@@ -64,7 +60,7 @@ const headers = ref<any[]>([
 ]);
 
 const Table = computed(() => {
-  return [];
+  return props.WeekStandings;
 });
 
 const SortedTable = computed(() => {

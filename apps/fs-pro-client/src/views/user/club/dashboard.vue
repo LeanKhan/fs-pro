@@ -1,17 +1,8 @@
 <template>
   <div>
-    <v-progress-linear
-      v-if="isClubLoading"
-      indeterminate
-      color="green"
-    />
+    <v-progress-linear v-if="isClubLoading" indeterminate color="green" />
 
-    <v-alert
-      v-else-if="isClubError"
-      type="error"
-      variant="tonal"
-      class="ma-4"
-    >
+    <v-alert v-else-if="isClubError" type="error" variant="tonal" class="ma-4">
       Could not load club.
     </v-alert>
 
@@ -59,10 +50,7 @@
                 <v-progress-circular indeterminate />
               </v-card>
 
-              <v-card
-                v-else-if="selectedDay"
-                color="primary"
-              >
+              <v-card v-else-if="selectedDay" color="primary">
                 <template v-if="!selectedDay.isFree && selectedMatch">
                   <v-card
                     color="transparent"
@@ -138,11 +126,7 @@
 
                 <template v-if="clubDays.length">
                   <v-divider class="mx-2" />
-                  <v-sheet
-                    width="100%"
-                    color="transparent"
-                    class="mt-5 pb-3"
-                  >
+                  <v-sheet width="100%" color="transparent" class="mt-5 pb-3">
                     <day-scroll
                       :days="clubDays"
                       :singleLeague="true"
@@ -153,26 +137,17 @@
                 </template>
               </v-card>
 
-              <v-card
-                v-else
-                color="grey-darken-2"
-                min-height="190"
-              >
+              <v-card v-else color="grey-darken-2" min-height="190">
                 <v-card-text>No scheduled fixtures.</v-card-text>
               </v-card>
 
               <v-card color="deep-purple" class="mt-3">
-                <v-progress-linear
-                  v-if="isSeasonLoading"
-                  indeterminate
-                />
+                <v-progress-linear v-if="isSeasonLoading" indeterminate />
 
                 <template v-else-if="season">
                   <v-card-title>{{ season.CompetitionCode }}</v-card-title>
                   <v-card-text>
-                    <standings-scroller
-                      :standings="season.Standings ?? []"
-                    />
+                    <standings-scroller :standings="season.Standings ?? []" />
                   </v-card-text>
                 </template>
 
@@ -218,12 +193,7 @@ import { ClubZone, SquadZone, TransferZone } from './zones';
 import DayScroll from '@/components/calendar/day-scroll.vue';
 import StandingsScroller from '@/components/seasons/standings-scroller.vue';
 
-import type {
-  Club,
-  Competition,
-  Fixture,
-  Season,
-} from '@repo/api-contract';
+import type { Club, Competition, Fixture, Season } from '@repo/api-contract';
 import type { IDayGroup } from '@/interfaces/calendar';
 import { client } from '@/services/api';
 import { groupFixturesByDay } from '@/helpers/calendar';
