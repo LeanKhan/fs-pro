@@ -1,0 +1,31 @@
+{
+	"name": "@repo/api-contract",
+	"version": "0.0.0",
+	"private": true,
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"require": "./dist/index.js",
+			"import": "./src/index.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc",
+		"lint": "oxlint .",
+		"format": "oxfmt",
+		"format:check": "oxfmt --check"
+	},
+	"devDependencies": {
+		"@repo/typescript-config": "*",
+		"@turbo/gen": "^1.12.4",
+		"@types/node": "^20.11.24",
+		"oxlint": "^1.81.0",
+		"typescript": "^5.3.3"
+	},
+	"dependencies": {
+		"@ts-rest/core": "^3.52.1",
+		"zod": "^3.25.76"
+	}
+}
