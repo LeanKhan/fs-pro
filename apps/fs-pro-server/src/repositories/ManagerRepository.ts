@@ -2,7 +2,7 @@ import { ManagerInterface } from '../controllers/managers/manager.model';
 
 export interface IManagerFilter {
   isEmployed?: boolean;
-  Club?: string;
+  ClubId?: string;
 }
 
 export interface IManagerReadOptions {
@@ -14,6 +14,11 @@ export interface IManagerReadOptions {
    * Off by default since most callers don't need it and it's an extra join.
    */
   withClub?: boolean;
+  /** Also populate `Nationality` (a full Place object) - off by default.
+   * Previously unconditional; made opt-in so `NationalityId` reliably
+   * stays a bare id for callers (e.g. an edit form's `v-select`) that
+   * don't ask for the object. */
+  withNationality?: boolean;
 }
 
 /**
@@ -27,14 +32,10 @@ export interface IManagerReadOptions {
  * connection even under `backend=drizzle`, so it couldn't find a
  * Postgres-only manager at all).
  *
- * `findById`/`findAll` always come back with `Nationality` populated (a
- * full Place object, not a bare id) - `manager.model.ts` registers a
- * schema-level `pre('find')`/`pre('findOne')` hook that populates it
- * unconditionally on every read, so both repositories have to match that,
- * not just replicate the field as a raw FK. `create`/`update`/`delete` do
- * NOT populate it (Mongoose's hook only fires for find-style queries, not
- * `.save()`/`findByIdAndUpdate`/`findByIdAndDelete`) - matches today's
- * behavior exactly.
+ * `Nationality`/`Club` are both opt-in (`withNationality`/`withClub`) -
+ * `NationalityId`/`ClubId` always pass through as bare ids regardless;
+ * `create`/`update`/`delete` never populate either (nothing to join
+ * against a freshly-written row).
  */
 export interface IManagerRepository {
   findById(

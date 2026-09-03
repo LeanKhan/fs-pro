@@ -522,7 +522,7 @@ function generatePlayer({
   const obj = {
     FirstName: firstname,
     LastName: lastname,
-    Nationality: '', // set
+    NationalityId: '', // set
     Age: 0, // random
     Position: position,
     Rating: 0,
@@ -560,14 +560,14 @@ function generatePlayer({
   // set nationality
   switch (nationality) {
     case 'kev':
-      obj.Nationality = '611fe72fb69949fd0152a092';
+      obj.NationalityId = 'f526f31c-53e6-4eac-8b07-9591deea5a6e';
       break;
     case 'bellean':
-      obj.Nationality = '611fcd88b69949fd01529d6d';
+      obj.NationalityId = 'b4f41821-c586-4b67-8dfc-521c51cd00e0';
       break;
     default:
       // default bellean :)
-      obj.Nationality = '611fcd88b69949fd01529d6d';
+      obj.NationalityId = 'b4f41821-c586-4b67-8dfc-521c51cd00e0';
   }
 
   // set Age

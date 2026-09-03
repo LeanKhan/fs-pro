@@ -79,7 +79,7 @@ export function initializeSessionForLogin(
 
     Promise.all([
       updateUserFields(id, { Session: req.sessionID } as Partial<IUser>),
-      getClubs({ User: id }),
+      getClubs({ UserId: id }),
     ])
       .then(([user, clubs]) => {
         responseHandler.success(res, 200, 'User authenticated successfully', {

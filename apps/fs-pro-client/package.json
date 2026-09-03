@@ -12,6 +12,9 @@
     "format:check": "oxfmt --check"
   },
   "dependencies": {
+    "@repo/api-contract": "*",
+    "@tanstack/vue-query": "^4.44.0",
+    "@ts-rest/vue-query": "^3.52.1",
     "@vueuse/core": "^10.5.0",
     "axios": "^1.5.1",
     "pinia": "^2.1.7",

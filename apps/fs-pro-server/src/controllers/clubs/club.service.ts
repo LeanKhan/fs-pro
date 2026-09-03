@@ -83,7 +83,7 @@ export async function appendClubRecord(
  * Calculate the clubs Average Rating - groups `players` directly by
  * `Club = clubId` (Mongo used to `$lookup`/`$unwind`/`$group` off
  * `Club.Players`, an array Postgres dropped in favor of this reverse
- * `players.Club` FK). Output shape: `{ position, avg_rating, count }[]`.
+ * `players.ClubId` FK). Output shape: `{ position, avg_rating, count }[]`.
  */
 export async function calculateClubsTotalRatings(clubId: string) {
   const db = DrizzleDatabase.getInstance().database;
@@ -94,7 +94,7 @@ export async function calculateClubsTotalRatings(clubId: string) {
       count: drizzleSql<number>`count(*)`,
     })
     .from(players)
-    .where(eq(players.Club, clubId))
+    .where(eq(players.ClubId, clubId))
     .groupBy(players.Position);
 
   return rows.map((r) => ({

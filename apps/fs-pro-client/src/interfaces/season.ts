@@ -4,9 +4,9 @@ export interface Season {
   SeasonID: string;
   SeasonCode: string;
   Title: string;
-  Competition: string;
+  CompetitionId?: string;
   CompetitionCode: string;
-  Winner: string;
+  WinnerId?: string;
   isFinished: boolean;
   isStarted: boolean;
   Status: string;

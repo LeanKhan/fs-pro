@@ -17,7 +17,7 @@ interface ISideRef {
  */
 export interface MatchReplayRecord {
   _id: string;
-  Fixture: string;
+  FixtureId: string;
   Home: ISideRef;
   Away: ISideRef;
   Frames: IMatchFrame[];

@@ -1,5 +1,7 @@
 import { Router } from 'express';
-import clubs from '../controllers/clubs/club.router';
+import { initServer } from '@ts-rest/express';
+
+import clubs, { clubTsRestRoutes } from '../controllers/clubs/club.router';
 import players from '../controllers/players/player.router';
 import competitions from '../controllers/competitions/competition.router';
 import seasons from '../controllers/seasons/season.router';
@@ -12,6 +14,17 @@ import managers from '../controllers/managers/manager.router';
 import places from '../controllers/places/places.router';
 import awards from '../controllers/awards/awards.router';
 import meta from '../controllers/meta/meta.router';
+
+// Contract...
+import { apiContract } from '@repo/api-contract';
+
+const s = initServer();
+
+export const apiRouter = s.router(apiContract, {
+  clubs: clubTsRestRoutes,
+});
+
+// export default mainRouter;
 
 const router = Router();
 

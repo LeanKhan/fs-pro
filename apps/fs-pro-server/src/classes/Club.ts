@@ -5,7 +5,7 @@ export class Club implements ClubInterface {
   public Name: string;
   public AttackingClass: number;
   public DefensiveClass: number;
-  public Manager: string;
+  public ManagerId: string;
   public Stadium: ClubInterface['Stadium'];
   public Players: PlayerInterface[];
   public Rating: number;
@@ -23,7 +23,7 @@ export class Club implements ClubInterface {
     this.AttackingClass = club.AttackingClass;
     this.DefensiveClass = club.DefensiveClass;
     this.Stadium = club.Stadium;
-    this.Manager = club.Manager;
+    this.ManagerId = club.ManagerId as string;
     this.Players = club.Players;
     this.Address = club.Address;
     this.Rating = club.Rating;

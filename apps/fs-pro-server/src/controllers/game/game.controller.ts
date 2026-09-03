@@ -129,10 +129,7 @@ async function play(fixture_id: string) {
       ? { home: fixture.HomeTactic, away: fixture.AwayTactic }
       : undefined;
 
-  let { HomeTeam: home, AwayTeam: away } = fixture;
-
-  home = home.toString();
-  away = away.toString();
+  const { HomeTeamId: home, AwayTeamId: away } = fixture;
 
   try {
     await CurrentMatch.App.setupGame(
@@ -211,8 +208,8 @@ async function play(fixture_id: string) {
       if (season) {
         //  if this fixture's
         lastMatchOfSeason =
-          season.Fixtures.findIndex((f) => fixture_id == f._id) ==
-          season.Fixtures.length - 1;
+          (season.Fixtures ?? []).findIndex((f) => fixture_id == f._id) ==
+          (season.Fixtures ?? []).length - 1;
       }
 
       // THIS SHOULD BE THE LAST THING!
@@ -277,14 +274,14 @@ async function play(fixture_id: string) {
         id: m.Home._id,
         name: m.Home.Name,
         clubCode: m.Home.ClubCode,
-        manager: m.Home.Manager,
+        manager: m.Home.ManagerId,
       };
 
       const awayObj = {
         id: m.Away._id,
         name: m.Away.Name,
         clubCode: m.Away.ClubCode,
-        manager: m.Away.Manager,
+        manager: m.Away.ManagerId,
       };
 
       let match: Fixture;
@@ -344,7 +341,7 @@ async function play(fixture_id: string) {
           match: matchFixture,
           HomeSideDetails: HSD,
           AwaySideDetails: ASD,
-          season_id: fixture.Season,
+          season_id: fixture.SeasonId,
         };
       } catch (error) {
         console.error('Error updating fixture! :( => \n', error);
@@ -500,10 +497,7 @@ export async function restPlayGame(
 
   req.body.SeasonCode = fixture.SeasonCode;
 
-  let { HomeTeam: home, AwayTeam: away } = fixture;
-
-  home = home.toString();
-  away = away.toString();
+  const { HomeTeamId: home, AwayTeamId: away } = fixture;
 
   try {
     await App._app.setupGame([home, away], {
@@ -537,14 +531,14 @@ export async function restPlayGame(
         id: m.Home._id,
         name: m.Home.Name,
         clubCode: m.Home.ClubCode,
-        manager: m.Home.Manager,
+        manager: m.Home.ManagerId,
       };
 
       const awayObj = {
         id: m.Away._id,
         name: m.Away.Name,
         clubCode: m.Away.ClubCode,
-        manager: m.Away.Manager,
+        manager: m.Away.ManagerId,
       };
 
       let match: Fixture;
@@ -580,7 +574,7 @@ export async function restPlayGame(
         req.body.match = matchFixture;
         req.body.HomeSideDetails = HSD;
         req.body.AwaySideDetails = ASD;
-        req.body.season_id = fixture.Season;
+        req.body.season_id = fixture.SeasonId;
 
         // console.log(`The Match instances ${Match.instances}`);
         // console.log(`The Ball instances ${Ball.instances}`);
@@ -662,8 +656,8 @@ export function restUpdateStandings(
         if (season) {
           //  if this fixture's
           lastMatchOfSeason =
-            season.Fixtures.findIndex((f) => fixture_id == f._id) ==
-            season.Fixtures.length - 1;
+            (season.Fixtures ?? []).findIndex((f) => fixture_id == f._id) ==
+            (season.Fixtures ?? []).length - 1;
         }
 
         // THIS SHOULD BE THE LAST THING!
@@ -877,8 +871,8 @@ export async function restCreateFriendly(req: Request, res: Response) {
       Title: `${homeClub.Name} vs ${awayClub.Name} (Friendly)`,
       Home: homeClub.ClubCode,
       Away: awayClub.ClubCode,
-      HomeTeam: homeClubId,
-      AwayTeam: awayClubId,
+      HomeTeamId: homeClubId,
+      AwayTeamId: awayClubId,
       Type: 'friendly',
       Status: 'friendly',
       Played: false,

@@ -1,7 +1,7 @@
 import { SeasonInterface } from '../controllers/seasons/season.model';
 
 export interface ISeasonFilter {
-  Competition?: string;
+  CompetitionId?: string;
   Year?: string;
   SeasonCode?: string;
 }
@@ -23,7 +23,7 @@ export interface ISeasonFilter {
  * Mongo operators, but most of those call sites stay raw anyway: they're
  * deep in the fixture-generation/standings/prolegation game loop, and some
  * write fields (`Fixtures`, an array) that don't exist on the Postgres
- * schema at all (dropped in favor of the reverse `fixtures.Season` FK) -
+ * schema at all (dropped in favor of the reverse `fixtures.SeasonId` FK) -
  * harmless to pass through (Drizzle just ignores the unknown key) but not
  * worth converting untested, interdependent game-loop internals for. Only
  * `PATCH /:id/start`'s isolated `{ isStarted, StartDate }` write was

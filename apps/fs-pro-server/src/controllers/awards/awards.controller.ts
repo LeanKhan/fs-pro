@@ -50,7 +50,7 @@ export async function giveAwards(req: Request, res: Response) {
           p._id as string,
           season_id,
           'season',
-          p.Club as string
+          p.ClubId as string
         )
       );
     });
@@ -59,7 +59,7 @@ export async function giveAwards(req: Request, res: Response) {
 
     const [winningManager] = await getManagers({
       isEmployed: true,
-      Club: req.body.seasonChampions,
+      ClubId: req.body.seasonChampions,
     });
 
     if (winningManager) {
@@ -70,10 +70,10 @@ export async function giveAwards(req: Request, res: Response) {
         Type: 'manager', // club/manager/player
         Category: 'winning-title',
         Period: 'season',
-        Recipient: winningManager._id as string,
-        Club: req.body.seasonChampions, // what club was this manager or player in when this happened?
+        RecipientId: winningManager._id as string,
+        ClubId: req.body.seasonChampions, // what club was this manager or player in when this happened?
         Remarks: `${winningManager.FirstName} ${winningManager.LastName} won a title with this club!`,
-        Season: season_id,
+        SeasonId: season_id,
       });
     }
 
@@ -141,9 +141,9 @@ function createObject(
     Type: awardType, // club/manager/player
     Category: category,
     Period: period,
-    Recipient: recipient,
-    Club: club, // what club was this manager or player in when this happened?
+    RecipientId: recipient,
+    ClubId: club, // what club was this manager or player in when this happened?
     Remarks: remark,
-    Season: season,
+    SeasonId: season,
   };
 }

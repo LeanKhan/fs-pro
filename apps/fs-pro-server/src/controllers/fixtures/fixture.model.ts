@@ -12,26 +12,30 @@ export interface Fixture {
   FixtureID: string;
   SeasonCode: string;
   LeagueCode: string;
-  Season: string;
+  SeasonId: string;
   Played: boolean;
   PlayedAt: Date;
   Week: number;
   Home: string;
   Away: string;
-  HomeTeam: string | ClubInterface;
-  AwayTeam: string | ClubInterface;
+  HomeTeamId: string;
+  HomeTeam?: ClubInterface;
+  AwayTeamId: string;
+  AwayTeam?: ClubInterface;
   Stadium: string;
   Type: 'league' | 'cup' | 'tournament' | 'friendly';
   Status: 'friendly' | 'first-leg' | 'second-leg' | 'regular';
   Tie: string;
   Stage: string;
-  ReverseFixture: string;
+  ReverseFixtureId: string;
   Details: IMatchDetails;
-  HomeSideDetails: IMatchSideDetails;
-  AwaySideDetails: IMatchSideDetails;
+  HomeSideDetailsId: string;
+  HomeSideDetails?: IMatchSideDetails;
+  AwaySideDetailsId: string;
+  AwaySideDetails?: IMatchSideDetails;
   Events: IMatchEvent[];
-  HomeManager: string;
-  AwayManager: string;
+  HomeManagerId: string;
+  AwayManagerId: string;
   isFinalMatch: boolean;
   /** Explicit per-match tactic override - set only for friendlies created
    * via POST /api/game/friendly. Absent for season fixtures, which always

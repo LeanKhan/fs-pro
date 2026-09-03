@@ -5,9 +5,13 @@ export interface ManagerInterface {
   LastName: string;
   Age: number;
   Picture: string;
-  Club: string;
+  ClubId?: string;
+  /** Narrowed to `_id`/`Name`/`ClubCode`/`LeagueCode` when populated - see
+   * IManagerReadOptions.withClub. */
+  Club?: { _id: string; Name: string; ClubCode: string; LeagueCode: string };
   NationalTeam?: boolean;
-  Nationality: string;
+  NationalityId?: string;
+  Nationality?: import('../places/places.model').IPlace;
   Records: [];
   isEmployed: boolean;
   /** Default tactic used at kickoff when this manager's club plays -

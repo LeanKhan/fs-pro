@@ -1,3 +1,5 @@
+import { Place } from './place';
+
 export interface PlayerAttributes {
   Speed: number;
   Shooting: number;
@@ -25,8 +27,10 @@ export interface Player {
   LastName: string;
   Age: string;
   PlayerID: string;
-  /** Players Nationality */
-  Nationality: string;
+  /** Bare id from edit-form routes; a full Place object only when the
+   * route requested it (list/table views). */
+  NationalityId?: string;
+  Nationality?: Place;
   /** overall Player rating */
   Rating: number;
   /** Goals scored in total */

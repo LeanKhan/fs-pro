@@ -1,4 +1,8 @@
 import { Router } from 'express';
+import { createExpressEndpoints, initServer } from '@ts-rest/express';
+import { apiContract as contract } from '@repo/api-contract';
+import type { Club as ContractClub } from '@repo/api-contract';
+
 import respond from '../../helpers/responseHandler';
 import {
   getClubById,
@@ -23,6 +27,8 @@ import {
   removeManagerFromClub,
 } from './club.controller';
 
+const s = initServer();
+
 const router = Router();
 
 /** Fetch all Clubs, optionally narrowed to a comma-separated list of ids
@@ -30,25 +36,80 @@ const router = Router();
  * stored on the logged-in user) or to clubs with no owning User yet
  * (`?unclaimed=true`, registration's "pick a club" list). Neither of these
  * needs Players/Manager populated. */
-router.get('/all', (req, res) => {
-  const { ids, unclaimed } = req.query;
-  const idList =
-    typeof ids === 'string' ? ids.split(',').filter(Boolean) : undefined;
 
-  const response = idList
-    ? getClubs({ ids: idList })
-    : unclaimed === 'true'
-      ? getClubs({ unclaimed: true })
-      : getClubs(undefined, { withPlayersAndManager: true });
+export const clubTsRestRoutes = s.router(contract.clubs, {
+  getClubs: async ({ query }) => {
+    try {
+      const idList = query.ids?.split(',').filter(Boolean);
+      const clubs = idList?.length
+        ? await getClubs({ ids: idList })
+        : query.unclaimed
+          ? await getClubs({ unclaimed: true })
+          : await getClubs(undefined, {
+              withPlayersAndManager: query.withPlayersAndManager ?? true,
+            });
+      const payload = clubs.map((club) => ({
+        ...club,
+      })) as ContractClub[];
 
-  response
-    .then((clubs: any) => {
-      respond.success(res, 200, 'Clubs fetched successfully', clubs);
-    })
-    .catch((err: any) => {
-      respond.fail(res, 400, 'Error fetching Clubs', err.toString());
-    });
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Clubs fetched successfully',
+          payload,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error fetching Clubs',
+          payload: err instanceof Error ? err.message : String(err),
+        },
+      };
+    }
+  },
+  getClub: async ({ params, query }) => {
+    try {
+      const populate =
+        typeof query.populate === 'string' && query.populate !== 'false';
+      const club = await getClubById(params.id, {
+        withPlayersAndManager: populate,
+      });
+
+      if (!club) {
+        return {
+          status: 404,
+          body: {
+            success: false,
+            message: 'Club not found',
+          },
+        };
+      }
+
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Club fetched successfully',
+          payload: { ...club } as ContractClub,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 404,
+        body: {
+          success: false,
+          message: err instanceof Error ? err.message : String(err),
+        },
+      };
+    }
+  },
 });
+
+// createExpressEndpoints(contract.clubs, clubTsRestRoutes, router);
 
 /** Create new Club */
 router.post('/new', async (req, res) => {
@@ -83,22 +144,6 @@ router.delete('/:id', (req, res) => {
     })
     .catch((err: any) => {
       respond.fail(res, 400, 'Error deleting Club', err.toString());
-    });
-});
-
-/** Fetch Club by id */
-router.get('/:id', (req, res) => {
-  // ?populate= is now just a boolean flag for withPlayersAndManager -
-  // Address.Country comes back populated either way.
-  const populate =
-    typeof req.query.populate === 'string' && req.query.populate !== 'false';
-
-  getClubById(req.params.id, { withPlayersAndManager: populate })
-    .then((club) => {
-      respond.success(res, 200, 'Club fetched successfully', club);
-    })
-    .catch((err) => {
-      respond.fail(res, 400, 'Error fetching Club', err.toString());
     });
 });
 

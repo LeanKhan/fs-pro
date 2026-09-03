@@ -6,7 +6,7 @@ export interface ClubInterface {
   Name: string;
   ClubCode: string;
   LeagueCode?: string;
-  League?: string;
+  LeagueId?: string;
   AttackingClass: number;
   DefensiveClass: number;
   Players: PlayerInterface[];
@@ -20,7 +20,8 @@ export interface ClubInterface {
   ATT_Rating: number;
   DEF_Rating: number;
   MID_Rating: number;
-  Manager: string;
+  ManagerId?: string;
+  Manager?: import('../managers/manager.model').ManagerInterface;
   Stadium?: {
     Name: string;
     Capacity: string;
@@ -34,12 +35,19 @@ export interface ClubInterface {
     MatchesLost: number;
     MatchesDrawn: number;
   };
+  /** `Country` here is legacy/unused going forward - never mutated in
+   * place. The FK lives in AddressCountryId, and the populated Place (when
+   * requested) surfaces under the separate top-level AddressCountry field
+   * below, not nested here. */
   Address?: {
     Section: string;
     City: string;
     Country: string;
   };
-  User?: string | IUser;
+  AddressCountryId?: string;
+  AddressCountry?: import('../places/places.model').IPlace;
+  UserId?: string;
+  User?: IUser;
   Budget?: number;
   Transactions?: unknown; // TODO: fix, use an actual type :)
   Records?: any[];

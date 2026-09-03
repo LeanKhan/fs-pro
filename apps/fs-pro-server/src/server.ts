@@ -30,6 +30,9 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 
 import App from './controllers/app/App';
 import { registerIO } from './realtime/io';
+import { createExpressEndpoints } from '@ts-rest/express';
+import { apiContract } from '@repo/api-contract';
+import { apiRouter } from './routers';
 
 const cors_whitelist = [
   'http://localhost:8080',
@@ -111,6 +114,8 @@ const routerModule = require('./routers');
 const router = routerModule.default || routerModule;
 app.use('/api', router);
 
+createExpressEndpoints(apiContract, routerModule.apiRouter, router);
+
 // Attach socket
 app.use((req, res, next) => {
   req.io = io;
@@ -143,7 +148,9 @@ http.on('error', (err: NodeJS.ErrnoException) => {
   }
 
   listenRetriesLeft -= 1;
-  console.log(`Port ${port} still in use (previous dev-server instance likely still shutting down) - retrying in 300ms...`);
+  console.log(
+    `Port ${port} still in use (previous dev-server instance likely still shutting down) - retrying in 300ms...`
+  );
   setTimeout(() => http.listen(port), 300);
 });
 

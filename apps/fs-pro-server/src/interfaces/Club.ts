@@ -11,9 +11,10 @@ export interface IClub {
   Rating: number;
   Address: Record<string, unknown>;
   ClubCode: string;
-  Manager: string;
+  ManagerId?: string;
+  Manager?: import('../controllers/managers/manager.model').ManagerInterface;
   Stadium: Record<string, unknown>;
   Stats: Record<string, unknown>;
-  League?: string;
+  LeagueId?: string;
   LeagueCode?: string;
 }

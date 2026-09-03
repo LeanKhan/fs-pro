@@ -1,7 +1,7 @@
 import { AwardInterface } from '../controllers/awards/awards.model';
 
 export interface IAwardFilter {
-  Season?: string;
+  SeasonId?: string;
 }
 
 /**

@@ -33,7 +33,7 @@ router.get('/', (req: Request, res: Response) => {
 
   getSeasons({
     Year: typeof year === 'string' ? year : undefined,
-    Competition: typeof competition === 'string' ? competition : undefined,
+    CompetitionId: typeof competition === 'string' ? competition : undefined,
   })
     .then((seasons) => {
       const filtered =
@@ -106,7 +106,7 @@ router.post('/:id/finish', finishSeason, giveAwards);
 
 /** Get all Fixtures in Season */
 router.get('/:id/fixtures', (req, res) => {
-  getFixtures({ Season: req.params.id })
+  getFixtures({ SeasonId: req.params.id })
     .then((fixtures: any) => {
       respond.success(
         res,

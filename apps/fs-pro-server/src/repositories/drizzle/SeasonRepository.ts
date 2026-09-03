@@ -47,8 +47,8 @@ export class DrizzleSeasonRepository implements ISeasonRepository {
 
   async findAll(filter: ISeasonFilter = {}): Promise<SeasonInterface[]> {
     const conditions = [];
-    if (filter.Competition !== undefined)
-      conditions.push(eq(seasons.Competition, filter.Competition));
+    if (filter.CompetitionId !== undefined)
+      conditions.push(eq(seasons.CompetitionId, filter.CompetitionId));
     if (filter.Year !== undefined)
       conditions.push(eq(seasons.Year, filter.Year));
     if (filter.SeasonCode !== undefined)

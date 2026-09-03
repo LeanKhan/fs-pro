@@ -144,7 +144,7 @@ router.get('/:id', (req, res) => {
   // the owned-clubs list via a reverse lookup through the Club repository
   // instead of an array populate.
   const response = populate
-    ? Promise.all([getUserById(id), getClubs({ User: id })]).then(
+    ? Promise.all([getUserById(id), getClubs({ UserId: id })]).then(
         ([user, clubs]) => (user ? { ...user, Clubs: clubs } : user)
       )
     : getUserById(id);
@@ -227,10 +227,10 @@ router.post('/:id/add-clubs', (req, res) => {
 
   Promise.all(
     ((data ?? []) as string[]).map((clubId) =>
-      updateClubFields(clubId, { User: id })
+      updateClubFields(clubId, { UserId: id })
     )
   )
-    .then(() => getClubs({ User: id }))
+    .then(() => getClubs({ UserId: id }))
     .then((clubs) => {
       respond.success(res, 200, 'Clubs added successfully', clubs);
     })
@@ -244,7 +244,7 @@ router.post('/:id/add-club', (req, res) => {
   const id = req.params.id;
   const { clubId } = req.body.data;
 
-  updateClubFields(clubId, { User: id })
+  updateClubFields(clubId, { UserId: id })
     .then((club) => {
       respond.success(res, 200, 'Club added successfully', club);
     })

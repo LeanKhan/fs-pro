@@ -19,8 +19,8 @@ export class DrizzleAwardRepository implements IAwardRepository {
   async findAll(filter: IAwardFilter = {}): Promise<AwardInterface[]> {
     const rows = await this.db.query.awards.findMany({
       where:
-        filter.Season !== undefined
-          ? eq(awards.Season, filter.Season)
+        filter.SeasonId !== undefined
+          ? eq(awards.SeasonId, filter.SeasonId)
           : undefined,
     });
     return rows.map(toAward);

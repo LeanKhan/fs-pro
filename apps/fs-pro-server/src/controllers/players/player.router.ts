@@ -27,8 +27,9 @@ const router = Router();
  * Fetch all Players, optionally filtered by Club/ClubCode/isSigned
  */
 router.get('/all', (req, res) => {
-  const filter: { Club?: string; ClubCode?: string; isSigned?: boolean } = {};
-  if (typeof req.query.club === 'string') filter.Club = req.query.club;
+  const filter: { ClubId?: string; ClubCode?: string; isSigned?: boolean } =
+    {};
+  if (typeof req.query.club === 'string') filter.ClubId = req.query.club;
   if (typeof req.query.clubCode === 'string')
     filter.ClubCode = req.query.clubCode;
   if (typeof req.query.isSigned === 'string')

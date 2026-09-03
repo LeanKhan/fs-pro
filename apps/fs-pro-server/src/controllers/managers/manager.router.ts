@@ -36,13 +36,15 @@ router.get('/', (req, res) => {
   // populate=Club now goes through the repository too, with Club selected
   // down to Name/ClubCode/LeagueCode (see IManagerReadOptions.withClub) -
   // same projection the old raw `.populate('Club', 'Name ClubCode
-  // LeagueCode')` call used.
+  // LeagueCode')` call used. Nationality stays on for every list read here
+  // (managers-table.vue/manager-picker.vue both display it) - only the
+  // single-manager `GET /:id` (the edit form) needs a bare NationalityId.
   const populate =
     typeof req.query.populate === 'string' ? req.query.populate : undefined;
-  const response =
-    populate === 'Club'
-      ? getManagers(options as Record<string, unknown>, { withClub: true })
-      : getManagers(options as Record<string, unknown>);
+  const response = getManagers(options as Record<string, unknown>, {
+    withClub: populate === 'Club',
+    withNationality: true,
+  });
 
   response
     .then((managers) => {
@@ -54,7 +56,7 @@ router.get('/', (req, res) => {
 });
 
 router.get('/unemployed', (req, res) => {
-  getManagers({ isEmployed: false }, { withClub: true })
+  getManagers({ isEmployed: false }, { withClub: true, withNationality: true })
     .then((managers) => {
       respond.success(res, 200, 'Managers fetched successfully', managers);
     })
@@ -106,7 +108,7 @@ router.delete('/:id', (req, res) => {
   const getManager = () => {
     return getManagerById(id)
       .then((m) => {
-        if (m?.isEmployed && m.Club) {
+        if (m?.isEmployed && m.ClubId) {
           return m;
         }
 
@@ -118,15 +120,15 @@ router.delete('/:id', (req, res) => {
   };
 
   const _updateClub = (manager: ManagerInterface | false) => {
-    const { Club, FirstName, LastName } = manager as ManagerInterface;
-    if (Club) {
+    const { ClubId, FirstName, LastName } = manager as ManagerInterface;
+    if (ClubId) {
       // TODO: finish this, refer to manager when adding record
       // (returned, not fire-and-forget - deleteManager below must wait for
       // this to finish, and a failure here must stop the delete from
       // running rather than being silently swallowed)
       return appendClubRecord(
-        Club,
-        { Manager: null },
+        ClubId,
+        { ManagerId: null },
         {
           type: 'hired',
           title: `${FirstName} ${LastName} just left the club and the system :/`,
