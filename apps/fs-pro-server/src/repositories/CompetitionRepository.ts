@@ -3,17 +3,16 @@ import { CompetitionInterface } from '../controllers/competitions/competition.mo
 export interface ICompetitionFilter {
   Type?: string;
   Division?: number;
-  Country?: string;
+  CountryId?: string;
+}
+
+export interface ICompetitionReadOptions {
+  /** Populate `Country` (a full `Place`, not a bare id) - off by default.
+   * `CountryId` always stays a bare id regardless. */
+  withCountry?: boolean;
 }
 
 /**
- * `findById`/`findAll` always come back with `Country` populated (a full
- * `Place`, not a bare id) - `competition.model.ts` registers a schema-level
- * `pre('find')`/`pre('findOne')` hook that populates it unconditionally on
- * every read, same pattern as Club's `Address.Country` and Manager's
- * `Nationality`. `create`/`update`/`delete` do NOT populate it, matching
- * Mongoose's hook (find-style queries only).
- *
  * No `findByNameOrCode`-style lookup, and `update()` takes plain fields
  * only - no Mongo `$push`/`$addToSet` operators. The membership-mutating
  * routes (`addClubToCompetition`, `addSeasonToCompetition`) stay on the raw
@@ -25,8 +24,14 @@ export interface ICompetitionFilter {
  * mechanical conversion. See FUTURE-PLANS.md.
  */
 export interface ICompetitionRepository {
-  findById(id: string): Promise<CompetitionInterface | null>;
-  findAll(filter?: ICompetitionFilter): Promise<CompetitionInterface[]>;
+  findById(
+    id: string,
+    options?: ICompetitionReadOptions
+  ): Promise<CompetitionInterface | null>;
+  findAll(
+    filter?: ICompetitionFilter,
+    options?: ICompetitionReadOptions
+  ): Promise<CompetitionInterface[]>;
   create(data: Partial<CompetitionInterface>): Promise<CompetitionInterface>;
   update(
     id: string,

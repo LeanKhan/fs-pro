@@ -41,7 +41,7 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from '@/store';
-import { $axios } from '@/services/api';
+import { client } from '@/services/api';
 import FixturesTable from '@/components/seasons/fixtures-table.vue';
 
 const router = useRouter();
@@ -63,10 +63,12 @@ async function getFixtures() {
 
   fixturesLoading.value = true;
   try {
-    const response = await $axios.get(
-      `/seasons/${selectedSeason.value._id}/fixtures`
-    );
-    fixtures.value = response.data.payload;
+    const response = await client.seasons.getSeasonFixtures.query({
+      params: { id: selectedSeason.value._id },
+    });
+    if (response.status === 200) {
+      fixtures.value = response.body.payload;
+    }
   } catch (error) {
     console.error('Error getting fixtures for Season:', error);
   } finally {

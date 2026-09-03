@@ -1,4 +1,4 @@
-Name,ClubCode,AttackingClass,DefensiveClass,Address.Section,Address.City,Address.Country,Stadium.Name,Stadium.Capacity,Stadium.Location,User,League,LeagueCode
+Name,ClubCode,AttackingClass,DefensiveClass,Address.Section,Address.City,Address.Country,Stadium.Name,Stadium.Capacity,Stadium.Location,UserId,LeagueId,LeagueCode
 Ceviva Chiefs FZ,CHI,,,Center City,Ceviva,611fe72fb69949fd0152a092,Temple Grounds,12000,"10, Social way, Center City",5ed65ccfa18c503ef00dcd63,62769903909bc816a0243407,KLV
 Ceviva Torrents,CTR,,,Mahogany,Ceviva,611fe72fb69949fd0152a092,National Stadium 2,12000,"1, Stadium Road, Mahogany",5ebe57d47a6c373794f823ef,62769926909bc816a0243409,KLS
 Red Knights LC,RED,,,Flower Plain Valley,Damwinth,611fe72fb69949fd0152a092,Plain Circu,12000,"7, Tank Street, Flower Plain Valley",5ed65ccfa18c503ef00dcd63,62769926909bc816a0243409,KLS

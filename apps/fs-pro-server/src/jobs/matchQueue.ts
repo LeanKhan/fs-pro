@@ -31,7 +31,7 @@ const inFlight = new Set<string>();
  * anything to the DB (no updateFixture/updateStandings/day-advance) - it
  * only simulates and streams frames, for exercising the record-then-replay
  * pipeline (e.g. via PitchPreview.html) without touching the existing
- * synchronous play()/restPlayGame flow real clients still use.
+ * synchronous play()/kickoffNew flow real clients still use.
  */
 export function enqueueMatchPlay(fixtureId: string): {
   queued: boolean;
@@ -72,18 +72,24 @@ async function runMatchJob(fixtureId: string): Promise<void> {
     throw new Error(`Fixture not found: ${fixtureId}`);
   }
 
-  const home = fixture.HomeTeam.toString();
-  const away = fixture.AwayTeam.toString();
+  const home = fixture.HomeTeamId;
+  const away = fixture.AwayTeamId;
 
-  const clubs = await getClubs({ ids: [home, away] });
+  // `withPlayersAndManager` populates Players (needed for the match roster)
+  // - ManagerId stays a bare id regardless (see IClubReadOptions), no
+  // unwrapping needed.
+  const clubs = await getClubs(
+    { ids: [home, away] },
+    { withPlayersAndManager: true }
+  );
   const homeClub = clubs.find((c: any) => c._id?.toString() === home);
   const awayClub = clubs.find((c: any) => c._id?.toString() === away);
 
   // Resolved here, not inside the worker - a worker_thread has no DB
   // connection to look managers up with (same reason clubs are prefetched).
   const tactics: { home: ITactic; away: ITactic } = {
-    home: await resolveManagerTactic(homeClub?.Manager),
-    away: await resolveManagerTactic(awayClub?.Manager),
+    home: await resolveManagerTactic(homeClub?.ManagerId),
+    away: await resolveManagerTactic(awayClub?.ManagerId),
   };
 
   // Strip Mongoose/BSON ObjectId instances etc. down to plain data before

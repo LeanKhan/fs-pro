@@ -21,7 +21,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { WeekStandings as IWeek } from '@/interfaces/season';
+import type { WeekStandings as IWeek } from '@repo/api-contract';
 
 interface Props {
   WeekStandings: IWeek;

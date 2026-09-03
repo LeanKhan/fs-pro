@@ -10,6 +10,7 @@ import { mdi } from 'vuetify/iconsets/mdi';
 import { currency, ordinal, roundTo } from './helpers/misc';
 import { customIcons } from './plugins/customIcons';
 import { useStore } from './store';
+import { VueQueryPlugin } from '@tanstack/vue-query';
 
 export { $axios };
 
@@ -43,6 +44,7 @@ app.config.globalProperties.$axios = $axios;
 app.use(createPinia());
 app.use(router);
 app.use(vuetify);
+app.use(VueQueryPlugin);
 
 // A component throwing during render/update otherwise fails silently -
 // vue-router has already committed the URL by the time the new view's

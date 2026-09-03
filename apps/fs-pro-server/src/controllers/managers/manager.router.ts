@@ -1,184 +1,214 @@
-import { Router } from 'express';
+import { initServer } from '@ts-rest/express';
+import { apiContract as contract } from '@repo/api-contract';
+import type { Manager as ContractManager } from '@repo/api-contract';
+
 import {
-  deleteManagerById,
   getManagers,
   getManagerById,
-  createManager,
+  deleteManagerById,
   updateManager,
+  createManager,
 } from './manager.service';
-import respond from '../../helpers/responseHandler';
-import { incrementCounter, getCurrentCounter } from '../../utils/counter';
+import type { ManagerInterface } from './manager.model';
 import { appendClubRecord } from '../clubs/club.service';
-import { ManagerInterface } from './manager.model';
-import log from '../../helpers/logger';
+import { getNextCounterId } from '../../utils/counter';
 
-const router = Router();
+const s = initServer();
 
-/** FETCH ALL MANAGERS */
-router.get('/', (req, res) => {
-  let options = req.query.options;
-  // This prevents the app from crashing if there's
-  // an error parsing object :)
+function fail(err: unknown) {
+  return err instanceof Error ? err.message : String(err);
+}
 
-  try {
-    if (options && typeof options === 'string') {
-      options = JSON.parse(options);
-    }
-  } catch (err) {
-    return respond.fail(
-      res,
-      400,
-      'Error fetching players',
-      (err as Error).toString()
-    );
-  }
-
-  // populate=Club now goes through the repository too, with Club selected
-  // down to Name/ClubCode/LeagueCode (see IManagerReadOptions.withClub) -
-  // same projection the old raw `.populate('Club', 'Name ClubCode
-  // LeagueCode')` call used.
-  const populate =
-    typeof req.query.populate === 'string' ? req.query.populate : undefined;
-  const response =
-    populate === 'Club'
-      ? getManagers(options as Record<string, unknown>, { withClub: true })
-      : getManagers(options as Record<string, unknown>);
-
-  response
-    .then((managers) => {
-      respond.success(res, 200, 'Managers fetched successfully', managers);
-    })
-    .catch((err) => {
-      respond.fail(res, 400, 'Error fetching Managers', err.toString());
-    });
-});
-
-router.get('/unemployed', (req, res) => {
-  getManagers({ isEmployed: false }, { withClub: true })
-    .then((managers) => {
-      respond.success(res, 200, 'Managers fetched successfully', managers);
-    })
-    .catch((err) => {
-      respond.fail(res, 400, 'Error fetching players', err);
-    });
-});
-
-/** GET MANAGER BY ID */
-router.get('/:id', (req, res) => {
-  // Get Manager by name slug
-  const { id } = req.params;
-  let po = false;
-  try {
-    po =
-      req.query.populate &&
-      typeof req.query.populate === 'string' &&
-      JSON.parse(req.query.populate);
-  } catch (err) {
-    console.error('Error fetching manager, ', (err as Error).toString());
-    return respond.fail(
-      res,
-      400,
-      'Error fetching Manager: Error populating field(s)',
-      err
-    );
-  }
-
-  const response = po
-    ? getManagerById(id, { withClub: true })
-    : getManagerById(id);
-
-  response
-    .then((m) => {
-      respond.success(res, 200, 'Manager fetched successfully', m);
-    })
-    .catch((err) => {
-      respond.fail(res, 400, 'Error fetching Manager', err);
-    });
-});
-
-/** DELETE MANAGER BY ID */
-router.delete('/:id', (req, res) => {
-  // Delete Manager by name
-  const { id } = req.params;
-
-  // Find the club(s) that they are employed and remove them...
-  // if manager is signed to a club, remove them from that arrangement...
-  const getManager = () => {
-    return getManagerById(id)
-      .then((m) => {
-        if (m?.isEmployed && m.Club) {
-          return m;
-        }
-
-        return false;
-      })
-      .catch((err) => {
-        throw err;
-      });
-  };
-
-  const _updateClub = (manager: ManagerInterface | false) => {
-    const { Club, FirstName, LastName } = manager as ManagerInterface;
-    if (Club) {
-      // TODO: finish this, refer to manager when adding record
-      // (returned, not fire-and-forget - deleteManager below must wait for
-      // this to finish, and a failure here must stop the delete from
-      // running rather than being silently swallowed)
-      return appendClubRecord(
-        Club,
-        { Manager: null },
+export const managerTsRestRoutes = s.router(contract.managers, {
+  /** populate=Club now goes through the repository too, with Club selected
+   * down to Name/ClubCode/LeagueCode. Nationality stays on for every list
+   * read here (managers-table.vue/manager-picker.vue both display it) -
+   * only the single-manager GET /:id (the edit form) needs a bare
+   * NationalityId. */
+  getManagers: async ({ query }) => {
+    try {
+      const managers = await getManagers(
         {
-          type: 'hired',
-          title: `${FirstName} ${LastName} just left the club and the system :/`,
-          date: new Date(),
-          details: 'Manager is no longer in the system',
+          isEmployed: query.isEmployed,
+          ClubId: query.clubId,
+        },
+        {
+          withClub: query.populate === 'Club',
+          withNationality: true,
         }
       );
+
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Managers fetched successfully',
+          payload: managers as unknown as ContractManager[],
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error fetching Managers',
+          payload: fail(err),
+        },
+      };
     }
-  };
+  },
 
-  const deleteManager = () => {
-    return deleteManagerById(id);
-  };
+  getUnemployedManagers: async () => {
+    try {
+      const managers = await getManagers(
+        { isEmployed: false },
+        { withClub: true, withNationality: true }
+      );
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Managers fetched successfully',
+          payload: managers as unknown as ContractManager[],
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error fetching players',
+          payload: fail(err),
+        },
+      };
+    }
+  },
 
-  // hey, link up!
-  getManager()
-    .then(_updateClub)
-    .then(deleteManager)
-    .then((m) => {
-      respond.success(res, 200, 'Manager deleted successfully', m);
-    })
-    .catch((err) => {
-      respond.fail(res, 400, 'Error deleting Manager', err);
-    });
+  getManager: async ({ params, query }) => {
+    try {
+      const manager =
+        query.populate === 'true'
+          ? await getManagerById(params.id, { withClub: true })
+          : await getManagerById(params.id);
+
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Manager fetched successfully',
+          payload: manager as unknown as ContractManager,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error fetching Manager',
+          payload: fail(err),
+        },
+      };
+    }
+  },
+
+  /** Extracted from the old getManager -> _updateClub -> deleteManager
+   * promise chain: if the Manager is currently employed, record their
+   * departure on the Club before deleting them. */
+  deleteManager: async ({ params }) => {
+    try {
+      const manager = await getManagerById(params.id);
+
+      if (manager?.isEmployed && manager.ClubId) {
+        // TODO: finish this, refer to manager when adding record
+        await appendClubRecord(
+          manager.ClubId,
+          { ManagerId: null },
+          {
+            type: 'hired',
+            title: `${manager.FirstName} ${manager.LastName} just left the club and the system :/`,
+            date: new Date(),
+            details: 'Manager is no longer in the system',
+          }
+        );
+      }
+
+      const deleted = await deleteManagerById(params.id);
+
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Manager deleted successfully',
+          payload: deleted as unknown as ContractManager,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error deleting Manager',
+          payload: fail(err),
+        },
+      };
+    }
+  },
+
+  updateManager: async ({ params, body }) => {
+    try {
+      const manager = await updateManager(
+        params.id,
+        body as Partial<ManagerInterface>
+      );
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Manager updated successfully',
+          payload: manager as unknown as ContractManager,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error updating Manager',
+          payload: fail(err),
+        },
+      };
+    }
+  },
+
+  createManager: async ({ body }) => {
+    try {
+      // Reserves the next Key off the Postgres sequence - the real work
+      // the old getCurrentCounter middleware did (via ?model=manager);
+      // incrementCounter itself is a documented no-op.
+      const { field, id } = await getNextCounterId('manager');
+
+      const manager = await createManager({
+        ...(body as Partial<ManagerInterface>),
+        [field]: id,
+      });
+
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Manger created successfully',
+          payload: manager as unknown as ContractManager,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error creating Manager',
+          payload: fail(err),
+        },
+      };
+    }
+  },
 });
-
-/** UPDATE MANAGER BY id */
-router.put('/:id', (req, res) => {
-  // Update manager by id
-
-  const { id } = req.params;
-  const { data } = req.body;
-
-  updateManager(id, data)
-    .then((manager) => {
-      respond.success(res, 200, 'Manager updated successfully', manager);
-    })
-    .catch((err) => {
-      respond.fail(res, 400, 'Error updating Manager', err);
-    });
-});
-
-/** CREATE NEW MANAGER */
-router.post('/', getCurrentCounter, async (req, res) => {
-  // Create a new Manager
-  try {
-    const manager = await createManager(req.body.data);
-    void incrementCounter('manager_counter');
-    respond.success(res, 200, 'Manger created successfully', manager);
-  } catch (error) {
-    respond.fail(res, 400, 'Error creating Manager', error);
-  }
-});
-
-export default router;

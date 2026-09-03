@@ -21,21 +21,18 @@ function remapId<T extends { id: string; mongoId: string | null }>(row: T) {
 }
 
 /** Same `id` -> `_id` remap DrizzlePlaceRepository/DrizzleManagerRepository
- * do, for the same reason. `Address.Country` gets the same nested-object
- * treatment DrizzleManagerRepository gives Nationality - club.model.ts's
- * hook always populates it as a full Place object, not a bare id, so it's
- * merged back into `Address` here rather than left as the separate
- * `AddressCountry` FK column Postgres actually stores it in.
+ * do, for the same reason. `ManagerId`/`Players` (only present when
+ * `options.withPlayersAndManager` was passed) and `AddressCountryId`
+ * (always fetched) all follow the same invariant every repository in this
+ * codebase now does: the `Id`-suffixed field always passes straight
+ * through as a bare id via `...rest`, and the clean, un-suffixed name
+ * (`Manager`, `Players`, `AddressCountry`) is only ever added - never set
+ * to a bare id - when the relation was actually fetched.
  *
- * `Players`/`Manager` (only present when `options.withPlayersAndManager`
- * was passed) get the same id remap but deliberately do NOT nest their own
- * `Nationality` the way `DrizzlePlayerRepository`/`DrizzleManagerRepository`
- * do on their own direct reads - Mongoose's populate does re-trigger those
- * models' own `pre('find')` hooks, so the raw path's `.populate('Players
- * Manager')` technically nests it one level deeper than this does. Minor,
- * deliberate simplification: this is `GET /clubs/all`, not on any critical
- * path, and Nationality still comes back as a bare id rather than being
- * silently dropped. */
+ * `Players`/`Manager` deliberately do NOT nest their own further relations
+ * (Mongoose's populate technically nested one level deeper via each
+ * model's own `pre('find')` hooks) - minor, deliberate simplification:
+ * this is `GET /clubs/all`, not on any critical path. */
 function toClub(
   row: ClubRow & {
     addressCountry?: PlaceRow | null;
@@ -43,38 +40,17 @@ function toClub(
     manager?: ManagerRow | null;
   }
 ): ClubInterface {
-  const {
-    id,
-    mongoId,
-    addressCountry,
-    Address,
-    players: playerRows,
-    manager,
-    ...rest
-  } = row;
-
-  const country = addressCountry
-    ? (() => {
-        const {
-          id: placeId,
-          mongoId: placeMongoId,
-          ...placeRest
-        } = addressCountry;
-        return { _id: placeId, ...placeRest };
-      })()
-    : undefined;
+  const { id, mongoId, addressCountry, players: playerRows, manager, ...rest } =
+    row;
 
   return {
     _id: id,
     ...rest,
-    Address: {
-      ...(Address as Record<string, unknown> | null),
-      Country: country,
-    },
-    ...(playerRows !== undefined ? { Players: playerRows.map(remapId) } : {}),
-    ...(manager !== undefined
-      ? { Manager: manager ? remapId(manager) : rest.Manager }
+    ...(addressCountry
+      ? { AddressCountry: remapId(addressCountry) }
       : {}),
+    ...(playerRows !== undefined ? { Players: playerRows.map(remapId) } : {}),
+    ...(manager !== undefined && manager ? { Manager: remapId(manager) } : {}),
   } as unknown as ClubInterface;
 }
 
@@ -102,10 +78,11 @@ export class DrizzleClubRepository implements IClubRepository {
     options: IClubReadOptions = {}
   ): Promise<ClubInterface[]> {
     const conditions = [];
-    if (filter.User !== undefined) conditions.push(eq(clubs.User, filter.User));
-    if (filter.unclaimed) conditions.push(isNull(clubs.User));
-    if (filter.League !== undefined)
-      conditions.push(eq(clubs.League, filter.League));
+    if (filter.UserId !== undefined)
+      conditions.push(eq(clubs.UserId, filter.UserId));
+    if (filter.unclaimed) conditions.push(isNull(clubs.UserId));
+    if (filter.LeagueId !== undefined)
+      conditions.push(eq(clubs.LeagueId, filter.LeagueId));
     if (filter.ids !== undefined)
       conditions.push(inArray(clubs.id, filter.ids));
 

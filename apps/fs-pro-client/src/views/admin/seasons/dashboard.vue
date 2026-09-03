@@ -24,9 +24,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { $axios } from '@/services/api';
+import { client } from '@/services/api';
 import SeasonsTable from '@/components/seasons/seasons-table.vue';
-import type { Season } from '@/interfaces/season';
+import type { Season } from '@repo/api-contract';
 
 const route = useRoute();
 const seasons = ref<Season[]>([]);
@@ -36,8 +36,12 @@ const search = ref('');
 onMounted(async () => {
   const compId = route.params.id as string;
   try {
-    const response = await $axios.get(`/competitions/${compId}/seasons/all`);
-    seasons.value = response.data.payload as Season[];
+    const response = await client.competitions.getCompetitionSeasons.query({
+      params: { id: compId },
+    });
+    if (response.status === 200) {
+      seasons.value = response.body.payload;
+    }
   } catch (err) {
     console.error('Error fetching seasons:', err);
   }

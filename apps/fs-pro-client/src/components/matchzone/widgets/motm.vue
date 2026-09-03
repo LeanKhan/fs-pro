@@ -19,8 +19,8 @@
 </template>
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { Player } from '@/interfaces/player';
-import { $axios } from '@/services/api';
+import type { Player } from '@repo/api-contract';
+import { client } from '@/services/api';
 
 interface Props {
   motm_id: string;
@@ -39,11 +39,13 @@ const player = ref<Player | null>(null);
 const getMOTM = () => {
   if (props.motm_id) {
     loading.value = true;
-    $axios
-      .get(`/players/${props.motm_id}/`)
-      .then((response: any) => {
-        player.value = response.data.payload;
-        loadMOTM.value = true;
+    client.players.getPlayer
+      .query({ params: { id: props.motm_id } })
+      .then((response) => {
+        if (response.status === 200) {
+          player.value = response.body.payload;
+          loadMOTM.value = true;
+        }
       })
       .catch((response: any) => {
         console.log('Error fetching MOTM player!', response);

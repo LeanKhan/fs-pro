@@ -65,17 +65,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, getCurrentInstance } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ClubList from '@/components/clubs/club-list.vue';
 import SeasonsTable from '@/components/seasons/seasons-table.vue';
 import ClubsTable from '@/components/clubs/clubs-table.vue';
-import { Competition } from '@/interfaces/competition';
+import type { Competition } from '@repo/api-contract';
+import { client } from '@/services/api';
 
 const route = useRoute();
 const router = useRouter();
-const instance = getCurrentInstance();
-const $axios = instance?.appContext.config.globalProperties.$axios;
 
 const competition = ref<any>({});
 const openClubModal = ref(false);
@@ -89,15 +88,14 @@ const updateCompetition = () => {
 const closeModal = (event: any) => {
   openClubModal.value = false;
   if (event) {
-    const competitionID = route.params['id'];
-    const compCode = (route.params['code'] as string).toUpperCase();
+    const competitionID = String(route.params['id']);
 
-    $axios
-      .post(`/competitions/${competitionID}/add-club`, {
-        clubId: event.id,
-        leagueCode: compCode,
+    client.competitions.addClubToCompetition
+      .mutation({
+        params: { id: competitionID },
+        body: { clubId: event.id },
       })
-      .then((response: any) => {
+      .then((response) => {
         console.log('Successfully added club to competition => ', response);
       })
       .catch((response: any) => {
@@ -107,14 +105,14 @@ const closeModal = (event: any) => {
 };
 
 onMounted(() => {
-  const compID = route.params['id'];
+  const compID = String(route.params['id']);
 
-  $axios
-    .get(`/competitions/${compID}`)
-    .then((response: any) => {
-      console.log('Fetched Competition => ', response.data);
-      if (response.data.success) {
-        competition.value = response.data.payload as Competition;
+  client.competitions.getCompetition
+    .query({ params: { id: compID } })
+    .then((response) => {
+      console.log('Fetched Competition => ', response);
+      if (response.status === 200) {
+        competition.value = response.body.payload;
       }
     })
     .catch((response: any) => {

@@ -64,12 +64,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, getCurrentInstance } from 'vue';
-import { Player } from '@/interfaces/player';
+import { ref, onMounted } from 'vue';
+import type { Player } from '@repo/api-contract';
 import { apiUrl } from '@/store';
-
-const instance = getCurrentInstance();
-const $axios = instance?.appContext.config.globalProperties.$axios;
+import { client } from '@/services/api';
 
 const emit = defineEmits<{
   'close-players-modal': [playerIds?: string[]];
@@ -124,10 +122,12 @@ const close = (): void => {
 };
 
 onMounted(() => {
-  $axios
-    .get('/players/all?isSigned=false')
-    .then((res: any) => {
-      players.value = res.data.payload as Player[];
+  client.players.getPlayers
+    .query({ query: { isSigned: false } })
+    .then((res) => {
+      if (res.status === 200) {
+        players.value = res.body.payload;
+      }
     })
     .catch((err: any) => {
       console.log('Error! => ', err);

@@ -69,7 +69,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from '@/store';
-import { $axios } from '@/services/api';
+import { client } from '@/services/api';
 
 const store = useStore();
 const router = useRouter();
@@ -95,7 +95,9 @@ async function startNextSeasonCycle() {
   loading.value = true;
 
   try {
-    await $axios.post('/calendar/seasons/next', { data: { Year: year.value } });
+    await client.calendar.startNextSeasonCycle.mutation({
+      body: { Year: year.value },
+    });
     toast.value = {
       show: true,
       color: 'success',

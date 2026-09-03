@@ -47,22 +47,13 @@ export default class App {
     try {
       this.Coordinates = new Coordinates();
 
-      // `withPlayersAndManager` populates both Players (needed for the
-      // match roster) and Manager (a full object) in one repository call -
-      // Manager is flattened straight back to a bare id here since
-      // everything downstream (resolveManagerTactic, updateFixture's
-      // HomeManager/AwayManager) expects that shape, matching IClub.Manager.
+      // `withPlayersAndManager` populates Players (needed for the match
+      // roster) - ManagerId stays a bare id regardless (see
+      // IClubReadOptions), matching what resolveManagerTactic and
+      // updateFixture's HomeManagerId/AwayManagerId expect.
       const teams =
         prefetchedClubs ??
-        (await getClubs({ ids: clubs }, { withPlayersAndManager: true })).map(
-          (c) => ({
-            ...c,
-            Manager:
-              c.Manager && typeof c.Manager === 'object'
-                ? (c.Manager as unknown as { _id: string })._id
-                : c.Manager,
-          })
-        );
+        (await getClubs({ ids: clubs }, { withPlayersAndManager: true }));
 
       // Kickoff spot, resolved as the exact center of the pitch regardless
       // of grid resolution (previously PlayingField[82], a flat-index hack
@@ -89,8 +80,8 @@ export default class App {
       const awayClub = teams.find((c) => c._id?.toString() === sides.away);
 
       const tactics = prefetchedTactics ?? {
-        home: await resolveManagerTactic(homeClub?.Manager),
-        away: await resolveManagerTactic(awayClub?.Manager),
+        home: await resolveManagerTactic(homeClub?.ManagerId),
+        away: await resolveManagerTactic(awayClub?.ManagerId),
       };
 
       this.Game.setClubFormations(tactics.home, tactics.away);

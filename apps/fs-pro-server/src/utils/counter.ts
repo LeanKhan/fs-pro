@@ -44,8 +44,22 @@ async function nextSequenceValue(model: string): Promise<number> {
 
 export function incrementCounter(counterName: string) {
   // No-op - the Postgres sequence already atomically reserved the id in
-  // getCurrentCounter, there's nothing left to bump.
+  // getCurrentCounter/getNextCounterId, there's nothing left to bump.
   return Promise.resolve(null);
+}
+
+/** Reserve the next id for `model` (e.g. 'player', 'competition') and
+ * return the field name it belongs on plus the formatted id - the plain-
+ * function equivalent of getCurrentCounter below, for ts-rest handlers that
+ * know their own model name directly instead of reading it off
+ * `req.query.model`. */
+export async function getNextCounterId(
+  model: string
+): Promise<{ field: string; id: string }> {
+  const value = await nextSequenceValue(model);
+  const id = formatCounterId(model, value);
+  log(`Id => ${id}`);
+  return { field: COUNTER_ID_FIELDS[model] ?? 'PlayerID', id };
 }
 
 // TODO: add a validator for all routes!

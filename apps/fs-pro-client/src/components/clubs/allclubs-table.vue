@@ -20,7 +20,7 @@
       :items="clubs"
       item-key="ClubCode"
       :search="search"
-      :loading="!clubs.length > 0"
+      :loading="loading"
       loading-text="Fetching Clubs..."
       no-data-text="No Clubs"
       class="elevation-1"
@@ -48,15 +48,15 @@
       </template>
 
       <template v-slot:item.Address="{ item }">
-        {{ item.Address.City }}, {{ item.Address.Country.Name }}
+        {{ item.Address?.City }}, {{ item.AddressCountry?.Name }}
       </template>
 
       <template v-slot:item.Stadium="{ item }">
-        {{ item.Stadium.Name }}
+        {{ item.Stadium?.Name }}
       </template>
 
       <template v-slot:item.Players="{ item }">
-        {{ item.Players.length }}
+        {{ item.Players?.length }}
       </template>
 
       <template v-slot:item.Actions="{ item }">
@@ -79,13 +79,16 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from '@/store';
-import { Club } from '@/interfaces/club';
+import type { Club } from '@repo/api-contract';
 import { apiUrl } from '@/store';
 interface Props {
   clubs: Club[];
+  loading?: boolean;
 }
 
-defineProps<Props>();
+withDefaults(defineProps<Props>(), {
+  loading: false,
+});
 
 const router = useRouter();
 const store = useStore();

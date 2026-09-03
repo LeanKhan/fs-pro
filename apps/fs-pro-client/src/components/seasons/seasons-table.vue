@@ -33,7 +33,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Season } from '@/interfaces/season';
+import type { Season } from '@repo/api-contract';
 
 interface Props {
   seasons: Season[];

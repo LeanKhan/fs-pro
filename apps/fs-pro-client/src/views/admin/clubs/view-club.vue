@@ -113,10 +113,9 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useStore, apiUrl } from '@/store';
-import { $axios } from '@/services/api';
+import { client } from '@/services/api';
 import PlayersTable from '@/components/players/players-table.vue';
 import AllPlayersTable from '@/components/players/allplayers-table.vue';
-import type { Club } from '@/interfaces/club';
 
 const router = useRouter();
 const route = useRoute();
@@ -154,13 +153,13 @@ function closeModal(playerIds: string[]) {
 }
 
 async function signPlayer(playerIds: string[]) {
-  const clubId = route.params.id;
-  const clubCode = route.params.code;
-  const isSigned = false;
+  const clubId = String(route.params.id);
+  const clubCode = String(route.params.code);
 
   try {
-    await $axios.put(`/clubs/${clubId}/add-many-players`, {
-      data: { playerIds, clubCode, isSigned, clubId },
+    await client.clubs.addManyPlayersToClub.mutation({
+      params: { id: clubId },
+      body: { playerIds, clubCode, clubId },
     });
 
     store.showToast({
@@ -179,13 +178,14 @@ async function signPlayer(playerIds: string[]) {
 }
 
 async function removePlayer(playerId: string) {
-  const clubId = route.params.id;
-  const clubCode = route.params.code;
-  const isSigned = true;
+  const clubId = String(route.params.id);
+  const clubCode = String(route.params.code);
 
   try {
-    await $axios.put(`/clubs/${clubId}/remove-player?remove=true`, {
-      data: { playerId, clubCode, isSigned },
+    await client.clubs.removePlayerFromClub.mutation({
+      params: { id: clubId },
+      query: { remove: true },
+      body: { playerId, isSigned: true, clubCode },
     });
 
     store.showToast({
@@ -204,13 +204,15 @@ async function removePlayer(playerId: string) {
 }
 
 async function fetchClub() {
-  const clubId = route.params.id;
-  const populate = JSON.stringify([{ path: 'Players' }, { path: 'Manager' }]);
+  const clubId = String(route.params.id);
 
   try {
-    const response = await $axios.get(`/clubs/${clubId}?populate=${populate}`);
-    if (response.data.success) {
-      club.value = response.data.payload;
+    const response = await client.clubs.getClub.query({
+      params: { id: clubId },
+      query: { populate: 'true' },
+    });
+    if (response.status === 200) {
+      club.value = response.body.payload;
     }
   } catch (error) {
     console.error('Error fetching club:', error);
@@ -221,14 +223,12 @@ async function fetchClub() {
 }
 
 async function fetchPlayers() {
-  const clubId = route.params.id;
-
   try {
-    const response = await $axios.get(
-      `/players/all?clubCode=${club.value.ClubCode}`
-    );
-    if (response.data.success) {
-      club.value.Players = response.data.payload;
+    const response = await client.players.getPlayers.query({
+      query: { clubCode: club.value.ClubCode },
+    });
+    if (response.status === 200) {
+      club.value.Players = response.body.payload;
     }
   } catch (error) {
     console.error('Error fetching players:', error);

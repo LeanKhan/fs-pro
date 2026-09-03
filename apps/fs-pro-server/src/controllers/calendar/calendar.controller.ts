@@ -48,7 +48,11 @@ function arrangeSeasonFixturesAcrossDays(
   const scheduled: { fixtureId: string; day: number }[] = [];
 
   seasons.forEach((s) => {
-    const MatchesPerWeek = s.Fixtures.length / s.Standings.length;
+    // Always present here - every `s` comes from `getSeasonById`
+    // (`findById`), which always populates Fixtures (see
+    // ISeasonRepository's doc comment).
+    const seasonFixtures = s.Fixtures ?? [];
+    const MatchesPerWeek = seasonFixtures.length / s.Standings.length;
     const NumberOfWeeks = s.Standings.length;
 
     function arrange(
@@ -59,7 +63,7 @@ function arrangeSeasonFixturesAcrossDays(
       if (matchesInWeek > 0 && matchesInWeek <= 3) {
         for (let a = 0; a < matchesInWeek; a++) {
           scheduled.push({
-            fixtureId: s.Fixtures[Fixture - 1]._id as unknown as string,
+            fixtureId: seasonFixtures[Fixture - 1]._id as unknown as string,
             day: startDay + Day,
           });
           Fixture++;
@@ -70,7 +74,7 @@ function arrangeSeasonFixturesAcrossDays(
       if (matchesInWeek >= 5) {
         for (let b = 0; b < 5; b++) {
           scheduled.push({
-            fixtureId: s.Fixtures[Fixture - 1]._id as unknown as string,
+            fixtureId: seasonFixtures[Fixture - 1]._id as unknown as string,
             day: startDay + Day,
           });
           Fixture++;

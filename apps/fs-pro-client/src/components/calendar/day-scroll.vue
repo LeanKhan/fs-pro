@@ -9,11 +9,11 @@
     <v-slide-group-item
       v-for="(day, i) in days"
       :key="i"
-      v-slot:default="{ active, toggle }"
+      v-slot:default="{ isSelected, toggle }"
     >
       <calendar-day
         :day="day"
-        :active="active"
+        :active="isSelected"
         :toggle="toggle"
         :club="club"
         :singleLeague="singleLeague"

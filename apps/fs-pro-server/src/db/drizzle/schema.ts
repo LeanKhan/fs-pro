@@ -73,10 +73,10 @@ export const managers = pgTable('Managers', {
   LastName: text('LastName').notNull(),
   Age: integer('Age').notNull(),
   Picture: text('Picture'),
-  Club: uuid('Club').references((): AnyPgColumn => clubs.id),
+  ClubId: uuid('ClubId').references((): AnyPgColumn => clubs.id),
   PreferredFormation: text('PreferredFormation'),
   PreferredStyle: text('PreferredStyle'),
-  Nationality: uuid('Nationality').references(() => places.id),
+  NationalityId: uuid('NationalityId').references(() => places.id),
   NationalTeam: boolean('NationalTeam').notNull().default(false),
   Records: jsonArray('Records'),
   isEmployed: boolean('isEmployed').notNull().default(false),
@@ -98,7 +98,7 @@ export const competitions = pgTable('Competitions', {
   NumberOfWeeks: integer('NumberOfWeeks').notNull(),
   TeamsPromoted: integer('TeamsPromoted'),
   TeamsRelegated: integer('TeamsRelegated'),
-  Country: uuid('Country').references(() => places.id),
+  CountryId: uuid('CountryId').references(() => places.id),
   ...timestamps,
   // Clubs dropped in favor of the competitionClubs join table below (a club
   // can sit in more than one competition at once - its league AND a cup -
@@ -118,15 +118,15 @@ export const competitionClubs = pgTable(
   'CompetitionClubs',
   {
     id: uuid('_id').primaryKey().defaultRandom(),
-    Competition: uuid('Competition')
+    CompetitionId: uuid('CompetitionId')
       .notNull()
       .references(() => competitions.id),
-    Club: uuid('Club')
+    ClubId: uuid('ClubId')
       .notNull()
       .references(() => clubs.id),
     ...timestamps,
   },
-  (t) => [unique().on(t.Competition, t.Club)]
+  (t) => [unique().on(t.CompetitionId, t.ClubId)]
 );
 
 export const clubs = pgTable('Clubs', {
@@ -141,20 +141,22 @@ export const clubs = pgTable('Clubs', {
   ATT_Rating: real('ATT_Rating').notNull().default(0.0),
   DEF_Rating: real('DEF_Rating').notNull().default(0.0),
   MID_Rating: real('MID_Rating').notNull().default(0.0),
-  Manager: uuid('Manager').references(() => managers.id),
+  ManagerId: uuid('ManagerId').references(() => managers.id),
   assets: jsonb('assets').$type<Record<string, unknown> | null>(),
   Stats: jsonb('Stats').$type<Record<string, unknown> | null>(),
   /** Section/City only now - Country moved to its own FK column below (it
-   * was the one part of this blob that was ever a real Mongo ref). */
+   * was the one part of this blob that was ever a real Mongo ref). Its
+   * raw `Country` sub-field is legacy/unused going forward - the FK lives
+   * only in AddressCountryId now, never mutated in place. */
   Address: jsonb('Address').$type<Record<string, unknown> | null>(),
-  AddressCountry: uuid('AddressCountry').references(() => places.id),
+  AddressCountryId: uuid('AddressCountryId').references(() => places.id),
   Budget: real('Budget'),
   Transactions: jsonb('Transactions').$type<Record<string, unknown> | null>(),
   Records: jsonArray('Records'),
   Stadium: jsonb('Stadium').$type<Record<string, unknown> | null>(),
   LeagueCode: text('LeagueCode'),
-  League: uuid('League').references(() => competitions.id),
-  User: uuid('User').references(() => users.id),
+  LeagueId: uuid('LeagueId').references(() => competitions.id),
+  UserId: uuid('UserId').references(() => users.id),
   ...timestamps,
   // Players dropped - it's the exact inverse of players.Club below.
 });
@@ -199,7 +201,7 @@ export const seasons = pgTable('Seasons', {
   Title: text('Title').notNull(),
   StartDate: timestamp('StartDate', { precision: 3 }).notNull(),
   EndDate: timestamp('EndDate', { precision: 3 }).notNull(),
-  Winner: uuid('Winner').references(() => clubs.id),
+  WinnerId: uuid('WinnerId').references(() => clubs.id),
   /** Episodic historical snapshots (which clubs were promoted/relegated at
    * the end of this season) - there's no natural single "many"-side owner
    * column on Clubs to hang a relations() reverse lookup off without
@@ -216,7 +218,7 @@ export const seasons = pgTable('Seasons', {
    * from, so callers pass it directly - see `calendar.controller.ts`'s
    * `startNextSeasonCycle`). */
   Year: text('Year'),
-  Competition: uuid('Competition').references(() => competitions.id),
+  CompetitionId: uuid('CompetitionId').references(() => competitions.id),
   CompetitionCode: text('CompetitionCode').notNull(),
   Standings: jsonArray('Standings'),
   Logs: jsonArray('Logs'),
@@ -230,7 +232,7 @@ export const players = pgTable('Players', {
   mongoId: text('mongoId').unique(),
   FirstName: text('FirstName').notNull(),
   LastName: text('LastName').notNull(),
-  Nationality: uuid('Nationality').references(() => places.id),
+  NationalityId: uuid('NationalityId').references(() => places.id),
   Age: integer('Age'),
   PlayerID: text('PlayerID').unique(),
   Position: text('Position'),
@@ -247,7 +249,7 @@ export const players = pgTable('Players', {
   RatingsHistory: jsonArray('RatingsHistory'),
   isSigned: boolean('isSigned').notNull().default(false),
   ClubCode: text('ClubCode'),
-  Club: uuid('Club').references(() => clubs.id),
+  ClubId: uuid('ClubId').references(() => clubs.id),
   ...timestamps,
 });
 
@@ -261,30 +263,30 @@ export const fixtures = pgTable(
     SeasonCode: text('SeasonCode'),
     LeagueCode: text('LeagueCode'),
     Week: integer('Week'),
-    Season: uuid('Season').references(() => seasons.id),
+    SeasonId: uuid('SeasonId').references(() => seasons.id),
     Stadium: text('Stadium'),
     Played: boolean('Played').notNull().default(false),
     Tie: text('Tie'),
     Stage: text('Stage').notNull().default('lg-match'),
-    ReverseFixture: uuid('ReverseFixture').references(
+    ReverseFixtureId: uuid('ReverseFixtureId').references(
       (): AnyPgColumn => fixtures.id
     ),
     PlayedAt: timestamp('PlayedAt', { precision: 3 }),
     Home: text('Home'),
     Away: text('Away'),
-    HomeTeam: uuid('HomeTeam').references(() => clubs.id),
-    AwayTeam: uuid('AwayTeam').references(() => clubs.id),
+    HomeTeamId: uuid('HomeTeamId').references(() => clubs.id),
+    AwayTeamId: uuid('AwayTeamId').references(() => clubs.id),
     Details: jsonb('Details').$type<Record<string, unknown> | null>(),
     Events: jsonArray('Events'),
     Type: text('Type'),
-    HomeSideDetails: uuid('HomeSideDetails').references(
+    HomeSideDetailsId: uuid('HomeSideDetailsId').references(
       (): AnyPgColumn => clubMatchDetails.id
     ),
-    AwaySideDetails: uuid('AwaySideDetails').references(
+    AwaySideDetailsId: uuid('AwaySideDetailsId').references(
       (): AnyPgColumn => clubMatchDetails.id
     ),
-    HomeManager: uuid('HomeManager').references(() => managers.id),
-    AwayManager: uuid('AwayManager').references(() => managers.id),
+    HomeManagerId: uuid('HomeManagerId').references(() => managers.id),
+    AwayManagerId: uuid('AwayManagerId').references(() => managers.id),
     HomeTactic: text('HomeTactic'),
     AwayTactic: text('AwayTactic'),
     /** Whether this match's result should count toward permanent player/club
@@ -303,7 +305,7 @@ export const fixtures = pgTable(
   },
   (t) => [
     index('fixtures_scheduled_day_idx').on(t.ScheduledDay),
-    index('fixtures_season_scheduled_day_idx').on(t.Season, t.ScheduledDay),
+    index('fixtures_season_scheduled_day_idx').on(t.SeasonId, t.ScheduledDay),
   ]
 );
 
@@ -320,7 +322,7 @@ export const fixtures = pgTable(
 export const matchReplays = pgTable('MatchReplays', {
   id: uuid('_id').primaryKey().defaultRandom(),
   mongoId: text('mongoId').unique(),
-  Fixture: uuid('Fixture')
+  FixtureId: uuid('FixtureId')
     .notNull()
     .unique()
     .references(() => fixtures.id),
@@ -335,12 +337,12 @@ export const matchReplays = pgTable('MatchReplays', {
 export const playerMatchDetails = pgTable('PlayerMatchDetails', {
   id: uuid('_id').primaryKey().defaultRandom(),
   mongoId: text('mongoId').unique(),
-  Player: uuid('Player').references(() => players.id),
-  Fixture: uuid('Fixture').references(() => fixtures.id),
+  PlayerId: uuid('PlayerId').references(() => players.id),
+  FixtureId: uuid('FixtureId').references(() => fixtures.id),
   /** Doesn't exist as a field in the current Mongoose model - added so
    * clubMatchDetails.PlayerStats (an array with no referential integrity)
    * can be dropped in favor of this one-to-many FK instead. */
-  ClubMatchDetails: uuid('ClubMatchDetails').references(
+  ClubMatchDetailsId: uuid('ClubMatchDetailsId').references(
     () => clubMatchDetails.id
   ),
   Goals: integer('Goals').notNull().default(0),
@@ -362,8 +364,8 @@ export const playerMatchDetails = pgTable('PlayerMatchDetails', {
 export const clubMatchDetails = pgTable('ClubMatchDetails', {
   id: uuid('_id').primaryKey().defaultRandom(),
   mongoId: text('mongoId').unique(),
-  Club: uuid('Club').references(() => clubs.id),
-  Fixture: uuid('Fixture').references(() => fixtures.id),
+  ClubId: uuid('ClubId').references(() => clubs.id),
+  FixtureId: uuid('FixtureId').references(() => fixtures.id),
   Possession: real('Possession').notNull().default(0),
   Goals: integer('Goals').notNull().default(0),
   ShotsOnTarget: integer('ShotsOnTarget').notNull().default(0),
@@ -391,10 +393,10 @@ export const awards = pgTable('Awards', {
    * can't FK a single column against two different tables, so this stays a
    * plain uuid with no `.references()`; the migration script resolves it
    * against whichever table `Type` points to. */
-  Recipient: uuid('Recipient').notNull(),
-  Club: uuid('Club').references(() => clubs.id),
+  RecipientId: uuid('RecipientId').notNull(),
+  ClubId: uuid('ClubId').references(() => clubs.id),
   Remarks: text('Remarks'),
-  Season: uuid('Season').references(() => seasons.id),
+  SeasonId: uuid('SeasonId').references(() => seasons.id),
   ...timestamps,
 });
 

@@ -21,7 +21,9 @@ export interface PlayerInterface {
   Value: number;
   /** Some Players don't have clubs (free agents) hence can be undefined */
   ClubCode?: string;
-  Club?: string;
+  ClubId?: string;
+  NationalityId?: string;
+  Nationality?: import('../places/places.model').IPlace;
   RatingsHistory?: Record<string, unknown>[];
 }
 

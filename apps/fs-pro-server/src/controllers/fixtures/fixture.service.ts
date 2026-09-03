@@ -1,6 +1,9 @@
 import { Fixture } from './fixture.model';
 import { FixtureRepositoryFactory } from '../../repositories/FixtureRepositoryFactory';
-import { IFixtureFilter } from '../../repositories/FixtureRepository';
+import {
+  IFixtureFilter,
+  IFixtureReadOptions,
+} from '../../repositories/FixtureRepository';
 
 /**
  * Repository-backed functions below cover the identity/CRUD surface with no
@@ -21,12 +24,15 @@ function getFixtureRepo() {
   return fixtureRepo;
 }
 
-export async function getFixtureById(id: string) {
-  return getFixtureRepo().findById(id);
+export async function getFixtureById(id: string, options?: IFixtureReadOptions) {
+  return getFixtureRepo().findById(id, options);
 }
 
-export async function getFixtures(filter?: IFixtureFilter) {
-  return getFixtureRepo().findAll(filter);
+export async function getFixtures(
+  filter?: IFixtureFilter,
+  options?: IFixtureReadOptions
+) {
+  return getFixtureRepo().findAll(filter, options);
 }
 
 export async function createFixture(data: Partial<Fixture>) {

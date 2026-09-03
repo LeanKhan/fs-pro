@@ -94,7 +94,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { $axios } from '@/services/api';
+import { client } from '@/services/api';
 
 const router = useRouter();
 
@@ -121,8 +121,10 @@ const canSubmit = computed(
 
 async function loadClubs() {
   try {
-    const response = await $axios.get('/clubs/all');
-    clubs.value = response.data.payload;
+    const response = await client.clubs.getClubs.query();
+    if (response.status === 200) {
+      clubs.value = response.body.payload;
+    }
   } catch (err) {
     console.error('Error loading clubs:', err);
   }
@@ -130,13 +132,15 @@ async function loadClubs() {
 
 async function loadTacticOptions() {
   try {
-    const response = await $axios.get('/game/tactic-options');
-    formations.value = response.data.payload.formations;
-    styles.value = response.data.payload.styles;
-    homeFormation.value = formations.value[0];
-    homeStyle.value = styles.value[0];
-    awayFormation.value = formations.value[0];
-    awayStyle.value = styles.value[0];
+    const response = await client.game.tacticOptions.query();
+    if (response.status === 200) {
+      formations.value = response.body.payload.formations;
+      styles.value = response.body.payload.styles;
+      homeFormation.value = formations.value[0];
+      homeStyle.value = styles.value[0];
+      awayFormation.value = formations.value[0];
+      awayStyle.value = styles.value[0];
+    }
   } catch (err) {
     console.error('Error loading tactic options:', err);
   }
@@ -152,21 +156,27 @@ async function createFriendly() {
   creating.value = true;
 
   try {
-    const response = await $axios.post('/game/friendly', {
-      homeClubId: homeClubId.value,
-      awayClubId: awayClubId.value,
-      homeTactic: {
-        formationName: homeFormation.value,
-        styleName: homeStyle.value,
+    const response = await client.game.createFriendly.mutation({
+      body: {
+        homeClubId: homeClubId.value,
+        awayClubId: awayClubId.value,
+        homeTactic: {
+          formationName: homeFormation.value,
+          styleName: homeStyle.value,
+        },
+        awayTactic: {
+          formationName: awayFormation.value,
+          styleName: awayStyle.value,
+        },
+        saveStats: saveStats.value,
       },
-      awayTactic: {
-        formationName: awayFormation.value,
-        styleName: awayStyle.value,
-      },
-      saveStats: saveStats.value,
     });
 
-    const { fixture_id } = response.data.payload;
+    if (response.status !== 200) {
+      throw new Error(response.body.message);
+    }
+
+    const { fixture_id } = response.body.payload;
     router.push(`/matchzone/${fixture_id}`);
   } catch (err) {
     console.error('Error creating friendly match:', err);

@@ -59,6 +59,10 @@ See our [CHANGELOG.md](CHANGELOG.md).
 - Reshuffle a team's shape after a red card instead of just leaving the gap
 - Handle a sent-off goalkeeper
 
+**Frontend:**
+
+- Revamp the client off Vuetify - it currently looks and feels like a generic enterprise admin panel, not a game. Direction is headless UI (unstyled, accessible primitives) plus custom styling, converted screen-by-screen the same way Matchzone's core view was already redone in plain HTML/CSS
+
 **Other:**
 
 - General refactorings

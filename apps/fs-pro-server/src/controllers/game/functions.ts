@@ -72,7 +72,7 @@ export async function updateFixture(
     // there depends on which side gets created first.
     const clubMatch: any = await createClubMatch({
       ...club,
-      Fixture: fixture_id,
+      FixtureId: fixture_id,
       PlayerStats: [],
     } as any);
     const clubMatchId = clubMatch._id;
@@ -80,8 +80,8 @@ export async function updateFixture(
     if (saveStats) {
       club.PlayerStats = club.PlayerStats.map((p: any) => ({
         ...p,
-        Fixture: fixture_id,
-        ClubMatchDetails: clubMatchId,
+        FixtureId: fixture_id,
+        ClubMatchDetailsId: clubMatchId,
       }));
 
       const res = await createManyPlayerMatches(
@@ -111,10 +111,10 @@ export async function updateFixture(
       PlayedAt: new Date(),
       Details: matchDetails,
       Events,
-      HomeSideDetails: homeMatchDetailsID,
-      AwaySideDetails: awayMatchDetailsID,
-      HomeManager: home.manager,
-      AwayManager: away.manager,
+      HomeSideDetailsId: homeMatchDetailsID,
+      AwaySideDetailsId: awayMatchDetailsID,
+      HomeManagerId: home.manager,
+      AwayManagerId: away.manager,
     } as any),
     HSD,
     ASD,

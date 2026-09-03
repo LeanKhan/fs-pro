@@ -3,8 +3,11 @@ import { Fixture } from '../fixtures/fixture.model';
 
 export interface PlayerMatchDetailsInterface {
   _id?: string;
-  Player?: string | PlayerInterface;
-  Fixture?: string | Fixture;
+  PlayerId?: string;
+  Player?: PlayerInterface;
+  FixtureId?: string;
+  Fixture?: Fixture;
+  ClubMatchDetailsId?: string;
   Goals: number;
   Saves: number;
   YellowCards: number;
