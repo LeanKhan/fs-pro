@@ -6,8 +6,8 @@ import { PlaceSchema } from './place';
 // Verified against real GET /clubs/all?withPlayersAndManager=true and
 // GET /clubs/:id responses, not just club.model.ts's ClubInterface (which
 // declares a `User` populate field that's never actually returned by
-// club.service.ts - dropped here rather than ported). assets/Stats/
-// Transactions/Budget commonly come back null, not just absent.
+// club.service.ts - dropped here rather than ported). assets/Stats/Budget
+// commonly come back null, not just absent.
 export const ClubSchema = z.object({
   _id: z.string().optional(),
   Name: z.string(),
@@ -65,8 +65,10 @@ export const ClubSchema = z.object({
   AddressCountryId: z.string().nullable().optional(),
   AddressCountry: PlaceSchema.nullable().optional(),
   UserId: z.string().nullable().optional(),
+  // Debited/credited by transfers and once-per-Year wages (see
+  // transfers/transfer.service.ts) - real transaction history lives in the
+  // TransferLedger table, not on this field.
   Budget: z.number().nullable().optional(),
-  Transactions: z.unknown().nullable().optional(),
   Records: z.array(z.unknown()).optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),

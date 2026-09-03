@@ -7,6 +7,7 @@ import { competitionTsRestRoutes } from '../controllers/competitions/competition
 import { seasonTsRestRoutes } from '../controllers/seasons/season.router';
 import { userTsRestRoutes } from '../controllers/user/user.router';
 import { gameTsRestRoutes } from '../controllers/game/game.router';
+import { transferTsRestRoutes } from '../controllers/transfers/transfer.router';
 import { calendarTsRestRoutes } from '../controllers/calendar/calendar.router';
 import { fixtureTsRestRoutes } from '../controllers/fixtures/fixture.router';
 import files from '../services/file/file.service';
@@ -33,6 +34,7 @@ export const apiRouter = s.router(apiContract, {
   seasons: seasonTsRestRoutes,
   users: userTsRestRoutes,
   game: gameTsRestRoutes,
+  transfers: transferTsRestRoutes,
 });
 
 // export default mainRouter;

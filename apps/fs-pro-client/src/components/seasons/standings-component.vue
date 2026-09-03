@@ -64,7 +64,7 @@ const headers = ref<any[]>([
 ]);
 
 const Table = computed(() => {
-  return props.WeekStandings.Table || props.WeekStandings;
+  return [];
 });
 
 const SortedTable = computed(() => {

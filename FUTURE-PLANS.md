@@ -2048,25 +2048,43 @@ actually broken).
 
 ### Manager mode and owner mode
 
-**Status:** This is the actual current direction - see conversation for the
-in-progress discussion of what's missing from each.
+**Status:** In progress - Transfer Market + Contracts (MVP) shipped
+2026-09-03, manager mode's "economic spine" and the agreed prerequisite for
+owner mode. Owner mode itself not started. See
+`transfer_market_feature` memory for the full build writeup.
 
 **Context:** Rather than the world-builder idea above, the agreed next
 phase is deepening the single-club game loop: first close the gaps in
 _manager_ mode (the role that already partially exists - squad viewing,
 tactics, playing fixtures, standings), then add _owner_ mode as a new layer
 on top (finances, stadium, hiring/firing a manager, sponsorships,
-reputation) that doesn't exist in any form today. Concretely still missing
-from manager mode per this file's other entries: a real transfer market
-(today there's only a `TransferHistory` log field and manual roster
-add/remove - no buy/sell offers, no AI-driven transfer activity, no transfer
-windows), contracts/wages, the Morale system and Injury system entries
-above (both still "idea only"), an interactive trigger for mid-match tactic
-changes (engine already supports it - see the Tactics system section),
-training/player development, and any job-security/board-objectives
-narrative layer. Owner mode is a bigger architectural step since it implies
-a mode switch (an owner delegates match-day decisions to an appointed
-manager - AI or another human - rather than making them directly).
+reputation) that doesn't exist in any form today. Owner mode is a bigger
+architectural step since it implies a mode switch (an owner delegates
+match-day decisions to an appointed manager - AI or another human - rather
+than making them directly).
 
-**If revisited:** See the live conversation this was raised in for the
-detailed breakdown and sequencing recommendation once one is agreed.
+**Transfer Market + Contracts (MVP) - done.** Clubs have a real `Budget`
+(was a dead placeholder column); Players have a `Wage`, deducted from
+their club's Budget once per game Year; buying a player (free agent or
+from another club) is instant-if-affordable at-or-above their `Value`, no
+negotiation step yet. New `TransferLedger` table replaces the old dead
+`TransferHistory`/`Transactions` columns as the real audit log. New
+Transfer Market tab in the client (`views/user/club/zones/transfer-
+zone.vue`, was a placeholder stub). Full technical detail, verification,
+and the judgment calls made (game-balance formulas, cadence, etc.) are in
+the `transfer_market_feature` memory - read that before touching this
+area again rather than re-deriving it.
+
+**Still missing from manager mode** (deferred, not part of the MVP above):
+offer/negotiation/counter-offer flow, AI-driven transfer activity/scouting,
+transfer windows, contract length/expiry (a contract that lapses into free
+agency automatically - the MVP has wages but no expiry), the Morale system
+and Injury system entries above (both still "idea only"), an interactive
+trigger for mid-match tactic changes (engine already supports it - see the
+Tactics system section), training/player development, and any job-
+security/board-objectives narrative layer.
+
+**If revisited:** Owner mode's own design (the mode switch, finances beyond
+Budget, stadium, reputation) was discussed but never turned into a plan -
+see the `transfer_market_feature` memory's pointer to where that
+discussion happened if the detail is needed again.

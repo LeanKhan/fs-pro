@@ -28,7 +28,9 @@
     "sim:realism": "set DEV_TEST=true && ts-node src/scripts/simRealismCheck.ts",
     "setup:counter-sequences": "ts-node src/scripts/migration/setup-counter-sequences.ts",
     "setup:sessions-table": "ts-node src/scripts/migration/setup-sessions-table.ts",
-    "reset:calendar-model": "ts-node src/scripts/migration/reset-calendar-model.ts"
+    "reset:calendar-model": "ts-node src/scripts/migration/reset-calendar-model.ts",
+    "seed:club-budgets": "ts-node src/scripts/migration/seed-club-budgets.ts",
+    "seed:player-wages": "ts-node src/scripts/migration/seed-player-wages.ts"
   },
   "dependencies": {
     "@repo/api-contract": "*",

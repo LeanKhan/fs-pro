@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, ne } from 'drizzle-orm';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { PlayerInterface } from '../../controllers/players/player.model';
 import * as schema from '../../db/drizzle/full-schema';
@@ -65,6 +65,8 @@ export class DrizzlePlayerRepository implements IPlayerRepository {
       conditions.push(eq(players.ClubCode, filter.ClubCode));
     if (filter.isSigned !== undefined)
       conditions.push(eq(players.isSigned, filter.isSigned));
+    if (filter.excludeClubId !== undefined)
+      conditions.push(ne(players.ClubId, filter.excludeClubId));
 
     const rows = await this.db.query.players.findMany({
       where: conditions.length ? and(...conditions) : undefined,

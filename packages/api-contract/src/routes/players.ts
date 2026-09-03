@@ -12,7 +12,6 @@ const c = initContract();
 // fields.
 const PlayerWriteSchema = PlayerSchema.omit({
   _id: true,
-  TransferHistory: true,
   RatingsHistory: true,
   createdAt: true,
   updatedAt: true,
@@ -55,6 +54,9 @@ export const playersContract = c.router(
         club: z.string().optional(),
         clubCode: z.string().optional(),
         isSigned: booleanQuery().optional(),
+        // "Every signed player except this club's own roster" - the
+        // Transfer Market's "other clubs' players" browse query.
+        excludeClubId: z.string().optional(),
       }),
       responses: {
         200: successEnvelope(z.array(PlayerSchema)),

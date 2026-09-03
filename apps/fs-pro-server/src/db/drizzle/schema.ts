@@ -150,8 +150,11 @@ export const clubs = pgTable('Clubs', {
    * only in AddressCountryId now, never mutated in place. */
   Address: jsonb('Address').$type<Record<string, unknown> | null>(),
   AddressCountryId: uuid('AddressCountryId').references(() => places.id),
+  /** A club's transaction/transfer history now lives in the real
+   * TransferLedger table (query by BuyerClubId/SellerClubId) - this used to
+   * be a dead `Transactions` jsonb column, dropped since nothing ever read
+   * or wrote it. */
   Budget: real('Budget'),
-  Transactions: jsonb('Transactions').$type<Record<string, unknown> | null>(),
   Records: jsonArray('Records'),
   Stadium: jsonb('Stadium').$type<Record<string, unknown> | null>(),
   LeagueCode: text('LeagueCode'),
@@ -242,10 +245,13 @@ export const players = pgTable('Players', {
   Rating: real('Rating'),
   ShirtNumber: text('ShirtNumber'),
   Value: real('Value'),
+  /** Annual wage, deducted from the owning Club's Budget once per game Year
+   * (see transfers/transfer.service.ts's deductWagesForYear, called from
+   * calendar.router.ts's endSeasonCycle). Null is treated as 0. */
+  Wage: real('Wage'),
   Form: real('Form').notNull().default(6),
   isReserve: boolean('isReserve').notNull().default(false),
   Appearance: jsonb('Appearance').$type<Record<string, unknown> | null>(),
-  TransferHistory: jsonArray('TransferHistory'),
   RatingsHistory: jsonArray('RatingsHistory'),
   isSigned: boolean('isSigned').notNull().default(false),
   ClubCode: text('ClubCode'),
@@ -399,6 +405,41 @@ export const awards = pgTable('Awards', {
   SeasonId: uuid('SeasonId').references(() => seasons.id),
   ...timestamps,
 });
+
+/**
+ * Every money-moving event in the game: a paid player transfer (free-agent
+ * signing or a purchase from another club) or a club's periodic wage bill.
+ * Real relational table, not jsonb - replaces the dead `players.
+ * TransferHistory`/`clubs.Transactions` columns this superseded. Doubles as
+ * both "this player's transfer history" (query by PlayerId) and "this
+ * club's transactions" (query by BuyerClubId OR SellerClubId) - no need for
+ * two separate tables/schemas for what the old dead columns split in two.
+ */
+export const transferLedger = pgTable(
+  'TransferLedger',
+  {
+    id: uuid('_id').primaryKey().defaultRandom(),
+    /** 'transfer' (a purchase - free-agent or from another club) | 'wage'
+     * (one lump-sum per-club deduction for one game Year). */
+    Type: text('Type').notNull(),
+    PlayerId: uuid('PlayerId').references(() => players.id),
+    BuyerClubId: uuid('BuyerClubId').references(() => clubs.id),
+    SellerClubId: uuid('SellerClubId').references(() => clubs.id),
+    Amount: real('Amount').notNull(),
+    /** The game-world Year cycle (Season.Year convention) - only populated
+     * on 'wage' rows, where it doubles as the double-deduction guard key
+     * (see transfers/transfer.service.ts's deductWagesForYear). */
+    Year: text('Year'),
+    Note: text('Note'),
+    ...timestamps,
+  },
+  (t) => [
+    index('transfer_ledger_player_idx').on(t.PlayerId),
+    index('transfer_ledger_buyer_idx').on(t.BuyerClubId),
+    index('transfer_ledger_seller_idx').on(t.SellerClubId),
+    index('transfer_ledger_type_year_idx').on(t.Type, t.Year),
+  ]
+);
 
 export type Place = typeof places.$inferSelect;
 export type NewPlace = typeof places.$inferInsert;

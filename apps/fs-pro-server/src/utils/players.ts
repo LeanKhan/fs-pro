@@ -206,6 +206,16 @@ function calculatePlayerValue(pos: string, rating: number, age: number) {
   return Math.round(basevalue + position_multiplier + age_multiplier);
 }
 
+/** A player's annual Wage, deducted from their Club's Budget once per game
+ * Year (see transfers/transfer.service.ts's deductWagesForYear) - a flat
+ * ratio of Value, not a considered balance pass. Placeholder default,
+ * tune WAGE_RATIO if the numbers feel off in practice. */
+export const WAGE_RATIO = 0.15;
+
+function calculatePlayerWage(value: number): number {
+  return Math.round(value * WAGE_RATIO);
+}
+
 function getBasevalue(rating: number): number {
   return ratingFactors[rating];
 }
@@ -614,6 +624,7 @@ export {
   getRandomATTMID,
   getGK,
   calculatePlayerValue,
+  calculatePlayerWage,
   sortFromKeeperDown,
   generatePlayer,
 };

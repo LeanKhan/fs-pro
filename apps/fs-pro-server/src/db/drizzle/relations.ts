@@ -13,6 +13,7 @@ import {
   playerMatchDetails,
   clubMatchDetails,
   awards,
+  transferLedger,
 } from './schema';
 
 export const placesRelations = relations(places, ({ many }) => ({
@@ -86,6 +87,8 @@ export const clubsRelations = relations(clubs, ({ one, many }) => ({
   homeFixtures: many(fixtures, { relationName: 'fixtureHomeTeam' }),
   awayFixtures: many(fixtures, { relationName: 'fixtureAwayTeam' }),
   matchDetails: many(clubMatchDetails),
+  purchasesMade: many(transferLedger, { relationName: 'ledgerBuyerClub' }),
+  salesMade: many(transferLedger, { relationName: 'ledgerSellerClub' }),
 }));
 
 export const seasonsRelations = relations(seasons, ({ one, many }) => ({
@@ -109,6 +112,7 @@ export const playersRelations = relations(players, ({ one, many }) => ({
     references: [places.id],
   }),
   matchDetails: many(playerMatchDetails),
+  transferLedger: many(transferLedger),
 }));
 
 export const fixturesRelations = relations(fixtures, ({ one, many }) => ({
@@ -201,4 +205,21 @@ export const clubMatchDetailsRelations = relations(
 export const awardsRelations = relations(awards, ({ one }) => ({
   club: one(clubs, { fields: [awards.ClubId], references: [clubs.id] }),
   season: one(seasons, { fields: [awards.SeasonId], references: [seasons.id] }),
+}));
+
+export const transferLedgerRelations = relations(transferLedger, ({ one }) => ({
+  player: one(players, {
+    fields: [transferLedger.PlayerId],
+    references: [players.id],
+  }),
+  buyerClub: one(clubs, {
+    fields: [transferLedger.BuyerClubId],
+    references: [clubs.id],
+    relationName: 'ledgerBuyerClub',
+  }),
+  sellerClub: one(clubs, {
+    fields: [transferLedger.SellerClubId],
+    references: [clubs.id],
+    relationName: 'ledgerSellerClub',
+  }),
 }));
