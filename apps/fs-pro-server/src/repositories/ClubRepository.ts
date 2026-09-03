@@ -1,11 +1,11 @@
 import { ClubInterface } from '../controllers/clubs/club.model';
 
 export interface IClubFilter {
-  User?: string;
+  UserId?: string;
   /** Clubs with no owning User at all - powers registration's "pick an
    * unclaimed club" list. */
   unclaimed?: boolean;
-  League?: string;
+  LeagueId?: string;
   /** Batch-fetch by id - used by internal callers that build a
    * `{_id: {$in: [...]}}`-style query (App.ts, matchQueue.ts). */
   ids?: string[];
@@ -21,12 +21,12 @@ export interface IClubReadOptions {
 }
 
 /**
- * `findById`/`findAll` always come back with `Address.Country` populated (a
- * full Place object nested inside `Address`, not a bare id) - club.model.ts
- * registers a schema-level `pre('find')`/`pre('findOne')` hook that
- * populates it unconditionally on every read (same pattern as Manager's
- * always-populated Nationality). `create`/`update`/`delete` do NOT populate
- * it, matching Mongoose's hook (find-style queries only).
+ * `findById`/`findAll` always come back with `AddressCountry` populated (a
+ * full Place object under that separate top-level key - `AddressCountryId`
+ * stays a bare id always, never overwritten) - same pattern as Manager's
+ * always-populated Nationality. `create`/`update`/`delete` do NOT populate
+ * it (nothing to join against a freshly-written row) - they simply omit
+ * the `AddressCountry` key rather than setting it to a raw id.
  *
  * `update()` takes plain fields only - no Mongo `$set`/`$push`/`$unset`
  * operators. Every real caller that used to send operators (Records-array

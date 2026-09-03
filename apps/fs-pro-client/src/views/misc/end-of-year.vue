@@ -35,7 +35,7 @@
 import { ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useStore } from '@/store';
-import { $axios } from '@/services/api';
+import { client } from '@/services/api';
 
 const route = useRoute();
 const store = useStore();
@@ -49,10 +49,10 @@ function endYear() {
   if (!ans) return false;
 
   loading.value = true;
-  $axios
-    .post(`/calendar/end-season/${year}`)
+  client.calendar.endSeasonCycle
+    .mutation({ params: { year } })
     .then((response) => {
-      if (response.data.success) {
+      if (response.status === 200) {
         ended.value = true;
         store.setCalendar();
         store.setSeasons();

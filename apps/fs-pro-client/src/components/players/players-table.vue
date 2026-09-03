@@ -94,7 +94,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Player } from '@/interfaces/player';
+import type { Player } from '@repo/api-contract';
 import { apiUrl } from '@/store';
 
 interface Props {

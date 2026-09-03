@@ -1,7 +1,7 @@
 import { Fixture as FixtureInterface } from '../controllers/fixtures/fixture.model';
 
 export interface IFixtureFilter {
-  Season?: string;
+  SeasonId?: string;
   Played?: boolean;
   /** Batch-fetch by id. */
   ids?: string[];
@@ -10,6 +10,17 @@ export interface IFixtureFilter {
   /** Inclusive `ScheduledDay` range - "what's playing between day N and M". */
   scheduledDayFrom?: number;
   scheduledDayTo?: number;
+}
+
+export interface IFixtureReadOptions {
+  /** Populate `HomeTeam`/`AwayTeam` with the full Club (Players + Manager),
+   * replacing the raw FK id - mirrors Mongoose's old in-place `.populate()`
+   * behavior. Off by default: the match engine (`matchQueue.ts`,
+   * `game.controller.ts`) reads `HomeTeam`/`AwayTeam` as a bare id string
+   * via `.toString()`, and the dashboard/list views only ever need the
+   * plain `Home`/`Away` club-code text columns - only `GET /fixtures/:id`
+   * (Matchzone) needs the populated object. */
+  withClub?: boolean;
 }
 
 /**
@@ -30,12 +41,18 @@ export interface IFixtureFilter {
  * `delete()` on Mongo uses `.remove()` (not `findByIdAndDelete`) to
  * preserve `fixture.model.ts`'s real, active `post('remove')` hook, which
  * pulls this fixture out of `Season.Fixtures` - a Mongo-only array, dropped
- * from Postgres in favor of the reverse `fixtures.Season` FK, so there's
+ * from Postgres in favor of the reverse `fixtures.SeasonId` FK, so there's
  * nothing to pull there.
  */
 export interface IFixtureRepository {
-  findById(id: string): Promise<FixtureInterface | null>;
-  findAll(filter?: IFixtureFilter): Promise<FixtureInterface[]>;
+  findById(
+    id: string,
+    options?: IFixtureReadOptions
+  ): Promise<FixtureInterface | null>;
+  findAll(
+    filter?: IFixtureFilter,
+    options?: IFixtureReadOptions
+  ): Promise<FixtureInterface[]>;
   create(data: Partial<FixtureInterface>): Promise<FixtureInterface>;
   /** Bulk fixture-generation insert (season/day setup's round-robin
    * schedule) - each fixture is already fully FK-correct at construction

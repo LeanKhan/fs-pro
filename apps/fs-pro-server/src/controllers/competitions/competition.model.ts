@@ -1,4 +1,5 @@
 import { ClubInterface } from '../clubs/club.model';
+import { SeasonInterface } from '../seasons/season.model';
 
 export interface CompetitionInterface {
   _id?: string;
@@ -6,7 +7,8 @@ export interface CompetitionInterface {
   Name: string;
   CompetitionID: string;
   CompetitionCode: string;
-  Country: string;
+  CountryId?: string;
+  Country?: import('../places/places.model').IPlace;
   League: boolean;
   Tournament: boolean;
   Cup: boolean;
@@ -16,5 +18,5 @@ export interface CompetitionInterface {
   TeamsRelegated?: number;
   TeamsPromoted?: number;
   Clubs: ClubInterface[] | string[];
-  Seasons: [];
+  Seasons: SeasonInterface[];
 }

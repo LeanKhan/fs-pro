@@ -156,7 +156,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute, onBeforeRouteUpdate } from 'vue-router';
 import { useStore } from '@/store';
-import { $axios } from '@/services/api';
+import { client } from '@/services/api';
 import { appSocket } from '@/services/socket';
 
 const router = useRouter();
@@ -196,20 +196,20 @@ const adminNavItems = ref<any[]>([
   },
 ]);
 
-const logout = (): void => {
-  $axios
-    .delete(`/users/${user.value.userID}/logout`)
-    .then((response: any) => {
-      console.log('Response => ', response.data);
-      if (response.data.success) {
-        appSocket.disconnect();
-        store.unsetUser();
-        router.push('/auth');
-      }
-    })
-    .catch((response: any) => {
-      console.log('Error logging out! ', response.data);
+const logout = async (): Promise<void> => {
+  try {
+    const response = await client.users.logoutUser.mutation({
+      params: { id: user.value.userID },
     });
+    console.log('Response => ', response.body);
+    if (response.status === 200) {
+      appSocket.disconnect();
+      store.unsetUser();
+      router.push('/auth');
+    }
+  } catch (error) {
+    console.log('Error logging out! ', error);
+  }
 };
 
 const goBackToPreviousState = (): void => {
@@ -284,28 +284,31 @@ const navItems = computed(() => {
   return userNavItems.value;
 });
 
-const enter = (): void => {
-  if (!user.value?.userID || !user.value?.session) return;
+/** Re-establish a session when the cookie wasn't sent back. Currently
+ * unreachable: `User` never carries a `session`/sessionID field client-side
+ * (deliberately - the session id is a cookie-transport concern, not
+ * something the client should hold in JS), so the guard below always
+ * returns early. Ported as-is rather than fixed - reviving this properly
+ * is an architecture decision (would mean exposing a session id to the
+ * client again), not a small on-the-line fix. */
+const enter = async (): Promise<void> => {
+  const sessionID = (user.value as { session?: string }).session;
+  if (!user.value?.userID || !sessionID) return;
 
-  const { userID, session: sessionID } = user.value;
+  const userID = user.value.userID;
 
   console.log('user => ', user.value);
 
-  $axios
-    .post(
-      '/users/enter',
-      { user: { userID, sessionID } },
-      { withCredentials: true }
-    )
-    .then((response: any) => {
-      store.setUser({
-        ...user.value,
-        session: response.data.sessionID,
-      });
-    })
-    .catch((response: any) => {
-      console.log('Error entering in! ', response.data.error);
+  try {
+    const response = await client.users.enterSession.mutation({
+      body: { userID, sessionID },
     });
+    if (response.status === 200) {
+      store.setUser({ ...user.value });
+    }
+  } catch (error) {
+    console.log('Error entering in! ', error);
+  }
 };
 
 onBeforeRouteUpdate((to, from, next) => {

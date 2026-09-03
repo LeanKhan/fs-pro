@@ -1859,6 +1859,39 @@ tables).
 
 ## Client / live-watch
 
+### Revamp the frontend off Vuetify - lighter, custom-styled UI
+
+**Status:** Idea only, agreed direction - not started.
+
+**Context:** Matchzone's core match-viewing surface was already rewritten
+from Vuetify to plain HTML/CSS for a lighter, more "live" feel (see "Wire
+live replay into the real client" below) - proved out that the app doesn't
+need to carry Vuetify's Material-Design weight/defaults everywhere. The
+rest of the client (admin forms, dashboards, club/player views, and the
+Dugout panel explicitly deferred in the entry below) still looks and feels
+like a generic enterprise admin panel, not a game. Direction: move toward a
+headless UI library (unstyled, accessible primitives - e.g. Radix Vue,
+Headless UI, or Melt UI) plus custom CSS, the same instinct that already
+worked for Matchzone, applied app-wide.
+
+**If revisited:** Pick a headless component library, then convert
+screen-by-screen rather than a big-bang rewrite - the same approach
+Matchzone itself took (and the Dugout panel, below, is already flagged as
+the next piece of Matchzone to convert, so it's a natural starting point).
+Vuetify's theme currently comes from `app-view.vue`'s top-level `<v-app>` -
+dropping it fully means auditing every remaining `v-*` component usage
+across the client. Worth deciding up front whether Vuetify gets dropped
+entirely or kept for a shrinking set of admin-only screens where
+"enterprise-app" styling is actually fine.
+
+**Files:** `apps/fs-pro-client/src/**/*.vue` (broad - essentially the whole
+client). Starting candidates:
+`components/matchzone/widgets/{dugout,dugout-club,squadlist,squadlist-player}.vue`
+(already flagged below), `views/admin/**`, `views/user/dashboard.vue`,
+`views/user/club/dashboard.vue`.
+
+---
+
 ### Wire live replay into the real client (matchzone.vue)
 
 **Status:** Done. `matchzone.vue` now joins the `/match-replay` room before

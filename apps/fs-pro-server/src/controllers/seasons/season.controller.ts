@@ -1,6 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { NextFunction, Request, Response } from 'express';
-import respond from '../../helpers/responseHandler';
 import {
   getSeasons,
   getSeasonById,
@@ -15,155 +13,87 @@ import {
 } from '../competitions/competition.service';
 import { appendClubRecord } from '../clubs/club.service';
 
-export async function getCurrentSeasons(req: Request, res: Response) {
-  /**
-   * 1. Get the latest seasons of the Competitions involved ...
-   * 2. Create Calendar Days by pushing Season fixtures to Calendar with maybe some free days inbetween..
-   * 3. Let's gooo!
-   */
+/**
+ * 1. Get the latest seasons of the Competitions involved ...
+ * 2. Create Calendar Days by pushing Season fixtures to Calendar with maybe
+ *    some free days inbetween..
+ * 3. Let's gooo!
+ */
+export async function getCurrentSeasonsForYear(year: string) {
+  return getSeasons({ Year: year });
+}
 
-  const year = req.params.year;
-
-  try {
-    const seasons = await getSeasons({ Year: year });
-    if (seasons.length == 0) {
-      return respond.fail(res, 404, 'No Seasons found!', seasons);
-    }
-    return respond.success(res, 200, 'Found seasons', seasons);
-  } catch (error) {
-    return respond.fail(res, 400, 'Failed to get seasons \n ' + error, error);
+/** Errors specific to finishing a Season - thrown so the ts-rest handler
+ * can pick the right status code, matching the original's distinct 404 vs
+ * 400 branches. */
+export class FinishSeasonError extends Error {
+  constructor(
+    message: string,
+    public readonly status: 400 | 404
+  ) {
+    super(message);
   }
 }
 
-/**
- * Finish Season!
- * @param req
- * @param res
- * @returns
- */
-export async function finishSeason(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
-  const { id: season_id } = req.params;
-
-  if (!season_id) {
-    // SEND IT BACK!
-    return respond.fail(res, 404, 'No Season ID sent! Cannot end season...', {
-      matchErrorResponseCode: 1,
-    });
-  }
-
-  let season: SeasonInterface | null;
-  let competition: CompetitionInterface | null;
-
-  try {
-    season = await getSeasonById(season_id);
-    competition = season
-      ? await getCompetitionById(season.Competition as string)
-      : null;
-  } catch (error) {
-    console.log(`Error! => ${error}`);
-
-    return respond.fail(
-      res,
-      400,
-      'Error ending Season, could not fetch Season',
-      {
-        error,
-        matchErrorResponseCode: 1,
-      }
-    );
-  }
+/** Finish Season: prolegates the Season's Standings into Promoted/Relegated,
+ * marks it finished. Plain function (not Express middleware) so it can be
+ * called directly from a ts-rest handler - see season.router.ts's
+ * finishSeason. Returns the data giveAwards needs (extracted from what used
+ * to be passed via req.body.seasonChampions/standings/updatedSeason). */
+export async function finishSeasonPlain(season_id: string) {
+  const season = await getSeasonById(season_id);
+  const competition = season
+    ? await getCompetitionById(season.CompetitionId as string)
+    : null;
 
   if (!season || !season.isStarted || !competition) {
-    /**
-     * This means:
-     * - Id is wrong,
-     * - Season is not started yet, therefore cannot be ended,
-     * - Season is already finished...
-     */
-    return respond.fail(
-      res,
-      404,
+    // Either: Id is wrong, Season is not started yet, or is already finished.
+    throw new FinishSeasonError(
       'Either, Id is wrong, Season is not started yet or is already finished',
-      {
-        seasonErrorResponseCode: '404 - Season not found',
-      }
+      404
     );
   }
 
-  // Now do the things...
-  // check if all the matches have actually been played
-  try {
-    if (!season.Fixtures.every((f) => f.Played)) {
-      return respond.fail(
-        res,
-        404,
-        'Not all Fixtures have been played yet! :7',
-        {
-          seasonErrorResponseCode:
-            '400 - Not all matches in Season have been played! ',
-        }
-      );
-    }
-
-    const standings = compileStandings(season.Standings);
-    const cmp = competition;
-    // TODO: Do Best Player etc...
-
-    const updateSeason = () => {
-      const prolegated =
-        cmp.Division == 1 && cmp.League
-          ? {
-              Relegated: standings
-                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                .slice(standings.length - cmp.TeamsRelegated!)
-                .map((s) => s.ClubID),
-            }
-          : {
-              Promoted: standings
-                .slice(0, cmp.TeamsPromoted)
-                .map((s) => s.ClubID),
-            };
-
-      req.body.seasonChampions = standings[0].ClubID;
-
-      return updateSeasonFields(season_id, {
-        isStarted: true,
-        isFinished: true,
-        Status: 'finished',
-        EndDate: new Date(),
-        Winner: standings[0].ClubID, // Winner of the League
-        Logs: [
-          ...(season!.Logs ?? []),
-          {
-            title: `Season finished`,
-            content: 'Season finished!',
-            date: new Date(),
-          },
-        ],
-        ...prolegated,
-      } as Partial<SeasonInterface>);
-    };
-
-    updateSeason()
-      .then((updatedSeason: any) => {
-        req.body.updatedSeason = updatedSeason;
-        req.body.standings = standings;
-        return next();
-      })
-      .catch((err: any) => {
-        console.error(err);
-        console.log('Error ending Season!');
-
-        return respond.fail(res, 400, 'Error ending Season!', err);
-      });
-  } catch (error) {
-    console.error(error);
-    return respond.fail(res, 400, 'Error doing something', error);
+  if (!(season.Fixtures ?? []).every((f) => f.Played)) {
+    throw new FinishSeasonError('Not all Fixtures have been played yet! :7', 404);
   }
+
+  const standings = compileStandings(season.Standings);
+  const cmp = competition;
+  // TODO: Do Best Player etc...
+
+  const prolegated =
+    cmp.Division == 1 && cmp.League
+      ? {
+          Relegated: standings
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            .slice(standings.length - cmp.TeamsRelegated!)
+            .map((s) => s.ClubID),
+        }
+      : {
+          Promoted: standings.slice(0, cmp.TeamsPromoted).map((s) => s.ClubID),
+        };
+
+  const seasonChampions = standings[0].ClubID;
+
+  const updatedSeason = await updateSeasonFields(season_id, {
+    isStarted: true,
+    isFinished: true,
+    Status: 'finished',
+    EndDate: new Date(),
+    WinnerId: seasonChampions, // Winner of the League
+    Logs: [
+      ...(season.Logs ?? []),
+      {
+        title: `Season finished`,
+        content: 'Season finished!',
+        date: new Date(),
+      },
+    ],
+    ...prolegated,
+  } as Partial<SeasonInterface>);
+
+  return { updatedSeason, standings, seasonChampions };
 }
 
 /**
@@ -178,7 +108,7 @@ export async function prolegate(season_id: string) {
   if (!season) {
     throw new Error(`Season [${season_id}] does not exist`);
   }
-  const cmp = await getCompetitionById(season.Competition as string);
+  const cmp = await getCompetitionById(season.CompetitionId as string);
   if (!cmp) {
     throw new Error(`Competition for Season [${season_id}] does not exist`);
   }
@@ -206,14 +136,9 @@ export async function prolegate(season_id: string) {
 
     // find the new Competition that is higher than current comp but
     // in the same country.
-    const countryId =
-      typeof old_comp.Country === 'string'
-        ? old_comp.Country
-        : (old_comp.Country as any)?._id;
-
     const [new_comp] = await getCompetitions({
       Division: old_comp.Division + diff,
-      Country: countryId,
+      CountryId: old_comp.CountryId,
     });
 
     if (!new_comp) {
@@ -232,7 +157,7 @@ export async function prolegate(season_id: string) {
       // on either Competition row.
       await appendClubRecord(
         club_id,
-        { League: new_comp._id, LeagueCode: new_comp.CompetitionCode },
+        { LeagueId: new_comp._id, LeagueCode: new_comp.CompetitionCode },
         {
           title: 'League Movement',
           data: `From (${old_comp.Name}) ${old_comp._id} to (${new_comp.Name}) ${new_comp._id}`,

@@ -36,10 +36,10 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { IFixture } from '@/interfaces/fixture';
+import type { Fixture } from '@repo/api-contract';
 
 interface Props {
-  Matches: IFixture[];
+  Matches: Fixture[];
   Detail?: 'details' | 'results';
   MandatorySelect?: boolean;
 }
@@ -49,7 +49,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-  'match-selected': [match: IFixture];
+  'match-selected': [match: Fixture];
 }>();
 
 const selectedMatch = ref<any>(null);

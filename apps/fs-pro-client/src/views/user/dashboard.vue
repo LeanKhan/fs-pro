@@ -156,9 +156,9 @@ import DayScroll from '@/components/calendar/day-scroll.vue';
 import StandingsScroller from '@/components/seasons/standings-scroller.vue';
 import FixtureCard from '@/components/user-dashboard/fixture-card.vue';
 import DayFixturesList from '@/components/user-dashboard/day-fixtures-list.vue';
-import { $axios } from '@/services/api';
+import { client } from '@/services/api';
 import { groupFixturesByDay } from '@/helpers/calendar';
-import { IFixture } from '@/interfaces/fixture';
+import type { Fixture } from '@repo/api-contract';
 
 const router = useRouter();
 const store = useStore();
@@ -172,7 +172,7 @@ const seasonTab = ref<any>(null);
 const leagues = ref<any>([]);
 const selectedLeagueId = ref('');
 const selectedLeague = ref<any>({});
-const selectedMatch = ref<IFixture | null>(null);
+const selectedMatch = ref<Fixture | null>(null);
 const days = ref<any>([]);
 const seasons = ref<any>([]);
 
@@ -212,7 +212,7 @@ function changeSelectedLeague(league_id: string) {
   }
 }
 
-function matchSelected(match: IFixture) {
+function matchSelected(match: Fixture) {
   const league = leagues.value.find(
     (l: any) => l.CompetitionCode === match.LeagueCode
   );
@@ -228,10 +228,12 @@ async function getDays() {
   const to = from + 13;
 
   try {
-    const response = await $axios.get(
-      `/fixtures?scheduledDayFrom=${from}&scheduledDayTo=${to}`
-    );
-    days.value = groupFixturesByDay(response.data.payload as IFixture[]);
+    const response = await client.fixtures.getFixtures.query({
+      query: { scheduledDayFrom: from, scheduledDayTo: to },
+    });
+    if (response.status === 200) {
+      days.value = groupFixturesByDay(response.body.payload);
+    }
   } catch (error) {
     console.error('Error getting upcoming fixtures:', error);
   }
@@ -240,11 +242,19 @@ async function getDays() {
 async function getLeagues(league_id?: string) {
   try {
     if (league_id) {
-      const response = await $axios.get(`/competitions/all?id=${league_id}`);
-      selectedLeague.value = response.data.payload[0];
+      const response = await client.competitions.getCompetitions.query({
+        query: { id: league_id },
+      });
+      if (response.status === 200) {
+        selectedLeague.value = response.body.payload[0];
+      }
     } else {
-      const response = await $axios.get('/competitions/all?type=league');
-      leagues.value = response.data.payload;
+      const response = await client.competitions.getCompetitions.query({
+        query: { type: 'league' },
+      });
+      if (response.status === 200) {
+        leagues.value = response.body.payload;
+      }
     }
   } catch (error) {
     console.error('Error getting leagues:', error);
@@ -254,11 +264,11 @@ async function getLeagues(league_id?: string) {
 async function fetchCurrentSeason() {
   if (selectedLeagueId.value) {
     try {
-      const response = await $axios.get(
-        `/seasons?competition=${selectedLeagueId.value}&current=true`
-      );
-      if (response.data.success) {
-        seasons.value = response.data.payload;
+      const response = await client.seasons.getSeasons.query({
+        query: { competition: selectedLeagueId.value, current: true },
+      });
+      if (response.status === 200) {
+        seasons.value = response.body.payload;
       }
     } catch (error) {
       console.error('Error fetching current Seasons:', error);

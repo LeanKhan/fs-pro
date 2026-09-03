@@ -23,6 +23,9 @@ export default defineConfig({
   },
   server: {
     port: 8080,
+    fs: {
+      allow: ['../..'],
+    },
   },
   define: {
     'process.env.NODE_ENV': '"development"',

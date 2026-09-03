@@ -116,7 +116,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore, apiUrl } from '@/store';
-import { $axios } from '@/services/api';
+import { client } from '@/services/api';
 
 const router = useRouter();
 const store = useStore();
@@ -125,7 +125,7 @@ const form = ref({
   FullName: '',
   Username: '',
   Password: '',
-  Clubs: [],
+  Clubs: [] as string[],
 });
 
 const clubs = ref<any>([]);
@@ -176,8 +176,12 @@ const visibleClubs = computed(() => {
 
 async function getClubs() {
   try {
-    const response = await $axios.get('/clubs/all?unclaimed=true');
-    clubs.value = response.data.payload;
+    const response = await client.clubs.getClubs.query({
+      query: { unclaimed: true },
+    });
+    if (response.status === 200) {
+      clubs.value = response.body.payload;
+    }
   } catch (error) {
     console.error('Error fetching clubs:', error);
   }
@@ -185,21 +189,18 @@ async function getClubs() {
 
 async function register() {
   try {
-    const response = await $axios.post(
-      '/users/join',
-      { data: { ...form.value } },
-      { withCredentials: true }
-    );
+    const response = await client.users.joinUser.mutation({
+      body: form.value,
+    });
 
-    if (response.data.success) {
+    if (response.status === 200) {
       store.setUser({
-        userID: response.data.payload._id,
-        username: response.data.payload.Username,
-        clubs: response.data.payload.Clubs,
-        isAdmin: response.data.payload.isAdmin,
-        session: response.data.payload.Session,
-        avatar: response.data.payload.Avatar,
-        fullname: response.data.payload.FullName,
+        userID: response.body.payload._id ?? '',
+        username: response.body.payload.Username,
+        clubs: response.body.payload.Clubs ?? [],
+        isAdmin: response.body.payload.isAdmin,
+        avatar: response.body.payload.Avatar ?? '',
+        fullname: response.body.payload.FullName,
       });
 
       router.push('/u');

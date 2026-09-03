@@ -60,7 +60,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import Standings from '@/components/seasons/standings-component.vue';
-import { WeekStandings } from '@/interfaces/season';
+import type { WeekStandings } from '@repo/api-contract';
 
 interface Props {
   standings: WeekStandings[];

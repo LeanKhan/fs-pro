@@ -1,22 +1,17 @@
-import { Router } from 'express';
-import respond from '../../helpers/responseHandler';
+import { initServer } from '@ts-rest/express';
+import { apiContract as contract } from '@repo/api-contract';
 
-const router = Router();
+const s = initServer();
 
-/**
- * @openapi
- * /meta/db:
- *   get:
- *     tags: [Meta]
- *     summary: Database health check
- *     responses:
- *       200:
- *         description: OK
- */
-router.get('/db', (req, res) => {
-  respond.success(res, 200, 'Database status fetched successfully', {
-    backend: 'postgresql',
-  });
+export const metaTsRestRoutes = s.router(contract.meta, {
+  getDbStatus: async () => {
+    return {
+      status: 200,
+      body: {
+        success: true,
+        message: 'Database status fetched successfully',
+        payload: { backend: 'postgresql' },
+      },
+    };
+  },
 });
-
-export default router;

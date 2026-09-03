@@ -1,30 +1,40 @@
-import { Router } from 'express';
+import { initServer } from '@ts-rest/express';
+import { apiContract as contract } from '@repo/api-contract';
+import type { Award as ContractAward } from '@repo/api-contract';
+
 import { fetchAll } from '.';
-import respond from '../../helpers/responseHandler';
 
-const router = Router();
+const s = initServer();
 
-/** FETCH ALL Awards */
-router.get('/season/:season_id/', (req, res) => {
-  // get all season awards...
-  const { populate, recipient } = req.query;
+function fail(err: unknown) {
+  return err instanceof Error ? err.message : String(err);
+}
 
-  if (!recipient) {
-    // error! Recipient must be supplied!
-    return respond.fail(res, 400, 'Award recipient must be indicated!');
-  }
-
-  fetchAll(
-    { Season: req.params.season_id },
-    typeof recipient === 'string' ? recipient : '',
-    typeof populate === 'string' ? populate : ''
-  )
-    .then((awards) => {
-      respond.success(res, 200, 'Season Awards fetched successfully', awards);
-    })
-    .catch((err) => {
-      respond.fail(res, 400, 'Error fetching Season Awards', err);
-    });
+export const awardTsRestRoutes = s.router(contract.awards, {
+  getSeasonAwards: async ({ params, query }) => {
+    try {
+      const awards = await fetchAll(
+        { SeasonId: params.season_id },
+        query.recipient,
+        query.populate ?? ''
+      );
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Season Awards fetched successfully',
+          payload: awards as unknown as ContractAward[],
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error fetching Season Awards',
+          payload: fail(err),
+        },
+      };
+    }
+  },
 });
-
-export default router;

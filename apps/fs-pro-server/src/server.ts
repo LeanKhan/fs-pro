@@ -30,6 +30,9 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 
 import App from './controllers/app/App';
 import { registerIO } from './realtime/io';
+import { createExpressEndpoints } from '@ts-rest/express';
+import { apiContract } from '@repo/api-contract';
+import { apiRouter } from './routers';
 
 const cors_whitelist = [
   'http://localhost:8080',
@@ -111,6 +114,8 @@ const routerModule = require('./routers');
 const router = routerModule.default || routerModule;
 app.use('/api', router);
 
+createExpressEndpoints(apiContract, routerModule.apiRouter, router);
+
 // Attach socket
 app.use((req, res, next) => {
   req.io = io;
@@ -121,9 +126,58 @@ app.use((req, res, next) => {
 App.create();
 //  ==== THE GAME CLASS GAN GAN! EVERYTHING ABOUT THE GAME STARTS HERE! == //
 
+/**
+ * `ts-node-dev --respawn` kills the old process (`child.kill('SIGTERM')`)
+ * and only forks the new one once that child's `exit` event fires - so this
+ * isn't a same-process-tree race. On Windows specifically, `SIGTERM` sent to
+ * a forked Node child doesn't reliably deliver a catchable signal (it just
+ * force-terminates), so a graceful in-app shutdown handler never gets the
+ * chance to run - and even where it does run, the OS can take a beat longer
+ * than the child's `exit` event to actually release the listening socket.
+ * Either way, the very next restart's `listen()` can land in that gap and
+ * throw EADDRINUSE. Retrying briefly on that specific error - instead of
+ * crashing - rides out the gap without masking a real "something else is
+ * using this port" failure (which still fails loudly once the retries run
+ * out).
+ */
+let listenRetriesLeft = 10;
+
+http.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code !== 'EADDRINUSE' || listenRetriesLeft <= 0) {
+    throw err;
+  }
+
+  listenRetriesLeft -= 1;
+  console.log(
+    `Port ${port} still in use (previous dev-server instance likely still shutting down) - retrying in 300ms...`
+  );
+  setTimeout(() => http.listen(port), 300);
+});
+
 http.listen(port, () => {
   console.log('Game Server running successfully! on port ' + port);
 });
+
+/**
+ * Graceful shutdown for environments where SIGTERM/SIGINT actually reach
+ * this handler (every real deploy target - Docker, PM2, Linux/Mac dev) -
+ * closes the HTTP server and DB pool deterministically instead of relying
+ * on a hard kill. Doesn't help the Windows ts-node-dev-restart race above
+ * (that's the retry loop's job), but is the correct behavior everywhere
+ * signals do work.
+ */
+function shutdown(signal: string) {
+  console.log(`${signal} received, shutting down gracefully...`);
+  http.close(() => {
+    void DB.disconnect().finally(() => process.exit(0));
+  });
+  // Belt-and-suspenders: if something (an open socket, a stuck query) keeps
+  // the server from closing cleanly, don't hang the restart forever.
+  setTimeout(() => process.exit(1), 5000).unref();
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 io.use((socket: Socket, next: (err?: Error) => void) => {
   const socketRequest = socket.request as typeof socket.request & {

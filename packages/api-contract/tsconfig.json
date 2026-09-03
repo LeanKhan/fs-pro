@@ -1,0 +1,19 @@
+{
+  "extends": "@repo/typescript-config/base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    // Declaration emission fails past a handful of entities - TS can't
+    // serialize the fully-inlined AppRouter type once enough zod schemas
+    // are merged into one contract (TS7056, "inferred type exceeds the
+    // maximum length the compiler will serialize"). Not load-bearing: this
+    // package's "exports"."." puts "types" ahead of "require"/"import"
+    // pointing straight at src/index.ts, so both real consumers
+    // (fs-pro-server via NodeNext, fs-pro-client via vite) already resolve
+    // types from source, not from dist/*.d.ts - confirmed by a clean
+    // `tsc --noEmit` in fs-pro-server with this off.
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}

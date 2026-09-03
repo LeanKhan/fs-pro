@@ -83,7 +83,7 @@ export async function appendClubRecord(
  * Calculate the clubs Average Rating - groups `players` directly by
  * `Club = clubId` (Mongo used to `$lookup`/`$unwind`/`$group` off
  * `Club.Players`, an array Postgres dropped in favor of this reverse
- * `players.Club` FK). Output shape: `{ position, avg_rating, count }[]`.
+ * `players.ClubId` FK). Output shape: `{ position, avg_rating, count }[]`.
  */
 export async function calculateClubsTotalRatings(clubId: string) {
   const db = DrizzleDatabase.getInstance().database;
@@ -94,7 +94,7 @@ export async function calculateClubsTotalRatings(clubId: string) {
       count: drizzleSql<number>`count(*)`,
     })
     .from(players)
-    .where(eq(players.Club, clubId))
+    .where(eq(players.ClubId, clubId))
     .groupBy(players.Position);
 
   return rows.map((r) => ({
@@ -102,4 +102,60 @@ export async function calculateClubsTotalRatings(clubId: string) {
     avg_rating: Number(r.avg_rating),
     count: Number(r.count),
   }));
+}
+
+interface RatingObject {
+  avg_rating: number;
+  position: string | null;
+}
+
+function getRatingValue(rating: RatingObject | undefined): number {
+  return rating ? rating.avg_rating : 0;
+}
+
+/** Recompute one Club's Rating/AttackingClass/DefensiveClass/position
+ * ratings from its current squad and persist them - extracted from the old
+ * `calculateClubRating` Express middleware so it's a plain, reusable
+ * function (called after every squad change: add/remove player(s), and
+ * from refreshAllClubsRatings below). */
+export async function calculateAndUpdateClubRating(clubId: string) {
+  const ratings = await calculateClubsTotalRatings(clubId);
+
+  let total_rating: number | undefined;
+  if (ratings.length !== 0) {
+    total_rating = ratings.reduce((sum, { avg_rating }) => sum + avg_rating, 0);
+  }
+
+  const attClass =
+    getRatingValue(ratings.find((r) => r.position === 'ATT')) +
+    getRatingValue(ratings.find((r) => r.position === 'MID')) / 2;
+
+  const defClass =
+    getRatingValue(ratings.find((r) => r.position === 'GK')) +
+    getRatingValue(ratings.find((r) => r.position === 'DEF')) / 2;
+
+  const avg_total_rating = total_rating ? total_rating / ratings.length : 0;
+
+  const data: Partial<ClubInterface> & Record<string, unknown> = {
+    Rating: avg_total_rating,
+    AttackingClass: attClass,
+    DefensiveClass: defClass,
+  };
+
+  ratings.forEach((rating) => {
+    data[`${rating.position}_Rating`] = getRatingValue(rating);
+  });
+
+  return updateClubFields(clubId, data);
+}
+
+/** Recompute ratings for every Club - used once all Clubs' squads should be
+ * settled (e.g. after a calendar year ends). Extracted from the old
+ * `updateAllClubsRating` Express middleware, which now just calls this and
+ * responds. */
+export async function refreshAllClubsRatings() {
+  const clubs = await getClubs();
+  return Promise.all(
+    clubs.map((club) => calculateAndUpdateClubRating(club._id as string))
+  );
 }

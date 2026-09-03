@@ -113,7 +113,7 @@
                       :items="countries"
                       item-title="Name"
                       item-value="_id"
-                      v-model="form.Address.Country"
+                      v-model="form.AddressCountryId"
                     ></v-select>
                   </div>
                 </v-col>
@@ -147,9 +147,9 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { apiUrl, useStore } from '@/store';
-import { $axios } from '@/services/api';
+import { client } from '@/services/api';
 import ImageUploader from '@/components/helpers/image-uploader.vue';
-import type { Club } from '@/interfaces/club';
+import type { Club } from '@repo/api-contract';
 
 const props = defineProps<{
   isUpdate?: boolean;
@@ -163,14 +163,13 @@ const club = ref<Club>({} as Club);
 const api = apiUrl;
 const countries = computed<any[]>(() => store.countries);
 
-const form = ref({
+const form = ref<Partial<Club>>({
   Name: '',
   ClubCode: '',
-  Manager: '',
+  AddressCountryId: '',
   Address: {
     Section: '',
     City: '',
-    Country: '',
   },
   Stadium: {
     Name: '',
@@ -184,11 +183,17 @@ function goBack() {
 }
 
 async function submit() {
-  const clubID = route.params.id;
-  const url = props.isUpdate ? `/clubs/${clubID}/update` : '/clubs/new';
+  const clubID = String(route.params.id);
 
   try {
-    const response = await $axios.post(url, { data: form.value });
+    if (props.isUpdate) {
+      await client.clubs.updateClub.mutation({
+        params: { id: clubID },
+        body: form.value,
+      });
+    } else {
+      await client.clubs.createClub.mutation({ body: form.value });
+    }
     router.push({ name: 'Clubs Home' });
   } catch (error) {
     console.error('Error submitting club:', error);
@@ -201,9 +206,9 @@ async function deleteClub() {
   );
 
   if (answer) {
-    const clubID = route.params.id;
+    const clubID = String(route.params.id);
     try {
-      await $axios.delete(`/clubs/${clubID}`);
+      await client.clubs.deleteClub.mutation({ params: { id: clubID } });
       router.push({ name: 'Clubs Home' });
     } catch (error) {
       console.error('Error deleting club:', error);
@@ -213,11 +218,15 @@ async function deleteClub() {
 
 onMounted(async () => {
   if (props.isUpdate) {
-    const clubID = route.params.id;
+    const clubID = String(route.params.id);
     try {
-      const response = await $axios.get(`/clubs/${clubID}`);
-      club.value = response.data.payload;
-      form.value = response.data.payload;
+      const response = await client.clubs.getClub.query({
+        params: { id: clubID },
+      });
+      if (response.status === 200) {
+        club.value = response.body.payload;
+        form.value = response.body.payload;
+      }
     } catch (error) {
       console.error('Error fetching club:', error);
     }

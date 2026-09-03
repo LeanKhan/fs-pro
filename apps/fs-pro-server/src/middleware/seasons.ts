@@ -1,6 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Request, Response, NextFunction } from 'express';
-import respond from '../helpers/responseHandler';
 import {
   createSeasonRecord,
   getSeasons,
@@ -47,7 +45,7 @@ export async function create(
     const data = {
       SeasonCode: seasonCode,
       CompetitionCode: competitionCode,
-      Competition: competitionID,
+      CompetitionId: competitionID,
       Year: year,
       Status: 'pending',
       Title: `Season-${competitionCode}-${year}-${Math.round(
@@ -76,8 +74,8 @@ export async function create(
     season_id = season._id;
     season_code = season.SeasonCode;
 
-    // Competition.Seasons doesn't exist on Postgres - Seasons.Competition
-    // (set above, in `data.Competition = competitionID`) already carries
+    // Competition.Seasons doesn't exist on Postgres - Seasons.CompetitionId
+    // (set above, in `data.CompetitionId = competitionID`) already carries
     // this relationship, nothing left to write. Same no-op as
     // competition.controller.ts's addSeasonToCompetition.
     return Promise.resolve(null);
@@ -184,87 +182,6 @@ export async function create(
     .then(setInitialStandings);
 }
 
-export function createSeason(req: Request, res: Response, next: NextFunction) {
-  // tslint:disable-next-line: variable-name
-
-  /**
-   * Get list of all competitions and create seasons for them based on the current year,
-   * then update the Calendar by adding dates!
-   *
-   */
-
-  req.body.data.CompetitionCode = req.body.data.CompetitionCode.toUpperCase();
-
-  // No two seasons of the same competition and same month and year should exist at the same time...
-
-  // Send Year from Client.
-  // In client request for a list of all the Calendars available
-  const year = process.env.CURRENT_YEAR!.trim().toUpperCase();
-
-  const seasonCode = req.body.data.CompetitionCode + '-' + year;
-
-  // NOTE: Before we were getting Year for Season here...
-  //  req.body.data.Year
-
-  log(year);
-
-  const newSeason = () => {
-    req.body.data.SeasonCode = seasonCode;
-    req.body.data.Year = year;
-    // Placeholders if the client didn't send them - see the equivalent
-    // comment in the internal create()'s newSeason above for why.
-    req.body.data.StartDate = req.body.data.StartDate ?? new Date();
-    req.body.data.EndDate = req.body.data.EndDate ?? new Date();
-    return createSeasonRecord(req.body.data).catch((err: any) => {
-      throw err;
-    });
-  };
-
-  newSeason()
-    .then((season: any) => {
-      void incrementCounter('season_counter');
-      // createSeasonRecord (repository-backed, both backends) always
-      // returns a plain object - no `._doc` (Mongoose-Document-specific,
-      // left over from the raw `.save()` this used to call).
-      req.body.seasonMongoID = season._id;
-      return next();
-    })
-    .catch((error) => {
-      console.error(error);
-      return respond.fail(res, 400, 'Error creating Season', error);
-    });
-}
-
-/**
- * fetch season clubs
- * in the req.body object...
- * competitionId,
- * seasonId,
- * leagueCode,
- *
- * @param req
- * @param res
- * @param next
- */
-
-// TODO: remove this and move to the main function...
-export function fetchCompetitionClubs(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
-  const { competitionId } = req.body.data as GenerateFixturesBody;
-
-  getCompetitionWithClubsAndSeasons(competitionId)
-    .then((value: any) => {
-      req.body.competition = value;
-      next();
-    })
-    .catch((error: any) => {
-      respond.fail(res, 400, 'Error fetching competition', error);
-    });
-}
-
 interface GenerateFixturesBody {
   seasonCode: string;
   leagueCode: string;
@@ -272,46 +189,78 @@ interface GenerateFixturesBody {
   competitionId: string;
 }
 
-export function generateFixtures(
-  req: Request,
-  res: Response,
-  next: NextFunction
+/** Get list of all competitions and create seasons for them based on the
+ * current year. Plain function (not Express middleware) so it can be
+ * called directly from a ts-rest handler - see season.router.ts's
+ * createSeason. No two seasons of the same competition and same month and
+ * year should exist at the same time.
+ *
+ * `competitionId` is a required param (not looked up from `competitionCode`)
+ * because the original Express version of this never actually set
+ * `CompetitionId` on the new season at all - the client sent it under the
+ * wrong key (`Competition` instead of `CompetitionId`), so it was silently
+ * dropped. Fixed by taking it explicitly, same as the other season-creation
+ * path (middleware/seasons.ts's own `create()`, used by calendar) already
+ * does correctly. */
+export async function createSeasonPlain(
+  competitionCode: string,
+  competitionId: string,
+  title?: string,
+  startDate?: string,
+  endDate?: string
 ) {
-  const competition: CompetitionInterface = req.body.competition;
+  const upperCode = competitionCode.toUpperCase();
 
-  const { leagueCode } = req.body.data as GenerateFixturesBody;
+  // Send Year from Client... In client request for a list of all the
+  // Calendars available.
+  const year = process.env.CURRENT_YEAR!.trim().toUpperCase();
+  const seasonCode = upperCode + '-' + year;
 
-  /**
-   * Things are slightly different for a Cup than for a League...
-   * - A cup doesn't have all the matches before hand...
-   * - A cup may have a mix of more than one type of match, e.g with revers fixtures and straigh tuo knockout!
-   */
+  log(year);
 
-  const { id: seasonId, code: seasonCode } = req.params;
+  const data = {
+    CompetitionCode: upperCode,
+    CompetitionId: competitionId,
+    SeasonCode: seasonCode,
+    Year: year,
+    // Title is NOT NULL with no DB default - the client's Title field has
+    // always been optional (see season-form.vue), so fall back to the same
+    // generated-title pattern the internal create()'s newSeason above uses,
+    // rather than letting the insert fail when it's omitted.
+    Title: title ?? `Season-${upperCode}-${year}-${Math.round(Math.random() * 10)}`,
+    // Placeholders - see the equivalent comment in the internal create()'s
+    // newSeason above for why.
+    StartDate: startDate ? new Date(startDate) : new Date(),
+    EndDate: endDate ? new Date(endDate) : new Date(),
+  };
 
+  const season = await createSeasonRecord(data);
+  await incrementCounter('season_counter');
+  return season;
+}
+
+/** Fetches the Competition (with Clubs/Seasons) that a new Season's
+ * fixtures will be generated for. Plain function equivalent of the old
+ * fetchCompetitionClubs Express middleware. */
+export async function fetchCompetitionForFixtures(competitionId: string) {
+  return getCompetitionWithClubsAndSeasons(competitionId);
+}
+
+/** Generates and persists a full round-robin Fixture set for a Season,
+ * returning the created Fixture ids. Plain function equivalent of the old
+ * generateFixtures Express middleware. Things are slightly different for a
+ * Cup than for a League - a cup doesn't have all the matches beforehand,
+ * and may mix reverse-fixture and straight-knockout formats - not yet
+ * handled here (matches the original's scope). */
+export async function generateSeasonFixtures(
+  competition: CompetitionInterface,
+  seasonId: string,
+  seasonCode: string,
+  leagueCode: string
+): Promise<string[]> {
   const matchesPerWeek = competition.Clubs.length / 2;
 
-  // Round Robin fixtures algorithm
-  // h -> Home team , a -> Away team
-  // the numbers are the Club numbers
-
-  // const roundrobin = [
-  //   { h: 1, a: 4 },
-  //   { h: 2, a: 3 },
-  //   { h: 1, a: 3 },
-  //   { h: 4, a: 2 },
-  //   { h: 1, a: 2 },
-  //   { h: 3, a: 4 },
-  //   { h: 4, a: 1 },
-  //   { h: 3, a: 2 },
-  //   { h: 3, a: 1 },
-  //   { h: 2, a: 4 },
-  //   { h: 2, a: 1 },
-  //   { h: 4, a: 3 },
-  // ];
-
   const roundrobin = new RoundRobin(competition.Clubs.length);
-
   const rounds = roundrobin.generateFixtures();
 
   const fixtureObjects = rounds.map((fixture, index) => {
@@ -336,56 +285,30 @@ export function generateFixtures(
     return generateFixtureObject(data);
   });
 
-  // respond.success(res, 200, 'Success creating Fixtures', fixtureObjects);
-
-  createFixtures(fixtureObjects)
-    .then((fixtures: any) => {
-      const fixtureIds: string[] = fixtures.map((fixture: any) => {
-        return fixture._id;
-      });
-
-      req.body.fixtureIds = fixtureIds;
-      next();
-    })
-    .catch((err: any) => {
-      respond.fail(res, 400, 'Error creating Fixtures', err);
-    });
+  const fixtures = await createFixtures(fixtureObjects);
+  return fixtures.map((fixture: any) => fixture._id);
 }
 
-export function setInitialStandings(
-  req: Request,
-  res: Response,
-  next: NextFunction
+/** Builds and persists the Season's initial (empty) Standings table, one
+ * week per round of the fixture list. Plain function equivalent of the old
+ * setInitialStandings Express middleware. */
+export async function setSeasonInitialStandings(
+  competition: CompetitionInterface,
+  seasonId: string
 ) {
-  const competition: CompetitionInterface = req.body.competition;
-
-  const seasonId = req.params.id;
-
   const numberOfMatches: number =
     (competition.Clubs.length - 1) * competition.Clubs.length;
-
   const matchesPerWeek = Math.round(competition.Clubs.length / 2);
-
   const numberOfWeeks: number = numberOfMatches / matchesPerWeek;
 
   const weeks = [];
-
   for (let i = 1; i <= numberOfWeeks; i++) {
     const week: { Week: number; Table: any[] } = {
       Week: i,
-      Table: [],
+      Table: generateWeekTable(competition.Clubs as ClubInterface[]),
     };
-
-    week.Table = generateWeekTable(competition.Clubs as ClubInterface[]);
-
     weeks.push(week);
   }
 
-  updateSeasonFields(seasonId, { Standings: weeks })
-    .then((season: any) => {
-      next();
-    })
-    .catch((err: any) => {
-      respond.fail(res, 400, 'Error creating Fixtures', err);
-    });
+  return updateSeasonFields(seasonId, { Standings: weeks });
 }

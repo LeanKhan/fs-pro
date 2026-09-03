@@ -77,7 +77,7 @@ export function toggleSigned(
   const fields = {
     isSigned: !value,
     ClubCode: clubCode,
-    Club: clubId,
+    ClubId: clubId,
   } as unknown as Partial<PlayerInterface>;
   return updatePlayerFields(playerId, fields);
 }
@@ -94,7 +94,7 @@ export function signManyPlayersToClub(
   const fields = {
     isSigned: true,
     ClubCode: clubCode,
-    Club: clubId,
+    ClubId: clubId,
   } as unknown as Partial<PlayerInterface>;
   return getPlayerRepo().updateManyByIds(playerIds, fields);
 }
@@ -186,7 +186,7 @@ export async function getPlayerStats(year: string) {
   const db = DrizzleDatabase.getInstance().database;
   const rows = await db
     .select({
-      playerId: playerMatchDetails.Player,
+      playerId: playerMatchDetails.PlayerId,
       goals: drizzleSql<number>`sum(${playerMatchDetails.Goals})`,
       saves: drizzleSql<number>`sum(${playerMatchDetails.Saves})`,
       passes: drizzleSql<number>`sum(${playerMatchDetails.Passes})`,
@@ -198,10 +198,10 @@ export async function getPlayerStats(year: string) {
       form: drizzleSql<number>`avg(${playerMatchDetails.Form})`,
     })
     .from(playerMatchDetails)
-    .innerJoin(fixtures, eq(playerMatchDetails.Fixture, fixtures.id))
-    .innerJoin(seasons, eq(fixtures.Season, seasons.id))
+    .innerJoin(fixtures, eq(playerMatchDetails.FixtureId, fixtures.id))
+    .innerJoin(seasons, eq(fixtures.SeasonId, seasons.id))
     .where(eq(seasons.Year, year))
-    .groupBy(playerMatchDetails.Player)
+    .groupBy(playerMatchDetails.PlayerId)
     .orderBy(desc(drizzleSql`avg(${playerMatchDetails.Points})`));
 
   return attachPlayersAndFixtures(
@@ -242,7 +242,7 @@ export async function getSpecificPlayerStats(
 
   const rows = await db
     .select({
-      playerId: playerMatchDetails.Player,
+      playerId: playerMatchDetails.PlayerId,
       goals: STAT_SORT_COLUMNS.goals,
       saves: STAT_SORT_COLUMNS.saves,
       passes: STAT_SORT_COLUMNS.passes,
@@ -254,14 +254,14 @@ export async function getSpecificPlayerStats(
       form: STAT_SORT_COLUMNS.form,
     })
     .from(playerMatchDetails)
-    .innerJoin(fixtures, eq(playerMatchDetails.Fixture, fixtures.id))
-    .innerJoin(seasons, eq(fixtures.Season, seasons.id))
+    .innerJoin(fixtures, eq(playerMatchDetails.FixtureId, fixtures.id))
+    .innerJoin(seasons, eq(fixtures.SeasonId, seasons.id))
     .where(
       competitionCode !== undefined
         ? eq(seasons.CompetitionCode, competitionCode)
         : undefined
     )
-    .groupBy(playerMatchDetails.Player)
+    .groupBy(playerMatchDetails.PlayerId)
     .orderBy(sortDir === 'asc' ? sortColumn : desc(sortColumn));
 
   return attachPlayersAndFixtures(
@@ -275,7 +275,7 @@ export async function allPlayerStats(
   const db = DrizzleDatabase.getInstance().database;
   const rows = await db
     .select({
-      playerId: playerMatchDetails.Player,
+      playerId: playerMatchDetails.PlayerId,
       // Mongo's `$first` after `$unwind` picks an arbitrary member of
       // the group - min() here is just as arbitrary but deterministic.
       // Confirmed the only consumer (awards.controller.ts) never reads
@@ -283,7 +283,7 @@ export async function allPlayerStats(
       // matter functionally.
       // min() has no built-in overload for uuid - cast to text for the
       // comparison (arbitrary either way, see comment above).
-      fixtureId: drizzleSql<string>`min(${playerMatchDetails.Fixture}::text)`,
+      fixtureId: drizzleSql<string>`min(${playerMatchDetails.FixtureId}::text)`,
       goals: drizzleSql<number>`sum(${playerMatchDetails.Goals})`,
       saves: drizzleSql<number>`sum(${playerMatchDetails.Saves})`,
       passes: drizzleSql<number>`sum(${playerMatchDetails.Passes})`,
@@ -296,9 +296,9 @@ export async function allPlayerStats(
       count: drizzleSql<number>`count(*)`,
     })
     .from(playerMatchDetails)
-    .innerJoin(fixtures, eq(playerMatchDetails.Fixture, fixtures.id))
-    .where(eq(fixtures.Season, season))
-    .groupBy(playerMatchDetails.Player);
+    .innerJoin(fixtures, eq(playerMatchDetails.FixtureId, fixtures.id))
+    .where(eq(fixtures.SeasonId, season))
+    .groupBy(playerMatchDetails.PlayerId);
 
   return attachPlayersAndFixtures(
     rows.filter((r): r is typeof r & { playerId: string } => !!r.playerId)

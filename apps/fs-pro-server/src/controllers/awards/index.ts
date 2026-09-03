@@ -17,23 +17,29 @@ function getAwardRepo() {
   return awardRepo;
 }
 
-/** Batch-resolves a set of Awards' `id` field (`Recipient`/`Club`/`Season`)
- * against distinct ids via `getById`, merging the results back - one query
- * per distinct id, not per Award (a season only ever has a handful of
- * Awards, so this stays simple rather than adding an `ids`-batch filter to
- * four different repositories for one small read). */
+/** Batch-resolves a set of Awards' `idField` (`RecipientId`/`ClubId`/
+ * `SeasonId`) against distinct ids via `getById`, adding the resolved
+ * object under the separate, clean `targetField` (`Recipient`/`Club`/
+ * `Season`) - the id field itself is never overwritten, so a caller always
+ * knows `XId` is a bare id and `X` (only present when requested) is the
+ * full object. One query per distinct id, not per Award (a season only
+ * ever has a handful of Awards, so this stays simple rather than adding an
+ * `ids`-batch filter to four different repositories for one small read). */
 async function attachField<T extends Record<string, any>>(
   rows: T[],
-  field: keyof T,
+  idField: keyof T,
+  targetField: string,
   getById: (id: string) => Promise<any>
 ): Promise<T[]> {
   const ids = [
-    ...new Set(rows.map((r) => r[field]).filter(Boolean)),
+    ...new Set(rows.map((r) => r[idField]).filter(Boolean)),
   ] as string[];
   const resolved = await Promise.all(ids.map((id) => getById(id)));
   const map = new Map(ids.map((id, i) => [id, resolved[i]]));
   return rows.map((r) =>
-    r[field] ? { ...r, [field]: map.get(r[field] as string) ?? r[field] } : r
+    r[idField] && map.get(r[idField] as string)
+      ? { ...r, [targetField]: map.get(r[idField] as string) }
+      : r
   );
 }
 
@@ -57,14 +63,24 @@ export async function fetchAll(
 
   const getRecipientById =
     recipient === 'manager' ? getManagerById : getPlayerById;
-  awardRows = await attachField(awardRows, 'Recipient', getRecipientById);
+  awardRows = await attachField(
+    awardRows,
+    'RecipientId',
+    'Recipient',
+    getRecipientById
+  );
 
   if (populate === 'club' || populate === 'club-season') {
-    awardRows = await attachField(awardRows, 'Club', getClubById);
+    awardRows = await attachField(awardRows, 'ClubId', 'Club', getClubById);
   }
 
   if (populate === 'club-season') {
-    awardRows = await attachField(awardRows, 'Season', getSeasonById);
+    awardRows = await attachField(
+      awardRows,
+      'SeasonId',
+      'Season',
+      getSeasonById
+    );
   }
 
   return awardRows;

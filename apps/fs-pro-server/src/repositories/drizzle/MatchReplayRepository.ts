@@ -18,7 +18,7 @@ export class DrizzleMatchReplayRepository implements IMatchReplayRepository {
 
   async findByFixtureId(fixtureId: string): Promise<MatchReplayRecord | null> {
     const row = await this.db.query.matchReplays.findFirst({
-      where: eq(matchReplays.Fixture, fixtureId),
+      where: eq(matchReplays.FixtureId, fixtureId),
     });
     return row ? toMatchReplay(row) : null;
   }
@@ -29,14 +29,14 @@ export class DrizzleMatchReplayRepository implements IMatchReplayRepository {
   ): Promise<MatchReplayRecord> {
     const values = {
       ...(data as typeof matchReplays.$inferInsert),
-      Fixture: fixtureId,
+      FixtureId: fixtureId,
       updatedAt: new Date(),
     };
 
     const [row] = await this.db
       .insert(matchReplays)
       .values(values)
-      .onConflictDoUpdate({ target: matchReplays.Fixture, set: values })
+      .onConflictDoUpdate({ target: matchReplays.FixtureId, set: values })
       .returning();
 
     return toMatchReplay(row);

@@ -40,7 +40,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { Club } from '@/interfaces/club';
+import type { Club } from '@repo/api-contract';
 import { apiUrl } from '@/store';
 
 interface Props {

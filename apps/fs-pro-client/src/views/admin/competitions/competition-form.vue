@@ -45,7 +45,7 @@
                 :items="countries"
                 item-title="Name"
                 item-value="_id"
-                v-model="form.Country"
+                v-model="form.CountryId"
               ></v-select>
             </v-col>
 
@@ -153,10 +153,10 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useStore } from '@/store';
-import { $axios } from '@/services/api';
+import { client } from '@/services/api';
 import ClubList from '@/components/clubs/club-list.vue';
 import ClubsTable from '@/components/clubs/clubs-table.vue';
-import type { Competition } from '@/interfaces/competition';
+import type { Competition } from '@repo/api-contract';
 
 const props = defineProps<{
   isUpdate?: boolean;
@@ -171,7 +171,7 @@ const types = ['League', 'Cup', 'Tournament'];
 const divisions = [1, 2, 3, 4, 0];
 const openClubModal = ref(false);
 
-const form = ref({
+const form = ref<any>({
   Name: '',
   Type: '',
   CompetitionCode: '',
@@ -179,13 +179,11 @@ const form = ref({
   NumberOfWeeks: '',
   TeamsPromoted: '',
   TeamsRelegated: '',
-  Country: null,
+  CountryId: null,
   League: false,
   Cup: false,
   Tournament: false,
   Division: null,
-  Clubs: [],
-  Seasons: [],
 });
 
 const countries = computed(() => store.countries);
@@ -211,21 +209,32 @@ function typeChanged(type: string) {
 }
 
 async function submit() {
-  const competitionID = route.params.id;
-  const url = props.isUpdate
-    ? `/competitions/${competitionID}/update`
-    : '/competitions/new?model=competition';
+  const competitionID = String(route.params.id);
 
   try {
-    const response = await $axios.post(url, { data: form.value });
-    let id = '';
-    let code = '';
+    let id: string;
+    let code: string;
     if (props.isUpdate) {
-      id = route.params._id as string;
-      code = route.params.CompetitionCode as string;
+      await client.competitions.updateCompetition.mutation({
+        params: { id: competitionID },
+        body: form.value,
+      });
+      // The Mongoose-era `_doc` unwrap and `route.params._id`/
+      // `CompetitionCode` this used to read never matched this route's
+      // actual `:id`/`:code` params (see deleteCompetition below, which
+      // already used the right ones) - navigation after update/create was
+      // silently broken. Fixed to use the real param names / response shape.
+      id = competitionID;
+      code = String(route.params.code);
     } else {
-      id = response.data.payload._doc._id;
-      code = response.data.payload._doc.CompetitionCode;
+      const response = await client.competitions.createCompetition.mutation({
+        body: form.value,
+      });
+      if (response.status !== 200) {
+        throw new Error(response.body.message);
+      }
+      id = response.body.payload._id ?? '';
+      code = response.body.payload.CompetitionCode;
     }
     router.push({ name: 'View Competition', params: { id, code } });
   } catch (error) {
@@ -236,13 +245,12 @@ async function submit() {
 function closeModal(event: any) {
   openClubModal.value = false;
   if (event) {
-    const competitionID = route.params.id;
-    const compCode = route.params.code.toString().toUpperCase();
+    const competitionID = String(route.params.id);
 
-    $axios
-      .post(`/competitions/${competitionID}/add-club`, {
-        clubId: event.id,
-        leagueCode: compCode,
+    client.competitions.addClubToCompetition
+      .mutation({
+        params: { id: competitionID },
+        body: { clubId: event.id },
       })
       .then((response) => {
         console.log('Successfully added club to competition:', response);
@@ -259,9 +267,11 @@ async function deleteCompetition() {
   );
 
   if (answer) {
-    const competitionID = route.params.id;
+    const competitionID = String(route.params.id);
     try {
-      await $axios.delete(`/competitions/${competitionID}`);
+      await client.competitions.deleteCompetition.mutation({
+        params: { id: competitionID },
+      });
       router.push('/a/competitions');
     } catch (error) {
       console.error('Error deleting competition:', error);
@@ -271,13 +281,16 @@ async function deleteCompetition() {
 
 onMounted(async () => {
   if (props.isUpdate) {
-    const competitionID = route.params.id;
+    const competitionID = String(route.params.id);
     try {
-      const response = await $axios.get(
-        `/competitions/${competitionID}?populate=false`
-      );
-      competition.value = response.data.payload as Competition;
-      form.value = response.data.payload as any;
+      const response = await client.competitions.getCompetition.query({
+        params: { id: competitionID },
+        query: { populate: 'false' },
+      });
+      if (response.status === 200) {
+        competition.value = response.body.payload as Competition;
+        form.value = response.body.payload;
+      }
     } catch (error) {
       console.error('Error fetching competition:', error);
     }
