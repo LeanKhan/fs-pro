@@ -27,6 +27,7 @@ export const MatchEventSchema = z.object({
     'pass',
     'interception',
     'foul',
+    'substitution',
   ]),
   message: z.string(),
   time: z.string().optional(),

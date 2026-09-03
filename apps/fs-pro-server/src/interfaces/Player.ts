@@ -7,7 +7,7 @@ import { Role } from '../controllers/players/player.model';
  * not a bare `sentOff: boolean` - future match-dynamic incidents (an
  * injury, say) extend this with a new value instead of needing a redesign.
  */
-export type PlayerMatchStatus = 'active' | 'sent-off';
+export type PlayerMatchStatus = 'active' | 'sent-off' | 'substituted';
 
 export interface IFieldPlayer extends PlayerInterface {
   Points: number;

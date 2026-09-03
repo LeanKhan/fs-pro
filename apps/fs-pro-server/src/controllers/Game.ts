@@ -173,6 +173,34 @@ export default class Game implements GameClass {
   }
 
   /**
+   * Auto-select and apply up to MAX_SUBSTITUTIONS substitutions per side
+   * at half-time only (locked scope: no in-match-minute or live-triggered
+   * subs - see MatchSide.planHalfTimeSubstitutions()'s doc comment for
+   * why, and MatchSide.changeTactic()'s doc comment for why this MUST run
+   * only after swapClubFormations(), never before).
+   */
+  public performHalfTimeSubstitutions() {
+    this.substituteSide(this.Match.Home);
+    this.substituteSide(this.Match.Away);
+  }
+
+  private substituteSide(side: MatchSide) {
+    const pairs = side.planHalfTimeSubstitutions();
+
+    pairs.forEach(({ outgoing, incoming }) => {
+      side.substitutePlayer(outgoing, incoming, this.MatchBall);
+
+      createMatchEvent(
+        this.Match.id,
+        `${side.Name} [${side.ClubCode}] substitution: ${incoming.FirstName} ${incoming.LastName} replaces ${outgoing.FirstName} ${outgoing.LastName}`,
+        'substitution',
+        incoming._id,
+        side.ClubCode
+      );
+    });
+  }
+
+  /**
    * Change a side's tactic at any point in the match, not just half-time.
    * Emits a matchEvents event so the change lands in Match.Events/Frames
    * automatically, same as every other in-match action - no replay-system
@@ -353,6 +381,7 @@ export default class Game implements GameClass {
     createMatchEvent(this.Match.id, 'First Half Over', 'match');
     log('------------------ Second Half Start ------------------');
     this.swapClubFormations();
+    this.performHalfTimeSubstitutions();
     matchEvents.emit(`${this.Match.id}-reset-formations`);
     await this.gameLoop(90, 180);
     matchEvents.emit(`${this.Match.id}-half-end`);

@@ -1554,6 +1554,35 @@ triggers "create a year" (not yet located - check
 
 ## Match engine
 
+### Half-time player substitutions
+
+**Status:** Done - 2026-09-03. Auto-picked starting XI + bench (best 11 by
+Rating/Position fit against the formation's slots, rest benched, capped
+at 7), up to 3 substitutions applied automatically at half-time only
+(weakest-active-starter swapped for the best-rated same-Position bench
+player). No manual lineup picker, no random in-match-minute or
+live-triggered subs, no injury system - all deliberately deferred. Full
+design/verification writeup in the `substitutions_feature` memory.
+
+**Also fixed a real crash bug as a side effect**: there was previously no
+starting-XI-vs-bench concept at all - every signed club player got placed
+on the pitch every match, which only avoided crashing because every test
+club happened to have exactly 11 players. Once a club exceeds 11 (now
+trivially possible via the Transfer Market's zero-squad-cap purchase
+flow), the old formation-assignment code threw. Verified live: pushed a
+real club to 15 players, kicked off a match, no crash.
+
+**Real, pre-existing bug found while verifying (unrelated to this
+feature, confirmed present even in a zero-substitution match too):
+`PlayerMatchDetails.PlayerId` is `null` on every single row, for every
+match ever played.** `MatchSide.getPlayerStats()` returns a `Player`
+field (not `PlayerId`) that apparently never gets correctly mapped onto
+the DB column somewhere in the `functions.ts`/repository write path. Not
+fixed - out of scope for the substitutions pass, needs its own
+investigation of the write path before touching it. Likely means any
+future "player's career match history" feature reading through this FK
+would find it silently disconnected.
+
 ### Effective attributes layer
 
 **Status:** Not started — no consumer yet.
@@ -2048,10 +2077,11 @@ actually broken).
 
 ### Manager mode and owner mode
 
-**Status:** In progress - Transfer Market + Contracts (MVP) shipped
-2026-09-03, manager mode's "economic spine" and the agreed prerequisite for
-owner mode. Owner mode itself not started. See
-`transfer_market_feature` memory for the full build writeup.
+**Status:** In progress - Transfer Market + Contracts (MVP) and half-time
+player substitutions both shipped 2026-09-03. Owner mode itself not
+started. See the `transfer_market_feature`/`substitutions_feature`
+memories for the full build writeups (substitutions is also covered in
+this file's own "Match engine" section above).
 
 **Context:** Rather than the world-builder idea above, the agreed next
 phase is deepening the single-club game loop: first close the gaps in

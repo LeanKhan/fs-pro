@@ -15,6 +15,14 @@ import { ClubInterface } from '../controllers/clubs/club.model';
 import { sortFromKeeperDown } from '../utils/players';
 import log from '../helpers/logger';
 
+/** Matchday bench cap - a placeholder default, not a considered balance
+ * pass (same treatment as the Transfer Market feature's Budget/Wage
+ * constants). */
+export const BENCH_SIZE = 7;
+/** Locked scope: up to 3 subs per match, half-time only - see
+ * Game.performHalfTimeSubstitutions(). */
+export const MAX_SUBSTITUTIONS = 3;
+
 /** MatchSide
  *
  * Represents a team playing in a match.
@@ -26,7 +34,11 @@ export class MatchSide extends Club {
   public DefensiveForm = 0;
   public GoalsScored = 0;
   public StartingSquad: IFieldPlayer[] = [];
-  public Substitutes: IFieldPlayer[] = [];
+  /** Bench pool - plain Player instances (no pitch position/Ball) until
+   * actually subbed on, same shape as MatchSquad. Populated by
+   * setFormation()'s selectMatchdaySquad(); consumed by
+   * substitutePlayer(). */
+  public Substitutes: Player[] = [];
   public MatchSquad: Player[] = [];
   public Tactic!: IActiveTactic;
   /**
@@ -50,13 +62,17 @@ export class MatchSide extends Club {
 
   /**
    * Outfield players currently available for selection - excludes anyone
-   * sent off. StartingSquad itself stays the full original 11 always, so
-   * end-of-match reporting (getPlayerStats) and formation setup keep
-   * working unchanged; gameplay logic (marking, passing targets, restarts,
-   * who's closest to the ball) should query this instead.
+   * sent off or substituted off. StartingSquad itself keeps growing (a
+   * substituted-off player stays in it forever, same treatment as a
+   * sent-off one), so end-of-match reporting (getPlayerStats/getMOTM) and
+   * formation setup keep working unchanged; gameplay logic (marking,
+   * passing targets, restarts, who's closest to the ball) should query
+   * this instead.
    */
   public get ActivePlayers(): IFieldPlayer[] {
-    return this.StartingSquad.filter((p) => p.MatchStatus !== 'sent-off');
+    return this.StartingSquad.filter(
+      (p) => p.MatchStatus !== 'sent-off' && p.MatchStatus !== 'substituted'
+    );
   }
 
   public setPlayers() {
@@ -84,22 +100,65 @@ export class MatchSide extends Club {
 
     log('Tactic =>', this.Tactic);
 
-    const currentFormation = [...this.Tactic.slots];
+    const { startingXI, bench } = this.selectMatchdaySquad(this.Tactic.slots);
 
-    // Sort them here...
-    this.MatchSquad = sortFromKeeperDown(this.MatchSquad);
+    this.Substitutes = bench;
+    this.StartingSquad = startingXI.map(
+      ({ player, block }) => new FieldPlayer(player, true, block, ball)
+    );
+  }
 
-    this.StartingSquad = this.MatchSquad.map((p: PlayerInterface, i) => {
-      // Find the first formation slot that fits this player's position
-      const { block: startingBlock, index: foundIndex } = this.getBlock(
-        p,
-        currentFormation
-      );
+  /**
+   * Pick the best 11 for this formation's slots (best-remaining-Rating per
+   * slot's listed positions) and bench the rest (capped at BENCH_SIZE,
+   * Rating-desc). Bounded by construction - can never hand more than
+   * slots.length players to FieldPlayer, unlike the old player-driven
+   * getBlock() walk this replaces, which crashed once a club's signed
+   * roster exceeded 11 (empty `formation` array -> `formation[0]` is
+   * undefined -> `.block` throws). isReserve is deliberately not
+   * consulted - this is pure auto-pick, no manual squad selection yet.
+   */
+  private selectMatchdaySquad(slots: ResolvedFormationSlot[]): {
+    startingXI: { player: Player; block: IBlock }[];
+    bench: Player[];
+  } {
+    const pool = [...this.MatchSquad];
+    const startingXI: { player: Player; block: IBlock }[] = [];
 
-      currentFormation.splice(foundIndex, 1);
+    slots.forEach((slot) => {
+      let pick: Player | undefined;
 
-      return new FieldPlayer(p, true, startingBlock, ball);
+      for (const pos of slot.positions) {
+        const candidates = pool
+          .filter((p) => p.Position === pos)
+          .sort((a, b) => b.Rating - a.Rating);
+        if (candidates.length) {
+          pick = candidates[0];
+          break;
+        }
+      }
+
+      if (!pick) {
+        // Nobody fits this slot's listed positions at all (thin roster at
+        // that position) - fall back to the best remaining player overall,
+        // same "give him something" spirit as the old getBlock() fallback,
+        // but bounded (pool is finite, never crashes).
+        pick = [...pool].sort((a, b) => b.Rating - a.Rating)[0];
+      }
+
+      if (pick) {
+        startingXI.push({ player: pick, block: slot.block });
+        pool.splice(pool.indexOf(pick), 1);
+      }
+      // If pick is still undefined here, the club has fewer signed players
+      // than formation slots - pre-existing, out-of-scope edge case (no
+      // minimum-squad-size validation added this pass); the slot is simply
+      // left unfilled rather than crashing.
     });
+
+    const bench = pool.sort((a, b) => b.Rating - a.Rating).slice(0, BENCH_SIZE);
+
+    return { startingXI, bench };
   }
 
   /**
@@ -108,6 +167,19 @@ export class MatchSide extends Club {
    * just half-time - half-time is just one caller of this (see
    * Game.swapClubFormations), and it's what backs the eventual "change
    * tactics mid-match" capability.
+   *
+   * IMPORTANT: this re-walks the ENTIRE StartingSquad through getBlock()
+   * against exactly `slots.length` formation slots - it must only ever run
+   * while StartingSquad still has exactly 11 entries. Substitutions
+   * (substitutePlayer()) grow StartingSquad past 11 by design (a
+   * substituted-off player stays in the array, marked 'substituted', for
+   * post-match stats). Today this is safe because changeTactic() only
+   * ever runs once per match, via Game.swapClubFormations() at half-time,
+   * strictly BEFORE Game.performHalfTimeSubstitutions() runs. If a future
+   * live/mid-match tactic-change trigger is ever wired up (see
+   * Game.changeTactic()'s doc comment), it MUST filter to ActivePlayers
+   * before re-walking, not raw StartingSquad, or this will throw exactly
+   * like the old unbounded setFormation() did.
    */
   public changeTactic(
     tactic: ITactic,
@@ -165,12 +237,64 @@ export class MatchSide extends Club {
     return this.StartingSquad.map((p) => ({ ...p.GameStats, Player: p._id }));
   }
 
-  public setSubstitutes(subs: IFieldPlayer[]) {
-    this.Substitutes = subs;
-  }
-
   public matchSquad() {
     return null;
+  }
+
+  /**
+   * Weakest-active-outfield-starter -> best-Rating-remaining-bench-player-
+   * of-the-same-Position pairing, up to maxSubs. GK is excluded from both
+   * sides deliberately - getGK() (utils/players.ts, called from
+   * Referee.ts/Actions.ts) does `squad.find(p => p.Position === 'GK')`
+   * against StartingSquad, which would keep resolving to a stale
+   * substituted-off keeper (they sit earlier in the array) if a keeper sub
+   * were ever allowed. Returns [] once outgoing candidates or matching
+   * bench players are exhausted - safe to call with an empty bench (a
+   * club with exactly 11 signed players never subs, doesn't throw).
+   */
+  public planHalfTimeSubstitutions(
+    maxSubs: number = MAX_SUBSTITUTIONS
+  ): { outgoing: IFieldPlayer; incoming: Player }[] {
+    const outgoingCandidates = this.ActivePlayers.filter(
+      (p) => p.Position !== 'GK'
+    ).sort((a, b) => a.Rating - b.Rating);
+
+    const benchPool = this.Substitutes.filter((p) => p.Position !== 'GK');
+
+    const pairs: { outgoing: IFieldPlayer; incoming: Player }[] = [];
+
+    for (const outgoing of outgoingCandidates) {
+      if (pairs.length >= maxSubs) break;
+
+      const idx = benchPool.findIndex((p) => p.Position === outgoing.Position);
+      if (idx === -1) continue;
+
+      const [incoming] = benchPool.splice(idx, 1);
+      pairs.push({ outgoing, incoming });
+    }
+
+    return pairs;
+  }
+
+  /**
+   * Executes one substitution: marks the outgoing player 'substituted'
+   * (kept in StartingSquad forever, same pattern as 'sent-off' -
+   * getPlayerStats()/getMOTM()/Match.captureFrame() all keep working
+   * unmodified) and pushes the incoming player on as a new FieldPlayer at
+   * the outgoing player's slot.
+   */
+  public substitutePlayer(outgoing: IFieldPlayer, incoming: Player, ball: Ball) {
+    outgoing.MatchStatus = 'substituted';
+
+    const incomingPlayer = new FieldPlayer(
+      incoming,
+      false,
+      outgoing.StartingPosition,
+      ball
+    );
+
+    this.StartingSquad.push(incomingPlayer);
+    this.Substitutes = this.Substitutes.filter((p) => p._id !== incoming._id);
   }
 
   /**
