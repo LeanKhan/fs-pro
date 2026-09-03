@@ -588,7 +588,8 @@ export interface IMatchEvent {
     | 'tackle'
     | 'pass'
     | 'interception'
-    | 'foul';
+    | 'foul'
+    | 'substitution';
   message: string;
   time?: string;
   playerID?: string;
