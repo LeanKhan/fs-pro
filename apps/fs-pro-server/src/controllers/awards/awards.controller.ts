@@ -1,16 +1,22 @@
 // a function that awards all the awards for that season/year...
 
-import { Request, Response } from 'express';
 import { allPlayerStats } from '../players/player.service';
 import { Fixture } from '../fixtures/fixture.model';
 import { PlayerInterface } from '../players/player.model';
-import responseHandler from '../../helpers/responseHandler';
 import { AwardInterface } from './awards.model';
 import { createAwards } from '.';
 import { getManagers } from '../managers/manager.service';
 
-export async function giveAwards(req: Request, res: Response) {
-  const season_id = req.params.id;
+/** Works out and persists every Award for a finished Season (top player
+ * per stat category, plus the winning Manager's title). Plain function
+ * (not an Express handler) so it can be called directly from a ts-rest
+ * handler - see season.router.ts's finishSeason, which now calls this with
+ * the seasonChampions club id computed by finishSeasonPlain (previously
+ * threaded through req.body). */
+export async function giveSeasonAwards(
+  season_id: string,
+  seasonChampions: string
+) {
   const awards = [
     'most-points',
     'most-goals',
@@ -25,81 +31,55 @@ export async function giveAwards(req: Request, res: Response) {
   const allStats = await allPlayerStats(season_id);
   const awardObjects: AwardInterface[] = [];
 
-  try {
-    awards.forEach((award) => {
-      const [superlative, attribute] = award.split('-');
+  awards.forEach((award) => {
+    const [superlative, attribute] = award.split('-');
 
-      if (superlative == 'most') {
-        // now find out what kind of most...
-        allStats.sort((a, b) => {
-          return b[attribute] - a[attribute];
-        });
-      } else {
-        return false;
-      }
-
-      // now return the first player on this list...
-      const p = allStats[0].player as PlayerInterface;
-      const fixture = allStats[0].fixture as Fixture;
-
-      // create award object for this student
-      awardObjects.push(
-        createObject(
-          'player',
-          award,
-          p._id as string,
-          season_id,
-          'season',
-          p.ClubId as string
-        )
-      );
-    });
-
-    // create object for Winning Manager...
-
-    const [winningManager] = await getManagers({
-      isEmployed: true,
-      ClubId: req.body.seasonChampions,
-    });
-
-    if (winningManager) {
-      // poop
-
-      awardObjects.push({
-        Name: 'Season Title',
-        Type: 'manager', // club/manager/player
-        Category: 'winning-title',
-        Period: 'season',
-        RecipientId: winningManager._id as string,
-        ClubId: req.body.seasonChampions, // what club was this manager or player in when this happened?
-        Remarks: `${winningManager.FirstName} ${winningManager.LastName} won a title with this club!`,
-        SeasonId: season_id,
+    if (superlative == 'most') {
+      // now find out what kind of most...
+      allStats.sort((a, b) => {
+        return b[attribute] - a[attribute];
       });
+    } else {
+      return;
     }
 
-    // now create those awards...
-    createAwards(awardObjects)
-      .then((players: any) => {
-        responseHandler.success(res, 200, 'Season ended successfully!', {
-          awardedPlayers: players,
-          standings: req.body.standings,
-          season: req.body.updatedSeason,
-        });
-      })
-      .catch((err: any) => {
-        responseHandler.fail(res, 400, 'Error fetching Player', err);
-      });
+    // now return the first player on this list...
+    const p = allStats[0].player as PlayerInterface;
+    const fixture = allStats[0].fixture as Fixture;
 
-    // responseHandler.success(
-    //   res,
-    //   200,
-    //   'Player awards arranged suscesfully!',
-    //   awardObjects
-    // );
-  } catch (err) {
-    console.error(err);
-    responseHandler.fail(res, 400, 'Error arranging player awards', err);
+    // create award object for this student
+    awardObjects.push(
+      createObject(
+        'player',
+        award,
+        p._id as string,
+        season_id,
+        'season',
+        p.ClubId as string
+      )
+    );
+  });
+
+  // create object for Winning Manager...
+  const [winningManager] = await getManagers({
+    isEmployed: true,
+    ClubId: seasonChampions,
+  });
+
+  if (winningManager) {
+    awardObjects.push({
+      Name: 'Season Title',
+      Type: 'manager', // club/manager/player
+      Category: 'winning-title',
+      Period: 'season',
+      RecipientId: winningManager._id as string,
+      ClubId: seasonChampions, // what club was this manager or player in when this happened?
+      Remarks: `${winningManager.FirstName} ${winningManager.LastName} won a title with this club!`,
+      SeasonId: season_id,
+    });
   }
+
+  return createAwards(awardObjects);
 }
 
 function createObject(

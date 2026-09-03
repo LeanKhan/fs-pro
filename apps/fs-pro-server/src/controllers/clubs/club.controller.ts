@@ -1,6 +1,5 @@
 import respond from '../../helpers/responseHandler';
 import { NextFunction, Request, Response } from 'express';
-import { ManagerInterface } from '../managers/manager.model';
 import {
   getManagerById,
   appendManagerRecord,
@@ -19,68 +18,29 @@ import { IClub } from '../../interfaces/Club';
 
 export const upload_csv = multer({ dest: 'tmp/csv/' });
 
-/**
- * A club's `User` field is a pure Club-side write (the Mongo `Users.Clubs`
- * array is a separate, redundant field - see FUTURE-PLANS.md for why that
- * one stays unconverted), so this can go through the repository directly,
- * on whichever backend is live.
- */
-export function updateClubs(req: Request, res: Response, next: NextFunction) {
-  const { clubs, userID } = req.body;
+/** Hire a Manager for a Club - a Club must fire its current Manager (if
+ * any) before hiring a new one. Plain function (not an Express handler) so
+ * it can be called directly from the ts-rest handler in club.router.ts. */
+export async function hireManagerForClub(
+  clubId: string,
+  managerId: string,
+  details?: string
+) {
+  const manager = await getManagerById(managerId);
+  if (!manager) {
+    throw new Error('Manager does not exist!');
+  }
 
-  Promise.all(
-    ((clubs ?? []) as string[]).map((clubId) =>
-      updateClubFields(clubId, { UserId: userID })
-    )
-  )
-    .then(() => {
-      return next();
-    })
-    .catch((err: any) => {
-      return respond.fail(res, 400, 'Error adding User to club', err);
-    });
-}
+  const club = await getClubById(clubId);
+  if (!club) {
+    throw new Error('Club does not exist!');
+  }
 
-export function addManagerToClub(req: Request, res: Response) {
-  // Clubs must fire current managers before they can hire a new one!
-
-  const { id: club_id } = req.params;
-  const { manager, details } = req.body;
-
-  // Fetch Manager first and even confirm if they exist!
-
-  const fetchManager = () => {
-    return getManagerById(manager);
-  };
-
-  // Club should not already have a manager!
-
-  const getClubData = (m: ManagerInterface | null) => {
-    if (!m) {
-      throw new Error('Manager does not exist!');
-    }
-
-    return getClubById(club_id)
-      .then((club) => {
-        if (!club) {
-          throw new Error('Club does not exist!');
-        }
-
-        if (club.ManagerId) {
-          // club already has a manager, kill it off!
-          return respond.fail(
-            res,
-            401,
-            'Club already has a manager. Remove manager before you can hire a new one'
-          );
-        }
-
-        return { club, manager: m };
-      })
-      .catch((err) => {
-        throw err;
-      });
-  };
+  if (club.ManagerId) {
+    throw new Error(
+      'Club already has a manager. Remove manager before you can hire a new one'
+    );
+  }
 
   // TODO: make all this record more information in 'Records'
 
@@ -88,111 +48,70 @@ export function addManagerToClub(req: Request, res: Response) {
   // a read-modify-write Records append (`appendManagerRecord`/
   // `appendClubRecord`) instead of the `$set`/`$push` operator object this
   // used to build - see FUTURE-PLANS.md for the Club conversion writeup.
-  const updateManager = (data: any) => {
-    const { club, manager: m } = data;
-    return appendManagerRecord(
-      m._id,
-      { isEmployed: true, ClubId: club._id },
-      {
-        type: 'hired',
-        title: `${m.FirstName} ${m.LastName} joined ${club.Name} as their new manager`,
-        date: new Date(),
-        details,
-        club: club._id,
-      }
-    ).then(() => data);
-  };
+  await appendManagerRecord(
+    manager._id as string,
+    { isEmployed: true, ClubId: club._id },
+    {
+      type: 'hired',
+      title: `${manager.FirstName} ${manager.LastName} joined ${club.Name} as their new manager`,
+      date: new Date(),
+      details,
+      club: club._id,
+    }
+  );
 
-  const _updateClub = (data: any) => {
-    const { club, manager: m } = data;
-    return appendClubRecord(
-      club._id,
-      { ManagerId: m._id },
-      {
-        type: 'manager-hire',
-        title: `Hired ${m.FirstName} ${m.LastName} as new manager!`,
-        date: new Date(),
-        details,
-        manager: m._id,
-      }
-    );
-  };
+  await appendClubRecord(
+    club._id as string,
+    { ManagerId: manager._id },
+    {
+      type: 'manager-hire',
+      title: `Hired ${manager.FirstName} ${manager.LastName} as new manager!`,
+      date: new Date(),
+      details,
+      manager: manager._id,
+    }
+  );
 
-  fetchManager()
-    .then(getClubData)
-    .then(updateManager)
-    .then(_updateClub)
-    .then((c) => {
-      log('Hired New Manager!');
-      return respond.success(res, 200, 'Hired new manager successfully!');
-    })
-    .catch((err) => {
-      log('Error hiring new manager!');
-      return respond.fail(res, 400, 'Error hiring new manager!', err);
-    });
+  log('Hired New Manager!');
 }
 
-export function removeManagerFromClub(req: Request, res: Response) {
-  const { id } = req.params;
-  const details = req.query.reason || '';
+/** Fire a Club's current Manager. Plain function (not an Express handler)
+ * so it can be called directly from the ts-rest handler in club.router.ts. */
+export async function fireManagerFromClub(clubId: string, reason?: string) {
+  const club = await getClubById(clubId);
+  if (!club) {
+    throw new Error('Club does not exist!');
+  }
 
-  const getClubData = () => {
-    return getClubById(id)
-      .then((club) => {
-        if (!club) {
-          throw new Error('Club does not exist!');
-        }
-
-        return { managerId: club.ManagerId, clubName: club.Name };
-      })
-      .catch((err) => {
-        throw err;
-      });
-  };
-
-  const updateManager = (data: any) => {
-    return appendManagerRecord(
-      data.managerId,
-      { isEmployed: false, ClubId: null },
-      {
-        type: 'manager-leaving',
-        title: `Left ${data.clubName} as their new manager.`,
-        date: new Date(),
-        club: id,
-        details,
-      }
-    );
-  };
-
-  const _updateClub = (m: ManagerInterface | null) => {
-    if (!m) {
-      throw new Error('Manager does not exist!');
+  const manager = await appendManagerRecord(
+    club.ManagerId as string,
+    { isEmployed: false, ClubId: null },
+    {
+      type: 'manager-leaving',
+      title: `Left ${club.Name} as their new manager.`,
+      date: new Date(),
+      club: clubId,
+      details: reason,
     }
+  );
 
-    return appendClubRecord(
-      id,
-      { ManagerId: null },
-      {
-        type: 'manager-leaving',
-        title: `Manager ${m.FirstName} ${m.LastName} left the club`,
-        date: new Date(),
-        manager: m._id,
-        details,
-      }
-    );
-  };
+  if (!manager) {
+    throw new Error('Manager does not exist!');
+  }
 
-  getClubData()
-    .then(updateManager)
-    .then(_updateClub)
-    .then((c) => {
-      log('Removed Manager');
-      return respond.success(res, 200, 'Removed Manager successfully!');
-    })
-    .catch((err) => {
-      log('Error removing Manager!');
-      return respond.fail(res, 400, 'Error removing Manager!', err);
-    });
+  await appendClubRecord(
+    clubId,
+    { ManagerId: null },
+    {
+      type: 'manager-leaving',
+      title: `Manager ${manager.FirstName} ${manager.LastName} left the club`,
+      date: new Date(),
+      manager: manager._id,
+      details: reason,
+    }
+  );
+
+  log('Removed Manager');
 }
 
 // TODO: add Manager, League, LeagueCcode, Players

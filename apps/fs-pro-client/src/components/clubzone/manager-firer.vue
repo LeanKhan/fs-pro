@@ -63,7 +63,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { $axios } from '@/services/api';
+import { client } from '@/services/api';
 
 interface Props {
   show: any;
@@ -83,10 +83,11 @@ const reason = ref('');
 
 const fireManager = () => {
   loading.value = true;
-  $axios
-    .delete(
-      `/clubs/${props.club}/manager?reason=${JSON.stringify(reason.value)}`
-    )
+  client.clubs.fireManager
+    .mutation({
+      params: { id: props.club },
+      query: { reason: reason.value },
+    })
     .then(() => {
       emit('update:show', false);
       router.push('..');

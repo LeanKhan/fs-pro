@@ -23,15 +23,17 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import PlayersTable from '@/components/players/players-table.vue';
-import type { Player } from '@/interfaces/player';
-import { $axios } from '@/services/api';
+import type { Player } from '@repo/api-contract';
+import { client } from '@/services/api';
 
 const players = ref<Player[]>([]);
 
 onMounted(async () => {
   try {
-    const response = await $axios.get('/players/all');
-    players.value = response.data.payload as Player[];
+    const response = await client.players.getPlayers.query();
+    if (response.status === 200) {
+      players.value = response.body.payload;
+    }
   } catch (error) {
     console.error('Error fetching players:', error);
   }

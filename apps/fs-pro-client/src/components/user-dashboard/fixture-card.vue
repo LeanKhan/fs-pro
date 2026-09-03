@@ -44,10 +44,10 @@
 </template>
 
 <script setup lang="ts">
-import { IFixture } from '@/interfaces/fixture';
+import type { Fixture } from '@repo/api-contract';
 
 interface Props {
-  Match: IFixture;
+  Match: Fixture;
 }
 
 defineProps<Props>();

@@ -31,7 +31,7 @@ const inFlight = new Set<string>();
  * anything to the DB (no updateFixture/updateStandings/day-advance) - it
  * only simulates and streams frames, for exercising the record-then-replay
  * pipeline (e.g. via PitchPreview.html) without touching the existing
- * synchronous play()/restPlayGame flow real clients still use.
+ * synchronous play()/kickoffNew flow real clients still use.
  */
 export function enqueueMatchPlay(fixtureId: string): {
   queued: boolean;

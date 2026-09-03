@@ -108,7 +108,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { $axios } from '@/services/api';
+import { client } from '@/services/api';
 
 interface Props {
   show: any;
@@ -139,10 +139,13 @@ const close = () => {
 
 const hireManager = () => {
   loading.value = true;
-  $axios
-    .put(`/clubs/${props.club}/manager`, {
-      ...form.value,
-      manager: selectedManager.value._id,
+  client.clubs.hireManager
+    .mutation({
+      params: { id: props.club },
+      body: {
+        details: form.value.details,
+        manager: selectedManager.value._id,
+      },
     })
     .then(() => {
       console.log('Club Manager appointed successfully!');
@@ -158,11 +161,12 @@ const hireManager = () => {
 };
 
 onMounted(() => {
-  const query = JSON.stringify({ isEmployed: false });
-  $axios
-    .get(`/managers?options=${query}&populate=Club`)
-    .then((res: any) => {
-      managers.value = res.data.payload;
+  client.managers.getManagers
+    .query({ query: { isEmployed: false, populate: 'Club' } })
+    .then((res) => {
+      if (res.status === 200) {
+        managers.value = res.body.payload;
+      }
     })
     .catch((err: any) => {
       console.log('Error! => ', err);

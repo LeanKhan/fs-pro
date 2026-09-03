@@ -37,15 +37,15 @@
             class="elevation-1"
           >
             <template v-slot:item.Clubs="{ item }">
-              {{ item.Clubs.length }}
+              {{ item.Clubs?.length ?? 0 }}
             </template>
 
             <template v-slot:item.Country="{ item }">
-              {{ item.Country.Name }}
+              {{ item.Country?.Name }}
             </template>
 
             <template v-slot:item.Seasons="{ item }">
-              {{ item.Seasons.length }}
+              {{ item.Seasons?.length ?? 0 }}
             </template>
 
             <!-- TODO: Add these titles *everywhere* -->
@@ -80,8 +80,8 @@
 <script lang="ts">
 import { defineComponent, ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { Competition } from '@/interfaces/competition';
-import axios from 'axios';
+import type { Competition } from '@repo/api-contract';
+import { client } from '@/services/api';
 
 export default defineComponent({
   name: 'CompetitionsHome',
@@ -139,10 +139,12 @@ export default defineComponent({
     };
 
     onMounted(() => {
-      axios
-        .get('/competitions/all')
+      client.competitions.getCompetitions
+        .query()
         .then((res) => {
-          competitions.value = res.data.payload;
+          if (res.status === 200) {
+            competitions.value = res.body.payload;
+          }
         })
         .catch((err) => {
           console.log('Error! => ', err);

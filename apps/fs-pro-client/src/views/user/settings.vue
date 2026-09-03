@@ -87,13 +87,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, getCurrentInstance, watch } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from '@/store';
+import { client } from '@/services/api';
 import ClubsTable from '@/components/clubs/clubs-table.vue';
 
 const store = useStore();
-const instance = getCurrentInstance();
-const $axios = instance?.appContext.config.globalProperties.$axios;
 
 const openClubModal = ref(false);
 const userClubs = ref<any[]>([]);
@@ -107,14 +106,12 @@ const closeClubModal = async (event: any) => {
     try {
       const selectedClubIds = Array.isArray(event.id) ? event.id : [event.id];
 
-      const response = await $axios.post(
-        `/users/${user.value.userID}/add-clubs`,
-        {
-          data: selectedClubIds,
-        }
-      );
+      const response = await client.users.addClubsToUser.mutation({
+        params: { id: user.value.userID },
+        body: selectedClubIds,
+      });
 
-      if (response.data.success) {
+      if (response.status === 200) {
         store.showToast({
           message: 'Clubs added successfully',
           style: 'success',
@@ -138,13 +135,11 @@ const closeClubModal = async (event: any) => {
 
 const removeClub = async (clubId: string) => {
   try {
-    // Note: The endpoint has a bug - it uses req.params.id twice
-    // We need to use the correct path structure
-    const response = await $axios.delete(
-      `/users/${user.value.userID}/clubs/${clubId}`
-    );
+    const response = await client.users.removeClubFromUser.mutation({
+      params: { id: user.value.userID, club_id: clubId },
+    });
 
-    if (response.data.success) {
+    if (response.status === 200) {
       store.showToast({
         message: 'Club removed successfully',
         style: 'success',
@@ -173,14 +168,16 @@ const fetchUserClubs = async () => {
   }
 
   try {
-    const response = await $axios.get(
-      `/clubs/all?ids=${user.value.clubs.join(',')}`
-    );
+    // user.value.clubs can hold either raw id strings (fresh from
+    // login/registration) or enriched Club objects (after the store's
+    // setUserClubs() runs) - handle both rather than assuming one shape.
+    const ids = user.value.clubs
+      .map((c: any) => (typeof c === 'string' ? c : c._id))
+      .join(',');
+    const response = await client.clubs.getClubs.query({ query: { ids } });
 
-    console.log('Clubs From User => ', response.data.success);
-
-    if (response.data.success) {
-      userClubs.value = response.data.payload;
+    if (response.status === 200) {
+      userClubs.value = response.body.payload;
     }
   } catch (error) {
     console.error('Error fetching user clubs:', error);

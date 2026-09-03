@@ -63,7 +63,7 @@
                     :items="countries"
                     item-title="Name"
                     item-value="_id"
-                    v-model="form.Nationality"
+                    v-model="form.NationalityId"
                   ></v-select>
 
                   <v-select
@@ -187,7 +187,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useStore } from '@/store';
-import { $axios } from '@/services/api';
+import { client } from '@/services/api';
 import PlayerAvatar from '@/components/players/player-avatar.vue';
 import { calculatePlayerRating } from '@/helpers/players';
 
@@ -212,7 +212,7 @@ const roles: any = {
 const form = ref<any>({
   FirstName: '',
   LastName: '',
-  Nationality: '',
+  NationalityId: '',
   Age: '',
   Position: '',
   Role: '',
@@ -245,6 +245,19 @@ const form = ref<any>({
   },
 });
 
+// Note: real Player.Attributes also has Marking/Agility/Crossing/
+// Positioning/LongShot/ShotPower/Aggression/Interception - this form has
+// never exposed sliders for those, so they're left unset on players
+// created here (pre-existing gap, not something this pass added).
+//
+// `SetPiece` (capital P) here is deliberate, not a typo: real stored data
+// is inconsistent - some rows have `Attributes.SetPiece`, others
+// `Attributes.Setpiece` (see schemas/player.ts) - but the server's own
+// rating-weighting tables (interfaces/Player.ts's AllMultipliers) only key
+// off `SetPiece`, and calculateTotal() reads whatever key is actually on
+// the attributes object, silently giving 0 weight to an unrecognized key.
+// So this form must match the multiplier tables' casing, not necessarily
+// what any given stored record happens to use.
 const attributes = [
   'Keeping',
   'Speed',
@@ -280,15 +293,18 @@ function goBack() {
 }
 
 async function submit() {
-  const playerId = route.params.id;
-  const url = props.isUpdate
-    ? `/players/${playerId}/update`
-    : '/players/new?model=player';
+  const playerId = String(route.params.id);
+  const body = { ...form.value, Rating: rating.value };
 
   try {
-    const response = await $axios.post(url, {
-      data: { ...form.value, Rating: rating.value },
-    });
+    if (props.isUpdate) {
+      await client.players.updatePlayer.mutation({
+        params: { id: playerId },
+        body,
+      });
+    } else {
+      await client.players.createPlayer.mutation({ body });
+    }
     router.push({ name: 'Players Home' });
   } catch (error) {
     console.error('Error submitting player:', error);
@@ -301,9 +317,9 @@ async function deletePlayer() {
   );
 
   if (answer) {
-    const playerId = route.params.id;
+    const playerId = String(route.params.id);
     try {
-      await $axios.delete(`/players/${playerId}`);
+      await client.players.deletePlayer.mutation({ params: { id: playerId } });
       router.push({ name: 'Players Home' });
     } catch (error) {
       console.error('Error deleting player:', error);
@@ -313,19 +329,25 @@ async function deletePlayer() {
 
 onMounted(async () => {
   if (props.isUpdate) {
-    const playerId = route.params.id;
+    const playerId = String(route.params.id);
     try {
-      const response = await $axios.get(`/players/${playerId}`);
-      player.value = response.data.payload;
-      form.value = response.data.payload;
+      const response = await client.players.getPlayer.query({
+        params: { id: playerId },
+      });
+      if (response.status === 200) {
+        player.value = response.body.payload;
+        form.value = response.body.payload;
+      }
     } catch (error) {
       console.error('Error fetching player:', error);
     }
   }
 
   try {
-    const response = await $axios.get('/players/appearance');
-    appearances.value = response.data.payload;
+    const response = await client.players.getAppearanceFeatures.query();
+    if (response.status === 200) {
+      appearances.value = response.body.payload;
+    }
   } catch (error) {
     console.error('Error fetching appearance:', error);
   }

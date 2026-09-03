@@ -1,35 +1,17 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-// import { Club } from '@/interfaces/club';
-import { $axios, apiUrl } from '@/services/api';
+import { client, apiUrl } from '@/services/api';
 import { ICalendar } from '@/interfaces/calendar';
+import type { Club, Place, Season } from '@repo/api-contract';
 
 export { apiUrl };
-
-type Country = {
-  _id: string;
-  Fullname: string;
-  Name: string;
-  Code: string;
-  Region: string;
-  Type: string;
-};
-
-type Address = {
-  Country: Country;
-};
-
-type Club = {
-  _id: string;
-  Name: string;
-  ClubCode: string;
-  Address: Address;
-};
 
 type User = {
   userID: string;
   username: string;
-  clubs: Club[];
+  // Bare ids fresh from login/join; full Club objects once setUserClubs()
+  // resolves them.
+  clubs: (string | Club)[];
   isAdmin: boolean;
   avatar: string;
   fullname: string;
@@ -45,7 +27,6 @@ export interface Toast {
 
 export const useStore = defineStore('main', () => {
   // State
-  const allClubs = ref<Club[]>([]);
   const user = ref<User>({
     username: '',
     clubs: [],
@@ -56,8 +37,8 @@ export const useStore = defineStore('main', () => {
     fullname: '',
   });
   const calendar = ref<ICalendar | null>(null);
-  const seasons = ref([]);
-  const countries = ref([]);
+  const seasons = ref<Season[]>([]);
+  const countries = ref<Place[]>([]);
   const toast = ref<Toast>({
     show: false,
     message: '',
@@ -118,13 +99,19 @@ export const useStore = defineStore('main', () => {
     }
 
     try {
-      console.log('Clubs => ', user.value);
-      const response = await $axios.get(
-        `/clubs/all?ids=${user.value.clubs.map((club) => club._id).join(',')}`
-      );
+      // `clubs` is bare ids fresh from login/join (see the User type doc
+      // comment) - resolving `club._id` on those unconditionally used to
+      // silently produce an all-undefined list here, so this never actually
+      // resolved real Club objects.
+      const ids = user.value.clubs
+        .map((club) => (typeof club === 'string' ? club : club._id))
+        .filter((id): id is string => Boolean(id));
+      const response = await client.clubs.getClubs.query({
+        query: { ids: ids.join(',') },
+      });
 
-      if (response.data.success) {
-        user.value.clubs = response.data.payload;
+      if (response.status === 200) {
+        user.value.clubs = response.body.payload;
       }
     } catch (error) {
       console.error('Error fetching user clubs:', error);
@@ -133,9 +120,9 @@ export const useStore = defineStore('main', () => {
 
   async function setCalendar() {
     try {
-      const response = await $axios.get('/calendar/current');
-      if (response.data.success) {
-        calendar.value = response.data.payload;
+      const response = await client.calendar.getCurrentCalendar.query();
+      if (response.status === 200) {
+        calendar.value = response.body.payload;
       }
     } catch (error) {
       console.error('Error fetching calendar:', error);
@@ -148,9 +135,13 @@ export const useStore = defineStore('main', () => {
    * screen to wait for an admin to start one. */
   async function setSeasons() {
     try {
-      const response = await $axios.get('/seasons?current=true');
-      seasons.value = response.data.payload;
-      lobby.value = response.data.payload.length === 0;
+      const response = await client.seasons.getSeasons.query({
+        query: { current: true },
+      });
+      if (response.status === 200) {
+        seasons.value = response.body.payload;
+        lobby.value = response.body.payload.length === 0;
+      }
     } catch (error) {
       console.error('Error fetching seasons:', error);
     }
@@ -158,8 +149,10 @@ export const useStore = defineStore('main', () => {
 
   async function getCountries() {
     try {
-      const response = await $axios.get('/places/country');
-      countries.value = response.data.payload;
+      const response = await client.places.getCountries.query();
+      if (response.status === 200) {
+        countries.value = response.body.payload;
+      }
     } catch (error) {
       console.error('Error fetching countries:', error);
     }
@@ -197,7 +190,6 @@ export const useStore = defineStore('main', () => {
 
   return {
     // State
-    allClubs,
     user,
     calendar,
     seasons,

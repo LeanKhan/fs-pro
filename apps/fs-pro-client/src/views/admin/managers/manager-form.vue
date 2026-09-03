@@ -44,7 +44,7 @@
                     :items="countries"
                     item-title="Name"
                     item-value="_id"
-                    v-model="form.Nationality"
+                    v-model="form.NationalityId"
                   ></v-select>
                 </v-col>
 
@@ -93,7 +93,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useStore } from '@/store';
-import { $axios } from '@/services/api';
+import { client } from '@/services/api';
 
 const props = defineProps<{
   isUpdate?: boolean;
@@ -105,10 +105,10 @@ const store = useStore();
 
 const manager = ref<any>({});
 const submitLoading = ref(false);
-const form = ref({
+const form = ref<any>({
   FirstName: '',
   LastName: '',
-  Nationality: '',
+  NationalityId: '',
   Age: '',
 });
 
@@ -119,27 +119,22 @@ function goBack() {
 }
 
 async function submit() {
-  const managerId = route.params.id;
-  const url = props.isUpdate
-    ? `/managers/${managerId}`
-    : '/managers?model=manager';
-  const method = props.isUpdate ? 'PUT' : 'POST';
+  const managerId = String(route.params.id);
 
   submitLoading.value = true;
 
   try {
-    const response = await $axios.request({
-      url,
-      method,
-      data: { data: form.value },
-    });
-
     if (props.isUpdate) {
+      await client.managers.updateManager.mutation({
+        params: { id: managerId },
+        body: form.value,
+      });
       router.push({
         name: 'View Manager',
         params: { id: managerId },
       });
     } else {
+      await client.managers.createManager.mutation({ body: form.value });
       router.push({ name: 'Managers Home' });
     }
   } catch (error) {
@@ -155,9 +150,11 @@ async function deleteManager() {
   );
 
   if (answer) {
-    const managerId = route.params.id;
+    const managerId = String(route.params.id);
     try {
-      await $axios.delete(`/managers/${managerId}`);
+      await client.managers.deleteManager.mutation({
+        params: { id: managerId },
+      });
       router.push({ name: 'Managers Home' });
     } catch (error) {
       console.error('Error deleting manager:', error);
@@ -167,11 +164,15 @@ async function deleteManager() {
 
 onMounted(async () => {
   if (props.isUpdate) {
-    const managerId = route.params.id;
+    const managerId = String(route.params.id);
     try {
-      const response = await $axios.get(`/managers/${managerId}`);
-      manager.value = response.data.payload;
-      form.value = response.data.payload;
+      const response = await client.managers.getManager.query({
+        params: { id: managerId },
+      });
+      if (response.status === 200) {
+        manager.value = response.body.payload;
+        form.value = response.body.payload;
+      }
     } catch (error) {
       console.error('Error fetching manager:', error);
     }
