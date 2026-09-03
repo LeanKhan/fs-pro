@@ -33,10 +33,12 @@ export const playerTsRestRoutes = s.router(contract.players, {
         ClubId?: string;
         ClubCode?: string;
         isSigned?: boolean;
+        excludeClubId?: string;
       } = {};
       if (query.club) filter.ClubId = query.club;
       if (query.clubCode) filter.ClubCode = query.clubCode;
       if (query.isSigned !== undefined) filter.isSigned = query.isSigned;
+      if (query.excludeClubId) filter.excludeClubId = query.excludeClubId;
 
       const players = await getPlayers(filter);
       return {

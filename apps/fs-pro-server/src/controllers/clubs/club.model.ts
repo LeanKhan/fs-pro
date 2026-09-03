@@ -48,7 +48,9 @@ export interface ClubInterface {
   AddressCountry?: import('../places/places.model').IPlace;
   UserId?: string;
   User?: IUser;
+  /** Debited/credited by transfers and once-per-Year wages (see
+   * transfers/transfer.service.ts) - real transaction history lives in the
+   * TransferLedger table, not on this row. */
   Budget?: number;
-  Transactions?: unknown; // TODO: fix, use an actual type :)
   Records?: any[];
 }

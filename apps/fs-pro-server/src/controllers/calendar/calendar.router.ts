@@ -18,6 +18,7 @@ import {
 import { updateFixtureFields } from '../fixtures/fixture.service';
 import { prolegate } from '../seasons/season.controller';
 import { updateAllPlayerDetailsForYear } from '../players/player.controller';
+import { deductWagesForYear } from '../transfers/transfer.service';
 import { refreshAllClubsRatings } from '../clubs/club.service';
 import type { SeasonInterface } from '../seasons/season.model';
 
@@ -301,6 +302,7 @@ export const calendarTsRestRoutes = s.router(contract.calendar, {
 
       await updateAllPlayerDetailsForYear(year);
       await refreshAllClubsRatings();
+      await deductWagesForYear(year);
       console.log('Calendar Year Ended Successfully!');
 
       return {

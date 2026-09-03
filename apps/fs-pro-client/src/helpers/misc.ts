@@ -25,12 +25,13 @@ export function capitalize(text: string) {
 }
 
 const currencyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'decimal',
-  minimumFractionDigits: 2,
+  style: 'currency',
+  currency: 'USD',
+  maximumFractionDigits: 0,
 });
 
-export function currency(value: number) {
-  return currencyFormatter.format(value);
+export function currency(value: number | null | undefined) {
+  return currencyFormatter.format(value ?? 0);
 }
 
 /** Formats to Ordinal 1st, 2nd, 3rd etc from

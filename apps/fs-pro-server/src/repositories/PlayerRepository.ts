@@ -4,6 +4,9 @@ export interface IPlayerFilter {
   ClubId?: string;
   ClubCode?: string;
   isSigned?: boolean;
+  /** "Every signed player except this club's own roster" - the Transfer
+   * Market's "other clubs' players" browse query. */
+  excludeClubId?: string;
 }
 
 export interface IPlayerReadOptions {

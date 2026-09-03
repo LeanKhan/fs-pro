@@ -63,12 +63,14 @@ export const PlayerSchema = z.object({
   Rating: z.number(),
   ShirtNumber: z.union([z.string(), z.number()]).nullable().optional(),
   Value: z.number(),
+  // Annual wage, deducted from the owning Club's Budget once per game Year
+  // - see transfers/transfer.service.ts's deductWagesForYear.
+  Wage: z.number().nullable().optional(),
   Form: z.number().nullable().optional(),
   isReserve: z.boolean().optional(),
   // Player-specific appearance/avatar config - shape not yet observed
   // populated on real data (always null so far).
   Appearance: z.unknown().nullable().optional(),
-  TransferHistory: z.array(z.unknown()).optional(),
   RatingsHistory: z.array(z.unknown()).optional(),
   isSigned: z.boolean(),
   ClubCode: z.string().nullable().optional(),

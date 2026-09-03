@@ -53,6 +53,10 @@
         {{ item.Nationality ? item.Nationality.Name : '-' }}
       </template>
 
+      <template v-slot:item.Value="{ item }">
+        {{ currency(item.Value) }}
+      </template>
+
       <template v-slot:item.isSigned="{ item }">
         <v-chip
           style="background-color: transparent"
@@ -96,6 +100,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import type { Player } from '@repo/api-contract';
 import { apiUrl } from '@/store';
+import { currency } from '@/helpers/misc';
 
 interface Props {
   players: Player[];

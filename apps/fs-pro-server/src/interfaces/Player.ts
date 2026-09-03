@@ -46,6 +46,8 @@ export interface PlayerInterface {
   Position: string;
   Attributes: IPlayerAttributes;
   Value: number;
+  /** Annual wage, deducted from the owning Club's Budget once per game Year. */
+  Wage?: number;
   /** This is the average players points in previous matches. It resets at the end of the season... */
   Form?: number;
   Role: Role;

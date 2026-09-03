@@ -14,6 +14,7 @@ import { awardsContract } from './routes/awards';
 import { seasonsContract } from './routes/seasons';
 import { usersContract } from './routes/users';
 import { gameContract } from './routes/game';
+import { transfersContract } from './routes/transfers';
 
 const c = initContract();
 
@@ -34,6 +35,7 @@ export const apiContract = c.router({
   seasons: seasonsContract,
   users: usersContract,
   game: gameContract,
+  transfers: transfersContract,
 });
 
 export type { Club } from './schemas/club';

@@ -19,6 +19,8 @@ export interface PlayerInterface {
   isSigned: boolean;
   /** Monetary value of Player */
   Value: number;
+  /** Annual wage, deducted from the owning Club's Budget once per game Year. */
+  Wage?: number;
   /** Some Players don't have clubs (free agents) hence can be undefined */
   ClubCode?: string;
   ClubId?: string;

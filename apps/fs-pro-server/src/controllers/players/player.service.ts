@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { PlayerInterface } from '../../interfaces/Player';
-import { calculatePlayerValue } from '../../utils/players';
+import { calculatePlayerValue, calculatePlayerWage } from '../../utils/players';
 import { PlayerMatchDetailsInterface } from '../player-match/player-match.model';
 import { PlayerRepositoryFactory } from '../../repositories/PlayerRepositoryFactory';
 import { IPlayerFilter } from '../../repositories/PlayerRepository';
@@ -53,6 +53,7 @@ export async function createPlayer(data: Partial<PlayerInterface>) {
     data.Rating as number,
     data.Age as number
   );
+  data.Wage = calculatePlayerWage(data.Value);
   return getPlayerRepo().create(data);
 }
 

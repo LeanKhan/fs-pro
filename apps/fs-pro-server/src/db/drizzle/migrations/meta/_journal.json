@@ -71,6 +71,20 @@
       "when": 1788374706410,
       "tag": "0009_adorable_epoch",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788457211714,
+      "tag": "0010_transfer_market_additions",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788457239279,
+      "tag": "0011_drop_dead_transfer_columns",
+      "breakpoints": true
     }
   ]
 }
