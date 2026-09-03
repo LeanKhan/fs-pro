@@ -6,7 +6,8 @@ export interface CompetitionInterface {
   Name: string;
   CompetitionID: string;
   CompetitionCode: string;
-  Country: string;
+  CountryId?: string;
+  Country?: import('../places/places.model').IPlace;
   League: boolean;
   Tournament: boolean;
   Cup: boolean;

@@ -16,7 +16,7 @@ router.get('/', (req, res) => {
     req.query;
 
   getFixtures({
-    Season: typeof season === 'string' ? season : undefined,
+    SeasonId: typeof season === 'string' ? season : undefined,
     Played: typeof played === 'string' ? played === 'true' : undefined,
     scheduledDay:
       typeof scheduledDay === 'string' ? parseInt(scheduledDay, 10) : undefined,
@@ -38,9 +38,11 @@ router.get('/', (req, res) => {
 });
 
 /** Get Fixture by id - always comes back with HomeSideDetails/
- * AwaySideDetails+PlayerStats populated, see IFixtureRepository. */
+ * AwaySideDetails+PlayerStats populated, see IFixtureRepository. `withClub`
+ * additionally populates HomeTeam/AwayTeam with the full Club (Players +
+ * Manager) - only this single-fixture route needs it (Matchzone). */
 router.get('/:id', (req, res) => {
-  getFixtureById(req.params.id)
+  getFixtureById(req.params.id, { withClub: true })
     .then((fixture: any) => {
       respond.success(res, 200, 'Fixture fetched successfully', fixture);
     })

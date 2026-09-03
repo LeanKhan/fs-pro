@@ -30,7 +30,7 @@ export function updateClubs(req: Request, res: Response, next: NextFunction) {
 
   Promise.all(
     ((clubs ?? []) as string[]).map((clubId) =>
-      updateClubFields(clubId, { User: userID })
+      updateClubFields(clubId, { UserId: userID })
     )
   )
     .then(() => {
@@ -66,7 +66,7 @@ export function addManagerToClub(req: Request, res: Response) {
           throw new Error('Club does not exist!');
         }
 
-        if (club.Manager) {
+        if (club.ManagerId) {
           // club already has a manager, kill it off!
           return respond.fail(
             res,
@@ -92,7 +92,7 @@ export function addManagerToClub(req: Request, res: Response) {
     const { club, manager: m } = data;
     return appendManagerRecord(
       m._id,
-      { isEmployed: true, Club: club._id },
+      { isEmployed: true, ClubId: club._id },
       {
         type: 'hired',
         title: `${m.FirstName} ${m.LastName} joined ${club.Name} as their new manager`,
@@ -107,7 +107,7 @@ export function addManagerToClub(req: Request, res: Response) {
     const { club, manager: m } = data;
     return appendClubRecord(
       club._id,
-      { Manager: m._id },
+      { ManagerId: m._id },
       {
         type: 'manager-hire',
         title: `Hired ${m.FirstName} ${m.LastName} as new manager!`,
@@ -143,7 +143,7 @@ export function removeManagerFromClub(req: Request, res: Response) {
           throw new Error('Club does not exist!');
         }
 
-        return { managerId: club.Manager, clubName: club.Name };
+        return { managerId: club.ManagerId, clubName: club.Name };
       })
       .catch((err) => {
         throw err;
@@ -153,7 +153,7 @@ export function removeManagerFromClub(req: Request, res: Response) {
   const updateManager = (data: any) => {
     return appendManagerRecord(
       data.managerId,
-      { isEmployed: false, Club: null },
+      { isEmployed: false, ClubId: null },
       {
         type: 'manager-leaving',
         title: `Left ${data.clubName} as their new manager.`,
@@ -171,7 +171,7 @@ export function removeManagerFromClub(req: Request, res: Response) {
 
     return appendClubRecord(
       id,
-      { Manager: null },
+      { ManagerId: null },
       {
         type: 'manager-leaving',
         title: `Manager ${m.FirstName} ${m.LastName} left the club`,
@@ -228,7 +228,7 @@ export async function createManyClubsFromCSV(req: Request, res: Response) {
   const saveClubsInCompetition = (clubs: IClub[]) => Promise.resolve(null);
 
   const saveClubsInUser = (clubs: IClub[]) => {
-    const user_clubs = groupBy(clubs, 'User');
+    const user_clubs = groupBy(clubs, 'UserId');
 
     const all_club_ids: Record<string, string[]> = {};
 

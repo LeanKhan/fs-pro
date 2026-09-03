@@ -21,8 +21,13 @@ router.get('/all', (req: Request, res: Response) => {
 
   const response =
     typeof id === 'string'
-      ? getCompetitionById(id).then((c) => (c ? [c] : []))
-      : getCompetitions({ Type: typeof type === 'string' ? type : undefined });
+      ? getCompetitionById(id, { withCountry: true }).then((c) =>
+          c ? [c] : []
+        )
+      : getCompetitions(
+          { Type: typeof type === 'string' ? type : undefined },
+          { withCountry: true }
+        );
 
   response
     .then((competitions: any) => {
@@ -65,7 +70,7 @@ router.get('/:id', (req: Request, res: Response) => {
 
 /** Get all the seasons */
 router.get('/:id/seasons/all', (req: Request, res: Response) => {
-  const response = getSeasons({ Competition: req.params.id });
+  const response = getSeasons({ CompetitionId: req.params.id });
 
   response
     .then((seasons: any) => {

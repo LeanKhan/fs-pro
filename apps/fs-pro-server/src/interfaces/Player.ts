@@ -51,7 +51,7 @@ export interface PlayerInterface {
   Role: Role;
   isSigned: boolean;
   ClubCode?: string;
-  Club?: string;
+  ClubId?: string;
   RatingsHistory?: Record<string, unknown>[];
 }
 

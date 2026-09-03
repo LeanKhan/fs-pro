@@ -6,6 +6,7 @@ import { competitions, places } from '../../db/drizzle/schema';
 import {
   ICompetitionRepository,
   ICompetitionFilter,
+  ICompetitionReadOptions,
 } from '../CompetitionRepository';
 
 type DrizzleDb = PostgresJsDatabase<typeof schema>;
@@ -13,10 +14,9 @@ type CompetitionRow = typeof competitions.$inferSelect;
 type PlaceRow = typeof places.$inferSelect;
 
 /** Same `id` -> `_id` remap DrizzlePlaceRepository/DrizzleClubRepository do.
- * Country gets the same nested-object treatment Manager's Nationality and
- * Club's Address.Country get - competition.model.ts's hook always populates
- * it as a full Place object, not a bare id, and here it's a top-level field
- * (not nested under anything, unlike Club's Address.Country). */
+ * `CountryId` always passes through as a bare id via `...rest`; `Country`
+ * (the clean name) is only added - never set to a bare id - when
+ * `options.withCountry` was passed. */
 function toCompetition(
   row: CompetitionRow & { country?: PlaceRow | null }
 ): CompetitionInterface {
@@ -25,40 +25,47 @@ function toCompetition(
   return {
     _id: id,
     ...rest,
-    Country: country
-      ? (() => {
-          const { id: placeId, mongoId: placeMongoId, ...placeRest } = country;
-          return { _id: placeId, ...placeRest };
-        })()
-      : rest.Country,
+    ...(country
+      ? {
+          Country: (() => {
+            const { id: placeId, mongoId: placeMongoId, ...placeRest } =
+              country;
+            return { _id: placeId, ...placeRest };
+          })(),
+        }
+      : {}),
   } as unknown as CompetitionInterface;
 }
 
 export class DrizzleCompetitionRepository implements ICompetitionRepository {
   constructor(private db: DrizzleDb) {}
 
-  async findById(id: string): Promise<CompetitionInterface | null> {
+  async findById(
+    id: string,
+    options: ICompetitionReadOptions = {}
+  ): Promise<CompetitionInterface | null> {
     const competition = await this.db.query.competitions.findFirst({
       where: eq(competitions.id, id),
-      with: { country: true },
+      with: options.withCountry ? { country: true } : {},
     });
     return competition ? toCompetition(competition) : null;
   }
 
   async findAll(
-    filter: ICompetitionFilter = {}
+    filter: ICompetitionFilter = {},
+    options: ICompetitionReadOptions = {}
   ): Promise<CompetitionInterface[]> {
     const conditions = [];
     if (filter.Type !== undefined)
       conditions.push(eq(competitions.Type, filter.Type));
     if (filter.Division !== undefined)
       conditions.push(eq(competitions.Division, filter.Division));
-    if (filter.Country !== undefined)
-      conditions.push(eq(competitions.Country, filter.Country));
+    if (filter.CountryId !== undefined)
+      conditions.push(eq(competitions.CountryId, filter.CountryId));
 
     const rows = await this.db.query.competitions.findMany({
       where: conditions.length ? and(...conditions) : undefined,
-      with: { country: true },
+      with: options.withCountry ? { country: true } : {},
     });
     return rows.map(toCompetition);
   }

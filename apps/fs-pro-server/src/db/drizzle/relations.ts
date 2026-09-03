@@ -27,9 +27,9 @@ export const usersRelations = relations(users, ({ many }) => ({
 }));
 
 export const managersRelations = relations(managers, ({ one, many }) => ({
-  club: one(clubs, { fields: [managers.Club], references: [clubs.id] }),
+  club: one(clubs, { fields: [managers.ClubId], references: [clubs.id] }),
   nationality: one(places, {
-    fields: [managers.Nationality],
+    fields: [managers.NationalityId],
     references: [places.id],
   }),
   managedClub: many(clubs, { relationName: 'clubManager' }),
@@ -41,7 +41,7 @@ export const competitionsRelations = relations(
   competitions,
   ({ one, many }) => ({
     country: one(places, {
-      fields: [competitions.Country],
+      fields: [competitions.CountryId],
       references: [places.id],
     }),
     seasons: many(seasons),
@@ -54,11 +54,11 @@ export const competitionClubsRelations = relations(
   competitionClubs,
   ({ one }) => ({
     competition: one(competitions, {
-      fields: [competitionClubs.Competition],
+      fields: [competitionClubs.CompetitionId],
       references: [competitions.id],
     }),
     club: one(clubs, {
-      fields: [competitionClubs.Club],
+      fields: [competitionClubs.ClubId],
       references: [clubs.id],
     }),
   })
@@ -66,18 +66,18 @@ export const competitionClubsRelations = relations(
 
 export const clubsRelations = relations(clubs, ({ one, many }) => ({
   manager: one(managers, {
-    fields: [clubs.Manager],
+    fields: [clubs.ManagerId],
     references: [managers.id],
     relationName: 'clubManager',
   }),
   league: one(competitions, {
-    fields: [clubs.League],
+    fields: [clubs.LeagueId],
     references: [competitions.id],
     relationName: 'clubLeague',
   }),
-  user: one(users, { fields: [clubs.User], references: [users.id] }),
+  user: one(users, { fields: [clubs.UserId], references: [users.id] }),
   addressCountry: one(places, {
-    fields: [clubs.AddressCountry],
+    fields: [clubs.AddressCountryId],
     references: [places.id],
   }),
   players: many(players),
@@ -90,12 +90,12 @@ export const clubsRelations = relations(clubs, ({ one, many }) => ({
 
 export const seasonsRelations = relations(seasons, ({ one, many }) => ({
   winner: one(clubs, {
-    fields: [seasons.Winner],
+    fields: [seasons.WinnerId],
     references: [clubs.id],
     relationName: 'seasonWinner',
   }),
   competition: one(competitions, {
-    fields: [seasons.Competition],
+    fields: [seasons.CompetitionId],
     references: [competitions.id],
   }),
   fixtures: many(fixtures),
@@ -103,59 +103,62 @@ export const seasonsRelations = relations(seasons, ({ one, many }) => ({
 }));
 
 export const playersRelations = relations(players, ({ one, many }) => ({
-  club: one(clubs, { fields: [players.Club], references: [clubs.id] }),
+  club: one(clubs, { fields: [players.ClubId], references: [clubs.id] }),
   nationality: one(places, {
-    fields: [players.Nationality],
+    fields: [players.NationalityId],
     references: [places.id],
   }),
   matchDetails: many(playerMatchDetails),
 }));
 
 export const fixturesRelations = relations(fixtures, ({ one, many }) => ({
-  season: one(seasons, { fields: [fixtures.Season], references: [seasons.id] }),
+  season: one(seasons, {
+    fields: [fixtures.SeasonId],
+    references: [seasons.id],
+  }),
   reverseFixture: one(fixtures, {
-    fields: [fixtures.ReverseFixture],
+    fields: [fixtures.ReverseFixtureId],
     references: [fixtures.id],
   }),
   homeTeam: one(clubs, {
-    fields: [fixtures.HomeTeam],
+    fields: [fixtures.HomeTeamId],
     references: [clubs.id],
     relationName: 'fixtureHomeTeam',
   }),
   awayTeam: one(clubs, {
-    fields: [fixtures.AwayTeam],
+    fields: [fixtures.AwayTeamId],
     references: [clubs.id],
     relationName: 'fixtureAwayTeam',
   }),
   homeManager: one(managers, {
-    fields: [fixtures.HomeManager],
+    fields: [fixtures.HomeManagerId],
     references: [managers.id],
     relationName: 'fixtureHomeManager',
   }),
   awayManager: one(managers, {
-    fields: [fixtures.AwayManager],
+    fields: [fixtures.AwayManagerId],
     references: [managers.id],
     relationName: 'fixtureAwayManager',
   }),
   homeSideDetails: one(clubMatchDetails, {
-    fields: [fixtures.HomeSideDetails],
+    fields: [fixtures.HomeSideDetailsId],
     references: [clubMatchDetails.id],
     relationName: 'fixtureHomeSideDetails',
   }),
   awaySideDetails: one(clubMatchDetails, {
-    fields: [fixtures.AwaySideDetails],
+    fields: [fixtures.AwaySideDetailsId],
     references: [clubMatchDetails.id],
     relationName: 'fixtureAwaySideDetails',
   }),
   playerMatchDetails: many(playerMatchDetails),
   clubMatchDetails: many(clubMatchDetails),
-  /** 1:1 - the FK lives on matchReplays.Fixture; see matchReplaysRelations. */
+  /** 1:1 - the FK lives on matchReplays.FixtureId; see matchReplaysRelations. */
   replay: one(matchReplays),
 }));
 
 export const matchReplaysRelations = relations(matchReplays, ({ one }) => ({
   fixture: one(fixtures, {
-    fields: [matchReplays.Fixture],
+    fields: [matchReplays.FixtureId],
     references: [fixtures.id],
   }),
 }));
@@ -164,15 +167,15 @@ export const playerMatchDetailsRelations = relations(
   playerMatchDetails,
   ({ one }) => ({
     player: one(players, {
-      fields: [playerMatchDetails.Player],
+      fields: [playerMatchDetails.PlayerId],
       references: [players.id],
     }),
     fixture: one(fixtures, {
-      fields: [playerMatchDetails.Fixture],
+      fields: [playerMatchDetails.FixtureId],
       references: [fixtures.id],
     }),
     clubMatchDetails: one(clubMatchDetails, {
-      fields: [playerMatchDetails.ClubMatchDetails],
+      fields: [playerMatchDetails.ClubMatchDetailsId],
       references: [clubMatchDetails.id],
     }),
   })
@@ -182,11 +185,11 @@ export const clubMatchDetailsRelations = relations(
   clubMatchDetails,
   ({ one, many }) => ({
     club: one(clubs, {
-      fields: [clubMatchDetails.Club],
+      fields: [clubMatchDetails.ClubId],
       references: [clubs.id],
     }),
     fixture: one(fixtures, {
-      fields: [clubMatchDetails.Fixture],
+      fields: [clubMatchDetails.FixtureId],
       references: [fixtures.id],
     }),
     playerStats: many(playerMatchDetails),
@@ -196,6 +199,6 @@ export const clubMatchDetailsRelations = relations(
 );
 
 export const awardsRelations = relations(awards, ({ one }) => ({
-  club: one(clubs, { fields: [awards.Club], references: [clubs.id] }),
-  season: one(seasons, { fields: [awards.Season], references: [seasons.id] }),
+  club: one(clubs, { fields: [awards.ClubId], references: [clubs.id] }),
+  season: one(seasons, { fields: [awards.SeasonId], references: [seasons.id] }),
 }));

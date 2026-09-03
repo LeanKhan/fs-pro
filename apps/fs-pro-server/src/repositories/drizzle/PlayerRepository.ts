@@ -3,14 +3,20 @@ import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { PlayerInterface } from '../../controllers/players/player.model';
 import * as schema from '../../db/drizzle/full-schema';
 import { players, places, playerMatchDetails } from '../../db/drizzle/schema';
-import { IPlayerRepository, IPlayerFilter } from '../PlayerRepository';
+import {
+  IPlayerRepository,
+  IPlayerFilter,
+  IPlayerReadOptions,
+} from '../PlayerRepository';
 
 type DrizzleDb = PostgresJsDatabase<typeof schema>;
 type PlayerRow = typeof players.$inferSelect;
 type PlaceRow = typeof places.$inferSelect;
 
 /** Same `id` -> `_id` remap DrizzlePlaceRepository/DrizzleManagerRepository
- * do - Nationality gets the same nested-object treatment Manager's does. */
+ * do - `NationalityId` always passes through as a bare id via `...rest`;
+ * `Nationality` (the clean name) is only added - never set to a bare id -
+ * when `options.withNationality` was passed. */
 function toPlayer(
   row: PlayerRow & { nationality?: PlaceRow | null }
 ): PlayerInterface {
@@ -19,34 +25,42 @@ function toPlayer(
   return {
     _id: id,
     ...rest,
-    Nationality: nationality
-      ? (() => {
-          const {
-            id: placeId,
-            mongoId: placeMongoId,
-            ...placeRest
-          } = nationality;
-          return { _id: placeId, ...placeRest };
-        })()
-      : rest.Nationality,
+    ...(nationality
+      ? {
+          Nationality: (() => {
+            const {
+              id: placeId,
+              mongoId: placeMongoId,
+              ...placeRest
+            } = nationality;
+            return { _id: placeId, ...placeRest };
+          })(),
+        }
+      : {}),
   } as unknown as PlayerInterface;
 }
 
 export class DrizzlePlayerRepository implements IPlayerRepository {
   constructor(private db: DrizzleDb) {}
 
-  async findById(id: string): Promise<PlayerInterface | null> {
+  async findById(
+    id: string,
+    options: IPlayerReadOptions = {}
+  ): Promise<PlayerInterface | null> {
     const player = await this.db.query.players.findFirst({
       where: eq(players.id, id),
-      with: { nationality: true },
+      with: options.withNationality ? { nationality: true } : {},
     });
     return player ? toPlayer(player) : null;
   }
 
-  async findAll(filter: IPlayerFilter = {}): Promise<PlayerInterface[]> {
+  async findAll(
+    filter: IPlayerFilter = {},
+    options: IPlayerReadOptions = {}
+  ): Promise<PlayerInterface[]> {
     const conditions = [];
-    if (filter.Club !== undefined)
-      conditions.push(eq(players.Club, filter.Club));
+    if (filter.ClubId !== undefined)
+      conditions.push(eq(players.ClubId, filter.ClubId));
     if (filter.ClubCode !== undefined)
       conditions.push(eq(players.ClubCode, filter.ClubCode));
     if (filter.isSigned !== undefined)
@@ -54,7 +68,7 @@ export class DrizzlePlayerRepository implements IPlayerRepository {
 
     const rows = await this.db.query.players.findMany({
       where: conditions.length ? and(...conditions) : undefined,
-      with: { nationality: true },
+      with: options.withNationality ? { nationality: true } : {},
     });
     return rows.map(toPlayer);
   }
@@ -107,7 +121,7 @@ export class DrizzlePlayerRepository implements IPlayerRepository {
     // `PlayerMatch.deleteMany({ Player: this._id })` half of the cascade.
     await this.db
       .delete(playerMatchDetails)
-      .where(eq(playerMatchDetails.Player, id));
+      .where(eq(playerMatchDetails.PlayerId, id));
 
     const [player] = await this.db
       .delete(players)

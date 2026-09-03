@@ -206,7 +206,7 @@ export async function addLeagueToClub(
   try {
     const club = await updateClubFields(req.body.clubId, {
       LeagueCode: req.body.leagueCode,
-      League: req.params.league_id,
+      LeagueId: req.params.league_id,
     });
     return respond.success(
       res,

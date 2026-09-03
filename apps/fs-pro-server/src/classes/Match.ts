@@ -72,7 +72,7 @@ export class Match implements IMatch, MatchClass {
       TotalPasses: 0,
       Goals: 0,
       HomeTeamDetails: {
-        Club: this.Home._id,
+        ClubId: this.Home._id,
         Possession: 0,
         TimesWithBall: 0,
         Goals: 0,
@@ -85,7 +85,7 @@ export class Match implements IMatch, MatchClass {
         Passes: 0,
       },
       AwayTeamDetails: {
-        Club: this.Away._id,
+        ClubId: this.Away._id,
         Possession: 0,
         TimesWithBall: 0,
         Goals: 0,
@@ -650,8 +650,8 @@ export interface IMatch {
 }
 
 export interface IMatchSideDetails {
-  Club: string;
-  Fixture?: string;
+  ClubId: string;
+  FixtureId?: string;
   TimesWithBall: number;
   Possession: number;
   Goals: number;

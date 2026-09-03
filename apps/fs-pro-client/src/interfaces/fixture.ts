@@ -1,24 +1,32 @@
 /* eslint-disable @typescript-eslint/interface-name-prefix */
+import { Club } from './club';
+
 export interface IFixture {
   _id: string;
   Title: string;
   FixtureID: string;
   SeasonCode: string;
   LeagueCode: string;
-  Season: string;
+  SeasonId: string;
   Played: boolean;
   MatchDate: string;
   PlayedAt: Date;
   Week: number;
   Home: string;
   Away: string;
-  HomeTeam: string; // actually this is the Club _id or object
-  AwayTeam: string; // as HomeTeam
+  /** Bare Club id from list/engine routes; a full Club object (Name,
+   * Rating, Players) only when fetched via `GET /fixtures/:id` (Matchzone
+   * - see the server's `withClub` fixture-read option). */
+  HomeTeamId: string;
+  HomeTeam?: Club;
+  AwayTeamId: string;
+  AwayTeam?: Club;
   Stadium: string;
   Type: 'league' | 'cup' | 'tournament' | 'friendly';
   Status: 'friendly' | 'first-leg' | 'second-leg' | 'regular';
-  ReverseFixture: string;
+  ReverseFixtureId: string;
   Details: IMatchDetails;
+  /** Populated on every fetch (server-side baseline, not opt-in). */
   HomeSideDetails: IMatchSideDetails;
   AwaySideDetails: IMatchSideDetails;
   Events: IMatchEvent[];

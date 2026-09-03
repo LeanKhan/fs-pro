@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "target": "es2019",
-    "module": "commonJs",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "lib": [
       "es2019"
     ] /* Specify library files to be included in the compilation. */,

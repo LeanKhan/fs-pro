@@ -1,6 +1,9 @@
 import { CompetitionInterface } from './competition.model';
 import { CompetitionRepositoryFactory } from '../../repositories/CompetitionRepositoryFactory';
-import { ICompetitionFilter } from '../../repositories/CompetitionRepository';
+import {
+  ICompetitionFilter,
+  ICompetitionReadOptions,
+} from '../../repositories/CompetitionRepository';
 import { getClubs } from '../clubs/club.service';
 import { getSeasons } from '../seasons/season.service';
 
@@ -22,12 +25,18 @@ function getCompetitionRepo() {
   return competitionRepo;
 }
 
-export async function getCompetitionById(id: string) {
-  return getCompetitionRepo().findById(id);
+export async function getCompetitionById(
+  id: string,
+  options?: ICompetitionReadOptions
+) {
+  return getCompetitionRepo().findById(id, options);
 }
 
-export async function getCompetitions(filter?: ICompetitionFilter) {
-  return getCompetitionRepo().findAll(filter);
+export async function getCompetitions(
+  filter?: ICompetitionFilter,
+  options?: ICompetitionReadOptions
+) {
+  return getCompetitionRepo().findAll(filter, options);
 }
 
 export async function createCompetition(data: Partial<CompetitionInterface>) {
@@ -56,9 +65,9 @@ export async function deleteCompetitionById(id: string) {
  */
 export async function getCompetitionWithClubsAndSeasons(id: string) {
   const [competition, clubs, seasons] = await Promise.all([
-    getCompetitionById(id),
-    getClubs({ League: id }),
-    getSeasons({ Competition: id }),
+    getCompetitionById(id, { withCountry: true }),
+    getClubs({ LeagueId: id }),
+    getSeasons({ CompetitionId: id }),
   ]);
 
   if (!competition) return null;

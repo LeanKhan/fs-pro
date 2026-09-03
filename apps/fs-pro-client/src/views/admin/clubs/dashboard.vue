@@ -16,26 +16,38 @@
       </v-col>
 
       <v-col cols="12">
-        <all-clubs-table :clubs="clubs"></all-clubs-table>
+        <v-alert v-if="error" type="error" class="mb-4">
+          Error fetching clubs
+        </v-alert>
+        <all-clubs-table
+          :clubs="clubs"
+          :loading="isLoading"
+        ></all-clubs-table>
       </v-col>
     </v-row>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { $axios } from '@/services/api';
+import { computed, toRaw, watchEffect } from 'vue';
 import type { Club } from '@/interfaces/club';
 import AllClubsTable from '@/components/clubs/allclubs-table.vue';
+import { client } from '@/services/api';
 
-const clubs = ref<Club[]>([]);
+const { data, error, isLoading } = client.clubs.getClubs.useQuery(
+  ['all-clubs'],
+  (context) => ({
+    query: {
+      withPlayersAndManager: false,
+    },
+  })
+);
 
-onMounted(async () => {
-  try {
-    const response = await $axios.get('/clubs/all');
-    clubs.value = response.data.payload as Club[];
-  } catch (error) {
-    console.error('Error fetching clubs:', error);
-  }
+const clubs = computed<Club[]>(() => {
+  return (data.value?.body.payload ?? []) as Club[];
+});
+
+watchEffect(() => {
+  console.log('Clubs response => ', toRaw(data.value));
 });
 </script>

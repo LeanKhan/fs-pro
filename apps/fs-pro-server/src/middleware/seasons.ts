@@ -47,7 +47,7 @@ export async function create(
     const data = {
       SeasonCode: seasonCode,
       CompetitionCode: competitionCode,
-      Competition: competitionID,
+      CompetitionId: competitionID,
       Year: year,
       Status: 'pending',
       Title: `Season-${competitionCode}-${year}-${Math.round(
@@ -76,8 +76,8 @@ export async function create(
     season_id = season._id;
     season_code = season.SeasonCode;
 
-    // Competition.Seasons doesn't exist on Postgres - Seasons.Competition
-    // (set above, in `data.Competition = competitionID`) already carries
+    // Competition.Seasons doesn't exist on Postgres - Seasons.CompetitionId
+    // (set above, in `data.CompetitionId = competitionID`) already carries
     // this relationship, nothing left to write. Same no-op as
     // competition.controller.ts's addSeasonToCompetition.
     return Promise.resolve(null);

@@ -5,9 +5,10 @@ export interface SeasonInterface {
   _id?: string;
   SeasonCode: string;
   Title: string;
-  Competition: string | CompetitionInterface;
+  CompetitionId?: string;
+  Competition?: CompetitionInterface;
   CompetitionCode: string;
-  Winner: string;
+  WinnerId?: string;
   Promoted: string[];
   Relegated: string[];
   isFinished: boolean;
@@ -16,7 +17,10 @@ export interface SeasonInterface {
   StartDate: Date;
   EndDate: Date;
   Year: string;
-  Fixtures: Fixture[];
+  /** Populated on `findById` only - see ISeasonRepository's doc comment.
+   * `undefined` (not an empty array) whenever it wasn't fetched, e.g. off
+   * `findAll` - never a bare id/array of ids either way. */
+  Fixtures?: Fixture[];
   Standings: WeekStandings[];
   Logs?: Record<string, unknown>[];
 }

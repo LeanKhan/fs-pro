@@ -20,7 +20,7 @@
       :items="clubs"
       item-key="ClubCode"
       :search="search"
-      :loading="!clubs.length > 0"
+      :loading="loading"
       loading-text="Fetching Clubs..."
       no-data-text="No Clubs"
       class="elevation-1"
@@ -83,9 +83,12 @@ import { Club } from '@/interfaces/club';
 import { apiUrl } from '@/store';
 interface Props {
   clubs: Club[];
+  loading?: boolean;
 }
 
-defineProps<Props>();
+withDefaults(defineProps<Props>(), {
+  loading: false,
+});
 
 const router = useRouter();
 const store = useStore();

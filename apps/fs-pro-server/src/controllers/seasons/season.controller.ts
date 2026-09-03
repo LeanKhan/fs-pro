@@ -61,7 +61,7 @@ export async function finishSeason(
   try {
     season = await getSeasonById(season_id);
     competition = season
-      ? await getCompetitionById(season.Competition as string)
+      ? await getCompetitionById(season.CompetitionId as string)
       : null;
   } catch (error) {
     console.log(`Error! => ${error}`);
@@ -97,7 +97,7 @@ export async function finishSeason(
   // Now do the things...
   // check if all the matches have actually been played
   try {
-    if (!season.Fixtures.every((f) => f.Played)) {
+    if (!(season.Fixtures ?? []).every((f) => f.Played)) {
       return respond.fail(
         res,
         404,
@@ -135,7 +135,7 @@ export async function finishSeason(
         isFinished: true,
         Status: 'finished',
         EndDate: new Date(),
-        Winner: standings[0].ClubID, // Winner of the League
+        WinnerId: standings[0].ClubID, // Winner of the League
         Logs: [
           ...(season!.Logs ?? []),
           {
@@ -178,7 +178,7 @@ export async function prolegate(season_id: string) {
   if (!season) {
     throw new Error(`Season [${season_id}] does not exist`);
   }
-  const cmp = await getCompetitionById(season.Competition as string);
+  const cmp = await getCompetitionById(season.CompetitionId as string);
   if (!cmp) {
     throw new Error(`Competition for Season [${season_id}] does not exist`);
   }
@@ -206,14 +206,9 @@ export async function prolegate(season_id: string) {
 
     // find the new Competition that is higher than current comp but
     // in the same country.
-    const countryId =
-      typeof old_comp.Country === 'string'
-        ? old_comp.Country
-        : (old_comp.Country as any)?._id;
-
     const [new_comp] = await getCompetitions({
       Division: old_comp.Division + diff,
-      Country: countryId,
+      CountryId: old_comp.CountryId,
     });
 
     if (!new_comp) {
@@ -232,7 +227,7 @@ export async function prolegate(season_id: string) {
       // on either Competition row.
       await appendClubRecord(
         club_id,
-        { League: new_comp._id, LeagueCode: new_comp.CompetitionCode },
+        { LeagueId: new_comp._id, LeagueCode: new_comp.CompetitionCode },
         {
           title: 'League Movement',
           data: `From (${old_comp.Name}) ${old_comp._id} to (${new_comp.Name}) ${new_comp._id}`,

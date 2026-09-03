@@ -5,8 +5,10 @@ import { IMatchEvent } from '../../classes/Match';
 
 export interface ClubMatchDetailsInterface {
   _id?: string;
-  Club: string | IClub;
-  Fixture: string | Fixture;
+  ClubId?: string;
+  Club?: IClub;
+  FixtureId?: string;
+  Fixture?: Fixture;
   TimesWithBall: number;
   Possession: number;
   Goals: number;

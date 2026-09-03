@@ -24,7 +24,7 @@ export function addClubToCompetition(req: Request, res: Response) {
       }
       return updateClubFields(club, {
         LeagueCode: comp.CompetitionCode,
-        League: comp._id,
+        LeagueId: comp._id,
       });
     })
     .then(() => {
