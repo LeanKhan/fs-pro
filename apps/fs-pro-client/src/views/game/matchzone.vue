@@ -143,7 +143,7 @@ import ClubWidget from '@/components/matchzone/club.vue';
 import GameLobby from '@/components/matchzone/game-lobby.vue';
 import LivePitch from '@/components/matchzone/live-pitch.vue';
 import { Dugout } from '@/components/matchzone/widgets';
-import { $axios } from '@/services/api';
+import { client } from '@/services/api';
 import { MatchReplaySocket, IMatchFrame } from '@/utils/matchReplaySocket';
 
 const router = useRouter();
@@ -307,18 +307,21 @@ function timer() {
 
 async function getFixture() {
   try {
-    const response = await $axios.get(`/fixtures/${fixtureId.value}`, {
-      params: {
-        populate: JSON.stringify([
-          { path: 'HomeTeam', populate: ['Players', 'Manager'] },
-          { path: 'AwayTeam', populate: ['Players', 'Manager'] },
-        ]),
-      },
+    // `populate` used to be sent here, but the server route has always
+    // ignored it (getFixtureById is called with a fixed `{withClub: true}`
+    // regardless) - dropped rather than ported, since the contract only
+    // declares the params it actually reads.
+    const response = await client.fixtures.getFixture.query({
+      params: { id: String(fixtureId.value) },
     });
 
-    fixture.value = response.data.payload;
+    if (response.status !== 200) {
+      throw new Error(response.body.message);
+    }
 
-    if (response.data.payload.isFinalMatch && response.data.payload.Played) {
+    fixture.value = response.body.payload;
+
+    if (response.body.payload.isFinalMatch && response.body.payload.Played) {
       console.log('Is Final Match! Finish Season :)');
       lastMatchOfSeason.value = true;
     }
@@ -336,7 +339,7 @@ function finishSeason() {
     'Season is over hurray!\nEnd Season now... you must say okay.'
   );
   if (!ans) return;
-  router.push(`/finish/season/${fixture.value.Season}`);
+  router.push(`/finish/season/${fixture.value.SeasonId}`);
 }
 
 async function playGame() {
@@ -408,12 +411,18 @@ async function playGame() {
   };
 
   try {
-    const response = await $axios.get(`/game/kickoff-new/${fixtureId.value}`, {
-      params,
+    const response = await client.game.kickoffNew.query({
+      params: { fixture: String(fixtureId.value) },
+      query: params,
     });
-    let main = response.data.payload;
-    if (response.data.payload.main) {
-      main = response.data.payload.main;
+
+    if (response.status !== 200) {
+      throw new Error(response.body.message);
+    }
+
+    let main: any = response.body.payload;
+    if ('main' in response.body.payload && response.body.payload.main) {
+      main = response.body.payload.main;
     }
 
     // Results are in - reveal the pitch (which has been quietly tracking
@@ -472,7 +481,9 @@ async function watchReplay() {
   });
 
   try {
-    await $axios.get(`/game/replay/${fixtureId.value}`);
+    await client.game.rewatchMatch.query({
+      params: { fixture: String(fixtureId.value) },
+    });
   } catch (error) {
     console.error('Error starting match replay:', error);
     resultsReady.value = true;
@@ -488,22 +499,30 @@ async function getFixtureDay() {
   }
 
   try {
-    const response = await $axios.get(
-      `/fixtures?scheduledDay=${fixture.value.ScheduledDay}`
-    );
-    dayFixtures.value = response.data.payload;
+    const response = await client.fixtures.getFixtures.query({
+      query: { scheduledDay: fixture.value.ScheduledDay },
+    });
+    if (response.status === 200) {
+      dayFixtures.value = response.body.payload;
+    }
   } catch (error) {
     console.error('Error fetching fixtures for this day:', error);
   }
 }
 
 async function getStandings() {
-  if (fixture.value.Season) {
+  // Real Fixtures carry `SeasonId`, never `Season` - this check always
+  // failed silently before (fixture.value is loosely typed `any`, so the
+  // typo never surfaced as a build error), meaning getStandings() was a
+  // permanent no-op.
+  if (fixture.value.SeasonId) {
     try {
-      const response = await $axios.get(
-        `/seasons/${fixture.value.Season}/standings`
-      );
-      standings.value = response.data.payload;
+      const response = await client.seasons.getSeasonStandings.query({
+        params: { id: fixture.value.SeasonId },
+      });
+      if (response.status === 200) {
+        standings.value = response.body.payload;
+      }
     } catch (error) {
       console.error('Error fetching Standings:', error);
     }

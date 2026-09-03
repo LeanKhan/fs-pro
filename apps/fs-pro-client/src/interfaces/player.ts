@@ -1,5 +1,8 @@
-import { Place } from './place';
-
+/** Rating-calculation-only attribute shape (all fields required numbers,
+ * unlike @repo/api-contract's Player.Attributes which is deliberately all
+ * optional to reflect real, sometimes-partial wire data) - kept local
+ * rather than merged with the contract type since calculatePlayerRating()
+ * genuinely needs real numbers to multiply, not `number | undefined`. */
 export interface PlayerAttributes {
   Speed: number;
   Shooting: number;
@@ -18,33 +21,6 @@ export interface PlayerAttributes {
   AttackingMindset: boolean;
   DefensiveMindset: boolean;
   [key: string]: any;
-}
-
-export interface Player {
-  _id?: string;
-  /** Name of the Player! */
-  FirstName: string;
-  LastName: string;
-  Age: string;
-  PlayerID: string;
-  /** Bare id from edit-form routes; a full Place object only when the
-   * route requested it (list/table views). */
-  NationalityId?: string;
-  Nationality?: Place;
-  /** overall Player rating */
-  Rating: number;
-  /** Goals scored in total */
-  GoalsScored: number;
-  Position: string;
-  ShirtNumber: string;
-  /** Collecting of Player's attributes */
-  Attributes: PlayerAttributes;
-  /** Player tally */
-  Stats: PlayerStats;
-  /** Monetary value of Player */
-  Value: number;
-  /** Some Players don't have clubs (free agents) hence can be undefined */
-  ClubCode?: string;
 }
 
 export const AttackerMultipliers: Multipliers = {

@@ -22,7 +22,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { $axios } from '@/services/api';
+import { client } from '@/services/api';
 
 const router = useRouter();
 const route = useRoute();
@@ -33,10 +33,14 @@ function goBack() {
 }
 
 onMounted(async () => {
-  const managerId = route.params.id;
+  const managerId = String(route.params.id);
   try {
-    const response = await $axios.get(`/managers/${managerId}`);
-    manager.value = response.data.payload;
+    const response = await client.managers.getManager.query({
+      params: { id: managerId },
+    });
+    if (response.status === 200) {
+      manager.value = response.body.payload;
+    }
   } catch (error) {
     console.error('Error fetching manager:', error);
   }

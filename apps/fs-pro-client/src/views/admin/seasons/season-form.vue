@@ -42,7 +42,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { $axios } from '@/services/api';
+import { client } from '@/services/api';
 
 const props = defineProps<{
   isUpdate?: boolean;
@@ -63,26 +63,31 @@ async function deleteSeason() {
 }
 
 async function submit() {
-  const Competition = route.params.id;
-  const CompetitionCode = route.params.code;
+  const CompetitionId = String(route.params.id);
+  const CompetitionCode = String(route.params.code);
 
-  const url = props.isUpdate
-    ? `/${Competition}/seasons/update/`
-    : '/seasons?model=season';
+  if (props.isUpdate) {
+    // No "Update Season" route is registered anywhere in the router (only
+    // "New Season" is), so this branch has never been reachable from the
+    // UI - matches deleteSeason() above, a known pre-existing gap rather
+    // than something this pass adds.
+    console.log('Update Season not implemented');
+    return;
+  }
 
   try {
-    const response = await $axios.post(url, {
-      data: {
+    const response = await client.seasons.createSeason.mutation({
+      body: {
         ...form.value,
         CompetitionCode,
-        Competition,
+        CompetitionId,
       },
     });
 
-    console.log('Response => ', response.data.payload);
+    console.log('Response => ', response.body);
     router.push({
       name: 'View Competition',
-      params: { Competition, CompetitionCode },
+      params: { id: CompetitionId, code: CompetitionCode },
     });
   } catch (error) {
     console.error('Error submitting season:', error);

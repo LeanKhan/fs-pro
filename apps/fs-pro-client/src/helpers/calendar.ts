@@ -1,4 +1,4 @@
-import { IFixture } from '@/interfaces/fixture';
+import type { Fixture } from '@repo/api-contract';
 import { IDayGroup } from '@/interfaces/calendar';
 
 /** Groups a flat list of Fixtures (from `GET /fixtures?scheduledDayFrom=&
@@ -7,8 +7,8 @@ import { IDayGroup } from '@/interfaces/calendar';
  * range simply has no entry - there's no "empty day" concept to fill in
  * client-side (unlike the old free-day placeholders the server used to
  * generate up front). */
-export function groupFixturesByDay(fixtures: IFixture[]): IDayGroup[] {
-  const byDay = new Map<number, IFixture[]>();
+export function groupFixturesByDay(fixtures: Fixture[]): IDayGroup[] {
+  const byDay = new Map<number, Fixture[]>();
 
   fixtures.forEach((fixture) => {
     if (fixture.ScheduledDay == null) return;

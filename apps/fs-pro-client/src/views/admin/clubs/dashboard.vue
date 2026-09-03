@@ -30,7 +30,6 @@
 
 <script setup lang="ts">
 import { computed, toRaw, watchEffect } from 'vue';
-import type { Club } from '@/interfaces/club';
 import AllClubsTable from '@/components/clubs/allclubs-table.vue';
 import { client } from '@/services/api';
 
@@ -38,13 +37,18 @@ const { data, error, isLoading } = client.clubs.getClubs.useQuery(
   ['all-clubs'],
   (context) => ({
     query: {
-      withPlayersAndManager: false,
+      // allclubs-table.vue's columns read Manager/Players.length, so this
+      // must actually populate them - `false` here used to "work" only
+      // because of a query-boolean-coercion bug that ignored the value
+      // (see schemas/query.ts's booleanQuery()); now that's fixed, this
+      // needs to genuinely be true.
+      withPlayersAndManager: true,
     },
   })
 );
 
-const clubs = computed<Club[]>(() => {
-  return (data.value?.body.payload ?? []) as Club[];
+const clubs = computed(() => {
+  return data.value?.status === 200 ? data.value.body.payload : [];
 });
 
 watchEffect(() => {

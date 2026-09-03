@@ -4,9 +4,3 @@ export interface IResponse {
   statusCode: number;
   results?: any;
 }
-
-export interface IUserLogin {
-  Username: string;
-  Password: string;
-  Email?: string;
-}

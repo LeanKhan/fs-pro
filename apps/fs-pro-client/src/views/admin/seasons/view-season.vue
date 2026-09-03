@@ -99,8 +99,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { $axios } from '@/services/api';
-import type { Season } from '@/interfaces/season';
+import { client } from '@/services/api';
+import type { Season } from '@repo/api-contract';
 import StandingsScroller from '@/components/seasons/standings-scroller.vue';
 import FixturesTable from '@/components/seasons/fixtures-table.vue';
 
@@ -109,19 +109,19 @@ const router = useRouter();
 const season = ref<any>({});
 
 async function generateFixtures() {
-  const seasonId = route.params.seasonId;
-  const leagueCode = route.params.code;
-  const competitionId = route.params.id;
-
-  const data = { competitionId, leagueCode, seasonId };
+  const seasonId = String(route.params.seasonId);
+  const leagueCode = String(route.params.code);
+  const competitionId = String(route.params.id);
 
   try {
-    const response = await $axios.post(
-      `/seasons/${seasonId}/${season.value.SeasonCode}/generate-fixtures`,
-      { data }
-    );
-    season.value = response.data.payload as Season;
-    console.log('Fixtures generated! => ', response.data.payload);
+    const response = await client.seasons.generateFixtures.mutation({
+      params: { id: seasonId, code: season.value.SeasonCode },
+      body: { competitionId, leagueCode },
+    });
+    if (response.status === 200) {
+      season.value = response.body.payload as Season;
+      console.log('Fixtures generated! => ', response.body.payload);
+    }
   } catch (error) {
     console.error('Error generating Fixtures:', error);
   }
@@ -132,15 +132,15 @@ function startSeason() {
 }
 
 async function deleteSeason() {
-  const seasonID = route.params.seasonId;
+  const seasonID = String(route.params.seasonId);
   const ans = confirm(
     "Yo, are you ABSOLUTELY SURE ABOUT THIS!\nYou really want to delete this Season and everything about it?\nAll Fixtures will be deleted too.\nLast chance. You can't undo this."
   );
 
   if (ans) {
     try {
-      const response = await $axios.delete(`/seasons/${seasonID}`);
-      console.log('Season deleted successfully :)', response);
+      await client.seasons.deleteSeason.mutation({ params: { id: seasonID } });
+      console.log('Season deleted successfully :)');
       router.back();
     } catch (error) {
       console.error('Error deleting season:', error);
@@ -149,10 +149,14 @@ async function deleteSeason() {
 }
 
 onMounted(async () => {
-  const seasonID = route.params.seasonId;
+  const seasonID = String(route.params.seasonId);
   try {
-    const response = await $axios.get(`/seasons/${seasonID}`);
-    season.value = response.data.payload as Season;
+    const response = await client.seasons.getSeason.query({
+      params: { id: seasonID },
+    });
+    if (response.status === 200) {
+      season.value = response.body.payload as Season;
+    }
   } catch (error) {
     console.error('Error fetching season:', error);
   }

@@ -40,15 +40,15 @@
       </template> -->
 
       <template v-slot:item.Address="{ item }">
-        {{ item.Address.City }}, {{ item.Address.Country.Name }}
+        {{ item.Address?.City }}, {{ item.AddressCountry?.Name }}
       </template>
 
       <template v-slot:item.Stadium="{ item }">
-        {{ item.Stadium.Name }}
+        {{ item.Stadium?.Name }}
       </template>
 
       <template v-slot:item.Players="{ item }">
-        {{ item.Players.length }}
+        {{ item.Players?.length }}
       </template>
     </v-data-table>
     <v-divider></v-divider>
@@ -64,14 +64,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { Club } from '@/interfaces/club';
-import { $axios } from '@/services/api';
+import type { Club } from '@repo/api-contract';
+import { client } from '@/services/api';
 
 const props = defineProps<{
   multiSelect?: boolean;
 }>();
 
-const clubs = ref<any[]>([]);
+const clubs = ref<Club[]>([]);
 const selectedClub = ref<Club[] | []>([]);
 const search = ref('');
 
@@ -93,7 +93,8 @@ const headers = ref<any[]>([
   {
     title: 'Manager',
     key: 'Manager',
-    value: (item: any) => `${item.Manager.FirstName} ${item.Manager.LastName}`,
+    value: (item: any) =>
+      item.Manager ? `${item.Manager.FirstName} ${item.Manager.LastName}` : '',
     filterable: true,
     sortable: false,
   },
@@ -121,10 +122,12 @@ const close = (): void => {
 };
 
 onMounted(() => {
-  $axios
-    .get('/clubs/all')
+  client.clubs.getClubs
+    .query()
     .then((res) => {
-      clubs.value = res.data.payload as Club[];
+      if (res.status === 200) {
+        clubs.value = res.body.payload;
+      }
     })
     .catch((err) => {
       console.log('Error! => ', err);

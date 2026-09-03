@@ -1,4 +1,4 @@
-import { IFixture } from './fixture';
+import type { Fixture } from '@repo/api-contract';
 
 /** The one perpetual Calendar - a game-world clock, independent of the
  * real-world date. `CurrentDate` is the in-game date, not "today". */
@@ -15,5 +15,5 @@ export interface ICalendar {
 export interface IDayGroup {
   Day: number;
   isFree: boolean;
-  Matches: IFixture[];
+  Matches: Fixture[];
 }

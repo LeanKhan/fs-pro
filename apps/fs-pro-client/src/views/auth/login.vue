@@ -104,8 +104,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from '@/store';
-import { $axios } from '@/services/api';
-import axios from 'axios';
+import { client } from '@/services/api';
 
 defineOptions({
   name: 'LoginView',
@@ -141,38 +140,31 @@ async function login() {
   loginError.value = '';
 
   try {
-    const response = await $axios.post(
-      '/users/login',
-      { data: { Username: Username.value, Password: Password.value } },
-      { withCredentials: true }
-    );
+    const response = await client.users.loginUser.mutation({
+      body: { Username: Username.value, Password: Password.value },
+    });
 
-    if (response.data.success) {
+    if (response.status === 200) {
       store.showToast({
         message: 'Signed in Successfully!',
         style: 'success',
       });
 
       store.setUser({
-        username: response.data.payload.Username,
-        userID: response.data.payload._id,
-        clubs: response.data.payload.Clubs,
-        //session: response.data.payload.Session,
-        isAdmin: response.data.payload.isAdmin,
-        avatar: response.data.payload.Avatar,
-        fullname: response.data.payload.FullName,
+        username: response.body.payload.Username,
+        userID: response.body.payload._id ?? '',
+        clubs: response.body.payload.Clubs ?? [],
+        isAdmin: response.body.payload.isAdmin,
+        avatar: response.body.payload.Avatar ?? '',
+        fullname: response.body.payload.FullName,
       });
 
       router.push('/u');
+    } else {
+      loginError.value = response.body.message;
     }
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      loginError.value =
-        error.response?.data?.message ?? 'Unable to log in. Please try again.';
-    } else {
-      loginError.value = 'Unable to log in. Please try again.';
-    }
-
+    loginError.value = 'Unable to log in. Please try again.';
     console.error('Error logging in!', error);
   } finally {
     loading.value = false;
@@ -182,22 +174,19 @@ async function login() {
 async function submitNewPassword() {
   loading.value = true;
   try {
-    const response = await $axios.post(
-      '/users/change-password',
-      newForm.value,
-      { withCredentials: true }
-    );
+    const response = await client.users.changePassword.mutation({
+      body: newForm.value,
+    });
 
-    if (response.data.success) {
-      console.log('User => ', response.data.payload);
+    if (response.status === 200) {
+      console.log('User => ', response.body.payload);
       store.setUser({
-        username: response.data.payload.Username,
-        userID: response.data.payload._id,
-        clubs: response.data.payload.Clubs,
-        // session: response.data.payload.Session,
-        isAdmin: response.data.payload.isAdmin,
-        avatar: response.data.payload.Avatar,
-        fullname: response.data.payload.FullName,
+        username: response.body.payload.Username,
+        userID: response.body.payload._id ?? '',
+        clubs: response.body.payload.Clubs ?? [],
+        isAdmin: response.body.payload.isAdmin,
+        avatar: response.body.payload.Avatar ?? '',
+        fullname: response.body.payload.FullName,
       });
 
       router.push('/u');

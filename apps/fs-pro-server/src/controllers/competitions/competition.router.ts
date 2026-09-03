@@ -1,4 +1,10 @@
-import { Router, Request, Response } from 'express';
+import { initServer } from '@ts-rest/express';
+import { apiContract as contract } from '@repo/api-contract';
+import type {
+  Competition as ContractCompetition,
+  Season as ContractSeason,
+} from '@repo/api-contract';
+
 import {
   getCompetitions,
   getCompetitionById,
@@ -7,129 +13,221 @@ import {
   updateCompetitionFields,
   deleteCompetitionById,
 } from './competition.service';
+import type { CompetitionInterface } from './competition.model';
 import { getSeasons } from '../seasons/season.service';
-import respond from '../../helpers/responseHandler';
-import { incrementCounter, getCurrentCounter } from '../../utils/counter';
-import { addClubToCompetition } from './competition.controller';
+import { updateClubFields } from '../clubs/club.service';
+import { getNextCounterId } from '../../utils/counter';
 
-const router = Router();
+const s = initServer();
 
-/** Get all Competitions - `id`/`type` are the only real client filters
- * (the previous arbitrary `?query={...}` JSON blob had no other caller). */
-router.get('/all', (req: Request, res: Response) => {
-  const { id, type } = req.query;
+function fail(err: unknown) {
+  return err instanceof Error ? err.message : String(err);
+}
 
-  const response =
-    typeof id === 'string'
-      ? getCompetitionById(id, { withCountry: true }).then((c) =>
-          c ? [c] : []
-        )
-      : getCompetitions(
-          { Type: typeof type === 'string' ? type : undefined },
-          { withCountry: true }
-        );
+export const competitionTsRestRoutes = s.router(contract.competitions, {
+  /** `id`/`type` are the only real client filters (the previous arbitrary
+   * `?query={...}` JSON blob had no other caller). */
+  getCompetitions: async ({ query }) => {
+    try {
+      const competitions = query.id
+        ? await getCompetitionById(query.id, { withCountry: true }).then(
+            (c) => (c ? [c] : [])
+          )
+        : await getCompetitions(
+            { Type: query.type },
+            { withCountry: true }
+          );
 
-  response
-    .then((competitions: any) => {
-      return respond.success(
-        res,
-        200,
-        'Competitions fetched successfully',
-        competitions
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Competitions fetched successfully',
+          payload: competitions as unknown as ContractCompetition[],
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error fetching Competitions',
+          payload: fail(err),
+        },
+      };
+    }
+  },
+
+  /** populate defaults to true (populates Clubs/Seasons via the reverse
+   * Clubs.League/Seasons.Competition FKs, since neither array exists on
+   * Postgres) - both branches are repository-backed. */
+  getCompetition: async ({ params, query }) => {
+    try {
+      const competition =
+        query.populate === 'false'
+          ? await getCompetitionById(params.id)
+          : await getCompetitionWithClubsAndSeasons(params.id);
+
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Competition fetched successfully',
+          payload: competition as unknown as ContractCompetition,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error fetching Competition',
+          payload: fail(err),
+        },
+      };
+    }
+  },
+
+  getCompetitionSeasons: async ({ params }) => {
+    try {
+      const seasons = await getSeasons({ CompetitionId: params.id });
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Seasons in competition fetched successfully',
+          payload: seasons as unknown as ContractSeason[],
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error fetching seasons in competition',
+          payload: fail(err),
+        },
+      };
+    }
+  },
+
+  /** Plain fields only, no Mongo $push/$addToSet. */
+  updateCompetition: async ({ params, body }) => {
+    try {
+      const competition = await updateCompetitionFields(
+        params.id,
+        body as Partial<CompetitionInterface>
       );
-    })
-    .catch((err: any) => {
-      return respond.fail(res, 400, 'Error fetching Competitions', err);
-    });
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Competition updated successfully',
+          payload: competition as unknown as ContractCompetition,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error in updating Competition',
+          payload: fail(err),
+        },
+      };
+    }
+  },
+
+  deleteCompetition: async ({ params }) => {
+    try {
+      const competition = await deleteCompetitionById(params.id);
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Competition deleted successfully',
+          payload: competition as unknown as ContractCompetition,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error deleting Competition',
+          payload: fail(err),
+        },
+      };
+    }
+  },
+
+  createCompetition: async ({ body }) => {
+    try {
+      // Reserves the next CompetitionID off the Postgres sequence - the
+      // real work the old getCurrentCounter middleware did (via
+      // ?model=competition); incrementCounter itself is a documented no-op.
+      const { field, id } = await getNextCounterId('competition');
+
+      const competition = await createCompetition({
+        ...(body as Partial<CompetitionInterface>),
+        [field]: id,
+      });
+
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Competition created successfully',
+          payload: competition as unknown as ContractCompetition,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error creating competition',
+          payload: fail(err),
+        },
+      };
+    }
+  },
+
+  /** Competition.Clubs doesn't exist on Postgres - a club's league is a
+   * direct Clubs.League/LeagueCode FK/column (see ICompetitionRepository's
+   * doc comment for why that's the only mechanism this write needs, not
+   * the currently-unused `competitionClubs` join table), so that's the
+   * only write that matters; the reverse "clubs in this competition"
+   * lookup is a query, not a stored array to also update here. */
+  addClubToCompetition: async ({ params, body }) => {
+    try {
+      const comp = await getCompetitionById(params.id);
+      if (!comp) {
+        throw new Error('Competition does not exist!');
+      }
+
+      await updateClubFields(body.clubId, {
+        LeagueCode: comp.CompetitionCode,
+        LeagueId: comp._id,
+      });
+
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Club has been added to Competition successfully!',
+          payload: {},
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error adding Club to Competition',
+          payload: fail(err),
+        },
+      };
+    }
+  },
 });
-
-/** Get Competition by id */
-router.get('/:id', (req: Request, res: Response) => {
-  const { populate } = req.query;
-  // populate defaults to true (populates Clubs/Seasons via the reverse
-  // Clubs.League/Seasons.Competition FKs, since neither array exists on
-  // Postgres) - both branches are repository-backed now.
-  const response =
-    populate === 'false'
-      ? getCompetitionById(req.params.id)
-      : getCompetitionWithClubsAndSeasons(req.params.id);
-
-  response
-    .then((competition: any) => {
-      respond.success(
-        res,
-        200,
-        'Competition fetched successfully',
-        competition
-      );
-    })
-    .catch((err: any) => {
-      respond.fail(res, 400, 'Error fetching Competition', err);
-    });
-});
-
-/** Get all the seasons */
-router.get('/:id/seasons/all', (req: Request, res: Response) => {
-  const response = getSeasons({ CompetitionId: req.params.id });
-
-  response
-    .then((seasons: any) => {
-      respond.success(
-        res,
-        200,
-        'Seasons in competition fetched successfully',
-        seasons
-      );
-    })
-    .catch((err: any) => {
-      respond.fail(res, 400, 'Error fetching seasons in competition', err);
-    });
-});
-
-/** Update Competition by id - plain fields only, no Mongo $push/$addToSet */
-router.post('/:id/update', (req: Request, res: Response) => {
-  const response = updateCompetitionFields(req.params.id, req.body.data);
-
-  response
-    .then((competition: any) => {
-      respond.success(
-        res,
-        200,
-        'Competition updated successfully',
-        competition
-      );
-    })
-    .catch((err: any) => {
-      respond.fail(res, 400, 'Error in updating Competition', err);
-    });
-});
-
-/** Delete Competition by id */
-router.delete('/:id', (req: Request, res: Response) => {
-  deleteCompetitionById(req.params.id)
-    .then((data: any) => {
-      respond.success(res, 200, 'Competition deleted successfully', data);
-    })
-    .catch((err: any) => {
-      respond.fail(res, 400, 'Error deleting Competition', err);
-    });
-});
-
-/** Create new Competition */
-router.post('/new', getCurrentCounter, async (req: Request, res: Response) => {
-  try {
-    const competition = await createCompetition(req.body.data);
-    // incrementCounter before respond.success - if it throws, the catch
-    // below must still be the only response sent (see FUTURE-PLANS.md for
-    // the double-response crash this ordering used to cause).
-    void incrementCounter('competition_counter');
-    respond.success(res, 200, 'Competition created successfully', competition);
-  } catch (error) {
-    respond.fail(res, 400, 'Error creating competition', error);
-  }
-});
-
-/** Add Club to Competition */
-router.post('/:id/add-club', addClubToCompetition);
-
-export default router;

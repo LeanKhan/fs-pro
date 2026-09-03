@@ -23,14 +23,18 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import ManagersTable from '@/components/managers/managers-table.vue';
-import { $axios } from '@/services/api';
+import { client } from '@/services/api';
 
 const managers = ref<any[]>([]);
 
 onMounted(async () => {
   try {
-    const response = await $axios.get('/managers?populate=Club');
-    managers.value = response.data.payload;
+    const response = await client.managers.getManagers.query({
+      query: { populate: 'Club' },
+    });
+    if (response.status === 200) {
+      managers.value = response.body.payload;
+    }
   } catch (error) {
     console.error('Error fetching managers:', error);
   }

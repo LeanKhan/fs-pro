@@ -1,8 +1,7 @@
-/* eslint-disable @typescript-eslint/no-floating-promises */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-// Login, Signup & Logout
+import { initServer } from '@ts-rest/express';
+import { apiContract as contract } from '@repo/api-contract';
+import type { User as ContractUser, Club as ContractClub } from '@repo/api-contract';
 
-import { Router } from 'express';
 import {
   createUser,
   getUserById,
@@ -10,263 +9,411 @@ import {
   updateUserFields,
 } from './user.service';
 import { getClubs, updateClubFields } from '../clubs/club.service';
-import { ClubInterface } from '../clubs/club.model';
-import respond from '../../helpers/responseHandler';
-import { IUserLogin } from '../../interfaces/Response';
-import {
-  initializeSession,
-  initializeSessionForLogin,
-  findSession,
-} from '../../middleware/user';
-import { updateClubs } from '../../controllers/clubs/club.controller';
+import type { ClubInterface } from '../clubs/club.model';
 import { IUser } from './user.model';
 import { store } from '../../sessionStore';
 import { comparePassword, resolveUserSession } from '../../utils/auth';
 import log from '../../helpers/logger';
 
-//
-const router = Router();
+const s = initServer();
 
-//
+function fail(err: unknown) {
+  return err instanceof Error ? err.message : String(err);
+}
 
-/**
- * The minimum data needed is:
- *
- * {
- *  data: {
- *    FirstName: string,
- *    LastName: string,
- *    Username: string,
- *    Password: string
- *   }
- * }
- *
- * Registration chains into `updateClubs` (Club-coupled - a new user's id
- * is written into the club's `User` FK), which is fully repository-backed
- * now, so `createUser` is too - `req.body.clubs` reads whatever `Clubs`
- * comes back from the repository, `undefined` on Postgres (the array
- * doesn't exist there) same as a fresh Mongo user's always-empty one; a
- * registration payload never actually includes `Clubs` (see the shape
- * above), so `updateClubs`'s `Promise.all([])` is a no-op either way.
- */
-router.post(
-  '/join',
-  async (req, res, next) => {
+/** Never let Password/Session cross the wire, on any route. */
+function sanitizeUser(user: any): any {
+  if (!user) return user;
+  const { Password, Session, ...rest } = user;
+  return rest;
+}
+
+function saveSession(req: { session?: any }): Promise<void> {
+  return new Promise((resolve, reject) => {
+    req.session!.save((err: any) => (err ? reject(err) : resolve()));
+  });
+}
+
+export const userTsRestRoutes = s.router(contract.users, {
+  /**
+   * The minimum data needed is FullName/Username/Password. Registration
+   * chains into claiming any Clubs the user picked during onboarding
+   * (`Clubs.User` is a reverse FK, set per-club) using the client's own
+   * `Clubs` selection - the old Express chain read `user.Clubs` off the
+   * just-created record instead, which is always empty (Postgres doesn't
+   * even have a `Users.Clubs` column), silently breaking "pick your club at
+   * signup".
+   */
+  joinUser: async ({ body, req }) => {
     try {
-      const user: any = await createUser(req.body.data);
-      req.body.userID = user._id;
-      req.body.clubs = user.Clubs ?? [];
-      next();
-    } catch (error: any) {
-      if (error.code === 11000 || error?.cause?.code === '23505') {
-        respond.fail(res, 400, 'Username already exists!', error);
-      } else {
-        respond.fail(res, 400, 'Error creating user', error);
+      const user: any = await createUser({
+        FullName: body.FullName,
+        Username: body.Username,
+        Password: body.Password,
+      } as Partial<IUser>);
+
+      await Promise.all(
+        (body.Clubs ?? []).map((clubId) =>
+          updateClubFields(clubId, { UserId: user._id })
+        )
+      );
+
+      (req.session as any).userID = user._id;
+      await saveSession(req);
+
+      const authenticated = await updateUserFields(user._id, {
+        Session: req.sessionID,
+      } as Partial<IUser>);
+
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'User authenticated successfully',
+          payload: sanitizeUser(authenticated) as ContractUser,
+        },
+      };
+    } catch (err: any) {
+      if (err.code === 11000 || err?.cause?.code === '23505') {
+        return {
+          status: 400,
+          body: {
+            success: false,
+            message: 'Username already exists!',
+            payload: fail(err),
+          },
+        };
       }
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error creating user',
+          payload: fail(err),
+        },
+      };
     }
   },
-  updateClubs,
-  initializeSession
-);
 
-/** Login User */
-router.post(
-  '/login',
-  (req, res, next) => {
-    const { Username, Password }: IUserLogin = req.body.data;
-
-    getUserByUsername(Username)
-      .then((result) => {
-        if (!result) {
-          return respond.fail(res, 404, 'Username does not exist');
-        }
-
-        comparePassword(Password, result.Password)
-          .then((isMatch) => {
-            if (isMatch) {
-              req.body.userID = result._id;
-              next();
-            } else {
-              respond.fail(res, 400, 'Password is incorrect!', {
-                errorCode: 1,
-              });
-            }
-          })
-          .catch((error: any) => {
-            respond.fail(res, 400, 'Error logging in', error);
-          });
-      })
-      .catch((error: any) => {
-        return respond.fail(res, 400, 'Error logging in', error);
-      });
-  },
-  initializeSessionForLogin
-);
-
-/** Change User's password */
-router.post('/change-password', (req, res) => {
-  const { Username, NewPassword } = req.body;
-
-  getUserByUsername(Username)
-    .then((result) => {
+  /** `Clubs` in the response is a live `Clubs.User` reverse lookup (ids
+   * only, matching what `settings.vue` expects), not the stored
+   * `Users.Clubs` array - see the schema doc comment for why. */
+  loginUser: async ({ body, req }) => {
+    try {
+      const result: any = await getUserByUsername(body.Username);
       if (!result) {
-        return respond.fail(res, 404, 'Username does not exist');
+        return {
+          status: 404,
+          body: { success: false, message: 'Username does not exist' },
+        };
       }
 
-      updateUserFields(
-        result._id as unknown as string,
-        { Password: NewPassword } as Partial<IUser>
-      )
-        .then((user) => {
-          return respond.success(
-            res,
-            200,
-            'Password changed successfully',
-            user
-          );
-        })
-        .catch((error: any) => {
-          return respond.fail(res, 400, 'Error changing password', error);
-        });
-    })
-    .catch((error: any) => {
-      return respond.fail(res, 400, 'Error changing password', error);
-    });
-});
+      const isMatch = await comparePassword(body.Password, result.Password);
+      if (!isMatch) {
+        return {
+          status: 400,
+          body: {
+            success: false,
+            message: 'Password is incorrect!',
+            payload: { errorCode: 1 },
+          },
+        };
+      }
 
-/** Get User by id */
-router.get('/:id', (req, res) => {
-  const id = req.params.id;
-  const populate = req.query.populate === 'true' ? true : false;
+      (req.session as any).userID = result._id;
+      await saveSession(req);
 
-  // Club ownership is `Clubs.User` (a reverse FK) on both backends now -
-  // `Users.Clubs` doesn't exist on Postgres - so `populate=true` derives
-  // the owned-clubs list via a reverse lookup through the Club repository
-  // instead of an array populate.
-  const response = populate
-    ? Promise.all([getUserById(id), getClubs({ UserId: id })]).then(
-        ([user, clubs]) => (user ? { ...user, Clubs: clubs } : user)
-      )
-    : getUserById(id);
+      const [user, clubs] = await Promise.all([
+        updateUserFields(result._id, {
+          Session: req.sessionID,
+        } as Partial<IUser>),
+        getClubs({ UserId: result._id }),
+      ]);
 
-  response
-    .then((user: any) => {
-      respond.success(res, 200, 'User fetched successfully', user);
-    })
-    .catch((err: any) => {
-      respond.fail(res, 400, 'Error fetching User', err);
-    });
-});
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'User authenticated successfully',
+          payload: {
+            ...sanitizeUser(user),
+            Clubs: clubs.map((club: any) => club._id),
+          } as ContractUser,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: { success: false, message: 'Error logging in', payload: fail(err) },
+      };
+    }
+  },
 
-/** Logout User */
-router.delete('/:id/logout', (req, res) => {
-  // delete user's session
-  const userID = req.params.id;
-  console.log(`User ID => ${userID}`);
+  /** Repository hashes `NewPassword` on write, same as every other user
+   * update - no manual hashing here. */
+  changePassword: async ({ body }) => {
+    try {
+      const result = await getUserByUsername(body.Username);
+      if (!result) {
+        return {
+          status: 404,
+          body: { success: false, message: 'Username does not exist' },
+        };
+      }
 
-  getUserById(userID)
-    .then((user) => {
+      const user = await updateUserFields(result._id as string, {
+        Password: body.NewPassword,
+      } as Partial<IUser>);
+
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Password changed successfully',
+          payload: sanitizeUser(user) as ContractUser,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error changing password',
+          payload: fail(err),
+        },
+      };
+    }
+  },
+
+  /** Club ownership is `Clubs.User` (a reverse FK) on both backends -
+   * `Users.Clubs` doesn't exist on Postgres - so `populate=true` derives
+   * the owned-clubs list via a reverse lookup through the Club repository
+   * instead of an array populate. */
+  getUser: async ({ params, query }) => {
+    try {
+      const populate = query.populate === 'true';
+
+      const user: any = populate
+        ? await Promise.all([
+            getUserById(params.id),
+            getClubs({ UserId: params.id }),
+          ]).then(([u, clubs]) => (u ? { ...u, Clubs: clubs } : u))
+        : await getUserById(params.id);
+
       if (!user) {
-        return respond.fail(res, 404, 'Username does not exist');
+        return {
+          status: 404,
+          body: { success: false, message: 'User not found' },
+        };
       }
 
-      resolveUserSession(
-        user.Session,
-        user.Session,
-        function (err: any, sess: any) {
-          if (sess) {
-            // If you find the session it means it's an old one so do this...
-            // set a new one, create a new cookie and send session data to client
-            store.destroy(user.Session, (destroyErr: any) => {
-              if (destroyErr) {
-                throw new Error('Error in destroying Session');
-              } else {
-                return respond.success(
-                  res,
-                  200,
-                  'Client logged out successfully'
-                );
-              }
-            });
-          } else {
-            throw new Error('Session not found! Try reloading');
-          }
-        }
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'User fetched successfully',
+          payload: sanitizeUser(user) as ContractUser,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error fetching User',
+          payload: fail(err),
+        },
+      };
+    }
+  },
+
+  logoutUser: async ({ params }) => {
+    try {
+      const user: any = await getUserById(params.id);
+      if (!user) {
+        return {
+          status: 404,
+          body: { success: false, message: 'Username does not exist' },
+        };
+      }
+
+      const sess = await new Promise<any>((resolve, reject) => {
+        resolveUserSession(user.Session, user.Session, (err: any, s: any) =>
+          err ? reject(err) : resolve(s)
+        );
+      });
+
+      if (!sess) {
+        throw new Error('Session not found! Try reloading');
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        store.destroy(user.Session, (destroyErr: any) =>
+          destroyErr
+            ? reject(new Error('Error in destroying Session'))
+            : resolve()
+        );
+      });
+
+      return {
+        status: 200,
+        body: { success: true, message: 'Client logged out successfully', payload: {} },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: { success: false, message: 'Error logging out', payload: fail(err) },
+      };
+    }
+  },
+
+  updateUser: async ({ params, body }) => {
+    try {
+      const user = await updateUserFields(params.id, body as Partial<IUser>);
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'User updated successfully',
+          payload: sanitizeUser(user) as ContractUser,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error updating User',
+          payload: fail(err),
+        },
+      };
+    }
+  },
+
+  /** Claims ownership of each Club by setting its `User` FK, same write
+   * `POST /join`/`POST /:id/add-club` do. Responds with the user's full
+   * owned-clubs list (a reverse lookup, not a stored array) rather than a
+   * User document - there's no `Users.Clubs` to return. */
+  addClubsToUser: async ({ params, body }) => {
+    try {
+      await Promise.all(
+        body.map((clubId) => updateClubFields(clubId, { UserId: params.id }))
       );
-    })
-    .catch((error: any) => {
-      return respond.fail(res, 400, 'Error logging out', error);
-    });
+      const clubs = await getClubs({ UserId: params.id });
+
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Clubs added successfully',
+          payload: clubs as unknown as ContractClub[],
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: { success: false, message: 'Error adding Clubs', payload: fail(err) },
+      };
+    }
+  },
+
+  addClubToUser: async ({ params, body }) => {
+    try {
+      const club = await updateClubFields(body.clubId, { UserId: params.id });
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Club added successfully',
+          payload: club as unknown as ContractClub,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: { success: false, message: 'Error adding Club', payload: fail(err) },
+      };
+    }
+  },
+
+  /** Clears the Club's `User` FK. The old handler wrote `{ User: null }`,
+   * which isn't a real `ClubInterface` field (it's `UserId`) - a no-op
+   * write that left ownership dangling and made "remove club from
+   * account" silently do nothing. */
+  removeClubFromUser: async ({ params }) => {
+    try {
+      const club = await updateClubFields(params.club_id, {
+        UserId: null,
+      } as unknown as Partial<ClubInterface>);
+
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'User removed Club successfully',
+          payload: club as unknown as ContractClub,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: { success: false, message: 'Error removing Club', payload: fail(err) },
+      };
+    }
+  },
+
+  /** Re-establish a session when the cookie wasn't sent back. Note: the
+   * `sessionID` used to `store.set` (the client's own, freshly-generated
+   * one) and the `req.sessionID` then persisted onto the User row (this
+   * request's own express-session-assigned id) are not the same value in
+   * the sess-found branch - a pre-existing quirk, ported as-is rather than
+   * "fixed", since it's unclear which id is actually meant to win. */
+  enterSession: async ({ body, req }) => {
+    try {
+      const { userID, sessionID } = body;
+
+      const user: any = await getUserById(userID);
+      if (!user) {
+        return { status: 404, body: { success: false, message: 'User not found' } };
+      }
+
+      const sess = await new Promise<any>((resolve, reject) => {
+        resolveUserSession(user.Session, user.Session, (err: any, s: any) =>
+          err ? reject(err) : resolve(s)
+        );
+      });
+
+      if (sess) {
+        await new Promise<void>((resolve, reject) => {
+          store.set(sessionID, sess, (err: any) =>
+            err
+              ? reject(new Error('Error in setting Session' + `${err}`))
+              : resolve()
+          );
+        });
+      } else {
+        (req.session as any).userID = user._id;
+        await saveSession(req);
+      }
+
+      await updateUserFields(userID, {
+        Session: req.sessionID,
+      } as Partial<IUser>);
+
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Client Authenticated successfully',
+          payload: { userID: user._id as string, sessionID: req.sessionID },
+        },
+      };
+    } catch (err) {
+      log(`error in entering => ${fail(err)}`);
+      return {
+        status: 400,
+        body: { success: false, message: 'Error in authentication', payload: fail(err) },
+      };
+    }
+  },
 });
-
-/** Update User by id */
-router.post('/:id/update', (req, res) => {
-  const id = req.params.id;
-  const { data } = req.body;
-
-  const response = updateUserFields(id, data);
-
-  response
-    .then((user: any) => {
-      respond.success(res, 200, 'User updated successfully', user);
-    })
-    .catch((err: any) => {
-      respond.fail(res, 400, 'Error updating User', err);
-    });
-});
-
-/**
- * Add Clubs to User account - claims ownership of each club by setting its
- * `User` FK, same write `POST /users/join`'s `updateClubs` does. Responds
- * with the user's full owned-clubs list (a reverse lookup, not a stored
- * array) rather than a User document - there's no `Users.Clubs` to return.
- */
-router.post('/:id/add-clubs', (req, res) => {
-  const id = req.params.id;
-  const { data } = req.body;
-
-  Promise.all(
-    ((data ?? []) as string[]).map((clubId) =>
-      updateClubFields(clubId, { UserId: id })
-    )
-  )
-    .then(() => getClubs({ UserId: id }))
-    .then((clubs) => {
-      respond.success(res, 200, 'Clubs added successfully', clubs);
-    })
-    .catch((err: any) => {
-      respond.fail(res, 400, 'Error adding Clubs', err);
-    });
-});
-
-/** Add Club to User account - same reverse-FK write as above, for one club. */
-router.post('/:id/add-club', (req, res) => {
-  const id = req.params.id;
-  const { clubId } = req.body.data;
-
-  updateClubFields(clubId, { UserId: id })
-    .then((club) => {
-      respond.success(res, 200, 'Club added successfully', club);
-    })
-    .catch((err: any) => {
-      respond.fail(res, 400, 'Error adding Club', err);
-    });
-});
-
-/** Remove Club from User account - clears the club's `User` FK. */
-router.delete('/:id/clubs/:club_id', (req, res) => {
-  const club_id = req.params.club_id;
-
-  updateClubFields(club_id, { User: null } as unknown as Partial<ClubInterface>)
-    .then((club) => {
-      respond.success(res, 200, 'User removed Club successfully', club);
-    })
-    .catch((err: any) => {
-      respond.fail(res, 400, 'Error removing Club', err);
-    });
-});
-
-/** Enter.. ??? [Need clarification] */
-router.post('/enter', findSession);
-
-export default router;

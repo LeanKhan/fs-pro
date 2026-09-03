@@ -11,4 +11,5 @@ export const $axios = axios.create({
 export const client = initQueryClient(apiContract, {
   baseUrl: `${apiUrl}/api`,
   baseHeaders: {},
+  credentials: 'include',
 });

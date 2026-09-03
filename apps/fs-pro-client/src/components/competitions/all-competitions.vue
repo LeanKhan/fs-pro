@@ -82,12 +82,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, getCurrentInstance } from 'vue';
-import { Competition } from '@/interfaces/competition';
+import { ref, onMounted } from 'vue';
+import type { Competition } from '@repo/api-contract';
 import { apiUrl } from '@/store';
-import { $axios } from '@/services/api';
-
-const instance = getCurrentInstance();
+import { client } from '@/services/api';
 
 const competitions = ref<Competition[]>([]);
 const selectedCompetition = ref<any>({});
@@ -104,10 +102,12 @@ const showCompetition = (compCode: string): void => {
 };
 
 onMounted(() => {
-  $axios
-    .get('/competitions/all')
-    .then((res: any) => {
-      competitions.value = res.data.payload;
+  client.competitions.getCompetitions
+    .query()
+    .then((res) => {
+      if (res.status === 200) {
+        competitions.value = res.body.payload;
+      }
     })
     .catch((err: any) => {
       console.log('Error! => ', err);

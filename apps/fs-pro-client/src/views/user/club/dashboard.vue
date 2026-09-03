@@ -173,9 +173,8 @@ import { ClubZone, SquadZone, TransferZone } from './zones';
 import DayScroll from '@/components/calendar/day-scroll.vue';
 import StandingsScroller from '@/components/seasons/standings-scroller.vue';
 import { IDayGroup } from '@/interfaces/calendar';
-import { $axios } from '@/services/api';
+import { client } from '@/services/api';
 import { groupFixturesByDay } from '@/helpers/calendar';
-import { IFixture } from '@/interfaces/fixture';
 
 const route = useRoute();
 
@@ -215,11 +214,11 @@ function selectDay(val: number) {
 async function fetchCurrentSeason() {
   if (club.value.League) {
     try {
-      const response = await $axios.get(
-        `/seasons?competition=${club.value.League}&current=true`
-      );
-      if (response.data.success) {
-        season.value = response.data.payload[0];
+      const response = await client.seasons.getSeasons.query({
+        query: { competition: club.value.League, current: true },
+      });
+      if (response.status === 200) {
+        season.value = response.body.payload[0];
       }
     } catch (error) {
       console.error('Error fetching club current Season:', error);
@@ -230,10 +229,12 @@ async function fetchCurrentSeason() {
 async function fetchClubLeague() {
   if (!club.value.League) return;
   try {
-    const response = await $axios.get(
-      `/competitions/all?id=${club.value.League}`
-    );
-    clubLeague.value = response.data.payload[0];
+    const response = await client.competitions.getCompetitions.query({
+      query: { id: club.value.League },
+    });
+    if (response.status === 200) {
+      clubLeague.value = response.body.payload[0];
+    }
   } catch (error) {
     console.error('Error fetching club league:', error);
   }
@@ -241,9 +242,12 @@ async function fetchClubLeague() {
 
 async function fetchClub(clubId: string) {
   try {
-    const response = await $axios.get(`/clubs/${clubId}?populate=true`);
-    if (response.data.success) {
-      club.value = response.data.payload;
+    const response = await client.clubs.getClub.query({
+      params: { id: clubId },
+      query: { populate: 'true' },
+    });
+    if (response.status === 200) {
+      club.value = response.body.payload;
       await fetchClubLeague();
     }
   } catch (error) {
@@ -256,10 +260,12 @@ async function getDays() {
   const to = from + 13;
 
   try {
-    const response = await $axios.get(
-      `/fixtures?scheduledDayFrom=${from}&scheduledDayTo=${to}`
-    );
-    days.value = groupFixturesByDay(response.data.payload as IFixture[]);
+    const response = await client.fixtures.getFixtures.query({
+      query: { scheduledDayFrom: from, scheduledDayTo: to },
+    });
+    if (response.status === 200) {
+      days.value = groupFixturesByDay(response.body.payload);
+    }
   } catch (error) {
     console.error('Error getting upcoming fixtures:', error);
   }

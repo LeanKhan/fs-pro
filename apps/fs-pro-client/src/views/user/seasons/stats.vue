@@ -66,8 +66,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, getCurrentInstance } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { $axios } from '@/services/api';
+import { client } from '@/services/api';
 import Standings from '@/components/seasons/standings-component.vue';
+import {
+  usePlayerStats,
+  STAT_ATTRIBUTES,
+  type StatAttribute,
+} from '@/composables/usePlayerStats';
 const instance = getCurrentInstance();
 
 const route = useRoute();
@@ -75,14 +80,9 @@ const router = useRouter();
 
 const loading = ref(false);
 const season = ref<any>({});
-const loading_player_stats = ref(false);
-const stats_attributes = ['points', 'goals', 'assists', 'saves'];
-const top_players = ref<any>({
-  points: [],
-  goals: [],
-  assists: [],
-  saves: [],
-});
+const stats_attributes = STAT_ATTRIBUTES;
+const { topPlayers: top_players, loading: loading_player_stats, loadStats } =
+  usePlayerStats();
 
 const seasonId = computed(() => route.params.season_id);
 
@@ -96,20 +96,8 @@ function filter(stuff: any) {
   }
 }
 
-async function load_stats(attribute: string) {
-  loading_player_stats.value = true;
-  try {
-    const response = await $axios.get(
-      `/players/stats?match_k=season._id&match_v=${seasonId.value}&sort_k=${attribute}&sort_v=-1`
-    );
-    if (response.data.success) {
-      top_players.value[attribute] = response.data.payload;
-    }
-  } catch (error) {
-    console.error(`Error fetching player with most ${attribute}:`, error);
-  } finally {
-    loading_player_stats.value = false;
-  }
+async function load_stats(attribute: StatAttribute) {
+  await loadStats(attribute, season.value?.CompetitionCode);
 }
 
 onMounted(async () => {
@@ -117,10 +105,12 @@ onMounted(async () => {
   loading.value = true;
 
   try {
-    const response = await $axios.get(
-      `/seasons/${seasonId.value}?populate=false`
-    );
-    season.value = response.data.payload;
+    const response = await client.seasons.getSeason.query({
+      params: { id: String(seasonId.value) },
+    });
+    if (response.status === 200) {
+      season.value = response.body.payload;
+    }
   } catch (error) {
     console.error('Error fetching Season:', error);
   } finally {
