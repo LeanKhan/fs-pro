@@ -189,6 +189,18 @@ function findFreeBlock(around: IPositions) {
 //       });
 // }
 
+/** Yearly-progression tuning constant, not intrinsic to newAttributeRatings
+ * itself (which stays reusable elsewhere) - multiplies the match-performance
+ * points fed into it once per player per year. Calibrated via direct
+ * simulation (apps/fs-pro-server/tmp_calibrate.ts): great year, 17yo
+ * prospect -> ~+5 mean/+8 max Rating; mediocre year -> ~+3; veteran (30),
+ * good year -> ~+1.7. Growth was previously negligible (a great year moved
+ * Rating well under +1) because calculatePlayerRating is a weighted SUM
+ * across small per-attribute role weights - most 0.0-0.3, only Keeping
+ * (GK, 0.44) and Tackling (CDM, 0.42) break that pattern - so raw
+ * attribute-point gains get diluted into fractional Rating moves. */
+export const MATCH_GROWTH_SCALE = 8;
+
 function calculatePlayerValue(pos: string, rating: number, age: number) {
   // 1. Get basevalue from overall...
   // 2. get position multiplier...
@@ -399,6 +411,7 @@ const attributesToIncrease: {
     'Control',
     'Tackling',
     'Strength',
+    'Stamina',
     'Dribbling',
     // new
     'LongShot',
@@ -426,6 +439,121 @@ const attributesToIncrease: {
   ],
 };
 
+/** Shared rating-based dampening (95/88/80 thresholds) used by both
+ * match-based growth (newAttributeRatings) and training-based growth
+ * (player-training.service.ts) - extracted so the two systems can't
+ * silently drift on these thresholds. */
+export function ratingDampeningMultiplier(rating: number): number {
+  if (rating >= 95) return 0.4;
+  if (rating >= 88) return 0.5;
+  if (rating >= 80) return 0.9;
+  return 1;
+}
+
+/** Attribute values are on a 0-99 scale (calculateTotal/calculatePlayerRating
+ * already cap the derived Rating at 99) - individual attributes were never
+ * actually clamped by the original distribution loop, a pre-existing gap
+ * that stayed harmless while the only caller (newAttributeRatings) spread
+ * modest points over a large (14-21 attribute) pool. Training's much
+ * smaller category pools (4-6 attributes, see player-training.service.ts)
+ * expose it for real - clamped here since both callers share this helper. */
+export const MAX_ATTRIBUTE_VALUE = 99;
+
+/** Distributes `points` across `pool` (each hit capped at +5, clamped at
+ * MAX_ATTRIBUTE_VALUE), cycling through the pool as many times as needed
+ * rather than shuffling once and dumping whatever's left onto the last
+ * remaining attribute. That dump-onto-last-attribute behavior (this
+ * function's original design) was harmless for match-based growth's large
+ * (14-21 attribute) pools - it rarely triggered there - but training's
+ * narrow category pools (2-6 attributes) hit it constantly, and it was the
+ * root cause of two real problems confirmed via multi-year simulation: (1)
+ * breakout years getting "caught up to" by normal years within a few
+ * seasons, because a single big dump pushed 1-2 attributes to the 99 cap
+ * early, wasting every later year's points on an already-maxed attribute
+ * while a non-breakout peer's same attributes still had headroom; (2) GK's
+ * disproportionate variance, because a big dump landing on Keeping (0.44
+ * weight, the single highest in the whole multiplier system) produced huge
+ * single-year spikes. Match-based growth's narrowest case (GK's 6-attribute
+ * attributesToIncrease.GK pool) had the same failure mode at a smaller
+ * scale, so this fix applies to both callers - see
+ * training_system_feature.md in memory for the full investigation. Mutates
+ * `attributes` in place; no-op if points/pool are empty. */
+export function distributeAttributePoints(
+  attributes: IPlayerAttributes,
+  pool: string[],
+  points: number
+): void {
+  if (points <= 0 || pool.length === 0) return;
+
+  let remaining = Math.round(points);
+  let guard = remaining * 4 + 20; // generous bound, well above worst-case iteration count
+
+  while (remaining > 0 && guard-- > 0) {
+    if (pool.every((a) => attributes[a] >= MAX_ATTRIBUTE_VALUE)) break;
+
+    const attr = pool[Math.floor(Math.random() * pool.length)];
+    if (attributes[attr] >= MAX_ATTRIBUTE_VALUE) continue;
+
+    const toBeAdded = Math.max(1, Math.round(Math.random() * Math.min(remaining, 5)));
+    attributes[attr] = Math.min(MAX_ATTRIBUTE_VALUE, attributes[attr] + toBeAdded);
+    remaining -= toBeAdded;
+  }
+}
+
+/** A pool often contains attributes that carry ZERO weight for a given
+ * Role's real AllMultipliers table (e.g. GK's attributesToIncrease pool
+ * has ShortPass/Control at 0 weight for GK - only 4 of its 6 attributes are
+ * "live"). Points spent on a dead attribute don't move Rating at all, but
+ * DO still push it toward the 99 cap for nothing - filtering to live-only
+ * avoids that waste and lets poolSizeScale below see how narrow a role's
+ * real trainable pool actually is. Falls back to the full pool if nothing
+ * in it carries any weight (a genuinely all-dead pool - rare, but distributing
+ * across something is still better than a no-op). */
+export function liveAttributePool(role: Role, pool: string[]): string[] {
+  const weights = AllMultipliers[role];
+  const live = pool.filter((a) => (weights?.[a] ?? 0) > 0);
+  return live.length > 0 ? live : pool;
+}
+
+/** A role whose live pool is narrower than this saturates its few live
+ * attributes far faster than a role at/above it for the same points budget
+ * (confirmed via multi-year simulation - GK's 2-live-attribute Technical
+ * training pool and CDM's 1-live-attribute Defending pool both hit 100%
+ * saturation with zero breakout/non-breakout separation within a decade,
+ * while a 5-live pool like CM's Technical kept a real, lasting gap). Points
+ * are scaled by liveCount/this reference, clamped, so narrow-pool
+ * role/category combinations get proportionally less pushed into their few
+ * live attributes instead of oversaturating them. */
+const REFERENCE_LIVE_POOL_SIZE = 4;
+const MIN_POOL_SCALE = 0.25;
+const MAX_POOL_SCALE = 1.5;
+
+export function poolSizeScale(liveCount: number): number {
+  const raw = liveCount / REFERENCE_LIVE_POOL_SIZE;
+  return Math.min(MAX_POOL_SCALE, Math.max(MIN_POOL_SCALE, raw));
+}
+
+/** Match growth's own pool-size guard - deliberately NOT poolSizeScale
+ * above (that one was calibrated for training's narrow 2-6 attribute
+ * category pools and, tried here too, badly over-corrected: filtering to
+ * live-only plus its up-to-1.5x boost inflated match growth's already-
+ * calibrated scale=8 numbers by 2-3x for every role, not just GK, wiping
+ * out the whole training/match balance - see training_system_feature.md in
+ * memory). attributesToIncrease's position pools are exactly 14 attributes
+ * for ATT/DEF/MID and only 6 for GK - GK is the sole outlier a match-growth
+ * guard needs to handle, so this only ever REDUCES points for a pool
+ * smaller than the 14-attribute reference, never boosts one at or above
+ * it - outfield roles get scale 1.0 (byte-identical to the confirmed
+ * scale=8 calibration), GK gets 6/14 (~0.43). No live-weight filtering
+ * either, for the same reason: match growth's original calibration already
+ * baked in some "wasted" points landing on zero-weight attributes, and
+ * removing that changes the numbers it was tuned against. */
+const REFERENCE_POSITION_POOL_SIZE = 14;
+
+export function positionPoolScale(poolSize: number): number {
+  return Math.min(1, poolSize / REFERENCE_POSITION_POOL_SIZE);
+}
+
 //  TODO: TEST THIS! 30-08-21
 export function newAttributeRatings(player: PlayerInterface, pnts: number) {
   /**
@@ -434,70 +562,30 @@ export function newAttributeRatings(player: PlayerInterface, pnts: number) {
    */
   let points = Math.round(pnts);
 
-  if (player.Rating >= 95) {
-    points *= 0.4;
-    console.log('Rating > 95', points);
-  } else if (player.Rating >= 88) {
-    points *= 0.5;
-    console.log('Rating > 88', points);
-  } else if (player.Rating >= 80) {
-    points *= 0.9;
-    console.log('Rating > 80', points);
-  }
+  points *= ratingDampeningMultiplier(player.Rating);
+
   // if player is above a certain age then. his points shouldn't increase that much...
   if (player.Age > 32) {
     // he is no more developing quickly...
     points *= 0.4; // only use 80% of their points...
-    console.log('Age > 32', points);
   } else if (player.Age > 28) {
     // he is no more developing quickly...
     points *= 0.5; // only use 80% of their points...
-    console.log('Age > 28', points);
   } else if (player.Age >= 20 && player.Age <= 22) {
     // add some extra points to rating lol...
     points += 3;
-    console.log('Age 20 - 22', points);
   } else if (player.Age < 20) {
     // add some extra points to rating lol...
     points += 5;
-    console.log('Age < 20', points);
   }
 
-  const toIncrease = shuffleArray([
-    ...attributesToIncrease[player.Position],
-  ]) as string[];
+  points *= positionPoolScale(attributesToIncrease[player.Position].length);
 
-  // console.log('Old Attributes => ', player.Attributes);
-
-  // console.log('Points => ', points);
-
-  // While there are still points to share...
-  while (points > 0) {
-    let toBeAdded = Math.round(Math.random() * points);
-
-    if (Math.ceil(toBeAdded / 5) > 1) {
-      // If this is higher than 5
-      toBeAdded = 5;
-    }
-    const randomAttribute =
-      toIncrease[Math.round(Math.random() * (toIncrease.length - 1))];
-
-    // console.log(`toBeAdded => ${toBeAdded}, randomAtt => ${randomAttribute}`);
-
-    if (toIncrease.length == 1) {
-      // if it's the last atntribute to add... just add the remaining points.
-      player.Attributes[randomAttribute] += points;
-      break;
-    }
-
-    player.Attributes[randomAttribute] += toBeAdded;
-    points -= toBeAdded;
-    toIncrease.splice(toIncrease.indexOf(randomAttribute), 1);
-
-    // console.log(`Points => ${points}, toIncrease => ${toIncrease.toString()}`);
-  }
-
-  console.log('Player => ', player);
+  distributeAttributePoints(
+    player.Attributes,
+    attributesToIncrease[player.Position],
+    points
+  );
 
   const new_rating = Math.round(
     calculatePlayerRating(player.Attributes, player.Position, player.Role)
@@ -509,10 +597,6 @@ export function newAttributeRatings(player: PlayerInterface, pnts: number) {
     player.Age
   );
 
-  // console.log(
-  //   `${player.FirstName} ${player.LastName} new rating is [${new_rating}], new value is [${new_value}]`
-  // );
-
   // TODO: Age should be factored in distributing points...
 
   return { attributes: player.Attributes, new_rating, new_value };
@@ -523,11 +607,24 @@ function generatePlayer({
   firstname,
   lastname,
   nationality,
+  ageRange = [18, 30],
+  attributeRange = [20, 60],
+  positionAttributeRange,
 }: {
   position: string;
   firstname: string;
   lastname: string;
   nationality: string;
+  /** Passed straight to randomBetween - default [18,30] reproduces the
+   * original generic-generation behavior unchanged. Youth intake
+   * (player-lifecycle.service.ts) passes a distinctly younger range. */
+  ageRange?: [number, number];
+  attributeRange?: [number, number];
+  /** Position-specific attributes (attributesToIncrease[position]) -
+   * default (undefined) keeps the original flat-64 boost; pass a range for
+   * a randomized-but-still-elevated value instead (a flat 64 would be
+   * inconsistent on a low-attributeRange youth prospect). */
+  positionAttributeRange?: [number, number];
 }) {
   const obj = {
     FirstName: firstname,
@@ -539,32 +636,33 @@ function generatePlayer({
     Role: '', // random
     Attributes: {
       PreferredFoot: '', // random
-      Speed: randomBetween(20, 60),
-      Shooting: randomBetween(20, 60),
-      LongPass: randomBetween(20, 60),
-      ShortPass: randomBetween(20, 60),
-      Mental: randomBetween(20, 60),
-      Control: randomBetween(20, 60),
-      Tackling: randomBetween(20, 60),
-      Dribbling: randomBetween(20, 60),
-      SetPiece: randomBetween(20, 60),
-      Strength: randomBetween(20, 60),
-      Stamina: randomBetween(20, 60),
-      Vision: randomBetween(20, 60),
-      ShotPower: randomBetween(20, 60),
-      Aggression: randomBetween(20, 60),
-      Interception: randomBetween(20, 60),
-      Keeping: randomBetween(20, 60),
-      Marking: randomBetween(20, 60),
-      Agility: randomBetween(20, 60),
-      Positioning: randomBetween(20, 60),
-      Crossing: randomBetween(20, 60),
-      LongShot: randomBetween(20, 60),
+      Speed: randomBetween(...attributeRange),
+      Shooting: randomBetween(...attributeRange),
+      LongPass: randomBetween(...attributeRange),
+      ShortPass: randomBetween(...attributeRange),
+      Mental: randomBetween(...attributeRange),
+      Control: randomBetween(...attributeRange),
+      Tackling: randomBetween(...attributeRange),
+      Dribbling: randomBetween(...attributeRange),
+      SetPiece: randomBetween(...attributeRange),
+      Strength: randomBetween(...attributeRange),
+      Stamina: randomBetween(...attributeRange),
+      Vision: randomBetween(...attributeRange),
+      ShotPower: randomBetween(...attributeRange),
+      Aggression: randomBetween(...attributeRange),
+      Interception: randomBetween(...attributeRange),
+      Keeping: randomBetween(...attributeRange),
+      Marking: randomBetween(...attributeRange),
+      Agility: randomBetween(...attributeRange),
+      Positioning: randomBetween(...attributeRange),
+      Crossing: randomBetween(...attributeRange),
+      LongShot: randomBetween(...attributeRange),
       AttackingMindset: false, // random
       DefensiveMindset: false, // random
     },
     isSigned: false,
     Value: 0,
+    Wage: 0,
   };
 
   // set nationality
@@ -581,7 +679,7 @@ function generatePlayer({
   }
 
   // set Age
-  obj.Age = randomBetween(18, 30);
+  obj.Age = randomBetween(...ageRange);
 
   // set Position
   obj.Role = pickRandomFromArray(Roles[obj.Position as keyof typeof Roles]);
@@ -597,7 +695,9 @@ function generatePlayer({
   attributesToIncrease[
     obj.Position as keyof typeof attributesToIncrease
   ].forEach((attr) => {
-    (obj.Attributes as any)[attr] = 64;
+    (obj.Attributes as any)[attr] = positionAttributeRange
+      ? randomBetween(...positionAttributeRange)
+      : 64;
   });
 
   console.log('Generated Player payload => ', obj);
@@ -613,6 +713,10 @@ function generatePlayer({
   // you need Player's Rating to calculate their Value
   obj.Value = calculatePlayerValue(obj.Position, obj.Rating, obj.Age);
 
+  // set Wage - was previously never set at all (a pre-existing gap on this
+  // already-broken generation path), harmless to fix incidentally here.
+  obj.Wage = calculatePlayerWage(obj.Value);
+
   return obj;
 }
 
@@ -627,4 +731,5 @@ export {
   calculatePlayerWage,
   sortFromKeeperDown,
   generatePlayer,
+  attributesToIncrease,
 };

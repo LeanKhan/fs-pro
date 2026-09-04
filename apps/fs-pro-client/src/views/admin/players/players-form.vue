@@ -21,7 +21,7 @@
           <v-card height="300" width="245" style="position: fixed">
             <v-card-title>Player</v-card-title>
             <v-card-text class="d-flex justify-center pb-0 bg-accent">
-              <player-avatar :appearance="form.Appearance"></player-avatar>
+              <player-avatar :player-id="isUpdate ? String(route.params.id) : null"></player-avatar>
             </v-card-text>
             <v-card-actions>Rating: {{ rating }}</v-card-actions>
           </v-card>
@@ -103,14 +103,6 @@
                     v-model="form.Attributes.DefensiveMindset"
                     label="Defensive"
                   ></v-checkbox>
-
-                  <div class="text-subtitle-1">Appearance</div>
-                  <div v-for="(f, x) in appearances" :key="x">
-                    <span>{{ f.feature }}</span>
-                    <ul v-for="(v, y) in f.variants" :key="y">
-                      <li>{{ v }} - {{ f.styles[y] }}</li>
-                    </ul>
-                  </div>
                 </v-col>
 
                 <v-col class="px-2" cols="6">
@@ -200,7 +192,6 @@ const route = useRoute();
 const store = useStore();
 
 const player = ref({});
-const appearances = ref<any>([]);
 const positions = ['GK', 'ATT', 'DEF', 'MID'];
 const roles: any = {
   ATT: ['LW', 'RW', 'ST'],
@@ -233,15 +224,6 @@ const form = ref<any>({
     PreferredFoot: '',
     AttackingMindset: null,
     DefensiveMindset: null,
-  },
-  Appearance: {
-    head: { variant: 'default', style: 'light' },
-    complexion: 'light',
-    hair: { variant: 'default', style: 'brown' },
-    eyes: { variant: 'default', style: 'black' },
-    eyebrows: { variant: 'default', style: 'brown' },
-    nose: { variant: 'default', style: 'light' },
-    mouth: { variant: 'default', style: 'light' },
   },
 });
 
@@ -341,15 +323,6 @@ onMounted(async () => {
     } catch (error) {
       console.error('Error fetching player:', error);
     }
-  }
-
-  try {
-    const response = await client.players.getAppearanceFeatures.query();
-    if (response.status === 200) {
-      appearances.value = response.body.payload;
-    }
-  } catch (error) {
-    console.error('Error fetching appearance:', error);
   }
 });
 </script>

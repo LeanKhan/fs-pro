@@ -39,6 +39,15 @@ export async function executePurchase(
     throw new Error('This player already belongs to your club');
   }
 
+  // getPlayerById (findById) deliberately doesn't filter retired players
+  // out (their row stays viewable by id, matching this codebase's
+  // never-hard-delete philosophy) - so this guard is the actual
+  // enforcement point, not just belt-and-suspenders on top of the
+  // free-agent browse list's default findAll() exclusion.
+  if (player.isRetired) {
+    throw new Error('This player has retired and can no longer be transferred');
+  }
+
   const askingPrice = player.Value ?? 0;
   if (offerAmount < askingPrice) {
     throw new Error(

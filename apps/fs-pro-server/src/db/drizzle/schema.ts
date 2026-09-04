@@ -251,9 +251,30 @@ export const players = pgTable('Players', {
   Wage: real('Wage'),
   Form: real('Form').notNull().default(6),
   isReserve: boolean('isReserve').notNull().default(false),
-  Appearance: jsonb('Appearance').$type<Record<string, unknown> | null>(),
+  /** Avatars are now generated on demand from worldgen-service, keyed by
+   * this row's own _id (see controllers/players/player-face.router.ts) -
+   * deterministic and cacheable, nothing to store here anymore. This used
+   * to be a dead `Appearance` jsonb column (one PNG-layer-composite asset
+   * per feature existed, no real picker ever wrote to it, always null on
+   * every real row) - dropped. */
   RatingsHistory: jsonArray('RatingsHistory'),
   isSigned: boolean('isSigned').notNull().default(false),
+  /** Set once by yearly age-based retirement (see
+   * controllers/players/player-lifecycle.service.ts's
+   * retireEligiblePlayersForYear). Never unset - matches this codebase's
+   * never-hard-delete philosophy for historical entities. A retired
+   * Player's row/RatingsHistory/match-stats stay; they're just excluded
+   * from every "active player" read path by default (see
+   * DrizzlePlayerRepository.findAll) and can never be transferred again
+   * (see transfers/transfer.service.ts's executePurchase guard). */
+  isRetired: boolean('isRetired').notNull().default(false),
+  /** Manager-chosen yearly training focus - one of TRAINING_CATEGORIES
+   * (player-training.service.ts). Null means "no explicit choice, use the
+   * Position-based auto-default" - NOT "no training", see that file's
+   * effectiveTrainingCategory(). Settable via the same generic
+   * POST /players/:id/update route as isRetired - no dedicated route, see
+   * player-training.service.ts's doc comment for why. */
+  TrainingFocus: text('TrainingFocus'),
   ClubCode: text('ClubCode'),
   ClubId: uuid('ClubId').references(() => clubs.id),
   ...timestamps,

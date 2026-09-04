@@ -39,12 +39,6 @@ const PlayerStatsEntrySchema = z
   })
   .passthrough();
 
-const AppearanceFeatureSchema = z.object({
-  feature: z.string(),
-  variants: z.array(z.string()),
-  styles: z.array(z.string()),
-});
-
 export const playersContract = c.router(
   {
     getPlayers: {
@@ -97,15 +91,6 @@ export const playersContract = c.router(
         200: successEnvelope(
           z.object({ new_rating: z.number(), new_value: z.number() })
         ),
-        400: failEnvelope(),
-      },
-    },
-
-    getAppearanceFeatures: {
-      method: 'GET',
-      path: '/appearance',
-      responses: {
-        200: successEnvelope(z.array(AppearanceFeatureSchema)),
         400: failEnvelope(),
       },
     },

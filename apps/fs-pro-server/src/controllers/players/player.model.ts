@@ -17,6 +17,13 @@ export interface PlayerInterface {
   Role: Role;
   Attributes: IPlayerAttributes;
   isSigned: boolean;
+  /** Set once by yearly age-based retirement - see
+   * controllers/players/player-lifecycle.service.ts. */
+  isRetired?: boolean;
+  /** Manager-chosen yearly training focus - one of TRAINING_CATEGORIES
+   * (player-training.service.ts). Null/unset means "no explicit choice,
+   * use the Position-based auto-default" - NOT "no training". */
+  TrainingFocus?: string | null;
   /** Monetary value of Player */
   Value: number;
   /** Annual wage, deducted from the owning Club's Budget once per game Year. */

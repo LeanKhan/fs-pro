@@ -7,6 +7,15 @@ export interface IPlayerFilter {
   /** "Every signed player except this club's own roster" - the Transfer
    * Market's "other clubs' players" browse query. */
   excludeClubId?: string;
+  /** Every findAll() read excludes retired Players by default - pass true
+   * to include them (e.g. a future admin "retired players" view). Defense
+   * in depth: the free-agent browse and any future squad-building query
+   * built on findAll() must never surface a retired Player, and this way
+   * no individual call site has to remember to filter it out itself. Does
+   * NOT apply to findById() - a retired Player's own row/history stays
+   * directly viewable by id, matching this codebase's never-hard-delete
+   * philosophy. */
+  includeRetired?: boolean;
 }
 
 export interface IPlayerReadOptions {

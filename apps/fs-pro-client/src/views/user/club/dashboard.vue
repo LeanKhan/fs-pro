@@ -168,7 +168,7 @@
         </v-window-item>
 
         <v-window-item>
-          <squad-zone :club="club" />
+          <squad-zone :club="club" @update-available="refresh" />
         </v-window-item>
 
         <v-window-item>

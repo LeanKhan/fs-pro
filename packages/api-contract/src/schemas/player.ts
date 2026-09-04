@@ -68,11 +68,19 @@ export const PlayerSchema = z.object({
   Wage: z.number().nullable().optional(),
   Form: z.number().nullable().optional(),
   isReserve: z.boolean().optional(),
-  // Player-specific appearance/avatar config - shape not yet observed
-  // populated on real data (always null so far).
-  Appearance: z.unknown().nullable().optional(),
   RatingsHistory: z.array(z.unknown()).optional(),
   isSigned: z.boolean(),
+  // Set once by yearly age-based retirement - see
+  // transfers/transfer.service.ts's executePurchase guard and
+  // player-lifecycle.service.ts.
+  isRetired: z.boolean().optional(),
+  // Manager-chosen yearly training focus (one of TRAINING_CATEGORIES in
+  // player-training.service.ts) - null/unset means "use the Position-based
+  // auto-default", not "no training".
+  TrainingFocus: z
+    .enum(['Attacking', 'Defending', 'Physical', 'Technical'])
+    .nullable()
+    .optional(),
   ClubCode: z.string().nullable().optional(),
   ClubId: z.string().nullable().optional(),
   createdAt: z.string().optional(),
