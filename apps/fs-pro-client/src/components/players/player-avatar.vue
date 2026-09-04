@@ -1,74 +1,48 @@
 <template>
-  <canvas width="144" height="154"></canvas>
+  <img
+    v-if="playerId"
+    :src="faceUrl"
+    width="144"
+    height="144"
+    alt="Player avatar"
+    class="player-avatar"
+  />
+  <div v-else class="player-avatar player-avatar--placeholder">
+    <v-icon size="64" color="grey">mdi-account</v-icon>
+  </div>
 </template>
 
 <script setup lang="ts">
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { ref, onMounted } from 'vue';
-import { Appearance } from '@/interfaces/player';
+import { computed } from 'vue';
 import { apiUrl } from '@/store';
 
 interface Props {
-  appearance: Appearance;
+  /** A saved player's real _id - the seed worldgen-service generates a
+   * deterministic face SVG from (see player-face.router.ts server-side).
+   * No id yet (e.g. a not-yet-created player) renders a placeholder
+   * instead, since there's nothing stable to seed a face with until the
+   * player actually exists. */
+  playerId?: string | null;
 }
 
 const props = defineProps<Props>();
 
-const api = ref<string>(apiUrl);
-
-// TODO: save the position of the facial features in db [?]
-
-onMounted(() => {
-  const cx = document.querySelector('canvas')?.getContext('2d');
-
-  const baseHead = document.createElement('img');
-  const baseJersey = document.createElement('img');
-  const hair = document.createElement('img');
-  const eyes = document.createElement('img');
-  const nose = document.createElement('img');
-  const mouth = document.createElement('img');
-  const eyebrows = document.createElement('img');
-
-  const picturesPath = `${api.value}/img/players/appearance`;
-
-  baseHead.src = `${picturesPath}/head-${props.appearance.head.variant}-${props.appearance.head.style}.png`;
-  baseJersey.src = `${picturesPath}/kit-default-front.png`;
-
-  hair.src = `${picturesPath}/hair-${props.appearance.hair.variant}-${props.appearance.hair.style}.png`;
-
-  eyes.src = `${picturesPath}/eyes-${props.appearance.eyes.variant}-${props.appearance.eyes.style}.png`;
-
-  nose.src = `${picturesPath}/nose-${props.appearance.nose.variant}-${props.appearance.nose.style}.png`;
-
-  mouth.src = `${picturesPath}/mouth-${props.appearance.mouth.variant}-${props.appearance.mouth.style}.png`;
-
-  eyebrows.src = `${picturesPath}/eyebrows-${props.appearance.eyebrows.variant}-${props.appearance.eyebrows.style}.png`;
-
-  baseHead.addEventListener('load', () => {
-    cx!.drawImage(baseHead, 31, 28);
-    hair.addEventListener('load', () => {
-      cx!.drawImage(hair, 36, 19);
-    });
-    eyes.addEventListener('load', () => {
-      cx!.drawImage(eyes, 47, 50);
-    });
-
-    nose.addEventListener('load', () => {
-      cx!.drawImage(nose, 57, 54);
-    });
-
-    mouth.addEventListener('load', () => {
-      cx!.drawImage(mouth, 47, 85);
-    });
-
-    eyebrows.addEventListener('load', () => {
-      cx!.drawImage(eyebrows, 45, 40);
-    });
-    baseJersey.addEventListener('load', () => {
-      cx!.drawImage(baseJersey, 0, 99);
-    });
-  });
-});
+const faceUrl = computed(() => `${apiUrl}/api/players/${props.playerId}/face`);
 </script>
 
-<style></style>
+<style scoped>
+.player-avatar {
+  width: 144px;
+  height: 144px;
+}
+
+.player-avatar--placeholder {
+  width: 144px;
+  height: 144px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(128, 128, 128, 0.15);
+  border-radius: 4px;
+}
+</style>

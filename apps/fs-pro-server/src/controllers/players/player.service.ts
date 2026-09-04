@@ -1,6 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { PlayerInterface } from '../../interfaces/Player';
-import { calculatePlayerValue, calculatePlayerWage } from '../../utils/players';
+import {
+  calculatePlayerValue,
+  calculatePlayerWage,
+  calculatePlayerRating,
+} from '../../utils/players';
 import { PlayerMatchDetailsInterface } from '../player-match/player-match.model';
 import { PlayerRepositoryFactory } from '../../repositories/PlayerRepositoryFactory';
 import { IPlayerFilter } from '../../repositories/PlayerRepository';
@@ -47,7 +51,25 @@ export async function deletePlayerById(id: string) {
   return getPlayerRepo().delete(id);
 }
 
+/** Recomputes Rating from Attributes/Position/Role server-side whenever all
+ * three are present, overriding whatever Rating the caller sent - this is
+ * the only caller-facing entry point for creating a Player with arbitrary
+ * client-supplied fields (the admin create form), so it can't be trusted to
+ * have used the same formula the server does (interfaces/Player.ts's
+ * AllMultipliers, kept in sync only on the server - the client has its own,
+ * separately-maintained approximation in helpers/players.ts for a live UI
+ * preview only). Falls back to trusting a caller-provided Rating only when
+ * Attributes/Position/Role aren't all present (e.g. a future internal
+ * caller that already computed one correctly, though none exists today -
+ * this function currently has exactly one caller, player.router.ts's
+ * createPlayer route). */
 export async function createPlayer(data: Partial<PlayerInterface>) {
+  if (data.Attributes && data.Position && data.Role) {
+    data.Rating = Math.round(
+      calculatePlayerRating(data.Attributes, data.Position, data.Role)
+    );
+  }
+
   data.Value = calculatePlayerValue(
     data.Position as string,
     data.Rating as number,

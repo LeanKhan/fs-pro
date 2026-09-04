@@ -52,6 +52,14 @@ export interface PlayerInterface {
   Form?: number;
   Role: Role;
   isSigned: boolean;
+  /** Set once by yearly age-based retirement - see
+   * controllers/players/player-lifecycle.service.ts. */
+  isRetired?: boolean;
+  /** Manager-chosen yearly training focus - one of TRAINING_CATEGORIES
+   * (player-training.service.ts). Null/unset means "no explicit choice,
+   * use the Position-based auto-default" - NOT "no training", see that
+   * file's effectiveTrainingCategory(). */
+  TrainingFocus?: string | null;
   ClubCode?: string;
   ClubId?: string;
   RatingsHistory?: Record<string, unknown>[];
@@ -122,23 +130,28 @@ export enum IPlayingPosition {
   MID,
 }
 
+/** Pure finisher - previously byte-identical to LW/RW/CM/RM/LM (a single
+ * unfinished "ST clone" table reused for 6 different roles, and summing to
+ * 1.10 instead of the 1.00 every other role's table sums to - confirmed via
+ * direct diff of AllMultipliers, see training_system_feature.md in memory).
+ * Differentiated for real here; sums to exactly 1.00 like every other role. */
 export const ST_Multipliers: Multipliers = {
-  Speed: 0.1, // -1
-  Shooting: 0.3, // -12
-  LongPass: 0.02,
-  ShortPass: 0.03,
-  Mental: 0.08, // Positioning
-  Control: 0.18,
-  Tackling: 0.01,
-  Strength: 0.06,
-  Stamina: 0.05,
+  Speed: 0.08,
+  Shooting: 0.3,
+  LongPass: 0.01,
+  ShortPass: 0.02,
+  Mental: 0.1, // Positioning/movement
+  Control: 0.15,
+  Tackling: 0.0,
+  Strength: 0.05,
+  Stamina: 0.0,
   Keeping: 0.0,
   SetPiece: 0.04,
   Dribbling: 0.1,
   Aggression: 0.0,
-  Vision: 0.03, // +0.03
+  Vision: 0.03,
   Interception: 0.0,
-  ShotPower: 0.1, // +0.10
+  ShotPower: 0.12,
   //
   Marking: 0.0,
   Agility: 0.0,
@@ -147,55 +160,34 @@ export const ST_Multipliers: Multipliers = {
   LongShot: 0.0,
 };
 
+/** Winger - pace, dribbling, crossing; some finishing. Distinct from ST
+ * (less pure Shooting, more Speed/Dribbling/Crossing/Agility). */
 export const LW_Multipliers: Multipliers = {
-  Speed: 0.1, // -1
-  Shooting: 0.3, // -12
-  LongPass: 0.02,
-  ShortPass: 0.03,
-  Mental: 0.08, // Positioning
-  Control: 0.18,
-  Tackling: 0.01,
-  Strength: 0.06,
-  Stamina: 0.05,
+  Speed: 0.18,
+  Shooting: 0.12,
+  LongPass: 0.0,
+  ShortPass: 0.02,
+  Mental: 0.05,
+  Control: 0.12,
+  Tackling: 0.0,
+  Strength: 0.0,
+  Stamina: 0.0,
   Keeping: 0.0,
-  SetPiece: 0.04,
-  Dribbling: 0.1,
+  SetPiece: 0.0,
+  Dribbling: 0.18,
   Aggression: 0.0,
-  Vision: 0.03, // +0.03
+  Vision: 0.03,
   Interception: 0.0,
-  ShotPower: 0.1, // +0.10
+  ShotPower: 0.05,
   //
   Marking: 0.0,
-  Agility: 0.0,
-  Crossing: 0.0,
+  Agility: 0.1,
+  Crossing: 0.15,
   Positioning: 0.0,
   LongShot: 0.0,
 };
 
-export const RW_Multipliers: Multipliers = {
-  Speed: 0.1, // -1
-  Shooting: 0.3, // -12
-  LongPass: 0.02,
-  ShortPass: 0.03,
-  Mental: 0.08, // Positioning
-  Control: 0.18,
-  Tackling: 0.01,
-  Strength: 0.06,
-  Stamina: 0.05,
-  Keeping: 0.0,
-  SetPiece: 0.04,
-  Dribbling: 0.1,
-  Aggression: 0.0,
-  Vision: 0.03, // +0.03
-  Interception: 0.0,
-  ShotPower: 0.1, // +0.10
-  //
-  Marking: 0.0,
-  Agility: 0.0,
-  Crossing: 0.0,
-  Positioning: 0.0,
-  LongShot: 0.0,
-};
+export const RW_Multipliers: Multipliers = { ...LW_Multipliers };
 
 export const CB_Multipliers: Multipliers = {
   Speed: 0.0,
@@ -246,73 +238,58 @@ export const LB_RB_Multipliers: Multipliers = {
   LongShot: 0.0,
 };
 
+/** Wide midfield - hybrid of winger and central midfielder: crossing and
+ * passing over pure dribbling/pace, some tackling unlike LW/RW. */
 export const LM_Multipliers: Multipliers = {
-  Speed: 0.1, // -1
-  Shooting: 0.3, // -12
-  LongPass: 0.02,
-  ShortPass: 0.03,
-  Mental: 0.08, // Positioning
-  Control: 0.18,
-  Tackling: 0.01,
-  Strength: 0.06,
-  Stamina: 0.05,
+  Speed: 0.11,
+  Shooting: 0.0,
+  LongPass: 0.08,
+  ShortPass: 0.14,
+  Mental: 0.06,
+  Control: 0.1,
+  Tackling: 0.05,
+  Strength: 0.0,
+  Stamina: 0.08,
   Keeping: 0.0,
-  SetPiece: 0.04,
-  Dribbling: 0.1,
+  SetPiece: 0.03,
+  Dribbling: 0.13,
   Aggression: 0.0,
-  Vision: 0.03, // +0.03
+  Vision: 0.08,
   Interception: 0.0,
-  ShotPower: 0.1, // +0.10
+  ShotPower: 0.0,
   //
   Marking: 0.0,
   Agility: 0.0,
-  Crossing: 0.0,
+  Crossing: 0.14,
   Positioning: 0.0,
   LongShot: 0.0,
 };
 
-export const RM_Multipliers: Multipliers = {
-  Speed: 0.1, // -1
-  Shooting: 0.3, // -12
-  LongPass: 0.02,
-  ShortPass: 0.03,
-  Mental: 0.08, // Positioning
-  Control: 0.18,
-  Tackling: 0.01,
-  Strength: 0.06,
-  Stamina: 0.05,
-  Keeping: 0.0,
-  SetPiece: 0.04,
-  Dribbling: 0.1,
-  Aggression: 0.0,
-  Vision: 0.03, // +0.03
-  Interception: 0.0,
-  ShotPower: 0.1, // +0.10
-  //
-  Marking: 0.0,
-  Agility: 0.0,
-  Crossing: 0.0,
-  Positioning: 0.0,
-  LongShot: 0.0,
-};
+export const RM_Multipliers: Multipliers = { ...LM_Multipliers };
 
+/** Central midfielder - box-to-box passing/control/vision, real tackling
+ * contribution, no crossing/dribbling-heavy winger profile. Was the actual
+ * role used by Roles.MID[0] while sharing ST's finishing-heavy table - the
+ * root cause of "MID" underperforming DEF/GK in training calibration (see
+ * training_system_feature.md in memory); this table is what MID should
+ * have been rated against all along. */
 export const CM_Multipliers: Multipliers = {
-  Speed: 0.1, // -1
-  Shooting: 0.3, // -12
-  LongPass: 0.02,
-  ShortPass: 0.03,
-  Mental: 0.08, // Positioning
-  Control: 0.18,
-  Tackling: 0.01,
-  Strength: 0.06,
-  Stamina: 0.05,
+  Speed: 0.0,
+  Shooting: 0.0,
+  LongPass: 0.15,
+  ShortPass: 0.2,
+  Mental: 0.1,
+  Control: 0.14,
+  Tackling: 0.08,
+  Strength: 0.04,
+  Stamina: 0.06,
   Keeping: 0.0,
-  SetPiece: 0.04,
-  Dribbling: 0.1,
+  SetPiece: 0.02,
+  Dribbling: 0.08,
   Aggression: 0.0,
-  Vision: 0.03, // +0.03
+  Vision: 0.13,
   Interception: 0.0,
-  ShotPower: 0.1, // +0.10
+  ShotPower: 0.0,
   //
   Marking: 0.0,
   Agility: 0.0,

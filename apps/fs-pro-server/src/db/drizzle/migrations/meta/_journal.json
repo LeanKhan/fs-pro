@@ -85,6 +85,27 @@
       "when": 1788457239279,
       "tag": "0011_drop_dead_transfer_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788481121581,
+      "tag": "0012_drop_dead_appearance_column",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1788485043347,
+      "tag": "0013_add_player_retirement",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1788489945279,
+      "tag": "0014_add_player_training_focus",
+      "breakpoints": true
     }
   ]
 }

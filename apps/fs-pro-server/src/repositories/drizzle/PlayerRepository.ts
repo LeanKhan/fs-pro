@@ -67,6 +67,7 @@ export class DrizzlePlayerRepository implements IPlayerRepository {
       conditions.push(eq(players.isSigned, filter.isSigned));
     if (filter.excludeClubId !== undefined)
       conditions.push(ne(players.ClubId, filter.excludeClubId));
+    if (!filter.includeRetired) conditions.push(eq(players.isRetired, false));
 
     const rows = await this.db.query.players.findMany({
       where: conditions.length ? and(...conditions) : undefined,

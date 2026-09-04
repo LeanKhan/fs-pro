@@ -17,7 +17,6 @@ import {
   calculatePlayerRating,
   calculatePlayerValue,
 } from '../../utils/players';
-import { fetchAppearance } from '../../utils/appearance';
 import { getNextCounterId } from '../../utils/counter';
 
 const s = initServer();
@@ -63,10 +62,35 @@ export const playerTsRestRoutes = s.router(contract.players, {
 
   updatePlayer: async ({ params, body }) => {
     try {
-      const player = await updatePlayerFields(
-        params.id,
-        body as Partial<PlayerInterface>
-      );
+      const data = { ...body } as Partial<PlayerInterface>;
+
+      // Recompute Rating/Value server-side whenever the edit touches
+      // anything the formula depends on, overriding whatever Rating the
+      // caller sent - same reasoning as createPlayer's fix (see its own
+      // doc comment): the admin update form computes a live preview with
+      // its own, separately-maintained (and now stale) client-side
+      // approximation of AllMultipliers, then sends that number straight
+      // through. A partial update body might not include Attributes/
+      // Position/Role/Age at all (e.g. editing just FirstName), so those
+      // are only fetched from the existing row when the edit actually
+      // touches one of the formula's inputs - not on every update.
+      if (data.Attributes || data.Position || data.Role || data.Age) {
+        const existing = await getPlayerById(params.id);
+        const attributes = data.Attributes ?? existing?.Attributes;
+        const position = data.Position ?? existing?.Position;
+        const role = data.Role ?? existing?.Role;
+        const age = data.Age ?? existing?.Age;
+
+        if (attributes && position && role) {
+          const rating = Math.round(
+            calculatePlayerRating(attributes, position, role)
+          );
+          data.Rating = rating;
+          data.Value = calculatePlayerValue(position, rating, age ?? 0);
+        }
+      }
+
+      const player = await updatePlayerFields(params.id, data);
       return {
         status: 200,
         body: {
@@ -167,29 +191,6 @@ export const playerTsRestRoutes = s.router(contract.players, {
         body: {
           success: false,
           message: fail(err),
-        },
-      };
-    }
-  },
-
-  getAppearanceFeatures: async () => {
-    try {
-      const features = await fetchAppearance();
-      return {
-        status: 200,
-        body: {
-          success: true,
-          message: 'Fetched Appearance successfully',
-          payload: features,
-        },
-      };
-    } catch (err) {
-      return {
-        status: 400,
-        body: {
-          success: false,
-          message: 'Error fetching appearance features',
-          payload: fail(err),
         },
       };
     }

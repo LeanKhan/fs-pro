@@ -19,6 +19,10 @@ import { updateFixtureFields } from '../fixtures/fixture.service';
 import { prolegate } from '../seasons/season.controller';
 import { updateAllPlayerDetailsForYear } from '../players/player.controller';
 import { deductWagesForYear } from '../transfers/transfer.service';
+import {
+  retireEligiblePlayersForYear,
+  runYouthIntakeForYear,
+} from '../players/player-lifecycle.service';
 import { refreshAllClubsRatings } from '../clubs/club.service';
 import type { SeasonInterface } from '../seasons/season.model';
 
@@ -265,9 +269,31 @@ export const calendarTsRestRoutes = s.router(contract.calendar, {
   },
 
   /** Ends a season cycle: prolegates (promotes/relegates) every Season in
-   * :year once all are finished, then progresses Player/Club ratings for
-   * the new cycle - extracted from the old endSeasonCycle ->
-   * updatePlayersDetails -> updateAllClubsRating Express middleware chain. */
+   * :year once all are finished, then progresses Player/Club state for the
+   * new cycle - extracted from the old endSeasonCycle -> updatePlayersDetails
+   * -> updateAllClubsRating Express middleware chain.
+   *
+   * Order matters here, deliberately:
+   * 1. updateAllPlayerDetailsForYear - recomputes Rating/Value/RatingsHistory
+   *    AND increments Age (its own last internal step) - every later step in
+   *    this sequence that reads Age sees this year's post-increment value.
+   * 2. deductWagesForYear - runs BEFORE retirement so a retiring player's
+   *    final year of wages still gets charged to their outgoing club (they
+   *    were on the books nearly the whole year) - deductWagesForYear sums
+   *    Wage by ClubId/isSigned, which retirement would otherwise have
+   *    already cleared.
+   * 3. retireEligiblePlayersForYear - rolls this year's post-increment Age
+   *    against the retirement-chance table, frees retiring players' club
+   *    slots.
+   * 4. runYouthIntakeForYear - tops up any club now below target squad size
+   *    (including ones that just lost players to step 3 THIS SAME cycle,
+   *    since intake counts rosters fresh from the DB, not a stale snapshot).
+   * 5. refreshAllClubsRatings - runs LAST, after every roster-changing step
+   *    above, so no club is left with stale Rating/AttackingClass/etc from
+   *    a squad that's since changed (retirement/intake both mutate rosters;
+   *    nothing else in this sequence reads a club's Rating mid-way, so this
+   *    reordering is safe).
+   */
   endSeasonCycle: async ({ params }) => {
     const year = params.year?.trim().toUpperCase();
     if (!year) {
@@ -301,8 +327,10 @@ export const calendarTsRestRoutes = s.router(contract.calendar, {
       console.log('Seasons prolegated Successfully!');
 
       await updateAllPlayerDetailsForYear(year);
-      await refreshAllClubsRatings();
       await deductWagesForYear(year);
+      await retireEligiblePlayersForYear(year);
+      await runYouthIntakeForYear(year);
+      await refreshAllClubsRatings();
       console.log('Calendar Year Ended Successfully!');
 
       return {

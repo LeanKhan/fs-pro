@@ -1,0 +1,1 @@
+ALTER TABLE "Players" ADD COLUMN "isRetired" boolean DEFAULT false NOT NULL;

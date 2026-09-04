@@ -233,8 +233,20 @@ export class MatchSide extends Club {
     this.StartingSquad = starting;
   }
 
+  /** Per-player match stats, persisted via game/functions.ts's
+   * savePlayerAndClubStats into real PlayerMatchDetails rows. Field is
+   * `PlayerId` (the real FK column - see PlayerMatchDetailsInterface,
+   * which also separately has a `Player?: PlayerInterface` populate-style
+   * field for a different purpose) - this used to write `Player: p._id`
+   * instead, the same "populated-relation name holding a bare id" bug
+   * pattern found repeatedly elsewhere this session. Silently left every
+   * PlayerMatchDetails.PlayerId null for every match ever played, which in
+   * turn made getPlayerStats(year)'s `.filter(r => !!r.playerId)` strip
+   * every row - the entire yearly attribute-progression system
+   * (newAttributeRatings, called from updateAllPlayerDetailsForYear) has
+   * been silently dead since the Postgres migration as a direct result. */
   public getPlayerStats() {
-    return this.StartingSquad.map((p) => ({ ...p.GameStats, Player: p._id }));
+    return this.StartingSquad.map((p) => ({ ...p.GameStats, PlayerId: p._id }));
   }
 
   public matchSquad() {

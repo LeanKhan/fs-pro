@@ -20,6 +20,9 @@
                 <th style="border: solid 1px white; padding: 4px 4px">Age</th>
                 <th style="border: solid 1px white; padding: 4px 4px">Prev.</th>
                 <th style="border: solid 1px white; padding: 4px 4px">Curr.</th>
+                <th style="border: solid 1px white; padding: 4px 4px">
+                  Training Focus
+                </th>
               </tr>
             </thead>
 
@@ -62,10 +65,43 @@
 
                   <template v-else>N/A</template>
                 </td>
+
+                <td style="min-width: 220px">
+                  <v-select
+                    density="compact"
+                    variant="underlined"
+                    hide-details
+                    color="indigo"
+                    :items="trainingFocusOptions"
+                    item-title="label"
+                    item-value="value"
+                    :model-value="player.TrainingFocus ?? null"
+                    :loading="savingPlayerIds.has(player._id)"
+                    :disabled="savingPlayerIds.has(player._id)"
+                    @update:model-value="
+                      (value: string | null) => setTrainingFocus(player, value)
+                    "
+                  ></v-select>
+
+                  <div
+                    v-if="player.latestRating?.trainingCategory"
+                    class="text-caption text-medium-emphasis"
+                  >
+                    Last trained: {{ player.latestRating.trainingCategory }}
+                    <v-chip
+                      v-if="player.latestRating.breakout"
+                      size="x-small"
+                      color="amber"
+                      class="ml-1"
+                    >
+                      breakout!
+                    </v-chip>
+                  </div>
+                </td>
               </tr>
 
               <tr v-if="players.length === 0">
-                <td colspan="4" class="text-center pa-4">
+                <td colspan="5" class="text-center pa-4">
                   No players available
                 </td>
               </tr>
@@ -78,12 +114,31 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, reactive } from 'vue';
 import { currency } from '@/helpers/misc';
+import { client } from '@/services/api';
 
 const props = defineProps<{
   club?: any | null;
 }>();
+
+const emit = defineEmits<{
+  (e: 'update-available'): void;
+}>();
+
+/** null = no explicit choice - the server auto-picks a Role-appropriate
+ * default (see DEFAULT_TRAINING_CATEGORY_BY_ROLE, player-training.service.ts)
+ * and every club gets the same size training bonus either way; picking one
+ * here only steers WHICH attributes benefit. */
+const trainingFocusOptions = [
+  { label: 'Auto (based on role)', value: null },
+  { label: 'Attacking', value: 'Attacking' },
+  { label: 'Defending', value: 'Defending' },
+  { label: 'Physical', value: 'Physical' },
+  { label: 'Technical', value: 'Technical' },
+];
+
+const savingPlayerIds = reactive(new Set<string>());
 
 const players = computed(() => {
   if (!Array.isArray(props.club?.Players)) {
@@ -101,6 +156,24 @@ const players = computed(() => {
     };
   });
 });
+
+async function setTrainingFocus(player: any, value: string | null) {
+  const playerId = player._id;
+  if (!playerId) return;
+
+  savingPlayerIds.add(playerId);
+  try {
+    await client.players.updatePlayer.mutation({
+      params: { id: playerId },
+      body: { TrainingFocus: value },
+    });
+    emit('update-available');
+  } catch (error) {
+    console.error('Error updating training focus:', error);
+  } finally {
+    savingPlayerIds.delete(playerId);
+  }
+}
 
 function formatCurrency(value: unknown) {
   if (
