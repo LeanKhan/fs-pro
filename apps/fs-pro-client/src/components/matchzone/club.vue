@@ -16,12 +16,20 @@
       {{ ordinal(clubStandings.position) }} -
       {{ clubStandings.standing.Points }} Pts
     </div>
+
+    <div v-if="manager?.FirstName" class="club-manager">
+      <manager-avatar :manager-id="manager._id" :size="28"></manager-avatar>
+      <span class="club-manager-name">
+        {{ manager.FirstName }} {{ manager.LastName }}
+      </span>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
 import { ordinal, roundTo } from '@/helpers/misc';
+import ManagerAvatar from '@/components/managers/manager-avatar.vue';
 
 interface Props {
   clubName: any;
@@ -30,6 +38,7 @@ interface Props {
   clubCode: any;
   clubStandings?: any;
   winner?: string;
+  manager?: any;
 }
 
 const props = defineProps<Props>();
@@ -88,5 +97,20 @@ const side = computed(() => {
 .club-standing {
   opacity: 0.6;
   font-size: 9px;
+}
+
+.club-manager {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  max-width: 100px;
+}
+.club-manager-name {
+  opacity: 0.75;
+  font-size: 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

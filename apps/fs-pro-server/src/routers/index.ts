@@ -12,6 +12,7 @@ import { calendarTsRestRoutes } from '../controllers/calendar/calendar.router';
 import { fixtureTsRestRoutes } from '../controllers/fixtures/fixture.router';
 import files from '../services/file/file.service';
 import playerFace from '../controllers/players/player-face.router';
+import managerFace from '../controllers/managers/manager-face.router';
 import { managerTsRestRoutes } from '../controllers/managers/manager.router';
 import { placeTsRestRoutes } from '../controllers/places/places.router';
 import { awardTsRestRoutes } from '../controllers/awards/awards.router';
@@ -44,6 +45,7 @@ const router = Router();
 
 router.use('/files', files);
 router.use('/players', playerFace);
+router.use('/managers', managerFace);
 
 router.get('/random-test', (req, res) => {
   res.send({

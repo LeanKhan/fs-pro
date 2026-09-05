@@ -2,13 +2,18 @@
   <img
     v-if="playerId"
     :src="faceUrl"
-    width="144"
-    height="144"
+    :width="size"
+    :height="size"
     alt="Player avatar"
     class="player-avatar"
+    :style="{ width: `${size}px`, height: `${size}px` }"
   />
-  <div v-else class="player-avatar player-avatar--placeholder">
-    <v-icon size="64" color="grey">mdi-account</v-icon>
+  <div
+    v-else
+    class="player-avatar player-avatar--placeholder"
+    :style="{ width: `${size}px`, height: `${size}px` }"
+  >
+    <v-icon :size="size * 0.44" color="grey">mdi-account</v-icon>
   </div>
 </template>
 
@@ -23,22 +28,23 @@ interface Props {
    * instead, since there's nothing stable to seed a face with until the
    * player actually exists. */
   playerId?: string | null;
+  size?: number;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  size: 144,
+});
 
 const faceUrl = computed(() => `${apiUrl}/api/players/${props.playerId}/face`);
 </script>
 
 <style scoped>
 .player-avatar {
-  width: 144px;
-  height: 144px;
+  border-radius: 4px;
+  object-fit: cover;
 }
 
 .player-avatar--placeholder {
-  width: 144px;
-  height: 144px;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -19,7 +19,8 @@
       :items="players"
       :model-value="selectedPlayer"
       @update:model-value="selectedPlayer = $event"
-      item-key="_id"
+      item-value="_id"
+      return-object
       show-select
       :search="search"
       loading-text="Fetching Players..."

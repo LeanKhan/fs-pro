@@ -125,6 +125,26 @@ const YOUTH_POSITION_POOL = [
   'ATT',
 ];
 
+/** Generates `count` raw youth Player rows (placeholder-name, low-attribute,
+ * age 16-18) - not yet inserted, not yet tied to any Club. Shared recipe
+ * between the automatic once-per-year runYouthIntakeForYear and the
+ * on-demand admin recruitYouthPlayersForClub below - same generation logic,
+ * different insertion/guard rules around it. */
+function generateYouthPlayers(count: number) {
+  return Array.from({ length: count }, () => {
+    const { firstName, lastName } = pickPlaceholderName();
+    return generatePlayer({
+      position: pickRandomFromArray(YOUTH_POSITION_POOL),
+      firstname: firstName,
+      lastname: lastName,
+      nationality: pickRandomFromArray(['kev', 'bellean']),
+      ageRange: YOUTH_AGE_RANGE,
+      attributeRange: YOUTH_ATTRIBUTE_RANGE,
+      positionAttributeRange: YOUTH_POSITION_ATTRIBUTE_RANGE,
+    });
+  });
+}
+
 /**
  * For every Club whose current active (isSigned:true, isRetired:false)
  * roster is below TARGET_SQUAD_SIZE, generates 1-2 youth Players
@@ -177,24 +197,14 @@ export async function runYouthIntakeForYear(
       if (already) return;
 
       const intakeCount = pickRandomFromArray([1, 1, 2]);
-      const youngsters = Array.from({ length: intakeCount }, () => {
-        const { firstName, lastName } = pickPlaceholderName();
-        const generated = generatePlayer({
-          position: pickRandomFromArray(YOUTH_POSITION_POOL),
-          firstname: firstName,
-          lastname: lastName,
-          nationality: pickRandomFromArray(['kev', 'bellean']),
-          ageRange: YOUTH_AGE_RANGE,
-          attributeRange: YOUTH_ATTRIBUTE_RANGE,
-          positionAttributeRange: YOUTH_POSITION_ATTRIBUTE_RANGE,
-        });
-        return {
+      const youngsters = generateYouthPlayers(intakeCount).map(
+        (generated) => ({
           ...generated,
           isSigned: true,
           ClubId: clubId,
           ClubCode: club.ClubCode,
-        };
-      });
+        })
+      );
 
       // Raw tx.insert(), not the repository - same reason
       // transfer.service.ts's executePurchase writes players/transferLedger
@@ -219,4 +229,55 @@ export async function runYouthIntakeForYear(
 
   console.log(`[player-lifecycle] ${year}: ${addedCount} youth player(s) added.`);
   return { addedCount };
+}
+
+/** Max youth players an admin can scout for a Club in one action - a
+ * sanity cap on the request body, not a game-balance constant like
+ * TARGET_SQUAD_SIZE. */
+export const MAX_ADMIN_YOUTH_RECRUITS = 3;
+
+/**
+ * On-demand admin action (NOT the automatic yearly system above): generate
+ * `count` youth Players right now and add them directly to `club`'s
+ * academy roster. Deliberately has none of runYouthIntakeForYear's guards -
+ * no TARGET_SQUAD_SIZE gate, no once-per-year check - because this is an
+ * explicit admin decision to scout for a specific Club, not the automatic
+ * per-year balancer. Uses the repository's normal `create()` (not a raw
+ * tx.insert) since there's no atomic guard-check-then-write to protect
+ * here, just `count` (1-3) independent inserts.
+ *
+ * Recorded under TransferLedger Type 'youth_scouted', NOT 'youth_intake' -
+ * runYouthIntakeForYear's per-club-per-year guard filters specifically on
+ * 'youth_intake', so using a distinct Type keeps the two systems fully
+ * independent: an admin can scout freely without silently suppressing (or
+ * double-counting against) that Club's automatic yearly top-up.
+ */
+export async function recruitYouthPlayersForClub(
+  club: { _id: string; ClubCode: string },
+  count: number
+) {
+  const db = DrizzleDatabase.getInstance().database;
+
+  const recruits = generateYouthPlayers(count).map((generated) => ({
+    ...generated,
+    isSigned: true,
+    ClubId: club._id,
+    ClubCode: club.ClubCode,
+  }));
+
+  const created = await Promise.all(
+    recruits.map((data) =>
+      getPlayerRepo().create(data as unknown as Partial<PlayerInterface>)
+    )
+  );
+
+  await db.insert(transferLedger).values({
+    Type: 'youth_scouted',
+    BuyerClubId: club._id,
+    Amount: 0,
+    Note: `${created.length} youth player(s) scouted by admin`,
+    updatedAt: new Date(),
+  });
+
+  return created;
 }

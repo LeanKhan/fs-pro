@@ -11,7 +11,7 @@ export interface IMatchFramePlayer {
   x: number;
   y: number;
   withBall: boolean;
-  matchStatus: 'active' | 'sent-off';
+  matchStatus: 'active' | 'sent-off' | 'substituted';
   yellowCards: number;
   redCards: number;
 }

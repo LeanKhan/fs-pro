@@ -3,6 +3,7 @@
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 import { ClubSchema } from '../schemas/club';
+import { PlayerSchema } from '../schemas/player';
 import { successEnvelope, failEnvelope } from '../schemas/envelope';
 import { booleanQuery } from '../schemas/query';
 
@@ -167,6 +168,21 @@ export const clubsContract = c.router(
       }),
       responses: {
         200: successEnvelope(z.object({})),
+        400: failEnvelope(),
+      },
+    },
+
+    recruitYouthPlayers: {
+      method: 'POST',
+      path: '/:id/recruit-youth',
+      pathParams: z.object({
+        id: z.string(),
+      }),
+      body: z.object({
+        count: z.number().int().min(1).max(3).optional(),
+      }),
+      responses: {
+        200: successEnvelope(z.array(PlayerSchema)),
         400: failEnvelope(),
       },
     },

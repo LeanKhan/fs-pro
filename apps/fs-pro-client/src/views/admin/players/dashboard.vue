@@ -14,7 +14,11 @@
       </v-col>
 
       <v-col cols="12">
-        <players-table :players="players" :viewClub="false"></players-table>
+        <players-table
+          :players="players"
+          :viewClub="false"
+          @player-assigned="fetchPlayers"
+        ></players-table>
       </v-col>
     </v-row>
   </div>
@@ -28,7 +32,7 @@ import { client } from '@/services/api';
 
 const players = ref<Player[]>([]);
 
-onMounted(async () => {
+async function fetchPlayers() {
   try {
     const response = await client.players.getPlayers.query();
     if (response.status === 200) {
@@ -37,5 +41,7 @@ onMounted(async () => {
   } catch (error) {
     console.error('Error fetching players:', error);
   }
-});
+}
+
+onMounted(fetchPlayers);
 </script>
