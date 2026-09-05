@@ -13,7 +13,7 @@
       </svg>
 
       <div
-        v-for="p in frame?.players || []"
+        v-for="p in visiblePlayers"
         :key="p.id"
         class="player"
         :class="[
@@ -95,6 +95,19 @@ const props = defineProps<{
 }>();
 
 const hoveredId = ref<string | null>(null);
+
+// A substituted-off player is never removed from the engine's StartingSquad
+// (see the Substitutions feature's design doc) - it stays in every frame
+// forever with matchStatus 'substituted', frozen at its last position. The
+// incoming player spawns at that same spot, so rendering both produces a
+// confusing frozen "ghost" stacked under the real player rather than a
+// visible hand-off. Hiding the outgoing leg here is purely cosmetic - it
+// changes nothing about StartingSquad/stats, which still (correctly) carry
+// both legs.
+const visiblePlayers = computed(
+  () =>
+    props.frame?.players?.filter((p) => p.matchStatus !== 'substituted') || []
+);
 
 const hoveredPlayer = computed(() => {
   if (!hoveredId.value || !props.frame) return null;

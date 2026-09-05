@@ -3,6 +3,32 @@
     <v-dialog v-model="openPlayersModal" persistent max-width="900px">
       <all-players-table @close-players-modal="closeModal"></all-players-table>
     </v-dialog>
+
+    <v-dialog v-model="openYouthDialog" max-width="380px">
+      <v-card>
+        <v-card-title>Recruit Youth Players</v-card-title>
+        <v-card-text>
+          <v-select
+            v-model="youthCount"
+            :items="[1, 2, 3]"
+            label="How many?"
+          ></v-select>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="secondary" @click="openYouthDialog = false">
+            Cancel
+          </v-btn>
+          <v-btn
+            color="success"
+            :loading="recruitingYouth"
+            @click="recruitYouth"
+          >
+            Recruit
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
     <v-row>
       <v-col cols="12">
         <v-card>
@@ -12,6 +38,15 @@
             </v-btn>
             <v-toolbar-title class="ml-1">Club</v-toolbar-title>
             <v-spacer></v-spacer>
+
+            <v-btn
+              prepend-icon="mdi-school-outline"
+              color="white"
+              variant="text"
+              @click="openYouthDialog = true"
+            >
+              Recruit Youth
+            </v-btn>
 
             <v-btn
               :disabled="!shouldReload"
@@ -123,6 +158,9 @@ const store = useStore();
 
 const club = ref<any>({});
 const openPlayersModal = ref(false);
+const openYouthDialog = ref(false);
+const youthCount = ref(1);
+const recruitingYouth = ref(false);
 const shouldReload = ref(false);
 const labels = ref(['GK', 'DEF', 'MID', 'ATT']);
 const value = ref([5, 0, 0, 0]);
@@ -174,6 +212,40 @@ async function signPlayer(playerIds: string[]) {
       message: 'Error signing Player',
       style: 'error',
     });
+  }
+}
+
+async function recruitYouth() {
+  const clubId = String(route.params.id);
+  recruitingYouth.value = true;
+
+  try {
+    const response = await client.clubs.recruitYouthPlayers.mutation({
+      params: { id: clubId },
+      body: { count: youthCount.value },
+    });
+
+    if (response.status === 200) {
+      store.showToast({
+        message: `${response.body.payload.length} youth player(s) recruited`,
+        style: 'success',
+      });
+      openYouthDialog.value = false;
+      fetchPlayers();
+    } else {
+      store.showToast({
+        message: 'Error recruiting youth players',
+        style: 'error',
+      });
+    }
+  } catch (error) {
+    console.error('Error recruiting youth players:', error);
+    store.showToast({
+      message: 'Error recruiting youth players',
+      style: 'error',
+    });
+  } finally {
+    recruitingYouth.value = false;
   }
 }
 

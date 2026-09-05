@@ -1,6 +1,9 @@
 import { initServer } from '@ts-rest/express';
 import { apiContract as contract } from '@repo/api-contract';
-import type { Club as ContractClub } from '@repo/api-contract';
+import type {
+  Club as ContractClub,
+  Player as ContractPlayer,
+} from '@repo/api-contract';
 
 import {
   getClubById,
@@ -17,6 +20,7 @@ import {
   toggleSigned,
   signManyPlayersToClub,
 } from '../players/player.service';
+import { recruitYouthPlayersForClub } from '../players/player-lifecycle.service';
 
 const s = initServer();
 
@@ -312,6 +316,44 @@ export const clubTsRestRoutes = s.router(contract.clubs, {
         body: {
           success: false,
           message: 'Error removing Manager!',
+          payload: fail(err),
+        },
+      };
+    }
+  },
+
+  /** Admin-only on-demand youth scouting - see
+   * player-lifecycle.service.ts's recruitYouthPlayersForClub doc comment
+   * for how this differs from the automatic yearly intake. */
+  recruitYouthPlayers: async ({ params, body }) => {
+    try {
+      const club = await getClubById(params.id);
+      if (!club) {
+        return {
+          status: 400,
+          body: { success: false, message: 'Club not found', payload: 'Club not found' },
+        };
+      }
+
+      const recruits = await recruitYouthPlayersForClub(
+        { _id: params.id, ClubCode: club.ClubCode },
+        body.count ?? 1
+      );
+
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Youth player(s) recruited successfully',
+          payload: recruits as unknown as ContractPlayer[],
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error recruiting youth players',
           payload: fail(err),
         },
       };

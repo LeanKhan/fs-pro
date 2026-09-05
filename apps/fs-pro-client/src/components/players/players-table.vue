@@ -1,5 +1,34 @@
 <template>
   <v-card>
+    <v-dialog v-model="assignDialog" max-width="420px">
+      <v-card>
+        <v-card-title>
+          Assign {{ assignTarget?.FirstName }} {{ assignTarget?.LastName }} to a Club
+        </v-card-title>
+        <v-card-text>
+          <v-select
+            v-model="selectedClubId"
+            :items="clubs"
+            item-title="Name"
+            item-value="_id"
+            label="Club"
+            :loading="clubsLoading"
+          ></v-select>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="secondary" @click="assignDialog = false">Cancel</v-btn>
+          <v-btn
+            color="success"
+            :disabled="!selectedClubId"
+            @click="confirmAssignToClub"
+          >
+            Assign
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-card-title>
       Players
       <v-spacer></v-spacer>
@@ -82,6 +111,17 @@
         >
           <v-icon size="small">mdi-pencil-outline</v-icon>
         </v-btn>
+        <!-- assign to club (master list only - a specific club's own page
+        already has its own bulk "Add" flow above) -->
+        <v-btn
+          v-if="!viewClub && !item.isSigned"
+          icon
+          color="amber-darken-2"
+          title="Assign to Club"
+          @click="openAssignDialog(item)"
+        >
+          <v-icon size="small">mdi-shield-plus-outline</v-icon>
+        </v-btn>
         <!-- remove player -->
         <v-btn
           v-if="viewClub"
@@ -99,8 +139,9 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import type { Player } from '@repo/api-contract';
-import { apiUrl } from '@/store';
+import { apiUrl, useStore } from '@/store';
 import { currency } from '@/helpers/misc';
+import { client } from '@/services/api';
 
 interface Props {
   players: Player[];
@@ -114,9 +155,11 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   'add-player': [];
   'remove-player': [id: string];
+  'player-assigned': [];
 }>();
 
 const router = useRouter();
+const store = useStore();
 
 const api = ref(apiUrl);
 const search = ref('');
@@ -167,6 +210,63 @@ const updatePlayer = (id: string, code: string) => {
 const removePlayer = (id: string) => {
   if (props.viewClub) {
     emit('remove-player', id);
+  }
+};
+
+const assignDialog = ref(false);
+const assignTarget = ref<Player | null>(null);
+const clubs = ref<any[]>([]);
+const clubsLoading = ref(false);
+const selectedClubId = ref<string | null>(null);
+
+const openAssignDialog = async (item: Player) => {
+  assignTarget.value = item;
+  selectedClubId.value = null;
+  assignDialog.value = true;
+
+  if (!clubs.value.length) {
+    clubsLoading.value = true;
+    try {
+      const response = await client.clubs.getClubs.query();
+      if (response.status === 200) {
+        clubs.value = response.body.payload;
+      }
+    } catch (error) {
+      console.error('Error fetching clubs:', error);
+      store.toggleErrorOverlay();
+    } finally {
+      clubsLoading.value = false;
+    }
+  }
+};
+
+const confirmAssignToClub = async () => {
+  const player = assignTarget.value as any;
+  const club = clubs.value.find((c) => c._id === selectedClubId.value);
+  if (!player || !club) return;
+
+  try {
+    await client.clubs.addPlayerToClub.mutation({
+      params: { id: club._id },
+      body: {
+        playerId: player._id,
+        isSigned: false,
+        clubCode: club.ClubCode,
+        clubId: club._id,
+      },
+    });
+    store.showToast({
+      message: `${player.FirstName} ${player.LastName} assigned to ${club.Name}`,
+      style: 'success',
+    });
+    assignDialog.value = false;
+    emit('player-assigned');
+  } catch (error) {
+    console.error('Error assigning player to club:', error);
+    store.showToast({
+      message: 'Error assigning Player to Club',
+      style: 'error',
+    });
   }
 };
 </script>

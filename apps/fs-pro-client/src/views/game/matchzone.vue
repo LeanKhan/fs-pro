@@ -46,12 +46,19 @@
     <div v-else class="mz-body">
       <main class="mz-main">
         <div class="mz-pitch-wrap">
+          <div class="mz-floodlight mz-floodlight-tl"></div>
+          <div class="mz-floodlight mz-floodlight-tr"></div>
+          <div class="mz-floodlight mz-floodlight-bl"></div>
+          <div class="mz-floodlight mz-floodlight-br"></div>
+
           <live-pitch
             :frame="liveFrame"
             :home="liveHome"
             :away="liveAway"
             :players="playersById"
           ></live-pitch>
+
+          <event-banner :banner="activeBanner"></event-banner>
 
           <div v-if="!resultsReady" class="mz-pitch-overlay">
             {{ overlayText }}
@@ -68,6 +75,7 @@
             :isHome="true"
             :rating="fixture.HomeTeam.Rating"
             :clubStandings="homeStandings"
+            :manager="fixture.HomeTeam.Manager"
           ></club-widget>
 
           <div class="mz-score">
@@ -101,6 +109,7 @@
             :isHome="false"
             :rating="fixture.AwayTeam.Rating"
             :clubStandings="awayStandings"
+            :manager="fixture.AwayTeam.Manager"
           ></club-widget>
         </div>
 
@@ -142,6 +151,7 @@ import { useRouter, useRoute } from 'vue-router';
 import ClubWidget from '@/components/matchzone/club.vue';
 import GameLobby from '@/components/matchzone/game-lobby.vue';
 import LivePitch from '@/components/matchzone/live-pitch.vue';
+import EventBanner from '@/components/matchzone/event-banner.vue';
 import { Dugout } from '@/components/matchzone/widgets';
 import { client } from '@/services/api';
 import { MatchReplaySocket, IMatchFrame } from '@/utils/matchReplaySocket';
@@ -176,6 +186,10 @@ const liveHomeScore = ref(0);
 const liveAwayScore = ref(0);
 const liveEvents = ref<any[]>([]);
 const overlayText = ref('Simulating...');
+const activeBanner = ref<{ type: 'goal' | 'substitution'; message: string } | null>(
+  null
+);
+let bannerTimer: ReturnType<typeof setTimeout> | null = null;
 
 const liveHome = computed(() => ({
   name: fixture.value.HomeTeam?.Name,
@@ -287,6 +301,25 @@ const awayStandings = computed(() => {
   return { position, standing: standings.value[position - 1] };
 });
 
+/** Flashes a transient celebration/announcement banner over the pitch for
+ * the first goal/substitution event in a frame - only one at a time (a
+ * frame with both would be rare and the goal is the more important one to
+ * show). Cleared automatically after a few seconds, or replaced immediately
+ * if another event of interest arrives first. */
+function maybeShowEventBanner(events?: { type: string; message: string }[]) {
+  const event = events?.find((e) => e.type === 'goal' || e.type === 'substitution');
+  if (!event) return;
+
+  if (bannerTimer) clearTimeout(bannerTimer);
+  activeBanner.value = { type: event.type as 'goal' | 'substitution', message: event.message };
+  bannerTimer = setTimeout(
+    () => {
+      activeBanner.value = null;
+    },
+    event.type === 'goal' ? 3200 : 2600
+  );
+}
+
 function ready() {
   openLobby.value = false;
   allReady.value = true;
@@ -381,6 +414,7 @@ async function playGame() {
 
       if (frame.events?.length) {
         liveEvents.value.push(...frame.events);
+        maybeShowEventBanner(frame.events);
       }
 
       // Tally the score live from goal events as they stream in, rather
@@ -475,6 +509,7 @@ async function watchReplay() {
   replaySocket.onFrame((frame) => {
     liveFrame.value = frame;
     resultsReady.value = true;
+    if (frame.events?.length) maybeShowEventBanner(frame.events);
   });
   replaySocket.onReplayEnd(() => {
     liveWatching.value = false;
@@ -546,6 +581,8 @@ async function initializeGame() {
   liveAwayScore.value = 0;
   liveEvents.value = [];
   overlayText.value = 'Simulating...';
+  if (bannerTimer) clearTimeout(bannerTimer);
+  activeBanner.value = null;
 
   await getFixture();
   await getFixtureDay();
@@ -558,6 +595,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   replaySocket.disconnect();
+  if (bannerTimer) clearTimeout(bannerTimer);
 });
 
 watch(fixtureId, () => {
@@ -664,6 +702,26 @@ watch(fixtureId, () => {
   align-items: center;
   justify-content: center;
   overflow: auto;
+  position: relative;
+  /* Stylized stadium backdrop (no photographic assets exist for this) - a
+   * dark concourse tone plus a faint dotted "crowd in the stands" texture
+   * receding from the pitch, and a vignette so the pitch itself stays the
+   * visual focus. */
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(12, 23, 16, 0) 0%,
+      rgba(6, 13, 9, 0.6) 72%,
+      rgba(4, 9, 6, 0.92) 100%
+    ),
+    repeating-radial-gradient(
+      circle at 20% 30%,
+      rgba(238, 243, 236, 0.05) 0px,
+      rgba(238, 243, 236, 0.05) 1px,
+      transparent 1px,
+      transparent 7px
+    ),
+    #0a1710;
 }
 
 .mz-pitch-wrap {
@@ -671,6 +729,51 @@ watch(fixtureId, () => {
   width: 100%;
   max-width: 640px;
   margin: 0 auto;
+}
+
+.mz-floodlight {
+  position: absolute;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(
+    circle,
+    rgba(255, 247, 214, 0.35) 0%,
+    rgba(255, 247, 214, 0.12) 40%,
+    transparent 72%
+  );
+  animation: mz-flicker 5s ease-in-out infinite;
+}
+.mz-floodlight-tl {
+  top: -60px;
+  left: -60px;
+}
+.mz-floodlight-tr {
+  top: -60px;
+  right: -60px;
+  animation-delay: 1.2s;
+}
+.mz-floodlight-bl {
+  bottom: -60px;
+  left: -60px;
+  animation-delay: 2.4s;
+}
+.mz-floodlight-br {
+  bottom: -60px;
+  right: -60px;
+  animation-delay: 3.6s;
+}
+
+@keyframes mz-flicker {
+  0%,
+  100% {
+    opacity: 0.75;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 .mz-pitch-overlay {
   position: absolute;

@@ -10,14 +10,15 @@
     </template>
   </v-badge> -->
     <template v-slot:prepend>
-      <v-avatar tile size="20" color="transparent" class="text-caption">
-        <span :class="positionColor">
-          {{ position }}
-        </span>
+      <v-avatar size="32" class="mr-1">
+        <player-avatar :player-id="player._id" :size="32"></player-avatar>
       </v-avatar>
     </template>
 
     <v-list-item-subtitle>
+      <span :class="positionColor" class="text-caption font-weight-bold mr-1">
+        {{ position }}
+      </span>
       {{ player.FirstName }}
       {{ player.LastName }}
 
@@ -68,6 +69,7 @@
 // TODO: Should indicate MOTM also
 // TODO: Should also show who scored and how many goals. How do we add a pitch there?
 import { computed } from 'vue';
+import PlayerAvatar from '@/components/players/player-avatar.vue';
 
 interface Props {
   player: any;
