@@ -19,13 +19,14 @@ The match engine decides what actually happens.
 
 ## Milestone 1 - Baseline Current Simulator
 
-**Status:** Not started
+**Status:** Done (2026-09-05)
 
 **Purpose:** Freeze current behavior with measurable output before changing architecture.
 
 **Code Areas**
 
 - `src/scripts/simRealismCheck.ts`
+- `src/scripts/dumpSimulationRosterPool.ts` (new)
 - `src/jobs/matchSimWorker.ts`
 - `src/jobs/matchQueue.ts`
 - `src/classes/Match.ts`
@@ -33,17 +34,25 @@ The match engine decides what actually happens.
 
 **Tasks**
 
-- [ ] Define `SimulationMetrics` shape.
-- [ ] Add aggregate metrics for goals, shots, shots on target, passes, possession, fouls, cards, tackles, dribbles, and events.
-- [ ] Add distribution buckets, not only averages.
-- [ ] Save baseline output to `tmp/simulation-baseline.json`.
-- [ ] Add a command for repeatable baseline runs.
+- [x] Define `SimulationMetrics` shape - `IMatchSummary`/the `buildMetricsMap()` label set in `simRealismCheck.ts`.
+- [x] Add aggregate metrics for goals, shots, shots on target, passes, possession, fouls, cards, tackles, dribbles, and events.
+- [x] Add distribution buckets, not only averages - p10/p50/p90 per metric, alongside mean/min-max.
+- [x] Save baseline output to `tmp/simulation-baseline.json`.
+- [x] Add a command for repeatable baseline runs - `npx ts-node src/scripts/simRealismCheck.ts [count]`, DB-free (see below).
 
 **Acceptance Criteria**
 
-- [ ] Can run at least 1,000 matches from the command line.
-- [ ] Output includes both averages and distributions.
-- [ ] Baseline file can be compared with a later run.
+- [x] Can run at least 1,000 matches from the command line - verified live, 1000 matches in ~5-6s.
+- [x] Output includes both averages and distributions.
+- [x] Baseline file can be compared with a later run - `npx ts-node src/scripts/simRealismCheck.ts --compare <fileA> <fileB>`.
+
+**Notes from implementation:**
+
+- The script is now fully DB-free at the call-site level: `dumpSimulationRosterPool.ts` is a separate, one-time (rerun-when-you-want-fresher-data) script that fetches real Clubs+Players+resolved Manager tactics once and writes them to a checked-in `src/scripts/fixtures/simulation-roster-pool.json`; `simRealismCheck.ts` loads that JSON and calls `App.setupGame(..., prefetchedClubs, prefetchedTactics)` - the exact prefetch shape `matchSimWorker.ts` already used in production.
+- Real, load-bearing constraint found live: `App.ts`'s import graph still transitively reaches `db/drizzle/index.ts` -> `DrizzleUserRepository` -> `utils/auth.ts` -> `sessionStore.ts`, which eagerly constructs a Postgres client and throws at *module load time* if `DATABASE_URL` isn't set - even though nothing in this call path ever queries it. `simRealismCheck.ts` calls `dotenv.config()` purely to satisfy that unrelated eager check (documented inline). This coupling is exactly what Milestone 2's zero-import package boundary will remove for good - worth remembering when scoping that milestone.
+- The "acceptable baseline ranges" open decision below was already answered in code before this pass (`REFERENCE_RANGES` in `simRealismCheck.ts`) - this pass added `Possession % (home team)` (wide band, [20,80], since clubs are randomly paired rather than skill-matched) and a diagnostic-only `Events per match` metric (no invented "real-world" range - it's an internal engine count, not a real football stat).
+- A pre-existing (not introduced by this pass) intermittent crash surfaced during the 1000-match runs: `Actions.pass` throws `Cannot read properties of undefined (reading 'BlockPosition')` on a small fraction of matches (~3-5%), preceded by "NO ACTIVE PLAYERS" / "2 players simultaneously have WithBall" log lines. Already tolerated by the harness's own per-match try/catch (failed matches are skipped, not fatal) - flagged here for whoever picks up Milestone 6/7 (explicit transitions / player policy), not fixed as part of this pass per the "no behavior changes" rule.
+- Also pre-existing, not fixed: an `EventEmitter` `MaxListenersExceededWarning` on `<ball-id>-ball-moved` (~25 listeners per match, default cap 24) - each match's ball id is unique so this isn't a real cross-match leak, just Node's default heuristic being conservative for one match's ~22 players + referee. Redirect stderr when running large batches (`2>/dev/null` or to a log file) if the noise is distracting.
 
 ## Milestone 2 - Create Simulation Package Boundary
 
@@ -646,7 +655,7 @@ packages/simulation/src/config/
 - [ ] What fixture/player snapshot fields are required for a self-contained simulation request? Answer: Use existing fixture/snapshot fields
 - [ ] What should the default simulation queue concurrency be for the MVP deployment? Answer: Use best
 - [ ] Which roles should ship first for MVP?
-- [ ] What are acceptable baseline ranges for goals, shots, pass completion, fouls, and cards?
+- [x] What are acceptable baseline ranges for goals, shots, pass completion, fouls, and cards? Answer: see `REFERENCE_RANGES` in `simRealismCheck.ts` - already implemented, not just decided.
 - [ ] Should tick length start at 1 simulated second, 2 seconds, or current minute-like ticks?
 - [ ] Should player tendencies be generated from existing attributes or added as stored player fields?
 - [ ] Should manager AI initially act only at halftime, or also at configurable minute/stoppage points?
