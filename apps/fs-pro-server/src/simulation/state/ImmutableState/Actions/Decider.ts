@@ -1,4 +1,4 @@
-import { IFieldPlayer } from '../../../interfaces/Player';
+import { IFieldPlayer } from '../../../../interfaces/Player';
 import { MatchSide } from '../../../classes/MatchSide';
 import CO from '../../../utils/coordinates';
 import { getResult } from '../../../utils/probability';

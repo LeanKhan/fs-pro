@@ -1,0 +1,201 @@
+/* eslint-disable no-prototype-builtins */
+/**
+ * Match-tick-only player/block lookup helpers - split out of the server's
+ * `utils/players.ts` (which also holds CRUD/training-layer rating/growth
+ * functions used by player.service.ts/player.controller.ts/
+ * player-training.service.ts/etc, never called during live simulation).
+ * Verified line-by-line that the two function sets are completely
+ * disjoint before splitting - see the simulation-engine-isolation plan
+ * for the full split rationale.
+ */
+import { MatchSide } from '../classes/MatchSide';
+import { IBlock } from '../state/ImmutableState/FieldGrid';
+import {
+  IPositions,
+  IFieldPlayer,
+  PlayerInterface,
+} from '../../interfaces/Player';
+
+/**
+ * Get attackers and midfielders that are not with the ball
+ *
+ * @param team
+ */
+function getATTMID(team: MatchSide) {
+  return team.ActivePlayers.filter((player) => {
+    if (
+      (player.Position === 'ATT' && !player.WithBall) ||
+      (player.Position === 'MID' && !player.WithBall)
+    ) {
+      return true;
+    } else {
+      return false;
+    }
+  });
+}
+
+/**
+ * Get Attackers and Midfielders even if they are with the ball
+ * @param team
+ */
+function getATTMIDNoFilter(team: MatchSide) {
+  return team.ActivePlayers.filter((player) => {
+    if (player.Position === 'ATT' || player.Position === 'MID') {
+      return true;
+    } else {
+      return false;
+    }
+  });
+}
+
+/**
+ * Find a random free block in a 3 block radius
+ * @param player
+ */
+function findRandomFreeBlock(player: IFieldPlayer, radius: number = 3): IBlock {
+  // Get blocks around player
+  let circumference = player.getBlocksAround(radius);
+
+  // Filter the undefined or occupied ones
+  circumference = circumference.filter((block: IBlock) => {
+    if (block === undefined || block.occupant !== null) {
+      return false;
+    } else {
+      return true;
+    }
+  });
+
+  // Then return a random one...
+
+  const randomIndex = Math.round(Math.random() * (circumference.length - 1));
+
+  return circumference[randomIndex];
+}
+
+/**
+ * Like findRandomFreeBlock, but biased toward the farthest free blocks
+ * instead of picking uniformly at random among all of them.
+ *
+ * Used when a player needs to actually put distance between themselves and
+ * a marker (escaping a tight-marking duel) - a uniform-random pick is just
+ * as likely to land one block away as five, which barely counts as an
+ * escape and lets an equally fast marker re-close the gap almost
+ * immediately.
+ */
+function findFarthestFreeBlock(
+  player: IFieldPlayer,
+  radius: number = 5
+): IBlock {
+  const circumference = (player.getBlocksAround(radius) as IBlock[]).filter(
+    (block) => {
+      return block !== undefined && block.occupant === null;
+    }
+  );
+
+  if (circumference.length === 0) {
+    return player.BlockPosition;
+  }
+
+  const distanceFromPlayer = (block: IBlock) =>
+    Math.abs(block.x - player.BlockPosition.x) +
+    Math.abs(block.y - player.BlockPosition.y);
+
+  const maxDistance = Math.max(...circumference.map(distanceFromPlayer));
+  const farthestBlocks = circumference.filter(
+    (block) => distanceFromPlayer(block) === maxDistance
+  );
+
+  const randomIndex = Math.round(Math.random() * (farthestBlocks.length - 1));
+
+  return farthestBlocks[randomIndex];
+}
+
+/**
+ * Get a random Attacker or Midfielder - No filter
+ *
+ */
+function getRandomATTMID(team: MatchSide): IFieldPlayer {
+  const list = getATTMIDNoFilter(team);
+
+  const randomIndex = Math.round(Math.random() * (list.length - 1));
+
+  return list[randomIndex];
+}
+
+/**
+ * Get the goalkeeper from the given list of players
+ */
+function getGK(squad: IFieldPlayer[]) {
+  return squad.find((player) => {
+    // tslint:disable-next-line: triple-equals
+    return player.Position === 'GK';
+  });
+}
+
+function getRandomDEF(team: MatchSide) {
+  return team.StartingSquad.find((player) => {
+    return player.Position === 'ATT' || player.Position === 'MID';
+  });
+}
+
+/**
+ *
+ * Find a free block around
+ *
+ * Bounds are checked against the block's own Field.mapWidth/mapHeight
+ * (with a proper AND) instead of the old `||` chain hardcoded to 11/6,
+ * which was almost always true regardless of position and only matched
+ * the old 15x11 grid anyway. In practice `around` entries already come
+ * pre-filtered by checkNextBlocks(), so this is a defensive re-check.
+ *
+ * @param around
+ */
+function findFreeBlock(around: IPositions) {
+  for (const key in around) {
+    if (around.hasOwnProperty(key) && around[key] !== undefined) {
+      const block = around[key] as IBlock;
+      const inBounds =
+        block.x >= 0 &&
+        block.y >= 0 &&
+        block.x <= block.Field.mapWidth - 1 &&
+        block.y <= block.Field.mapHeight - 1;
+
+      if (inBounds) {
+        if (block.occupant == null) {
+          return block;
+        }
+      } else {
+        return undefined;
+      }
+    }
+  }
+}
+
+/**
+Sort from keeper down
+-Returns the players from GK-DEF-MID-ATT
+
+**/
+function sortFromKeeperDown(players: PlayerInterface[]) {
+  const positions = { GK: 4, DEF: 3, MID: 2, ATT: 1 } as {
+    GK: number;
+    DEF: number;
+    MID: number;
+    ATT: number;
+    [key: string]: number;
+  };
+
+  return players.sort((a, b) => positions[b.Position] - positions[a.Position]);
+}
+
+export {
+  getATTMID,
+  getATTMIDNoFilter,
+  findRandomFreeBlock,
+  findFarthestFreeBlock,
+  getRandomATTMID,
+  getGK,
+  getRandomDEF,
+  findFreeBlock,
+  sortFromKeeperDown,
+};

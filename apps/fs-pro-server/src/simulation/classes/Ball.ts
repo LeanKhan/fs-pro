@@ -1,8 +1,8 @@
 import { ballMove, matchEvents } from '../utils/events';
 import CO from '../utils/coordinates';
 import { IBlock, ICoordinate } from '../state/ImmutableState/FieldGrid';
-import log from '../helpers/logger';
-import { generateRandomNDigits } from '../helpers/misc';
+import log from '../../helpers/logger';
+import { generateRandomNDigits } from '../../helpers/misc';
 
 class BallClass {
   public static instances: number;

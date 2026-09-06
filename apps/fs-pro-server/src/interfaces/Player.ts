@@ -1,5 +1,5 @@
-import { IBlock } from '../state/ImmutableState/FieldGrid';
-import Ball from '../classes/Ball';
+import { IBlock } from '../simulation/state/ImmutableState/FieldGrid';
+import Ball from '../simulation/classes/Ball';
 import { Role } from '../controllers/players/player.model';
 
 /**

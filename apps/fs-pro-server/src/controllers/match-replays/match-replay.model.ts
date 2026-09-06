@@ -1,4 +1,4 @@
-import { IMatchDetails, IMatchFrame } from '../../classes/Match';
+import { IMatchDetails, IMatchFrame } from '../../simulation/classes/Match';
 
 interface ISideRef {
   id: string;

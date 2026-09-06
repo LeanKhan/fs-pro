@@ -1,11 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import Coordinates from '../../utils/coordinates';
-import { matchEvents } from '../../utils/events';
+import { Game, Coordinates, matchEvents, ITactic } from '../../simulation';
 import { getClubs } from '../clubs/club.service';
 import { IClub } from '../../interfaces/Club';
-import Game from '../Game';
 import { resolveManagerTactic } from '../managers/manager.service';
-import { ITactic } from '../../state/PersistentState/Formations';
 
 export default class App {
   public static instance: App;

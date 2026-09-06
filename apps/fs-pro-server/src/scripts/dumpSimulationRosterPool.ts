@@ -27,7 +27,7 @@ import DB from '../db';
 import { getClubs } from '../controllers/clubs/club.service';
 import { resolveManagerTactic } from '../controllers/managers/manager.service';
 import { ClubInterface } from '../controllers/clubs/club.model';
-import { ITactic } from '../state/PersistentState/Formations';
+import { ITactic } from '../simulation/state/PersistentState/Formations';
 
 const OUTPUT_PATH = path.join(
   __dirname,

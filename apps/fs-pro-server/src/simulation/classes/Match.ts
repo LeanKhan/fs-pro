@@ -1,4 +1,4 @@
-import { ClubInterface as Club } from '../controllers/clubs/club.model';
+import { ClubInterface as Club } from '../../controllers/clubs/club.model';
 import { MatchSide } from './MatchSide';
 import { matchEvents, createMatchEvent, ballMove } from '../utils/events';
 import { IBlock } from '../state/ImmutableState/FieldGrid';
@@ -6,7 +6,7 @@ import {
   IFieldPlayer,
   IPlayerStats,
   PlayerMatchStatus,
-} from '../interfaces/Player';
+} from '../../interfaces/Player';
 import {
   IShot,
   IPass,
@@ -16,10 +16,10 @@ import {
   IFoul,
   ISentOff,
 } from './Referee';
-import log from '../helpers/logger';
-import { generateRandomNDigits } from '../helpers/misc';
+import log from '../../helpers/logger';
+import { generateRandomNDigits } from '../../helpers/misc';
 
-import { PlayerMatchDetailsInterface } from '../controllers/player-match/player-match.model';
+import { PlayerMatchDetailsInterface } from '../../controllers/player-match/player-match.model';
 
 /**
  * The Match Class gan gan

@@ -16,7 +16,7 @@
 import { parentPort, workerData } from 'worker_threads';
 import App from '../controllers/app/App';
 import { IClub } from '../interfaces/Club';
-import { ITactic } from '../state/PersistentState/Formations';
+import { ITactic } from '../simulation/state/PersistentState/Formations';
 
 interface IMatchSimWorkerData {
   clubs: IClub[];

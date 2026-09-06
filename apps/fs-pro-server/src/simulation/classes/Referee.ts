@@ -1,5 +1,5 @@
 /* eslint-disable no-case-declarations */
-import { IFieldPlayer } from '../interfaces/Player';
+import { IFieldPlayer } from '../../interfaces/Player';
 import { matchEvents, createMatchEvent } from '../utils/events';
 import { Actions } from '../state/ImmutableState/Actions/Actions';
 import { IBlock } from '../state/ImmutableState/FieldGrid';
@@ -8,7 +8,7 @@ import CO from '../utils/coordinates';
 import { Match, IMatchData } from './Match';
 import { MatchSide } from './MatchSide';
 import { IBall } from './Ball';
-import log from '../helpers/logger';
+import log from '../../helpers/logger';
 
 export default class Referee {
   public FirstName: string;

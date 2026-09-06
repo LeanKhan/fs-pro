@@ -1,5 +1,5 @@
 import { Club } from './Club';
-import { IFieldPlayer, PlayerInterface } from '../interfaces/Player';
+import { IFieldPlayer, PlayerInterface } from '../../interfaces/Player';
 import FieldPlayer from './FieldPlayer';
 import Field, { IBlock } from '../state/ImmutableState/FieldGrid';
 import Ball from './Ball';
@@ -11,9 +11,9 @@ import {
   IActiveTactic,
 } from '../state/PersistentState/Formations';
 import Player from './Player';
-import { ClubInterface } from '../controllers/clubs/club.model';
+import { ClubInterface } from '../../controllers/clubs/club.model';
 import { sortFromKeeperDown } from '../utils/players';
-import log from '../helpers/logger';
+import log from '../../helpers/logger';
 
 /** Matchday bench cap - a placeholder default, not a considered balance
  * pass (same treatment as the Transfer Market feature's Budget/Wage
