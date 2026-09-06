@@ -9,6 +9,7 @@
  * genuine entry points, not every internal type.
  */
 export { default as Game } from './controllers/Game';
+export type { AdvanceUntil, AdvanceResult } from './controllers/Game';
 export { default as Coordinates } from './utils/coordinates';
 export { matchEvents, ballMove, createMatchEvent } from './utils/events';
 export { createMatchStateSnapshot, matchStateToDetails } from './state/MatchState';
@@ -19,6 +20,7 @@ export type {
   MatchState,
   PlayerMatchState,
   PossessionState,
+  SimulationTactic,
   TeamMatchState,
 } from './state/MatchState';
 export type { RandomSource, RandomState } from './randomness';

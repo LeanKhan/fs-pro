@@ -9,6 +9,26 @@ import type { IMatchDetails, IMatchEvent, IMatchFrame } from '../classes/Match';
 import type { Match } from '../classes/Match';
 import type { MatchSide } from '../classes/MatchSide';
 import type { IActiveTactic } from './PersistentState/Formations';
+
+/**
+ * Plain, genuinely-serializable stand-in for the live `IActiveTactic` -
+ * `IActiveTactic.slots[].block` is a real `IBlock`, which carries circular
+ * `Field`/`occupant` back-references (`JSON.stringify` on the live object
+ * throws). Found while scoping Milestone 5 (Chunked Simulation); fixed
+ * here since nothing calls `toState()` yet (confirmed dead code from
+ * every live caller) - no consumer to break.
+ */
+export interface SimulationTacticSlot {
+  positions: string[];
+  x: number;
+  y: number;
+}
+
+export interface SimulationTactic {
+  formationName: string;
+  styleName: string;
+  slots: SimulationTacticSlot[];
+}
 import type { RandomState } from '../randomness';
 
 export type MatchSideKey = 'home' | 'away';
@@ -77,7 +97,7 @@ export interface TeamMatchState {
   goalsScored: number;
   scoringSide: SimulationCoordinate;
   keepingSide: SimulationCoordinate;
-  tactic?: IActiveTactic;
+  tactic?: SimulationTactic;
   stats: IMatchDetails['HomeTeamDetails'];
   startingPlayerIds: string[];
   activePlayerIds: string[];
@@ -185,6 +205,22 @@ const createPlayerState = (
   },
 });
 
+const toSimulationTactic = (
+  tactic: IActiveTactic | undefined
+): SimulationTactic | undefined => {
+  if (!tactic) return undefined;
+
+  return {
+    formationName: tactic.formationName,
+    styleName: tactic.styleName,
+    slots: tactic.slots.map((slot) => ({
+      positions: slot.positions,
+      x: slot.block.x,
+      y: slot.block.y,
+    })),
+  };
+};
+
 const createTeamState = (
   side: MatchSideKey,
   team: MatchSide,
@@ -197,7 +233,7 @@ const createTeamState = (
   goalsScored: team.GoalsScored,
   scoringSide: toCoordinate(team.ScoringSide),
   keepingSide: toCoordinate(team.KeepingSide),
-  tactic: team.Tactic,
+  tactic: toSimulationTactic(team.Tactic),
   stats: { ...details },
   startingPlayerIds: team.StartingSquad.map(playerIdentity),
   activePlayerIds: team.ActivePlayers.map(playerIdentity),

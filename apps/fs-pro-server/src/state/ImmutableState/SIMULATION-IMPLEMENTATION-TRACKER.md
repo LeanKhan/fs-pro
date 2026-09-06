@@ -166,6 +166,21 @@ engine ever has multiple players marked `WithBall`, the snapshot selects
 one holder and derives every player's `hasBall` from that single
 `PossessionState`, giving downstream systems one authoritative ball owner.
 
+**Correction (found while scoping Milestone 5):** `TeamMatchState.tactic`
+originally stored the live `IActiveTactic` as-is - its `slots[].block` is
+a real `IBlock` with circular `Field`/`occupant` back-references, so
+`JSON.stringify` on a `MatchState` actually threw, contradicting "plain,
+serializable snapshot". Fixed in the Milestone 5 pass by adding a
+genuinely plain `SimulationTactic` type and converting `team.Tactic` to
+it in `createTeamState` - safe since `toState()` had zero callers at the
+time (confirmed dead code). Also worth knowing for anyone building real
+cross-process resume later: `MatchState.random` only captures `Match`'s
+own `RandomSource` fork - `Game` independently forks 4 more (`ball`/
+`referee`/`actions`/`decider`), none of which expose their state anywhere
+yet, and there is still no rehydration function (`MatchState` -> a live,
+tickable object graph) - only the forward (live -> snapshot) direction
+exists.
+
 **Acceptance Criteria**
 
 - [x] A match state snapshot contains enough data to continue simulation.
@@ -218,34 +233,85 @@ when chunk/resume support starts consuming snapshots directly.
 - [x] Same request plus same seed produces the same result.
 - [x] Baseline runner can run deterministic comparisons.
 
-## Milestone 5 - Chunked Simulation
+## Milestone 5 - Chunked Simulation (revised scope: same-process only)
 
-**Status:** Not started
+**Status:** Done (2026-09-06) - revised scope, see note below
 
 **Purpose:** Allow matches to advance to natural stopping points for human/AI manager decisions.
 
-**Target API**
+**Revision note:** Investigated what true cross-process serialize/resume
+(the tracker's `advanceMatch(state, {until})` sketch, `state` implying a
+plain snapshot) would require, and it's much bigger than this milestone's
+one-line phrasing suggests - see Milestone 3's revision note below for
+the concrete gaps found (tactic-field circularity, zero rehydration code,
+4 of 5 RandomSource forks uncaptured, listener-teardown-is-process-wide-
+not-scoped). Per user decision, this pass scopes to **same-process
+pause/resume only**: the live `Game`/`Match` object graph stays in
+memory across chunks - no teardown, no rehydration, no new RNG-capture
+work. True serialize-to-disk/resume-after-restart is deferred as a
+separate future milestone.
+
+**Target API** (implemented as `game.advanceMatch(until)`, an instance
+method on the live `Game` - not `advanceMatch(state, ...)` taking a plain
+snapshot, since that would imply the deferred cross-process model):
 
 ```ts
-advanceMatch(state, { until: { event: 'half-time' } });
-advanceMatch(state, { until: { event: 'full-time' } });
-advanceMatch(state, { until: { minute: 60 } });
-advanceMatch(state, { until: { event: 'next-stoppage' } });
+game.advanceMatch({ event: 'half-time' });
+game.advanceMatch({ event: 'full-time' });
+game.advanceMatch({ minute: 60 });
+// { event: 'next-stoppage' } deliberately NOT implemented - would need
+// Actions.interruption to bubble up as a real pause point.
 ```
 
 **Tasks**
 
-- [ ] Define `AdvanceUntil`.
-- [ ] Define `advanceMatch()`.
-- [ ] Support half-time and full-time boundaries first.
-- [ ] Store enough state to resume after a chunk.
-- [ ] Add manager/game transition helpers.
+- [x] Define `AdvanceUntil` (`simulation/controllers/Game.ts`).
+- [x] Define `advanceMatch()` - `Game.advanceMatch(until)`, tracks a new
+      `currentTick`/`halfTimeTransitionDone` pair of private fields so
+      calls are resumable across the same Game instance.
+- [x] Support half-time and full-time boundaries first (also supports
+      arbitrary minute boundaries - clamped [0,180] ticks - in the same
+      pass, since the tracker's own already-answered Open Decision said
+      to support both).
+- [x] Store enough state to resume after a chunk - N/A for same-process
+      scope (nothing is torn down between chunks, so nothing needs
+      storing) - would become relevant if/when cross-process resume is
+      tackled separately.
+- [ ] Add manager/game transition helpers - explicitly deferred to
+      Milestone 6/7/21 (Explicit Transitions / Team Intent / Manager AI) -
+      this pass only builds the primitive those will call between chunks.
+
+**Bonus fix (found while scoping, not part of the original task list):**
+`MatchState.teams.*.tactic` (Milestone 3) held a live `IActiveTactic`
+whose `slots[].block` is a real `IBlock` with circular `Field`/`occupant`
+back-references - `JSON.stringify` on a `MatchState` threw. Fixed by
+adding a genuinely plain `SimulationTactic` type
+(`simulation/state/MatchState.ts`) and converting `team.Tactic` to it in
+`createTeamState`. Safe since nothing calls `toState()` yet.
+
+**Verified live:** `tsc --noEmit` clean; `simRealismCheck.ts --compare`
+against the pre-change baseline (deltas within the same unseeded-sampling
+noise band as prior milestones); a new direct determinism check - two
+separately-constructed `Game` instances with the **same seed**, one run
+straight through via `startHalf()`, one advanced in chunks
+(`{minute:20}` → `{minute:45}` → `{minute:70}` → `{event:'full-time'}`) -
+produced **bit-for-bit identical results**: same score/events/passes/
+shots, and all 180 frames' ball positions matched exactly. This is the
+real proof chunking is transparent to simulation output. Also re-verified
+the real HTTP `GET /game/kickoff-new/:fixture` path against a genuine
+unplayed fixture (200 OK, correct score, standings updated).
 
 **Acceptance Criteria**
 
-- [ ] CPU-vs-CPU match can run first half, pause, then run second half.
-- [ ] Match result is saved only after final state.
-- [ ] Human and AI manager decisions can both apply through the same transition functions.
+- [x] CPU-vs-CPU match can run first half, pause, then run second half
+      (already true before this pass via the hardcoded two-call
+      structure; now generalized to arbitrary boundaries too).
+- [x] Match result is saved only after final state (unchanged -
+      persistence still only happens in `game.controller.ts`'s `.then()`
+      after the whole `startGame()` promise resolves).
+- [ ] Human and AI manager decisions can both apply through the same
+      transition functions - N/A this pass, no transition/decision API
+      exists yet (Milestone 6/21's job).
 
 ## Milestone 6 - Explicit Transitions
 
