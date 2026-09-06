@@ -19,10 +19,22 @@ import { Decider, IStrategy } from './Decider';
 import { Match, IMatchData } from '../../../classes/Match';
 import log from '../../../../helpers/logger';
 import { createRandomSource, RandomInput, RandomSource } from '../../../randomness';
+import { determineIntent } from '../../../team/TeamController';
+import { buildObservation } from '../../../player/ObservationBuilder';
+import { toStrategy } from '../../../player/PlayerIntent';
+import { RuleBasedPlayerPolicy } from '../../../player/RuleBasedPlayerPolicy';
+import { PlayerPolicy } from '../../../player/PlayerPolicy';
 
 export class Actions {
   public referee: IReferee;
   public decider: Decider;
+  /** Milestone 7 - wraps `this.decider` (same instance, not a second
+   * one - see RuleBasedPlayerPolicy's own doc comment for why that
+   * matters). `this.decider` itself stays directly accessible/unchanged
+   * for every outcome-formula call below (getPassResult/getShotResult/
+   * etc) - only decision-making (`makeDecision`) goes through the
+   * policy now. */
+  public playerPolicy: PlayerPolicy;
   public interruption: boolean;
   public activePlayerAS: IFieldPlayer | undefined;
   public activePlayerDS: IFieldPlayer | undefined;
@@ -55,6 +67,7 @@ export class Actions {
     log(`Teams => ${this.teams[0].Name} ${this.teams[1].Name}`);
 
     this.decider = new Decider(this.teams, this.random.fork('decider'));
+    this.playerPolicy = new RuleBasedPlayerPolicy(this.decider);
 
     matchEvents.on(`${this.match.id}-game-halt`, (data: IFoul) => {
       this.interruption = data.interruption;
@@ -109,11 +122,23 @@ export class Actions {
       defendingSide,
     } as IMatchData);
 
-    const strategy = this.decider.makeDecision(
+    // Milestone 7 (Team Intent And Player Policy) - team intent and the
+    // player's observation are genuinely computed and passed to the
+    // policy every decision (satisfying "player policy receives
+    // observation and team intent"); the wrapped Decider's own internals
+    // still recompute equivalent values themselves rather than consuming
+    // these yet - see RuleBasedPlayerPolicy's doc comment. toStrategy()
+    // converts back losslessly so everything below is unchanged.
+    const teamIntent = determineIntent(attackingSide, defendingSide);
+    const observation = buildObservation(attackingPlayer, attackingSide, defendingSide);
+    const intent = this.playerPolicy.decide(
       attackingPlayer,
+      observation,
+      teamIntent,
       attackingSide,
       defendingSide
     );
+    const strategy = toStrategy(intent);
 
     this.interruption = false;
 
