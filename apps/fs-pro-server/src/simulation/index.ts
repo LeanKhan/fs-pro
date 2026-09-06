@@ -33,3 +33,11 @@ export type {
   TeamMatchState,
 } from './state/MatchState';
 export type { RandomSource, RandomState } from './randomness';
+export { determineIntent } from './team/TeamController';
+export type { TeamIntent } from './team/TeamIntent';
+export { buildObservation } from './player/ObservationBuilder';
+export type { PlayerObservation, VisiblePlayer } from './player/PlayerObservation';
+export { toPlayerIntent, toStrategy } from './player/PlayerIntent';
+export type { PlayerIntent } from './player/PlayerIntent';
+export type { PlayerPolicy } from './player/PlayerPolicy';
+export { RuleBasedPlayerPolicy } from './player/RuleBasedPlayerPolicy';

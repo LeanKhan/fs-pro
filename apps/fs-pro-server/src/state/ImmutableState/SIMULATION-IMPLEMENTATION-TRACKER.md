@@ -416,7 +416,7 @@ unplayed fixture (200 OK, correct score, standings updated).
 
 ## Milestone 7 - Team Intent And Player Policy
 
-**Status:** Not started
+**Status:** Done (2026-09-06)
 
 **Purpose:** Separate team-level tactical choices from individual player decisions.
 
@@ -432,21 +432,76 @@ src/simulation/player/
   RuleBasedPlayerPolicy.ts
   PlayerObservation.ts
   ObservationBuilder.ts
+  PlayerIntent.ts (not in the original target list - added since "Define
+    PlayerIntent" needed a home; co-located with its toPlayerIntent/
+    toStrategy converters)
 ```
 
 **Tasks**
 
-- [ ] Define `TeamIntent`.
-- [ ] Define `PlayerObservation`.
-- [ ] Define `PlayerIntent`.
-- [ ] Wrap current `Decider.makeDecision()` inside `RuleBasedPlayerPolicy`.
-- [ ] Keep existing pass/shot/tackle/dribble outcome formulas for now.
+- [x] Define `TeamIntent` - honestly just today's `IPlayingStyle`
+      (Formations.ts) renamed/exposed as a first-class thing (`tempo`/
+      `pressing`/`defensiveLine`/`positionalDiscipline`/`width`/
+      `directness`) - NOT computed from anything dynamic yet.
+      `mentality`/`focus`/`risk`/`phase` from the plan doc's sketch are
+      deliberately not included - no real signal exists anywhere yet to
+      compute them from (needs Milestone 11's phase tracking or 18's
+      score-based decisions); inventing placeholder values would be
+      premature abstraction.
+- [x] Define `PlayerObservation` - formalizes what `Decider.ts` already
+      computed ad hoc (pressure via a radius-3 opponent count, "3
+      closest teammates" via the same selection `passability()` already
+      used, goal distance). `passingOptions`/`availableSpace`-shaped
+      fields from the plan doc are deliberately NOT included - real
+      candidate-receiver scoring is Milestone 13's job, spatial analysis
+      sharing is Milestone 10's; adding placeholders now would be scope
+      creep into those milestones.
+- [x] Define `PlayerIntent` - a cleaner, better-named discriminated union
+      (`{kind:'pass', passType}` / `{kind:'shoot', shotType}` /
+      `{kind:'move'}`) than today's `IStrategy` - NOT yet a richer one
+      (no real `targetId` - the pass receiver is still resolved later
+      inside `Actions.pass()` from `passType` alone, exactly as it was
+      from `IStrategy.detail` before this pass). `toPlayerIntent`/
+      `toStrategy` are lossless 1:1 mappers, verified by a direct
+      round-trip test over all 6 real `IStrategy` shapes `Decider.ts`
+      can produce.
+- [x] Wrap current `Decider.makeDecision()` inside `RuleBasedPlayerPolicy`
+      - wraps the **existing** `Decider` instance `Actions.ts` already
+      builds (passed in via constructor), not a second one - building a
+      second instance from the same forked seed would desync the shared
+      RNG call ordering between decision-making and outcome-formula
+      calls even though each instance stays individually deterministic.
+- [x] Keep existing pass/shot/tackle/dribble outcome formulas for now -
+      `Decider`'s internals are 100% unchanged; `RuleBasedPlayerPolicy`
+      receives `observation`/`teamIntent` (satisfying the acceptance
+      criterion below) but doesn't yet make `Decider` consume them
+      instead of recomputing equivalent values itself - that's Milestone
+      10's job (Spatial Analyzer, a single shared source both would pull
+      from).
 
 **Acceptance Criteria**
 
-- [ ] Team intent is computed before player decisions.
-- [ ] Player policy receives observation and team intent.
-- [ ] Decision logic and outcome logic are no longer treated as the same thing.
+- [x] Team intent is computed before player decisions -
+      `Actions.takeAction()` calls `determineIntent()` before
+      `playerPolicy.decide()`.
+- [x] Player policy receives observation and team intent - both are
+      genuinely computed (`buildObservation()`/`determineIntent()`) and
+      passed into `decide()` every call, not just declared in the type
+      signature.
+- [x] Decision logic and outcome logic are no longer treated as the same
+      thing - `RuleBasedPlayerPolicy.decide()` (decision) is now a
+      distinctly named, separate layer from `Decider`'s
+      `getPassResult`/`getShotResult`/`getTackleResult`/
+      `getDribbleResult` (outcome), which `Actions.ts` still calls
+      directly and unchanged.
+
+**Verified live:** `tsc --noEmit` clean; a direct round-trip check
+(`toStrategy(toPlayerIntent(s))` for all 6 real strategy shapes) - all
+passed exactly; `simRealismCheck.ts --compare` against the pre-change
+baseline - every metric within the same unseeded-sampling noise band as
+every prior milestone; real HTTP `GET /game/kickoff-new/:fixture`
+against a genuine unplayed fixture (200 OK, correct score, standings
+updated).
 
 ## Milestone 8 - Resolver Layer
 
