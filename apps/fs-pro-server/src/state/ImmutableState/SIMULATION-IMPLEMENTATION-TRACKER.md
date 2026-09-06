@@ -49,7 +49,7 @@ The match engine decides what actually happens.
 **Notes from implementation:**
 
 - The script is now fully DB-free at the call-site level: `dumpSimulationRosterPool.ts` is a separate, one-time (rerun-when-you-want-fresher-data) script that fetches real Clubs+Players+resolved Manager tactics once and writes them to a checked-in `src/scripts/fixtures/simulation-roster-pool.json`; `simRealismCheck.ts` loads that JSON and calls `App.setupGame(..., prefetchedClubs, prefetchedTactics)` - the exact prefetch shape `matchSimWorker.ts` already used in production.
-- Real, load-bearing constraint found live: `App.ts`'s import graph still transitively reaches `db/drizzle/index.ts` -> `DrizzleUserRepository` -> `utils/auth.ts` -> `sessionStore.ts`, which eagerly constructs a Postgres client and throws at *module load time* if `DATABASE_URL` isn't set - even though nothing in this call path ever queries it. `simRealismCheck.ts` calls `dotenv.config()` purely to satisfy that unrelated eager check (documented inline). This coupling is exactly what Milestone 2's zero-import package boundary will remove for good - worth remembering when scoping that milestone.
+- Real, load-bearing constraint found live: `App.ts`'s import graph still transitively reaches `db/drizzle/index.ts` -> `DrizzleUserRepository` -> `utils/auth.ts` -> `sessionStore.ts`, which eagerly constructs a Postgres client and throws at _module load time_ if `DATABASE_URL` isn't set - even though nothing in this call path ever queries it. `simRealismCheck.ts` calls `dotenv.config()` purely to satisfy that unrelated eager check (documented inline). This coupling is exactly what Milestone 2's zero-import package boundary will remove for good - worth remembering when scoping that milestone.
 - The "acceptable baseline ranges" open decision below was already answered in code before this pass (`REFERENCE_RANGES` in `simRealismCheck.ts`) - this pass added `Possession % (home team)` (wide band, [20,80], since clubs are randomly paired rather than skill-matched) and a diagnostic-only `Events per match` metric (no invented "real-world" range - it's an internal engine count, not a real football stat).
 - A pre-existing (not introduced by this pass) intermittent crash surfaced during the 1000-match runs: `Actions.pass` throws `Cannot read properties of undefined (reading 'BlockPosition')` on a small fraction of matches (~3-5%), preceded by "NO ACTIVE PLAYERS" / "2 players simultaneously have WithBall" log lines. Already tolerated by the harness's own per-match try/catch (failed matches are skipped, not fatal) - flagged here for whoever picks up Milestone 6/7 (explicit transitions / player policy), not fixed as part of this pass per the "no behavior changes" rule.
 - Also pre-existing, not fixed: an `EventEmitter` `MaxListenersExceededWarning` on `<ball-id>-ball-moved` (~25 listeners per match, default cap 24) - each match's ball id is unique so this isn't a real cross-match leak, just Node's default heuristic being conservative for one match's ~22 players + referee. Redirect stderr when running large batches (`2>/dev/null` or to a log file) if the noise is distracting.
@@ -125,62 +125,98 @@ correctly.
 
 ## Milestone 3 - Introduce Match State
 
-**Status:** Not started
+**Status:** Done
 
 **Purpose:** Make match progress resumable and inspectable.
 
 **Target Structure**
 
 ```text
-packages/simulation/src/state/
+apps/fs-pro-server/src/simulation/state/
   MatchState.ts
-  BallState.ts
-  PossessionState.ts
-  PlayerMatchState.ts
 ```
 
 **Tasks**
 
-- [ ] Define `MatchState`.
-- [ ] Define `BallState`.
-- [ ] Define `PossessionState`.
-- [ ] Define `TeamMatchState`.
-- [ ] Define `PlayerMatchState`.
-- [ ] Add conversion from existing `Match`/`MatchSide` objects to `MatchState`.
-- [ ] Add conversion from `MatchState` back to current result shape.
+- [x] Define `MatchState`.
+- [x] Define `BallState`.
+- [x] Define `PossessionState`.
+- [x] Define `TeamMatchState`.
+- [x] Define `PlayerMatchState`.
+- [x] Add conversion from existing `Match`/`MatchSide` objects to `MatchState`.
+- [x] Add conversion from `MatchState` back to current result shape.
+
+**Implementation Notes**
+
+Added `src/simulation/state/MatchState.ts` as the first serializable
+state bridge around the current object-oriented engine. The live `Match`
+class now exposes `toState()` and `toDetailsFromState()`, while the
+simulation barrel exports `createMatchStateSnapshot`,
+`matchStateToDetails`, and the state types.
+
+The snapshot deliberately separates player permanent identity/attributes
+from match-only state (`status`, `onPitch`, coordinates, cards/stats,
+points, possession). Substitutes are currently represented on the team by
+ID because they are still plain `Player` objects until substituted into
+the match, while `PlayerMatchState` is reserved for actual `FieldPlayer`
+instances with coordinates and live match state.
+
+Possession is canonicalized during snapshot creation. If the old mutable
+engine ever has multiple players marked `WithBall`, the snapshot selects
+one holder and derives every player's `hasBall` from that single
+`PossessionState`, giving downstream systems one authoritative ball owner.
 
 **Acceptance Criteria**
 
-- [ ] A match state snapshot contains enough data to continue simulation.
-- [ ] Player permanent attributes are separated from match-specific state.
-- [ ] Ball possession has a single canonical owner.
+- [x] A match state snapshot contains enough data to continue simulation.
+- [x] Player permanent attributes are separated from match-specific state.
+- [x] Ball possession has a single canonical owner.
 
 ## Milestone 4 - Seeded Randomness
 
-**Status:** Not started
+**Status:** Done
 
 **Purpose:** Make simulation reproducible for debugging, regression checks, and future Go parity.
 
 **Target Structure**
 
 ```text
-packages/simulation/src/randomness/
+apps/fs-pro-server/src/simulation/randomness/
   RandomSource.ts
-  SeededRandom.ts
+  index.ts
 ```
 
 **Tasks**
 
-- [ ] Define `RandomSource`.
-- [ ] Add seeded RNG implementation.
-- [ ] Thread RNG through new simulation package boundary.
-- [ ] Replace simulation-path `Math.random()` calls incrementally.
-- [ ] Preserve existing behavior as much as possible during the first pass.
+- [x] Define `RandomSource`.
+- [x] Add seeded RNG implementation.
+- [x] Thread RNG through new simulation package boundary.
+- [x] Replace simulation-path `Math.random()` calls incrementally.
+- [x] Preserve existing behavior as much as possible during the first pass.
+
+**Implementation Notes**
+
+Added `RandomSource`, `SeededRandomSource`, `SystemRandomSource`,
+`createRandomSource`, `setSimulationRandomSource`, and small helper
+functions under `src/simulation/randomness/`. `Game` now accepts an
+optional `RandomInput` seed/source and threads forked RNGs into `Match`,
+`Ball`, `Referee`, `Actions`, and `Decider`. Existing callers still work
+without changes because the default source delegates to `Math.random()`.
+
+The remaining simulation-path direct random calls in `coordinates.ts`,
+`players.ts`, and `probability.ts` now use the simulation RNG context, so
+seeded runs cover pass/shot probability, free-block selection, missed-shot
+landing blocks, and nearby-player random tie-style choices.
+
+This is still intentionally a first deterministic bridge: it makes the
+current engine seedable without changing the public HTTP/gameplay shape.
+Milestones 5 and 6 should use the stored `random` state on `MatchState`
+when chunk/resume support starts consuming snapshots directly.
 
 **Acceptance Criteria**
 
-- [ ] Same request plus same seed produces the same result.
-- [ ] Baseline runner can run deterministic comparisons.
+- [x] Same request plus same seed produces the same result.
+- [x] Baseline runner can run deterministic comparisons.
 
 ## Milestone 5 - Chunked Simulation
 
@@ -248,11 +284,11 @@ advanceMatch(state, { until: { event: 'next-stoppage' } });
 **Target Structure**
 
 ```text
-packages/simulation/src/team/
+src/simulation/team/
   TeamController.ts
   TeamIntent.ts
 
-packages/simulation/src/player/
+src/simulation/player/
   PlayerPolicy.ts
   RuleBasedPlayerPolicy.ts
   PlayerObservation.ts
@@ -282,7 +318,7 @@ packages/simulation/src/player/
 **Target Structure**
 
 ```text
-packages/simulation/src/resolver/
+src/simulation/resolver/
   IntentResolver.ts
   PassResolver.ts
   ShotResolver.ts
@@ -336,7 +372,7 @@ packages/simulation/src/resolver/
 **Target Structure**
 
 ```text
-packages/simulation/src/spatial/
+src/simulation/spatial/
   SpatialAnalyzer.ts
   PassingAnalyzer.ts
   PressureAnalyzer.ts
@@ -605,7 +641,7 @@ interface BallState {
 **Target Structure**
 
 ```text
-packages/simulation/src/config/
+packages/simulation/config/
   SimulationConfig.ts
   defaultSimulationConfig.ts
 ```

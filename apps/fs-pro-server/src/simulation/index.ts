@@ -11,4 +11,14 @@
 export { default as Game } from './controllers/Game';
 export { default as Coordinates } from './utils/coordinates';
 export { matchEvents, ballMove, createMatchEvent } from './utils/events';
+export { createMatchStateSnapshot, matchStateToDetails } from './state/MatchState';
+export { createRandomSource, SeededRandomSource } from './randomness';
 export type { ITactic } from './state/PersistentState/Formations';
+export type {
+  BallState,
+  MatchState,
+  PlayerMatchState,
+  PossessionState,
+  TeamMatchState,
+} from './state/MatchState';
+export type { RandomSource, RandomState } from './randomness';

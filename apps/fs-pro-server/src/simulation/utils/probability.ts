@@ -1,3 +1,5 @@
+import { simulationRandom } from '../randomness';
+
 function compareValues(a: number, b: number): boolean {
   const universe = 1000;
 
@@ -13,7 +15,7 @@ function compareValues(a: number, b: number): boolean {
       ? (winningChanceA / 100) * universe
       : (winningChanceB / 100) * universe;
 
-  const random = Math.round(Math.random() * 1000);
+  const random = Math.round(simulationRandom() * 1000);
 
   return random <= fulcrumNumber;
 }
@@ -25,7 +27,7 @@ function compareValues(a: number, b: number): boolean {
  * @returns {number} chance threshold
  */
 export function gimmeAChance(): number {
-  return Math.round(Math.random() * 100);
+  return Math.round(simulationRandom() * 100);
 }
 
 // TODO: write helper function and also include weights!

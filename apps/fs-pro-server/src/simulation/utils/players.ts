@@ -15,6 +15,7 @@ import {
   IFieldPlayer,
   PlayerInterface,
 } from '../../interfaces/Player';
+import { simulationRandomInt } from '../randomness';
 
 /**
  * Get attackers and midfielders that are not with the ball
@@ -67,7 +68,7 @@ function findRandomFreeBlock(player: IFieldPlayer, radius: number = 3): IBlock {
 
   // Then return a random one...
 
-  const randomIndex = Math.round(Math.random() * (circumference.length - 1));
+  const randomIndex = simulationRandomInt(circumference.length);
 
   return circumference[randomIndex];
 }
@@ -105,7 +106,7 @@ function findFarthestFreeBlock(
     (block) => distanceFromPlayer(block) === maxDistance
   );
 
-  const randomIndex = Math.round(Math.random() * (farthestBlocks.length - 1));
+  const randomIndex = simulationRandomInt(farthestBlocks.length);
 
   return farthestBlocks[randomIndex];
 }
@@ -117,7 +118,7 @@ function findFarthestFreeBlock(
 function getRandomATTMID(team: MatchSide): IFieldPlayer {
   const list = getATTMIDNoFilter(team);
 
-  const randomIndex = Math.round(Math.random() * (list.length - 1));
+  const randomIndex = simulationRandomInt(list.length);
 
   return list[randomIndex];
 }
