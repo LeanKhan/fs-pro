@@ -14,6 +14,15 @@ export { default as Coordinates } from './utils/coordinates';
 export { matchEvents, ballMove, createMatchEvent } from './utils/events';
 export { createMatchStateSnapshot, matchStateToDetails } from './state/MatchState';
 export { createRandomSource, SeededRandomSource } from './randomness';
+export {
+  applyTacticalChange,
+  applySubstitution,
+  applyCard,
+  applyGoal,
+  applyPossessionChange,
+  applyMatchEvent,
+} from './transitions';
+export type { TransitionResult } from './transitions';
 export type { ITactic } from './state/PersistentState/Formations';
 export type {
   BallState,

@@ -41,6 +41,12 @@ export class MatchSide extends Club {
   public Substitutes: Player[] = [];
   public MatchSquad: Player[] = [];
   public Tactic!: IActiveTactic;
+  /** How many of MAX_SUBSTITUTIONS this side has used so far this match -
+   * tracked from Milestone 6's applySubstitution() transition onward.
+   * Doesn't matter for today's only caller (half-time subs, once per
+   * match), but matters once a future caller can substitute more than
+   * once per match. */
+  public SubstitutionsUsed = 0;
   /**
    * ScoringSide is where this team will be scoring
    * that is, it is the opponents post :p
@@ -265,7 +271,7 @@ export class MatchSide extends Club {
    * club with exactly 11 signed players never subs, doesn't throw).
    */
   public planHalfTimeSubstitutions(
-    maxSubs: number = MAX_SUBSTITUTIONS
+    maxSubs: number = MAX_SUBSTITUTIONS - this.SubstitutionsUsed
   ): { outgoing: IFieldPlayer; incoming: Player }[] {
     const outgoingCandidates = this.ActivePlayers.filter(
       (p) => p.Position !== 'GK'
