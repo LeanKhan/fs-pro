@@ -505,7 +505,7 @@ updated).
 
 ## Milestone 8 - Resolver Layer
 
-**Status:** Not started
+**Status:** Done (2026-09-06)
 
 **Purpose:** Move execution/outcome logic out of player decision logic.
 
@@ -513,26 +513,96 @@ updated).
 
 ```text
 src/simulation/resolver/
-  IntentResolver.ts
   PassResolver.ts
   ShotResolver.ts
-  TackleResolver.ts
-  MovementResolver.ts
+  TackleResolver.ts   (also holds dribble resolution - see note)
 ```
+`IntentResolver.ts` and `MovementResolver.ts` (listed in the original
+target structure) were **not** built this pass - see the revision note.
+
+**Revision note:** Unlike Milestone 7 (where wrapping `Decider.
+makeDecision()` instead of moving it was the safe choice - it's deeply
+entangled with the rest of that class), the four outcome methods
+(`getPassResult`/`getDribbleResult`/`getTackleResult`/`getShotResult`)
+turned out to be already fully self-contained (none call each other or
+get called from elsewhere in `Decider.ts`, each has exactly one call
+site in `Actions.ts`) - a genuinely safe **relocation**, matching the
+tracker's own wording here ("**Move** X into Y", not "wrap").
+
+Two real gaps found in the tracker's own spec, resolved by judgment
+rather than invented: no `DribbleResolver.ts` was ever listed despite
+dribble clearly being a 4th outcome formula - folded into
+`TackleResolver` instead (the two are already tightly coupled: a failed
+dribble falls straight into a tackle attempt in `Actions.move()` today).
+And confirmed via grep that **no dice-roll "movement outcome formula"
+exists anywhere** - `move()`/`movePlayersForward()`/`movePlayersBackward()`/
+`holdShape()`/`pressureBall()`/`FieldPlayer.move()` are all pure
+coordinate arithmetic. So no `MovementResolver` or `IntentResolver` was
+built - there's nothing to extract without inventing structure for
+behavior that doesn't exist (movement) or a dispatcher not called for by
+this pass's task list (intent routing - `Actions.takeAction()`'s existing
+switch already does that job).
+
+A real risk caught **before writing any resolver code**: `getShotResult`
+rolls `Decider`'s own seeded `RandomSource` (via `getShotTarget()`) in
+the same temporal sequence as every other roll `Decider.makeDecision()`
+makes. Giving the new `ShotResolver` a *freshly forked* random (the
+naive move) would draw from a differently-ordered stream - the same
+underlying class of bug Milestone 7 avoided by wrapping the existing
+`Decider` instance rather than building a second one. Fixed by making
+`Decider.random` `public` (was `private`) and constructing `ShotResolver`
+with that *exact same instance*. `PassResolver`/`TackleResolver` have no
+such concern - their formulas route through `utils/probability.ts`'s
+`getResult()`, which draws from a separate global random singleton,
+unrelated to `Decider`'s instance (a pre-existing fact, not something
+this milestone changes).
 
 **Tasks**
 
-- [ ] Move pass outcome logic into `PassResolver`.
-- [ ] Move shot outcome logic into `ShotResolver`.
-- [ ] Move tackle outcome logic into `TackleResolver`.
-- [ ] Move movement outcome logic into `MovementResolver`.
-- [ ] Keep current formulas initially.
+- [x] Move pass outcome logic into `PassResolver` - verbatim, minus two
+      confirmed-dead bits (an unread `luck` parameter, and a `tally`/
+      `chance` computation immediately overwritten by the real
+      `getResult()` call after it).
+- [x] Move shot outcome logic into `ShotResolver` - verbatim, including a
+      small deliberate duplicate of `Decider`'s private `isNearPost()`
+      (which stays in `Decider.ts`, still used by decision-making's
+      `whatKindaPass()`) - the same small-duplication tradeoff already
+      made for `helpers/logger.ts`/`misc.ts` back in Milestone 2.
+- [x] Move tackle outcome logic into `TackleResolver` - verbatim, plus
+      dribble resolution (see revision note).
+- [ ] Move movement outcome logic into `MovementResolver` - not built,
+      no formula exists to move (see revision note).
+- [x] Keep current formulas initially - verified via a formula-
+      equivalence script run BEFORE deleting anything from `Decider.ts`
+      (see below), not just asserted.
+
+**Verified live:** `tsc --noEmit` clean; a dedicated formula-equivalence
+script comparing old `Decider` methods against the new resolvers -
+Pass/Tackle/Dribble compared statistically (20,000 trials each, since
+their formulas draw from a shared global random that a 1:1 sequential
+comparison would perturb) landed within 0.0000-0.0036 success-rate delta;
+Shot's `onTarget` (which uses the shared seeded instance) compared
+exactly 1:1 across 500 trials - 500/500 identical, confirming the
+random-sharing fix actually works; Shot's `goal` rate compared
+statistically (20,000 trials) - 0.0009 delta. Only after all of this
+passed were `Actions.ts`'s 5 call sites rewired and `Decider.ts`'s four
+methods (plus the now-orphaned private `getShotTarget`) deleted.
+`simRealismCheck.ts --compare` against the pre-change baseline - every
+metric within the same noise band as every prior milestone; real HTTP
+`GET /game/kickoff-new/:fixture` against a genuine unplayed fixture (200
+OK, correct score, standings updated).
 
 **Acceptance Criteria**
 
-- [ ] Player policy chooses intent only.
-- [ ] Resolvers decide what actually happens.
-- [ ] Existing match event/result shape remains compatible with the app.
+- [x] Player policy chooses intent only (already true after Milestone 7
+      in effect; now also true at the file/class level - `Decider` no
+      longer has any outcome-resolution code on it at all).
+- [x] Resolvers decide what actually happens - for pass/shot/tackle/
+      dribble. Movement's "outcome" stays deterministic geometry inside
+      `Actions.ts`, unchanged (nothing to resolve).
+- [x] Existing match event/result shape remains compatible with the app -
+      unchanged; only which class performs each outcome roll changed,
+      not any event/mutation/return shape downstream of it.
 
 ## Milestone 9 - Engine Contract And Resource Controls
 

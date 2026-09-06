@@ -62,7 +62,11 @@ export class Decider {
   public teams: MatchSide[];
 
   public strategy: IStrategy = { type: 'move', detail: 'normal' };
-  private readonly random: RandomSource;
+  /** Public since Milestone 8's `ShotResolver` (resolver/ShotResolver.ts)
+   * shares this exact instance (not a fresh fork) so its shot-target roll
+   * stays in the same temporal draw order as every other roll this
+   * Decider instance makes - see that file's own doc comment. */
+  public readonly random: RandomSource;
 
   constructor(teams: MatchSide[], random?: RandomInput) {
     this.teams = teams;
@@ -278,204 +282,6 @@ export class Decider {
   }
 
   /**
-   * GetPassResult
-   *
-   * Determines the success or failure of a pass attempt
-   *
-   * @param {IFieldPlayer} passer
-   * @param {IFieldPlayer} reciever
-   * @param {boolean} type
-   * @param {number} luck
-   * @param {IFieldPlayer | undefined} interceptor
-   * @returns {boolean} true/false
-   */
-  public getPassResult(
-    passer: IFieldPlayer,
-    reciever: IFieldPlayer,
-    type: string,
-    luck: number,
-    interceptor?: IFieldPlayer
-  ): boolean {
-    // check their properties
-    let result = true;
-    const chance = this.gimmeAChance();
-    switch (type) {
-      case 'short':
-        if (interceptor) {
-          // Checked real generated attributes (src/scripts/
-          // checkAttributeDistribution.ts): passing-relevant stats and
-          // Tackling are both clustered ~65-70 for every position - nearly
-          // identical. Any duel formula that weighs them head-on lands
-          // close to 50/50 regardless of threshold tuning, but real short
-          // passes complete 70-92% of the time even under some pressure -
-          // being NEAR the lane isn't the same as actually cutting the
-          // pass out. So the interceptor's Tackling is discounted (70%)
-          // AND weighted mostly toward luck (20%), while the passer stays
-          // skill-dominated (90%) - not just a threshold nudge, an
-          // intentional structural bias toward the passer.
-          result = getResult(
-            [
-              { v: passer.Attributes.ShortPass, p: 50 },
-              { v: passer.Attributes.Mental, p: 25 },
-              { v: reciever.Attributes.Control, p: 25 },
-            ],
-            [interceptor.Attributes.Tackling * 0.7],
-            90,
-            20
-          );
-        } else {
-          const tally =
-            passer.Attributes.ShortPass +
-            reciever.Attributes.Control / 2 +
-            passer.Attributes.Mental / 2 -
-            chance;
-
-          result = chance > tally;
-
-          result = getResult(
-            [
-              { v: passer.Attributes.ShortPass, p: 75 },
-              { v: passer.Attributes.Mental, p: 25 },
-            ],
-            [30],
-            80,
-            50
-          );
-        }
-        break;
-      case 'long':
-        // let chance = Math.round(Math.random() * 100);
-        if (interceptor) {
-          // Same rebalancing as the short-pass case above, and for the same
-          // reason (LongPass/Mental cluster in the same ~65-70 range as
-          // Tackling in the real data).
-          result = getResult(
-            [passer.Attributes.LongPass, passer.Attributes.Mental],
-            [interceptor.Attributes.Tackling * 0.7],
-            85,
-            20
-          );
-        } else {
-          // TODO: Chance would be form...
-
-          // compare the passers passing skill to a random number
-          // TODO: come up with better criteria)
-          result = getResult(
-            [
-              { v: passer.Attributes.LongPass, p: 75 },
-              { v: passer.Attributes.Mental, p: 25 },
-            ],
-            [30],
-            70,
-            50
-          );
-        }
-        break;
-
-      default:
-        break;
-    }
-
-    return result;
-  }
-
-  /**
-   * GetDribbleResult
-   *
-   * Determine the success or failure of a dribble attempt
-   *
-   * @param dribbler
-   * @param opponent
-   * @returns {boolean} true/false
-   */
-  public getDribbleResult(
-    dribbler: IFieldPlayer,
-    opponent: IFieldPlayer
-  ): boolean {
-    // Previously: chance <= (Dribbling+Speed)/2 - Tackling, with chance
-    // drawn uniformly from 0-100. At roughly EQUAL attributes (the common
-    // case) that tally is close to 0, and since chance can never be
-    // negative, success was only possible in the rare case chance rolled
-    // exactly 0 - a genuine 50/50 matchup succeeded well under 5% of the
-    // time instead of ~50%. Switched to the same getResult() duel used for
-    // every other contest in this file (tackles, shots, passes), which
-    // doesn't have that asymmetry.
-    // Unlike short passing (70-92% real completion, structurally favored
-    // above), dribbling past a defender is a lower-percentage, riskier
-    // action even for a good dribbler - real success rates run closer to
-    // 40-55%. So this stays a genuinely even-ish duel rather than getting
-    // the same passer-favoring treatment: the defender is weighted
-    // slightly MORE on skill (80%) than the dribbler (65%), since actual
-    // attribute values cluster together the same way passing/Tackling do.
-    return getResult(
-      [
-        { v: dribbler.Attributes.Dribbling, p: 60 },
-        { v: dribbler.Attributes.Speed, p: 40 },
-      ],
-      [opponent.Attributes.Tackling],
-      65,
-      80
-    );
-  }
-
-  /**
-   * GetTackleResult
-   *
-   * Determine the success or failure of a tackle attempt
-   *
-   * @param tackler
-   * @param ballHolder
-   * @returns {boolean} true/false
-   */
-  public getTackleResult(
-    tackler: IFieldPlayer,
-    ballHolder: IFieldPlayer
-  ): boolean {
-    // TODO: Improve the distribution of attributes here...
-
-    const result = getResult(
-      [tackler.Attributes.Tackling, tackler.Attributes.Strength],
-      [ballHolder.Attributes.Dribbling, ballHolder.Attributes.Control],
-      80,
-      70
-    );
-
-    return result;
-  }
-
-  /**
-   * GetShotResult
-   *
-   * Returns the result of a goal attempt
-   * @param shooter
-   * @param keeper
-   */
-  public getShotResult(shooter: IFieldPlayer, keeper: IFieldPlayer) {
-    // Let's see what happens.
-    // What determines a goal? Shooter's shooting (duh), ball control, Keepers keeping and the *le randomness* :)
-    const onTarget = this.getShotTarget(shooter);
-
-    // TODO: consider distance of shot...
-
-    if (!keeper && onTarget) {
-      return { onTarget, goal: true };
-    } else {
-      if (onTarget) {
-        const result = getResult(
-          [shooter.Attributes.Shooting, shooter.Attributes.Mental],
-          [keeper.Attributes.Keeping, keeper.Attributes.Control],
-          80,
-          70
-        );
-
-        return { onTarget, goal: result };
-      } else {
-        return { onTarget, goal: false };
-      }
-    }
-  }
-
-  /**
    * GimmeAChance - _just give me a chance!_
    *
    * Returns a random percentage
@@ -506,39 +312,6 @@ export class Decider {
       this.gimmeAChance() <=
       this.confidenceThreshold(player, attackingSide, defendingSide, threshold)
     );
-  }
-
-  /**
-   * GetShotTarget
-   *
-   * Used to see if player will shoot on target or not
-   *
-   * - Uses their Shooting to get their normal shot success percentage
-   *
-   * - Uses their Shooting and Shooting divided by 2 to get long shot success
-   *   percentage
-   *
-   * @param shooter
-   */
-  private getShotTarget(shooter: IFieldPlayer) {
-    // if distance from post is near post...
-    const chance = this.gimmeAChance();
-
-    // Get shooter's team shey?
-
-    const teamIndex = this.teams.findIndex(
-      (t) => t.ClubCode === shooter.ClubCode
-    );
-
-    if (this.isNearPost(shooter, this.teams[teamIndex], 2)) {
-      // here player is 80% likely to shoot on target
-      return chance <= shooter.Attributes.Shooting;
-    } else {
-      return (
-        chance <=
-        (shooter.Attributes.SetPiece + shooter.Attributes.Shooting) / 2
-      );
-    }
   }
 
   /**

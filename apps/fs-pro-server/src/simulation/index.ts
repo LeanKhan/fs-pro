@@ -41,3 +41,6 @@ export { toPlayerIntent, toStrategy } from './player/PlayerIntent';
 export type { PlayerIntent } from './player/PlayerIntent';
 export type { PlayerPolicy } from './player/PlayerPolicy';
 export { RuleBasedPlayerPolicy } from './player/RuleBasedPlayerPolicy';
+export { PassResolver } from './resolver/PassResolver';
+export { TackleResolver } from './resolver/TackleResolver';
+export { ShotResolver } from './resolver/ShotResolver';
