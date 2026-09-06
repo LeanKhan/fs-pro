@@ -30,6 +30,25 @@ abstract class GameClass {
   public static instances: number;
 }
 
+/**
+ * Milestone 5 (Chunked Simulation) - same-process pause/resume only (see
+ * the simulation-engine-isolation plan's scope decision). `{minute:N}` is
+ * clamped to [0,180] ticks (2 ticks/minute); `next-stoppage` is
+ * deliberately not supported yet - it would need Actions.interruption to
+ * bubble up as a real pause point, a bigger behavioral change than this
+ * pass's scope.
+ */
+export type AdvanceUntil =
+  | { minute: number }
+  | { event: 'half-time' }
+  | { event: 'full-time' };
+
+export interface AdvanceResult {
+  half: 1 | 2;
+  minute: number;
+  finished: boolean;
+}
+
 // tslint:disable-next-line: max-classes-per-file
 export default class Game implements GameClass {
   public static instances = 0;
@@ -47,6 +66,10 @@ export default class Game implements GameClass {
   private Clubs: IClub[];
   private Field: Field;
   private MatchActions: Actions;
+  /** Tick cursor for advanceMatch() - 0-180 (2 ticks/minute), resumable
+   * across multiple calls within the same still-running Game instance. */
+  private currentTick = 0;
+  private halfTimeTransitionDone = false;
   private readonly random: RandomSource;
 
   constructor(
@@ -398,18 +421,64 @@ export default class Game implements GameClass {
 
   private async gamePlay() {
     // Anything you want to do to change the game, do it before 'gameLoop' is called :)
-    await this.gameLoop();
-    matchEvents.emit(`${this.Match.id}-half-end`);
-    createMatchEvent(this.Match.id, 'First Half Over', 'match');
-    log('------------------ Second Half Start ------------------');
-    this.swapClubFormations();
-    this.performHalfTimeSubstitutions();
-    matchEvents.emit(`${this.Match.id}-reset-formations`);
-    await this.gameLoop(90, 180);
-    matchEvents.emit(`${this.Match.id}-half-end`);
-    createMatchEvent(this.Match.id, 'Match Over', 'match');
-    log('------------------ Match Over --------------------');
+    // Expressed as two advanceMatch() calls (Milestone 5) rather than two
+    // direct gameLoop() calls - identical behavior/ordering, but now the
+    // same boundary-crossing logic is available to any caller that wants
+    // to stop somewhere in between instead of always running straight
+    // through both halves in one go.
+    await this.advanceMatch({ event: 'half-time' });
+    await this.advanceMatch({ event: 'full-time' });
     return this.getMatch();
+  }
+
+  /**
+   * Advance the match to a named boundary (half-time/full-time) or an
+   * arbitrary minute, resumable across multiple calls on this same Game
+   * instance - see the simulation-engine-isolation plan's Milestone 5
+   * scope note (same-process pause/resume only, no serialize/rehydrate).
+   * Never runs past the half-time or full-time tick without first running
+   * the required transition (formation swap/subs, or match-over events),
+   * even if a single call's target tick is on the far side of one.
+   */
+  public async advanceMatch(until: AdvanceUntil): Promise<AdvanceResult> {
+    const targetTick = this.resolveTargetTick(until);
+
+    while (this.currentTick < targetTick && this.currentTick < 180) {
+      const boundary = this.currentTick < 90 ? 90 : 180;
+      const nextStop = Math.min(targetTick, boundary);
+
+      await this.gameLoop(this.currentTick, nextStop);
+      this.currentTick = nextStop;
+
+      if (this.currentTick === 90 && !this.halfTimeTransitionDone) {
+        this.halfTimeTransitionDone = true;
+        matchEvents.emit(`${this.Match.id}-half-end`);
+        createMatchEvent(this.Match.id, 'First Half Over', 'match');
+        log('------------------ Second Half Start ------------------');
+        this.swapClubFormations();
+        this.performHalfTimeSubstitutions();
+        matchEvents.emit(`${this.Match.id}-reset-formations`);
+      }
+
+      if (this.currentTick === 180) {
+        matchEvents.emit(`${this.Match.id}-half-end`);
+        createMatchEvent(this.Match.id, 'Match Over', 'match');
+        log('------------------ Match Over --------------------');
+      }
+    }
+
+    return {
+      half: this.currentTick < 90 ? 1 : 2,
+      minute: Math.round(this.currentTick / 2),
+      finished: this.currentTick >= 180,
+    };
+  }
+
+  private resolveTargetTick(until: AdvanceUntil): number {
+    if ('minute' in until) {
+      return Math.max(0, Math.min(180, Math.round(until.minute * 2)));
+    }
+    return until.event === 'half-time' ? 90 : 180;
   }
 
   private gameLoop(timestart = 0, timeend = 90) {
