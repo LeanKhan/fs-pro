@@ -24,17 +24,25 @@ import { buildObservation } from '../../../player/ObservationBuilder';
 import { toStrategy } from '../../../player/PlayerIntent';
 import { RuleBasedPlayerPolicy } from '../../../player/RuleBasedPlayerPolicy';
 import { PlayerPolicy } from '../../../player/PlayerPolicy';
+import { PassResolver } from '../../../resolver/PassResolver';
+import { TackleResolver } from '../../../resolver/TackleResolver';
+import { ShotResolver } from '../../../resolver/ShotResolver';
 
 export class Actions {
   public referee: IReferee;
   public decider: Decider;
   /** Milestone 7 - wraps `this.decider` (same instance, not a second
    * one - see RuleBasedPlayerPolicy's own doc comment for why that
-   * matters). `this.decider` itself stays directly accessible/unchanged
-   * for every outcome-formula call below (getPassResult/getShotResult/
-   * etc) - only decision-making (`makeDecision`) goes through the
-   * policy now. */
+   * matters). Only decision-making (`makeDecision`) goes through the
+   * policy - outcome resolution moved to passResolver/tackleResolver/
+   * shotResolver below in Milestone 8 (Decider no longer has outcome
+   * methods at all). */
   public playerPolicy: PlayerPolicy;
+  /** Milestone 8 - moved out of Decider (see resolver/*.ts's own doc
+   * comments for the exact formula-preservation/random-sharing notes). */
+  public passResolver: PassResolver;
+  public tackleResolver: TackleResolver;
+  public shotResolver: ShotResolver;
   public interruption: boolean;
   public activePlayerAS: IFieldPlayer | undefined;
   public activePlayerDS: IFieldPlayer | undefined;
@@ -68,6 +76,11 @@ export class Actions {
 
     this.decider = new Decider(this.teams, this.random.fork('decider'));
     this.playerPolicy = new RuleBasedPlayerPolicy(this.decider);
+    this.passResolver = new PassResolver();
+    this.tackleResolver = new TackleResolver();
+    // Shares Decider's OWN random instance (not a fresh fork) - see
+    // ShotResolver's doc comment for why that matters.
+    this.shotResolver = new ShotResolver(this.teams, this.decider.random);
 
     matchEvents.on(`${this.match.id}-game-halt`, (data: IFoul) => {
       this.interruption = data.interruption;
@@ -300,19 +313,18 @@ export class Actions {
        * pass the player, the reciever and the nearest interceptor if possible...
        */
 
-      // getPassResult() returns true when the PASSER wins the duel (per
-      // getResult(passerStats, interceptorStats, ...) => $a > $b). This was
-      // previously named `fail` and checked as `if (!fail)`, which
-      // inverted the outcome - a pass only "succeeded" when the formula
-      // said the INTERCEPTOR won. Every threshold tuned in
-      // Decider.getPassResult to favor the passer was therefore making
-      // interceptions MORE likely, not less - this is the actual reason
-      // completion rate never responded to that tuning.
-      const passSucceeds = this.decider.getPassResult(
+      // PassResolver.resolve() returns true when the PASSER wins the duel
+      // (per getResult(passerStats, interceptorStats, ...) => $a > $b).
+      // This was previously named `fail` and checked as `if (!fail)`,
+      // which inverted the outcome - a pass only "succeeded" when the
+      // formula said the INTERCEPTOR won. Every threshold tuned to favor
+      // the passer was therefore making interceptions MORE likely, not
+      // less - this is the actual reason completion rate never responded
+      // to that tuning.
+      const passSucceeds = this.passResolver.resolve(
         player,
         teammate,
         type,
-        40,
         interceptor
       );
 
@@ -477,7 +489,7 @@ export class Actions {
       } else if (player.WithBall && opponentBlock) {
         // Tackle about to happen :0
         log(`Ball x,y => ${player.Ball.Position.x} ${player.Ball.Position.y}`);
-        const success = this.decider.getDribbleResult(player, opponentBlock);
+        const success = this.tackleResolver.resolveDribble(player, opponentBlock);
         if (success) {
           // this.makeMove(player, p, around);
           this.successfulDribble(player, path, around, opponentBlock);
@@ -554,7 +566,7 @@ export class Actions {
             return { status: true, reason: 'passed out of tight marking' };
           }
 
-          let successOfTightDribble = this.decider.getDribbleResult(
+          let successOfTightDribble = this.tackleResolver.resolveDribble(
             player,
             marker
           );
@@ -723,7 +735,7 @@ export class Actions {
       defendingTeam.StartingSquad
     ) as IFieldPlayer;
 
-    const result = this.decider.getShotResult(player, keeper as IFieldPlayer);
+    const result = this.shotResolver.resolve(player, keeper as IFieldPlayer);
 
     if (result.goal) {
       // Shot is a goal, fine and good
@@ -996,7 +1008,7 @@ export class Actions {
     // log(`${tackler.LastName} is tackling ${player.LastName}`);
     const success = predetermined
       ? true
-      : this.decider.getTackleResult(tackler, player);
+      : this.tackleResolver.resolveTackle(tackler, player);
 
     // A mistimed/aggressive tackle can draw a foul independent of whether
     // it actually wins the ball - higher Aggression and lower Tackling
