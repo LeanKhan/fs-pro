@@ -11,6 +11,8 @@ import { getSeasonById } from '../seasons/season.service';
 import { startMatchReplay } from '../../realtime/matchBroadcaster';
 import { saveReplay } from '../match-replays/match-replay.service';
 import { ITactic } from '../../simulation/state/PersistentState/Formations';
+import { simulateMatch } from '../../jobs/matchQueue';
+import { buildSimulateMatchRequest } from '../../jobs/buildSimulateMatchRequest';
 
 /** Fetches a Season by id, but only returns it if it's still in progress -
  * replaces the raw `fetchSeason({_id, isStarted: true, isFinished: false})`
@@ -121,14 +123,16 @@ export async function play(fixture_id: string) {
 
   const { HomeTeamId: home, AwayTeamId: away } = fixture;
 
+  // Milestone 9: building the request (clubs fetch + tactics resolve)
+  // still happens here, on the main thread - the worker_thread the
+  // simulation itself runs in stays DB-free (see simulateMatch()/
+  // buildSimulateMatchRequest.ts).
+  let simulateRequest;
   try {
-    await CurrentMatch.App.setupGame(
-      [home, away],
-      {
-        home,
-        away,
-      },
-      undefined,
+    simulateRequest = await buildSimulateMatchRequest(
+      fixture_id,
+      home,
+      away,
       prefetchedTactics
     );
   } catch (error) {
@@ -241,9 +245,21 @@ export async function play(fixture_id: string) {
 
   // [4] Play Match
   log('Here in startGame!');
-  // NOTE: removing static App method.
-  return CurrentMatch.App.startGame()
-    ?.then(async (m) => {
+  // Milestone 9: the simulation itself now runs in a worker_thread,
+  // queued/timed/metriced by simulateMatch() (see jobs/matchQueue.ts) -
+  // this is the same shared entry point the debug enqueueMatch route
+  // uses. `m` below is a plain SimulatedMatchData, not a live Match
+  // instance, but every field the rest of this chain reads off it
+  // (Home/Away identity incl. ManagerId, Details, Events, Frames) is
+  // plain data either way.
+  return simulateMatch(simulateRequest)
+    .then((result) => {
+      if (!result.ok) {
+        throw new Error(result.error);
+      }
+      return result.match;
+    })
+    .then(async (m) => {
       // Fire-and-forget: stream the recorded match live over sockets,
       // keyed by fixture_id (known ahead of the kickoff call, unlike
       // match.id) so a debug client can join the room before triggering it.

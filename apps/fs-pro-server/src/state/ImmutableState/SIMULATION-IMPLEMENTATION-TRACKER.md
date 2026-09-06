@@ -606,26 +606,117 @@ OK, correct score, standings updated).
 
 ## Milestone 9 - Engine Contract And Resource Controls
 
-**Status:** Not started
+**Status:** Done
 
 **Purpose:** Make simulation callable through a stable internal contract and keep heavy work from overwhelming the Node server.
 
 **Tasks**
 
-- [ ] Finalize `SimulateMatchRequest` JSON contract.
-- [ ] Finalize `SimulateMatchResult` JSON contract.
-- [ ] Add contract fixtures/examples.
-- [ ] Add simulation queue concurrency controls.
-- [ ] Add per-match timeout/error handling.
-- [ ] Add lightweight simulation performance metrics.
-- [ ] Keep Node responsible for auth, DB reads/writes, Socket.IO, and replay broadcasting.
+- [x] Finalize `SimulateMatchRequest` JSON contract.
+- [x] Finalize `SimulateMatchResult` JSON contract.
+- [x] Add contract fixtures/examples.
+- [x] Add simulation queue concurrency controls.
+- [x] Add per-match timeout/error handling.
+- [x] Add lightweight simulation performance metrics.
+- [x] Keep Node responsible for auth, DB reads/writes, Socket.IO, and replay broadcasting.
 
 **Acceptance Criteria**
 
-- [ ] Node calls the TypeScript engine through one stable internal interface.
-- [ ] Match simulations do not block regular API/auth/frontend communication.
-- [ ] Simulation concurrency can be tuned by environment variable.
-- [ ] No database writes are required inside the simulation engine.
+- [x] Node calls the TypeScript engine through one stable internal interface.
+- [x] Match simulations do not block regular API/auth/frontend communication.
+- [x] Simulation concurrency can be tuned by environment variable.
+- [x] No database writes are required inside the simulation engine.
+
+**Implementation notes**
+
+Different in kind from Milestones 5-8: this one is about the Node/engine
+*boundary* itself, not an internal engine refactor.
+
+Investigation before writing anything found the tracker's own acceptance
+criteria weren't actually true yet: `kickoffNew` (the real, client-facing
+route - `game.router.ts` → `play()` in `game.controller.ts`) called
+`App.setupGame()`/`App.startGame()` directly, and `Game.gameLoop()`'s
+~180-tick loop ran fully synchronously inside the Express handler,
+blocking Node's event loop for the whole match. A separate, already-built
+`worker_threads` path (`jobs/matchQueue.ts` + `matchSimWorker.ts`) existed
+but was wired only to a debug-only `enqueueMatch` route (used by
+`PitchPreview.html`), with a hardcoded `MAX_CONCURRENT_MATCHES = 1`, no
+timeout, and no persistence. Asked whether to close this gap for real or
+just harden the debug path and disclose the gap - decided to move the
+real `kickoffNew` path onto the worker queue too, so both share one
+contract-shaped entry point.
+
+**New: `jobs/simulationContract.ts`** - `SimulateMatchRequest`
+(`fixtureId`, plain-JSON `clubs`, `sides`, `tactics`),
+`SimulatedMatchData` (extends the existing `IReplayableMatch` with
+`Events` and `ManagerId` on Home/Away - both needed by `play()`'s
+persistence step but missing from the worker's prior output),
+`SimulationMetrics` (`queuedAt`/`startedAt`/`finishedAt`/`queueWaitMs`/
+`simulationMs`/`totalMs`), and `SimulateMatchResult` (`{ok:true,match,
+metrics}` or `{ok:false,error,metrics}`).
+
+**New: `jobs/buildSimulateMatchRequest.ts`** - the clubs-fetch +
+tactics-resolve-if-not-prefetched logic that used to live inline in
+`App.setupGame()` and duplicated in `matchQueue.ts`'s old `runMatchJob`,
+now shared by both callers. Does not fetch the Fixture itself - both
+callers already have it for their own reasons.
+
+**`jobs/matchQueue.ts`** - rewritten around one new exported
+`simulateMatch(request): Promise<SimulateMatchResult>`, the "one stable
+internal interface": `MAX_CONCURRENT_MATCHES` now reads
+`process.env.SIMULATION_MAX_CONCURRENT_MATCHES` (default bumped `1`→`2` -
+this is real traffic now, `1` would serialize every simultaneous kickoff
+across all users behind one worker); new `SIMULATION_MATCH_TIMEOUT_MS`
+env var (default 30000) wraps the worker lifecycle with a timer that
+calls `worker.terminate()` and resolves `{ok:false}` on a hang (nothing
+enforced this before); queue internals generalized from a fixture-id-only
+array to job records, since real traffic means multiple different
+fixtures queue at once, not just one debug fixture; metrics captured
+around the worker call and logged as one `[simulation-metrics]` line per
+match. `enqueueMatchPlay` (the debug path) is now a thin wrapper around
+`simulateMatch()` - same fire-and-forget/dedup/no-persistence behavior as
+before for `PitchPreview.html`.
+
+**`jobs/matchSimWorker.ts`** - added `ManagerId` to the Home/Away objects
+in its posted result (the one confirmed gap versus what `play()` needs
+downstream). `App.setupGame()`/`startGame()` are still called exactly as
+before, inside the worker, still DB-free.
+
+**`game.controller.ts`'s `play()`** - replaced the direct
+`App.setupGame()`+`App.startGame()` call with
+`buildSimulateMatchRequest()` then `simulateMatch()`; the rest of the
+`.then()` chain (`startMatchReplay`, `saveReplay`, `updateFixture`,
+`updateStandings`, `advanceDayIfDone`) is untouched - confirmed before
+writing any code that every field it reads off the resolved match
+(`Home`/`Away` identity incl. `ManagerId`, `Details`, `Events`, `Frames`)
+is plain data, not a live-instance method, so the worker's plain
+`SimulatedMatchData` is a drop-in replacement for the old live `Match`
+object. `App`/`CurrentMatch.App` bookkeeping (`new App()`, `endGame()`
+calls) stays in place as harmless now-dead-ish scaffolding rather than
+ripping it out for a milestone that isn't about `App.ts` itself.
+
+**Contract fixtures/examples**: `jobs/__fixtures__/simulate-match-*.example.json`,
+generated from one real dev fixture via a throwaway script (deleted
+after use) - clubs' player rosters and the result's Frames array trimmed
+to a couple of entries each so the examples stay readable while still
+showing the real shape.
+
+**Verified live**: `tsc --noEmit` clean. `simRealismCheck.ts --compare`
+against a pre-milestone baseline (965 vs 957 matches) - all metrics
+within normal unseeded-sampling noise, as expected since no engine
+formula changed. Timeout path verified with a throwaway script
+(`SIMULATION_MATCH_TIMEOUT_MS=50` against a real DB-free synthetic match
+- `simulateMatch()` correctly resolved `{ok:false}` with a timeout error
+and terminated the worker). Concurrency verified the same way
+(`SIMULATION_MAX_CONCURRENT_MATCHES=2`, 3 concurrent `simulateMatch()`
+calls - the first two started within 3ms of each other, the third queued
+~1983ms behind them, matching the concurrency limit). Live HTTP test
+against the real server (:3000, real Postgres data): three distinct real
+unplayed non-friendly fixtures kicked off via `kickoffNew` - two of them
+concurrently (~2.4s wall time for both together, not serialized) - all
+three returned HTTP 200 with correct, non-cross-contaminated scores and
+team identities (confirmed by comparing each result's title/team ids
+against its own fixture, not another one running at the same time).
 
 ## Milestone 10 - Spatial Analysis Services
 
