@@ -17,7 +17,17 @@ import {
   ISentOff,
 } from './Referee';
 import log from '../../helpers/logger';
-import { generateRandomNDigits } from '../../helpers/misc';
+import {
+  createMatchStateSnapshot,
+  matchStateToDetails,
+  MatchState,
+} from '../state/MatchState';
+import {
+  createRandomSource,
+  randomNDigits,
+  RandomInput,
+  RandomSource,
+} from '../randomness';
 
 import { PlayerMatchDetailsInterface } from '../../controllers/player-match/player-match.model';
 
@@ -43,6 +53,7 @@ export class Match implements IMatch, MatchClass {
   private lastFrameEventIndex = 0;
   private CurrentTime = 0;
   private Teams: MatchSide[];
+  private readonly random: RandomSource;
 
   /**
    * Create a new match bro
@@ -58,9 +69,11 @@ export class Match implements IMatch, MatchClass {
     away: Club,
     awayPost: IBlock,
     homePost: IBlock,
-    centerBlock: IBlock
+    centerBlock: IBlock,
+    random?: RandomInput
   ) {
-    this.id = '' + generateRandomNDigits(5);
+    this.random = createRandomSource(random);
+    this.id = '' + randomNDigits(5, this.random);
     this.Home = new MatchSide(home, awayPost, homePost);
     this.Away = new MatchSide(away, homePost, awayPost);
     this.Teams = [this.Home, this.Away];
@@ -468,6 +481,16 @@ export class Match implements IMatch, MatchClass {
 
   public get getCurrentTime(): number {
     return this.CurrentTime;
+  }
+
+  public toState(): MatchState {
+    return createMatchStateSnapshot(this, {
+      random: this.random.getState(),
+    });
+  }
+
+  public toDetailsFromState(state: MatchState = this.toState()): IMatchDetails {
+    return matchStateToDetails(state, this.Details);
   }
 
   public recordPossession(team: MatchSide) {

@@ -18,6 +18,7 @@ import {
 import { Decider, IStrategy } from './Decider';
 import { Match, IMatchData } from '../../../classes/Match';
 import log from '../../../../helpers/logger';
+import { createRandomSource, RandomInput, RandomSource } from '../../../randomness';
 
 export class Actions {
   public referee: IReferee;
@@ -29,6 +30,7 @@ export class Actions {
   public defendingSide: MatchSide | undefined;
   public teams: MatchSide[];
   private match: Match;
+  private readonly random: RandomSource;
 
   constructor(
     ref: IReferee,
@@ -37,7 +39,8 @@ export class Actions {
     as?: MatchSide,
     ds?: MatchSide,
     activePlayerAS?: IFieldPlayer,
-    activePlayerDS?: IFieldPlayer
+    activePlayerDS?: IFieldPlayer,
+    random?: RandomInput
   ) {
     this.referee = ref;
     this.interruption = false;
@@ -47,10 +50,11 @@ export class Actions {
     this.defendingSide = ds;
     this.teams = teams;
     this.match = match;
+    this.random = createRandomSource(random);
 
     log(`Teams => ${this.teams[0].Name} ${this.teams[1].Name}`);
 
-    this.decider = new Decider(this.teams);
+    this.decider = new Decider(this.teams, this.random.fork('decider'));
 
     matchEvents.on(`${this.match.id}-game-halt`, (data: IFoul) => {
       this.interruption = data.interruption;
@@ -740,9 +744,7 @@ export class Actions {
 
       // Then return a random one...
 
-      const randomIndex = Math.round(
-        Math.random() * (freeBlocksAroundScoringSide.length - 1)
-      );
+      const randomIndex = this.random.nextInt(freeBlocksAroundScoringSide.length);
 
       const landingBlock = freeBlocksAroundScoringSide[randomIndex];
 

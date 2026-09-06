@@ -3,6 +3,7 @@
 import Field, { ICoordinate, IBlock } from '../state/ImmutableState/FieldGrid';
 import { IFieldPlayer } from '../../interfaces/Player';
 import log from '../../helpers/logger';
+import { simulationRandomInt } from '../randomness';
 export default class Coordinates {
   public static _co: Coordinates;
   public Field: Field;
@@ -116,7 +117,7 @@ export default class Coordinates {
 
     // Now select a random player from the first three options
 
-    const index = closest ? 0 : Math.round(Math.random() * 2);
+    const index = closest ? 0 : simulationRandomInt(3);
 
     return plyrs[index];
   }
@@ -219,7 +220,7 @@ export default class Coordinates {
 
     ps.slice(psI, 1);
 
-    const index = Math.round(Math.random() * (players.length - 1));
+    const index = simulationRandomInt(players.length);
 
     return ps[index];
   }
@@ -271,7 +272,7 @@ export default class Coordinates {
      * The index of the origin player so we can remove it :)
      */
 
-    const index = Math.round(Math.random() * (plyrs.length - 1));
+    const index = simulationRandomInt(plyrs.length);
 
     return plyrs[index];
   }

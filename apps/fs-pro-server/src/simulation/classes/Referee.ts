@@ -9,6 +9,7 @@ import { Match, IMatchData } from './Match';
 import { MatchSide } from './MatchSide';
 import { IBall } from './Ball';
 import log from '../../helpers/logger';
+import { createRandomSource, RandomInput, RandomSource } from '../randomness';
 
 export default class Referee {
   public FirstName: string;
@@ -17,19 +18,22 @@ export default class Referee {
   public Difficulty: string;
   public Match?: Match;
   private Teams?: MatchSide[];
+  private readonly random: RandomSource;
 
   constructor(
     fname: string,
     lname: string,
     diff: string,
     ball: IBall,
-    m?: Match
+    m?: Match,
+    random?: RandomInput
   ) {
     this.FirstName = fname;
     this.LastName = lname;
     this.Difficulty = diff;
     this.MatchBall = ball;
     this.Match = m;
+    this.random = createRandomSource(random);
 
     if (this.Match) {
       matchEvents.on(`${this.Match.id}-reset-ball-position`, () => {
@@ -75,7 +79,7 @@ export default class Referee {
     // default difficulty. Real fouls draw a card only a minority of the
     // time, and red cards are rare even among those. Replaced with a
     // proper three-way split on a 0-100 roll, most fouls drawing no card.
-    const chance = Math.round(Math.random() * 100);
+    const chance = Math.round(this.random.next() * 100);
     const difficultyMultiplier =
       this.Difficulty === 'tough'
         ? 1.5

@@ -13,6 +13,12 @@ import { ClubInterface as IClub } from '../../controllers/clubs/club.model';
 import CO, { default as Coordinates } from '../utils/coordinates';
 import log from '../../helpers/logger';
 import { ITactic } from '../state/PersistentState/Formations';
+import {
+  createRandomSource,
+  RandomInput,
+  RandomSource,
+  setSimulationRandomSource,
+} from '../randomness';
 
 // import log from ''
 
@@ -41,6 +47,7 @@ export default class Game implements GameClass {
   private Clubs: IClub[];
   private Field: Field;
   private MatchActions: Actions;
+  private readonly random: RandomSource;
 
   constructor(
     clubs: IClub[],
@@ -49,10 +56,13 @@ export default class Game implements GameClass {
     ref: { fname: string; lname: string; level: string },
     centerBlock: any,
     field: Field,
-    Co: Coordinates
+    Co: Coordinates,
+    random?: RandomInput
   ) {
     this.Co = Co;
     this.Field = field;
+    this.random = createRandomSource(random);
+    setSimulationRandomSource(this.random);
 
     // Goal posts are resolved as fractions of the pitch (0 = one end,
     // 1 = the other), so they land in the right place regardless of the
@@ -81,24 +91,36 @@ export default class Game implements GameClass {
       clubs[awayIndex],
       this.awayPost,
       this.homePost,
-      centerBlock
+      centerBlock,
+      this.random.fork('match')
     );
     this.Clubs = clubs;
 
-    this.MatchBall = new Ball('#ffffff', centerBlock, this.Match.id);
+    this.MatchBall = new Ball(
+      '#ffffff',
+      centerBlock,
+      this.Match.id,
+      this.random.fork('ball')
+    );
 
     this.Referee = new Referee(
       'Anjus',
       'Banjus',
       'normal',
       this.MatchBall,
-      this.Match
+      this.Match,
+      this.random.fork('referee')
     );
 
     this.MatchActions = new Actions(
       this.Referee,
       [this.Match.Home, this.Match.Away],
-      this.Match
+      this.Match,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      this.random.fork('actions')
     );
 
     /* ---------- COUNT CLASS INSTANCES ----------- */

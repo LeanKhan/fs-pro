@@ -2,6 +2,11 @@ import { IFieldPlayer } from '../../../../interfaces/Player';
 import { MatchSide } from '../../../classes/MatchSide';
 import CO from '../../../utils/coordinates';
 import { getResult } from '../../../utils/probability';
+import {
+  createRandomSource,
+  RandomInput,
+  RandomSource,
+} from '../../../randomness';
 
 interface IShootProfile {
   threshold: number;
@@ -57,9 +62,11 @@ export class Decider {
   public teams: MatchSide[];
 
   public strategy: IStrategy = { type: 'move', detail: 'normal' };
+  private readonly random: RandomSource;
 
-  constructor(teams: MatchSide[]) {
+  constructor(teams: MatchSide[], random?: RandomInput) {
     this.teams = teams;
+    this.random = createRandomSource(random);
   }
 
   /**
@@ -475,7 +482,7 @@ export class Decider {
    * @returns {number} chance threshold
    */
   public gimmeAChance(): number {
-    return Math.round(Math.random() * 100);
+    return Math.round(this.random.next() * 100);
   }
 
   private chanceToShoot(

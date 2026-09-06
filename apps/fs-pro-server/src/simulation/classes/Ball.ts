@@ -2,7 +2,12 @@ import { ballMove, matchEvents } from '../utils/events';
 import CO from '../utils/coordinates';
 import { IBlock, ICoordinate } from '../state/ImmutableState/FieldGrid';
 import log from '../../helpers/logger';
-import { generateRandomNDigits } from '../../helpers/misc';
+import {
+  createRandomSource,
+  randomNDigits,
+  RandomInput,
+  RandomSource,
+} from '../randomness';
 
 class BallClass {
   public static instances: number;
@@ -20,12 +25,14 @@ export default class Ball implements IBall, BallClass {
   // private Observers: IFieldPlayer[] = [];
   private ballMove = ballMove;
   private readonly _created: Date;
+  private readonly random: RandomSource;
 
-  constructor(color: string, pos: IBlock, match_id: string) {
+  constructor(color: string, pos: IBlock, match_id: string, random?: RandomInput) {
     this.Color = color;
     this.Position = pos;
     this._created = new Date();
-    this.id = '' + generateRandomNDigits(5);
+    this.random = createRandomSource(random);
+    this.id = '' + randomNDigits(5, this.random);
     this.Match_id = match_id;
     Ball.instances++;
   }
