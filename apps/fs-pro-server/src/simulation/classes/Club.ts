@@ -1,5 +1,5 @@
-import { ClubInterface } from '../controllers/clubs/club.model';
-import { PlayerInterface } from '../interfaces/Player';
+import { ClubInterface } from '../../controllers/clubs/club.model';
+import { PlayerInterface } from '../../interfaces/Player';
 export class Club implements ClubInterface {
   public _id: string;
   public Name: string;

@@ -3,13 +3,13 @@ import {
   IPositions,
   PlayerInterface,
   PlayerMatchStatus,
-} from '../interfaces/Player';
+} from '../../interfaces/Player';
 import Player from './Player';
 import Ball from './Ball';
 import { ICoordinate, IBlock } from '../state/ImmutableState/FieldGrid';
 import CO from '../utils/coordinates';
 import { ballMove } from '../utils/events';
-import log from '../helpers/logger';
+import log from '../../helpers/logger';
 
 abstract class FieldPlayerClass {
   public static instances: number;

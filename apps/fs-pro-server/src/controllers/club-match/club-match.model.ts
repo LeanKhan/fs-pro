@@ -1,7 +1,7 @@
 import { Fixture } from '../fixtures/fixture.model';
 import { IClub } from '../../interfaces/Club';
 import { PlayerMatchDetailsInterface } from '../player-match/player-match.model';
-import { IMatchEvent } from '../../classes/Match';
+import { IMatchEvent } from '../../simulation/classes/Match';
 
 export interface ClubMatchDetailsInterface {
   _id?: string;

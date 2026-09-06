@@ -10,7 +10,7 @@ import { SeasonInterface, ClubStandings } from '../seasons/season.model';
 import { getSeasonById } from '../seasons/season.service';
 import { startMatchReplay } from '../../realtime/matchBroadcaster';
 import { saveReplay } from '../match-replays/match-replay.service';
-import { ITactic } from '../../state/PersistentState/Formations';
+import { ITactic } from '../../simulation/state/PersistentState/Formations';
 
 /** Fetches a Season by id, but only returns it if it's still in progress -
  * replaces the raw `fetchSeason({_id, isStarted: true, isFinished: false})`

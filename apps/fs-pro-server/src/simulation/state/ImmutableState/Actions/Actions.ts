@@ -1,6 +1,6 @@
 /* eslint-disable no-prototype-builtins */
 /* eslint-disable no-case-declarations */
-import { IFieldPlayer, IPositions } from '../../../interfaces/Player';
+import { IFieldPlayer, IPositions } from '../../../../interfaces/Player';
 import CO from '../../../utils/coordinates';
 import * as playerFunc from '../../../utils/players';
 import { MatchSide } from '../../../classes/MatchSide';
@@ -17,7 +17,7 @@ import {
 } from '../../../classes/Referee';
 import { Decider, IStrategy } from './Decider';
 import { Match, IMatchData } from '../../../classes/Match';
-import log from '../../../helpers/logger';
+import log from '../../../../helpers/logger';
 
 export class Actions {
   public referee: IReferee;

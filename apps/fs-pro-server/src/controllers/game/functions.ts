@@ -2,7 +2,7 @@ import {
   IMatchDetails,
   IMatchEvent,
   IMatchSideDetails,
-} from '../../classes/Match';
+} from '../../simulation/classes/Match';
 import { ClubStandings } from '../seasons/season.model';
 import { getSeasonById, updateSeasonFields } from '../seasons/season.service';
 import {

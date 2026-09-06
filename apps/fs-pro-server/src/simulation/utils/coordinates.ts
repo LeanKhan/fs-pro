@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import Field, { ICoordinate, IBlock } from '../state/ImmutableState/FieldGrid';
-import { IFieldPlayer } from '../interfaces/Player';
-import log from '../helpers/logger';
+import { IFieldPlayer } from '../../interfaces/Player';
+import log from '../../helpers/logger';
 export default class Coordinates {
   public static _co: Coordinates;
   public Field: Field;

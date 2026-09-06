@@ -47,7 +47,7 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 import App from '../controllers/app/App';
 import { IClub } from '../interfaces/Club';
-import { ITactic } from '../state/PersistentState/Formations';
+import { ITactic } from '../simulation/state/PersistentState/Formations';
 
 const POOL_PATH = path.join(
   __dirname,

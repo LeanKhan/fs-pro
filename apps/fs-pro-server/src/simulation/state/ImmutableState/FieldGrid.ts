@@ -1,4 +1,4 @@
-import { IFieldPlayer } from '../../interfaces/Player';
+import { IFieldPlayer } from '../../../interfaces/Player';
 
 /**
  * Default grid resolution.

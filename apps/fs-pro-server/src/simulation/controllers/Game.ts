@@ -4,14 +4,14 @@
 import { Match } from '../classes/Match';
 import Ball from '../classes/Ball';
 import Field, { IBlock } from '../state/ImmutableState/FieldGrid';
-import { IFieldPlayer } from '../interfaces/Player';
+import { IFieldPlayer } from '../../interfaces/Player';
 import { MatchSide } from '../classes/MatchSide';
 import Referee from '../classes/Referee';
 import { Actions } from '../state/ImmutableState/Actions/Actions';
 import { matchEvents, createMatchEvent } from '../utils/events';
-import { ClubInterface as IClub } from './clubs/club.model';
+import { ClubInterface as IClub } from '../../controllers/clubs/club.model';
 import CO, { default as Coordinates } from '../utils/coordinates';
-import log from '../helpers/logger';
+import log from '../../helpers/logger';
 import { ITactic } from '../state/PersistentState/Formations';
 
 // import log from ''

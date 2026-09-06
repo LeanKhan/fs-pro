@@ -2,9 +2,9 @@ import {
   PlayerInterface,
   IPlayerAttributes,
   IGameStats,
-} from '../interfaces/Player';
+} from '../../interfaces/Player';
 
-import { Role } from '../controllers/players/player.model';
+import { Role } from '../../controllers/players/player.model';
 export default class Player implements PlayerInterface {
   public _id?: string;
   public FirstName: string;

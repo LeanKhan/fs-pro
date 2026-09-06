@@ -54,35 +54,74 @@ The match engine decides what actually happens.
 - A pre-existing (not introduced by this pass) intermittent crash surfaced during the 1000-match runs: `Actions.pass` throws `Cannot read properties of undefined (reading 'BlockPosition')` on a small fraction of matches (~3-5%), preceded by "NO ACTIVE PLAYERS" / "2 players simultaneously have WithBall" log lines. Already tolerated by the harness's own per-match try/catch (failed matches are skipped, not fatal) - flagged here for whoever picks up Milestone 6/7 (explicit transitions / player policy), not fixed as part of this pass per the "no behavior changes" rule.
 - Also pre-existing, not fixed: an `EventEmitter` `MaxListenersExceededWarning` on `<ball-id>-ball-moved` (~25 listeners per match, default cap 24) - each match's ball id is unique so this isn't a real cross-match leak, just Node's default heuristic being conservative for one match's ~22 players + referee. Redirect stderr when running large batches (`2>/dev/null` or to a log file) if the noise is distracting.
 
-## Milestone 2 - Create Simulation Package Boundary
+## Milestone 2 - Isolate the engine under src/simulation/ (revised scope)
 
-**Status:** Not started
+**Status:** Done (2026-09-06) - revised scope, see note below
 
 **Purpose:** Move toward a package that receives plain data and returns plain simulation results.
 
-**Target Structure**
+**Revision note:** After weighing it (see the simulation-engine-isolation
+plan), a real `packages/simulation` npm workspace package was deferred -
+none of Milestones 3-22 actually require the package boundary to exist
+first, and the cost (workspace/build wiring, and duplicating several
+small files that turned out to be used far beyond the simulation core:
+`interfaces/Player.ts`, `interfaces/Club.ts`, `helpers/misc.ts`, every
+`controllers/*/​*.model.ts`) wasn't worth it yet. Instead, the engine was
+physically reorganized into `apps/fs-pro-server/src/simulation/`,
+mirroring the folder structure a real package would have, with a narrow
+`simulation/index.ts` barrel (`Game`, `Coordinates`, `matchEvents`,
+`ballMove`, `createMatchEvent`, `ITactic`) that would become that future
+package's `src/index.ts` verbatim. A future real extraction is now a
+near-mechanical "move this one folder out + add package.json/tsconfig +
+change a handful of import specifiers from relative paths to
+`@repo/simulation`" - not a redesign.
 
-```text
-packages/simulation/
-  src/
-    simulateMatch.ts
-    types.ts
-```
+**What moved into `src/simulation/`:** `Game.ts`, `Match.ts`,
+`MatchSide.ts`, `FieldPlayer.ts`, `Ball.ts`, `Player.ts`, `Club.ts`,
+`Referee.ts`, `Actions.ts`, `Decider.ts`, `FieldGrid.ts`, `Formations.ts`,
+`coordinates.ts`, `probability.ts`, `events.ts`. `utils/players.ts` was
+split (not moved wholesale) - it was shared with the CRUD/training layer,
+but the two function sets turned out to be completely disjoint
+(engine-only: `getATTMID`/`getATTMIDNoFilter`/`getRandomATTMID`/`getGK`/
+`getRandomDEF`/`findRandomFreeBlock`/`findFarthestFreeBlock`/
+`findFreeBlock`/`sortFromKeeperDown`, now in
+`simulation/utils/players.ts`; CRUD/training-only:
+`calculatePlayerRating/Value/Wage`/`attributesToIncrease`/
+`newAttributeRatings`/`distributeAttributePoints`/`liveAttributePool`/
+`poolSizeScale`/`generatePlayer`/`MATCH_GROWTH_SCALE`, stayed in
+`utils/players.ts`) - verified line-by-line before splitting, avoiding a
+repeat of the exact "two divergent copies of the same formula" bug this
+session's `player_rating_recompute_fix` already found and fixed once.
 
-**Tasks**
+`App.ts` stays exactly where it is, unmoved - its DB-fallback branch
+(`getClubs()`/`resolveManagerTactic()`) is genuinely exercised by the
+live HTTP kickoff path (confirmed at the call site), so it stays a thin,
+DB-aware orchestrator that now imports `Game`/`Coordinates`/
+`matchEvents`/`ITactic` from `../../simulation` instead of local relative
+paths. `interfaces/Player.ts`/`interfaces/Club.ts`/`helpers/misc.ts`/
+`helpers/logger.ts`/all `controllers/*/​*.model.ts` files were **not**
+duplicated or moved - they stay in place and the moved engine files just
+reach back out to them via a relative path one level deeper. Also deleted
+`classes/Block.ts` (confirmed dead code, zero importers).
 
-- [ ] Create `packages/simulation`.
-- [ ] Define `SimulateMatchRequest`.
-- [ ] Define `SimulateMatchResult`.
-- [ ] Wrap the current TypeScript engine behind `simulateMatch()`.
-- [ ] Ensure the package has no Express, Vue, Socket.IO, queue, or database imports.
-- [ ] Update server code to call the package boundary.
+**Verified live:** `tsc --noEmit` clean; `simRealismCheck.ts` re-run at
+1000 matches and `--compare`d against a pre-move baseline - near-zero
+deltas (same noise band as two unseeded pre-move runs), proving zero
+behavior change; the real HTTP `GET /game/kickoff-new/:fixture` path
+tested against a real unplayed league fixture (200 OK, correct score,
+standings updated) - proves `App.ts`'s still-DB-aware orchestration
+works end-to-end through the new file layout; `matchSimWorker.ts`
+verified directly (a real worker_thread run, 180 frames, valid result),
+confirming the queued/worker path also resolves the new module layout
+correctly.
 
 **Acceptance Criteria**
 
-- [ ] Simulation package can be imported by `fs-pro-server`.
-- [ ] Existing match simulation still works through the current app flow.
-- [ ] Package input/output is JSON-serializable.
+- [x] Simulation code is cleanly isolated (`src/simulation/`) - not yet a
+      real installable package, but the same import surface.
+- [x] Existing match simulation still works through the current app flow.
+- [x] Package input/output is JSON-serializable (unchanged from before -
+      not part of this pass's scope, N/A until Milestone 3).
 
 ## Milestone 3 - Introduce Match State
 

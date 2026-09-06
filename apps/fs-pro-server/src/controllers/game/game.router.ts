@@ -16,7 +16,7 @@ import {
   DEFAULT_TACTIC,
   formationShapes,
   PLAYING_STYLES,
-} from '../../state/PersistentState/Formations';
+} from '../../simulation/state/PersistentState/Formations';
 
 const s = initServer();
 

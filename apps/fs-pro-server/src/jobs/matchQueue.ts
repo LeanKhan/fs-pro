@@ -7,7 +7,7 @@ import {
   startMatchReplay,
   IReplayableMatch,
 } from '../realtime/matchBroadcaster';
-import { ITactic } from '../state/PersistentState/Formations';
+import { ITactic } from '../simulation/state/PersistentState/Formations';
 
 /**
  * Deliberately conservative: this path is new and unaudited, and doesn't
