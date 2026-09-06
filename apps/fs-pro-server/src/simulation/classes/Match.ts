@@ -17,6 +17,7 @@ import {
   ISentOff,
 } from './Referee';
 import log from '../../helpers/logger';
+import { applyGoal } from '../transitions';
 import {
   createMatchStateSnapshot,
   matchStateToDetails,
@@ -143,52 +144,19 @@ export class Match implements IMatch, MatchClass {
 
     matchEvents.on(`${this.id}-goal!`, (data: IShot) => {
       log('GOAAAALLL!!!');
-
-      // add to match actions...
-      this.Actions.push({
-        type: 'goal',
-        // save player's actual ID from now on!
-        playerID: data.shooter._id!,
-        playerTeam: data.shooter.ClubCode!,
-        timestamp: this.getCurrentTime,
+      // Milestone 6 (Explicit Transitions) - validates (scorer must still
+      // be an active player) then calls recordGoal() below. The engine's
+      // own shot-resolution flow always has a legitimate scorer here, so
+      // this validation is a safety net, not expected to ever reject in
+      // live play - see the simulation-engine-isolation plan.
+      const result = applyGoal({
+        match: this,
+        scorer: data.shooter,
+        keeper: data.keeper,
       });
-
-      data.shooter.increaseGoalTally();
-
-      data.shooter.increasePoints(GamePoints.Goal);
-
-      // now determine if there was an assist!
-
-      const actionLength = this.Actions.length > 1 ? this.Actions.length : 2;
-
-      if (
-        this.Actions[actionLength - 2].type === 'goal' &&
-        this.Actions[actionLength - 2].playerTeam === data.shooter.ClubCode
-      ) {
-        const playerID = this.Actions[actionLength - 2].playerID;
-
-        const assister = this.fetchPlayerById(playerID);
-
-        assister!.GameStats.Assists++;
-        assister?.increasePoints(GamePoints.Assist);
+      if (!result.success) {
+        log(`Unexpected: live goal rejected - ${result.error}`);
       }
-
-      // subtract from keeper's points :3
-      data.keeper.increasePoints(-GamePoints.Save / 2);
-
-      if (data.shooter.ClubCode === this.Home.ClubCode) {
-        this.Details.HomeTeamScore++;
-        this.Details.HomeTeamDetails.Goals++;
-      } else if (data.shooter.ClubCode === this.Away.ClubCode) {
-        this.Details.AwayTeamScore++;
-        this.Details.AwayTeamDetails.Goals++;
-      }
-
-      log(
-        `Goal from ${data.shooter.FirstName} ${data.shooter.LastName} now at ${data.shooter.GameStats.Goals}`
-      );
-
-      this.Details.Goals++;
     });
 
     matchEvents.on(`${this.id}-event`, (data: IMatchEvent) => {
@@ -491,6 +459,62 @@ export class Match implements IMatch, MatchClass {
 
   public toDetailsFromState(state: MatchState = this.toState()): IMatchDetails {
     return matchStateToDetails(state, this.Details);
+  }
+
+  /**
+   * The actual score/stat mutation for a goal - extracted (Milestone 6)
+   * out of the `-goal!` listener's inline body so it's independently
+   * callable (by `applyGoal()`, `transitions/index.ts`) instead of only
+   * reachable via the event chain. No validation here - trusts the
+   * caller, same as before extraction; `applyGoal()` is where validation
+   * lives now.
+   */
+  public recordGoal(scorer: IFieldPlayer, keeper: IFieldPlayer): void {
+    // add to match actions...
+    this.Actions.push({
+      type: 'goal',
+      // save player's actual ID from now on!
+      playerID: scorer._id!,
+      playerTeam: scorer.ClubCode!,
+      timestamp: this.getCurrentTime,
+    });
+
+    scorer.increaseGoalTally();
+
+    scorer.increasePoints(GamePoints.Goal);
+
+    // now determine if there was an assist!
+
+    const actionLength = this.Actions.length > 1 ? this.Actions.length : 2;
+
+    if (
+      this.Actions[actionLength - 2].type === 'goal' &&
+      this.Actions[actionLength - 2].playerTeam === scorer.ClubCode
+    ) {
+      const playerID = this.Actions[actionLength - 2].playerID;
+
+      const assister = this.fetchPlayerById(playerID);
+
+      assister!.GameStats.Assists++;
+      assister?.increasePoints(GamePoints.Assist);
+    }
+
+    // subtract from keeper's points :3
+    keeper.increasePoints(-GamePoints.Save / 2);
+
+    if (scorer.ClubCode === this.Home.ClubCode) {
+      this.Details.HomeTeamScore++;
+      this.Details.HomeTeamDetails.Goals++;
+    } else if (scorer.ClubCode === this.Away.ClubCode) {
+      this.Details.AwayTeamScore++;
+      this.Details.AwayTeamDetails.Goals++;
+    }
+
+    log(
+      `Goal from ${scorer.FirstName} ${scorer.LastName} now at ${scorer.GameStats.Goals}`
+    );
+
+    this.Details.Goals++;
   }
 
   public recordPossession(team: MatchSide) {

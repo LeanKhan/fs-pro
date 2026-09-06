@@ -19,6 +19,11 @@ import {
   RandomSource,
   setSimulationRandomSource,
 } from '../randomness';
+import {
+  applyTacticalChange,
+  applySubstitution,
+  applyPossessionChange,
+} from '../transitions';
 
 // import log from ''
 
@@ -64,7 +69,10 @@ export default class Game implements GameClass {
   public MatchSettings: any;
   public Co: Coordinates;
   private Clubs: IClub[];
-  private Field: Field;
+  /** Public since Milestone 6's `applyTacticalChange` transition
+   * (transitions/index.ts) needs it to delegate to MatchSide.changeTactic() -
+   * no other behavior change. */
+  public Field: Field;
   private MatchActions: Actions;
   /** Tick cursor for advanceMatch() - 0-180 (2 ticks/minute), resumable
    * across multiple calls within the same still-running Game instance. */
@@ -198,23 +206,34 @@ export default class Game implements GameClass {
     this.MatchSettings.homeTactic = awayTactic;
     this.MatchSettings.awayTactic = homeTactic;
 
-    this.Match.Home.changeTactic(
-      this.MatchSettings.homeTactic,
-      this.Field,
-      // new scoring side
-      this.homePost,
-      // new keeping side
-      this.awayPost
-    );
+    // Milestone 6 (Explicit Transitions) - goes through the same
+    // validated transition a live mid-match tactic change would use,
+    // instead of mutating MatchSide directly. Squad is always exactly 11
+    // active players here (this always runs strictly before
+    // performHalfTimeSubstitutions()), so this is expected to always
+    // succeed - logged if it somehow doesn't, see the simulation-engine-
+    // isolation plan.
+    const homeResult = applyTacticalChange({
+      game: this,
+      side: this.Match.Home,
+      tactic: this.MatchSettings.homeTactic,
+      scoringSide: this.homePost,
+      keepingSide: this.awayPost,
+    });
+    if (!homeResult.success) {
+      log(`Unexpected: half-time tactic swap rejected for Home - ${homeResult.error}`);
+    }
 
-    this.Match.Away.changeTactic(
-      this.MatchSettings.awayTactic,
-      this.Field,
-      // new scoring side
-      this.awayPost,
-      // new keeping side
-      this.homePost
-    );
+    const awayResult = applyTacticalChange({
+      game: this,
+      side: this.Match.Away,
+      tactic: this.MatchSettings.awayTactic,
+      scoringSide: this.awayPost,
+      keepingSide: this.homePost,
+    });
+    if (!awayResult.success) {
+      log(`Unexpected: half-time tactic swap rejected for Away - ${awayResult.error}`);
+    }
   }
 
   /**
@@ -232,48 +251,44 @@ export default class Game implements GameClass {
   private substituteSide(side: MatchSide) {
     const pairs = side.planHalfTimeSubstitutions();
 
+    // Milestone 6 (Explicit Transitions) - the auto-planner above only
+    // ever generates valid pairs by construction (bench-only source,
+    // position-matched, GK-excluded, capped at MAX_SUBSTITUTIONS), so
+    // this is expected to always succeed - logged if it somehow doesn't,
+    // see the simulation-engine-isolation plan.
     pairs.forEach(({ outgoing, incoming }) => {
-      side.substitutePlayer(outgoing, incoming, this.MatchBall);
-
-      createMatchEvent(
-        this.Match.id,
-        `${side.Name} [${side.ClubCode}] substitution: ${incoming.FirstName} ${incoming.LastName} replaces ${outgoing.FirstName} ${outgoing.LastName}`,
-        'substitution',
-        incoming._id,
-        side.ClubCode
-      );
+      const result = applySubstitution({ game: this, side, outgoing, incoming });
+      if (!result.success) {
+        log(`Unexpected: half-time substitution rejected - ${result.error}`);
+      }
     });
   }
 
   /**
    * Change a side's tactic at any point in the match, not just half-time.
-   * Emits a matchEvents event so the change lands in Match.Events/Frames
-   * automatically, same as every other in-match action - no replay-system
-   * changes needed for this to show up in a live watch.
+   * Ergonomic 'home'/'away' wrapper around the validated
+   * `applyTacticalChange` transition (Milestone 6) - see the
+   * simulation-engine-isolation plan. Zero live callers today (kept as a
+   * public entry point for whatever calls it next, e.g. a future manager
+   * decision surface); `MatchSettings`/the `-tactic-changed` event only
+   * update if the transition actually succeeds.
    */
   public changeTactic(side: 'home' | 'away', tactic: ITactic) {
     const matchSide = side === 'home' ? this.Match.Home : this.Match.Away;
 
-    matchSide.changeTactic(
-      tactic,
-      this.Field,
-      matchSide.ScoringSide,
-      matchSide.KeepingSide
-    );
+    const result = applyTacticalChange({ game: this, side: matchSide, tactic });
 
-    if (side === 'home') {
-      this.MatchSettings.homeTactic = tactic;
-    } else {
-      this.MatchSettings.awayTactic = tactic;
+    if (result.success) {
+      if (side === 'home') {
+        this.MatchSettings.homeTactic = tactic;
+      } else {
+        this.MatchSettings.awayTactic = tactic;
+      }
+
+      matchEvents.emit(`${this.Match.id}-tactic-changed`, { side, tactic });
     }
 
-    createMatchEvent(
-      this.Match.id,
-      `${matchSide.Name} [${matchSide.ClubCode}] changed tactics to ${tactic.formationName} (${tactic.styleName})`,
-      'match'
-    );
-
-    matchEvents.emit(`${this.Match.id}-tactic-changed`, { side, tactic });
+    return result;
   }
 
   public getMatch() {
@@ -501,7 +516,7 @@ export default class Game implements GameClass {
             this.ActivePlayerDS as IFieldPlayer
           );
           const playingSides = this.setPlayingSides();
-          this.Match.recordPossession(this.AS);
+          applyPossessionChange({ match: this.Match, side: this.AS });
         }
 
         this.Match.captureFrame(i, this.MatchBall.Position);

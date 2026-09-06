@@ -10,6 +10,7 @@ import { MatchSide } from './MatchSide';
 import { IBall } from './Ball';
 import log from '../../helpers/logger';
 import { createRandomSource, RandomInput, RandomSource } from '../randomness';
+import { applyCard } from '../transitions';
 
 export default class Referee {
   public FirstName: string;
@@ -112,16 +113,37 @@ export default class Referee {
 
   public handleFoul(data: IFoul, matchActions: Actions) {
     switch (data.reason) {
-      case 'yellow card':
+      case 'yellow card': {
         log('yellow card! [Y]');
-        this.bookPlayer(data.subject, 'yellow');
+        // Milestone 6 (Explicit Transitions) - validates (not already
+        // sent off) then delegates to bookPlayer(), unchanged. The
+        // engine's own foul-resolution flow never fouls an already-sent-
+        // off player, so this is a safety net, not expected to reject in
+        // live play.
+        const result = applyCard({
+          referee: this,
+          player: data.subject,
+          cardType: 'yellow',
+        });
+        if (!result.success) {
+          log(`Unexpected: live yellow card rejected - ${result.error}`);
+        }
         this.setUpSetPiece(data, data.where);
         break;
-      case 'red card':
+      }
+      case 'red card': {
         log('red card! [R]');
-        this.bookPlayer(data.subject, 'red');
+        const result = applyCard({
+          referee: this,
+          player: data.subject,
+          cardType: 'red',
+        });
+        if (!result.success) {
+          log(`Unexpected: live red card rejected - ${result.error}`);
+        }
         this.setUpSetPiece(data, data.where);
         break;
+      }
       case 'foul':
         log('foul! [FK]');
         this.setUpSetPiece(data, data.where);
@@ -138,7 +160,10 @@ export default class Referee {
    * simulation - which already reads MatchStatus/ActivePlayers/Attributes -
    * react naturally. No special-casing needed anywhere else.
    */
-  private bookPlayer(player: IFieldPlayer, card: 'yellow' | 'red') {
+  /** Public since Milestone 6's `applyCard` transition (transitions/
+   * index.ts) validates then delegates here - the actual card logic
+   * stays exactly as it was, just no longer private. */
+  public bookPlayer(player: IFieldPlayer, card: 'yellow' | 'red') {
     if (card === 'yellow') {
       player.GameStats.YellowCards++;
       if (player.GameStats.YellowCards >= 2) {

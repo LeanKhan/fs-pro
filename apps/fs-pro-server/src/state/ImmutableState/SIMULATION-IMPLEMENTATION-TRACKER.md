@@ -315,7 +315,7 @@ unplayed fixture (200 OK, correct score, standings updated).
 
 ## Milestone 6 - Explicit Transitions
 
-**Status:** Not started
+**Status:** Done (2026-09-06)
 
 **Purpose:** Prevent arbitrary state mutation and make world changes auditable.
 
@@ -328,18 +328,91 @@ unplayed fixture (200 OK, correct score, standings updated).
 - `applyPossessionChange`
 - `applyMatchEvent`
 
+**Revision note:** Investigation before writing this found "validation
+that can reject" is a genuinely new concept for this codebase - every
+mutation path was unconditional (the only guard anywhere was one
+idempotency check, `Referee.sendOff()`'s double-send-off bail), and
+nothing live ever attempted an invalid transition (the half-time sub
+auto-planner and the tactic-swap caller are both structurally incapable
+of producing bad input). So this milestone is infrastructure for a
+future caller (a manager/AI decision surface - Milestone 7/21, not built
+yet), not a fix for anything currently broken. Design choice: don't
+rewrite Referee/Actions/Match's calibrated dice-roll/event-chain
+internals - extract the two that were pure inline listener bodies
+(`Match.recordGoal()`, extracted from the `-goal!` listener;
+`Referee.bookPlayer()`, already a method, just flipped from private to
+public) into callable methods, then wrap all six in validating
+functions in a new `simulation/transitions/index.ts`.
+
 **Tasks**
 
-- [ ] Define transition result shape.
-- [ ] Add validation inside transition functions.
-- [ ] Emit structured events from transitions.
-- [ ] Replace direct mutation where practical.
+- [x] Define transition result shape - `TransitionResult<T>` (success
+      with `data`/`events`, or `{success:false, error}`).
+- [x] Add validation inside transition functions.
+- [x] Emit structured events from transitions - `applyTacticalChange`/
+      `applySubstitution`/`applyMatchEvent` do; `applyCard`/`applyGoal`/
+      `applyPossessionChange` deliberately don't (see below).
+- [x] Replace direct mutation where practical - `Game.substituteSide()`,
+      `Game.swapClubFormations()`, `Game.changeTactic()`,
+      `Game.gameLoop()`'s possession call, and `Referee.handleFoul()`'s
+      card branch all now go through the transitions instead of mutating
+      directly.
+
+**Why `applyCard`/`applyGoal` emit no event of their own:** found live
+while implementing - both would have **duplicated** an event that
+already exists. `Referee.handleShot()`'s `'goal'` case already narrates
+every goal (a second, independent listener chain from the one
+`Match.recordGoal()`'s score mutation lives on); `Match`'s `-game-halt`
+listener already narrates every foul including carded ones (and
+`-player-sent-off` narrates the send-off itself). Emitting again from
+`applyGoal`/`applyCard` would have doubled those events for every live
+match - caught before shipping by comparing "Events per match" against
+the pre-change baseline. `applyTacticalChange`'s event is NOT a
+duplicate - `Game.swapClubFormations()` emitted nothing before this pass
+(only `Game.changeTactic()`, zero live callers, did) - so half-time
+tactic swaps are now visible in `Match.Events`/replay for the first time
+(a real, intentional improvement, confirmed as the expected +2/match
+shift in the diagnostic event-count metric, not a regression).
+
+**A real bug caught by the new rejection-path test, not by the
+regression check:** `applyTacticalChange`'s first validation attempt
+checked `side.ActivePlayers.length !== 11` - looks right, but
+`MatchSide.changeTactic()` actually re-walks the raw `StartingSquad`
+array (which keeps growing across substitutions - an outgoing player is
+marked `'substituted'` but never removed), not the `ActivePlayers`-
+filtered view. After exactly one substitution, `ActivePlayers.length` is
+back at 11 (10 still-active originals + 1 incoming) while
+`StartingSquad.length` is 12 - the buggy check would have passed
+validation and then crashed inside `changeTactic()` itself (reproduced
+live, `TypeError: Cannot read properties of undefined ('block')` in
+`MatchSide.getBlock()`). Fixed to check `StartingSquad.length !== 11`
+instead. This is exactly why the plan called for a dedicated rejection-
+path test separate from the regression check - the regression check
+alone (no live caller ever exercises a post-substitution tactic change)
+would never have caught this.
+
+**Verified live:** `tsc --noEmit` clean; `simRealismCheck.ts --compare`
+against the pre-change baseline - every gameplay metric within normal
+unseeded-sampling noise, only the diagnostic "Events per match" metric
+shifted (+2.3, matching the two new tactic-swap narration events per
+match, exactly as expected); a dedicated rejection-path script exercising
+all six transitions - GK-outgoing/GK-incoming/wrong-side substitution
+rejections, past-`MAX_SUBSTITUTIONS` rejection, unknown-formation/style
+rejections, the post-substitution tactic-change rejection above (after
+the fix), already-sent-off double-card rejection, sent-off-player-can't-
+score rejection, and a side-not-in-this-match possession rejection - all
+12 checks passed, alongside their legitimate-input counterparts
+succeeding; real HTTP `GET /game/kickoff-new/:fixture` against a genuine
+unplayed fixture (200 OK, correct score, standings updated).
 
 **Acceptance Criteria**
 
-- [ ] Invalid substitutions/tactical changes are rejected.
-- [ ] Transitions produce events.
-- [ ] Match state invariants are protected.
+- [x] Invalid substitutions/tactical changes are rejected.
+- [x] Transitions produce events (where doing so wouldn't duplicate an
+      existing one - see above).
+- [x] Match state invariants are protected (the `StartingSquad`-vs-
+      `ActivePlayers` bug above is exactly this acceptance criterion
+      doing its job).
 
 ## Milestone 7 - Team Intent And Player Policy
 
