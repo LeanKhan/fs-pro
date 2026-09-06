@@ -53,11 +53,13 @@ async function main() {
         _id: match.Home._id,
         Name: match.Home.Name,
         ClubCode: match.Home.ClubCode,
+        ManagerId: match.Home.ManagerId,
       },
       Away: {
         _id: match.Away._id,
         Name: match.Away.Name,
         ClubCode: match.Away.ClubCode,
+        ManagerId: match.Away.ManagerId,
       },
       Details: match.Details,
       Frames: match.Frames,
