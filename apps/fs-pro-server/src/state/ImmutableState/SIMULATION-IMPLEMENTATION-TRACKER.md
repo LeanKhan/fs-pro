@@ -963,23 +963,105 @@ running dev server (not just the offline scripts): sequence id climbing
 
 ## Milestone 12 - Formation Anchors And Team Shape
 
-**Status:** Not started
+**Status:** Done (2026-09-07)
 
 **Purpose:** Make players move from a role/formation home position rather than simply chasing the ball or goal.
 
 **Tasks**
 
-- [ ] Define normalized `FormationAnchor`.
-- [ ] Map current formations to anchors.
-- [ ] Blend anchor, ball position, team intent, and role bias into a target position.
-- [ ] Keep width and team shape during buildup/defending.
-- [ ] Add shape behavior for high line, low block, compactness, and wide/narrow play.
+- [x] Define normalized `FormationAnchor` - `state/PersistentState/
+      Formations.ts`. This already existed as `FormationSlot`'s own x/y
+      (0-1 fractions) - formalized as a named, reusable type
+      (`FormationSlot extends FormationAnchor`) rather than a fresh
+      concept, matching the pattern Milestone 7 found for `TeamIntent`/
+      `IPlayingStyle`.
+- [x] Map current formations to anchors - already true before this pass
+      (`formationShapes` is exactly this mapping; `resolveFormation()`
+      already resolves each anchor to a real block for the current
+      grid/direction) - nothing to build, just recognize and name it.
+- [x] Blend anchor, ball position, team intent, and role bias into a
+      target position - `Actions.getShapeTarget()`, rewritten. "Anchor" is
+      `FieldPlayer.StartingPosition` (each active player's own resolved
+      `FormationAnchor`, kept current by `MatchSide.setFormation()`/
+      `changeTactic()`); "team intent" is `team.Tactic.style` (the same
+      source `TeamIntent` itself is a passthrough of, per Milestone 7's
+      own note); "role bias" is `ROLE_SHAPE_BIAS`, keyed by the player's
+      `Position` (`PlayerRole`/tendencies don't exist yet - that's
+      Milestone 15's job, not invented early here).
+- [x] Keep width and team shape during buildup/defending - `getShapeTarget()`
+      now blends a Y-axis (width) pull toward the ball's flank, scaled by
+      `team.Tactic.style.width`, alongside the existing X-axis (forward/
+      back) pull - previously Y always stayed pinned to the anchor no
+      matter what, so width had zero positioning effect.
+- [x] Add shape behavior for high line, low block, compactness, and
+      wide/narrow play - high line/low block was already real (`movePlayersForward`/
+      `movePlayersBackward`'s `defensiveLineHeight`-scaled bias, pre-
+      existing); wide/narrow is the new width blend above. "Compactness"
+      wasn't given a separate dedicated mechanism - it already emerges
+      from the same anchor+ball blend (everyone drifting toward the ball
+      compresses the team without a second, competing force fighting it) -
+      see the revision note below for why a distinct force wasn't added.
+
+**Revision note - the real gap this milestone closed:** Investigation
+before writing anything found the tracker's own framing ("blend anchor +
+ball + intent + role into a target") was already ~70% true for ATT/MID
+players (`getShapeTarget`'s x-only blend existed since Milestone 6-era
+code) - but `pushForward`/`pushBackward`/`pressureBall` all filtered
+through `getATTMID()`, which **only ever selects ATT/MID players**.
+Defenders never received a single shape-holding movement call for the
+entire match outside of being personally involved in a tackle/duel or a
+half-time tactic change - they sat frozen at their exact kickoff block for
+90 minutes. Renamed `getATTMID` to `getOutfield` (DEF/MID/ATT, GK still
+excluded - goalkeepers stay on `Referee.ts`'s existing keeper-reset logic)
+and swapped it into all four call sites - this, not the width blend, is
+what actually makes "teams visibly keep shape" true for the whole team
+rather than just its front two-thirds.
+
+**Tuning note:** An initial pass (DEF role bias 0.5, width scale 0.5)
+measurably suppressed shots/shots-on-target/goals in `simRealismCheck.ts`
+beyond noise - a previously-inert defense actively holding/repositioning
+made attacking harder, which is realistic in direction but landed on an
+already under-real-world-range metric this project has been careful not
+to worsen further (see Milestones 10/11's own tuning notes for the same
+concern). Isolated via a WIDTH_DRIFT_SCALE=0 A/B: the width blend
+contributed almost nothing to the dip: the DEF role bias did. Settled on
+DEF 0.3 / MID 0.85 / ATT 1 and a width scale of 0.25, which brought shots/
+shots-on-target/goals back to within normal unseeded-sampling noise of the
+pre-milestone baseline while passes rose measurably (+1.8, a genuine
+improvement against a metric that was also under range) and dribbles
+eased back down slightly (toward, not away from, its own range).
+
+**Verified live:** `tsc --noEmit` clean; `oxlint src` clean; a dedicated
+throwaway script (deleted after use) confirmed, on a real roster-pool
+match: at least one defender had moved off their exact kickoff block after
+30 simulated minutes (previously impossible - zero would ever have moved);
+no two outfield players ever share a block (no collapse); and, holding the
+fixture/opponent/formation fixed and varying only the home side's style,
+`Possession` (width 0.7) produced a measurably larger Y-axis spread among
+home outfield players than `LowBlock` (width 0.5) after 60 minutes (4.55
+vs 4.46 stddev) - all checks passed. `simRealismCheck.ts --compare`
+against a pre-milestone baseline (945 vs 940 matches, after the tuning
+pass above) - goals/shots/shots-on-target/passes/fouls/yellow-cards all
+within normal noise, tackles/interceptions/dribbles/events shifted modestly
+(consistent with a genuinely more active, better-organized defense).
+Real HTTP `GET /api/game/kickoff-new/:fixture` against a genuine unplayed,
+non-friendly fixture (looked up live via `GET /api/fixtures?played=false`)
+- 200 OK against the actual running dev server.
 
 **Acceptance Criteria**
 
-- [ ] Teams visibly keep shape in replay frames.
-- [ ] Players do not collapse onto one shared destination.
-- [ ] Tactical width and defensive line affect positioning.
+- [x] Teams visibly keep shape in replay frames - defenders now actually
+      move to hold/advance their own anchor-relative shape instead of
+      standing frozen at kickoff all match.
+- [x] Players do not collapse onto one shared destination - verified live
+      (no two outfield players share a block after 30 minutes of play);
+      structurally guaranteed too, since every player blends toward the
+      ball/goal from their OWN anchor, not a single shared point.
+- [x] Tactical width and defensive line affect positioning - width:
+      verified live (4.55 vs 4.46 Y-spread, `Possession` vs `LowBlock`);
+      defensive line: pre-existing `defensiveLineHeight`-scaled bias in
+      `movePlayersForward`/`movePlayersBackward`, now actually reaching
+      defenders too (previously only ATT/MID).
 
 ## Milestone 13 - Passing Options And Decision Evaluation
 

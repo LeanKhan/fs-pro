@@ -18,20 +18,23 @@ import {
 import { simulationRandomInt } from '../randomness';
 
 /**
- * Get attackers and midfielders that are not with the ball
+ * Every outfield player (DEF/MID/ATT - GK excluded, same as everywhere
+ * else in this file) not currently on the ball. Milestone 12 (Formation
+ * Anchors And Team Shape) - replaces the old `getATTMID(team)` at every
+ * shape-holding call site (`Actions.pushForward`/`pushBackward`/
+ * `pressureBall`, and the Milestone 11 hold-shape branch in
+ * `continueGamePlay`): those previously only ever moved ATT/MID players,
+ * leaving every defender frozen in their kickoff block for the entire
+ * match outside of a tackle/duel they happened to be personally involved
+ * in. Renamed rather than just widening `getATTMID`'s own filter, since
+ * "attackers and midfielders" is no longer an accurate name for what it
+ * selects.
  *
  * @param team
  */
-function getATTMID(team: MatchSide) {
+function getOutfield(team: MatchSide) {
   return team.ActivePlayers.filter((player) => {
-    if (
-      (player.Position === 'ATT' && !player.WithBall) ||
-      (player.Position === 'MID' && !player.WithBall)
-    ) {
-      return true;
-    } else {
-      return false;
-    }
+    return player.Position !== 'GK' && !player.WithBall;
   });
 }
 
@@ -190,7 +193,7 @@ function sortFromKeeperDown(players: PlayerInterface[]) {
 }
 
 export {
-  getATTMID,
+  getOutfield,
   getATTMIDNoFilter,
   findRandomFreeBlock,
   findFarthestFreeBlock,

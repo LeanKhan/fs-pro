@@ -1,22 +1,36 @@
 import Field, { IBlock } from '../ImmutableState/FieldGrid';
 
 /**
- * A formation slot, defined independently of grid size.
- *
- * x/y are fractions of the pitch (0-1), always expressed as if the team
- * is attacking left-to-right:
+ * Milestone 12 (Formation Anchors And Team Shape) - a normalized home
+ * position (plan doc's `FormationAnchor` sketch), fractions of the pitch
+ * (0-1), always expressed as if the team is attacking left-to-right:
  *   x: 0   = own goal line
  *   x: 1   = opponent's goal line
  *   y: 0   = one flank
  *   y: 1   = other flank
  *
- * Resolving a slot to a real block on the current grid (and flipping it
- * for a team attacking right-to-left) happens in resolveFormation().
+ * This already existed as `FormationSlot`'s own x/y (formalized here as a
+ * named, reusable type rather than a fresh concept) - every formation in
+ * `formationShapes` below already IS a formation mapped to anchors, and
+ * `resolveFormation()` already resolves each anchor to a real block for
+ * the current grid/direction. What Milestone 12 actually adds is the
+ * blending formula that uses a player's *resolved* anchor
+ * (`FieldPlayer.StartingPosition` - kept current across tactic changes by
+ * `MatchSide.setFormation()`/`changeTactic()`) as a gravitational home
+ * position rather than a fixed destination - see `Actions.getShapeTarget()`.
  */
-export interface FormationSlot {
-  positions: string[];
+export interface FormationAnchor {
   x: number;
   y: number;
+}
+
+/**
+ * A formation slot, defined independently of grid size. Resolving a slot
+ * to a real block on the current grid (and flipping it for a team
+ * attacking right-to-left) happens in resolveFormation().
+ */
+export interface FormationSlot extends FormationAnchor {
+  positions: string[];
 }
 
 export interface FormationShapes {
@@ -25,6 +39,9 @@ export interface FormationShapes {
 
 export type AttackingDirection = 'left-to-right' | 'right-to-left';
 
+/** A `FormationAnchor` resolved to a real block on the current grid, for a
+ * specific attacking direction - see `resolveFormation()`. Each active
+ * player's own copy of this lives on `FieldPlayer.StartingPosition`. */
 export interface ResolvedFormationSlot {
   positions: string[];
   block: IBlock;
