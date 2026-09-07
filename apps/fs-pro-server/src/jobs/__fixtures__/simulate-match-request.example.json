@@ -1,0 +1,189 @@
+{
+  "fixtureId": "6ba7eeb9-9a16-4d68-8e0e-0703b56e9d1d",
+  "clubs": [
+    {
+      "_id": "9dd8d817-e5e2-4d62-9a16-b6019f10144c",
+      "Name": "Sunny City FZ",
+      "ClubCode": "SUN",
+      "AttackingClass": 94.714165,
+      "DefensiveClass": 92.441,
+      "Rating": 61.14842,
+      "GK_Rating": 63.34,
+      "ATT_Rating": 66.37667,
+      "DEF_Rating": 58.202,
+      "MID_Rating": 56.675,
+      "ManagerId": "ca02a087-ec76-4160-8e93-b88a827f4956",
+      "assets": null,
+      "Stats": null,
+      "Address": {
+        "City": "Stonkev",
+        "Section": "Exhibition"
+      },
+      "AddressCountryId": "f526f31c-53e6-4eac-8b07-9591deea5a6e",
+      "Budget": 1768163,
+      "Records": [
+        {
+          "date": "2022-05-13T20:02:45.449Z",
+          "type": "manager-hire",
+          "title": "Hired Feddyke Forveezl as new manager!",
+          "details": "Sunny City!!!!!!!",
+          "manager": "627eb7a6792a10e802f95cb8"
+        },
+        {
+          "date": "2022-05-13T20:06:46.500Z",
+          "type": "manager-leaving",
+          "title": "Manager Feddyke Forveezl left the club",
+          "details": "\"mistake\"",
+          "manager": "627eb7a6792a10e802f95cb8"
+        },
+        {
+          "date": "2022-05-13T20:07:43.678Z",
+          "type": "manager-hire",
+          "title": "Hired Feddyke Forveezl as new manager!",
+          "details": "I am amazed to be here and to make history as the first and hopefully one of the best managers of Sunny City!!!!!!!",
+          "manager": "627eb7a6792a10e802f95cb8"
+        }
+      ],
+      "Stadium": {
+        "Name": "Sun Voobal Stadie",
+        "Capacity": "12000",
+        "Location": "379, Granite Roda 1, Exhibition"
+      },
+      "LeagueCode": "KLV",
+      "LeagueId": "89db3efc-f457-463e-9db0-9797764694af",
+      "UserId": "ed5c9e68-ff2e-44e1-854c-e2be25560865",
+      "createdAt": "2022-05-07T16:59:01.092Z",
+      "updatedAt": "2026-09-04T18:55:03.446Z",
+      "AddressCountry": {
+        "_id": "f526f31c-53e6-4eac-8b07-9591deea5a6e",
+        "Fullname": "Free State of Kev",
+        "Name": "Kev",
+        "Code": "KEV",
+        "Region": "world-west",
+        "Type": "country",
+        "Picture": null,
+        "createdAt": "2026-08-31T05:48:49.497Z",
+        "updatedAt": "2026-08-31T05:48:49.497Z"
+      },
+      "Players": [
+        {
+          "_id": "89ac167e-0e5c-488f-ae42-b915d9f7b0d2",
+          "Role": "RB"
+        },
+        {
+          "_id": "649b6c99-5384-4694-af63-1ca391d85520",
+          "Role": "CM"
+        }
+      ],
+      "Manager": {
+        "_id": "ca02a087-ec76-4160-8e93-b88a827f4956",
+        "Key": "MG-000047",
+        "FirstName": "Feddyke",
+        "LastName": "Forveezl",
+        "Age": 40,
+        "Picture": null,
+        "ClubId": "9dd8d817-e5e2-4d62-9a16-b6019f10144c",
+        "PreferredFormation": null,
+        "PreferredStyle": null,
+        "NationalityId": "f526f31c-53e6-4eac-8b07-9591deea5a6e",
+        "NationalTeam": false,
+        "Records": [],
+        "isEmployed": true,
+        "createdAt": "2022-05-13T19:55:18.092Z",
+        "updatedAt": "2022-05-13T20:07:43.671Z"
+      }
+    },
+    {
+      "_id": "680d896d-f9fb-4df6-a182-6f7439e039f9",
+      "Name": "Poovent United",
+      "ClubCode": "PUN",
+      "AttackingClass": 96.456665,
+      "DefensiveClass": 93.5735,
+      "Rating": 63.008415,
+      "GK_Rating": 62.44,
+      "ATT_Rating": 65.58667,
+      "DEF_Rating": 62.267,
+      "MID_Rating": 61.739998,
+      "ManagerId": "bd7be954-c2b2-49fb-9dc8-f9c8a81e8411",
+      "assets": null,
+      "Stats": null,
+      "Address": {
+        "City": "Poovent",
+        "Section": "Archin"
+      },
+      "AddressCountryId": "f526f31c-53e6-4eac-8b07-9591deea5a6e",
+      "Budget": 1397671,
+      "Records": [
+        {
+          "date": "2022-05-13T19:48:07.615Z",
+          "type": "manager-hire",
+          "title": "Hired Beshrov Arwanne as new manager!",
+          "details": "",
+          "manager": "627eb245792a10e802f95b0c"
+        }
+      ],
+      "Stadium": {
+        "Name": "Archin City Stadie",
+        "Capacity": "12000",
+        "Location": "1, Main Street, Archin Town"
+      },
+      "LeagueCode": "KLV",
+      "LeagueId": "89db3efc-f457-463e-9db0-9797764694af",
+      "UserId": "ed5c9e68-ff2e-44e1-854c-e2be25560865",
+      "createdAt": "2022-05-07T16:59:01.075Z",
+      "updatedAt": "2026-09-03T17:55:16.616Z",
+      "AddressCountry": {
+        "_id": "f526f31c-53e6-4eac-8b07-9591deea5a6e",
+        "Fullname": "Free State of Kev",
+        "Name": "Kev",
+        "Code": "KEV",
+        "Region": "world-west",
+        "Type": "country",
+        "Picture": null,
+        "createdAt": "2026-08-31T05:48:49.497Z",
+        "updatedAt": "2026-08-31T05:48:49.497Z"
+      },
+      "Players": [
+        {
+          "_id": "75c36698-f9ab-4e47-a11b-7ee78e152ea5",
+          "Role": "CDM"
+        },
+        {
+          "_id": "07bb043c-ac98-4e2c-a87f-6535984740cc",
+          "Role": "CB"
+        }
+      ],
+      "Manager": {
+        "_id": "bd7be954-c2b2-49fb-9dc8-f9c8a81e8411",
+        "Key": "MG-000043",
+        "FirstName": "Beshrov",
+        "LastName": "Arwanne",
+        "Age": 61,
+        "Picture": null,
+        "ClubId": "680d896d-f9fb-4df6-a182-6f7439e039f9",
+        "PreferredFormation": null,
+        "PreferredStyle": null,
+        "NationalityId": "f526f31c-53e6-4eac-8b07-9591deea5a6e",
+        "NationalTeam": false,
+        "Records": [],
+        "isEmployed": true,
+        "createdAt": "2022-05-13T19:32:21.011Z",
+        "updatedAt": "2022-05-13T19:48:07.609Z"
+      }
+    }
+  ],
+  "sides": {
+    "home": "9dd8d817-e5e2-4d62-9a16-b6019f10144c",
+    "away": "680d896d-f9fb-4df6-a182-6f7439e039f9"
+  },
+  "tactics": {
+    "home": {
+      "formationName": "433",
+      "styleName": "Balanced"
+    },
+    "away": {
+      "formationName": "433",
+      "styleName": "Balanced"
+    }
+  }
+}

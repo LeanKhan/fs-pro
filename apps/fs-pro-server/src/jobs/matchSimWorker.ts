@@ -16,7 +16,7 @@
 import { parentPort, workerData } from 'worker_threads';
 import App from '../controllers/app/App';
 import { IClub } from '../interfaces/Club';
-import { ITactic } from '../state/PersistentState/Formations';
+import { ITactic } from '../simulation/state/PersistentState/Formations';
 
 interface IMatchSimWorkerData {
   clubs: IClub[];
@@ -53,11 +53,13 @@ async function main() {
         _id: match.Home._id,
         Name: match.Home.Name,
         ClubCode: match.Home.ClubCode,
+        ManagerId: match.Home.ManagerId,
       },
       Away: {
         _id: match.Away._id,
         Name: match.Away.Name,
         ClubCode: match.Away.ClubCode,
+        ManagerId: match.Away.ManagerId,
       },
       Details: match.Details,
       Frames: match.Frames,

@@ -1,0 +1,11 @@
+- Replace circles with one generic animated player sprite.
+- Infer idle / walk / run from previous/current frame.
+- Infer left/right facing and mirror the sprite.
+- Add dribble whenever withBall && moving.
+- Replace ball circle with ball sprite.
+- Bake home/away kit colours into two sprite sets temporarily.
+- Add event-driven pass.
+- Add shoot.
+- Add tackle.
+- Add fall/save/celebrate.
+- Only then build dynamic face + hair + skin + kit compositing.

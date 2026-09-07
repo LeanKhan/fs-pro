@@ -1,4 +1,4 @@
-import { IMatchDetails, IMatchFrame } from '../classes/Match';
+import { IMatchDetails, IMatchFrame } from '../simulation/classes/Match';
 import { getMatchReplayNamespace } from './io';
 
 const DEFAULT_TICK_MS = 300;

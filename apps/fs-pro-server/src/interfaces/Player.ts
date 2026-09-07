@@ -1,6 +1,8 @@
-import { IBlock } from '../state/ImmutableState/FieldGrid';
-import Ball from '../classes/Ball';
+import { IBlock } from '../simulation/state/ImmutableState/FieldGrid';
+import Ball from '../simulation/classes/Ball';
 import { Role } from '../controllers/players/player.model';
+import type { IPlayerCondition } from '../simulation/player/PlayerCondition';
+import type { IPlayerMemory } from '../simulation/player/PlayerMemory';
 
 /**
  * A player's current standing in the match. Deliberately a string union,
@@ -18,13 +20,22 @@ export interface IFieldPlayer extends PlayerInterface {
   WithBall: boolean;
   Ball: Ball;
   MatchStatus: PlayerMatchStatus;
+  /** Milestone 20 (Fatigue, Confidence, And Player Memory) - see
+   * `simulation/player/PlayerCondition.ts`. */
+  Condition: IPlayerCondition;
+  /** Milestone 20 - see `simulation/player/PlayerMemory.ts`. */
+  Memory: IPlayerMemory;
   // Team: MatchSide;
   move(pos: any): void;
   changePosition(pos: IBlock): void;
   changeStartingPosition(block: IBlock): void;
-  pass(pos: any): void;
+  /** Milestone 17 (Independent Ball Model) - `holderId` is the id of
+   * whoever's actually receiving this pass (the target teammate on a
+   * clean pass, the interceptor on a failed one) - the caller always
+   * already knows which, so it's explicit rather than re-derived from
+   * position matching afterward (see `Ball.ts`'s own doc comment). */
+  pass(pos: any, holderId: string): void;
   shoot(pos: any): void;
-  updateBallPosition(pos: any): void;
   getBlocksAround(radius: number): any[];
   increaseGoalTally(): void;
   increasePoints(pnts: number): void;

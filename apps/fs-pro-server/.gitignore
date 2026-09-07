@@ -11,6 +11,11 @@
 /venv
 venv
 
+# Generated simulation-baseline output (simRealismCheck.ts) - regenerated
+# per run, not the checked-in roster pool it reads from
+# (src/scripts/fixtures/simulation-roster-pool.json, which stays tracked).
+/tmp/simulation-baseline*.json
+
 # For me (mostly embarrasing stuff I want to remember)
 OLDCHANGELOG.md
 NOTES*.md
