@@ -553,6 +553,13 @@ export interface IPass {
   passer: IFieldPlayer;
   receiver: IFieldPlayer;
   interceptor?: IFieldPlayer | undefined;
+  /** Milestone 13 (Passing Options And Decision Evaluation) - the pass
+   * shape actually attempted (`Actions.pass()`'s own `type` string, e.g.
+   * 'short'/'long'/'backward'/'through'/'wide'/'pass to post'). Threaded
+   * into `Match.ts`'s `-pass-made`/`-pass-intercepted` listeners as the
+   * narrated event's `data.passType`, for pass-type distribution/
+   * completion metrics (see `simRealismCheck.ts`). */
+  passType: string;
 }
 
 export interface IDribble {

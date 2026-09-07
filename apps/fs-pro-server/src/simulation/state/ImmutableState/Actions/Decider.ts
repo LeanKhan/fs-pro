@@ -10,6 +10,16 @@ import {
 import { getPressure } from '../../../spatial/PressureAnalyzer';
 import { getPassingLane } from '../../../spatial/PassingAnalyzer';
 import { getNearestTeammates } from '../../../spatial/SpatialAnalyzer';
+import {
+  generatePassingOptions,
+  selectBestPass,
+} from '../../../passing/PassingOption';
+
+/** Milestone 13 - a candidate below this score isn't worth attempting at
+ * all (both `whatKindaPass`/`chanceToMoveForward` fall back to 'move'
+ * instead) - hand-tuned against `simRealismCheck.ts`'s realism bands, same
+ * treatment as every other threshold constant in this file. */
+const MIN_PASS_SCORE = 0.2;
 
 interface IShootProfile {
   threshold: number;
@@ -131,8 +141,7 @@ export class Decider {
               attackingSide,
               defendingSide,
               30,
-              true,
-              2
+              true
             );
           } else if (player.Attributes.AttackingMindset) {
             // here player is neither shooting or moving forward, therefore pass!
@@ -329,11 +338,8 @@ export class Decider {
     attackingSide: MatchSide,
     defendingSide: MatchSide,
     threshold: number,
-    teammatePosition: boolean,
-    passingDistance = 4
+    teammatePosition: boolean
   ): IStrategy {
-    let strategy: IStrategy = { type: 'move', detail: 'normal' };
-
     if (
       CO.co.atExtremeBlock(player.BlockPosition) &&
       player.Attributes.LongPass > 30 &&
@@ -346,33 +352,37 @@ export class Decider {
       }
     }
 
-    // const closest = this.isClosestToPost(player, attackingSide);
-
-    const pos = player.Position === 'ATT';
-
     if (
-      this.passability(
-        player,
-        attackingSide,
-        defendingSide,
-        passingDistance,
-        !pos
-      ) &&
-      this.gimmeAChance() <=
-        this.confidenceThreshold(
-          player,
-          attackingSide,
-          defendingSide,
-          threshold
-        )
+      this.gimmeAChance() >
+      this.confidenceThreshold(player, attackingSide, defendingSide, threshold)
     ) {
-      //  If the closest teammate is also an attacker then pass
-      strategy = { type: 'pass', detail: 'short' };
-    } else {
-      strategy = { type: 'move', detail: 'normal' };
+      return { type: 'move', detail: 'normal' };
     }
 
-    return strategy;
+    // Milestone 13 (Passing Options And Decision Evaluation) - previously
+    // a single boolean passability() check that could only ever produce
+    // 'short'. Now a real scored choice among nearby candidates, still
+    // respecting the original "only advanced teammates" restriction when
+    // `teammatePosition` is set (an attacker with the ball shouldn't lay
+    // it off to whoever's nearest regardless of position).
+    const pos = player.Position === 'ATT';
+    const restrictToAttMid = !pos && teammatePosition;
+
+    const options = generatePassingOptions(
+      player,
+      attackingSide,
+      defendingSide
+    ).filter(
+      (o) => !restrictToAttMid || o.position === 'ATT' || o.position === 'MID'
+    );
+
+    const best = selectBestPass(options, attackingSide.Tactic.style);
+
+    if (best && best.score >= MIN_PASS_SCORE) {
+      return { type: 'pass', detail: best.passType, target: best.playerId };
+    }
+
+    return { type: 'move', detail: 'normal' };
   }
 
   /**
@@ -516,37 +526,31 @@ export class Decider {
     attackingSide: MatchSide,
     defendingSide: MatchSide
   ): IStrategy {
-    let strategy: IStrategy = { type: 'pass', detail: 'short' };
-
-    if (CO.co.atExtremeBlock(player.BlockPosition)) {
-      if (this.passability(player, attackingSide, defendingSide, 4, true)) {
-        return { type: 'pass', detail: 'short' };
-      } else {
-        return { type: 'pass', detail: 'long' };
-      }
-    }
-
+    // A player pinned near their own goal sometimes lays it back to the
+    // keeper instead - kept as its own narrow special case (not something
+    // the general scorer below should also be free to recommend into; see
+    // generatePassingOptions()'s own doc comment on excluding GK).
     if (this.isNearPost(player, attackingSide, 5, true)) {
       if (this.gimmeAChance() <= 50) {
         return { type: 'pass', detail: 'pass to post' };
-      } else {
-        return { type: 'pass', detail: 'short' };
       }
     }
 
-    // Check if his closest teammate is 3 steps away or less
-    if (this.passability(player, attackingSide, defendingSide, 4, true)) {
-      strategy = { type: 'pass', detail: 'short' };
-    } else if (
-      this.passability(player, attackingSide, defendingSide, 7, true) &&
-      !this.isClosestToPost(player, attackingSide)
-    ) {
-      strategy = { type: 'pass', detail: 'long' };
-    } else {
-      strategy = { type: 'move', detail: 'normal' };
+    // Milestone 13 (Passing Options And Decision Evaluation) - previously
+    // a chain of boolean passability() checks at two fixed distances (4,
+    // then 7 blocks) that could only ever produce 'short' or 'long'. Now a
+    // real scored choice among every nearby candidate, covering all five
+    // pass shapes and an actual chosen receiver (`target`) - see
+    // PlayerIntent.ts/Actions.pass() for how that flows through to
+    // execution.
+    const options = generatePassingOptions(player, attackingSide, defendingSide);
+    const best = selectBestPass(options, attackingSide.Tactic.style);
+
+    if (best && best.score >= MIN_PASS_SCORE) {
+      return { type: 'pass', detail: best.passType, target: best.playerId };
     }
 
-    return strategy;
+    return { type: 'move', detail: 'normal' };
   }
 
   /**
@@ -591,4 +595,10 @@ interface deciderPart {
 export interface IStrategy {
   type: 'pass' | 'move' | 'shoot';
   detail?: string;
+  /** Milestone 13 - the chosen receiver's id, when a 'pass' strategy came
+   * from `generatePassingOptions()`/`selectBestPass()` rather than the
+   * older type-only paths (`keeperPass`, the near-post backpass special
+   * case) - those leave this undefined, and `Actions.pass()` falls back to
+   * its pre-existing type-based receiver lookup exactly as before. */
+  target?: string;
 }

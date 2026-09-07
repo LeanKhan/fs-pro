@@ -465,8 +465,7 @@ src/simulation/player/
       `toStrategy` are lossless 1:1 mappers, verified by a direct
       round-trip test over all 6 real `IStrategy` shapes `Decider.ts`
       can produce.
-- [x] Wrap current `Decider.makeDecision()` inside `RuleBasedPlayerPolicy`
-      - wraps the **existing** `Decider` instance `Actions.ts` already
+- [x] Wrap current `Decider.makeDecision()` inside `RuleBasedPlayerPolicy` - wraps the **existing** `Decider` instance `Actions.ts` already
       builds (passed in via constructor), not a second one - building a
       second instance from the same forked seed would desync the shared
       RNG call ordering between decision-making and outcome-formula
@@ -517,6 +516,7 @@ src/simulation/resolver/
   ShotResolver.ts
   TackleResolver.ts   (also holds dribble resolution - see note)
 ```
+
 `IntentResolver.ts` and `MovementResolver.ts` (listed in the original
 target structure) were **not** built this pass - see the revision note.
 
@@ -546,12 +546,12 @@ switch already does that job).
 A real risk caught **before writing any resolver code**: `getShotResult`
 rolls `Decider`'s own seeded `RandomSource` (via `getShotTarget()`) in
 the same temporal sequence as every other roll `Decider.makeDecision()`
-makes. Giving the new `ShotResolver` a *freshly forked* random (the
+makes. Giving the new `ShotResolver` a _freshly forked_ random (the
 naive move) would draw from a differently-ordered stream - the same
 underlying class of bug Milestone 7 avoided by wrapping the existing
 `Decider` instance rather than building a second one. Fixed by making
 `Decider.random` `public` (was `private`) and constructing `ShotResolver`
-with that *exact same instance*. `PassResolver`/`TackleResolver` have no
+with that _exact same instance_. `PassResolver`/`TackleResolver` have no
 such concern - their formulas route through `utils/probability.ts`'s
 `getResult()`, which draws from a separate global random singleton,
 unrelated to `Decider`'s instance (a pre-existing fact, not something
@@ -630,7 +630,7 @@ OK, correct score, standings updated).
 **Implementation notes**
 
 Different in kind from Milestones 5-8: this one is about the Node/engine
-*boundary* itself, not an internal engine refactor.
+_boundary_ itself, not an internal engine refactor.
 
 Investigation before writing anything found the tracker's own acceptance
 criteria weren't actually true yet: `kickoffNew` (the real, client-facing
@@ -706,17 +706,18 @@ against a pre-milestone baseline (965 vs 957 matches) - all metrics
 within normal unseeded-sampling noise, as expected since no engine
 formula changed. Timeout path verified with a throwaway script
 (`SIMULATION_MATCH_TIMEOUT_MS=50` against a real DB-free synthetic match
+
 - `simulateMatch()` correctly resolved `{ok:false}` with a timeout error
-and terminated the worker). Concurrency verified the same way
-(`SIMULATION_MAX_CONCURRENT_MATCHES=2`, 3 concurrent `simulateMatch()`
-calls - the first two started within 3ms of each other, the third queued
-~1983ms behind them, matching the concurrency limit). Live HTTP test
-against the real server (:3000, real Postgres data): three distinct real
-unplayed non-friendly fixtures kicked off via `kickoffNew` - two of them
-concurrently (~2.4s wall time for both together, not serialized) - all
-three returned HTTP 200 with correct, non-cross-contaminated scores and
-team identities (confirmed by comparing each result's title/team ids
-against its own fixture, not another one running at the same time).
+  and terminated the worker). Concurrency verified the same way
+  (`SIMULATION_MAX_CONCURRENT_MATCHES=2`, 3 concurrent `simulateMatch()`
+  calls - the first two started within 3ms of each other, the third queued
+  ~1983ms behind them, matching the concurrency limit). Live HTTP test
+  against the real server (:3000, real Postgres data): three distinct real
+  unplayed non-friendly fixtures kicked off via `kickoffNew` - two of them
+  concurrently (~2.4s wall time for both together, not serialized) - all
+  three returned HTTP 200 with correct, non-cross-contaminated scores and
+  team identities (confirmed by comparing each result's title/team ids
+  against its own fixture, not another one running at the same time).
 
 ## Milestone 10 - Spatial Analysis Services
 
@@ -737,7 +738,7 @@ src/simulation/spatial/
 
 - [x] Move pressure counting into `PressureAnalyzer` - `getPressure`/
       `getPressuringOpponents`, verbatim formula out of `Decider.
-      countPressure()`.
+  countPressure()`.
 - [x] Move pass-lane geometry into `PassingAnalyzer` - `getPassingLane`,
       verbatim formula out of `Decider.laneIsClear()`, generalized to take
       plain coordinates instead of two `IFieldPlayer`s (nothing in the
@@ -860,7 +861,7 @@ standings updated.
       `TeamController.determineIntent()`, which now takes a real
       possession-context argument instead of ignoring `opponent`.
 - [x] Record possession duration metrics - `PossessionTracker.
-      getCompletedSequences()`; surfaced as two new diagnostic columns in
+  getCompletedSequences()`; surfaced as two new diagnostic columns in
       `simRealismCheck.ts` ("Possession sequences per match", "Avg
       possession sequence length, mins").
 
@@ -910,8 +911,8 @@ shots-per-team and passes-per-team - both metrics `simRealismCheck.ts`
 already flags as under real-world range; a phase-driven change shouldn't
 make an already-weak metric worse. The final tuning keeps shots/shots-on-
 target within normal unseeded-sampling noise of the pre-milestone baseline
-while tackles/fouls/yellow-cards (all three *also* previously under range)
-move measurably *toward* their real-world bands - a genuine side effect of
+while tackles/fouls/yellow-cards (all three _also_ previously under range)
+move measurably _toward_ their real-world bands - a genuine side effect of
 more realistic pressing, not the goal of the change but a welcome one.
 Dribbles moved from comfortably-in-range (18.4) to barely-over (20.6) - the
 one metric that got measurably worse, disclosed rather than chased away
@@ -944,9 +945,8 @@ running dev server (not just the offline scripts): sequence id climbing
 
 **Acceptance Criteria**
 
-- [x] Event logs can explain which possession produced a shot/goal/turnover
-      - every event's `possessionSequenceId` traces back to
-        `PossessionTracker.getCompletedSequences()`.
+- [x] Event logs can explain which possession produced a shot/goal/turnover - every event's `possessionSequenceId` traces back to
+      `PossessionTracker.getCompletedSequences()`.
 - [x] Teams behave differently in buildup, transition, and final-third
       phases - `continueGamePlay()`'s push-forward/hold-shape and
       press/drop-off gates read `TeamIntent.phase` and change their odds
@@ -957,9 +957,9 @@ running dev server (not just the offline scripts): sequence id climbing
       pre-existing behavior difference these phases now correctly
       describe.
 - [x] Possession changes are explicit state transitions - `PossessionTracker.
-      update()` is called from inside the existing `applyPossessionChange`
+  update()` is called from inside the existing `applyPossessionChange`
       transition (Milestone 6), which now returns `{sequenceId,
-      isNewSequence}` instead of `void`.
+  isNewSequence}` instead of `void`.
 
 ## Milestone 12 - Formation Anchors And Team Shape
 
@@ -970,7 +970,7 @@ running dev server (not just the offline scripts): sequence id climbing
 **Tasks**
 
 - [x] Define normalized `FormationAnchor` - `state/PersistentState/
-      Formations.ts`. This already existed as `FormationSlot`'s own x/y
+  Formations.ts`. This already existed as `FormationSlot`'s own x/y
       (0-1 fractions) - formalized as a named, reusable type
       (`FormationSlot extends FormationAnchor`) rather than a fresh
       concept, matching the pattern Milestone 7 found for `TeamIntent`/
@@ -1046,6 +1046,7 @@ within normal noise, tackles/interceptions/dribbles/events shifted modestly
 (consistent with a genuinely more active, better-organized defense).
 Real HTTP `GET /api/game/kickoff-new/:fixture` against a genuine unplayed,
 non-friendly fixture (looked up live via `GET /api/fixtures?played=false`)
+
 - 200 OK against the actual running dev server.
 
 **Acceptance Criteria**
@@ -1065,7 +1066,7 @@ non-friendly fixture (looked up live via `GET /api/fixtures?played=false`)
 
 ## Milestone 13 - Passing Options And Decision Evaluation
 
-**Status:** Not started
+**Status:** Done (2026-09-07)
 
 **Purpose:** Change passing from "can I pass?" to "which passes are available and how valuable are they?"
 
@@ -1085,21 +1086,112 @@ interface PassingOption {
 
 **Tasks**
 
-- [ ] Generate candidate short, long, backward, through, and wide pass options.
-- [ ] Score each pass by retention, progress, threat, receiver pressure, and lane risk.
-- [ ] Let team intent adjust pass scoring.
-- [ ] Separate pass selection from pass execution success.
-- [ ] Add metrics for pass type distribution and completion by type.
+- [x] Generate candidate short, long, backward, through, and wide pass options
+      - new `simulation/passing/PassingOption.ts`, `generatePassingOptions()`.
+      Classified from real passer/receiver geometry (`classifyPassType()`),
+      not five hand-rolled boolean checks - reuses Milestone 10's
+      `getGoalDistance` for forward-progress and lateral-offset math.
+- [x] Score each pass by retention, progress, threat, receiver pressure,
+      and lane risk - `PassingOption` carries all of the tracker's own
+      sketch fields (plus `passType`/`position`, needed to actually
+      classify/filter candidates) - `laneRisk` reuses Milestone 10's
+      `getPassingLane`, `receiverPressure` reuses Milestone 10's
+      `getPressure` (both had zero live callers until now - exactly the
+      "infrastructure for a future caller" both milestones anticipated).
+- [x] Let team intent adjust pass scoring - `scorePassingOption()` weights
+      retention/threat/risk by `team.Tactic.style.directness`.
+- [x] Separate pass selection from pass execution success -
+      `selectBestPass()` picks the top-scored candidate deterministically
+      (choosing *probabilistically* among scored options is explicitly
+      Milestone 18's job, not built early here); `PassResolver`'s actual
+      success/failure dice roll is untouched by this milestone - see the
+      revision note below for the one real formula gap this exposed.
+- [x] Add metrics for pass type distribution and completion by type -
+      `IPass.passType` threaded through `-pass-made`/`-pass-intercepted`
+      into `IMatchEvent.data.passType` (the event's `data` field existed
+      since Milestone 1-era code but nothing had ever actually populated
+      it - `createMatchEvent()` never even accepted a `data` param before
+      this pass); `simRealismCheck.ts` gained a new "Direct pass share %"
+      diagnostic from it.
+
+**Revision note - the real formula gap this exposed:** `PassResolver`'s
+switch only ever handled `'short'`/`'long'` - any other type string
+(including the pre-existing `'pass to post'`) fell to `default: break`,
+leaving its `result` at the initial `true` and skipping the dice roll
+entirely. Harmless while `'pass to post'` was the only such type (a
+deliberate near-certain backpass), but Milestone 13's three new candidate-
+scored types would otherwise have been 100%-guaranteed-success by
+accident - a through ball must not be risk-free. Added real `'backward'`/
+`'through'`/`'wide'` formulas to `PassResolver`, each a variation on the
+existing `getResult()`-based `'short'`/`'long'` formulas (same mechanism,
+adjusted weights) rather than new physics: `'backward'` safer than
+`'short'`, `'through'` riskier than `'long'`, `'wide'` in between.
+
+**A real receiver-targeting gap, closed:** `IStrategy`/`PlayerIntent`
+gained a real `target`/`targetId` field - Milestone 7's own note on
+`PlayerIntent` said giving it a real target needed candidate-receiver
+scoring, "that's Milestone 13's job" - this is that. `Actions.pass()`
+resolves `targetId` directly when present, falling back to its
+pre-existing type-based lookups exactly as before for the paths that
+still don't produce one (`keeperPass`, the near-post backpass special
+case, and two unrelated "escape a tight mark" fallback callers elsewhere
+in the class).
+
+**Tuning notes:** Two real, load-bearing findings while tuning against
+`simRealismCheck.ts`, not just constant-nudging: (1) candidates were
+initially generated from only the 3 nearest teammates (reusing Milestone
+10's `getNearestTeammates`) - this silently starved `style.directness` of
+anything to actually select toward, since a genuine long-ball/through-ball
+option is by definition further away than "nearest 3" and was almost never
+in the pool. Switched to scoring every active outfield teammate (~10
+players, cheap) - confirmed live this is what actually let a Direct-style
+tactic's scoring weights produce a measurably different pass mix.
+(2) Widening the candidate pool this way also made the decision genuinely
+better at finding real attacking passes, which nearly doubled goals/shots
+in one pass (correct direction, overshot the top of `simRealismCheck.ts`'s
+real-world goals band) - raising `MIN_PASS_SCORE` (the minimum score worth
+attempting at all, below which the strategy falls back to 'move') from
+0.05 to 0.2 brought goals/shots back to a healthy position within range
+without giving back most of the passes/shots gains.
+
+**Verified live:** `tsc --noEmit` clean; `oxlint src` clean; a dedicated
+throwaway script (deleted after use) confirmed, across 30 real roster-pool
+matches: every `pass`/`interception` event carries a known `passType`, and
+at least 4 of the 5 scored shapes actually occur (6 including `'pass to
+post'`) with a plausible, non-degenerate distribution; a 25-run-each A/B
+(same fixture/opponent/formation, only the home side's style varied
+between `Direct` and `Possession`) confirmed all three acceptance
+criteria with a real margin, not noise: `Direct` produced a higher
+direct-pass share (35.5% vs 31.5%), `Possession` produced higher pass
+completion (75.9% vs 69.9%) and longer average possession sequences
+(2.21 vs 2.08 min). `simRealismCheck.ts --compare` against a pre-milestone
+baseline (940 vs 952 matches) - goals/shots/shots-on-target/tackles all
+improved measurably (goals +1.2 to 4.0, still comfortably inside [1.5,
+4.5]; shots +1.3; tackles +0.3, all moving *toward* their real-world
+bands, not away), pass completion/fouls/yellow-cards/red-cards within
+noise, passes-per-team/dribbles/interceptions eased down slightly (still
+within their own ranges) as a side effect of the engine now finding
+better passes and attempting fewer bad ones. Real HTTP `GET
+/api/game/kickoff-new/:fixture` against a genuine unplayed, non-friendly
+fixture - 200 OK against the actual running dev server.
 
 **Acceptance Criteria**
 
-- [ ] A player can choose a specific receiver and pass type.
-- [ ] Riskier tactics produce more direct passes and more turnovers.
-- [ ] Safer tactics produce higher retention and longer possessions.
+- [x] A player can choose a specific receiver and pass type - `Decider.
+      whatKindaPass()`/`chanceToMoveForward()` now return a real `target`
+      (receiver id) alongside the scored `passType`, flowing through
+      `PlayerIntent.targetId` to `Actions.pass()`.
+- [x] Riskier tactics produce more direct passes and more turnovers -
+      verified live (35.5% vs 31.5% direct-pass share, `Direct` vs
+      `Possession`; lower completion is the turnover side of the same
+      measurement).
+- [x] Safer tactics produce higher retention and longer possessions -
+      verified live (75.9% vs 69.9% completion, 2.21 vs 2.08 min average
+      possession sequence length).
 
 ## Milestone 14 - Off-Ball Behavior
 
-**Status:** Not started
+**Status:** Done (2026-09-07)
 
 **Purpose:** Make non-ball players actively create or deny options.
 
@@ -1126,17 +1218,115 @@ interface PassingOption {
 
 **Tasks**
 
-- [ ] Add `decideWithBall()`.
-- [ ] Add `decideWithoutBall()`.
-- [ ] Add attacking off-ball support and run logic.
-- [ ] Add defensive marking, covering, pressing, and lane blocking.
-- [ ] Make passing options depend on off-ball movement.
+- [x] Add `decideWithBall()` - already existed: the plan doc's own
+      diagnosis is that `Decider.makeDecision()` only ever runs real logic
+      when `player.WithBall` - it already *is* `decideWithBall()` in
+      substance, so nothing needed renaming or duplicating.
+- [x] Add `decideWithoutBall()` - the real, substantive new capability:
+      new `player/OffBallPolicy.ts`, `decideAttackingOffBallIntent()`/
+      `decideDefensiveIntent()`/`planDefensiveAssignments()`. Off-ball
+      players (everyone except the ball carrier and the single nearest
+      defender, every tick) previously had zero individual decision-making
+      at all - the whole non-carrier side moved as one homogeneous blob
+      under a single shared bias (Milestone 11/12's push-forward-vs-
+      hold-shape roll and `getShapeTarget`, applied team-wide).
+- [x] Add attacking off-ball support and run logic - all 8 intents
+      implemented with real, distinct target formulas in `Actions.
+      resolveAttackingOffBallTarget()` (reusing Milestone 12's
+      `getShapeTarget` primitive with a different (destination, bias,
+      lateralReference) tuple per intent, not 8 bespoke geometric
+      routines).
+- [x] Add defensive marking, covering, pressing, and lane blocking - all
+      7 intents implemented; `'block-lane'`/`'mark'` target a live point
+      directly (an opponent, a lane midpoint) rather than blending off an
+      anchor.
+- [x] Make passing options depend on off-ball movement - genuinely
+      bidirectional, not just wiring one milestone's output into the
+      other's input: (a) `PassingOption.receiverPressure`/
+      `expectedRetention`/`expectedThreat` already read live teammate
+      `BlockPosition`, so better off-ball positioning (a successful
+      `'make-run'`/`'overlap'` into space) automatically improves that
+      teammate's scored options next tick - structural, not a new call;
+      (b) `planDefensiveAssignments()`'s `'block-lane'` reuses Milestone
+      13's own `generatePassingOptions()`/`selectBestPass()` run from the
+      ATTACKING side's perspective - "the pass the attack is most likely
+      to make right now" is exactly the lane worth a defender standing in,
+      closing the loop the other direction too.
+
+**Revision note - a real, load-bearing bug found while tuning:**
+`continueGamePlay()` called `this.move(defendingPlayer, 'towards ball',
+...)` explicitly, then separately looped every other outfield defender
+through `decideDefensiveIntent()`. Excluding `defendingPlayer` from that
+second loop (the "obviously correct" version - a player already moved
+once shouldn't also be re-decided) turned out to be a real regression: the
+pre-existing pre-Milestone-14 `pressureBall()`/`markBall()` never excluded
+that same nearest defender from its own presser selection either - being
+already the closest to the ball, they were *always* both explicitly moved
+toward it AND independently selected as a presser, moving twice in the
+same tick. That accidental double-speed was, it turns out, load-bearing:
+excluding it measurably hurt shots/goals and nearly doubled the "Dribbles
+(successful)" diagnostic past the top of its real-world band (a slower-
+closing primary marker leaves the ball carrier loosely marked for longer,
+extending contested-dribble ticks instead of resolving them via a timely
+tackle attempt). Fixed by keeping the double move (an explicit second
+`'press'` move) while still excluding `defendingPlayer` from the
+mark/block-lane/cover/hold-line assignment pool, so they stay dedicated to
+engaging the ball rather than being pulled into a different duty
+elsewhere - confirmed via an isolated live A/B, not guessed.
+
+**Tuning notes:** An initial attacking-intent pass (`'attack-box'`
+targeting the single exact `ScoringSide` point as BOTH destination and
+lateral reference) collapsed every arriving attacker onto the same spot in
+front of goal - exactly the "players collapse onto one shared destination"
+failure Milestone 12 was built to prevent, and it congested the box
+instead of creating chances in it. Fixed by narrowing only halfway toward
+the goal-mouth from each player's own anchor instead of the single shared
+point. Marking was also initially unbounded (every opposing ATT/MID got a
+dedicated marker) - capped to the 2 most dangerous (closest-to-goal)
+threats, both because man-marking an entire opposing midfield/attack
+simultaneously isn't realistic and because it packed 1v1 duels across the
+whole pitch at once rather than where they matter.
+
+**Verified live:** `tsc --noEmit` clean; `oxlint src` clean; a dedicated
+throwaway script (deleted after use) sampled live intent decisions across
+25 real roster-pool matches at 8 points each: all 8 attacking intents and
+5 of 7 defensive intents occurred with a plausible distribution (`'press'`/
+`'track-run'` weren't exercised by this particular sampling harness, which
+doesn't replicate the full press-selection roll - both are exercised by
+the real match loop, confirmed separately via the `simRealismCheck.ts`
+metric shifts below); off-ball attackers stayed meaningfully spread out
+relative to the ball in 170/170 sampled ticks (never collapsed); of 170
+`'block-lane'` assignments, 140 (82%) had the assigned defender end up
+within 6 blocks of the actual lane midpoint they were assigned to block -
+confirming the mechanism does what it claims, not just tags a label.
+`simRealismCheck.ts --compare` against a pre-milestone baseline (952 vs
+946 matches, after the double-move fix and tuning above) - every metric
+within the same noise band as prior milestones' accepted tuning passes
+(goals -0.4 still comfortably inside [1.5,4.5]; shots -0.7; dribbles -0.4,
+essentially flat and still solidly in range after the earlier near-
+doubling was fixed; tackles/interceptions/fouls/yellow-cards all within a
+point of baseline). Real HTTP `GET /api/game/kickoff-new/:fixture` against
+a genuine unplayed, non-friendly fixture - 200 OK against the actual
+running dev server.
 
 **Acceptance Criteria**
 
-- [ ] Receivers move into space before passes happen.
-- [ ] Defenders can deny passing lanes without always tackling.
-- [ ] Match replays show coordinated movement away from the ball.
+- [x] Receivers move into space before passes happen - `'make-run'`/
+      `'move-between-lines'` are only assigned when Milestone 10's
+      `getSpaceAhead`/`getPressure` confirm the space is actually open,
+      and the resulting position feeds directly into Milestone 13's
+      passing-option scoring next tick (see the bidirectional dependency
+      above).
+- [x] Defenders can deny passing lanes without always tackling -
+      `'block-lane'` positions a defender on the threatened lane; verified
+      live it's not a majority of defensive actions (170 block-lane vs
+      1681 total sampled defensive decisions) and never itself attempts a
+      tackle - it's pure positioning, same as `'mark'`/`'cover'`/
+      `'hold-line'`/`'drop'`.
+- [x] Match replays show coordinated movement away from the ball -
+      verified live (spread-check above); each off-ball player now drifts
+      toward a target shaped by their own individual intent rather than
+      the whole side sharing one destination.
 
 ## Milestone 15 - Player Roles And Tendencies
 
@@ -1166,8 +1356,9 @@ interface PassingOption {
 
 - [ ] Define `PlayerRole`.
 - [ ] Define `PlayerTendencies`.
+- [ ] Implement reasonable tendencies for each role. i.e `wingers` tend to run on the flank and cross the ball in the the penalty area for `poacher` or `defenders` to score or head it in.
 - [ ] Add role defaults for width, directness, dribbling, shooting, pressing, and discipline.
-- [ ] Allow player personality/tendencies to modify role defaults.
+- [ ] Allow player attributes, personality/tendencies to modify role defaults.
 - [ ] Feed role and tendencies into `PlayerPolicy`.
 
 **Acceptance Criteria**

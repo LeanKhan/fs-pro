@@ -65,3 +65,20 @@ export type {
   PossessionContext,
   PossessionSequenceSummary,
 } from './possession/PossessionTracker';
+export {
+  generatePassingOptions,
+  scorePassingOption,
+  selectBestPass,
+} from './passing/PassingOption';
+export type { PassType, PassingOption } from './passing/PassingOption';
+export {
+  decideAttackingOffBallIntent,
+  decideDefensiveIntent,
+  planDefensiveAssignments,
+} from './player/OffBallPolicy';
+export type {
+  AttackingOffBallIntent,
+  DefensiveIntent,
+  OffBallIntent,
+  DefensiveAssignment,
+} from './player/OffBallPolicy';
