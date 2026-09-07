@@ -91,6 +91,7 @@ interface IMatchSummary {
    * full-time never gets pushed to `completed` - nothing ends it). */
   possessionSequencesPerMatch: number;
   avgPossessionSequenceMinutes: number;
+  directPassSharePct: number;
 }
 
 /**
@@ -175,6 +176,26 @@ async function simulateOneMatch(
   const interceptions = countEvents('interception');
   const passAttempts = completedPasses + interceptions;
 
+  // Milestone 13 (Passing Options And Decision Evaluation) - diagnostic
+  // only, no invented "real-world" range (same treatment as
+  // eventsPerMatch/possessionSequencesPerMatch above). 'long'/'through'/
+  // 'wide' count as "direct" (the higher-risk, forward-progress-chasing
+  // shapes); 'short'/'backward'/'pass to post' as "safe". Useful for
+  // spotting a gross scoring-weight regression across the real tactic mix
+  // used here - the actual controlled A/B (same fixture, only directness
+  // varied) lives in a throwaway verification script, not this aggregate.
+  const passAndInterceptEvents = match.Events.filter(
+    (e) => e.type === 'pass' || e.type === 'interception'
+  );
+  const directTypes = new Set(['long', 'through', 'wide']);
+  const directAttempts = passAndInterceptEvents.filter((e) =>
+    directTypes.has(e.data?.passType)
+  ).length;
+  const directPassSharePct =
+    passAndInterceptEvents.length > 0
+      ? (directAttempts / passAndInterceptEvents.length) * 100
+      : 0;
+
   const completedSequences = match.Possession.getCompletedSequences();
   const avgPossessionSequenceMinutes = completedSequences.length
     ? average(completedSequences.map((s) => s.durationMinutes))
@@ -200,6 +221,7 @@ async function simulateOneMatch(
     eventsPerMatch: match.Events.length,
     possessionSequencesPerMatch: completedSequences.length,
     avgPossessionSequenceMinutes,
+    directPassSharePct,
   };
 }
 
@@ -264,6 +286,9 @@ function buildMetricsMap(summaries: IMatchSummary[]): Record<string, number[]> {
     ),
     'Avg possession sequence length, mins (diagnostic)': summaries.map(
       (s) => s.avgPossessionSequenceMinutes
+    ),
+    'Direct pass share % (diagnostic)': summaries.map(
+      (s) => s.directPassSharePct
     ),
   };
 }

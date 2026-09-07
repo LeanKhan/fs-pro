@@ -28,31 +28,14 @@ import { PassResolver } from '../../../resolver/PassResolver';
 import { TackleResolver } from '../../../resolver/TackleResolver';
 import { ShotResolver } from '../../../resolver/ShotResolver';
 import { MatchPhase } from '../../../possession/MatchPhase';
-
-/**
- * Milestone 11 (Possession And Match Phases) - percent chance (out of the
- * same `gimmeAChance()` 0-100 roll every other dice-roll in this file
- * uses) that the attacking side pushes forward this tick rather than
- * holding shape, by phase. Before this milestone `pushForward` ran
- * unconditionally (100%, every tick) - these stay high across the board
- * deliberately (shots-per-team already reads low against real-world
- * ranges in `simRealismCheck.ts`; a big swing downward would make that
- * worse), dipping only for the patient-possession phases. `chance` is
- * never actually assigned pre-decision (see MatchPhase.ts) but is listed
- * for completeness/type-safety.
- */
-const ATTACK_PUSH_CHANCE: Record<MatchPhase, number> = {
-  'build-up': 80,
-  progression: 90,
-  'final-third': 95,
-  chance: 95,
-  'attacking-transition': 95,
-  counter: 100,
-  restart: 90,
-  'defensive-transition': 90,
-  'defensive-shape': 90,
-  press: 90,
-};
+import {
+  AttackingOffBallIntent,
+  DefensiveIntent,
+  DefensiveAssignment,
+  decideAttackingOffBallIntent,
+  decideDefensiveIntent,
+  planDefensiveAssignments,
+} from '../../../player/OffBallPolicy';
 
 /**
  * Percent chance the defending side actively presses the ball carrier
@@ -101,6 +84,22 @@ const WIDTH_DRIFT_SCALE = 0.25;
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
+
+/** Milestone 13 - how close (in `findClosestToSegment`'s lane-width units,
+ * see `Actions.pass()`'s own doc comment on why this ISN'T run through
+ * `scaleDistance()`) a defender must be to the pass line to be considered
+ * a plausible interceptor, by pass type. Longer/riskier pass shapes travel
+ * through more of the pitch, so a wider band of defenders can plausibly
+ * step into the lane. Previously only 'long'/'pass to post' got the wider
+ * band (3); every other type defaulted to 2. */
+const INTERCEPTOR_DISTANCE_BY_PASS_TYPE: Record<string, number> = {
+  short: 2,
+  backward: 2,
+  long: 3,
+  'pass to post': 3,
+  through: 3,
+  wide: 3,
+};
 
 export class Actions {
   public referee: IReferee;
@@ -266,25 +265,21 @@ export class Actions {
 
     switch (strategy.type) {
       case 'pass':
-        switch (strategy.detail) {
-          case 'short':
-            this.pass(attackingPlayer, 'short', attackingSide, defendingSide);
-            break;
-
-          case 'long':
-            this.pass(attackingPlayer, 'long', attackingSide, defendingSide);
-            break;
-          case 'pass to post':
-            this.pass(
-              attackingPlayer,
-              'pass to post',
-              attackingSide,
-              defendingSide
-            );
-            break;
-
-          default:
-            break;
+        // Milestone 13 (Passing Options And Decision Evaluation) -
+        // previously a switch re-dispatching to the exact same
+        // `this.pass()` call for each of three known detail strings
+        // (silently doing nothing for anything else). `Decider` can now
+        // produce five pass shapes plus the pre-existing 'pass to post'
+        // special case, all handled identically here - `Actions.pass()`
+        // itself is what actually branches on `type`/`strategy.target`.
+        if (strategy.detail) {
+          this.pass(
+            attackingPlayer,
+            strategy.detail,
+            attackingSide,
+            defendingSide,
+            strategy.target
+          );
         }
 
         matchEvents.emit(`${this.match.id}-set-playing-sides`);
@@ -330,47 +325,61 @@ export class Actions {
     player: IFieldPlayer,
     type: string,
     squad: MatchSide,
-    defendingSide: MatchSide
+    defendingSide: MatchSide,
+    /** Milestone 13 (Passing Options And Decision Evaluation) - the
+     * receiver `Decider`'s scored candidate system already chose, when
+     * present. Takes priority over the type-based lookups below, which
+     * stay exactly as they were for the paths that don't produce a
+     * `target` yet (`keeperPass`, the near-post backpass special case,
+     * and the two "escape a tight mark"/"had nowhere further to go"
+     * fallback callers elsewhere in this class). */
+    targetId?: string
   ) {
     // I am only doing this because of an error :!!!!:
     let teammate: IFieldPlayer;
 
     let situation: ISituation;
 
-    let interceptorDistance = 2;
+    let interceptorDistance = INTERCEPTOR_DISTANCE_BY_PASS_TYPE[type] ?? 2;
 
     // situation = { status: false, reason: 'no where to move' };
 
-    switch (type) {
-      case 'short':
-        teammate = CO.co.findClosestPlayer(
-          player.BlockPosition,
-          squad.ActivePlayers,
-          player
-        );
-        break;
+    const targeted = targetId
+      ? squad.ActivePlayers.find((p) => p._id === targetId)
+      : undefined;
 
-      case 'long':
-        teammate = CO.co.findLongPlayer(
-          player.BlockPosition,
-          squad.ActivePlayers,
-          player
-        );
-        interceptorDistance = 3;
-        break;
-      // Find the keeper! but keeper may alos be not gien the ball
-      case 'pass to post':
-        teammate = CO.co.findClosestPlayerByPosition(
-          squad.KeepingSide,
-          'GK',
-          player,
-          squad.ActivePlayers
-        );
-        interceptorDistance = 3;
-        break;
-      default:
-        teammate = player;
-        break;
+    if (targeted) {
+      teammate = targeted;
+    } else {
+      switch (type) {
+        case 'short':
+          teammate = CO.co.findClosestPlayer(
+            player.BlockPosition,
+            squad.ActivePlayers,
+            player
+          );
+          break;
+
+        case 'long':
+          teammate = CO.co.findLongPlayer(
+            player.BlockPosition,
+            squad.ActivePlayers,
+            player
+          );
+          break;
+        // Find the keeper! but keeper may alos be not gien the ball
+        case 'pass to post':
+          teammate = CO.co.findClosestPlayerByPosition(
+            squad.KeepingSide,
+            'GK',
+            player,
+            squad.ActivePlayers
+          );
+          break;
+        default:
+          teammate = player;
+          break;
+      }
     }
 
     /**
@@ -402,6 +411,7 @@ export class Actions {
         passer: player,
         receiver: teammate,
         intercepted: false,
+        passType: type,
       } as IPass);
     } else {
       // This player is close enough to intercept
@@ -439,6 +449,7 @@ export class Actions {
           passer: player,
           receiver: teammate,
           intercepted: false,
+          passType: type,
         } as IPass);
         situation = { status: true, reason: 'Player pass successful' };
       } else {
@@ -452,6 +463,7 @@ export class Actions {
           passer: player,
           interceptor: interceptor,
           intercepted: true,
+          passType: type,
         } as IPass);
 
         situation = { status: true, reason: 'pass intercepted' };
@@ -849,34 +861,237 @@ export class Actions {
     attackingPhase: MatchPhase,
     defendingPhase: MatchPhase
   ) {
-    // Milestone 11 - previously unconditional (every ATT/MID player always
-    // pushed forward, every tick, regardless of situation). During
-    // build-up/progression a team retaining the ball deep shouldn't have
-    // everyone immediately bombing on - holding shape is the more patient,
-    // realistic read. Still probabilistic (not a hard on/off switch), and
-    // still pushes forward most of the time even at its most patient - see
-    // ATTACK_PUSH_CHANCE below.
-    if (this.decider.gimmeAChance() < ATTACK_PUSH_CHANCE[attackingPhase]) {
-      this.pushForward(attackingSide);
-    } else {
-      playerFunc
-        .getOutfield(attackingSide)
-        .forEach((p) => this.holdShape(p, attackingSide));
-    }
+    const ballPosition = attackingPlayer.Ball.Position;
 
-    // After every action by the attacking team, the defensive player must move towards the ball
-    // and the attacking team must move forward towards opposition lines
+    // Milestone 14 (Off-Ball Behavior) - every other outfield attacker now
+    // gets its own off-ball intent (support/make-run/overlap/...) instead
+    // of the whole side moving as one homogeneous blob under a single
+    // shared bias (Milestone 11's push-forward-vs-hold-shape roll,
+    // superseded here by real per-player differentiation).
+    playerFunc.getOutfield(attackingSide).forEach((p) => {
+      const intent = decideAttackingOffBallIntent(
+        p,
+        attackingPlayer,
+        attackingSide,
+        defendingSide,
+        attackingPhase
+      );
+      const target = this.resolveAttackingOffBallTarget(
+        p,
+        attackingSide,
+        intent,
+        ballPosition
+      );
+      this.move(p, intent, target);
+    });
+
+    // After every action by the attacking team, the defensive player must
+    // move towards the ball - TWICE this tick (here, and again below as a
+    // guaranteed 'press'), matching the pre-Milestone-14 behavior this
+    // replaces: the old pressureBall()/markBall() never excluded this same
+    // nearest defender from its own presser selection, so they were always
+    // both explicitly moved toward the ball AND (virtually always, being
+    // already the nearest) selected as a presser too - moving twice in the
+    // same tick. Confirmed live via an isolated A/B: excluding them from
+    // the second move (the "obviously correct, no double-move" version,
+    // tried first) halved the lead engaging defender's effective closing
+    // speed and measurably hurt shots/goals while inflating dribble-
+    // contest counts (a slower-closing primary marker leaves the ball
+    // carrier loosely marked for longer, extending contests instead of
+    // resolving them). Keeping the double move preserves that pacing;
+    // excluding `defendingPlayer` from the intent-assignment pool below
+    // (rather than letting `decideDefensiveIntent` pick for them) keeps
+    // them dedicated to engaging the ball, not pulled into a mark/
+    // block-lane duty elsewhere on the pitch.
     this.move(defendingPlayer, 'towards ball', defendingPlayer.Ball.Position);
+    this.move(defendingPlayer, 'press', ballPosition);
 
-    // Milestone 11 - previously a flat 50/50 regardless of situation. Now
-    // biased by what the defending side is actually doing: pressing hard
-    // right after losing the ball or while the ball's still in a winnable
-    // area, dropping into shape once it isn't (see
-    // possession/MatchPhase.ts's getDefendingPhase for the reasoning).
-    if (this.decider.gimmeAChance() < DEFEND_PRESS_CHANCE[defendingPhase]) {
-      this.pressureBall(defendingSide);
-    } else {
-      this.pushBackward(defendingSide);
+    // Milestone 11's phase-weighted press/drop-off roll still decides HOW
+    // MANY of the REMAINING defenders also actively close the ball down
+    // this tick (0 when the roll says no, per possession/MatchPhase.ts's
+    // getDefendingPhase reasoning) - Milestone 14 is what decides what
+    // everyone ELSE does instead of a blanket holdShape/pushBackward.
+    const shouldPress =
+      this.decider.gimmeAChance() < DEFEND_PRESS_CHANCE[defendingPhase];
+    const pressingIntensity = shouldPress
+      ? defendingSide.Tactic.style.pressingIntensity
+      : 0;
+
+    const assignment = planDefensiveAssignments(
+      attackingPlayer,
+      attackingSide,
+      defendingSide
+    );
+
+    const defendingOutfield = playerFunc
+      .getOutfield(defendingSide)
+      .filter((p) => p !== defendingPlayer);
+
+    const pressingIds = new Set(
+      [...defendingOutfield]
+        .sort(
+          (a, b) =>
+            CO.co.calculateDistance(a.BlockPosition, ballPosition) -
+            CO.co.calculateDistance(b.BlockPosition, ballPosition)
+        )
+        .slice(0, pressingIntensity)
+        .map((p) => p._id)
+    );
+
+    defendingOutfield.forEach((p) => {
+      const intent = decideDefensiveIntent(
+        p,
+        defendingPhase,
+        assignment,
+        pressingIds.has(p._id)
+      );
+      const markedOpponentId = assignment.markAssignments.get(p._id!);
+      const markedOpponent = markedOpponentId
+        ? attackingSide.ActivePlayers.find((o) => o._id === markedOpponentId)
+        : undefined;
+      const target = this.resolveDefensiveOffBallTarget(
+        p,
+        defendingSide,
+        intent,
+        ballPosition,
+        assignment,
+        markedOpponent?.BlockPosition
+      );
+      this.move(p, intent, target);
+    });
+  }
+
+  /**
+   * Milestone 14 - turns an `AttackingOffBallIntent` into a concrete
+   * target block. Every case but the pure man-marking-style defensive
+   * ones (see `resolveDefensiveOffBallTarget`) is fundamentally "drift
+   * toward X by some bias" - reuses Milestone 12's `getShapeTarget` (same
+   * anchor-blend, same role/width handling) with a different
+   * (destination, bias, lateralReference) tuple per intent, instead of
+   * one shared bias applied to the whole team.
+   */
+  private resolveAttackingOffBallTarget(
+    player: IFieldPlayer,
+    team: MatchSide,
+    intent: AttackingOffBallIntent,
+    ballPosition: ICoordinate
+  ): IBlock {
+    const home = player.StartingPosition;
+    const centerY = (CO.co.Field.mapHeight - 1) / 2;
+
+    switch (intent) {
+      case 'attack-box':
+        // Push hard toward goal, narrowing only halfway toward the
+        // goal-mouth rather than the exact single ScoringSide point -
+        // multiple attackers all targeting that one point at once (tried
+        // first) collapsed them on top of each other right in front of
+        // goal, which is exactly the "players collapse onto one shared
+        // destination" failure Milestone 12 was built to prevent, and
+        // measurably tanked shots/goals by congesting the box instead of
+        // creating chances in it.
+        return this.getShapeTarget(player, team, team.ScoringSide, 0.7, {
+          x: home.x,
+          y: (home.y + centerY) / 2,
+        });
+      case 'overlap':
+        // Push forward while holding station on the OWN flank (lateral
+        // reference is the player's own anchor, so the width-blend pulls
+        // toward itself - no drift toward the ball's, more central, side).
+        return this.getShapeTarget(player, team, team.ScoringSide, 0.55, home);
+      case 'underlap':
+        // Push forward while cutting inside toward the central channel.
+        return this.getShapeTarget(player, team, team.ScoringSide, 0.5, {
+          x: home.x,
+          y: centerY,
+        });
+      case 'hold-width':
+        // Barely move at all - anchor and destination are the same point.
+        return this.getShapeTarget(player, team, home, 0.15, home);
+      case 'move-between-lines':
+        // Drift into the ball-side pocket without fully committing width,
+        // pulled slightly central rather than following the ball's flank.
+        return this.getShapeTarget(player, team, ballPosition, 0.45, {
+          x: home.x,
+          y: centerY,
+        });
+      case 'make-run':
+        // Burst forward aggressively into the space that's already been
+        // confirmed open (see decideAttackingOffBallIntent).
+        return this.getShapeTarget(
+          player,
+          team,
+          team.ScoringSide,
+          0.6,
+          ballPosition
+        );
+      case 'drop-deep':
+        // Come short toward own goal to offer an out-ball under pressure.
+        return this.getShapeTarget(
+          player,
+          team,
+          team.KeepingSide,
+          0.35,
+          ballPosition
+        );
+      case 'support':
+      default: {
+        // The pre-Milestone-14 default behavior, preserved verbatim as
+        // the fallback: hold near the ball, tactic-driven bias.
+        const bias = 1 - team.Tactic.style.positionalDiscipline;
+        return this.getShapeTarget(player, team, ballPosition, bias, ballPosition);
+      }
+    }
+  }
+
+  /**
+   * Milestone 14 - turns a `DefensiveIntent` into a concrete target block.
+   * `'mark'`/`'track-run'`/`'block-lane'`/`'press'` target a live point
+   * (an opponent, a lane midpoint, the ball itself) directly rather than
+   * blending off the player's own anchor - man-marking a specific
+   * opponent or standing in a specific lane isn't a "drift by some bias"
+   * shape at all.
+   */
+  private resolveDefensiveOffBallTarget(
+    player: IFieldPlayer,
+    team: MatchSide,
+    intent: DefensiveIntent,
+    ballPosition: ICoordinate,
+    assignment: DefensiveAssignment,
+    markedOpponentPosition?: ICoordinate
+  ): IBlock {
+    switch (intent) {
+      case 'mark':
+      case 'track-run':
+        return CO.co.coordinateToBlock(markedOpponentPosition ?? ballPosition);
+      case 'block-lane':
+        return CO.co.coordinateToBlock(assignment.blockLaneTarget ?? ballPosition);
+      case 'press':
+        return CO.co.coordinateToBlock(ballPosition);
+      case 'drop':
+        // Actively retreating into a deeper block - the one defensive
+        // default that still pulls toward the own goal rather than the
+        // ball (matches the old pushBackward's intent).
+        return this.getShapeTarget(
+          player,
+          team,
+          team.KeepingSide,
+          0.4,
+          ballPosition
+        );
+      case 'cover':
+      case 'hold-line':
+      default: {
+        // The common-case default for most defenders most of the time -
+        // drift toward the ball rather than retreating toward goal
+        // (matches the pre-Milestone-14 holdShape default this replaces,
+        // which is why it's the fallback most defenders land on).
+        // 'cover' sits a shade further off the ball than 'hold-line' -
+        // still shading toward protecting space rather than jumping in.
+        const bias =
+          (1 - team.Tactic.style.positionalDiscipline) *
+          (intent === 'cover' ? 0.7 : 1);
+        return this.getShapeTarget(player, team, ballPosition, bias, ballPosition);
+      }
     }
   }
 
@@ -1228,82 +1443,6 @@ export class Actions {
     return success;
   }
 
-  private markBall(player: IFieldPlayer) {
-    this.move(player, 'towards ball', player.Ball.Position);
-  }
-
-  /** Hold formation shape instead of chasing the ball - what every
-   * non-pressing player does now, instead of piling on (see pressureBall). */
-  private holdShape(player: IFieldPlayer, team: MatchSide) {
-    const bias = 1 - team.Tactic.style.positionalDiscipline;
-    const target = this.getShapeTarget(
-      player,
-      team,
-      player.Ball.Position,
-      bias,
-      player.Ball.Position
-    );
-    this.move(player, 'hold shape', target);
-  }
-
-  private pushForward(team: MatchSide) {
-    // const chance = Math.round(Math.random() * 100);
-    log('*-- Attacking Side pushing forward --*');
-
-    // Milestone 12 - every outfield player (not just ATT/MID) now holds/
-    // advances their own shape - see getOutfield()'s own doc comment.
-    const attackingPlayers = playerFunc.getOutfield(team);
-
-    attackingPlayers.forEach((p) => {
-      this.movePlayersForward(p, team);
-    });
-  }
-
-  private pushBackward(team: MatchSide) {
-    // const chance = Math.round(Math.random() * 100);
-    log('*-- Team pushing backward --*');
-
-    const attackingPlayers = playerFunc.getOutfield(team);
-
-    attackingPlayers.forEach((p) => {
-      this.movePlayersBackward(p, team);
-    });
-  }
-
-  private pressureBall(team: MatchSide) {
-    log('*-- Defending Side pressuring ball --*');
-
-    // Milestone 12 - defenders now enter this pool too (previously
-    // ATT/MID only) - in practice they're rarely among the nearest few to
-    // an opponent's ball deep in the defending side's own half, so they
-    // mostly land in `holders` (hold their own shape) rather than
-    // `pressers`, which is the realistic outcome anyway.
-    const defendingPlayers = playerFunc.getOutfield(team);
-
-    if (defendingPlayers.length === 0) {
-      return;
-    }
-
-    // Only the nearest few (per the team's playing style) actually close
-    // the ball down - previously EVERY ATT/MID player beelined for the
-    // exact ball coordinate every tick, which just swarmed the ball
-    // carrier (whoever got there first tackled it, nobody held a passing
-    // lane open). Everyone else holds their formation shape instead.
-    const ballPosition = defendingPlayers[0].Ball.Position;
-    const pressingIntensity = team.Tactic.style.pressingIntensity;
-
-    const sortedByBallDistance = [...defendingPlayers].sort(
-      (a, b) =>
-        CO.co.calculateDistance(a.BlockPosition, ballPosition) -
-        CO.co.calculateDistance(b.BlockPosition, ballPosition)
-    );
-
-    const pressers = sortedByBallDistance.slice(0, pressingIntensity);
-    const holders = sortedByBallDistance.slice(pressingIntensity);
-
-    pressers.forEach((p) => this.markBall(p));
-    holders.forEach((p) => this.holdShape(p, team));
-  }
 }
 
 interface ISituation {

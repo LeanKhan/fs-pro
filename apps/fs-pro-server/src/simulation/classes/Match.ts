@@ -231,7 +231,8 @@ export class Match implements IMatch, MatchClass {
        passed to ${data.receiver.FirstName} ${data.receiver.LastName} [${data.receiver.ClubCode}]`,
         'pass',
         data.passer._id,
-        data.passer.ClubCode
+        data.passer.ClubCode,
+        { passType: data.passType }
       );
 
       // // give receiver some passes
@@ -258,7 +259,8 @@ export class Match implements IMatch, MatchClass {
        intercepted pass from ${data.passer.FirstName} ${data.passer.LastName} [${data.passer.ClubCode}]`,
         'interception',
         data.interceptor._id,
-        data.interceptor.ClubCode
+        data.interceptor.ClubCode,
+        { passType: data.passType }
       );
 
       this.Actions.push({
