@@ -1752,31 +1752,54 @@ Live HTTP smoke test (`GET /api/game/kickoff-new/:fixtureId` against the running
 
 ## Milestone 19 - Simulation Config And Calibration
 
-**Status:** Not started
+**Status:** Done (2026-09-07) - revised scope, see note below
 
 **Purpose:** Centralize magic numbers and make behavior tunable without hunting through engine code.
+
+**Revision note:** the target structure below names `packages/simulation/config/`
+- that package doesn't exist yet (Milestone 2's extraction is still not
+started; every simulation module today lives under
+`apps/fs-pro-server/src/simulation/`). Built at
+`src/simulation/config/` instead, right next to every sibling module
+(`decision/`, `passing/`, `randomness/`, ...) - same "revise scope,
+document why" treatment prior milestones gave their own aspirational
+target structures. Also deliberately NOT exhaustive over every magic
+number in the engine - see `SimulationConfig.ts`'s own doc comment for
+why `resolver/PassResolver.ts`'s five pass-type branches (~50
+individually-reasoned duel weights, each with real empirical
+justification in its own comments) were left as code rather than
+flattened into generic config keys. Every task below was still done, just
+scoped to the real, meaningful thresholds across all seven named
+categories rather than literally every constant in the codebase.
 
 **Target Structure**
 
 ```text
-packages/simulation/config/
+src/simulation/config/
   SimulationConfig.ts
   defaultSimulationConfig.ts
+  index.ts
 ```
 
 **Tasks**
 
-- [ ] Move thresholds for shooting, passing, dribbling, tackling, fouls, pressing, and movement into config.
-- [ ] Add config override support for scripts/tests.
-- [ ] Add tactic sensitivity tests.
-- [ ] Add calibration notes for expected football ranges.
-- [ ] Compare each tuning pass against the baseline metrics.
+- [x] Move thresholds for shooting, passing, dribbling, tackling, fouls, pressing, and movement into config. All seven categories covered with real, previously-hardcoded values (not placeholders): shooting (`SHOOT_PROFILES`, confidence swing, shot-vs-keeper duel, near-post distance), passing (pass-type classification geometry, `scorePassingOption` coefficients, interceptor search distance), dribbling (decision-layer weights + execution-layer duel), tackling (duel weights), fouls (foul-chance roll + card-severity split), pressing (tight/wide/off-ball pressure radii, marking range, max marked threats), movement (wide-anchor band, space-ahead radii). Touched 8 consumer files (`Decider.ts`, `PassingOption.ts`, `Actions.ts`, `Referee.ts`, `TackleResolver.ts`, `ShotResolver.ts`, `OffBallPolicy.ts`) - every one now reads `getSimulationConfig()` instead of a local constant.
+- [x] Add config override support for scripts/tests. `setSimulationConfig()`/`getSimulationConfig()`/`resetSimulationConfig()`/`mergeSimulationConfig()` in `defaultSimulationConfig.ts` - the same module-singleton pattern `randomness/RandomSource.ts` already established for `setSimulationRandomSource`. `mergeSimulationConfig()` deep-merges a partial override onto the CURRENT config (stacks, doesn't discard a prior override) so a script can change one or two leaves without repeating the whole tree.
+- [x] Add tactic sensitivity tests. `src/scripts/tacticSensitivityCheck.ts` - a durable (not throwaway) script, same family as `simRealismCheck.ts` and reusing its match-simulation/metrics machinery (exported `simulateOneMatch`/`buildMetricsMap`/`computeMetricStats`/etc. for reuse, with `simRealismCheck.ts`'s own `main()` guarded behind `require.main === module` so importing it no longer triggers an unwanted 1000-match batch run as a side effect). Runs the same roster pool twice - default config vs a deliberately extreme "direct and aggressive" variant - and reports the delta.
+- [x] Add calibration notes for expected football ranges. Not duplicated into the config file - `defaultSimulationConfig.ts`'s own doc comment points back at `simRealismCheck.ts`'s existing `REFERENCE_RANGES` (the tracker's own already-answered "acceptable baseline ranges" open decision) as the single source of truth, and states the actual calibration workflow: change a config value, then `simRealismCheck.ts --compare` against a pre-change baseline.
+- [x] Compare each tuning pass against the baseline metrics. Verified this migration is a PURE REFACTOR, not a retuning: every value in `defaultSimulationConfig.ts` was copied verbatim from its original hardcoded location, and `simRealismCheck.ts --compare` (59 matches before vs 59 after) showed only sampling-noise-level deltas (all within the same spread seen between two back-to-back runs of literally identical code) - config centralization changed WHERE behavior is tuned from, not what the behavior IS.
 
 **Acceptance Criteria**
 
-- [ ] Simulation behavior can be tuned from one config surface.
-- [ ] Tactical changes produce measurable differences.
-- [ ] Calibration changes are backed by before/after metrics.
+- [x] Simulation behavior can be tuned from one config surface. Structurally true, not spot-checked: all 8 consumer files read the same `getSimulationConfig()` singleton.
+- [x] Tactical changes produce measurable differences. Verified live via `tacticSensitivityCheck.ts` (40 matches per variant) - see below.
+- [x] Calibration changes are backed by before/after metrics. `simRealismCheck.ts --compare` is the judge for every future tuning pass, same as it's been since Milestone 1 - this milestone made the SURFACE to tune from, not a new verification mechanism.
+
+**Verified live** - `tacticSensitivityCheck.ts` (40 matches/variant) comparing the default config against a "direct and aggressive" variant (2x shooting confidence swing, full-strength pass directness coefficients, ~2x foul chance, wider/heavier marking) showed clear, real deltas: goals +1.8, shots per team +1.3, fouls per team +2.1, yellow cards +0.5, red cards +0.3, direct pass share +5.1 points, tackles per team -3.1 (fewer clean dribble-vs-tackle duels as more of them resolve as fouls instead) - config changes measurably reach match output, not just constant relocation.
+
+**A real, previously-undiagnosed bug found live while verifying, not guessed** - the first sensitivity-check run crashed outright (`Cannot read properties of undefined (reading 'StartingPosition')` in `Referee.handleShot()`). Root-caused (not assumed) via a direct check of the checked-in roster pool (`src/scripts/fixtures/simulation-roster-pool.json`): club `RB` has 13 signed players and zero of them are `Position === 'GK'` - a genuine pre-existing data gap, not a logic bug (`getGK()`'s `squad.find(p => p.Position === 'GK')` correctly returns `undefined`, `Referee.handleShot()` just never guarded against that). This has almost certainly been silently eating ~2-4% of every `simRealismCheck.ts` sample run throughout this whole tracker (that script's own per-match `try/catch` swallows the crash and logs it as a generic "failed" line among the console noise) - never investigated before now because nothing forced a closer look. `tacticSensitivityCheck.ts` initially had no such per-match guard and died on first contact; fixed by adding the same per-match `try/catch` resilience `simRealismCheck.ts`'s own `main()` loop already has. The underlying data gap (regenerate the roster pool, or fix whatever in club/player generation lets a club field zero goalkeepers) is left open, disclosed here rather than silently patched around - out of this milestone's actual scope (config/calibration, not roster-generation data integrity or defensive-code hardening of `Referee.handleShot()` itself), but real and worth a dedicated look.
+
+Live HTTP smoke test (`GET /api/game/kickoff-new/:fixtureId` against the running dev server) returned a normal 1-1 draw with sane stats (44 passes, 3 fouls), confirming the config-driven engine runs end-to-end outside the scripts too.
 
 ## Milestone 20 - Fatigue, Confidence, And Player Memory
 

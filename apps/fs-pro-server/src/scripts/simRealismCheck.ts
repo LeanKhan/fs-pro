@@ -49,7 +49,9 @@ import App from '../controllers/app/App';
 import { IClub } from '../interfaces/Club';
 import { ITactic } from '../simulation/state/PersistentState/Formations';
 
-const POOL_PATH = path.join(
+/** Exported (Milestone 19) so tacticSensitivityCheck.ts can reuse the same
+ * roster pool location rather than hardcoding a second copy of this path. */
+export const POOL_PATH = path.join(
   __dirname,
   'fixtures',
   'simulation-roster-pool.json'
@@ -62,13 +64,13 @@ const BASELINE_OUTPUT_PATH = path.join(
   'simulation-baseline.json'
 );
 
-interface IRosterPool {
+export interface IRosterPool {
   dumpedAt: string;
   clubs: IClub[];
   tactics: Record<string, ITactic>;
 }
 
-interface IMatchSummary {
+export interface IMatchSummary {
   homeClub: string;
   awayClub: string;
   goalsTotal: number;
@@ -136,7 +138,7 @@ const REFERENCE_RANGES: Record<string, [number, number]> = {
 const MAX_TICKS_PER_MATCH = 180;
 const TICK_CAPPED_METRICS = new Set(['Passes per team']);
 
-function pickTwoDistinctClubs(clubs: IClub[]): [IClub, IClub] {
+export function pickTwoDistinctClubs(clubs: IClub[]): [IClub, IClub] {
   const a = clubs[Math.floor(Math.random() * clubs.length)];
   let b = clubs[Math.floor(Math.random() * clubs.length)];
   while (b._id === a._id) {
@@ -145,7 +147,7 @@ function pickTwoDistinctClubs(clubs: IClub[]): [IClub, IClub] {
   return [a, b];
 }
 
-async function simulateOneMatch(
+export async function simulateOneMatch(
   home: IClub,
   away: IClub,
   tactics: Record<string, ITactic>
@@ -225,7 +227,7 @@ async function simulateOneMatch(
   };
 }
 
-function average(values: number[]): number {
+export function average(values: number[]): number {
   return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
@@ -240,7 +242,7 @@ function percentile(values: number[], p: number): number {
   return sorted[index];
 }
 
-interface IMetricStats {
+export interface IMetricStats {
   mean: number;
   min: number;
   max: number;
@@ -249,7 +251,7 @@ interface IMetricStats {
   p90: number;
 }
 
-function computeMetricStats(values: number[]): IMetricStats {
+export function computeMetricStats(values: number[]): IMetricStats {
   return {
     mean: average(values),
     min: Math.min(...values),
@@ -260,7 +262,7 @@ function computeMetricStats(values: number[]): IMetricStats {
   };
 }
 
-function buildMetricsMap(summaries: IMatchSummary[]): Record<string, number[]> {
+export function buildMetricsMap(summaries: IMatchSummary[]): Record<string, number[]> {
   return {
     'Goals per match (both teams)': summaries.map((s) => s.goalsTotal),
     'Shots per team': summaries.map((s) => s.shotsPerTeam),
@@ -476,7 +478,13 @@ async function main() {
   saveBaseline(summaries.length, metrics);
 }
 
-main().catch((err) => {
-  console.error('\nRealism check failed:', err);
-  process.exitCode = 1;
-});
+// Milestone 19 - guarded so tacticSensitivityCheck.ts (and anything else)
+// can import this module's reusable pieces (simulateOneMatch/
+// buildMetricsMap/computeMetricStats/...) without triggering a full
+// 1000-match batch run as an unwanted side effect of the import.
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('\nRealism check failed:', err);
+    process.exitCode = 1;
+  });
+}

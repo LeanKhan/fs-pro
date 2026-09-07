@@ -11,6 +11,7 @@ import { IBall } from './Ball';
 import log from '../../helpers/logger';
 import { createRandomSource, RandomInput, RandomSource } from '../randomness';
 import { applyCard } from '../transitions';
+import { getSimulationConfig } from '../config';
 
 export default class Referee {
   public FirstName: string;
@@ -88,8 +89,9 @@ export default class Referee {
           ? 0.6
           : 1;
 
-    const redThreshold = 3 * difficultyMultiplier; // ~2-4.5% of fouls
-    const yellowThreshold = 25 * difficultyMultiplier; // next ~15-37% of fouls
+    const cardThresholds = getSimulationConfig().fouls.cardThresholds;
+    const redThreshold = cardThresholds.red * difficultyMultiplier; // ~2-4.5% of fouls
+    const yellowThreshold = cardThresholds.yellow * difficultyMultiplier; // next ~15-37% of fouls
 
     const reason: IFoul['reason'] =
       chance <= redThreshold

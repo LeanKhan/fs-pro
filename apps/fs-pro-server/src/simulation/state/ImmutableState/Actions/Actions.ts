@@ -37,6 +37,7 @@ import {
   planDefensiveAssignments,
 } from '../../../player/OffBallPolicy';
 import { deriveTendencies } from '../../../player/PlayerRole';
+import { getSimulationConfig } from '../../../config';
 
 /** Milestone 16 - one collected-but-not-yet-executed off-ball decision:
  * who, doing what, headed where. See `resolveOffBallMoves()`. */
@@ -93,22 +94,6 @@ const WIDTH_DRIFT_SCALE = 0.25;
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
-
-/** Milestone 13 - how close (in `findClosestToSegment`'s lane-width units,
- * see `Actions.pass()`'s own doc comment on why this ISN'T run through
- * `scaleDistance()`) a defender must be to the pass line to be considered
- * a plausible interceptor, by pass type. Longer/riskier pass shapes travel
- * through more of the pitch, so a wider band of defenders can plausibly
- * step into the lane. Previously only 'long'/'pass to post' got the wider
- * band (3); every other type defaulted to 2. */
-const INTERCEPTOR_DISTANCE_BY_PASS_TYPE: Record<string, number> = {
-  short: 2,
-  backward: 2,
-  long: 3,
-  'pass to post': 3,
-  through: 3,
-  wide: 3,
-};
 
 export class Actions {
   public referee: IReferee;
@@ -353,7 +338,8 @@ export class Actions {
 
     let situation: ISituation;
 
-    let interceptorDistance = INTERCEPTOR_DISTANCE_BY_PASS_TYPE[type] ?? 2;
+    const interceptorDistanceByType = getSimulationConfig().passing.interceptorDistanceByType;
+    let interceptorDistance = interceptorDistanceByType[type] ?? interceptorDistanceByType.default;
 
     // situation = { status: false, reason: 'no where to move' };
 
@@ -1519,11 +1505,14 @@ export class Actions {
     // called Referee.foul() at all, despite the whole foul/card/set-piece
     // system (Referee.foul/handleFoul/setUpSetPiece) already being fully
     // written and simply never wired up - fouls were always exactly 0.
+    const foulConfig = getSimulationConfig().fouls.chance;
     const foulChance = Math.max(
       0,
       Math.min(
         100,
-        30 + (tackler.Attributes.Aggression - tackler.Attributes.Tackling) * 0.3
+        foulConfig.base +
+          (tackler.Attributes.Aggression - tackler.Attributes.Tackling) *
+            foulConfig.aggressionCoefficient
       )
     );
     const fouled = this.decider.gimmeAChance() <= foulChance;
