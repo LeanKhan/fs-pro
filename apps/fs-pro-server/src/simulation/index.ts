@@ -82,3 +82,5 @@ export type {
   OffBallIntent,
   DefensiveAssignment,
 } from './player/OffBallPolicy';
+export { deriveRole, deriveTendencies } from './player/PlayerRole';
+export type { PlayerRole, PlayerTendencies } from './player/PlayerRole';

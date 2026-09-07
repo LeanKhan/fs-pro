@@ -3,6 +3,7 @@ import { MatchSide } from '../classes/MatchSide';
 import { TeamIntent } from '../team/TeamIntent';
 import { PlayerObservation } from './PlayerObservation';
 import { PlayerIntent } from './PlayerIntent';
+import { PlayerTendencies } from './PlayerRole';
 
 /**
  * Milestone 7 - the seam a future `NeuralPlayerPolicy` (or any other
@@ -15,6 +16,10 @@ export interface PlayerPolicy {
     player: IFieldPlayer,
     observation: PlayerObservation,
     teamIntent: TeamIntent,
+    /** Milestone 15 (Player Roles And Tendencies) - this player's own
+     * derived tendencies (`player/PlayerRole.ts`), independent of the
+     * team-wide `teamIntent`. */
+    tendencies: PlayerTendencies,
     attackingSide: MatchSide,
     defendingSide: MatchSide
   ): PlayerIntent;
