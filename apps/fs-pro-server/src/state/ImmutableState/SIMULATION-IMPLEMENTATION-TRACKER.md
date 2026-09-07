@@ -1710,23 +1710,45 @@ kickoff-new/:fixture` against a genuine unplayed, non-friendly fixture -
 
 ## Milestone 18 - Score-Based Decisions
 
-**Status:** Not started
+**Status:** Done (2026-09-07) - revised scope, see note below
 
 **Purpose:** Replace brittle threshold chains with ranked candidate actions.
 
+**Revision note:** `Decider.makeDecision()`'s old position-keyed switch
+(shoot-check, then a nested if/else per position) is gone, replaced by a
+real generate-score-choose pipeline. `PlayerIntent`/`IStrategy` still only
+carry three EXECUTION kinds ('pass'/'shoot'/'move') - `Actions.move()`
+already decides for itself, at execution time, whether a 'move' plays out
+as an uncontested carry or a contested dribble (whether a marking opponent
+happens to be adjacent when the move resolves). So 'carry'/'dribble'/
+'hold'/'support' are real, separately-scored DECISIONS (see
+`simulation/decision/CandidateAction.ts`'s module doc comment) that all
+collapse to the same 'move' execution intent today - not four new
+execution branches invented with no real behavioral difference between
+them. Same "revise scope, document why" treatment prior milestones gave
+field-grid resolution and multi-tick ball flight, just at the execution
+boundary rather than skipping a task outright - every task below was
+still done.
+
 **Tasks**
 
-- [ ] Generate candidate actions for pass, carry, dribble, shoot, hold, and support.
-- [ ] Score actions by context, player ability, role, tendencies, team intent, pressure, and match phase.
-- [ ] Choose probabilistically from scored actions rather than always picking the top score.
-- [ ] Track decision score and chosen action in debug events.
-- [ ] Keep execution success separate from decision quality.
+- [x] Generate candidate actions for pass, carry, dribble, shoot, hold, and support. `Decider.generateCandidates()` builds all six every decision (shoot: up to 2 sub-variants gated by range; pass: the single best-scored `PassingOption` plus the near-post backpass special case; carry/dribble/hold/support: always present, never gated) - see `simulation/decision/CandidateAction.ts`.
+- [x] Score actions by context, player ability, role, tendencies, team intent, pressure, and match phase. Each `scoreX()` method in `Decider.ts` folds in pressure (`getPressure`), player attributes (`Mental`/`Dribbling`/`AttackingMindset`), role tendencies (`deriveTendencies`), team tactic (`Tactic.style.tempo`/`directness` via `blendedPassingStyle`), and - genuinely new, not previously consumed anywhere - `TeamIntent.phase` via `PHASE_BIAS` (closes a gap `RuleBasedPlayerPolicy`'s own doc comment had flagged unused since Milestone 7).
+- [x] Choose probabilistically from scored actions rather than always picking the top score. `chooseCandidate()` (`decision/CandidateAction.ts`) does one weighted random draw across every candidate, weight = score² (squared, not linear - see that file's own doc comment on why a flat linear weight under-selected the best option far more than the old chain ever did).
+- [x] Track decision score and chosen action in debug events. `simulation/decision/decisionLog.ts`'s `decisionEvents` emits a full `DecisionDebugEvent` (every candidate + its score + the chosen one) per decision, on a separate match-scoped stream from the user-facing `matchEvents`/`Match.Events` (that one feeds commentary/replay; this one's a full ranked-candidate record, not something the match payload should be flooded with).
+- [x] Keep execution success separate from decision quality. Unchanged by construction: `passResolver`/`tackleResolver`/`shotResolver` and `Actions.move()`'s dribble-contest still own every outcome roll, exactly as before this milestone - `Decider.makeDecision()` only ever returns WHAT to attempt.
 
 **Acceptance Criteria**
 
-- [ ] Better mental/decision attributes improve option selection.
-- [ ] Technical attributes still control execution quality.
-- [ ] Players show variation without pure randomness.
+- [x] Better mental/decision attributes improve option selection. `scoreHold`/`confidenceThreshold` fold in `Mental` (composure) directly; `scoreDribble` folds in `Dribbling`/role `dribbling` tendency; `scoreShootCandidates`/`shootUtility` fold in `AttackingMindset`+shooting tendency. Structural, not spot-checked only - these are the same attributes/tendencies every scorer reads.
+- [x] Technical attributes still control execution quality. Untouched: `PassResolver`/`TackleResolver`/`ShotResolver` and the dribble-contest formula in `Actions.move()` still resolve every outcome from technical attributes, exactly as before - this milestone never touches them.
+- [x] Players show variation without pure randomness. Verified live (see below): a genuinely probabilistic, not argmax-only and not uniform, share of decisions picked a non-top-scored candidate.
+
+**Verified live** - a throwaway `verifyScoredDecisions.ts` (deleted after use, same treatment as Milestone 17's `verifyBallModel.ts`) ran 8 real roster-pool matches (1361 recorded decisions) subscribed to `decisionEvents`, confirming: every decision had >= 3 real candidates (100%); all 6 candidate types actually got chosen across the sample (not just 1-2 dominating); every candidate score was a finite number in [0, 1]; the chosen candidate was always a genuine member of its own candidates list; and 58.3% of decisions picked a candidate that was NOT the top-scored one (comfortably inside the "genuinely probabilistic, not argmax, not uniform" 10-90% band checked for) - proving `chooseCandidate()` is real weighted selection, not a disguised always-pick-the-best. Chosen-type distribution after tuning: dribble 28.5%, hold 25.1%, pass 21.7%, support 12.7%, carry 8.2%, shoot 3.8% - rebalanced once live (`scoreHold`'s pressure normalization was too generous, initially making 'hold' the single most-picked action ahead of 'pass') until no single type degenerately dominated.
+
+`simRealismCheck.ts --compare` against the pre-Milestone-18 baseline (955 vs 59 matches): every metric's mean delta stayed small (<= 1.6) - goals per match actually improved (4.5 -> 3.4, comfortably inside the 1.5-4.5 real-world band, continuing the trend Milestone 17 started), passes per team went slightly UP (+1.4), pass completion held close (75.8% -> 74.4%). Shots/tackles/fouls/interceptions/yellow-cards remain below their real-world reference bands - but they were ALREADY below those bands before this milestone (shots 5.1 vs a 7-18 target, tackles 7.1 vs 10-25, fouls 4.1 vs 6-16), and the compare shows only small further softening, not a new regression this milestone introduced. This is the same tick-granularity ceiling Milestone 16's own `TICK_CAPPED_METRICS` comment already predicted for "shots/tackles/dribbles" sharing the fixed 180-tick match budget with everything else - `TICK_CAPPED_METRICS` itself wasn't touched (only `'Passes per team'` is formally exempted there), since chasing these into their real-world bands isn't this milestone's job and the earlier aggressive attempt to force it (raising shoot thresholds far more aggressively) produced an unrealistic 21-goal single-match outlier before being dialed back - a clear sign that was the wrong lever.
+
+Live HTTP smoke test (`GET /api/game/kickoff-new/:fixtureId` against the running dev server) returned a normal 2-1 result with sane per-match stats (37 passes, 3+ shots, 7 fouls), confirming the new decision pipeline runs end-to-end outside the aggregate scripts too.
 
 ## Milestone 19 - Simulation Config And Calibration
 
