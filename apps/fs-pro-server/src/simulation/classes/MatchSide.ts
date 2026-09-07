@@ -223,8 +223,28 @@ export class MatchSide extends Club {
     });
   }
 
+  /**
+   * Milestone 17 (Independent Ball Model) - iterates `ActivePlayers`, NOT
+   * the raw `StartingSquad` (which keeps growing forever - a substituted-
+   * off player stays in it, same pattern as 'sent-off', for post-match
+   * stats). Previously this walked `StartingSquad` directly, so a
+   * half-time reset would ALSO reposition the just-substituted-off player
+   * back onto their own `StartingPosition` - the exact same block their
+   * replacement had just been placed on one step earlier in
+   * `performHalfTimeSubstitutions()`. Whichever of the two `changePosition()`
+   * calls landed last silently became the block's real occupant, which
+   * could make the substituted-off player - excluded from `ActivePlayers`
+   * everywhere else - still findable as a phantom marking "opponent" by
+   * `Actions.findMarkingOpponent()` (which reads `block.occupant`
+   * directly), and in rare cases even end up as `Ball.holderId` via a
+   * tackle "won" against a player no longer in the match. Found live via
+   * a dedicated verification script, not guessed - see the tracker's own
+   * Milestone 17 notes. Same root-cause family as the `StartingSquad`-vs-
+   * `ActivePlayers` bug Milestone 6 already found and fixed in
+   * `changeTactic()`.
+   */
   public resetFormation() {
-    this.StartingSquad.forEach((player) => {
+    this.ActivePlayers.forEach((player) => {
       player.changePosition(player.StartingPosition);
     });
   }
@@ -303,6 +323,17 @@ export class MatchSide extends Club {
    */
   public substitutePlayer(outgoing: IFieldPlayer, incoming: Player, ball: Ball) {
     outgoing.MatchStatus = 'substituted';
+    // Milestone 17 (Independent Ball Model) - free the block `outgoing`
+    // actually occupied at the moment of substitution (wherever the first
+    // half left them - not necessarily their StartingPosition, which is
+    // where the incoming replacement gets placed instead, a different
+    // block). Left uncleared, `outgoing` stayed a phantom `block.occupant`
+    // findable by `Actions.findMarkingOpponent()` (which doesn't filter
+    // through `ActivePlayers`) for the rest of the match, capable of
+    // "winning" a tackle duel and ending up as `Ball.holderId` despite no
+    // longer being in the match - found live via a dedicated verification
+    // script, not guessed.
+    outgoing.BlockPosition.occupant = null;
 
     const incomingPlayer = new FieldPlayer(
       incoming,

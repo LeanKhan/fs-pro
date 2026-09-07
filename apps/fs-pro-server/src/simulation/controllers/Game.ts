@@ -299,72 +299,27 @@ export default class Game implements GameClass {
   }
 
   public setPlayingSides() {
-    // Ball possession should always be single-owner - if it ever isn't,
-    // something upstream (a foul/restart racing an ordinary tackle/dribble
-    // ball-move, the exact class of bug fixed in FieldPlayer.move() and
-    // Actions.tackle()) has regressed. Warn loudly instead of silently
-    // picking whichever holder Array.find() happens to see first.
-    const holders = [
-      ...this.Match.Home.StartingSquad,
-      ...this.Match.Away.StartingSquad,
-    ].filter((p) => p.WithBall);
-    if (holders.length > 1) {
-      // NOTE: Block objects hold an `occupant` back-reference to a player
-      // (whose own Ball -> Position can cycle back to a Block) - JSON.
-      // stringify-ing one directly throws "Converting circular structure
-      // to JSON" and crashes the whole match. Pick plain x/y instead.
-      const ballPos = this.MatchBall.Position;
-      console.warn(
-        `[possession] ${holders.length} players simultaneously have WithBall (ball @ x:${ballPos.x},y:${ballPos.y}): `,
-        holders.map(
-          (p) =>
-            `${p.FirstName} ${p.LastName} [${p.ClubCode}] @ x:${p.BlockPosition.x},y:${p.BlockPosition.y}`
-        )
-      );
-    }
+    // Milestone 17 (Independent Ball Model) - previously scanned both
+    // squads for `.WithBall`, warning loudly if more than one came back
+    // (a real, historically-observed symptom - see Ball.ts's own doc
+    // comment on the bug this used to guard against) before scanning
+    // AGAIN, twice more, to actually find the one player each branch
+    // needed. Now there is exactly one canonical answer to "who has the
+    // ball" (`this.MatchBall.holderId`) - a single lookup, and no shape
+    // of code left that could even ask "how many holders are there"
+    // ambiguously, so there's nothing left to warn about.
+    const holderId = this.MatchBall.holderId;
+    const holder = holderId
+      ? ([...this.Match.Home.StartingSquad, ...this.Match.Away.StartingSquad].find(
+          (p) => p._id === holderId
+        ) as IFieldPlayer | undefined)
+      : undefined;
 
-    if (
-      this.Match.Home.StartingSquad.find((p) => {
-        return p.WithBall;
-      })
-    ) {
-      this.AS = this.Match.Home;
-
-      // Set the activePlayer in the attacking team to be the player with
-      // the ball
-      this.ActivePlayerAS = this.Match.Home.StartingSquad.find((p) => {
-        return p.WithBall;
-      }) as IFieldPlayer;
-
-      this.DS = this.Match.Away;
-
-      // Set the activePlayer in the defending team to be the player closest to
-      // the ball
-      this.ActivePlayerDS = this.Co.findClosestFieldPlayer(
-        this.MatchBall.Position,
-        this.DS.ActivePlayers
-      );
-
-      return {
-        activePlayerAS: this.ActivePlayerAS,
-        AS: this.AS,
-        activePlayerDS: this.ActivePlayerDS,
-        DS: this.DS,
-      };
-    } else if (
-      this.Match.Away.StartingSquad.find((p) => {
-        return p.WithBall;
-      })
-    ) {
-      this.AS = this.Match.Away;
-
-      // Set the activePlayer in the attacking team to be the player with
-      // the ball
-      this.ActivePlayerAS = this.Match.Away.StartingSquad.find((p) => {
-        return p.WithBall;
-      }) as IFieldPlayer;
-
-      this.DS = this.Match.Home;
+    if (holder) {
+      const isHome = this.Match.Home.StartingSquad.includes(holder);
+      this.AS = isHome ? this.Match.Home : this.Match.Away;
+      this.ActivePlayerAS = holder;
+      this.DS = isHome ? this.Match.Away : this.Match.Home;
 
       // Set the activePlayer in the defending team to be the player closest to
       // the ball

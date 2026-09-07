@@ -22,9 +22,13 @@ export interface IFieldPlayer extends PlayerInterface {
   move(pos: any): void;
   changePosition(pos: IBlock): void;
   changeStartingPosition(block: IBlock): void;
-  pass(pos: any): void;
+  /** Milestone 17 (Independent Ball Model) - `holderId` is the id of
+   * whoever's actually receiving this pass (the target teammate on a
+   * clean pass, the interceptor on a failed one) - the caller always
+   * already knows which, so it's explicit rather than re-derived from
+   * position matching afterward (see `Ball.ts`'s own doc comment). */
+  pass(pos: any, holderId: string): void;
   shoot(pos: any): void;
-  updateBallPosition(pos: any): void;
   getBlocksAround(radius: number): any[];
   increaseGoalTally(): void;
   increasePoints(pnts: number): void;

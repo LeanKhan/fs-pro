@@ -140,22 +140,28 @@ const toCoordinate = (block: { x: number; y: number; key?: string }) => ({
 const playerIdentity = (player: Pick<PlayerInterface, '_id' | 'PlayerID'>) =>
   player._id ?? player.PlayerID;
 
+/**
+ * Milestone 17 (Independent Ball Model) - simplified from a `.filter(p =>
+ * p.WithBall)` over both squads plus a position-matching dedup fallback
+ * for the "more than one came back" case, down to a single lookup by the
+ * ball's own canonical `holderId`. The dedup fallback existed because
+ * `WithBall` used to be 22 independently-maintained booleans that could
+ * legitimately disagree; now that it's a getter derived from one shared
+ * `Ball.holderId` (see `Ball.ts`/`FieldPlayer.ts`), more than one player
+ * ever reading `WithBall === true` at once is structurally impossible,
+ * not just unlikely - there's nothing left to dedupe.
+ */
 const findCanonicalHolder = (match: Match): IFieldPlayer | undefined => {
-  const players = [
-    ...match.Home.StartingSquad,
-    ...match.Away.StartingSquad,
-  ].filter((player) => player.WithBall);
+  const ball =
+    match.Home.StartingSquad[0]?.Ball ?? match.Away.StartingSquad[0]?.Ball;
 
-  if (players.length <= 1) {
-    return players[0];
+  if (!ball?.holderId) {
+    return undefined;
   }
 
-  const ballPosition = players[0].Ball?.Position;
-  const matchingBallPosition = players.find(
-    (player) => player.BlockPosition.key === ballPosition?.key
+  return [...match.Home.StartingSquad, ...match.Away.StartingSquad].find(
+    (player) => playerIdentity(player) === ball.holderId
   );
-
-  return matchingBallPosition ?? players[0];
 };
 
 const createPossessionState = (

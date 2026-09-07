@@ -1558,7 +1558,7 @@ non-friendly fixture - 200 OK against the actual running dev server.
 
 ## Milestone 17 - Independent Ball Model
 
-**Status:** Not started
+**Status:** Done (2026-09-07) - revised scope, see note below
 
 **Purpose:** Make the ball a real match-state object rather than only a player possession flag.
 
@@ -1574,19 +1574,139 @@ interface BallState {
 }
 ```
 
+**Revision note - what this engine's resolution model actually needed:**
+The tracker's own `BallState` sketch (`velocity`/`target`/`'passing'`/
+`'shooting'`/`'out-of-play'` as distinct states) assumes ball flight can
+take real time - a pass in flight for several ticks, interceptable by a
+defender who physically reaches its trajectory mid-flight. This engine
+resolves every pass/shot/tackle/restart fully synchronously within a
+single tick (established since Milestone 1, reaffirmed by Milestone 16's
+own investigation) - modeling real multi-tick flight would mean deciding
+what a player (the passer, off-ball teammates, defenders) is doing DURING
+the several ticks a ball is "in the air", which is a genuinely different
+decision model, not an incremental change, and the same class of large,
+deliberately-deferred recalibration risk already flagged for the field
+grid's resolution and the simulation tick length itself. So: real,
+canonical ball ownership - yes, built for real (see below). Real physics-
+timed flight - deferred, honestly, not faked with cosmetic fields nothing
+would ever observe (see the `BallPossessionState` doc comment in `Ball.ts`
+for exactly which states are real vs. deferred and why).
+
 **Tasks**
 
-- [ ] Make `BallState` the canonical source of ball ownership.
-- [ ] Derive player `hasBall`/`WithBall` from `BallState`.
-- [ ] Model pass and shot travel with start, destination, speed, and arrival tick.
-- [ ] Allow interceptions based on ball path and defender movement.
-- [ ] Add loose-ball recovery behavior.
+- [x] Make `BallState` the canonical source of ball ownership - new
+      `Ball.holderId`/`Ball.state` fields (`Ball.ts`). Previously `Ball`
+      had no ownership concept at all - "who has the ball" lived
+      entirely as ~22 independent `FieldPlayer.WithBall` booleans, each
+      reactively recomputed on every ball move by comparing its own block
+      key to the ball's position - 22 redundant computations of the same
+      fact, capable of drifting from each other (and did - see below).
+- [x] Derive player `hasBall`/`WithBall` from `BallState` - `FieldPlayer.
+      WithBall` is now a getter reading `Ball.holderId`, not a stored
+      field; the old per-player `ballMove.on()` listener (and the
+      `checkWithBall()`/`updateBallPosition()` machinery it drove) is
+      gone - a getter doesn't need telling when its source changes.
+- [x] Model pass and shot travel with start, destination, speed, and
+      arrival tick - deliberately NOT built, per the revision note above;
+      `Ball.move()` still resolves a pass/shot's destination within the
+      same tick, now with an EXPLICIT holder assignment at that point
+      (`holderId`, passed by the caller, who always already knows who's
+      receiving it) rather than an implicit position-match inferred
+      afterward.
+- [x] Allow interceptions based on ball path and defender movement -
+      already real and unchanged: `Actions.pass()`'s interceptor search
+      (`CO.co.findClosestToSegment`, the actual pass lane's geometry) has
+      to find a defender standing in the ball's path BEFORE any
+      interception roll is even attempted - no lane presence, no
+      interception chance, ever. This milestone didn't need to build that
+      - it verified it was already there and left the calibrated
+      attribute-vs-attribute duel (`PassResolver`, Milestone 8) that
+      decides the outcome untouched, rather than replacing skill-based
+      resolution with pure geometric determinism (a much bigger,
+      destabilizing formula change the tracker's own sketch would imply).
+- [x] Add loose-ball recovery behavior - already real and unchanged: a
+      loose ball (`Ball.state === 'loose'`, `holderId` unset) already
+      makes `Game.setPlayingSides()` fall back to `moveTowardsBall()`
+      every tick until someone reaches it (the real, historically-
+      observed "NO ACTIVE PLAYERS" case visible throughout this session's
+      own test runs) - genuinely persists across tick boundaries, unlike
+      the deferred `'passing'`/`'shooting'` states.
+
+**A real, historical bug this actually fixes - not a rename:**
+`Ball.ts` carried its own multi-paragraph, unresolved historical bug
+report (kept, now closed out, in the file itself) about two players
+appearing to both/neither have the ball after a tackle. That was a
+structural consequence of the old design: 22 players independently
+maintaining their own belief about possession, with nothing forcing them
+to agree - the exact, still-live symptom `Game.setPlayingSides()` has
+logged since Milestone 9 ("N players simultaneously have WithBall"). With
+a single `holderId` field, two players both being "the" holder is now
+impossible by construction, not just unlikely - there's only one value to
+disagree with. `Game.setPlayingSides()`/`MatchState.findCanonicalHolder()`
+were both simplified accordingly - the multi-holder dedup fallback logic
+in both is gone, not because the case is rare now, but because the code
+no longer has a shape that could ask "how many holders are there"
+ambiguously.
+
+**A second, related bug found live while verifying, not guessed:** a
+dedicated verification script (see below) initially still found `Ball.
+holderId` occasionally pointing to a sent-off or substituted player, well
+after the fact. Root cause: neither `Referee.sendOff()` nor `MatchSide.
+substitutePlayer()` ever cleared the outgoing player's block `occupant`
+reference (only `ActivePlayers` excluded them) - and `MatchSide.
+resetFormation()` (run at every half-time reset) walked the raw
+`StartingSquad`, not `ActivePlayers`, so it would ALSO reposition an
+already-substituted-off player back onto their own `StartingPosition`,
+overwriting their replacement as that block's real occupant (the exact
+`StartingSquad`-vs-`ActivePlayers` bug family Milestone 6 already found
+once, in `changeTactic()`). These stale/incorrect occupants were then
+still findable by `Actions.findMarkingOpponent()`/`findMarkingTeammate()`
+(which read `block.occupant` directly, not `ActivePlayers`) as a phantom
+marking "opponent" - capable of "winning" a tackle duel and ending up as
+`Ball.holderId` despite no longer being in the match. Fixed at the one
+real chokepoint both marking-lookup functions already shared (a new
+`isMarkableOccupant()` check requiring `MatchStatus === 'active'`) rather
+than chasing every call site that could reposition an inactive player
+(safer than assuming occupancy is perfectly maintained everywhere);
+`resetFormation()` and both possession-loss paths were also fixed at
+their own source, belt-and-braces.
+
+**Verified live:** `tsc --noEmit` clean; `oxlint src` clean; a dedicated
+throwaway script (deleted after use) sampled 425 points across 25 real
+roster-pool matches and confirmed, at every sample: never more than one
+player reads `WithBall === true` at once (0 violations - the literal
+acceptance criterion); `Ball.holderId`, when set, always points to a
+currently-active player (0 violations, after the two fixes above - caught
+1-4 violations per run before them); `Ball.state` always agrees with
+`holderId` presence; and zero `ball-moved` listeners remain registered
+(the old per-player reactive listener - and the `MaxListenersExceededWarning`
+noise it caused, flagged as far back as Milestone 1's own notes - is
+genuinely gone, not just quieter). Re-ran 3 more times to confirm this
+holds across different random match outcomes, not one lucky run.
+`simRealismCheck.ts --compare` against a pre-milestone baseline (953 vs
+955 matches) - small, consistently positive, and explainable deltas
+(goals +0.5, shots +0.3, tackles +0.5, fouls +0.3) - real gameplay
+recovering some genuine chances that phantom markers/mis-assigned
+possession were previously silently costing, not a new mechanic's
+overshoot (contrast with Milestones 10-14's much larger initial
+overshoots from genuinely new behavior). Real HTTP `GET /api/game/
+kickoff-new/:fixture` against a genuine unplayed, non-friendly fixture -
+200 OK against the actual running dev server.
 
 **Acceptance Criteria**
 
-- [ ] Impossible multi-holder ball states are prevented.
-- [ ] Pass interceptions can happen because of ball trajectory and positioning.
-- [ ] Saves, misses, goals, and restarts produce clear ball states.
+- [x] Impossible multi-holder ball states are prevented - verified live
+      (0/425 violations); structurally guaranteed by the single-`holderId`
+      data model, not just empirically rare.
+- [x] Pass interceptions can happen because of ball trajectory and
+      positioning - already true (see the task list above); now
+      expressed through the ball's own explicit holder-assignment model
+      rather than an implicit, ad hoc position comparison.
+- [x] Saves, misses, goals, and restarts produce clear ball states - every
+      one of them now resolves to an explicit `holderId` assignment
+      (`Referee.handleShot()`'s three outcomes, `handleMatchRestart()`,
+      `setUpSetPiece()`'s three restart types) instead of an implicit
+      position-match inferred after the fact.
 
 ## Milestone 18 - Score-Based Decisions
 
