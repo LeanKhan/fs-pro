@@ -418,7 +418,8 @@ export class Actions {
     if (!interceptor) {
       // This player can't intercept the ball hohoho, let it pass.
       player.pass(
-        CO.co.calculateDifference(teammate.BlockPosition, player.BlockPosition)
+        CO.co.calculateDifference(teammate.BlockPosition, player.BlockPosition),
+        teammate._id!
       );
       matchEvents.emit(`${this.match.id}-pass-made`, {
         passer: player,
@@ -456,7 +457,8 @@ export class Actions {
           CO.co.calculateDifference(
             teammate.BlockPosition,
             player.BlockPosition
-          )
+          ),
+          teammate._id!
         );
         matchEvents.emit(`${this.match.id}-pass-made`, {
           passer: player,
@@ -470,7 +472,8 @@ export class Actions {
           CO.co.calculateDifference(
             interceptor.BlockPosition,
             player.BlockPosition
-          )
+          ),
+          interceptor._id!
         );
         matchEvents.emit(`${this.match.id}-pass-intercepted`, {
           passer: player,
@@ -1321,6 +1324,24 @@ export class Actions {
    * @param player
    * @param around
    */
+  /**
+   * Milestone 17 (Independent Ball Model) - `occupant` is excluded when
+   * it's no longer an active player. Block occupancy isn't reliably
+   * cleared for a sent-off/substituted player at every single place that
+   * could later reposition them (e.g. `Referee.setUpSetPiece()` moving a
+   * just-sent-off foul subject away from the restart spot) - rather than
+   * chase every such call site, this is the one real chokepoint both
+   * `findMarkingOpponent()`/`findMarkingTeammate()` already shared: a
+   * player who isn't `MatchStatus === 'active'` can't plausibly still be
+   * marking anyone, regardless of what a stale `occupant` reference says.
+   * Found live via a dedicated verification script (see the tracker's own
+   * Milestone 17 notes) - a phantom marker could "win" a tackle duel and
+   * end up as `Ball.holderId` despite no longer being in the match.
+   */
+  private isMarkableOccupant(occupant: IFieldPlayer | null): occupant is IFieldPlayer {
+    return occupant !== null && occupant.MatchStatus === 'active';
+  }
+
   private findMarkingOpponent(player: IFieldPlayer, around: IPositions) {
     const arr: IFieldPlayer[] = [];
     for (const key in around) {
@@ -1328,7 +1349,7 @@ export class Actions {
         const block = around[key] as IBlock;
         const occupant = block.occupant;
 
-        if (occupant) {
+        if (this.isMarkableOccupant(occupant)) {
           arr.push(occupant);
         }
       }
@@ -1347,8 +1368,8 @@ export class Actions {
         const block = around[key] as IBlock;
         const occupant = block.occupant;
 
-        // if there is an occupant, push it!
-        if (occupant) {
+        // if there is an active occupant, push it!
+        if (this.isMarkableOccupant(occupant)) {
           arr.push(occupant);
         }
       }
@@ -1528,7 +1549,8 @@ export class Actions {
     // that was just called on the same challenge) whenever fouled.
     if (success && !fouled) {
       tackler.Ball.move(
-        CO.co.calculateDifference(tackler.BlockPosition, player.BlockPosition)
+        CO.co.calculateDifference(tackler.BlockPosition, player.BlockPosition),
+        tackler._id!
       );
       createMatchEvent(
         this.match.id,

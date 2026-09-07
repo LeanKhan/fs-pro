@@ -184,6 +184,19 @@ export default class Referee {
     player.MatchStatus = 'sent-off';
     player.GameStats.RedCards++;
 
+    // Milestone 17 (Independent Ball Model) - a sent-off player was never
+    // cleared from their block's `occupant` reference (only excluded from
+    // `ActivePlayers`), so they stayed a "ghost" other lookups could still
+    // find - specifically `Actions.findMarkingOpponent()`, which reads
+    // `block.occupant` directly rather than filtering through
+    // `ActivePlayers`. A tight-marking duel against that ghost could still
+    // resolve a tackle "win" onto them, handing `Ball.holderId` to a
+    // player no longer in the match - found live via a dedicated
+    // verification script (see the tracker's own Milestone 17 notes), not
+    // guessed. Clearing occupancy here removes them from the pitch for
+    // every lookup, not just the ActivePlayers-aware ones.
+    CO.co.coordinateToBlock(player.BlockPosition).occupant = null;
+
     // Fouls are usually committed by the non-possessing side, but if this
     // player somehow has the ball, hand it to the nearest active teammate
     // rather than leaving it with someone no longer in the match.
@@ -203,8 +216,16 @@ export default class Referee {
           CO.co.calculateDifference(
             replacement.BlockPosition,
             this.MatchBall.Position
-          )
+          ),
+          replacement._id!
         );
+      } else {
+        // No active teammate found (an extreme, rare down-to-the-keeper
+        // edge case) - explicitly clear the holder rather than leaving
+        // `Ball.holderId` dangling on a player who's now permanently
+        // excluded from ActivePlayers. A zero delta leaves the ball's
+        // position untouched; only the holder assignment changes.
+        this.MatchBall.move({ x: 0, y: 0 }, null);
       }
     }
 
@@ -260,7 +281,8 @@ export default class Referee {
       );
       taker.move(takerPath);
       taker.Ball.move(
-        CO.co.calculateDifference(taker.BlockPosition, taker.Ball.Position)
+        CO.co.calculateDifference(taker.BlockPosition, taker.Ball.Position),
+        taker._id!
       );
 
       log(
@@ -285,7 +307,8 @@ export default class Referee {
       // Move ball to freekick taker's position
 
       taker.Ball.move(
-        CO.co.calculateDifference(taker.BlockPosition, taker.Ball.Position)
+        CO.co.calculateDifference(taker.BlockPosition, taker.Ball.Position),
+        taker._id!
       );
 
       log(
@@ -324,7 +347,8 @@ export default class Referee {
       // Move ball to freekick taker's position
 
       taker.Ball.move(
-        CO.co.calculateDifference(taker.BlockPosition, taker.Ball.Position)
+        CO.co.calculateDifference(taker.BlockPosition, taker.Ball.Position),
+        taker._id!
       );
 
       log(
@@ -364,7 +388,8 @@ export default class Referee {
 
         // Move ball to keeper position
         keeper.Ball.move(
-          CO.co.calculateDifference(keeper.BlockPosition, keeper.Ball.Position)
+          CO.co.calculateDifference(keeper.BlockPosition, keeper.Ball.Position),
+          keeper._id!
         );
         // log('resume gameplay :)')
         // Move players to starting position
@@ -394,7 +419,8 @@ export default class Referee {
         // a miss. That left the match with no active player until someone
         // incidentally wandered onto that exact block.
         keeper.Ball.move(
-          CO.co.calculateDifference(keeper.BlockPosition, keeper.Ball.Position)
+          CO.co.calculateDifference(keeper.BlockPosition, keeper.Ball.Position),
+          keeper._id!
         );
 
         createMatchEvent(
@@ -422,7 +448,8 @@ export default class Referee {
         // not to wherever the keeper actually stands, so nothing ever gave
         // the keeper possession after a save without this.
         keeper.Ball.move(
-          CO.co.calculateDifference(keeper.BlockPosition, keeper.Ball.Position)
+          CO.co.calculateDifference(keeper.BlockPosition, keeper.Ball.Position),
+          keeper._id!
         );
 
         // console.log('Player shot -> ', data.shooter);
@@ -473,7 +500,10 @@ export default class Referee {
    * and takeAction() - where all passing/shooting/tackling logic lives -
    * never runs). Now the nearest outfield player is physically placed on
    * the ball's new block before it moves there, so WithBall is
-   * unambiguously true for them the moment the ball arrives.
+   * unambiguously true for them the moment the ball arrives - Milestone 17
+   * (Independent Ball Model) made this an explicit `holderId` assignment
+   * rather than a position-match inference, but the ordering requirement
+   * (place the taker, then move the ball) is unchanged.
    */
   public handleMatchRestart() {
     // Milestone 11 - kickoff, half-time, post-goal, and post-ball-out all
@@ -490,11 +520,14 @@ export default class Referee {
       taker.changePosition(centerBlock);
     }
 
-    // Moving the ball fires the ball-moved event every player already
-    // listens to, which re-checks WithBall for all of them - so this must
-    // happen AFTER placing the taker, not before.
+    // Milestone 17 - `holderId` is now assigned explicitly (the taker's
+    // id, or `null` if nobody was found to take it) rather than inferred
+    // from position matching, but placing the taker BEFORE moving the
+    // ball is still correct order regardless - it's simply who the ball
+    // is being explicitly assigned to.
     this.MatchBall.move(
-      CO.co.calculateDifference(centerBlock, this.MatchBall.Position)
+      CO.co.calculateDifference(centerBlock, this.MatchBall.Position),
+      taker?._id ?? null
     );
   }
 

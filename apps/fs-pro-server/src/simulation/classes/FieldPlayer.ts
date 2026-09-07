@@ -8,7 +8,6 @@ import Player from './Player';
 import Ball from './Ball';
 import { ICoordinate, IBlock } from '../state/ImmutableState/FieldGrid';
 import CO from '../utils/coordinates';
-import { ballMove } from '../utils/events';
 import log from '../../helpers/logger';
 
 abstract class FieldPlayerClass {
@@ -24,12 +23,25 @@ export default class FieldPlayer
   public Points = 0;
   public Substitute: boolean;
   public BlockPosition: IBlock;
-  public BallPosition: ICoordinate;
-  public WithBall: boolean;
   public Ball: Ball;
   public StartingPosition: IBlock;
   public MatchStatus: PlayerMatchStatus = 'active';
   // public Team: MatchSide;
+
+  /**
+   * Milestone 17 (Independent Ball Model) - derived, not stored. Reads
+   * `Ball.holderId` (the single canonical source of truth, see `Ball.ts`)
+   * instead of an independently-maintained boolean this class used to
+   * reactively recompute on every ball move via a per-player
+   * `ballMove.on()` listener (22 of them per match, each redundantly
+   * comparing its own position to the ball's) - removed along with that
+   * listener, since there's nothing left for it to push: a getter reads
+   * the current, single source whenever asked, it doesn't need telling
+   * when that source changes.
+   */
+  public get WithBall(): boolean {
+    return this._id !== undefined && this.Ball.holderId === this._id;
+  }
 
   /**
    *
@@ -48,7 +60,6 @@ export default class FieldPlayer
   ) {
     super(player);
     this.Ball = ball;
-    this.BallPosition = this.Ball.Position;
     this.isStarting = starting;
     this.Substitute = !this.isStarting;
     this.StartingPosition = pos;
@@ -56,36 +67,29 @@ export default class FieldPlayer
 
     this.BlockPosition = pos;
     this.setBlockOccupant(this, this.BlockPosition);
-    this.WithBall =
-      this.BlockPosition.x === this.BallPosition.x &&
-      this.BlockPosition.y === this.BallPosition.y
-        ? true
-        : false;
-
-    // make this event unique!
-    ballMove.on(`${this.Ball.id}-ball-moved`, (p) => {
-      this.updateBallPosition(p);
-    });
 
     FieldPlayer.instances++;
   }
 
-  public pass(pos: ICoordinate) {
-    this.Ball.move(pos);
-    this.WithBall = false;
+  /** @param holderId Milestone 17 - the id of whoever's actually receiving
+   * this pass (the target teammate on a clean pass, the interceptor on a
+   * failed one) - `Actions.pass()` always already knows which before
+   * calling this, so it's passed explicitly rather than re-derived from
+   * position matching afterward. */
+  public pass(pos: ICoordinate, holderId: string) {
+    this.Ball.move(pos, holderId);
     log(`${this.LastName} passed the ball to ${JSON.stringify(pos)}`);
   }
 
   public shoot(pos: ICoordinate) {
-    this.Ball.move(pos);
-    this.WithBall = false;
+    // Milestone 17 - the ball is loose (in flight) the instant it leaves
+    // the shooter's foot, not still "held" by them - `Referee.handleShot()`
+    // explicitly reassigns it to the keeper right after (goal, miss, or
+    // save all end with the keeper collecting/retrieving it), same as
+    // before this milestone, just now an explicit holder assignment
+    // instead of an implicit position-match.
+    this.Ball.move(pos, null);
     log(`${this.LastName} shot the ball to ${JSON.stringify(pos)}`);
-  }
-
-  public updateBallPosition(pos: IBlock) {
-    this.BallPosition = pos;
-    // UPDATE: The ball updates it's position by itself :)
-    this.checkWithBall();
   }
 
   public increaseGoalTally() {
@@ -123,19 +127,21 @@ export default class FieldPlayer
       And is at {x: ${this.BlockPosition.x}, y: ${this.BlockPosition.y}}
       `
     );
-    // Deliberately NOT calling checkWithBall() here. WithBall must only
-    // ever change because the BALL moved (see the ballMove listener below,
-    // which fires for every player on every real pass/shot/tackle/restart)
-    // - never merely because THIS player's own unrelated positional
-    // movement (marking, pressing, holding shape) happened to land on
-    // whatever block the ball is currently resting on. That coincidence
-    // was silently handing possession to bystanders with no pass, tackle,
-    // dribble, or interception ever attempted, and no event ever logged -
-    // the root cause of matches with 99% possession and 0 passes for one
-    // side. The carry-forward case just above (this.WithBall already true
-    // -> move the ball too) still keeps a genuine dribble/carry in sync,
-    // since that re-fires the ballMove listener for everyone including
-    // this player.
+    // Milestone 17 - `WithBall` is now derived straight from `Ball.holderId`
+    // (see the getter above), so there's nothing to separately update here
+    // regardless of whether this move happened to land on the ball's
+    // block. Before that, this comment documented the same invariant the
+    // hard way: an unrelated positional move (marking, pressing, holding
+    // shape) must never itself hand a bystander possession just by
+    // coinciding with the ball's square - the root cause of matches with
+    // 99% possession and 0 passes for one side. That invariant is now
+    // structural rather than a documented discipline to maintain by hand:
+    // `holderId` only ever changes via an explicit assignment (a real
+    // pass/shot/tackle/restart), never as a side effect of a position
+    // happening to match. The carry-forward call just above (`WithBall`
+    // already true -> move the ball WITH this player, holder unchanged)
+    // is the one legitimate case where a plain positional move also moves
+    // the ball - a genuine dribble/carry, not a coincidence.
   }
 
   public substitute() {
@@ -289,10 +295,6 @@ export default class FieldPlayer
     this.setBlockOccupant(this, pos);
   }
 
-  private checkWithBall() {
-    this.WithBall =
-      this.BlockPosition.key === this.Ball.Position.key ? true : false;
-  }
   private setBlockOccupant(who: any, pos: ICoordinate): void {
     CO.co.coordinateToBlock(pos).occupant = who;
   }
