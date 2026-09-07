@@ -28,6 +28,7 @@ import {
   PossessionContext,
 } from '../possession/PossessionTracker';
 import { MatchPhase } from '../possession/MatchPhase';
+import { HALF_TIME_TICK } from '../utils/matchClock';
 import {
   createRandomSource,
   randomNDigits,
@@ -623,7 +624,7 @@ export class Match implements IMatch, MatchClass {
     this.Frames.push({
       tick,
       minute: this.getCurrentTime,
-      half: tick < 90 ? 1 : 2,
+      half: tick < HALF_TIME_TICK ? 1 : 2,
       ball: { x: ballPosition.x, y: ballPosition.y },
       players: [
         ...this.Home.StartingSquad.map((p) => this.toFramePlayer(p, 'home')),
