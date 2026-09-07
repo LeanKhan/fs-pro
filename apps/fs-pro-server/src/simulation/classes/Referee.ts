@@ -215,6 +215,13 @@ export default class Referee {
   }
 
   public setUpSetPiece(foulData: IFoul, where: IBlock) {
+    // Milestone 11 - a penalty/free-kick hands the ball to a taker outside
+    // the normal in-play flow, same as any other dead-ball restart (see
+    // handleMatchRestart() below) - the next possession tick should start
+    // a fresh sequence tagged 'restart', not read as a turnover just
+    // because the taker's team differs from whoever last touched it.
+    this.Match!.markPossessionRestart();
+
     const i = this.Teams!.findIndex(
       (t) => t.ClubCode === foulData.object.ClubCode
     );
@@ -469,6 +476,11 @@ export default class Referee {
    * unambiguously true for them the moment the ball arrives.
    */
   public handleMatchRestart() {
+    // Milestone 11 - kickoff, half-time, post-goal, and post-ball-out all
+    // funnel through this one method (see the doc comment above) - marking
+    // the restart here, once, covers all of them.
+    this.Match!.markPossessionRestart();
+
     const centerBlock = this.Match!.CenterBlock;
 
     console.log('Handling Match Restart! ', centerBlock.key);

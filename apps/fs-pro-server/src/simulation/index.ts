@@ -44,3 +44,24 @@ export { RuleBasedPlayerPolicy } from './player/RuleBasedPlayerPolicy';
 export { PassResolver } from './resolver/PassResolver';
 export { TackleResolver } from './resolver/TackleResolver';
 export { ShotResolver } from './resolver/ShotResolver';
+export { getPressure, getPressuringOpponents } from './spatial/PressureAnalyzer';
+export { getPassingLane } from './spatial/PassingAnalyzer';
+export type { PassingLane } from './spatial/PassingAnalyzer';
+export {
+  getNearestTeammates,
+  getNearestOpponent,
+  getGoalDistance,
+  getGoalAngle,
+  getOpenSpace,
+  getSpaceAhead,
+  getDefensiveLine,
+  getTeamCompactness,
+} from './spatial/SpatialAnalyzer';
+export { getAttackingPhase, getDefendingPhase } from './possession/MatchPhase';
+export type { MatchPhase, PhaseContext } from './possession/MatchPhase';
+export { PossessionTracker } from './possession/PossessionTracker';
+export type {
+  PossessionReason,
+  PossessionContext,
+  PossessionSequenceSummary,
+} from './possession/PossessionTracker';

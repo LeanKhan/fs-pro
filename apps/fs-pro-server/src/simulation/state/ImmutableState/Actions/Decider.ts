@@ -7,6 +7,9 @@ import {
   RandomInput,
   RandomSource,
 } from '../../../randomness';
+import { getPressure } from '../../../spatial/PressureAnalyzer';
+import { getPassingLane } from '../../../spatial/PassingAnalyzer';
+import { getNearestTeammates } from '../../../spatial/SpatialAnalyzer';
 
 interface IShootProfile {
   threshold: number;
@@ -239,22 +242,17 @@ export class Decider {
 
   /**
    * How many opposing outfield players are pressuring this player, i.e.
-   * within `radius` blocks of him.
+   * within `radius` blocks of him. Moved to `spatial/PressureAnalyzer.ts`
+   * in Milestone 10 - `ObservationBuilder` now calls the exact same
+   * function, so this and `PlayerObservation.pressure` can never drift
+   * apart again.
    */
   private countPressure(
     player: IFieldPlayer,
     defendingSide: MatchSide,
     radius: number
   ): number {
-    const scaledRadius = CO.co.scaleDistance(radius);
-
-    return defendingSide.ActivePlayers.filter((opponent) => {
-      return (
-        opponent.Position !== 'GK' &&
-        CO.co.calculateDistance(player.BlockPosition, opponent.BlockPosition) <=
-          scaledRadius
-      );
-    }).length;
+    return getPressure(player, defendingSide, radius);
   }
 
   /**
@@ -400,13 +398,11 @@ export class Decider {
     // rather than swarming the ball), the single closest teammate's lane
     // being blocked is common - that shouldn't kill the whole pass
     // evaluation when another nearby teammate is completely open.
-    const candidates = attackingSide.ActivePlayers.filter((p) => p !== player)
-      .sort(
-        (a, b) =>
-          CO.co.calculateDistance(player.BlockPosition, a.BlockPosition) -
-          CO.co.calculateDistance(player.BlockPosition, b.BlockPosition)
-      )
-      .slice(0, 3);
+    const candidates = getNearestTeammates(
+      player,
+      attackingSide.ActivePlayers,
+      3
+    );
 
     const scaledDistance = CO.co.scaleDistance(distance);
 
@@ -436,7 +432,8 @@ export class Decider {
   /**
    * Is the straight line between player and teammate free of defenders?
    * Uses actual lane geometry (perpendicular distance to the pass line)
-   * rather than just proximity to the receiver.
+   * rather than just proximity to the receiver. Moved to
+   * `spatial/PassingAnalyzer.ts` in Milestone 10.
    */
   private laneIsClear(
     player: IFieldPlayer,
@@ -444,16 +441,12 @@ export class Decider {
     defendingSide: MatchSide,
     laneWidth = 1.5
   ): boolean {
-    return !defendingSide.ActivePlayers.some((opponent) => {
-      return (
-        opponent.Position !== 'GK' &&
-        CO.co.distanceToSegment(
-          opponent.BlockPosition,
-          player.BlockPosition,
-          teammate.BlockPosition
-        ) <= laneWidth
-      );
-    });
+    return getPassingLane(
+      player.BlockPosition,
+      teammate.BlockPosition,
+      defendingSide,
+      laneWidth
+    ).clear;
   }
 
   /**

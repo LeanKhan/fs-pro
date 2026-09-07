@@ -1,21 +1,34 @@
 import { MatchSide } from '../classes/MatchSide';
 import { TeamIntent } from './TeamIntent';
+import {
+  getAttackingPhase,
+  getDefendingPhase,
+  PhaseContext,
+} from '../possession/MatchPhase';
+
+/** Milestone 11 - the possession context this tick needs to compute
+ * `phase`: whether `side` is the one currently holding the ball, plus the
+ * shared possession-sequence facts (`PhaseContext`) both `getAttackingPhase`/
+ * `getDefendingPhase` read. */
+export type IntentContext = PhaseContext & { hasBall: boolean };
 
 /**
  * Milestone 7 - computes a side's current TeamIntent from its Tactic's
- * playing style. `opponent` is accepted (matching the tracker's own
- * sketched `determineIntent(team, opponent, state)` signature) but
- * unused today - deliberately kept as a documented, intentional unused
- * seam rather than a signature that would need to grow again once a
- * later milestone (e.g. reacting to the opponent's shape/scoreline)
- * actually needs it.
+ * playing style. `opponent` was originally accepted-but-unused (documented
+ * at the time as "no real signal yet to need it for") - Milestone 11 is
+ * the real caller: `phase` genuinely depends on the opponent's own
+ * position/shape (counter-attack and press-vs-shape both read the
+ * opponent's state, not just `side`'s own).
  */
 export function determineIntent(
   side: MatchSide,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  opponent: MatchSide
+  opponent: MatchSide,
+  possession: IntentContext
 ): TeamIntent {
   const style = side.Tactic.style;
+  const phase = possession.hasBall
+    ? getAttackingPhase(side, opponent, possession)
+    : getDefendingPhase(side, opponent, possession);
 
   return {
     tempo: style.tempo,
@@ -24,5 +37,6 @@ export function determineIntent(
     positionalDiscipline: style.positionalDiscipline,
     width: style.width,
     directness: style.directness,
+    phase,
   };
 }

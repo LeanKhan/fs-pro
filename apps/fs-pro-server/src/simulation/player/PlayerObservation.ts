@@ -3,9 +3,12 @@
  * decision (pressure, nearby teammates, goal distance) into a named
  * struct. Deliberately narrow - `passingOptions`/`availableSpace`-shaped
  * fields from the plan doc's sketch are NOT here yet; scoring real
- * candidate passes is Milestone 13's job and reading space/pressure via
- * a shared analyzer is Milestone 10's - adding placeholder versions now
- * would be scope creep into those milestones, not this one.
+ * candidate passes is Milestone 13's job. Milestone 10 (Spatial Analysis
+ * Services) moved the underlying pressure/nearest-teammate/goal-distance
+ * formulas into `spatial/PressureAnalyzer.ts`/`spatial/SpatialAnalyzer.ts`
+ * - `ObservationBuilder` and `Decider` both call those now, so this struct
+ * is no longer built from a second, independently-drifting copy of
+ * Decider's own geometry.
  */
 export interface VisiblePlayer {
   playerId?: string;

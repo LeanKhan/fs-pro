@@ -24,6 +24,11 @@ import {
   MatchState,
 } from '../state/MatchState';
 import {
+  PossessionTracker,
+  PossessionContext,
+} from '../possession/PossessionTracker';
+import { MatchPhase } from '../possession/MatchPhase';
+import {
   createRandomSource,
   randomNDigits,
   RandomInput,
@@ -31,6 +36,14 @@ import {
 } from '../randomness';
 
 import { PlayerMatchDetailsInterface } from '../../controllers/player-match/player-match.model';
+
+/** Event types that represent a shot outcome - tagged `phase: 'chance'`
+ * regardless of the live phase context (see the `-event` listener below). */
+const CHANCE_EVENT_TYPES = new Set<IMatchEvent['type']>([
+  'goal',
+  'miss',
+  'save',
+]);
 
 /**
  * The Match Class gan gan
@@ -51,6 +64,17 @@ export class Match implements IMatch, MatchClass {
   public Actions: IMatchAction[] = [];
   /** Per-tick position/event snapshots, used to replay the match live over sockets. */
   public Frames: IMatchFrame[] = [];
+  /** Milestone 11 (Possession And Match Phases) - which continuous spell
+   * of one side's possession is running right now, and how it began.
+   * Advanced once per tick via `advancePossession()` (called from the
+   * `applyPossessionChange` transition, the same chokepoint that already
+   * credits a tick's possession stat); reset ahead of every dead-ball
+   * handover via `markPossessionRestart()` (called from `Referee`). */
+  public Possession = new PossessionTracker();
+  /** The phase `Actions.takeAction()` last computed for the side
+   * currently in possession, this tick - read by the `-event` listener
+   * below to stamp every event with the phase active when it fired. */
+  private currentPhase: MatchPhase = 'restart';
   private lastFrameEventIndex = 0;
   private CurrentTime = 0;
   private Teams: MatchSide[];
@@ -161,6 +185,19 @@ export class Match implements IMatch, MatchClass {
 
     matchEvents.on(`${this.id}-event`, (data: IMatchEvent) => {
       data.time = this.getCurrentTime.toString();
+
+      // Milestone 11 - stamp every event with which possession sequence
+      // produced it and what phase was live when it fired, from the same
+      // single chokepoint every event already flows through (see Milestone
+      // 6's own note on why this listener is that chokepoint). 'chance'
+      // overrides the live phase for shot outcomes specifically - only
+      // knowable in hindsight, once the shot has actually happened.
+      const context = this.getPossessionContext();
+      data.possessionSequenceId = context.sequenceId;
+      data.phase = CHANCE_EVENT_TYPES.has(data.type)
+        ? 'chance'
+        : this.currentPhase;
+
       this.Events.push(data);
     });
 
@@ -527,6 +564,35 @@ export class Match implements IMatch, MatchClass {
     }
   }
 
+  /** Milestone 11 - advance the possession-sequence tracker by one tick.
+   * Called from the `applyPossessionChange` transition, right alongside
+   * `recordPossession()` above - same tick, same side, same chokepoint. */
+  public advancePossession(side: MatchSide | undefined) {
+    return this.Possession.update(this.getCurrentTime, side);
+  }
+
+  /** Read the current possession sequence's context without advancing it -
+   * used by `Actions.takeAction()` (via `getPossessionContext()`) to ask
+   * "what's true as of the start of this tick" when computing this tick's
+   * `TeamIntent.phase`, and by the `-event` listener to stamp events. */
+  public getPossessionContext(): PossessionContext {
+    return this.Possession.peek(this.getCurrentTime);
+  }
+
+  /** Called by `Referee` ahead of every dead-ball handover (kickoff,
+   * half-time, post-goal, post-ball-out, penalty/free-kick) so the next
+   * `advancePossession()` starts a fresh sequence tagged 'restart'. */
+  public markPossessionRestart(): void {
+    this.Possession.markRestart();
+  }
+
+  /** Set by `Actions.takeAction()` once per tick, from the possessing
+   * side's freshly-computed `TeamIntent.phase` - read back by the
+   * `-event` listener above to stamp every event fired during this tick. */
+  public setCurrentPhase(phase: MatchPhase): void {
+    this.currentPhase = phase;
+  }
+
   public fetchPlayerById(id: string) {
     const allPlayers = this.Home.StartingSquad.concat(this.Away.StartingSquad);
 
@@ -642,6 +708,14 @@ export interface IMatchEvent {
   playerID?: string;
   playerTeamID?: string;
   data?: any;
+  /** Milestone 11 - which continuous possession spell produced this event.
+   * Stamped centrally by the `-event` listener above from
+   * `Match.Possession`'s current sequence as of this tick. */
+  possessionSequenceId?: number;
+  /** The match phase live when this event fired - 'chance' for any
+   * shot/save/miss/goal outcome regardless of context, otherwise whatever
+   * `Actions.takeAction()` last computed for the possessing side. */
+  phase?: MatchPhase;
 }
 
 export interface IMatchFramePlayer {

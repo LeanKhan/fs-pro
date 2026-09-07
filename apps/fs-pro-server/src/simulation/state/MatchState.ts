@@ -45,6 +45,12 @@ export interface PossessionState {
   playerId?: string;
   playerCode?: string;
   status: 'held' | 'loose';
+  /** Milestone 11 (Possession And Match Phases) - which continuous spell
+   * of possession this is, from `Match.Possession` (see
+   * `possession/PossessionTracker.ts`). Lets a snapshot consumer trace a
+   * shot/goal/turnover back to the possession that produced it, same as
+   * the live `IMatchEvent.possessionSequenceId` field. */
+  sequenceId: number;
 }
 
 export interface BallState {
@@ -153,10 +159,11 @@ const findCanonicalHolder = (match: Match): IFieldPlayer | undefined => {
 };
 
 const createPossessionState = (
-  holder: IFieldPlayer | undefined
+  holder: IFieldPlayer | undefined,
+  sequenceId: number
 ): PossessionState => {
   if (!holder) {
-    return { status: 'loose' };
+    return { status: 'loose', sequenceId };
   }
 
   return {
@@ -165,6 +172,7 @@ const createPossessionState = (
     teamCode: holder.ClubCode,
     playerId: playerIdentity(holder),
     playerCode: holder.PlayerID,
+    sequenceId,
   };
 };
 
@@ -245,7 +253,10 @@ export const createMatchStateSnapshot = (
   options: MatchStateSnapshotOptions = {}
 ): MatchState => {
   const holder = findCanonicalHolder(match);
-  const possession = createPossessionState(holder);
+  const possession = createPossessionState(
+    holder,
+    match.getPossessionContext().sequenceId
+  );
   const ball = holder?.Ball ?? match.Home.StartingSquad[0]?.Ball;
   const ballPosition = ball?.Position ?? match.CenterBlock;
 

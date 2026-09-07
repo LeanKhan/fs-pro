@@ -84,6 +84,13 @@ interface IMatchSummary {
   yellowCardsPerTeam: number;
   redCardsPerTeam: number;
   eventsPerMatch: number;
+  /** Milestone 11 (Possession And Match Phases) - diagnostic only, no
+   * "real-world" range invented (like `eventsPerMatch` above) - these are
+   * internal engine counts from `Match.Possession.getCompletedSequences()`.
+   * Undercounts by exactly 1 per match (the sequence still running at
+   * full-time never gets pushed to `completed` - nothing ends it). */
+  possessionSequencesPerMatch: number;
+  avgPossessionSequenceMinutes: number;
 }
 
 /**
@@ -168,6 +175,11 @@ async function simulateOneMatch(
   const interceptions = countEvents('interception');
   const passAttempts = completedPasses + interceptions;
 
+  const completedSequences = match.Possession.getCompletedSequences();
+  const avgPossessionSequenceMinutes = completedSequences.length
+    ? average(completedSequences.map((s) => s.durationMinutes))
+    : 0;
+
   return {
     homeClub: match.Home.ClubCode,
     awayClub: match.Away.ClubCode,
@@ -186,6 +198,8 @@ async function simulateOneMatch(
     yellowCardsPerTeam: (homeDetails.YellowCards + awayDetails.YellowCards) / 2,
     redCardsPerTeam: (homeDetails.RedCards + awayDetails.RedCards) / 2,
     eventsPerMatch: match.Events.length,
+    possessionSequencesPerMatch: completedSequences.length,
+    avgPossessionSequenceMinutes,
   };
 }
 
@@ -244,6 +258,12 @@ function buildMetricsMap(summaries: IMatchSummary[]): Record<string, number[]> {
     'Red cards per team': summaries.map((s) => s.redCardsPerTeam),
     'Events per match (all types, diagnostic)': summaries.map(
       (s) => s.eventsPerMatch
+    ),
+    'Possession sequences per match (diagnostic)': summaries.map(
+      (s) => s.possessionSequencesPerMatch
+    ),
+    'Avg possession sequence length, mins (diagnostic)': summaries.map(
+      (s) => s.avgPossessionSequenceMinutes
     ),
   };
 }
