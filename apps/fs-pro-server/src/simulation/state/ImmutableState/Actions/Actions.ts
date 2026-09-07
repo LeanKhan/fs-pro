@@ -38,6 +38,8 @@ import {
 } from '../../../player/OffBallPolicy';
 import { deriveTendencies } from '../../../player/PlayerRole';
 import { getSimulationConfig } from '../../../config';
+import { nudgeConfidence } from '../../../player/PlayerCondition';
+import { recordDribbleOutcome, recordShotAttempt } from '../../../player/PlayerMemory';
 
 /** Milestone 16 - one collected-but-not-yet-executed off-ball decision:
  * who, doing what, headed where. See `resolveOffBallMoves()`. */
@@ -452,6 +454,7 @@ export class Actions {
           intercepted: false,
           passType: type,
         } as IPass);
+        nudgeConfidence(player, true);
         situation = { status: true, reason: 'Player pass successful' };
       } else {
         player.pass(
@@ -467,6 +470,7 @@ export class Actions {
           intercepted: true,
           passType: type,
         } as IPass);
+        nudgeConfidence(player, false);
 
         situation = { status: true, reason: 'pass intercepted' };
       }
@@ -604,6 +608,8 @@ export class Actions {
         // Tackle about to happen :0
         log(`Ball x,y => ${player.Ball.Position.x} ${player.Ball.Position.y}`);
         const success = this.tackleResolver.resolveDribble(player, opponentBlock);
+        recordDribbleOutcome(player.Memory, success, opponentBlock._id);
+        nudgeConfidence(player, success);
         if (success) {
           // this.makeMove(player, p, around);
           this.successfulDribble(player, path, around, opponentBlock);
@@ -684,6 +690,8 @@ export class Actions {
             player,
             marker
           );
+          recordDribbleOutcome(player.Memory, successOfTightDribble, marker._id);
+          nudgeConfidence(player, successOfTightDribble);
 
           if (successOfTightDribble) {
             // swap positions away from this guy - a full jump to the
@@ -1208,6 +1216,13 @@ export class Actions {
 
     const result = this.shotResolver.resolve(player, keeper as IFieldPlayer);
 
+    // Milestone 20 - a goal is the only outcome that counts as a
+    // confidence-boosting "success" here; an on-target-but-saved shot
+    // still dents confidence like a miss does (a real keeper save is not
+    // a consolation for the shooter).
+    recordShotAttempt(player.Memory);
+    nudgeConfidence(player, result.goal);
+
     if (result.goal) {
       // Shot is a goal, fine and good
       player.shoot(CO.co.calculateDifference(post, player.BlockPosition));
@@ -1498,6 +1513,14 @@ export class Actions {
     const success = predetermined
       ? true
       : this.tackleResolver.resolveTackle(tackler, player);
+
+    // Milestone 20 - only a genuine contest (not a `predetermined` forced
+    // outcome) reflects on the tackler's own confidence; the dispossessed
+    // player's own confidence/memory was already handled at the dribble-
+    // attempt call site that led here, not duplicated a second time.
+    if (!predetermined) {
+      nudgeConfidence(tackler, success);
+    }
 
     // A mistimed/aggressive tackle can draw a foul independent of whether
     // it actually wins the ball - higher Aggression and lower Tackling

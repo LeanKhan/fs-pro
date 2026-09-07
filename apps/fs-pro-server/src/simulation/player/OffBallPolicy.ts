@@ -52,6 +52,46 @@ function isWideAnchor(position: ICoordinate): boolean {
   return Math.abs(position.y - centerY) > band;
 }
 
+/** Milestone 20 - the three genuinely energetic attacking intents this
+ * module can produce, downgraded to `'support'` for a heavily fatigued
+ * player (see `decideAttackingOffBallIntent`'s wrapper below) - "fatigue
+ * affects movement" made concrete at the DECISION layer (whether a tired
+ * player even attempts the run), not just execution quality. */
+const ENERGETIC_ATTACKING_INTENTS = new Set<AttackingOffBallIntent>([
+  'make-run',
+  'overlap',
+  'attack-box',
+]);
+
+/** Milestone 20 - thin wrapper around `decideAttackingOffBallIntentRaw()`
+ * (the original Milestone 14 logic, unchanged) applying the fatigue
+ * downgrade above. */
+export function decideAttackingOffBallIntent(
+  player: IFieldPlayer,
+  ballCarrier: IFieldPlayer,
+  attackingSide: MatchSide,
+  defendingSide: MatchSide,
+  phase: MatchPhase
+): AttackingOffBallIntent {
+  const intent = decideAttackingOffBallIntentRaw(
+    player,
+    ballCarrier,
+    attackingSide,
+    defendingSide,
+    phase
+  );
+
+  const fatigueConfig = getSimulationConfig().fatigue;
+  if (
+    ENERGETIC_ATTACKING_INTENTS.has(intent) &&
+    player.Condition.fatigue > fatigueConfig.lowEnergyThreshold
+  ) {
+    return 'support';
+  }
+
+  return intent;
+}
+
 /**
  * What should this off-ball attacking player be doing right now? Pure
  * function of geometry/phase - reuses Milestone 10's spatial reads
@@ -60,7 +100,7 @@ function isWideAnchor(position: ICoordinate): boolean {
  * `'support'` (stay involved as a short-pass option - what every off-ball
  * player effectively did before this milestone).
  */
-export function decideAttackingOffBallIntent(
+function decideAttackingOffBallIntentRaw(
   player: IFieldPlayer,
   ballCarrier: IFieldPlayer,
   attackingSide: MatchSide,
@@ -238,6 +278,30 @@ export function planDefensiveAssignments(
   return { blockLaneDefenderId, blockLaneTarget, markAssignments };
 }
 
+/** Milestone 20 - thin wrapper around `decideDefensiveIntentRaw()` (the
+ * original Milestone 11/14 logic, unchanged): a heavily fatigued presser
+ * drops off into `'cover'` instead - "fatigue affects... pressing" made
+ * concrete. Deliberately NOT applied to `'mark'`/`'track-run'`/
+ * `'block-lane'` - those are whole-side ASSIGNED duties from
+ * `planDefensiveAssignments()`, not an optional energetic choice a tired
+ * player can simply skip without leaving a dangerous opponent
+ * unmarked. */
+export function decideDefensiveIntent(
+  player: IFieldPlayer,
+  phase: MatchPhase,
+  assignment: DefensiveAssignment,
+  isPresser: boolean
+): DefensiveIntent {
+  const intent = decideDefensiveIntentRaw(player, phase, assignment, isPresser);
+  const fatigueConfig = getSimulationConfig().fatigue;
+
+  if (intent === 'press' && player.Condition.fatigue > fatigueConfig.lowEnergyThreshold) {
+    return 'cover';
+  }
+
+  return intent;
+}
+
 /**
  * What should this off-ball defending player be doing right now? `isPresser`
  * is decided by the caller (Milestone 11's own phase-weighted press/drop-off
@@ -248,7 +312,7 @@ export function planDefensiveAssignments(
  * wholly separate mechanism (this tick-based engine has no per-player
  * movement history to detect "a run" more precisely than that).
  */
-export function decideDefensiveIntent(
+function decideDefensiveIntentRaw(
   player: IFieldPlayer,
   phase: MatchPhase,
   assignment: DefensiveAssignment,

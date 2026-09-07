@@ -7,7 +7,7 @@ import {
   RandomInput,
   RandomSource,
 } from '../../../randomness';
-import { getPressure } from '../../../spatial/PressureAnalyzer';
+import { getPressure, getPressuringOpponents } from '../../../spatial/PressureAnalyzer';
 import { getPassingLane } from '../../../spatial/PassingAnalyzer';
 import { getNearestTeammates } from '../../../spatial/SpatialAnalyzer';
 import {
@@ -26,6 +26,7 @@ import {
   getSimulationConfig,
   ShootProfileBand,
 } from '../../../config';
+import { recordAction, recordPressure } from '../../../player/PlayerMemory';
 
 function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
@@ -144,6 +145,8 @@ export class Decider {
 
     this.lastCandidates = candidates;
     this.strategy = this.candidateToStrategy(chosen);
+    // Milestone 20 - "add short-term player memory for... last action".
+    recordAction(player.Memory, chosen);
 
     recordDecision({
       matchId: this.matchId,
@@ -308,7 +311,12 @@ export class Decider {
       this.confidenceThreshold(player, attackingSide, defendingSide, profile.threshold) +
       shootingBias;
 
-    return clamp01(confidence / 100);
+    // Milestone 20 - on-pitch match confidence (Condition.confidence,
+    // nudged by recent outcomes) is a separate signal from the Mental
+    // ATTRIBUTE `confidenceThreshold()` already reads - a mentally strong
+    // player having a genuinely bad game still shoots a little more
+    // tentatively than their own attribute alone would suggest.
+    return clamp01(confidence / 100 + this.conditionConfidenceBoost(player));
   }
 
   /**
@@ -438,11 +446,49 @@ export class Decider {
         (abilityCeiling - abilityFloor)
     );
 
-    const score = clamp01(
+    let score = clamp01(
       engaged * (base + tendencies.dribbling * tendencyWeight + ability * abilityWeight)
     );
 
+    // Milestone 20 (Fatigue, Confidence, And Player Memory) - "let
+    // repeated success/failure nudge... action preference", the plan
+    // doc's own "three unsuccessful dribbles -> confidence falls ->
+    // slightly more likely to pass" example made concrete. Also where
+    // `Memory.recentlyPressedBy` gets populated - see `PlayerMemory.
+    // recordPressure()`'s own doc comment on why this is the one place
+    // that happens, rather than a dedicated pressing-detection pass.
+    const marker = getPressuringOpponents(
+      player,
+      defendingSide,
+      config.pressing.tightRadius
+    )[0];
+    if (marker?._id) {
+      recordPressure(player.Memory, marker._id);
+      if (marker._id === player.Memory.opponentBeatenRecently) {
+        score = clamp01(score + config.fatigue.opponentBeatenBonus);
+      }
+    }
+
+    score = clamp01(score + this.conditionConfidenceBoost(player));
+    score = clamp01(
+      score - player.Memory.recentFailedDribbles * config.fatigue.recentFailedDribblePenalty
+    );
+
     return { type: 'dribble', score: this.applyPhaseBias('dribble', score, phase) };
+  }
+
+  /** Milestone 20 - `Condition.confidence`'s distance from neutral, as a
+   * signed additive nudge on the same 0-1 scale every candidate score
+   * uses. Shared by `shootUtility`/`scoreDribble` - the two decisions the
+   * plan doc's own examples name ("more likely to pass [instead of
+   * dribble]", implicitly "more/less likely to shoot" being the shooting
+   * equivalent of the same underlying mood). */
+  private conditionConfidenceBoost(player: IFieldPlayer): number {
+    const config = getSimulationConfig().fatigue;
+    return (
+      ((player.Condition.confidence - config.confidence.initial) / 100) *
+      config.decisionConfidenceWeight
+    );
   }
 
   /**
