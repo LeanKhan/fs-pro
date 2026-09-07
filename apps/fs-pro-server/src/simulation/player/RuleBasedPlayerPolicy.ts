@@ -17,18 +17,18 @@ import { PlayerTendencies } from './PlayerRole';
  * desync the shared seeded-RNG call ordering even though each stays
  * individually deterministic. See the simulation-engine-isolation plan.
  *
- * `observation`/`teamIntent`/`tendencies` (Milestone 15's own addition)
- * are all accepted here but not consumed BY THIS CLASS directly -
- * `Decider.makeDecision()` reads pressure/lane facts via Milestone 10's
- * shared `spatial/` functions (the same ones `observation` was built
- * from) and derives its own `PlayerTendencies` via `PlayerRole.
+ * `observation`/`tendencies` are accepted here but not consumed BY THIS
+ * CLASS directly - `Decider.makeDecision()` reads pressure/lane facts via
+ * Milestone 10's shared `spatial/` functions (the same ones `observation`
+ * was built from) and derives its own `PlayerTendencies` via `PlayerRole.
  * deriveTendencies()` (the same pure function this file's caller used to
  * build the `tendencies` argument) directly from `player` - a second call
  * to the same deterministic function, not a second, drifting
  * implementation of the same concept (the thing Milestone 10 actually
- * fixed for pressure/lanes). Kept as explicit parameters here anyway,
- * matching this interface's existing shape, for whatever future
- * `PlayerPolicy` implementation wants to consume them directly instead.
+ * fixed for pressure/lanes). `teamIntent.phase`, however, IS now passed
+ * through as of Milestone 18 (Score-Based Decisions) - `Decider` had no
+ * equivalent of its own to recompute phase from, so this is the one field
+ * of the three params that was genuinely unused before and now isn't.
  */
 export class RuleBasedPlayerPolicy implements PlayerPolicy {
   constructor(private decider: Decider) {}
@@ -37,14 +37,18 @@ export class RuleBasedPlayerPolicy implements PlayerPolicy {
     player: IFieldPlayer,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     observation: PlayerObservation,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     teamIntent: TeamIntent,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     tendencies: PlayerTendencies,
     attackingSide: MatchSide,
     defendingSide: MatchSide
   ): PlayerIntent {
-    const strategy = this.decider.makeDecision(player, attackingSide, defendingSide);
+    const strategy = this.decider.makeDecision(
+      player,
+      attackingSide,
+      defendingSide,
+      teamIntent.phase
+    );
     return toPlayerIntent(strategy);
   }
 }

@@ -156,7 +156,7 @@ export class Actions {
 
     log(`Teams => ${this.teams[0].Name} ${this.teams[1].Name}`);
 
-    this.decider = new Decider(this.teams, this.random.fork('decider'));
+    this.decider = new Decider(this.teams, this.random.fork('decider'), this.match.id);
     this.playerPolicy = new RuleBasedPlayerPolicy(this.decider);
     this.passResolver = new PassResolver();
     this.tackleResolver = new TackleResolver();
