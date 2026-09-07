@@ -76,6 +76,32 @@ const DEFEND_PRESS_CHANCE: Record<MatchPhase, number> = {
   counter: 50,
 };
 
+/**
+ * Milestone 12 (Formation Anchors And Team Shape) - `getShapeTarget()`'s
+ * per-role forward/back multiplier: how strongly a player is pulled off
+ * their formation anchor at all, under an identical team-wide bias.
+ * Defenders anchor hardest (a back line that surges as eagerly as the
+ * attack isn't a back line), attackers drift most freely. GK is
+ * deliberately absent - goalkeepers never go through this shape system at
+ * all (see `getOutfield()`), their positioning stays the existing
+ * keeper-reset logic in `Referee.ts`.
+ */
+const ROLE_SHAPE_BIAS: Partial<Record<string, number>> = {
+  DEF: 0.3,
+  MID: 0.85,
+  ATT: 1,
+};
+
+/** How strongly the ball's flank pulls a player off their anchor's own
+ * width, at a tactic's most width-permissive (`style.width` near 0 -
+ * "narrow" tactics resist the pull less, not more; see `getShapeTarget()`).
+ * Kept modest - this is a shape-preserving drift, not ball-chasing. */
+const WIDTH_DRIFT_SCALE = 0.25;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
 export class Actions {
   public referee: IReferee;
   public decider: Decider;
@@ -722,10 +748,16 @@ export class Actions {
   public movePlayersForward(player: IFieldPlayer, team: MatchSide) {
     // Bias toward goal, not the goal block itself - a higher defensive
     // line pushes further forward, but every player advances from THEIR
-    // OWN slot (see getShapeTarget), preserving width instead of the whole
-    // line collapsing onto the single ScoringSide point.
+    // OWN anchor (see getShapeTarget), preserving shape instead of the
+    // whole line collapsing onto the single ScoringSide point.
     const bias = 0.2 + team.Tactic.style.defensiveLineHeight * 0.5;
-    const target = this.getShapeTarget(player, team.ScoringSide, bias);
+    const target = this.getShapeTarget(
+      player,
+      team,
+      team.ScoringSide,
+      bias,
+      player.Ball.Position
+    );
     this.move(player, 'forward', target);
   }
 
@@ -733,26 +765,70 @@ export class Actions {
     // Inverse of the above: a deep/low-block style retreats further when
     // regrouping, a high-line style barely drops off.
     const bias = 0.2 + (1 - team.Tactic.style.defensiveLineHeight) * 0.5;
-    const target = this.getShapeTarget(player, team.KeepingSide, bias);
+    const target = this.getShapeTarget(
+      player,
+      team,
+      team.KeepingSide,
+      bias,
+      player.Ball.Position
+    );
     this.move(player, 'fallback', target);
   }
 
   /**
-   * A point between a player's formation slot (FieldPlayer.StartingPosition
-   * - the stable per-player "home" block, kept current by
-   * MatchSide.setFormation/changeTactic) and a destination block, blended
-   * by `bias` (0 = stay at the slot, 1 = the destination itself). Only x
-   * moves - y stays at the player's own slot, so the team's shape/width is
-   * preserved instead of every player converging on one shared point.
+   * Milestone 12 (Formation Anchors And Team Shape) - blends a player's
+   * formation anchor (`FieldPlayer.StartingPosition` - the stable per-
+   * player "home" block, kept current by `MatchSide.setFormation()`/
+   * `changeTactic()`; see `state/PersistentState/Formations.ts`'s
+   * `FormationAnchor`) with a forward/back destination and the ball's
+   * current flank, into one target block - the "gravitational home
+   * position" the plan doc describes, not a fixed destination.
+   *
+   * Two axes, blended independently:
+   *  - x (forward/back): `home` pulled toward `destination` by `bias`,
+   *    scaled by this player's own role - defenders anchor harder than
+   *    midfielders/attackers under the same tactic and phase (a back line
+   *    should hold its shape even when the team as a whole pushes up).
+   *  - y (width): `home` pulled toward `lateralReference` (almost always
+   *    the ball) - `style.width` controls how much a team's own tactic
+   *    resists that pull (a narrow-width tactic holds its lane closer to
+   *    the anchor; a wide-play tactic still holds its OWN flank rather
+   *    than following the ball across, since width means "stretch the
+   *    pitch", not "collapse onto the ball").
+   *
+   * Previously this only moved x - y always stayed pinned to the anchor,
+   * so width/wide-vs-narrow play had no positioning effect at all, and
+   * every player's lateral spread was permanently identical to kickoff.
    */
   private getShapeTarget(
     player: IFieldPlayer,
-    destination: IBlock,
-    bias: number
+    team: MatchSide,
+    destination: ICoordinate,
+    bias: number,
+    lateralReference: ICoordinate
   ): IBlock {
     const home = player.StartingPosition;
-    const x = Math.round(home.x + (destination.x - home.x) * bias);
-    return CO.co.coordinateToBlock({ x, y: home.y });
+    const style = team.Tactic.style;
+    const roleBias = ROLE_SHAPE_BIAS[player.Position] ?? 1;
+
+    const forwardBias = bias * roleBias;
+    const widthBias = bias * roleBias * (1 - style.width) * WIDTH_DRIFT_SCALE;
+
+    const maxX = CO.co.Field.mapWidth - 1;
+    const maxY = CO.co.Field.mapHeight - 1;
+
+    const x = clamp(
+      Math.round(home.x + (destination.x - home.x) * forwardBias),
+      0,
+      maxX
+    );
+    const y = clamp(
+      Math.round(home.y + (lateralReference.y - home.y) * widthBias),
+      0,
+      maxY
+    );
+
+    return CO.co.coordinateToBlock({ x, y });
   }
 
   /**
@@ -784,7 +860,7 @@ export class Actions {
       this.pushForward(attackingSide);
     } else {
       playerFunc
-        .getATTMID(attackingSide)
+        .getOutfield(attackingSide)
         .forEach((p) => this.holdShape(p, attackingSide));
     }
 
@@ -1160,7 +1236,13 @@ export class Actions {
    * non-pressing player does now, instead of piling on (see pressureBall). */
   private holdShape(player: IFieldPlayer, team: MatchSide) {
     const bias = 1 - team.Tactic.style.positionalDiscipline;
-    const target = this.getShapeTarget(player, player.Ball.Position, bias);
+    const target = this.getShapeTarget(
+      player,
+      team,
+      player.Ball.Position,
+      bias,
+      player.Ball.Position
+    );
     this.move(player, 'hold shape', target);
   }
 
@@ -1168,7 +1250,9 @@ export class Actions {
     // const chance = Math.round(Math.random() * 100);
     log('*-- Attacking Side pushing forward --*');
 
-    const attackingPlayers = playerFunc.getATTMID(team);
+    // Milestone 12 - every outfield player (not just ATT/MID) now holds/
+    // advances their own shape - see getOutfield()'s own doc comment.
+    const attackingPlayers = playerFunc.getOutfield(team);
 
     attackingPlayers.forEach((p) => {
       this.movePlayersForward(p, team);
@@ -1179,7 +1263,7 @@ export class Actions {
     // const chance = Math.round(Math.random() * 100);
     log('*-- Team pushing backward --*');
 
-    const attackingPlayers = playerFunc.getATTMID(team);
+    const attackingPlayers = playerFunc.getOutfield(team);
 
     attackingPlayers.forEach((p) => {
       this.movePlayersBackward(p, team);
@@ -1189,8 +1273,12 @@ export class Actions {
   private pressureBall(team: MatchSide) {
     log('*-- Defending Side pressuring ball --*');
 
-    // Find midfielders and attackers
-    const defendingPlayers = playerFunc.getATTMID(team);
+    // Milestone 12 - defenders now enter this pool too (previously
+    // ATT/MID only) - in practice they're rarely among the nearest few to
+    // an opponent's ball deep in the defending side's own half, so they
+    // mostly land in `holders` (hold their own shape) rather than
+    // `pressers`, which is the realistic outcome anyway.
+    const defendingPlayers = playerFunc.getOutfield(team);
 
     if (defendingPlayers.length === 0) {
       return;
