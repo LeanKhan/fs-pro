@@ -24,12 +24,15 @@ import {
   applySubstitution,
   applyPossessionChange,
 } from '../transitions';
+import {
+  TICKS_PER_MINUTE,
+  HALF_TIME_TICK,
+  FULL_TIME_TICK,
+} from '../utils/matchClock';
 
 // import log from ''
 
 // import { EventEmitter } from 'events';
-
-// const gameLoop = 90;
 
 abstract class GameClass {
   public static instances: number;
@@ -458,14 +461,15 @@ export default class Game implements GameClass {
   public async advanceMatch(until: AdvanceUntil): Promise<AdvanceResult> {
     const targetTick = this.resolveTargetTick(until);
 
-    while (this.currentTick < targetTick && this.currentTick < 180) {
-      const boundary = this.currentTick < 90 ? 90 : 180;
+    while (this.currentTick < targetTick && this.currentTick < FULL_TIME_TICK) {
+      const boundary =
+        this.currentTick < HALF_TIME_TICK ? HALF_TIME_TICK : FULL_TIME_TICK;
       const nextStop = Math.min(targetTick, boundary);
 
       await this.gameLoop(this.currentTick, nextStop);
       this.currentTick = nextStop;
 
-      if (this.currentTick === 90 && !this.halfTimeTransitionDone) {
+      if (this.currentTick === HALF_TIME_TICK && !this.halfTimeTransitionDone) {
         this.halfTimeTransitionDone = true;
         matchEvents.emit(`${this.Match.id}-half-end`);
         createMatchEvent(this.Match.id, 'First Half Over', 'match');
@@ -475,7 +479,7 @@ export default class Game implements GameClass {
         matchEvents.emit(`${this.Match.id}-reset-formations`);
       }
 
-      if (this.currentTick === 180) {
+      if (this.currentTick === FULL_TIME_TICK) {
         matchEvents.emit(`${this.Match.id}-half-end`);
         createMatchEvent(this.Match.id, 'Match Over', 'match');
         log('------------------ Match Over --------------------');
@@ -483,26 +487,29 @@ export default class Game implements GameClass {
     }
 
     return {
-      half: this.currentTick < 90 ? 1 : 2,
-      minute: Math.round(this.currentTick / 2),
-      finished: this.currentTick >= 180,
+      half: this.currentTick < HALF_TIME_TICK ? 1 : 2,
+      minute: Math.round(this.currentTick / TICKS_PER_MINUTE),
+      finished: this.currentTick >= FULL_TIME_TICK,
     };
   }
 
   private resolveTargetTick(until: AdvanceUntil): number {
     if ('minute' in until) {
-      return Math.max(0, Math.min(180, Math.round(until.minute * 2)));
+      return Math.max(
+        0,
+        Math.min(FULL_TIME_TICK, Math.round(until.minute * TICKS_PER_MINUTE))
+      );
     }
-    return until.event === 'half-time' ? 90 : 180;
+    return until.event === 'half-time' ? HALF_TIME_TICK : FULL_TIME_TICK;
   }
 
-  private gameLoop(timestart = 0, timeend = 90) {
+  private gameLoop(timestart = 0, timeend = HALF_TIME_TICK) {
     this.matchComments();
     return new Promise((resolve, reject) => {
       for (let i = timestart; i < timeend; i++) {
         const playingSides = this.setPlayingSides();
 
-        this.Match.setCurrentTime(Math.round((i + 1) / 2));
+        this.Match.setCurrentTime(Math.round((i + 1) / TICKS_PER_MINUTE));
 
         if (this.AS === undefined || this.DS === undefined) {
           log('Mvng Towards ball');

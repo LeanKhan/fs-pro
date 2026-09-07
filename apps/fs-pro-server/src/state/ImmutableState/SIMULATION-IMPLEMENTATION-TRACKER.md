@@ -1460,23 +1460,101 @@ server.
 
 ## Milestone 16 - Simultaneous Intentions And Tick Loop
 
-**Status:** Not started
+**Status:** Done (2026-09-07) - revised scope, see note below
 
 **Purpose:** Move from sequential player scripting toward snapshot-based decisions and resolved conflicts.
 
+**Revision note - what this engine's tick model actually needed:** The
+plan doc's own Phase 11 sketch (`intentions = players.map(decide); resolver.
+resolve(intentions, world)`) describes N players simultaneously deciding
+POTENTIALLY-CONFLICTING ON-BALL actions (pass/press/intercept) from one
+snapshot. That isn't this engine's actual shape and was never going to be
+without a much larger rewrite: exactly ONE real on-ball decision happens
+per tick (`Decider.makeDecision()`, for whoever currently holds the ball -
+established since Milestone 1), and nothing mutates before it runs, so it
+was ALREADY snapshot-consistent by construction - confirmed by inspection,
+not assumed. The real, live version of "sequential scripting resolving
+conflicts by loop order" was found elsewhere: `Actions.continueGamePlay()`'s
+off-ball movement (Milestone 14) decided-and-moved each player in the same
+step, in raw `getOutfield()` array order - whichever player was enumerated
+first silently won any contested free block (`checkNextBlocks()`/
+`findFreeBlock()` read LIVE occupancy, which changes as earlier players in
+the SAME loop move). That's the actual problem this milestone fixes.
+
 **Tasks**
 
-- [ ] Define simulation tick length.
-- [ ] Build each tick from a stable state snapshot.
-- [ ] Collect player intentions before mutating state.
-- [ ] Resolve movement, passes, tackles, interceptions, and shots after intentions are collected.
-- [ ] Record only meaningful public events while keeping enough internal tick data for debugging/replay.
+- [x] Define simulation tick length - formalized, not newly invented: new
+      `simulation/utils/matchClock.ts` (`TICKS_PER_MINUTE`/`HALF_TIME_TICK`/
+      `FULL_TIME_TICK`/`MATCH_DURATION_MINUTES`), replacing a bare `/2`/
+      `*2`/`90`/`180` that was independently scattered across `Game.ts`'s
+      tick loop and `Match.captureFrame()`'s replay-frame half number. A
+      finer, sub-second tick (the plan doc's own alternative sketch) was
+      considered and deliberately NOT adopted - every formula tuned since
+      Milestone 1 is calibrated against this exact 2-ticks-per-minute
+      cadence, and changing it would be the same class of blanket
+      recalibration risk already flagged (and deferred) for the field
+      grid's own resolution.
+- [x] Build each tick from a stable state snapshot - already true for the
+      one real on-ball decision each tick (see the revision note); now
+      also true for off-ball movement - every off-ball player's intent
+      AND target is computed from state nothing in that pass has touched
+      yet (each other's target computation reads only `StartingPosition`/
+      team posts/tactic/one `ballPosition` captured once - none of which
+      change as a side effect of a SIBLING's target being computed,
+      confirmed by inspection of `resolveAttackingOffBallTarget`/
+      `resolveDefensiveOffBallTarget`).
+- [x] Collect player intentions before mutating state -
+      `Actions.continueGamePlay()` now builds a full `OffBallMove[]` plan
+      (player + intent + target) for each side before any of them
+      actually move, instead of deciding-and-moving one player at a time.
+- [x] Resolve movement, passes, tackles, interceptions, and shots after
+      intentions are collected - the off-ball movement plan is executed by
+      a new `resolveOffBallMoves()`, in ball-distance order rather than
+      collection/array order (see acceptance criteria below); pass/tackle/
+      interception/shot resolution was already separated from decision-
+      making back in Milestone 8 (Resolver Layer) - decision (`Decider`)
+      and outcome (`PassResolver`/`TackleResolver`/`ShotResolver`) were
+      already two distinct steps, nothing to redo there.
+- [x] Record only meaningful public events while keeping enough internal
+      tick data for debugging/replay - audited, not rebuilt: `Match.Events`
+      (narrated pass/shot/goal/foul/etc, filtered by type) and
+      `Match.Frames` (every tick's full player positions + events since
+      the last frame, Milestone 1/3) already cleanly separate these two
+      concerns, and Milestone 6 already deliberately kept the per-tick
+      possession-credit call event-free specifically to avoid flooding
+      `Events` with noise. Nothing needed changing here.
+
+**Verified live:** `tsc --noEmit` clean; `oxlint src` clean; a dedicated
+throwaway script (deleted after use) directly proved the resolver claim:
+spied on `Actions.move()` around a real match's live kickoff players, fed
+`resolveOffBallMoves()` a deliberately reversed-by-distance plan, and
+confirmed the actual execution order was non-decreasing in ball-distance
+regardless (kickoff naturally produced some exact distance ties from
+formation symmetry - a stable sort's tie-break is allowed to go either
+way, so the check verifies "correctly sorted", not "matches one specific
+pre-computed tie-break"). `simRealismCheck.ts --compare` against a pre-
+milestone baseline (963 vs 953 matches) - every metric within noise,
+most within a rounding error of zero - expected and reassuring: this
+refactor only changes resolution order for the rare case of genuine
+off-ball block contention, not the underlying decision formulas, so a
+near-zero aggregate shift is the correct signature of "the refactor
+didn't change behavior, just made an existing edge case correct." Real
+HTTP `GET /api/game/kickoff-new/:fixture` against a genuine unplayed,
+non-friendly fixture - 200 OK against the actual running dev server.
 
 **Acceptance Criteria**
 
-- [ ] Players decide from the same tick snapshot.
-- [ ] Conflicts are resolved by the resolver layer, not by loop order.
-- [ ] Replay frames remain compatible with the current frontend.
+- [x] Players decide from the same tick snapshot - true for the ball
+      carrier since Milestone 1 (confirmed, not assumed); true for every
+      off-ball player as of this milestone.
+- [x] Conflicts are resolved by the resolver layer, not by loop order -
+      verified live: `resolveOffBallMoves()`'s ball-distance ordering
+      overrides array/collection order, confirmed with a reversed-order
+      input.
+- [x] Replay frames remain compatible with the current frontend -
+      `IMatchFrame`'s shape is untouched by this milestone (only its
+      internal `half` computation now reads a named constant instead of a
+      bare `90`) - no field added, removed, or renamed.
 
 ## Milestone 17 - Independent Ball Model
 

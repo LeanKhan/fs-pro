@@ -38,6 +38,14 @@ import {
 } from '../../../player/OffBallPolicy';
 import { deriveTendencies } from '../../../player/PlayerRole';
 
+/** Milestone 16 - one collected-but-not-yet-executed off-ball decision:
+ * who, doing what, headed where. See `resolveOffBallMoves()`. */
+interface OffBallMove<Intent extends string> {
+  player: IFieldPlayer;
+  intent: Intent;
+  target: IBlock;
+}
+
 /**
  * Percent chance the defending side actively presses the ball carrier
  * this tick rather than dropping into shape, by phase. Before this
@@ -868,27 +876,42 @@ export class Actions {
   ) {
     const ballPosition = attackingPlayer.Ball.Position;
 
-    // Milestone 14 (Off-Ball Behavior) - every other outfield attacker now
-    // gets its own off-ball intent (support/make-run/overlap/...) instead
-    // of the whole side moving as one homogeneous blob under a single
-    // shared bias (Milestone 11's push-forward-vs-hold-shape roll,
-    // superseded here by real per-player differentiation).
-    playerFunc.getOutfield(attackingSide).forEach((p) => {
-      const intent = decideAttackingOffBallIntent(
-        p,
-        attackingPlayer,
-        attackingSide,
-        defendingSide,
-        attackingPhase
-      );
-      const target = this.resolveAttackingOffBallTarget(
-        p,
-        attackingSide,
-        intent,
-        ballPosition
-      );
-      this.move(p, intent, target);
-    });
+    // Milestone 16 (Simultaneous Intentions And Tick Loop) - "collect
+    // player intentions before mutating state" / "conflicts are resolved
+    // by the resolver layer, not by loop order". Every off-ball player's
+    // intent AND target is computed here, from state nothing in this pass
+    // has touched yet (StartingPosition/team posts/tactic/the one
+    // `ballPosition` captured above - none of it changes as a result of
+    // ANOTHER off-ball player's target being computed, confirmed by
+    // inspection of resolveAttackingOffBallTarget/resolveDefensiveOffBallTarget
+    // below) - only the EXECUTION loop after it (`this.move()`, which
+    // reads live block occupancy) can actually contend with itself.
+    // Previously decide-and-move were the same step, in raw `getOutfield()`
+    // array order - whichever player happened to be enumerated first
+    // silently won any contested free block. Executing in ball-distance
+    // order instead (see below) replaces that accidental precedence with
+    // a real, documented policy: whoever's nearest the actual play acts
+    // with priority, not whoever the roster array lists first.
+    const attackingPlan: OffBallMove<AttackingOffBallIntent>[] = playerFunc
+      .getOutfield(attackingSide)
+      .map((p) => {
+        const intent = decideAttackingOffBallIntent(
+          p,
+          attackingPlayer,
+          attackingSide,
+          defendingSide,
+          attackingPhase
+        );
+        const target = this.resolveAttackingOffBallTarget(
+          p,
+          attackingSide,
+          intent,
+          ballPosition
+        );
+        return { player: p, intent, target };
+      });
+
+    this.resolveOffBallMoves(attackingPlan, ballPosition);
 
     // After every action by the attacking team, the defensive player must
     // move towards the ball - TWICE this tick (here, and again below as a
@@ -950,27 +973,56 @@ export class Actions {
         .map((p) => p._id)
     );
 
-    defendingOutfield.forEach((p) => {
-      const intent = decideDefensiveIntent(
-        p,
-        defendingPhase,
-        assignment,
-        pressingIds.has(p._id)
-      );
-      const markedOpponentId = assignment.markAssignments.get(p._id!);
-      const markedOpponent = markedOpponentId
-        ? attackingSide.ActivePlayers.find((o) => o._id === markedOpponentId)
-        : undefined;
-      const target = this.resolveDefensiveOffBallTarget(
-        p,
-        defendingSide,
-        intent,
-        ballPosition,
-        assignment,
-        markedOpponent?.BlockPosition
-      );
-      this.move(p, intent, target);
-    });
+    const defendingPlan: OffBallMove<DefensiveIntent>[] = defendingOutfield.map(
+      (p) => {
+        const intent = decideDefensiveIntent(
+          p,
+          defendingPhase,
+          assignment,
+          pressingIds.has(p._id)
+        );
+        const markedOpponentId = assignment.markAssignments.get(p._id!);
+        const markedOpponent = markedOpponentId
+          ? attackingSide.ActivePlayers.find((o) => o._id === markedOpponentId)
+          : undefined;
+        const target = this.resolveDefensiveOffBallTarget(
+          p,
+          defendingSide,
+          intent,
+          ballPosition,
+          assignment,
+          markedOpponent?.BlockPosition
+        );
+        return { player: p, intent, target };
+      }
+    );
+
+    this.resolveOffBallMoves(defendingPlan, ballPosition);
+  }
+
+  /**
+   * Milestone 16 - the "resolver layer" the acceptance criteria ask for:
+   * executes a batch of already-decided off-ball moves (collected above,
+   * from state none of them mutate) in one deterministic order - nearest
+   * to the ball first - rather than whatever order the roster happened to
+   * be enumerated in. Only the actual movement (`this.move()`, which reads
+   * live block occupancy) can contend for the same free block; ordering
+   * by relevance to the current play is a real, documented priority
+   * instead of an accidental one.
+   */
+  private resolveOffBallMoves<Intent extends string>(
+    plan: OffBallMove<Intent>[],
+    ballPosition: ICoordinate
+  ): void {
+    [...plan]
+      .sort(
+        (a, b) =>
+          CO.co.calculateDistance(a.player.BlockPosition, ballPosition) -
+          CO.co.calculateDistance(b.player.BlockPosition, ballPosition)
+      )
+      .forEach(({ player, intent, target }) => {
+        this.move(player, intent, target);
+      });
   }
 
   /**
