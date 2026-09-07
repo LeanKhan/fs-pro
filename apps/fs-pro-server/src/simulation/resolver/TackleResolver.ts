@@ -1,6 +1,7 @@
 import { IFieldPlayer } from '../../interfaces/Player';
 import { getResult } from '../utils/probability';
 import { getSimulationConfig } from '../config';
+import { getFatigueMultiplier } from '../player/PlayerCondition';
 
 /**
  * Milestone 8 (Resolver Layer) - moved verbatim out of `Decider.ts`'s
@@ -14,9 +15,21 @@ import { getSimulationConfig } from '../config';
 export class TackleResolver {
   public resolveTackle(tackler: IFieldPlayer, ballHolder: IFieldPlayer): boolean {
     const { tacklerPower, ballHolderPower } = getSimulationConfig().tackling.contest;
+    // Milestone 20 - "fatigue affects... control, tackle timing" - each
+    // side's own fatigue degrades their own attributes for this duel, a
+    // mistimed tackle from a tired defender and a heavier touch from a
+    // tired ball-holder both modeled the same way.
+    const tacklerFatigue = getFatigueMultiplier(tackler);
+    const ballHolderFatigue = getFatigueMultiplier(ballHolder);
     return getResult(
-      [tackler.Attributes.Tackling, tackler.Attributes.Strength],
-      [ballHolder.Attributes.Dribbling, ballHolder.Attributes.Control],
+      [
+        tackler.Attributes.Tackling * tacklerFatigue,
+        tackler.Attributes.Strength * tacklerFatigue,
+      ],
+      [
+        ballHolder.Attributes.Dribbling * ballHolderFatigue,
+        ballHolder.Attributes.Control * ballHolderFatigue,
+      ],
       tacklerPower,
       ballHolderPower
     );
@@ -39,12 +52,15 @@ export class TackleResolver {
     // slightly MORE on skill (80%) than the dribbler (65%), since actual
     // attribute values cluster together the same way passing/Tackling do.
     const contest = getSimulationConfig().dribbling.contest;
+    // Milestone 20 - same fatigue treatment as resolveTackle() above.
+    const dribblerFatigue = getFatigueMultiplier(dribbler);
+    const opponentFatigue = getFatigueMultiplier(opponent);
     return getResult(
       [
-        { v: dribbler.Attributes.Dribbling, p: contest.dribblerDribblingWeight },
-        { v: dribbler.Attributes.Speed, p: contest.dribblerSpeedWeight },
+        { v: dribbler.Attributes.Dribbling * dribblerFatigue, p: contest.dribblerDribblingWeight },
+        { v: dribbler.Attributes.Speed * dribblerFatigue, p: contest.dribblerSpeedWeight },
       ],
-      [opponent.Attributes.Tackling],
+      [opponent.Attributes.Tackling * opponentFatigue],
       contest.dribblerPower,
       contest.opponentPower
     );

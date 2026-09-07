@@ -4,6 +4,7 @@ import CO from '../utils/coordinates';
 import { getResult } from '../utils/probability';
 import { RandomSource } from '../randomness';
 import { getSimulationConfig } from '../config';
+import { getFatigueMultiplier } from '../player/PlayerCondition';
 
 /**
  * Milestone 8 (Resolver Layer) - moved verbatim out of `Decider.ts`'s
@@ -40,9 +41,20 @@ export class ShotResolver {
     } else {
       if (onTarget) {
         const { shooterPower, keeperPower } = getSimulationConfig().shooting.duel;
+        // Milestone 20 - "fatigue affects... shot precision" - both the
+        // shooter's finishing and the keeper's own handling degrade with
+        // their own fatigue.
+        const shooterFatigue = getFatigueMultiplier(shooter);
+        const keeperFatigue = getFatigueMultiplier(keeper);
         const result = getResult(
-          [shooter.Attributes.Shooting, shooter.Attributes.Mental],
-          [keeper.Attributes.Keeping, keeper.Attributes.Control],
+          [
+            shooter.Attributes.Shooting * shooterFatigue,
+            shooter.Attributes.Mental * shooterFatigue,
+          ],
+          [
+            keeper.Attributes.Keeping * keeperFatigue,
+            keeper.Attributes.Control * keeperFatigue,
+          ],
           shooterPower,
           keeperPower
         );
@@ -65,6 +77,8 @@ export class ShotResolver {
       (t) => t.ClubCode === shooter.ClubCode
     );
 
+    const shooterFatigue = getFatigueMultiplier(shooter);
+
     if (
       this.isNearScoringPost(
         shooter,
@@ -72,10 +86,11 @@ export class ShotResolver {
         getSimulationConfig().shooting.nearPostDistance
       )
     ) {
-      return chance <= shooter.Attributes.Shooting;
+      return chance <= shooter.Attributes.Shooting * shooterFatigue;
     } else {
       return (
-        chance <= (shooter.Attributes.SetPiece + shooter.Attributes.Shooting) / 2
+        chance <=
+        ((shooter.Attributes.SetPiece + shooter.Attributes.Shooting) / 2) * shooterFatigue
       );
     }
   }

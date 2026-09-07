@@ -29,6 +29,10 @@ import {
   HALF_TIME_TICK,
   FULL_TIME_TICK,
 } from '../utils/matchClock';
+import {
+  applyHalfTimeRecovery,
+  updateConditionsForTick,
+} from '../player/PlayerCondition';
 
 // import log from ''
 
@@ -429,6 +433,12 @@ export default class Game implements GameClass {
         matchEvents.emit(`${this.Match.id}-half-end`);
         createMatchEvent(this.Match.id, 'First Half Over', 'match');
         log('------------------ Second Half Start ------------------');
+        // Milestone 20 - partial stamina recovery during the break, before
+        // anyone's subbed off (an incoming sub gets fully fresh condition
+        // for free anyway - see FieldPlayer's constructor).
+        [...this.Match.Home.ActivePlayers, ...this.Match.Away.ActivePlayers].forEach(
+          applyHalfTimeRecovery
+        );
         this.swapClubFormations();
         this.performHalfTimeSubstitutions();
         matchEvents.emit(`${this.Match.id}-reset-formations`);
@@ -465,6 +475,16 @@ export default class Game implements GameClass {
         const playingSides = this.setPlayingSides();
 
         this.Match.setCurrentTime(Math.round((i + 1) / TICKS_PER_MINUTE));
+
+        // Milestone 20 (Fatigue, Confidence, And Player Memory) - every
+        // active player on both sides, every tick, independent of who has
+        // the ball this tick (unlike takeAction()/continueGamePlay()
+        // below, which only ever reach the ball carrier and whoever's
+        // off-ball fan-out touches). `this.DS` is undefined on a tick
+        // where no holder resolved yet - nobody presses a loose ball, so
+        // `updateConditionsForTick` just applies base drain to everyone
+        // that tick (see its own doc comment).
+        updateConditionsForTick([this.Match.Home, this.Match.Away], this.DS);
 
         if (this.AS === undefined || this.DS === undefined) {
           log('Mvng Towards ball');

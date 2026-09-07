@@ -8,6 +8,7 @@ export {
 export type {
   DeepPartialSimulationConfig,
   DribblingConfig,
+  FatigueConfig,
   FoulsConfig,
   MovementConfig,
   OutfieldShootProfile,

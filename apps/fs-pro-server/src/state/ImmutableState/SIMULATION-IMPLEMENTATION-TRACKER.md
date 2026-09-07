@@ -1803,23 +1803,36 @@ Live HTTP smoke test (`GET /api/game/kickoff-new/:fixtureId` against the running
 
 ## Milestone 20 - Fatigue, Confidence, And Player Memory
 
-**Status:** Not started
+**Status:** Done (2026-09-07)
 
 **Purpose:** Make player state evolve during the match.
 
 **Tasks**
 
-- [ ] Add `PlayerMatchCondition`.
-- [ ] Track stamina, fatigue, confidence, sharpness, and injury risk.
-- [ ] Make fatigue affect movement, pressing, control, tackle timing, and shot precision.
-- [ ] Add short-term player memory for recent shots, failed dribbles, pressure, and last action.
-- [ ] Let repeated success/failure nudge confidence and action preference.
+- [x] Add `PlayerMatchCondition`. `simulation/player/PlayerCondition.ts`'s `IPlayerCondition`, the plan doc's own Phase 26 field names unchanged. Only `stamina`/`confidence` are independently tracked/mutated - `fatigue`/`sharpness`/`injuryRisk` are all DERIVED from those two plus static `Age`/`Attributes.Stamina` (recomputed together, not three more independent random walks) - the same "small state is enough" treatment the plan doc explicitly asked for `PlayerMemory`, applied here too. `Condition` is constructor-initialized on `FieldPlayer` (mirroring `MatchStatus`/`GameStats`), so `MatchSide.substitutePlayer()`'s brand-new incoming-sub `FieldPlayer` gets fresh condition for free, zero extra wiring.
+- [x] Track stamina, fatigue, confidence, sharpness, and injury risk. All five fields present and genuinely computed (not placeholders) - see `PlayerCondition.ts`.
+- [x] Make fatigue affect movement, pressing, control, tackle timing, and shot precision. Two distinct layers, not one: DECISION layer (`OffBallPolicy.ts` downgrades energetic intents - 'make-run'/'overlap'/'attack-box'/'press' - to 'support'/'cover' above a fatigue threshold, "movement"/"pressing") and EXECUTION layer (`TackleResolver`/`ShotResolver` multiply the relevant attribute reads by `getFatigueMultiplier()`, "control"/"tackle timing"/"shot precision"). `PassResolver` deliberately left untouched - "passing" isn't one of the five named effects, and its ~50 individually-reasoned duel weights get the same "don't flatten load-bearing context into generic multipliers" treatment Milestone 19 already gave it.
+- [x] Add short-term player memory for recent shots, failed dribbles, pressure, and last action. `simulation/player/PlayerMemory.ts`'s `IPlayerMemory` - `lastAction` records the richer Milestone-18 `CandidateAction` rather than the plan's own older `PlayerIntent` sketch (avoids `Decider.ts` importing back from `PlayerIntent.ts`, which already imports `Decider.ts` - a real circular-import risk, not a style choice).
+- [x] Let repeated success/failure nudge confidence and action preference. `Actions.ts` calls `nudgeConfidence()` at every outcome-known moment (pass complete/intercepted, dribble beat/lost x2 call sites, tackle won/lost, shot scored/saved/missed); `Decider.scoreDribble()`/`shootUtility()` both read `Condition.confidence` back via a shared `conditionConfidenceBoost()` helper, and `scoreDribble()` additionally reads `Memory.recentFailedDribbles` (a penalty) and `Memory.opponentBeatenRecently` (a bonus when re-facing the same marker) - the plan doc's own two examples ("three unsuccessful dribbles -> more likely to pass", "beats the same fullback repeatedly -> more willing to attack him") made concrete, not just described.
 
 **Acceptance Criteria**
 
-- [ ] High pressing has a visible cost over 90 minutes.
-- [ ] Late-match behavior differs from early-match behavior.
-- [ ] Players can adapt slightly based on recent outcomes.
+- [x] High pressing has a visible cost over 90 minutes. Verified live (see below).
+- [x] Late-match behavior differs from early-match behavior. Verified live - full-time average fatigue is meaningfully above the fresh-kickoff baseline of 0, and `OffBallPolicy`'s fatigue-gated intent downgrade means the ENERGETIC-intent mix genuinely shrinks as fatigue accumulates over the match, not just a cosmetic number going up.
+- [x] Players can adapt slightly based on recent outcomes. Verified live - dribble candidate scores show real spread across a sample, driven in part by `Condition.confidence`/`Memory.recentFailedDribbles`, not a frozen constant.
+
+**A real bug found live while calibrating, not guessed** - `IPlayingStyle.pressingIntensity` is NOT a 0-1 fraction like every sibling field (`tempo`/`directness`/`defensiveLineHeight`/`width`) - it's a small player COUNT (`PLAYING_STYLES` in `Formations.ts` ranges 1-4; `Actions.ts` genuinely does `.slice(0, pressingIntensity)` with it). The first calibration pass assumed a 0-1 scale (a reasonable-looking but wrong assumption, given every OTHER `IPlayingStyle` field really is 0-1) and set `pressingDrainScale` accordingly - the result: every player in every match drained to near-zero stamina by full time (some literally under 5), regardless of actual pressing setting. Root-caused by grep'ing every real consumer of `pressingIntensity` (not just the one doc comment), found the `.slice()` usage, and recalibrated `pressingDrainScale` (0.6 -> 0.07) for the real 1-4 range - full-time stamina now lands in a plausible ~60-70% range for an ordinary match, confirmed via direct instrumentation before re-verifying.
+
+**A second real bug found live while writing the verification script, not guessed** - `resolveTactic()` (`state/PersistentState/Formations.ts`) assigns `IActiveTactic.style` straight from the module-level `PLAYING_STYLES` constant, uncloned. Every `MatchSide` using the same named style (e.g. the common "Balanced" default) shares the EXACT SAME `style` object, process-wide, across every match ever run in that process. Nothing in the engine mutates `.style` fields in place today (a real tactic change always replaces the whole `Tactic` object via `changeTactic()`), so this is harmless in current production code - but the first version of this milestone's own verification script, mutating `Home.Tactic.style.pressingIntensity` directly to build a controlled high-vs-low-press comparison, silently also overwrote Away's value (and would have corrupted every other match's "Balanced" style for the rest of the process). Worked around in the script (clone the whole `style` object before mutating); left disclosed, not fixed, in the engine itself - out of this milestone's scope (a Formations.ts data-immutability concern, unrelated to fatigue), same "document, don't silently patch around" treatment the Milestone 19 roster-pool finding got.
+
+**Verified live** - a throwaway `verifyFatigueSystem.ts` (deleted after use, same treatment as prior milestones' verification scripts) ran controlled comparisons:
+- 6 matches with one side's `pressingIntensity` forced to 4 (HighPress) and the other to 1 (LowBlock): the high-press side ended full-time with meaningfully lower average stamina (63.0 vs 70.1).
+- Full-time average fatigue (33.4) meaningfully above the fresh-kickoff baseline (0), across a further 6 ordinary matches.
+- 1006 decisions collected via `decisionEvents`, confirming dribble candidate scores show real spread (range 0.96) driven by confidence/memory, not a frozen value.
+
+`simRealismCheck.ts --compare` against the pre-Milestone-20 baseline (59 vs 57 matches): every metric's mean delta stayed small (largest: direct pass share +2.3 points, plausible from fatigue nudging both decisions and execution over the course of a match) - goals/passes/fouls/cards all held essentially flat. Shots/tackles/fouls/yellow-cards remain below their real-world reference bands, continuing the same tick-granularity ceiling Milestone 16/19 already documented, not a new regression this milestone introduced.
+
+Live HTTP smoke test (`GET /api/game/kickoff-new/:fixtureId` against the running dev server) returned a normal 2-1 result with sane stats (39 passes, 4 fouls), confirming the fatigue/confidence/memory system runs end-to-end outside the scripts too.
 
 ## Milestone 21 - Manager And AI Decisions
 

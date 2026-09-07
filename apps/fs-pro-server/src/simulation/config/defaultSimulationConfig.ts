@@ -145,6 +145,39 @@ export const defaultSimulationConfig: SimulationConfig = {
     spaceAheadNear: 3,
     spaceAheadFar: 4,
   },
+
+  // Milestone 20 (Fatigue, Confidence, And Player Memory) - see
+  // PlayerCondition.ts's own doc comments for the exact formulas each of
+  // these feeds. Over a full 180-tick match, a player on the side that
+  // spends roughly half the match defending at a HighPress-style
+  // `pressingIntensity` (4, see `FatigueConfig.pressingDrainScale`'s own
+  // doc comment on why this is a small count, not a 0-1 fraction) ends up
+  // meaningfully more drained than one on a LowBlock-style side (1) - the
+  // whole point of `pressingDrainScale` existing as its own separate term
+  // from `baseDrainPerTick`.
+  fatigue: {
+    baseDrainPerTick: 0.2,
+    pressingDrainScale: 0.07,
+    abilityMitigation: 0.3,
+    halfTimeRecoveryFraction: 0.3,
+    sharpnessStaminaWeight: 0.6,
+    executionImpact: 0.25,
+    lowEnergyThreshold: 65,
+    injuryRisk: {
+      fatigueScale: 0.4,
+      ageScale: 1.5,
+      ageBaseline: 30,
+    },
+    confidence: {
+      initial: 50,
+      driftPerTick: 0.01,
+      successDelta: 4,
+      failureDelta: -5,
+    },
+    decisionConfidenceWeight: 0.15,
+    recentFailedDribblePenalty: 0.08,
+    opponentBeatenBonus: 0.1,
+  },
 };
 
 let simulationConfig: SimulationConfig = defaultSimulationConfig;

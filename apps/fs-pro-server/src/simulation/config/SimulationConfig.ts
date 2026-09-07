@@ -146,6 +146,85 @@ export interface MovementConfig {
   spaceAheadFar: number;
 }
 
+export interface FatigueConfig {
+  /** `PlayerCondition.updatePlayerConditionTick()`'s flat per-tick stamina
+   * drain, before pressing/ability adjustments - applied to every active
+   * player, every tick, regardless of whether they're currently on the
+   * ball. */
+  baseDrainPerTick: number;
+  /** Extra per-tick drain, scaled by the DEFENDING side's own
+   * `Tactic.style.pressingIntensity` and applied only to that side (the
+   * one actually out of possession and doing the pressing) - the literal
+   * mechanism behind "high pressing has a visible cost" (this milestone's
+   * own acceptance criterion). NOT a 0-1 fraction despite most other
+   * `IPlayingStyle` fields being one - `pressingIntensity` is a small
+   * player COUNT (`state/PersistentState/Formations.ts`'s own
+   * `PLAYING_STYLES` table ranges 1-4, and `Actions.ts` genuinely
+   * `.slice(0, pressingIntensity)`s with it) - found live while
+   * calibrating this value (an initial 0-1-scale guess drained everyone
+   * to near-zero by full time; see the tracker's own Milestone 20 notes). */
+  pressingDrainScale: number;
+  /** How much the player's own `Attributes.Stamina` rating reduces drain -
+   * 0 = no effect, 1 = a 100-Stamina player takes zero drain at all. */
+  abilityMitigation: number;
+  /** Fraction of LOST stamina restored at half-time (0-1) - a real but
+   * partial recovery, not a full reset (`Game.ts`'s half-time
+   * transition). */
+  halfTimeRecoveryFraction: number;
+  /** `sharpness = stamina * this + confidence * (1 - this)` - how much of
+   * match sharpness is physical (stamina) vs mental (confidence). */
+  sharpnessStaminaWeight: number;
+  /** Max fractional reduction to an EXECUTION-layer attribute read at full
+   * (100) fatigue - `PlayerCondition.getFatigueMultiplier()`, consumed by
+   * `TackleResolver`/`ShotResolver`. Bounded so a fully gassed player is
+   * meaningfully worse, never functionally useless. */
+  executionImpact: number;
+  /** Fatigue (0-100) above which `OffBallPolicy` downgrades an energetic
+   * off-ball intent ('make-run'/'overlap'/'attack-box'/'press') to a
+   * lower-effort one ('support'/'cover') - the "fatigue affects movement
+   * [and] pressing" task, at the DECISION layer (whether a tired player
+   * even attempts the run), separate from `executionImpact` above (how
+   * well an attempt executes). */
+  lowEnergyThreshold: number;
+  injuryRisk: {
+    /** `injuryRisk += fatigue * this` (fatigue 0-100 -> risk 0-100). */
+    fatigueScale: number;
+    /** `injuryRisk += max(0, Age - ageBaseline) * this`. */
+    ageScale: number;
+    ageBaseline: number;
+  };
+  confidence: {
+    /** Starting/neutral confidence (0-100) - also the value confidence
+     * slowly drifts back toward each tick. */
+    initial: number;
+    /** Fraction of the gap to `initial` closed per tick - a recent hot/
+     * cold streak fades over time rather than permanently sticking. */
+    driftPerTick: number;
+    /** Applied by `PlayerCondition.nudgeConfidence()` on a successful
+     * shot/pass/dribble/tackle. */
+    successDelta: number;
+    /** Same, on a failed one - deliberately more negative than
+     * `successDelta` is positive: a real "confidence is easier to lose
+     * than build" asymmetry. */
+    failureDelta: number;
+  };
+  /** How much `Condition.confidence`'s distance from neutral (0-100)
+   * shifts `Decider.shootUtility()`/`scoreDribble()`'s score, on the same
+   * 0-1 scale those scores use - "let repeated success/failure nudge...
+   * action preference" (this milestone's own task). */
+  decisionConfidenceWeight: number;
+  /** Per-consecutive-failed-dribble score penalty in `Decider.scoreDribble()`
+   * (`Memory.recentFailedDribbles`) - the plan doc's own "three
+   * unsuccessful dribbles -> confidence falls -> slightly more likely to
+   * pass" example, as a concrete number. */
+  recentFailedDribblePenalty: number;
+  /** Score bonus in `Decider.scoreDribble()` when the player's current
+   * tight marker is the same opponent `Memory.opponentBeatenRecently`
+   * names - the plan doc's own "winger repeatedly beats the same
+   * fullback -> more willingness to attack him" example. */
+  opponentBeatenBonus: number;
+}
+
 export interface SimulationConfig {
   shooting: ShootingConfig;
   passing: PassingConfig;
@@ -154,6 +233,7 @@ export interface SimulationConfig {
   fouls: FoulsConfig;
   pressing: PressingConfig;
   movement: MovementConfig;
+  fatigue: FatigueConfig;
 }
 
 /** Recursive partial - lets a caller override a single leaf (e.g. just

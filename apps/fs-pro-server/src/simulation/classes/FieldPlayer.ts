@@ -9,6 +9,8 @@ import Ball from './Ball';
 import { ICoordinate, IBlock } from '../state/ImmutableState/FieldGrid';
 import CO from '../utils/coordinates';
 import log from '../../helpers/logger';
+import { createInitialCondition, IPlayerCondition } from '../player/PlayerCondition';
+import { createInitialMemory, IPlayerMemory } from '../player/PlayerMemory';
 
 abstract class FieldPlayerClass {
   public static instances: number;
@@ -26,6 +28,13 @@ export default class FieldPlayer
   public Ball: Ball;
   public StartingPosition: IBlock;
   public MatchStatus: PlayerMatchStatus = 'active';
+  /** Milestone 20 - constructor-initialized (not lazy), same treatment as
+   * `MatchStatus`/`GameStats` - the deliberate consequence is that
+   * `MatchSide.substitutePlayer()`'s brand-new `FieldPlayer` for the
+   * incoming sub gets fresh condition/memory for free, zero extra
+   * wiring, since it goes through this same constructor. */
+  public Condition: IPlayerCondition = createInitialCondition();
+  public Memory: IPlayerMemory = createInitialMemory();
   // public Team: MatchSide;
 
   /**
