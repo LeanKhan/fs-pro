@@ -241,7 +241,11 @@ export function applyGoal(params: {
 /**
  * Credit one tick's possession to a side. Rejects if `side` isn't one of
  * this match's own two sides. Delegates to the existing
- * `Match.recordPossession()`, unchanged - a stats counter only.
+ * `Match.recordPossession()` (a stats counter, unchanged) and, since
+ * Milestone 11, also `Match.advancePossession()` - the same call now
+ * doubles as the chokepoint that advances the possession-sequence tracker
+ * (detects turnovers, starts/ends sequences), returned in `data` so a
+ * caller can see whether this tick started a new sequence.
  *
  * Deliberately emits NO event - this runs every tick (~180x/match) and
  * would flood `Match.Events` with noise. Also deliberately does NOT
@@ -250,12 +254,13 @@ export function applyGoal(params: {
  * ball-move broadcast), not a discrete, ownable thing yet. Making
  * possession a real, validatable transition in that sense is Milestone
  * 17's job (Independent Ball Model) - this function only formalizes
- * today's stats-counter side effect, not the underlying mechanism.
+ * today's stats-counter side effect (plus, now, sequence bookkeeping on
+ * top of it), not the underlying mechanism.
  */
 export function applyPossessionChange(params: {
   match: Match;
   side: MatchSide;
-}): TransitionResult<void> {
+}): TransitionResult<{ sequenceId: number; isNewSequence: boolean }> {
   const { match, side } = params;
 
   if (side !== match.Home && side !== match.Away) {
@@ -263,8 +268,9 @@ export function applyPossessionChange(params: {
   }
 
   match.recordPossession(side);
+  const context = match.advancePossession(side);
 
-  return ok(undefined, []);
+  return ok({ sequenceId: context.sequenceId, isNewSequence: context.isNew }, []);
 }
 
 /**

@@ -27,6 +27,54 @@ import { PlayerPolicy } from '../../../player/PlayerPolicy';
 import { PassResolver } from '../../../resolver/PassResolver';
 import { TackleResolver } from '../../../resolver/TackleResolver';
 import { ShotResolver } from '../../../resolver/ShotResolver';
+import { MatchPhase } from '../../../possession/MatchPhase';
+
+/**
+ * Milestone 11 (Possession And Match Phases) - percent chance (out of the
+ * same `gimmeAChance()` 0-100 roll every other dice-roll in this file
+ * uses) that the attacking side pushes forward this tick rather than
+ * holding shape, by phase. Before this milestone `pushForward` ran
+ * unconditionally (100%, every tick) - these stay high across the board
+ * deliberately (shots-per-team already reads low against real-world
+ * ranges in `simRealismCheck.ts`; a big swing downward would make that
+ * worse), dipping only for the patient-possession phases. `chance` is
+ * never actually assigned pre-decision (see MatchPhase.ts) but is listed
+ * for completeness/type-safety.
+ */
+const ATTACK_PUSH_CHANCE: Record<MatchPhase, number> = {
+  'build-up': 80,
+  progression: 90,
+  'final-third': 95,
+  chance: 95,
+  'attacking-transition': 95,
+  counter: 100,
+  restart: 90,
+  'defensive-transition': 90,
+  'defensive-shape': 90,
+  press: 90,
+};
+
+/**
+ * Percent chance the defending side actively presses the ball carrier
+ * this tick rather than dropping into shape, by phase. Before this
+ * milestone this was a flat 50/50 regardless of situation - these center
+ * around that same midpoint so the aggregate mix doesn't swing wildly,
+ * while still meaningfully differentiating `press`/`defensive-transition`
+ * (win it back fast) from `defensive-shape` (protect the box instead of
+ * chasing).
+ */
+const DEFEND_PRESS_CHANCE: Record<MatchPhase, number> = {
+  press: 65,
+  'defensive-transition': 75,
+  'defensive-shape': 35,
+  restart: 50,
+  'build-up': 50,
+  progression: 50,
+  'final-third': 50,
+  chance: 50,
+  'attacking-transition': 50,
+  counter: 50,
+};
 
 export class Actions {
   public referee: IReferee;
@@ -135,6 +183,17 @@ export class Actions {
       defendingSide,
     } as IMatchData);
 
+    // Milestone 11 (Possession And Match Phases) - what's true "as of the
+    // start of this tick" (which possession sequence is running, how it
+    // began, for how long) - read once, fed to both sides' TeamIntent so
+    // attacking/defending phase agree on the same underlying facts.
+    const possessionContext = this.match.getPossessionContext();
+    const phaseContext = {
+      reason: possessionContext.reason,
+      minutesSinceStart: possessionContext.minutesSinceStart,
+      ballPosition: attackingPlayer.BlockPosition,
+    };
+
     // Milestone 7 (Team Intent And Player Policy) - team intent and the
     // player's observation are genuinely computed and passed to the
     // policy every decision (satisfying "player policy receives
@@ -142,7 +201,20 @@ export class Actions {
     // still recompute equivalent values themselves rather than consuming
     // these yet - see RuleBasedPlayerPolicy's doc comment. toStrategy()
     // converts back losslessly so everything below is unchanged.
-    const teamIntent = determineIntent(attackingSide, defendingSide);
+    const teamIntent = determineIntent(attackingSide, defendingSide, {
+      hasBall: true,
+      ...phaseContext,
+    });
+    // Milestone 11 - the defending side's own intent (phase in particular)
+    // is now genuinely computed too, not just the possessing side's - see
+    // `continueGamePlay()`'s press/drop-off gate below for its one
+    // consumer so far.
+    const defendingIntent = determineIntent(defendingSide, attackingSide, {
+      hasBall: false,
+      ...phaseContext,
+    });
+    this.match.setCurrentPhase(teamIntent.phase);
+
     const observation = buildObservation(attackingPlayer, attackingSide, defendingSide);
     const intent = this.playerPolicy.decide(
       attackingPlayer,
@@ -221,7 +293,9 @@ export class Actions {
         attackingPlayer,
         attackingSide,
         defendingPlayer,
-        defendingSide
+        defendingSide,
+        teamIntent.phase,
+        defendingIntent.phase
       );
     }
   }
@@ -695,18 +769,35 @@ export class Actions {
     attackingPlayer: IFieldPlayer,
     attackingSide: MatchSide,
     defendingPlayer: IFieldPlayer,
-    defendingSide: MatchSide
+    defendingSide: MatchSide,
+    attackingPhase: MatchPhase,
+    defendingPhase: MatchPhase
   ) {
-    this.pushForward(attackingSide);
+    // Milestone 11 - previously unconditional (every ATT/MID player always
+    // pushed forward, every tick, regardless of situation). During
+    // build-up/progression a team retaining the ball deep shouldn't have
+    // everyone immediately bombing on - holding shape is the more patient,
+    // realistic read. Still probabilistic (not a hard on/off switch), and
+    // still pushes forward most of the time even at its most patient - see
+    // ATTACK_PUSH_CHANCE below.
+    if (this.decider.gimmeAChance() < ATTACK_PUSH_CHANCE[attackingPhase]) {
+      this.pushForward(attackingSide);
+    } else {
+      playerFunc
+        .getATTMID(attackingSide)
+        .forEach((p) => this.holdShape(p, attackingSide));
+    }
 
     // After every action by the attacking team, the defensive player must move towards the ball
     // and the attacking team must move forward towards opposition lines
     this.move(defendingPlayer, 'towards ball', defendingPlayer.Ball.Position);
 
-    // Another function that makes midfielders and attackers move towards the ball
-    // TODO: Change this depending on the playing style of Club...
-    const shouldFallBack = this.decider.gimmeAChance();
-    if (shouldFallBack < 50) {
+    // Milestone 11 - previously a flat 50/50 regardless of situation. Now
+    // biased by what the defending side is actually doing: pressing hard
+    // right after losing the ball or while the ball's still in a winnable
+    // area, dropping into shape once it isn't (see
+    // possession/MatchPhase.ts's getDefendingPhase for the reasoning).
+    if (this.decider.gimmeAChance() < DEFEND_PRESS_CHANCE[defendingPhase]) {
       this.pressureBall(defendingSide);
     } else {
       this.pushBackward(defendingSide);

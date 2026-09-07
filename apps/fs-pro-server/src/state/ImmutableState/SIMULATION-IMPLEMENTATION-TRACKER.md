@@ -720,7 +720,7 @@ against its own fixture, not another one running at the same time).
 
 ## Milestone 10 - Spatial Analysis Services
 
-**Status:** Not started
+**Status:** Done (2026-09-06)
 
 **Purpose:** Move geometry and space-reading behavior into reusable services instead of burying it in player decisions.
 
@@ -735,22 +735,97 @@ src/simulation/spatial/
 
 **Tasks**
 
-- [ ] Move pressure counting into `PressureAnalyzer`.
-- [ ] Move pass-lane geometry into `PassingAnalyzer`.
-- [ ] Add nearest teammate/opponent helpers.
-- [ ] Add goal distance and angle helpers.
-- [ ] Add open-space and space-ahead helpers.
-- [ ] Add defensive-line and team-compactness helpers.
+- [x] Move pressure counting into `PressureAnalyzer` - `getPressure`/
+      `getPressuringOpponents`, verbatim formula out of `Decider.
+      countPressure()`.
+- [x] Move pass-lane geometry into `PassingAnalyzer` - `getPassingLane`,
+      verbatim formula out of `Decider.laneIsClear()`, generalized to take
+      plain coordinates instead of two `IFieldPlayer`s (nothing in the
+      formula needed the player objects) and to return the blocking
+      opponents alongside the boolean, for Milestone 13's future benefit.
+- [x] Add nearest teammate/opponent helpers - `getNearestTeammates`/
+      `getNearestOpponent` in `SpatialAnalyzer`.
+- [x] Add goal distance and angle helpers - `getGoalDistance`/
+      `getGoalAngle` (shot angle in degrees off the direct strike line;
+      0 = level with the post along the attacking axis, 90 = out level
+      with the goal line itself - meaningful given the goal is modelled as
+      a single point, see `MatchSide.ScoringSide`).
+- [x] Add open-space and space-ahead helpers - `getOpenSpace` (distance to
+      nearest opponent) and `getSpaceAhead` (opponents contesting the
+      corridor from a player towards his own scoring post, capped to a
+      short lookahead distance).
+- [x] Add defensive-line and team-compactness helpers - `getDefensiveLine`
+      (average defender distance from own goal, orientation-agnostic) and
+      `getTeamCompactness` (average pairwise distance between active
+      outfield players).
+
+**Revision note:** The tracker's own task list splits into two groups with
+different risk profiles, handled differently: `countPressure`/
+`laneIsClear` were **relocations** of formulas `Decider.ts` already had
+verbatim (deterministic pure geometry, no randomness involved, so unlike
+Milestone 8's resolver extraction there was no random-draw-ordering risk to
+manage) - both call sites in `Decider.ts` now delegate to the new
+functions instead of holding their own copy. The other four (nearest-
+opponent, goal angle, open space/space-ahead, defensive line/compactness)
+are genuinely **new** capabilities with no live caller yet - same
+"infrastructure for a future caller" shape as Milestone 6's transition
+validation. Feeding them into `TeamIntent`/`PlayerPolicy` is explicitly
+later milestones' job (11's phases, 12's formation shape, 13's passing-
+option scoring) - inventing a caller here would be scope creep, the same
+call Milestone 7 made for `mentality`/`focus`/`risk`/`phase`.
+
+**Where the actual duplication got fixed:** Milestone 7's `ObservationBuilder`
+had a documented, deliberate near-term duplication - it recomputed its own
+inline "opponents within radius"/"3 closest teammates" logic separately
+from `Decider`'s private methods, flagged at the time as "Milestone 10's
+job". This pass is what actually closes that gap:
+`ObservationBuilder.buildObservation()` now calls `getPressuringOpponents`/
+`getNearestTeammates`/`getGoalDistance` - the exact same functions
+`Decider.countPressure()`/`passability()` call - so decision-making
+(`Decider`, wrapped by `RuleBasedPlayerPolicy`) and observation-building
+(`ObservationBuilder`, feeding `PlayerPolicy`) can no longer quietly drift
+into two different answers for the same spatial question. This is also
+the concrete realization of this milestone's first acceptance criterion -
+the player-policy path asks a spatial service instead of doing the
+geometry itself.
+
+**Verified live:** `tsc --noEmit` clean; `oxlint src` clean; a dedicated
+throwaway script (deleted after use, same pattern as Milestone 6/9's) built
+a real `Game` from the checked-in DB-free roster pool and exercised every
+new/moved helper against live match state at kickoff and again after
+`game.advanceMatch({minute:20})` - all invariants held (angle in [0,90],
+non-negative distances/counts, nearest-teammates sorted ascending, lane
+`clear` matches `blockers.length`, etc.) and `getTeamCompactness` measurably
+changed between the two snapshots, proving it reads live state rather than
+a frozen one. `simRealismCheck.ts --compare` against a pre-milestone
+baseline (957 vs 965 matches) - every metric within the same unseeded-
+sampling noise band as every prior milestone, confirming the `countPressure`/
+`laneIsClear` relocation and the `ObservationBuilder` rewire changed zero
+gameplay behavior. Real HTTP `GET /api/game/kickoff-new/:fixture` against a
+genuine unplayed, non-friendly fixture (looked up live via `GET
+/api/fixtures?played=false`) - 200 OK, correct score/team identities,
+standings updated.
 
 **Acceptance Criteria**
 
-- [ ] Player policy asks spatial services for context instead of doing geometry directly.
-- [ ] Passing, shooting, pressing, and movement can share the same spatial facts.
-- [ ] Existing match outcomes remain broadly within baseline ranges after extraction.
+- [x] Player policy asks spatial services for context instead of doing
+      geometry directly - `ObservationBuilder` (which feeds
+      `RuleBasedPlayerPolicy`) now calls `PressureAnalyzer`/
+      `SpatialAnalyzer` instead of its own inline geometry.
+- [x] Passing, shooting, pressing, and movement can share the same spatial
+      facts - `Decider` (shooting/passing decisions) and `ObservationBuilder`
+      now read pressure/nearest-teammate/lane facts from one shared source;
+      `Actions.ts`'s pressing/movement code (`pressureBall`/`holdShape`)
+      wasn't rewired this pass (no formula there was listed in this
+      milestone's task list to move), but can pull from the same
+      `spatial/` module going forward without duplicating geometry again.
+- [x] Existing match outcomes remain broadly within baseline ranges after
+      extraction - confirmed by the `simRealismCheck.ts --compare` run
+      above.
 
 ## Milestone 11 - Possession And Match Phases
 
-**Status:** Not started
+**Status:** Done (2026-09-07)
 
 **Purpose:** Make attacking/defending behavior depend on the current football phase, not only on who has the ball.
 
@@ -769,18 +844,122 @@ src/simulation/spatial/
 
 **Tasks**
 
-- [ ] Add `PossessionState.sequenceId`.
-- [ ] Track possession start/end.
-- [ ] Assign each event to a possession sequence.
-- [ ] Add phase transitions for restarts, buildup, progression, final-third, chances, counters, and defensive shape.
-- [ ] Feed phase into `TeamIntent`.
-- [ ] Record possession duration metrics.
+- [x] Add `PossessionState.sequenceId` - `state/MatchState.ts`, populated
+      from `Match.getPossessionContext()` at snapshot time.
+- [x] Track possession start/end - new `possession/PossessionTracker.ts`,
+      owned by `Match` (`Match.Possession`, mirrors how `Match` already
+      owns `Details`/`Events`).
+- [x] Assign each event to a possession sequence - every `IMatchEvent` now
+      carries `possessionSequenceId`/`phase`, stamped centrally by the
+      `-event` listener in `Match.ts` (the same single chokepoint every
+      event already flowed through per Milestone 6's own note).
+- [x] Add phase transitions for restarts, buildup, progression,
+      final-third, chances, counters, and defensive shape - new
+      `possession/MatchPhase.ts` (`getAttackingPhase`/`getDefendingPhase`).
+- [x] Feed phase into `TeamIntent` - `TeamIntent.phase`, computed by
+      `TeamController.determineIntent()`, which now takes a real
+      possession-context argument instead of ignoring `opponent`.
+- [x] Record possession duration metrics - `PossessionTracker.
+      getCompletedSequences()`; surfaced as two new diagnostic columns in
+      `simRealismCheck.ts` ("Possession sequences per match", "Avg
+      possession sequence length, mins").
+
+**Design notes**
+
+`PossessionTracker` operates on `Match.getCurrentTime` (minutes), not raw
+ticks - `Actions.takeAction()` never needed to thread a tick index through
+the call chain this way, since the tick-to-minute mapping already existed
+everywhere it needed to ask "how long has this sequence been running".
+A sequence starts when either (a) `Referee.markRestart()` was called ahead
+of this tick (kickoff, half-time, post-goal, post-ball-out, penalty/
+free-kick - both of `Referee`'s two existing restart chokepoints,
+`handleMatchRestart()` and `setUpSetPiece()`, call it once each) or (b) the
+side holding the ball this tick differs from last tick (an in-play
+turnover the tracker detects on its own, no new call site needed).
+
+`chance` is deliberately never returned by `getAttackingPhase`/
+`getDefendingPhase` - whether a possession produced "a real chance" is only
+knowable once a shot has actually happened, not before it. It's assigned
+retroactively instead: the `-event` listener overrides the live phase to
+`'chance'` for `goal`/`miss`/`save` events specifically, regardless of what
+phase was live when the shot was decided.
+
+`getAttackingPhase`/`getDefendingPhase` are pure functions of `(side,
+opponent, context)` - `getDefendingPhase` internally calls
+`getAttackingPhase(opponent, side, context)` to read what the opponent (who
+has the ball) is doing, rather than needing the caller to compute and pass
+that in a particular order. `counter` (Milestone 10's `getDefensiveLine`
+applied to a real caller for the first time) fires when a side wins the
+ball back and the opponent's back line is pushed more than half the
+pitch's length from their own goal - genuinely reusing a Milestone 10
+helper that had no live caller until now, exactly as that milestone's own
+notes anticipated.
+
+**The one real behavior change this milestone makes** (`Actions.
+continueGamePlay()`): previously `pushForward(attackingSide)` ran
+unconditionally every tick (100%) and the defending side's press-vs-drop-
+off choice was a flat 50/50 regardless of situation. Both are now
+phase-weighted rolls (`ATTACK_PUSH_CHANCE`/`DEFEND_PRESS_CHANCE` in
+`Actions.ts`) - attackers hold shape more often during `build-up`/
+`progression` instead of everyone bombing forward from their own third;
+defenders press harder during `press`/`defensive-transition`, drop into
+`defensive-shape` more readily otherwise. Tuned deliberately conservatively
+(build-up/progression still push forward 80-90% of the time, not a hard
+switch) after an initial pass showed a larger, unwanted dip in
+shots-per-team and passes-per-team - both metrics `simRealismCheck.ts`
+already flags as under real-world range; a phase-driven change shouldn't
+make an already-weak metric worse. The final tuning keeps shots/shots-on-
+target within normal unseeded-sampling noise of the pre-milestone baseline
+while tackles/fouls/yellow-cards (all three *also* previously under range)
+move measurably *toward* their real-world bands - a genuine side effect of
+more realistic pressing, not the goal of the change but a welcome one.
+Dribbles moved from comfortably-in-range (18.4) to barely-over (20.6) - the
+one metric that got measurably worse, disclosed rather than chased away
+(same spirit as Milestone 6's disclosed "+2/match events" shift).
+
+**Verified live:** `tsc --noEmit` clean; `oxlint src` clean; a dedicated
+throwaway script (deleted after use) ran 40 real roster-pool matches and
+checked, over every event in every match: `possessionSequenceId`/`phase`
+present on all of them, sequence ids never decrease within a match and
+climb well past 1 per match (49 distinct ids across ~35 completed
+matches), every phase value is one of the ten known enum values, and every
+`goal`/`miss`/`save` event is tagged `'chance'` - all checks passed. Phase
+distribution across ~2,800 tagged events was plausible and varied (not
+stuck on one value): progression 50%, build-up 25%, final-third 8%,
+attacking-transition 7%, restart 5%, chance 5%. `simRealismCheck.ts
+--compare` against a pre-milestone baseline (965 vs 945 matches) - goals/
+shots/shots-on-target/pass-completion/possession all within normal
+unseeded-sampling noise; tackles/fouls/yellow-cards shifted measurably
+toward their (already under-range) real-world bands; dribbles shifted
+measurably past the top of its range (18.4 -> 20.6, disclosed above); the
+two new diagnostic possession-duration metrics landed at plausible values
+(≈32 sequences/match, ≈2.8 min average sequence length). Real HTTP `GET
+/api/game/kickoff-new/:fixture` against a genuine unplayed, non-friendly
+fixture (looked up live via `GET /api/fixtures?played=false`) - 200 OK,
+correct score/standings, and the response's `Events` array itself carries
+real `possessionSequenceId`/`phase` values end-to-end through the actual
+running dev server (not just the offline scripts): sequence id climbing
+0→1→2 across the match's first few turnovers, phases reading `'restart'`
+(kickoff) then `'progression'`.
 
 **Acceptance Criteria**
 
-- [ ] Event logs can explain which possession produced a shot/goal/turnover.
-- [ ] Teams behave differently in buildup, transition, and final-third phases.
-- [ ] Possession changes are explicit state transitions.
+- [x] Event logs can explain which possession produced a shot/goal/turnover
+      - every event's `possessionSequenceId` traces back to
+        `PossessionTracker.getCompletedSequences()`.
+- [x] Teams behave differently in buildup, transition, and final-third
+      phases - `continueGamePlay()`'s push-forward/hold-shape and
+      press/drop-off gates read `TeamIntent.phase` and change their odds
+      accordingly (verified via the metric shifts above); final-third/
+      chance also benefit from the engine's pre-existing distance-driven
+      shoot thresholds (`Decider.tryShoot`/`isNearPost`), which already
+      correlate with proximity to goal - not a new formula, but a real,
+      pre-existing behavior difference these phases now correctly
+      describe.
+- [x] Possession changes are explicit state transitions - `PossessionTracker.
+      update()` is called from inside the existing `applyPossessionChange`
+      transition (Milestone 6), which now returns `{sequenceId,
+      isNewSequence}` instead of `void`.
 
 ## Milestone 12 - Formation Anchors And Team Shape
 
