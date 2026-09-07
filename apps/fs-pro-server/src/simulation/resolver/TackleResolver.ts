@@ -1,5 +1,6 @@
 import { IFieldPlayer } from '../../interfaces/Player';
 import { getResult } from '../utils/probability';
+import { getSimulationConfig } from '../config';
 
 /**
  * Milestone 8 (Resolver Layer) - moved verbatim out of `Decider.ts`'s
@@ -12,11 +13,12 @@ import { getResult } from '../utils/probability';
  */
 export class TackleResolver {
   public resolveTackle(tackler: IFieldPlayer, ballHolder: IFieldPlayer): boolean {
+    const { tacklerPower, ballHolderPower } = getSimulationConfig().tackling.contest;
     return getResult(
       [tackler.Attributes.Tackling, tackler.Attributes.Strength],
       [ballHolder.Attributes.Dribbling, ballHolder.Attributes.Control],
-      80,
-      70
+      tacklerPower,
+      ballHolderPower
     );
   }
 
@@ -36,14 +38,15 @@ export class TackleResolver {
     // the same passer-favoring treatment: the defender is weighted
     // slightly MORE on skill (80%) than the dribbler (65%), since actual
     // attribute values cluster together the same way passing/Tackling do.
+    const contest = getSimulationConfig().dribbling.contest;
     return getResult(
       [
-        { v: dribbler.Attributes.Dribbling, p: 60 },
-        { v: dribbler.Attributes.Speed, p: 40 },
+        { v: dribbler.Attributes.Dribbling, p: contest.dribblerDribblingWeight },
+        { v: dribbler.Attributes.Speed, p: contest.dribblerSpeedWeight },
       ],
       [opponent.Attributes.Tackling],
-      65,
-      80
+      contest.dribblerPower,
+      contest.opponentPower
     );
   }
 }

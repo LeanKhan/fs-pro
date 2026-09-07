@@ -22,6 +22,10 @@ import {
   chooseCandidate,
 } from '../../../decision/CandidateAction';
 import { recordDecision } from '../../../decision/decisionLog';
+import {
+  getSimulationConfig,
+  ShootProfileBand,
+} from '../../../config';
 
 function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
@@ -44,74 +48,6 @@ const PHASE_BIAS: Partial<
   'final-third': { shoot: 0.15, dribble: 0.05 },
   'build-up': { support: 0.1, hold: 0.05 },
   restart: { pass: 0.1 },
-};
-
-/** Milestone 15 - how far a player's own `PlayerTendencies.shooting` can
- * shift their shot-attempt confidence threshold (see `chanceToShoot()`) -
- * kept separate from the shared `confidenceThreshold()` helper below,
- * which is also used by the pass-vs-move roll and shouldn't inherit a
- * shooting-specific bias. */
-const SHOOTING_CONFIDENCE_SWING = 30;
-
-interface IShootProfile {
-  threshold: number;
-  distance: number;
-}
-
-interface IOutfieldShootProfile {
-  shoot: { withMindset: IShootProfile; without: IShootProfile };
-  longShot: { withMindset: IShootProfile; without: IShootProfile };
-}
-
-/**
- * Base shoot/long-shot thresholds and distances per outfield position.
- * These are still hand-tuned constants, but centralising them here means
- * makeDecision no longer repeats the same shoot/long-shot branch three
- * times with inline magic numbers - and `confidenceThreshold` below is
- * what actually adjusts them per-attempt (composure, pressure).
- */
-/**
- * Milestone 18 - raised from the pre-M18 values (MID 50/70, ATT 60/90,
- * DEF 30/40 for the "shoot" band) once candidates started genuinely
- * competing for selection instead of the old sequential chain locking in
- * the FIRST check to pass with zero competition. Under `chooseCandidate`'s
- * weighted draw, a shoot score has to clear a real bar relative to
- * pass/carry/dribble/hold/support just to get a comparable slice of the
- * probability mass - these are that bar, re-tuned against
- * `simRealismCheck.ts`'s shots-per-team/shots-on-target bands the same
- * way every other threshold in this file was tuned, not a return to the
- * old "first-to-pass-wins" behavior. */
-const SHOOT_PROFILES: Record<'ATT' | 'MID' | 'DEF', IOutfieldShootProfile> = {
-  MID: {
-    shoot: {
-      withMindset: { threshold: 85, distance: 2 },
-      without: { threshold: 65, distance: 2 },
-    },
-    longShot: {
-      withMindset: { threshold: 65, distance: 3 },
-      without: { threshold: 45, distance: 3 },
-    },
-  },
-  ATT: {
-    shoot: {
-      withMindset: { threshold: 100, distance: 3 },
-      without: { threshold: 75, distance: 3 },
-    },
-    longShot: {
-      withMindset: { threshold: 75, distance: 5 },
-      without: { threshold: 55, distance: 5 },
-    },
-  },
-  DEF: {
-    shoot: {
-      withMindset: { threshold: 55, distance: 3 },
-      without: { threshold: 45, distance: 2 },
-    },
-    longShot: {
-      withMindset: { threshold: 85, distance: 5 },
-      without: { threshold: 55, distance: 3 },
-    },
-  },
 };
 
 export class Decider {
@@ -304,7 +240,7 @@ export class Decider {
     position: 'ATT' | 'MID' | 'DEF',
     phase?: MatchPhase
   ): CandidateAction[] {
-    const profile = SHOOT_PROFILES[position];
+    const profile = getSimulationConfig().shooting.profiles[position];
     const mindset = player.Attributes.AttackingMindset
       ? 'withMindset'
       : 'without';
@@ -353,7 +289,7 @@ export class Decider {
     player: IFieldPlayer,
     attackingSide: MatchSide,
     defendingSide: MatchSide,
-    profile: IShootProfile
+    profile: ShootProfileBand
   ): number | undefined {
     const inRange =
       CO.co.calculateDistance(
@@ -366,7 +302,8 @@ export class Decider {
     }
 
     const shootingBias =
-      (deriveTendencies(player).shooting - 0.5) * SHOOTING_CONFIDENCE_SWING;
+      (deriveTendencies(player).shooting - 0.5) *
+      getSimulationConfig().shooting.confidenceSwing;
     const confidence =
       this.confidenceThreshold(player, attackingSide, defendingSide, profile.threshold) +
       shootingBias;
@@ -432,7 +369,11 @@ export class Decider {
       return undefined;
     }
 
-    const pressure = getPressure(player, defendingSide, 3);
+    const pressure = getPressure(
+      player,
+      defendingSide,
+      getSimulationConfig().pressing.wideRadius
+    );
     const score = clamp01(0.35 + pressure * 0.15);
 
     return {
@@ -455,8 +396,9 @@ export class Decider {
     defendingSide: MatchSide,
     phase?: MatchPhase
   ): CandidateAction {
-    const tightPressure = getPressure(player, defendingSide, 1);
-    const widePressure = getPressure(player, defendingSide, 3);
+    const { tightRadius, wideRadius } = getSimulationConfig().pressing;
+    const tightPressure = getPressure(player, defendingSide, tightRadius);
+    const widePressure = getPressure(player, defendingSide, wideRadius);
     const openness = clamp01(1 - widePressure / 4);
     const noCloseMarker = clamp01(1 - tightPressure);
     const advanced = this.isClosestToPost(player, attackingSide) ? 0.15 : 0;
@@ -481,13 +423,23 @@ export class Decider {
     defendingSide: MatchSide,
     phase?: MatchPhase
   ): CandidateAction {
-    const tightPressure = getPressure(player, defendingSide, 1);
+    const config = getSimulationConfig();
+    const tightPressure = getPressure(
+      player,
+      defendingSide,
+      config.pressing.tightRadius
+    );
     const tendencies = deriveTendencies(player);
     const engaged = clamp01(tightPressure);
-    const ability = clamp01((player.Attributes.Dribbling - 30) / 70);
+    const { base, tendencyWeight, abilityWeight, abilityFloor, abilityCeiling } =
+      config.dribbling.decision;
+    const ability = clamp01(
+      (player.Attributes.Dribbling - abilityFloor) /
+        (abilityCeiling - abilityFloor)
+    );
 
     const score = clamp01(
-      engaged * (0.35 + tendencies.dribbling * 0.4 + ability * 0.25)
+      engaged * (base + tendencies.dribbling * tendencyWeight + ability * abilityWeight)
     );
 
     return { type: 'dribble', score: this.applyPhaseBias('dribble', score, phase) };
@@ -506,7 +458,11 @@ export class Decider {
     defendingSide: MatchSide,
     phase?: MatchPhase
   ): CandidateAction {
-    const pressure = getPressure(player, defendingSide, 3);
+    const pressure = getPressure(
+      player,
+      defendingSide,
+      getSimulationConfig().pressing.wideRadius
+    );
     const composure = clamp01(player.Attributes.Mental / 100);
     const patience = 1 - attackingSide.Tactic.style.tempo;
 
@@ -543,7 +499,11 @@ export class Decider {
     phase?: MatchPhase
   ): CandidateAction {
     const tendencies = deriveTendencies(player);
-    const pressure = getPressure(player, defendingSide, 3);
+    const pressure = getPressure(
+      player,
+      defendingSide,
+      getSimulationConfig().pressing.wideRadius
+    );
     const positional = player.Position === 'ATT' ? 0.3 : 0.6;
 
     const score = clamp01(
@@ -584,7 +544,7 @@ export class Decider {
     attackingSide: MatchSide,
     defendingSide: MatchSide,
     base: number,
-    pressureRadius = 3
+    pressureRadius = getSimulationConfig().pressing.wideRadius
   ): number {
     const composure = (player.Attributes.Mental - 50) * 0.3;
     const pressure =

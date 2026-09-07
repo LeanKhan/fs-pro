@@ -3,6 +3,7 @@ import { MatchSide } from '../classes/MatchSide';
 import CO from '../utils/coordinates';
 import { getResult } from '../utils/probability';
 import { RandomSource } from '../randomness';
+import { getSimulationConfig } from '../config';
 
 /**
  * Milestone 8 (Resolver Layer) - moved verbatim out of `Decider.ts`'s
@@ -38,11 +39,12 @@ export class ShotResolver {
       return { onTarget, goal: true };
     } else {
       if (onTarget) {
+        const { shooterPower, keeperPower } = getSimulationConfig().shooting.duel;
         const result = getResult(
           [shooter.Attributes.Shooting, shooter.Attributes.Mental],
           [keeper.Attributes.Keeping, keeper.Attributes.Control],
-          80,
-          70
+          shooterPower,
+          keeperPower
         );
 
         return { onTarget, goal: result };
@@ -63,7 +65,13 @@ export class ShotResolver {
       (t) => t.ClubCode === shooter.ClubCode
     );
 
-    if (this.isNearScoringPost(shooter, this.teams[teamIndex], 2)) {
+    if (
+      this.isNearScoringPost(
+        shooter,
+        this.teams[teamIndex],
+        getSimulationConfig().shooting.nearPostDistance
+      )
+    ) {
       return chance <= shooter.Attributes.Shooting;
     } else {
       return (

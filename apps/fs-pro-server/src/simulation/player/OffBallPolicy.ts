@@ -6,6 +6,7 @@ import { MatchPhase } from '../possession/MatchPhase';
 import { getPressure } from '../spatial/PressureAnalyzer';
 import { getSpaceAhead } from '../spatial/SpatialAnalyzer';
 import { generatePassingOptions, selectBestPass } from '../passing/PassingOption';
+import { getSimulationConfig } from '../config';
 
 /**
  * Milestone 14 (Off-Ball Behavior) - the tracker's own two intent lists,
@@ -46,7 +47,8 @@ export type OffBallIntent = AttackingOffBallIntent | DefensiveIntent;
  * resolution-independent threshold in this codebase. */
 function isWideAnchor(position: ICoordinate): boolean {
   const centerY = (CO.co.Field.mapHeight - 1) / 2;
-  const band = CO.co.Field.mapHeight * 0.2;
+  const band =
+    CO.co.Field.mapHeight * getSimulationConfig().movement.wideAnchorBandFraction;
   return Math.abs(position.y - centerY) > band;
 }
 
@@ -65,7 +67,12 @@ export function decideAttackingOffBallIntent(
   defendingSide: MatchSide,
   phase: MatchPhase
 ): AttackingOffBallIntent {
-  const pressureOnPlayer = getPressure(player, defendingSide, 2);
+  const config = getSimulationConfig();
+  const pressureOnPlayer = getPressure(
+    player,
+    defendingSide,
+    config.pressing.offBallRadius
+  );
 
   if (pressureOnPlayer > 0 && (phase === 'build-up' || phase === 'restart')) {
     return 'drop-deep';
@@ -98,7 +105,7 @@ export function decideAttackingOffBallIntent(
   if (
     player.Position === 'MID' &&
     (phase === 'progression' || phase === 'build-up') &&
-    getSpaceAhead(player, attackingSide, defendingSide, 3) === 0
+    getSpaceAhead(player, attackingSide, defendingSide, config.movement.spaceAheadNear) === 0
   ) {
     return 'move-between-lines';
   }
@@ -106,7 +113,7 @@ export function decideAttackingOffBallIntent(
   if (
     player.Position !== 'DEF' &&
     pressureOnPlayer === 0 &&
-    getSpaceAhead(player, attackingSide, defendingSide, 4) === 0
+    getSpaceAhead(player, attackingSide, defendingSide, config.movement.spaceAheadFar) === 0
   ) {
     return 'make-run';
   }
@@ -189,7 +196,7 @@ export function planDefensiveAssignments(
   // (tried first) packed the whole pitch with 1v1 duels at once, not just
   // near the ball, and measurably tanked shots/goals while spiking
   // dribble-contest counts far past simRealismCheck.ts's real-world band.
-  const MAX_MARKED_THREATS = 2;
+  const pressingConfig = getSimulationConfig().pressing;
   const threats = attackingSide.ActivePlayers.filter(
     (p) =>
       p !== ballCarrier && (p.Position === 'ATT' || p.Position === 'MID')
@@ -199,13 +206,13 @@ export function planDefensiveAssignments(
         CO.co.calculateDistance(a.BlockPosition, defendingSide.KeepingSide) -
         CO.co.calculateDistance(b.BlockPosition, defendingSide.KeepingSide)
     )
-    .slice(0, MAX_MARKED_THREATS);
+    .slice(0, pressingConfig.maxMarkedThreats);
   const available = outfieldDefenders.filter(
     (d) => d._id !== blockLaneDefenderId
   );
   const claimedDefenders = new Set<string>();
   const markAssignments = new Map<string, string>();
-  const markingRange = CO.co.scaleDistance(2.5);
+  const markingRange = CO.co.scaleDistance(pressingConfig.markingRange);
 
   for (const threat of threats) {
     const marker = available

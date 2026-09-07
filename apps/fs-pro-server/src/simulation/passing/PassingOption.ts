@@ -5,6 +5,7 @@ import CO from '../utils/coordinates';
 import { getPressure } from '../spatial/PressureAnalyzer';
 import { getPassingLane } from '../spatial/PassingAnalyzer';
 import { getGoalDistance } from '../spatial/SpatialAnalyzer';
+import { getSimulationConfig } from '../config';
 
 /**
  * Milestone 13 (Passing Options And Decision Evaluation) - the five pass
@@ -61,11 +62,15 @@ function classifyPassType(
     getGoalDistance(teammatePosition, attackingSide.ScoringSide);
   const lateralOffset = Math.abs(teammatePosition.y - passerPosition.y);
 
-  const backwardThreshold = CO.co.scaleDistance(1);
-  const throughThreshold = CO.co.scaleDistance(3);
-  const wideLateralThreshold = CO.co.scaleDistance(3);
-  const shortMax = CO.co.scaleDistance(4);
-  const longMin = CO.co.scaleDistance(7);
+  // Milestone 19 - relocated from hardcoded literals into config, values
+  // unchanged (a pure refactor - see defaultSimulationConfig.ts's own doc
+  // comment).
+  const classification = getSimulationConfig().passing.classification;
+  const backwardThreshold = CO.co.scaleDistance(classification.backward);
+  const throughThreshold = CO.co.scaleDistance(classification.through);
+  const wideLateralThreshold = CO.co.scaleDistance(classification.wideLateral);
+  const shortMax = CO.co.scaleDistance(classification.shortMax);
+  const longMin = CO.co.scaleDistance(classification.longMin);
 
   if (forwardProgress < -backwardThreshold) return 'backward';
   if (forwardProgress > throughThreshold && distance > shortMax) return 'through';
@@ -183,9 +188,12 @@ export function scorePassingOption(
   style: IPlayingStyle
 ): number {
   const directness = style.directness;
-  const retentionWeight = 1 - directness * 0.9;
-  const threatWeight = 0.3 + directness * 1.5;
-  const riskWeight = 1 - directness * 0.8;
+  // Milestone 19 - relocated from hardcoded literals into config, values
+  // unchanged.
+  const w = getSimulationConfig().passing.scoringWeights;
+  const retentionWeight = w.retentionBase + directness * w.retentionDirectnessCoeff;
+  const threatWeight = w.threatBase + directness * w.threatDirectnessCoeff;
+  const riskWeight = w.riskBase + directness * w.riskDirectnessCoeff;
 
   return (
     option.expectedRetention * retentionWeight +
