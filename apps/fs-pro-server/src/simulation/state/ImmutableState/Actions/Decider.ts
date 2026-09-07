@@ -14,12 +14,28 @@ import {
   generatePassingOptions,
   selectBestPass,
 } from '../../../passing/PassingOption';
+import { deriveTendencies } from '../../../player/PlayerRole';
 
 /** Milestone 13 - a candidate below this score isn't worth attempting at
  * all (both `whatKindaPass`/`chanceToMoveForward` fall back to 'move'
  * instead) - hand-tuned against `simRealismCheck.ts`'s realism bands, same
  * treatment as every other threshold constant in this file. */
 const MIN_PASS_SCORE = 0.2;
+
+/** Milestone 15 - how far a player's own `PlayerTendencies.dribbling` can
+ * shift their effective `MIN_PASS_SCORE` requirement: a high-dribbling
+ * player (a winger, say) holds out for a meaningfully better pass option
+ * before taking it - happy to dribble instead of a mediocre pass - while
+ * a low-dribbling, pass-first player (a deep-playmaker) passes more
+ * readily even at a mediocre score. */
+const DRIBBLING_PASS_SCORE_SWING = 0.3;
+
+/** Milestone 15 - how far a player's own `PlayerTendencies.shooting` can
+ * shift their shot-attempt confidence threshold (see `chanceToShoot()`) -
+ * kept separate from the shared `confidenceThreshold()` helper below,
+ * which is also used by the pass-vs-move roll and shouldn't inherit a
+ * shooting-specific bias. */
+const SHOOTING_CONFIDENCE_SWING = 30;
 
 interface IShootProfile {
   threshold: number;
@@ -315,9 +331,26 @@ export class Decider {
       return false;
     }
 
+    // Milestone 15 (Player Roles And Tendencies) - a poacher's shooting
+    // tendency (~0.9) pushes this threshold up by ~12; a target-forward
+    // sharing the exact same Position/attributes-otherwise-equal (~0.7)
+    // pushes it up less; a winger played out of position at ST (~0.45)
+    // barely moves it at all. Deliberately NOT folded into the shared
+    // confidenceThreshold() below - that helper also drives the pass-vs-
+    // move roll, which shouldn't inherit a shooting-specific bias.
+    const shootingBias =
+      (deriveTendencies(player).shooting - 0.5) * SHOOTING_CONFIDENCE_SWING;
+
     return (
       this.gimmeAChance() <=
-      this.confidenceThreshold(player, attackingSide, defendingSide, threshold)
+      Math.min(
+        100,
+        Math.max(
+          0,
+          this.confidenceThreshold(player, attackingSide, defendingSide, threshold) +
+            shootingBias
+        )
+      )
     );
   }
 
@@ -376,13 +409,50 @@ export class Decider {
       (o) => !restrictToAttMid || o.position === 'ATT' || o.position === 'MID'
     );
 
-    const best = selectBestPass(options, attackingSide.Tactic.style);
+    const best = selectBestPass(options, this.blendedPassingStyle(player, attackingSide));
 
-    if (best && best.score >= MIN_PASS_SCORE) {
+    if (best && best.score >= this.minPassScoreFor(player)) {
       return { type: 'pass', detail: best.passType, target: best.playerId };
     }
 
     return { type: 'move', detail: 'normal' };
+  }
+
+  /**
+   * Milestone 15 - this player's own `PlayerTendencies.dribbling`, folded
+   * into the team-wide `MIN_PASS_SCORE` constant. See
+   * `DRIBBLING_PASS_SCORE_SWING`'s own doc comment.
+   */
+  private minPassScoreFor(player: IFieldPlayer): number {
+    return (
+      MIN_PASS_SCORE +
+      (deriveTendencies(player).dribbling - 0.5) * DRIBBLING_PASS_SCORE_SWING
+    );
+  }
+
+  /**
+   * Milestone 15 - blends this player's own `PlayerTendencies.directness`
+   * with the team tactic's `style.directness` before scoring passing
+   * options, so "tactics, role, ability, and tendencies combine" (this
+   * milestone's own acceptance criterion) for pass SELECTION, not just
+   * for the pass-vs-dribble threshold above. A direct-tactic team still
+   * plays a deep-playmaker's passes safer than a winger's under the exact
+   * same tactic.
+   */
+  private blendedPassingStyle(
+    player: IFieldPlayer,
+    attackingSide: MatchSide
+  ) {
+    const style = attackingSide.Tactic.style;
+    const playerDirectness = deriveTendencies(player).directness;
+
+    return {
+      ...style,
+      directness: Math.min(
+        1,
+        Math.max(0, (style.directness + playerDirectness) / 2)
+      ),
+    };
   }
 
   /**
@@ -544,9 +614,9 @@ export class Decider {
     // PlayerIntent.ts/Actions.pass() for how that flows through to
     // execution.
     const options = generatePassingOptions(player, attackingSide, defendingSide);
-    const best = selectBestPass(options, attackingSide.Tactic.style);
+    const best = selectBestPass(options, this.blendedPassingStyle(player, attackingSide));
 
-    if (best && best.score >= MIN_PASS_SCORE) {
+    if (best && best.score >= this.minPassScoreFor(player)) {
       return { type: 'pass', detail: best.passType, target: best.playerId };
     }
 

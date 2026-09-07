@@ -5,6 +5,7 @@ import { TeamIntent } from '../team/TeamIntent';
 import { PlayerObservation } from './PlayerObservation';
 import { PlayerIntent, toPlayerIntent } from './PlayerIntent';
 import { PlayerPolicy } from './PlayerPolicy';
+import { PlayerTendencies } from './PlayerRole';
 
 /**
  * Milestone 7 - wraps the EXISTING `Decider` instance (passed in, never
@@ -16,14 +17,18 @@ import { PlayerPolicy } from './PlayerPolicy';
  * desync the shared seeded-RNG call ordering even though each stays
  * individually deterministic. See the simulation-engine-isolation plan.
  *
- * `observation`/`teamIntent` are accepted (satisfying "player policy
- * receives observation and team intent") but not yet consumed here -
- * `Decider.makeDecision()`'s internals still recompute their own
- * equivalent values (pressure, tempo) directly from `attackingSide`/
- * `defendingSide`. Wiring decision logic to actually read the passed-in
- * observation/intent instead of recomputing is deferred to Milestone 10
- * (Spatial Analyzer) - see this file's own plan note for why forcing
- * that now would risk this pass's "keep existing formulas" guarantee.
+ * `observation`/`teamIntent`/`tendencies` (Milestone 15's own addition)
+ * are all accepted here but not consumed BY THIS CLASS directly -
+ * `Decider.makeDecision()` reads pressure/lane facts via Milestone 10's
+ * shared `spatial/` functions (the same ones `observation` was built
+ * from) and derives its own `PlayerTendencies` via `PlayerRole.
+ * deriveTendencies()` (the same pure function this file's caller used to
+ * build the `tendencies` argument) directly from `player` - a second call
+ * to the same deterministic function, not a second, drifting
+ * implementation of the same concept (the thing Milestone 10 actually
+ * fixed for pressure/lanes). Kept as explicit parameters here anyway,
+ * matching this interface's existing shape, for whatever future
+ * `PlayerPolicy` implementation wants to consume them directly instead.
  */
 export class RuleBasedPlayerPolicy implements PlayerPolicy {
   constructor(private decider: Decider) {}
@@ -34,6 +39,8 @@ export class RuleBasedPlayerPolicy implements PlayerPolicy {
     observation: PlayerObservation,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     teamIntent: TeamIntent,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    tendencies: PlayerTendencies,
     attackingSide: MatchSide,
     defendingSide: MatchSide
   ): PlayerIntent {

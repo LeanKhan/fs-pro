@@ -1330,7 +1330,7 @@ running dev server.
 
 ## Milestone 15 - Player Roles And Tendencies
 
-**Status:** Not started
+**Status:** Done (2026-09-07)
 
 **Purpose:** Make players with the same broad position behave differently.
 
@@ -1354,18 +1354,109 @@ running dev server.
 
 **Tasks**
 
-- [ ] Define `PlayerRole`.
-- [ ] Define `PlayerTendencies`.
-- [ ] Implement reasonable tendencies for each role. i.e `wingers` tend to run on the flank and cross the ball in the the penalty area for `poacher` or `defenders` to score or head it in.
-- [ ] Add role defaults for width, directness, dribbling, shooting, pressing, and discipline.
-- [ ] Allow player attributes, personality/tendencies to modify role defaults.
-- [ ] Feed role and tendencies into `PlayerPolicy`.
+- [x] Define `PlayerRole` - new `simulation/player/PlayerRole.ts`, the
+      tracker's own 15 values, unchanged.
+- [x] Define `PlayerTendencies` - `{width, directness, dribbling,
+      shooting, pressing, discipline}`, deliberately the same vocabulary/
+      0-1 scale as `IPlayingStyle` (team tactics) where the concept
+      overlaps, so role tendencies and team tactics blend on one scale
+      rather than needing translation between two.
+- [x] Implement reasonable tendencies for each role - `ROLE_TENDENCIES`,
+      hand-tuned constants (same treatment as `PLAYING_STYLES` in
+      `Formations.ts`) - e.g. `winger.width=0.9`/`dribbling=0.8` vs
+      `inside-forward.width=0.4`/`dribbling=0.7`; `poacher.shooting=0.9`
+      vs `false-nine.shooting=0.55`.
+- [x] Add role defaults for width, directness, dribbling, shooting,
+      pressing, and discipline - all six, per role, in `ROLE_TENDENCIES`.
+- [x] Allow player attributes, personality/tendencies to modify role
+      defaults - `deriveTendencies()` nudges each tendency by the
+      attribute that actually describes it (`Dribbling` for dribbling,
+      `Shooting`+`Positioning` for shooting, `Aggression` for pressing/
+      discipline, `LongPass`-vs-`ShortPass` for directness), same small
+      `(attribute-50)/scale` nudge pattern `Decider.confidenceThreshold()`
+      already used for composure/pressure.
+- [x] Feed role and tendencies into `PlayerPolicy` - `PlayerPolicy.decide()`
+      gained a `tendencies` parameter, computed in `Actions.takeAction()`
+      alongside `observation`/`teamIntent` (same pattern Milestone 7 set),
+      and genuinely consumed - see below, not just plumbed through unread.
+
+**A real, pre-existing foundation found before writing anything:** every
+player already carries a squad `Role` (`LW`/`RW`/`ST`/`CB`/... -
+`controllers/players/player.model.ts`) separate from the coarse `Position`
+(`GK`/`DEF`/`MID`/`ATT`) the simulation engine branches on everywhere -
+randomly assigned but Position-consistent at generation, carried onto
+every live `FieldPlayer` (`Player.ts`'s constructor already copies it),
+and confirmed completely unused inside `src/simulation/` before this
+milestone. `PlayerRole` (this milestone's 15 tactical roles) is derived
+from that existing squad `Role` *plus* attributes - deliberately not a
+new persisted field. Two players sharing the exact same squad `Role`
+(e.g. `CB`) resolve to different `PlayerRole`s when their attributes
+actually differ (a passing-heavy `CB` -> `ball-playing-defender`, a
+tackling-heavy one -> `centre-back`) - verified live, not just asserted.
+
+**Where tendencies actually change behavior (not just infrastructure):**
+
+- **Shooting** (`Decider.chanceToShoot()`) - a player's own `shooting`
+  tendency shifts their shot-attempt confidence threshold, separately
+  from the shared `confidenceThreshold()` helper (which also drives the
+  pass-vs-move roll and shouldn't inherit a shooting-only bias).
+- **Pass selection** (`Decider.whatKindaPass()`/`chanceToMoveForward()`) -
+  two new things, both real: `minPassScoreFor()` shifts each player's own
+  effective `MIN_PASS_SCORE` bar by their `dribbling` tendency (a winger
+  holds out for a better pass before taking it, happy to dribble instead;
+  a deep-playmaker passes more readily even at a mediocre score);
+  `blendedPassingStyle()` averages the player's own `directness` tendency
+  with the team tactic's `style.directness` before scoring candidates, so
+  a direct-tactic team still plays a deep-playmaker's passes safer than a
+  winger's under the identical tactic.
+- **Off-ball width** (`Actions.applyWidthTendency()`) - nudges Milestone
+  14's `'overlap'`/`'underlap'`/`'hold-width'`/`'make-run'` targets
+  further toward this player's own natural flank (high `width`) or back
+  toward centre (low `width`), on top of whatever team tactic width
+  already produced.
+- **Pressing selection** (`Actions.continueGamePlay()`'s presser sort) -
+  a high-`pressing` defender effectively "counts as closer" to the ball
+  than their raw distance, and a low-`pressing` one effectively counts as
+  further - the eager presser a step further away gets picked over the
+  reluctant one a step closer.
+
+**Verified live:** `tsc --noEmit` clean; `oxlint src` clean; a dedicated
+throwaway script (deleted after use) confirmed: the same squad `Role`
+(`CB`, and separately `ST`) resolves to different `PlayerRole`s purely
+from attribute differences (`ball-playing-defender` vs `centre-back`;
+`poacher`/`target-forward`/`false-nine`, all three); two players with an
+*identical* role but different `Positioning` attribute get measurably
+different shooting tendencies (confirming the attribute modifier is a
+real nudge, not a no-op); the role tendency table itself has real,
+intentional spread (poacher vs false-nine shooting, winger vs inside-
+forward width); and, across ~870+104 sampled touches from 60 real roster-
+pool matches, ATT players in the top half of observed shooting tendency
+shot measurably more often per touch than those in the bottom half
+(38.8% vs 31.7%) - the actual behavioral acceptance criterion, not just
+the lookup table. `simRealismCheck.ts --compare` against a pre-milestone
+baseline (946 vs 963 matches) - every metric within normal unseeded-
+sampling noise, goals/shots/shots-on-target nudged slightly further
+toward their real-world bands; no tuning pass was needed this time (the
+individual per-player swings are small enough, and average out across a
+roster of mostly-middling tendencies, that the aggregate baseline barely
+moved). Real HTTP `GET /api/game/kickoff-new/:fixture` against a genuine
+unplayed, non-friendly fixture - 200 OK against the actual running dev
+server.
 
 **Acceptance Criteria**
 
-- [ ] Two players with the same position can choose noticeably different actions.
-- [ ] Role affects off-ball movement and on-ball choices.
-- [ ] Tactics, role, ability, and tendencies combine instead of relying on only `GK/DEF/MID/ATT`.
+- [x] Two players with the same position can choose noticeably different
+      actions - verified live (shooting-tendency correlation above); also
+      structurally true for pass selection (`dribbling`/`directness`
+      tendencies) and off-ball width, all keyed off the SAME `Position`.
+- [x] Role affects off-ball movement and on-ball choices - width
+      (movement) and shooting/dribbling/directness (on-ball) are both
+      real, live-verified wiring points, not one or the other.
+- [x] Tactics, role, ability, and tendencies combine instead of relying on
+      only `GK/DEF/MID/ATT` - `blendedPassingStyle()` is the clearest
+      single example: team tactic (`IPlayingStyle.directness`) and player
+      tendency (`PlayerTendencies.directness`, itself role default +
+      attribute nudge) are averaged into one score, not either one alone.
 
 ## Milestone 16 - Simultaneous Intentions And Tick Loop
 

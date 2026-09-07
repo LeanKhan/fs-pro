@@ -36,6 +36,7 @@ import {
   decideDefensiveIntent,
   planDefensiveAssignments,
 } from '../../../player/OffBallPolicy';
+import { deriveTendencies } from '../../../player/PlayerRole';
 
 /**
  * Percent chance the defending side actively presses the ball carrier
@@ -241,10 +242,14 @@ export class Actions {
     this.match.setCurrentPhase(teamIntent.phase);
 
     const observation = buildObservation(attackingPlayer, attackingSide, defendingSide);
+    // Milestone 15 (Player Roles And Tendencies) - this player's own
+    // derived tendencies, independent of the team-wide teamIntent above.
+    const tendencies = deriveTendencies(attackingPlayer);
     const intent = this.playerPolicy.decide(
       attackingPlayer,
       observation,
       teamIntent,
+      tendencies,
       attackingSide,
       defendingSide
     );
@@ -927,13 +932,20 @@ export class Actions {
       .getOutfield(defendingSide)
       .filter((p) => p !== defendingPlayer);
 
+    // Milestone 15 - a high-pressing player (a box-to-box midfielder, a
+    // wing-back) effectively "counts as closer" than their raw distance
+    // to the ball, and a low-pressing one (a centre-back, a deep-
+    // playmaker) effectively counts as further - so the eager presser a
+    // step further away gets picked over the reluctant one a step closer,
+    // rather than pure distance deciding it regardless of who the players
+    // actually are.
+    const pressingWeight = (p: IFieldPlayer) =>
+      CO.co.calculateDistance(p.BlockPosition, ballPosition) *
+      (1.3 - deriveTendencies(p).pressing * 0.5);
+
     const pressingIds = new Set(
       [...defendingOutfield]
-        .sort(
-          (a, b) =>
-            CO.co.calculateDistance(a.BlockPosition, ballPosition) -
-            CO.co.calculateDistance(b.BlockPosition, ballPosition)
-        )
+        .sort((a, b) => pressingWeight(a) - pressingWeight(b))
         .slice(0, pressingIntensity)
         .map((p) => p._id)
     );
@@ -997,16 +1009,25 @@ export class Actions {
         // Push forward while holding station on the OWN flank (lateral
         // reference is the player's own anchor, so the width-blend pulls
         // toward itself - no drift toward the ball's, more central, side).
-        return this.getShapeTarget(player, team, team.ScoringSide, 0.55, home);
+        return this.applyWidthTendency(
+          this.getShapeTarget(player, team, team.ScoringSide, 0.55, home),
+          player
+        );
       case 'underlap':
         // Push forward while cutting inside toward the central channel.
-        return this.getShapeTarget(player, team, team.ScoringSide, 0.5, {
-          x: home.x,
-          y: centerY,
-        });
+        return this.applyWidthTendency(
+          this.getShapeTarget(player, team, team.ScoringSide, 0.5, {
+            x: home.x,
+            y: centerY,
+          }),
+          player
+        );
       case 'hold-width':
         // Barely move at all - anchor and destination are the same point.
-        return this.getShapeTarget(player, team, home, 0.15, home);
+        return this.applyWidthTendency(
+          this.getShapeTarget(player, team, home, 0.15, home),
+          player
+        );
       case 'move-between-lines':
         // Drift into the ball-side pocket without fully committing width,
         // pulled slightly central rather than following the ball's flank.
@@ -1017,12 +1038,9 @@ export class Actions {
       case 'make-run':
         // Burst forward aggressively into the space that's already been
         // confirmed open (see decideAttackingOffBallIntent).
-        return this.getShapeTarget(
-          player,
-          team,
-          team.ScoringSide,
-          0.6,
-          ballPosition
+        return this.applyWidthTendency(
+          this.getShapeTarget(player, team, team.ScoringSide, 0.6, ballPosition),
+          player
         );
       case 'drop-deep':
         // Come short toward own goal to offer an out-ball under pressure.
@@ -1041,6 +1059,36 @@ export class Actions {
         return this.getShapeTarget(player, team, ballPosition, bias, ballPosition);
       }
     }
+  }
+
+  /**
+   * Milestone 15 (Player Roles And Tendencies) - nudges a computed target
+   * further toward this player's own natural flank (high
+   * `PlayerTendencies.width` - a winger) or back toward the centre (low
+   * width - an inside-forward), on top of whatever `getShapeTarget()`
+   * already produced from team tactic width. Bounded and symmetric: a
+   * role-average width tendency (0.5) leaves the target untouched.
+   */
+  private applyWidthTendency(target: IBlock, player: IFieldPlayer): IBlock {
+    const maxY = CO.co.Field.mapHeight - 1;
+    const centerY = maxY / 2;
+    const home = player.StartingPosition;
+    const widthTendency = deriveTendencies(player).width;
+
+    const pull = (widthTendency - 0.5) * 0.5;
+    if (pull === 0) {
+      return target;
+    }
+
+    const extremeY = home.y >= centerY ? maxY : 0;
+    const reference = pull > 0 ? extremeY : centerY;
+    const y = clamp(
+      Math.round(target.y + (reference - target.y) * Math.abs(pull) * 2),
+      0,
+      maxY
+    );
+
+    return CO.co.coordinateToBlock({ x: target.x, y });
   }
 
   /**
