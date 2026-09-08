@@ -1,5 +1,6 @@
 import { IMatchDetails, IMatchFrame } from '../simulation/classes/Match';
 import { getMatchReplayNamespace } from './io';
+import { expandFrames } from './frameInterpolation';
 
 const DEFAULT_TICK_MS = 300;
 
@@ -32,13 +33,18 @@ export interface IReplayableMatch {
 export function replayMatch(
   match: IReplayableMatch,
   fixtureId: string,
+  // Kept for signature compatibility - no longer drives pacing. Real per-step
+  // delays now come from `expandFrames()` (see frameInterpolation.ts), which
+  // derives each tick's on-screen duration from how far the ball/players
+  // actually moved that tick rather than a fixed interval.
   tickMs = DEFAULT_TICK_MS
 ): Promise<void> {
   return new Promise((resolve) => {
     const room = getMatchReplayNamespace().to(fixtureId);
+    const steps = expandFrames(match.Frames);
 
     console.log(
-      `[replay] starting ${fixtureId}: ${match.Frames.length} frames @ ${tickMs}ms`
+      `[replay] starting ${fixtureId}: ${match.Frames.length} ticks -> ${steps.length} playback frames`
     );
 
     room.emit('match-replay-start', {
@@ -53,22 +59,23 @@ export function replayMatch(
         name: match.Away.Name,
         code: match.Away.ClubCode,
       },
-      totalFrames: match.Frames.length,
+      totalFrames: steps.length,
       tickMs,
     });
 
     let i = 0;
     const tick = () => {
-      if (i >= match.Frames.length) {
+      if (i >= steps.length) {
         console.log(`[replay] ${fixtureId} complete, ${i} frames emitted`);
         room.emit('match-replay-end', { fixtureId, details: match.Details });
         resolve();
         return;
       }
 
-      room.emit('match-frame', match.Frames[i]);
+      room.emit('match-frame', steps[i].frame);
+      const delay = steps[i].delayMs;
       i++;
-      setTimeout(tick, tickMs);
+      setTimeout(tick, delay);
     };
 
     tick();
