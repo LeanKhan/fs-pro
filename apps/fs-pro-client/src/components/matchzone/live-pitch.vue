@@ -22,7 +22,6 @@
             gk: p.pos === 'GK',
             'with-ball': p.withBall,
             'sent-off': p.matchStatus === 'sent-off',
-            snap: isSnap(p),
           },
         ]"
         :style="playerStyle(p)"
@@ -46,9 +45,8 @@
       <div
         v-if="showBall"
         class="ball"
-        :class="{ snap: isBallSnap() }"
         :style="{
-          ...ballStyle(frame.ball),
+          ...ballStyle(),
           backgroundImage: `url(${ballSprite})`,
         }"
       ></div>
@@ -95,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
 import type { IMatchFrame, IMatchFramePlayer } from '@/utils/matchReplaySocket';
 import { apiUrl } from '@/services/api';
 import ballSprite from '@/assets/sprites/ball.png';
@@ -178,50 +176,107 @@ const showBall = computed(() => {
 
 const previousFrame = ref<IMatchFrame | null>(null);
 
-watch(
-  () => props.frame,
-  (next: IMatchFrame | null, previous: IMatchFrame | null) => {
-    if (previous) {
-      previousFrame.value = previous;
-    }
-  }
-);
-
 function previousPlayerFrame(id: string) {
   return previousFrame.value?.players.find((p) => p.id === id);
 }
 
-// The engine resolves a whole pass/interception/restart within a single
-// tick (see Match.ts's captureFrame), so the raw x/y can jump the length of
-// a pass or reset clear across the pitch between two consecutive frames.
-// The CSS transition on .player/.ball (below) only looks right for
-// realistic running speed - sliding that fast across a huge distance in
-// 280ms reads as just as jarring as an instant teleport. Anything further
-// than a player could plausibly cover in one tick is treated as a snap
-// (transition disabled) instead of an animated slide.
-const SNAP_DISTANCE_BLOCKS = 3;
-
-function distanceMoved(current: { x: number; y: number }, previous?: { x: number; y: number }) {
-  if (!previous) return 0;
-
-  const dx = current.x - previous.x;
-  const dy = current.y - previous.y;
-
-  return Math.sqrt(dx * dx + dy * dy);
+// --- Position interpolation ---------------------------------------------
+// The server (matchBroadcaster.ts's expandFrames()) already sends smoothly
+// interpolated sub-frames sized to real ball/player speed, so there are no
+// more full-pitch jumps to guess at here. This is just a thin residual
+// smoother for ordinary socket/timer jitter between sub-frame deliveries:
+// every render frame we interpolate each entity from where it was
+// ("origin") to where the last server frame says it now is ("target"),
+// using the ACTUALLY MEASURED time between the last two server frames
+// rather than an assumed constant.
+interface Vec {
+  x: number;
+  y: number;
 }
 
-function isSnap(p: IMatchFramePlayer): boolean {
-  const previous = previousPlayerFrame(p.id);
-  if (!previous) return false;
-
-  return distanceMoved(p, previous) > SNAP_DISTANCE_BLOCKS;
+interface AnimEntry {
+  origin: Vec;
+  target: Vec;
 }
 
-function isBallSnap(): boolean {
-  if (!props.frame || !previousFrame.value) return false;
+const BALL_ANIM_ID = '__ball__';
+const animEntries = new Map<string, AnimEntry>();
+const renderPositions = reactive<Record<string, Vec>>({});
 
-  return distanceMoved(props.frame.ball, previousFrame.value.ball) > SNAP_DISTANCE_BLOCKS;
+let lastTickAt = 0;
+let estimatedTickMs = 300;
+const MIN_TICK_MS = 100;
+const MAX_TICK_MS = 1000;
+
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
 }
+
+/** Where an entry actually is right now, given the in-flight lerp toward
+ * its current target - used as the new origin when a fresher target
+ * arrives mid-flight, so the object never jumps to catch up. */
+function interpolatedNow(entry: AnimEntry, now: number): Vec {
+  const t = Math.min(1, Math.max(0, (now - lastTickAt) / estimatedTickMs));
+  return {
+    x: lerp(entry.origin.x, entry.target.x, t),
+    y: lerp(entry.origin.y, entry.target.y, t),
+  };
+}
+
+function setTarget(id: string, raw: Vec, now: number) {
+  const existing = animEntries.get(id);
+  const origin = !existing ? raw : interpolatedNow(existing, now);
+
+  animEntries.set(id, { origin, target: raw });
+}
+
+watch(
+  () => props.frame,
+  (next: IMatchFrame | null, previous: IMatchFrame | null) => {
+    if (!next) return;
+
+    const now = performance.now();
+
+    setTarget(BALL_ANIM_ID, next.ball, now);
+
+    for (const p of next.players) {
+      setTarget(p.id, { x: p.x, y: p.y }, now);
+    }
+
+    if (previous) {
+      previousFrame.value = previous;
+      estimatedTickMs = Math.min(
+        MAX_TICK_MS,
+        Math.max(MIN_TICK_MS, now - lastTickAt)
+      );
+    }
+    lastTickAt = now;
+  }
+);
+
+let rafId: number | null = null;
+
+function renderTick() {
+  const now = performance.now();
+  const t = Math.min(1, Math.max(0, (now - lastTickAt) / estimatedTickMs));
+
+  for (const [id, entry] of animEntries) {
+    renderPositions[id] = {
+      x: lerp(entry.origin.x, entry.target.x, t),
+      y: lerp(entry.origin.y, entry.target.y, t),
+    };
+  }
+
+  rafId = requestAnimationFrame(renderTick);
+}
+
+onMounted(() => {
+  rafId = requestAnimationFrame(renderTick);
+});
+
+onUnmounted(() => {
+  if (rafId !== null) cancelAnimationFrame(rafId);
+});
 
 type PlayerAnimation = 'idle' | 'walk' | 'run' | 'dribble';
 
@@ -287,11 +342,11 @@ function kitUrl(side: 'home' | 'away') {
 }
 
 function playerStyle(p: IMatchFramePlayer) {
-  return toPct(p);
+  return toPct(renderPositions[p.id] ?? p);
 }
 
-function ballStyle(ball: { x: number; y: number }) {
-  return toPct(ball);
+function ballStyle() {
+  return toPct(renderPositions[BALL_ANIM_ID] ?? props.frame!.ball);
 }
 </script>
 
@@ -340,10 +395,6 @@ svg.markings rect {
   aspect-ratio: 1;
 
   transform: translate(-50%, -50%);
-
-  transition:
-    left 280ms linear,
-    top 280ms linear;
 
   z-index: 2;
 
@@ -456,10 +507,6 @@ svg.markings rect {
   opacity: 0.3;
 }
 
-.player.snap {
-  transition: none;
-}
-
 .ball {
   position: absolute;
 
@@ -470,17 +517,9 @@ svg.markings rect {
 
   background-repeat: no-repeat;
 
-  transition:
-    left 280ms linear,
-    top 280ms linear;
-
   animation: ball-spin 400ms steps(4) infinite;
 
   z-index: 4;
-}
-
-.ball.snap {
-  transition: none;
 }
 
 @keyframes ball-spin {
