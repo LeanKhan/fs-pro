@@ -29,6 +29,7 @@ export type AttackingOffBallIntent =
   | 'hold-width'
   | 'move-between-lines'
   | 'attack-box'
+  | 'support-box'
   | 'drop-deep';
 
 export type DefensiveIntent =
@@ -61,6 +62,7 @@ const ENERGETIC_ATTACKING_INTENTS = new Set<AttackingOffBallIntent>([
   'make-run',
   'overlap',
   'attack-box',
+  'support-box',
 ]);
 
 /** Milestone 20 - thin wrapper around `decideAttackingOffBallIntentRaw()`
@@ -118,16 +120,34 @@ function decideAttackingOffBallIntentRaw(
     return 'drop-deep';
   }
 
+  const playerWide = isWideAnchor(player.StartingPosition);
+
   if (
-    player.Position === 'ATT' &&
-    (phase === 'final-third' ||
-      phase === 'attacking-transition' ||
-      phase === 'counter')
+    phase === 'final-third' ||
+    phase === 'attacking-transition' ||
+    phase === 'counter'
   ) {
-    return 'attack-box';
+    if (player.Position === 'ATT') {
+      return 'attack-box';
+    }
+    // A shots-per-team realism gap fix (FUTURE-PLANS.md's "Remaining
+    // realism-tuning gaps"): before this, a CENTRAL MID in these three
+    // phases fell through every branch below (overlap/underlap need
+    // `playerWide`, move-between-lines is phase-gated to progression/
+    // build-up only) straight to passive 'support', so an attacking
+    // midfielder essentially never joined the attack near goal - confirmed
+    // live via `behaviorRegressionSuite.ts`'s shot conversion funnel (MID
+    // final-third carrier decisions were ~2.9/match vs ATT's ~18.6/match).
+    // Deliberately NOT 'attack-box' - a wide MID already gets 'overlap'
+    // unconditional on phase (the branch below), so only guard this for a
+    // player who ISN'T already wide, and give them a shallower, more
+    // central-cutting-in intent than a striker's run - a second striker
+    // isn't what a central attacking midfielder should play like.
+    if (player.Position === 'MID' && !playerWide) {
+      return 'support-box';
+    }
   }
 
-  const playerWide = isWideAnchor(player.StartingPosition);
   const carrierWide = isWideAnchor(ballCarrier.BlockPosition);
 
   if (player.Position !== 'DEF' && playerWide && !carrierWide) {

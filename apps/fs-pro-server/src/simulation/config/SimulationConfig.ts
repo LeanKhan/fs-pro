@@ -144,6 +144,18 @@ export interface MovementConfig {
    * radii for its 'move-between-lines'/'make-run' checks. */
   spaceAheadNear: number;
   spaceAheadFar: number;
+  /** Shots-per-team realism gap fix - `Actions.resolveAttackingOffBallTarget()`'s
+   * `'support-box'` case (a central MID's more moderate version of ATT's
+   * `'attack-box'`). Bias toward goal, between 'move-between-lines' (0.45)
+   * and 'attack-box' (0.7) - deliberately the shallower end, since a
+   * central MID cutting in shouldn't push as hard as a striker. */
+  supportBoxBias: number;
+  /** How much `'support-box'`'s lateral reference favors the player's own
+   * home column (1) vs. dead-centre (0) - `(home.y * w + centerY * (1-w))
+   * / 1`, w = this value. Closer to 1 than `'move-between-lines'`'s
+   * implicit 0.5 (home/centerY averaged) so a winger-as-MID still cuts in
+   * from their own side rather than making a beeline for the exact centre. */
+  supportBoxLateralWeight: number;
 }
 
 export interface FatigueConfig {

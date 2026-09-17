@@ -34,17 +34,14 @@
             `anim-${getPlayerAnimation(p)}`,
             `dir-${getPlayerDirection(p)}`,
           ]"
-        >
-          <!-- <div
-            class="player-kit"
-            :style="{ backgroundImage: `url(${kitUrl(p.side)})` }"
-          /> -->
-        </div>
+        ></div>
       </div>
 
       <div
-        v-if="showBall"
+        v-if="frame"
         class="ball"
+        role="img"
+        aria-label="Ball"
         :style="{
           ...ballStyle(),
           backgroundImage: `url(${ballSprite})`,
@@ -99,6 +96,7 @@ import { apiUrl } from '@/services/api';
 import ballSprite from '@/assets/sprites/ball.png';
 import homePlayerSprite from '@/assets/sprites/home-player.png';
 import awayPlayerSprite from '@/assets/sprites/away-player.png';
+import { getClubKitSprite } from '@/utils/clubKitSprite';
 
 const homePlayerSpriteUrl = ref(`url('${homePlayerSprite}')`);
 const awayPlayerSpriteUrl = ref(`url('${awayPlayerSprite}')`);
@@ -156,23 +154,6 @@ function toPct(pos: { x: number; y: number }) {
     top: `${(pos.y / (DEFAULT_Y_BLOCKS - 1)) * 100}%`,
   };
 }
-
-// The ball sprite is only drawn while the ball is loose and moving on its
-// own (e.g. mid-shot or mid-pass) - once a player controls it, the
-// with-ball player sprite stands in for it, and a stationary loose ball
-// (kickoff, dead ball) has nothing to animate.
-const showBall = computed(() => {
-  if (!props.frame) return false;
-  if (props.frame.players.some((p) => p.withBall)) return false;
-
-  const previous = previousFrame.value?.ball;
-  if (!previous) return false;
-
-  const dx = props.frame.ball.x - previous.x;
-  const dy = props.frame.ball.y - previous.y;
-
-  return Math.sqrt(dx * dx + dy * dy) > 0.1;
-});
 
 const previousFrame = ref<IMatchFrame | null>(null);
 
@@ -233,7 +214,14 @@ function setTarget(id: string, raw: Vec, now: number) {
 watch(
   () => props.frame,
   (next: IMatchFrame | null, previous: IMatchFrame | null) => {
-    if (!next) return;
+    if (!next) {
+      animEntries.clear();
+      for (const id of Object.keys(renderPositions)) delete renderPositions[id];
+      previousFrame.value = null;
+      lastTickAt = 0;
+      estimatedTickMs = 300;
+      return;
+    }
 
     const now = performance.now();
 
@@ -251,7 +239,8 @@ watch(
       );
     }
     lastTickAt = now;
-  }
+  },
+  { immediate: true }
 );
 
 let rafId: number | null = null;
@@ -338,7 +327,28 @@ function getPlayerDirection(p: IMatchFramePlayer): PlayerDirection {
 
 function kitUrl(side: 'home' | 'away') {
   const code = side === 'home' ? props.home?.code : props.away?.code;
-  return code ? `${apiUrl}/img/clubs/kits/${code}-kit.png` : '';
+  return code ? `${apiUrl}/img/clubs/kits/${encodeURIComponent(code)}-kit.png` : '';
+}
+
+for (const side of ['home', 'away'] as const) {
+  watch(
+    () => kitUrl(side),
+    async (url, _previous, onCleanup) => {
+      const sprite = side === 'home' ? homePlayerSpriteUrl : awayPlayerSpriteUrl;
+      const fallback = side === 'home' ? homePlayerSprite : awayPlayerSprite;
+      sprite.value = `url('${fallback}')`;
+      let cancelled = false;
+      onCleanup(() => { cancelled = true; });
+      if (!url) return;
+      try {
+        const image = await getClubKitSprite(url);
+        if (!cancelled) sprite.value = `url('${image}')`;
+      } catch {
+        // Keep the default kit when the asset is missing or CORS blocks it.
+      }
+    },
+    { immediate: true }
+  );
 }
 
 function playerStyle(p: IMatchFramePlayer) {
@@ -417,14 +427,6 @@ svg.markings rect {
 
 .dir-left {
   transform: scaleX(-1);
-}
-
-.player.home .player-sprite {
-  background-image: v-bind('homePlayerSprite');
-}
-
-.player.away .player-sprite {
-  background-image: v-bind('awayPlayerSprite');
 }
 
 .anim-idle {
@@ -510,12 +512,19 @@ svg.markings rect {
 .ball {
   position: absolute;
 
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
 
   transform: translate(-50%, -50%);
 
   background-repeat: no-repeat;
+  background-size: 80px 20px;
+  image-rendering: pixelated;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 2px rgba(255, 230, 143, 0.9),
+    0 2px 6px 2px rgba(0, 0, 0, 0.75);
+  pointer-events: none;
 
   animation: ball-spin 400ms steps(4) infinite;
 
@@ -528,7 +537,7 @@ svg.markings rect {
   }
 
   to {
-    background-position-x: -64px;
+    background-position-x: -80px;
   }
 }
 .player-tooltip {

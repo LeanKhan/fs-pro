@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import { CandidateAction } from './CandidateAction';
+import { MatchPhase } from '../possession/MatchPhase';
 
 /**
  * Milestone 18 - "track decision score and chosen action in debug events"
@@ -17,6 +18,12 @@ export interface DecisionDebugEvent {
   position: string;
   candidates: CandidateAction[];
   chosen: CandidateAction;
+  /** The match phase live when this decision was made - already computed
+   * by `TeamIntent`/`Decider.makeDecision()`'s own `phase` parameter,
+   * just not previously attached here. Lets a diagnostic consumer ask
+   * "how often does a shoot candidate exist once play reaches the final
+   * third", without re-deriving phase from scratch. */
+  phase?: MatchPhase;
 }
 
 export const decisionEvents = new EventEmitter();
