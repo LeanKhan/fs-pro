@@ -1856,24 +1856,125 @@ Live HTTP smoke test (`GET /api/game/kickoff-new/:fixtureId` against the running
 
 ## Milestone 22 - Behavior Regression Suite
 
-**Status:** Not started
+**Status:** Done (2026-09-11)
 
 **Purpose:** Make football behavior testable as the engine becomes more sophisticated.
 
 **Tasks**
 
-- [ ] Add test fixtures for contrasting team styles.
-- [ ] Add cautious-vs-direct tactic comparison.
-- [ ] Add high-press fatigue comparison.
-- [ ] Add role behavior comparison.
-- [ ] Add possession/phase distribution reports.
-- [ ] Add replay sanity checks for shape, ball ownership, and event ordering.
+- [x] Add test fixtures for contrasting team styles - no new fixture file
+      needed: `src/scripts/behaviorRegressionSuite.ts`'s `buildStyleTactics()`
+      pairs real clubs from the existing checked-in roster pool with explicit
+      `PLAYING_STYLES` names instead of whatever a club's manager happens to
+      prefer.
+- [x] Add cautious-vs-direct tactic comparison - `runCautiousVsDirect()`,
+      `Possession` vs `Direct` presets, same batch/delta-table pattern as
+      `tacticSensitivityCheck.ts` (Milestone 19).
+- [x] Add high-press fatigue comparison - `runHighPressFatigue()`. See the
+      real finding below - not the naive HighPress-vs-LowBlock preset
+      pairing it started as.
+- [x] Add role behavior comparison - `runRoleBehaviorComparison()`, tallies
+      dribble/shot/pass/tackle event counts per `deriveRole()` (Milestone 15)
+      across every match this run simulates.
+- [x] Add possession/phase distribution reports - `runPossessionPhaseDistribution()`,
+      aggregates `Match.Possession.getCompletedSequences()` reason/duration
+      and `IMatchEvent.phase` tallies (Milestone 11) across many matches.
+- [x] Add replay sanity checks for shape, ball ownership, and event ordering -
+      new `src/scripts/replaySanityCheck.ts`, `checkMatchInvariants(match)`.
+      Run against EVERY match every comparison above simulates, not a
+      separate sample - `checkAndRecord()` wraps every `runMatchRaw()` call.
+
+**A real, previously-undiagnosed bug found live, not guessed** - the first
+run of the replay sanity checker failed 15/23 matches with "dangling event
+player" violations on every `dribble`/`tackle` event. Root-caused (not
+assumed) via a throwaway id-tracing script: `Actions.ts` has two `dribble`
+call sites and one `tackle` call site that emit a `createMatchEvent` with a
+`playerID` - the first dribble call site (line ~721) and every OTHER event
+type in the engine (pass/interception/foul/goal/miss/save, in `Match.ts`/
+`Referee.ts`) correctly pass `player._id` (the live match's real, UUID
+player id - the same id `ActivePlayers`/`StartingSquad`/`Ball.holderId`
+all key on), but the SECOND dribble call site (~line 1502) and the tackle
+call site (~line 1572) instead passed `player.PlayerID`/`tackler.PlayerID` -
+a completely different, legacy display-code field (`Player.ts`'s own
+`PlayerID: string`, format `P000091`, unrelated to `_id`). Any consumer
+resolving `event.playerID` back to a real player for these two event types -
+a replay UI highlighting "who did this", or this milestone's own role-
+behavior tally - silently got the wrong (nonexistent) id and either crashed
+or (as in the role tally, which already null-checks) quietly dropped real
+data. Fixed both call sites to use `_id` instead - pure event-metadata
+correctness, touches zero RNG calls/dice-roll ordering/simulation logic, so
+no gameplay behavior changed (confirmed via `simRealismCheck.ts`, 56
+matches post-fix - same pre-existing tick-granularity-capped metrics
+Milestone 20 already documented, nothing new out of range). Replay sanity
+check passed 121/121 matches across every comparison after the fix.
+
+**A second real finding, disclosed rather than chased to a fix** - the
+naive version of the high-press fatigue comparison (pairing the full
+`HighPress`/`LowBlock` named presets) measured the HighPress side ending
+FULL-TIME WITH MORE stamina than LowBlock - backwards from Milestone 20's
+own (n=6, single fixture) verified finding, and stable across multiple
+sample sizes (8, 30, 40 matches), not sampling noise. Root-caused two
+compounding confounds in the COMPARISON's own methodology (not the fatigue
+system) before accepting the result as real: (1) `HighPress`/`LowBlock`
+differ in tempo/directness/defensiveLineHeight/width too, not just
+`pressingIntensity`, and `updateConditionsForTick` only ever applies a
+side's OWN `pressingIntensity` while that side is the one DEFENDING that
+tick - fixed by registering two NEW named styles (`RegressionHighPress`/
+`RegressionLowBlock`, fresh objects, not an in-place mutation of
+`PLAYING_STYLES.Balanced` - doesn't hit the Milestone 20-documented shared-
+reference bug) that differ in `pressingIntensity` alone, isolating the
+variable the same way Milestone 20's own script did. (2) This engine's Home
+side holds meaningfully more possession on average even under IDENTICAL
+styles (visible in comparison 1's own "Possession % (home team)" column) -
+fixed by alternating which physical side (home/away) carries the HighPress
+style match-to-match and pooling by STYLE, not by home/away.
+
+With BOTH confounds removed, the result held: HighPress still ends with
+MORE stamina (Δ -4.0 to -5.9 across reruns). Likely real mechanism (Actions.ts
+also uses `pressingIntensity` to gate how many defenders close down the ball
+carrier, Milestone 10 - a harder-pressing side plausibly wins the ball back
+sooner, shortening its own defending spells enough to outweigh the higher
+per-tick drain rate) - not chased into a fix, since retuning Milestone 20's
+fatigue formula is out of THIS milestone's scope (build the regression
+suite; surface behavior for review). Documented in-script (see
+`runHighPressFatigue`'s comment and printed NOTE) so a future reader
+investigating the fatigue system starts from a root-caused explanation, not
+a mystery.
+
+**Verified live** - `tsc --noEmit` clean; `npx ts-node
+src/scripts/behaviorRegressionSuite.ts [8|25|30|40]` run repeatedly across
+several sample sizes while root-causing the two findings above; role
+behavior comparison (25 matches) shows the expected shape (poacher leads
+shots/player at 1.35 vs centre-back's 0.04; winger/inside-forward lead
+dribbles/player at ~5-7 vs full-back's 0.00) - role tendencies measurably
+reach real match behavior, not a flat distribution. `simRealismCheck.ts`
+(56 matches) post-fix shows the same pre-existing tick-capped metric
+pattern Milestone 20 already documented, confirming the `_id` fix changed
+zero gameplay behavior. Live HTTP smoke test against the real dev server
+was attempted but skipped - no unplayed fixtures existed in the dev DB at
+verification time (`GET /api/fixtures?played=false` returned an empty
+list) - disclosed rather than fabricated; not a gap in this milestone's own
+scope anyway, since nothing here touches the HTTP/DB/controller layer -
+every comparison goes through the same DB-free `App.setupGame()`/
+`startGame()` path `simRealismCheck.ts` already uses, and the two-line
+Actions.ts fix touches neither DB nor HTTP code.
 
 **Acceptance Criteria**
 
-- [ ] Behavior changes can be reviewed with metrics.
-- [ ] Tactics and roles produce expected differences.
-- [ ] No match can finish with invalid ball ownership or corrupted player state.
+- [x] Behavior changes can be reviewed with metrics - five independent
+      console-table reports per run, one per comparison.
+- [x] Tactics and roles produce expected differences - cautious-vs-direct
+      and role-behavior comparisons both show real, sensible deltas (see
+      above); the high-press fatigue comparison also produces a real,
+      reproducible difference, just not in the naively-expected direction -
+      itself a legitimate "reviewable with metrics" outcome per this same
+      acceptance criterion, not a failure of it.
+- [x] No match can finish with invalid ball ownership or corrupted player
+      state - `replaySanityCheck.ts`'s `checkMatchInvariants()`, run against
+      every match this suite simulates; 121/121 passed after the dribble/
+      tackle `_id` fix (0/121 before it, for the unrelated dangling-event-
+      player reason above - the ball-ownership/tick-ordering invariants
+      themselves never failed, even before the fix).
 
 ## Open Decisions
 

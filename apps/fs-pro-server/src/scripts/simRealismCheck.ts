@@ -48,6 +48,7 @@ import { execSync } from 'child_process';
 import App from '../controllers/app/App';
 import { IClub } from '../interfaces/Club';
 import { ITactic } from '../simulation/state/PersistentState/Formations';
+import { decisionEvents, DecisionDebugEvent } from '../simulation/decision/decisionLog';
 
 /** Exported (Milestone 19) so tacticSensitivityCheck.ts can reuse the same
  * roster pool location rather than hardcoding a second copy of this path. */
@@ -94,6 +95,14 @@ export interface IMatchSummary {
   possessionSequencesPerMatch: number;
   avgPossessionSequenceMinutes: number;
   directPassSharePct: number;
+  /** Shots-per-team realism gap diagnostic (FUTURE-PLANS.md's "Remaining
+   * realism-tuning gaps") - see `behaviorRegressionSuite.ts`'s "Shot
+   * conversion funnel" for the full per-position breakdown; these two are
+   * the top-line numbers worth tracking across `--compare` baselines as
+   * that gap gets worked on. Both teams combined, per team (i.e. already
+   * divided by 2), matching every other *PerTeam field's convention. */
+  finalThirdCarrierDecisionsPerTeam?: number;
+  finalThirdShootCandidateRatePct?: number;
 }
 
 /**
@@ -156,13 +165,29 @@ export async function simulateOneMatch(
   const awayId = String(away._id);
   const app = new App();
 
-  await app.setupGame(
+  const game = await app.setupGame(
     [homeId, awayId],
     { home: homeId, away: awayId },
     [home, away],
     { home: tactics[homeId], away: tactics[awayId] }
   );
+
+  // Shots-per-team realism gap diagnostic (FUTURE-PLANS.md) - subscribed
+  // before startGame() so it's live for the whole 180-tick loop, unsubscribed
+  // right after so listeners don't accumulate across this function's many
+  // callers (simRealismCheck.ts's own batch loop, tacticSensitivityCheck.ts).
+  const matchId = game.Match.id;
+  let finalThirdDecisions = 0;
+  let finalThirdShootCandidates = 0;
+  const decisionListener = (e: DecisionDebugEvent) => {
+    if (e.phase !== 'final-third' && e.phase !== 'chance') return;
+    finalThirdDecisions++;
+    if (e.candidates.some((c) => c.type === 'shoot')) finalThirdShootCandidates++;
+  };
+  decisionEvents.on(`${matchId}-decision`, decisionListener);
+
   const match = await app.startGame();
+  decisionEvents.off(`${matchId}-decision`, decisionListener);
 
   if (!match) {
     return null;
@@ -224,6 +249,9 @@ export async function simulateOneMatch(
     possessionSequencesPerMatch: completedSequences.length,
     avgPossessionSequenceMinutes,
     directPassSharePct,
+    finalThirdCarrierDecisionsPerTeam: finalThirdDecisions / 2,
+    finalThirdShootCandidateRatePct:
+      finalThirdDecisions > 0 ? (finalThirdShootCandidates / finalThirdDecisions) * 100 : 0,
   };
 }
 
@@ -291,6 +319,12 @@ export function buildMetricsMap(summaries: IMatchSummary[]): Record<string, numb
     ),
     'Direct pass share % (diagnostic)': summaries.map(
       (s) => s.directPassSharePct
+    ),
+    'Final-third/chance carrier decisions per team (diagnostic)': summaries.map(
+      (s) => s.finalThirdCarrierDecisionsPerTeam ?? 0
+    ),
+    'Final-third/chance shoot-candidate rate % (diagnostic)': summaries.map(
+      (s) => s.finalThirdShootCandidateRatePct ?? 0
     ),
   };
 }

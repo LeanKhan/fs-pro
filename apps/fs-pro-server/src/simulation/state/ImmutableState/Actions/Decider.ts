@@ -34,19 +34,41 @@ function clamp01(value: number): number {
 
 /** Milestone 18 - `TeamIntent.phase` (`possession/MatchPhase.ts`) nudges
  * a candidate's score by a small, additive amount per type. Deliberately
- * small (<= 0.15) relative to the 0-1 score scale - phase should tilt the
+ * small relative to the 0-1 score scale - phase should tilt the
  * balance among otherwise-competitive options, not override what the
  * player's own pressure/ability/tendencies already say. Only the phases an
  * ATTACKING side's own intent can actually be (see `getAttackingPhase()` -
  * never 'chance'/'press'/'defensive-shape'/'defensive-transition', those
  * are the defending side's or retroactive) have entries; anything else
- * falls through to no bias. */
+ * falls through to no bias.
+ *
+ * Shots-per-team realism gap fix (FUTURE-PLANS.md's "Remaining
+ * realism-tuning gaps") - `'final-third'`'s `shoot` bias widened 0.15 ->
+ * 0.3, confirmed via direct live instrumentation (a throwaway script
+ * subscribing to `decisionEvents`, 738 real ATT final-third/chance
+ * decisions with a shoot candidate present): `scoreDribble()` (favored by
+ * tight marking, which is common exactly where a shoot candidate also
+ * exists - near goal, tightly defended) scores close enough to
+ * `shootUtility()`'s own average (0.734 vs an 0.829 argmax-winner average)
+ * that `dribble` was the single highest-scored candidate almost as often
+ * as `shoot` itself (339 vs 335 of 738) - `chooseCandidate()`'s score²
+ * weighted draw then only actually picked shoot 32.2% of the time, despite
+ * a shoot candidate being available 100% of the time ATT reached the final
+ * third. This is a genuine, previously-undiagnosed part of the
+ * shots-per-team gap, distinct from (and larger in impact than) the
+ * MID off-ball/range-gate fixes made earlier in that same investigation -
+ * this is the dominant lever, since ATT supplies the large majority of
+ * total shot volume. `+0.15` was not enough separation to reliably win the
+ * argmax against a competitively-scored dribble; `+0.3` is sized off the
+ * measured ~0.095 gap between shoot's average and the winning average,
+ * with margin so shoot wins decisively in the common case while a
+ * genuinely explosive dribble opportunity can still occasionally win. */
 const PHASE_BIAS: Partial<
   Record<MatchPhase, Partial<Record<CandidateActionType, number>>>
 > = {
   counter: { carry: 0.15, dribble: 0.1, shoot: 0.05 },
   'attacking-transition': { carry: 0.1, pass: 0.05 },
-  'final-third': { shoot: 0.15, dribble: 0.05 },
+  'final-third': { shoot: 0.3, dribble: 0.05 },
   'build-up': { support: 0.1, hold: 0.05 },
   restart: { pass: 0.1 },
 };
@@ -154,6 +176,7 @@ export class Decider {
       position: player.Position,
       candidates,
       chosen,
+      phase,
     });
 
     return this.strategy;
