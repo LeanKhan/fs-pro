@@ -34,6 +34,10 @@
             `anim-${getPlayerAnimation(p)}`,
             `dir-${getPlayerDirection(p)}`,
           ]"
+          :style="{
+            backgroundImage:
+              p.side === 'home' ? homePlayerSpriteUrl : awayPlayerSpriteUrl,
+          }"
         ></div>
       </div>
 
@@ -487,14 +491,6 @@ svg.markings rect {
   to {
     background-position-x: -192px;
   }
-}
-
-.player.home .player-sprite {
-  background-image: v-bind(homePlayerSpriteUrl);
-}
-
-.player.away .player-sprite {
-  background-image: v-bind(awayPlayerSpriteUrl);
 }
 
 .player.gk {
