@@ -10,26 +10,62 @@
     >
       <template v-slot:prepend>
         <div class="d-flex align-center">
-          <v-icon>custom:{{ match.Home }}</v-icon>
-          <span class="mx-1">vs</span>
-          <v-icon>custom:{{ match.Away }}</v-icon>
+          <router-link
+            v-if="match.HomeTeamId"
+            :to="`/u/clubs/${match.HomeTeamId}/${match.Home}`"
+            @click.stop
+            title="View Home Club Public Profile"
+            class="text-decoration-none"
+          >
+            <v-icon>custom:{{ match.Home }}</v-icon>
+          </router-link>
+          <v-icon v-else>custom:{{ match.Home }}</v-icon>
+          <span class="mx-1 text-caption text-medium-emphasis">vs</span>
+          <router-link
+            v-if="match.AwayTeamId"
+            :to="`/u/clubs/${match.AwayTeamId}/${match.Away}`"
+            @click.stop
+            title="View Away Club Public Profile"
+            class="text-decoration-none"
+          >
+            <v-icon>custom:{{ match.Away }}</v-icon>
+          </router-link>
+          <v-icon v-else>custom:{{ match.Away }}</v-icon>
         </div>
       </template>
 
-      <div v-if="Detail == 'details'">
-        <v-list-item-title>
+      <div v-if="Detail == 'details'" class="ml-2">
+        <v-list-item-title class="text-body-2 font-weight-medium">
           {{ match.Title }}
         </v-list-item-title>
 
-        <v-list-item-subtitle>
+        <v-list-item-subtitle class="text-caption">
           {{ match.LeagueCode }}
+          <span v-if="match.Played && match.Details" class="font-weight-bold text-amber ml-2">
+            ({{ match.Details.HomeTeamScore }} - {{ match.Details.AwayTeamScore }})
+          </span>
         </v-list-item-subtitle>
       </div>
 
-      <div v-if="Detail == 'results' && match.Details">
-        {{ match.Details.HomeTeamScore }} :
-        {{ match.Details.AwayTeamScore }}
+      <div v-if="Detail == 'results' && match.Details" class="text-body-2 font-weight-bold text-amber ml-2">
+        {{ match.Details.HomeTeamScore }} : {{ match.Details.AwayTeamScore }}
       </div>
+
+      <template v-slot:append>
+        <v-btn
+          v-if="match.Played"
+          size="x-small"
+          variant="tonal"
+          color="info"
+          icon="mdi-play"
+          title="Watch match replay"
+          :to="'/matchzone/' + match._id?.toString()"
+          @click.stop
+        ></v-btn>
+        <v-chip v-else size="x-small" color="grey" variant="tonal">
+          Upcoming
+        </v-chip>
+      </template>
     </v-list-item>
   </v-list>
 </template>

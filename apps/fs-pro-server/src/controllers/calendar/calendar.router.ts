@@ -25,6 +25,7 @@ import {
 } from '../players/player-lifecycle.service';
 import { refreshAllClubsRatings } from '../clubs/club.service';
 import type { SeasonInterface } from '../seasons/season.model';
+import { WorldFeedService } from '../../services/world/world-feed.service';
 
 const s = initServer();
 
@@ -135,6 +136,29 @@ export const calendarTsRestRoutes = s.router(contract.calendar, {
         body: {
           success: false,
           message: 'Error fetching current Calendar',
+          payload: fail(err),
+        },
+      };
+    }
+  },
+
+  getWorldFeed: async () => {
+    try {
+      const feed = await WorldFeedService.generateWorldFeed();
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'World feed fetched successfully',
+          payload: feed,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error fetching world feed',
           payload: fail(err),
         },
       };

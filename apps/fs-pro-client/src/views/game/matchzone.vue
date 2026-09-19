@@ -51,6 +51,26 @@
           <div class="mz-floodlight mz-floodlight-bl"></div>
           <div class="mz-floodlight mz-floodlight-br"></div>
 
+          <div v-if="liveWatching || liveFrame" class="mz-playback-controls">
+            <div class="mz-clock-pill">
+              ⏱️ {{ liveFrame?.minute ?? 0 }}'
+            </div>
+            <button class="mz-ctrl-btn" @click="togglePause">
+              {{ isPaused ? '▶️ RESUME' : '⏸️ PAUSE' }}
+            </button>
+            <div class="mz-speed-group">
+              <button
+                v-for="spd in [1, 2, 4]"
+                :key="spd"
+                class="mz-speed-btn"
+                :class="{ active: playSpeed === spd }"
+                @click="playSpeed = spd"
+              >
+                {{ spd }}x
+              </button>
+            </div>
+          </div>
+
           <live-pitch
             :frame="liveFrame"
             :home="liveHome"
@@ -59,6 +79,94 @@
           ></live-pitch>
 
           <event-banner :banner="activeBanner"></event-banner>
+
+          <!-- Full-Time Match Review Overlay -->
+          <div
+            v-if="matchFinished && !liveWatching && showReviewOverlay"
+            class="mz-review-overlay"
+          >
+            <div class="mz-review-card">
+              <div class="mz-review-badge-bar">
+                <span class="mz-review-pill">FULL TIME MATCH REVIEW</span>
+                <button class="mz-review-toggle-btn" @click="showReviewOverlay = false">
+                  👁️ Inspect Pitch
+                </button>
+              </div>
+
+              <!-- Scoreboard -->
+              <div class="mz-review-score-grid">
+                <div class="mz-review-team-box">
+                  <v-avatar size="52" tile class="mb-1">
+                    <v-icon size="44">custom:{{ fixture.Home }}</v-icon>
+                  </v-avatar>
+                  <div class="mz-review-team-name">{{ fixture.HomeTeam?.Name }}</div>
+                  <div class="mz-review-team-sub">HOME</div>
+                </div>
+
+                <div class="mz-review-score-box">
+                  <div class="mz-review-big-score">
+                    {{ displayHomeScore }} : {{ displayAwayScore }}
+                  </div>
+                  <div v-if="fixture.Stadium" class="mz-review-venue">
+                    {{ fixture.Stadium }}
+                  </div>
+                  <div v-if="fixture.Details?.Attendance" class="mz-review-attendance">
+                    Att: {{ Number(fixture.Details.Attendance).toLocaleString() }}
+                  </div>
+                </div>
+
+                <div class="mz-review-team-box">
+                  <v-avatar size="52" tile class="mb-1">
+                    <v-icon size="44">custom:{{ fixture.Away }}</v-icon>
+                  </v-avatar>
+                  <div class="mz-review-team-name">{{ fixture.AwayTeam?.Name }}</div>
+                  <div class="mz-review-team-sub">AWAY</div>
+                </div>
+              </div>
+
+              <!-- Key Match Events / Goal Scorers -->
+              <div v-if="goalScorers.length" class="mz-review-goals-section">
+                <div class="mz-review-goals-title">⚽ KEY MATCH EVENTS</div>
+                <div class="mz-review-goals-list">
+                  <div v-for="(g, idx) in goalScorers" :key="idx" class="mz-review-goal-chip">
+                    <span class="font-weight-bold">{{ g.time }}'</span>
+                    <span class="ml-1">{{ g.message }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick Match Stats Comparison -->
+              <div v-if="matchStatsComparison.length" class="mz-review-stats-section">
+                <div v-for="(st, i) in matchStatsComparison" :key="i" class="mz-review-stat-row">
+                  <span class="mz-stat-val mz-stat-home">{{ st.homeVal }}</span>
+                  <div class="mz-stat-bar-col">
+                    <div class="mz-stat-label">{{ st.label }}</div>
+                    <div class="mz-stat-bar-track">
+                      <div class="mz-stat-bar-fill-home" :style="{ width: st.homePct + '%' }"></div>
+                      <div class="mz-stat-bar-fill-away" :style="{ width: st.awayPct + '%' }"></div>
+                    </div>
+                  </div>
+                  <span class="mz-stat-val mz-stat-away">{{ st.awayVal }}</span>
+                </div>
+              </div>
+
+              <!-- Actions: Replay & Pitch inspection -->
+              <div class="mz-review-actions-bar">
+                <button class="mz-action-btn mz-action-accent mz-replay-action" @click="watchReplay">
+                  ▶️ WATCH 2D REPLAY
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Floating button to reopen review overlay if closed -->
+          <button
+            v-if="matchFinished && !liveWatching && !showReviewOverlay"
+            class="mz-reopen-review-btn"
+            @click="showReviewOverlay = true"
+          >
+            📊 Match Review
+          </button>
 
           <div v-if="!resultsReady" class="mz-pitch-overlay">
             {{ overlayText }}
@@ -113,9 +221,20 @@
           ></club-widget>
         </div>
 
-        <div class="mz-fixture-meta">
-          {{ fixture.SeasonCode }} - {{ fixture.Title }}
-          <span v-if="fixture.Stadium">- {{ fixture.Stadium }}</span>
+        <div class="mz-fixture-meta d-flex justify-space-between align-center px-3 py-1">
+          <div>
+            {{ fixture.SeasonCode }} - {{ fixture.Title }}
+            <span v-if="fixture.Stadium">- {{ fixture.Stadium }}</span>
+          </div>
+          <div v-if="!matchFinished" class="d-flex align-center">
+            <v-checkbox
+              v-model="simulateRest"
+              label="Auto-advance day (sim other matches)"
+              density="compact"
+              hide-details
+              color="amber-lighten-2"
+            />
+          </div>
         </div>
 
         <div class="mz-dugout">
@@ -130,6 +249,8 @@
             :currentFixture="fixture._id"
             :liveEvents="liveEvents"
             @match-selected="matchSelected"
+            @tactic-changed="onTacticChanged"
+            @sub-requested="onSubRequested"
           ></dugout>
         </div>
       </aside>
@@ -172,7 +293,7 @@ const kickoffTimer = ref(0);
 const starting = ref(false);
 const lastMatchOfSeason = ref(false);
 const standings = ref<any>(null);
-const simulateRest = ref(false);
+const simulateRest = ref(true);
 
 const replaySocket = new MatchReplaySocket();
 const liveWatching = ref(false);
@@ -190,6 +311,35 @@ const activeBanner = ref<{ type: 'goal' | 'substitution'; message: string } | nu
   null
 );
 let bannerTimer: ReturnType<typeof setTimeout> | null = null;
+
+const isPaused = ref(false);
+const playSpeed = ref(1);
+
+function togglePause() {
+  isPaused.value = !isPaused.value;
+}
+
+function onTacticChanged(style: string) {
+  if (bannerTimer) clearTimeout(bannerTimer);
+  activeBanner.value = {
+    type: 'substitution',
+    message: `TACTIC SHIFT: ${style.toUpperCase()}`,
+  };
+  bannerTimer = setTimeout(() => {
+    activeBanner.value = null;
+  }, 2800);
+}
+
+function onSubRequested(player: any) {
+  if (bannerTimer) clearTimeout(bannerTimer);
+  activeBanner.value = {
+    type: 'substitution',
+    message: `SUB: ${player.FirstName} ${player.LastName} ready to enter!`,
+  };
+  bannerTimer = setTimeout(() => {
+    activeBanner.value = null;
+  }, 3200);
+}
 
 const liveHome = computed(() => ({
   name: fixture.value.HomeTeam?.Name,
@@ -256,8 +406,45 @@ const displayHomeScore = computed(() =>
 const displayAwayScore = computed(() =>
   matchFinished.value ? (AwayTeamScore.value ?? 0) : liveAwayScore.value
 );
-
 const matchFinished = computed(() => fixture.value.Played);
+
+const showReviewOverlay = ref(true);
+
+const goalScorers = computed(() => {
+  const events = fixture.value?.Events || [];
+  return events
+    .filter((e: any) => e.type === 'goal')
+    .map((e: any) => ({
+      time: e.time ?? e.minute ?? 0,
+      message: e.message || 'Goal scored',
+    }));
+});
+
+const matchStatsComparison = computed(() => {
+  const home = fixture.value?.HomeSideDetails;
+  const away = fixture.value?.AwaySideDetails;
+  if (!home || !away) return [];
+
+  const items = [
+    { label: 'Possession', h: Number(home.Possession || 50), a: Number(away.Possession || 50), unit: '%' },
+    { label: 'Shots on Target', h: Number(home.ShotsOnTarget || 0), a: Number(away.ShotsOnTarget || 0), unit: '' },
+    { label: 'Total Shots', h: Number(home.Shots || 0), a: Number(away.Shots || 0), unit: '' },
+    { label: 'Fouls', h: Number(home.Fouls || 0), a: Number(away.Fouls || 0), unit: '' },
+  ];
+
+  return items.map((it) => {
+    const total = (it.h + it.a) || 1;
+    const homePct = Math.round((it.h / total) * 100);
+    const awayPct = 100 - homePct;
+    return {
+      label: it.label,
+      homeVal: it.unit ? `${it.h}${it.unit}` : it.h,
+      awayVal: it.unit ? `${it.a}${it.unit}` : it.a,
+      homePct,
+      awayPct,
+    };
+  });
+});
 
 const mappedHomeSquad = computed(() => {
   if (matchFinished.value && fixture.value.HomeSideDetails.PlayerStats) {
@@ -489,6 +676,7 @@ async function playGame() {
 async function watchReplay() {
   if (liveWatching.value) return;
 
+  showReviewOverlay.value = false;
   overlayText.value = 'Loading replay...';
   liveFrame.value = null;
   resultsReady.value = false;
@@ -502,6 +690,7 @@ async function watchReplay() {
   } catch (error) {
     console.error('Error connecting to match replay:', error);
     resultsReady.value = true;
+    showReviewOverlay.value = true;
     return;
   }
 
@@ -513,6 +702,7 @@ async function watchReplay() {
   });
   replaySocket.onReplayEnd(() => {
     liveWatching.value = false;
+    showReviewOverlay.value = true;
   });
 
   try {
@@ -523,6 +713,7 @@ async function watchReplay() {
     console.error('Error starting match replay:', error);
     resultsReady.value = true;
     liveWatching.value = false;
+    showReviewOverlay.value = true;
     alert('No replay is available for this match.');
   }
 }
@@ -565,8 +756,8 @@ async function getStandings() {
 }
 
 async function matchSelected(match: any) {
-  if (fixture.value.Played) {
-    await router.push({ params: { fixture: match._id } });
+  if (match?._id) {
+    await router.push(`/matchzone/${match._id}`);
   }
 }
 
@@ -577,6 +768,7 @@ async function initializeGame() {
   liveWatching.value = false;
   liveFrame.value = null;
   resultsReady.value = true;
+  showReviewOverlay.value = true;
   liveHomeScore.value = 0;
   liveAwayScore.value = 0;
   liveEvents.value = [];
@@ -867,5 +1059,317 @@ watch(fixtureId, () => {
   .mz-sidebar {
     width: 100%;
   }
+}
+
+.mz-playback-controls {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.mz-clock-pill {
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffeb3b;
+  letter-spacing: 0.05em;
+  padding-right: 6px;
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.mz-ctrl-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.mz-ctrl-btn:hover {
+  background: #1d4ed8;
+}
+
+.mz-speed-group {
+  display: flex;
+  gap: 3px;
+}
+
+.mz-speed-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  border: none;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.mz-speed-btn.active {
+  background: #ffeb3b;
+  color: black;
+}
+
+/* --- Full Time Match Review Overlay --- */
+.mz-review-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 18, 14, 0.88);
+  backdrop-filter: blur(8px);
+  z-index: 95;
+  padding: 20px;
+}
+
+.mz-review-card {
+  width: 100%;
+  max-width: 580px;
+  background: linear-gradient(180deg, #162a1e 0%, #0d1912 100%);
+  border: 1px solid #2e4d3b;
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mz-review-badge-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mz-review-pill {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.mz-review-toggle-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  font-size: 11px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.mz-review-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.mz-review-score-grid {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 10px;
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.mz-review-team-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 120px;
+  text-align: center;
+}
+
+.mz-review-team-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.2;
+  margin-top: 4px;
+}
+
+.mz-review-team-sub {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+}
+
+.mz-review-score-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.mz-review-big-score {
+  font-size: 38px;
+  font-weight: 900;
+  color: #ffeb3b;
+  letter-spacing: 0.05em;
+  line-height: 1;
+}
+
+.mz-review-venue {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 4px;
+}
+
+.mz-review-attendance {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.mz-review-goals-section {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.mz-review-goals-title {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #ffc107;
+  margin-bottom: 6px;
+}
+
+.mz-review-goals-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 90px;
+  overflow-y: auto;
+}
+
+.mz-review-goal-chip {
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 3px 8px;
+  color: #e2e8f0;
+}
+
+.mz-review-stats-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.mz-review-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mz-stat-val {
+  font-size: 11px;
+  font-weight: 800;
+  width: 38px;
+}
+.mz-stat-home {
+  text-align: right;
+  color: #22c55e;
+}
+.mz-stat-away {
+  text-align: left;
+  color: #38bdf8;
+}
+
+.mz-stat-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.mz-stat-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.04em;
+}
+
+.mz-stat-bar-track {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  display: flex;
+  overflow: hidden;
+}
+
+.mz-stat-bar-fill-home {
+  background: #22c55e;
+  height: 100%;
+  transition: width 0.3s;
+}
+
+.mz-stat-bar-fill-away {
+  background: #38bdf8;
+  height: 100%;
+  transition: width 0.3s;
+}
+
+.mz-review-actions-bar {
+  display: flex;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.mz-replay-action {
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  padding: 8px 24px !important;
+  background: #ffeb3b !important;
+  color: #0c1710 !important;
+}
+
+.mz-reopen-review-btn {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 235, 59, 0.4);
+  color: #ffeb3b;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: 16px;
+  cursor: pointer;
+  z-index: 90;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+.mz-reopen-review-btn:hover {
+  background: #ffeb3b;
+  color: #0c1710;
 }
 </style>

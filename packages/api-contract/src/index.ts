@@ -45,7 +45,7 @@ export type { Player, PlayerAttributes } from './schemas/player';
 export type { Competition } from './schemas/competition';
 export type { Season, ClubStandings, WeekStandings } from './schemas/season';
 export type { Manager, ManagerClubRef } from './schemas/manager';
-export type { Calendar, Day } from './schemas/calendar';
+export type { Calendar, Day, WorldFeed, WorldFeedHeadline } from './schemas/calendar';
 export type { Place } from './schemas/place';
 export type { Award } from './schemas/award';
 export type { User } from './schemas/user';

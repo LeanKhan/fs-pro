@@ -71,6 +71,8 @@ export interface PlayerInterface {
    * use the Position-based auto-default" - NOT "no training", see that
    * file's effectiveTrainingCategory(). */
   TrainingFocus?: string | null;
+  Fitness?: number;
+  Injury?: { type: string; daysRemaining: number } | null;
   ClubCode?: string;
   ClubId?: string;
   RatingsHistory?: Record<string, unknown>[];

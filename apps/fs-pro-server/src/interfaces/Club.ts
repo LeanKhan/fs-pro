@@ -17,4 +17,13 @@ export interface IClub {
   Stats: Record<string, unknown>;
   LeagueId?: string;
   LeagueCode?: string;
+  Lineup?: {
+    startingXI: string[];
+    bench: string[];
+  } | null;
+  Tactic?: {
+    formationName: string;
+    styleName: string;
+  } | null;
+  Finances?: Record<string, unknown> | null;
 }
