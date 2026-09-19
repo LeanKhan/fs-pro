@@ -110,6 +110,26 @@ function toFixture(
   } as unknown as FixtureInterface;
 }
 
+function sanitizeFixtureData<T extends Record<string, any>>(data: T): Record<string, any> {
+  const result: Record<string, any> = { ...data };
+  const uuidKeys = [
+    'SeasonId',
+    'HomeTeamId',
+    'AwayTeamId',
+    'HomeSideDetailsId',
+    'AwaySideDetailsId',
+    'HomeManagerId',
+    'AwayManagerId',
+    'ReverseFixtureId',
+  ];
+  for (const key of uuidKeys) {
+    if (key in result && typeof result[key] === 'string' && !result[key].trim()) {
+      result[key] = null;
+    }
+  }
+  return result;
+}
+
 export class DrizzleFixtureRepository implements IFixtureRepository {
   constructor(private db: DrizzleDb) {}
 
@@ -188,10 +208,11 @@ export class DrizzleFixtureRepository implements IFixtureRepository {
   }
 
   async create(data: Partial<FixtureInterface>): Promise<FixtureInterface> {
+    const cleanData = sanitizeFixtureData(data);
     const [fixture] = await this.db
       .insert(fixtures)
       .values({
-        ...(data as typeof fixtures.$inferInsert),
+        ...(cleanData as typeof fixtures.$inferInsert),
         updatedAt: new Date(),
       })
       .returning();
@@ -207,7 +228,7 @@ export class DrizzleFixtureRepository implements IFixtureRepository {
       .insert(fixtures)
       .values(
         data.map((d) => ({
-          ...(d as typeof fixtures.$inferInsert),
+          ...(sanitizeFixtureData(d) as typeof fixtures.$inferInsert),
           updatedAt: new Date(),
         }))
       )
@@ -220,10 +241,11 @@ export class DrizzleFixtureRepository implements IFixtureRepository {
     id: string,
     data: Partial<FixtureInterface>
   ): Promise<FixtureInterface | null> {
+    const cleanData = sanitizeFixtureData(data);
     const [fixture] = await this.db
       .update(fixtures)
       .set({
-        ...(data as Partial<typeof fixtures.$inferInsert>),
+        ...(cleanData as Partial<typeof fixtures.$inferInsert>),
         updatedAt: new Date(),
       })
       .where(eq(fixtures.id, id))

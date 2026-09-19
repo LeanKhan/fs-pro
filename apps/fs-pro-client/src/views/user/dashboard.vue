@@ -324,6 +324,12 @@
               subtitle="Scout and sign players in the world"
             />
             <v-list-item
+              to="/u/calendar"
+              prepend-icon="mdi-calendar-multiselect"
+              title="Year Calendar"
+              subtitle="Interactive monthly fixture grid & season schedule"
+            />
+            <v-list-item
               to="/u/fixtures"
               prepend-icon="mdi-calendar-month"
               title="Complete Fixtures Schedule"

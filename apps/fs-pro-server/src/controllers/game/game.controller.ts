@@ -30,7 +30,7 @@ interface TeamObject {
   id: string;
   name: string;
   clubCode: string;
-  manager: string;
+  manager: string | null;
 }
 
 interface CurrentMatch {
@@ -261,11 +261,22 @@ export async function play(
     if (options?.quickSim) {
       return QuickSimResolver.resolve(simulateRequest);
     }
-    const result = await simulateMatch(simulateRequest);
-    if (!result.ok) {
-      throw new Error(result.error);
+    try {
+      const result = await simulateMatch(simulateRequest);
+      if (!result.ok) {
+        console.warn(
+          `[runSimulation] High-fidelity simulation failed for fixture ${fixture_id} (${result.error}); falling back to QuickSim.`
+        );
+        return QuickSimResolver.resolve(simulateRequest);
+      }
+      return result.match;
+    } catch (err) {
+      console.warn(
+        `[runSimulation] High-fidelity simulation threw for fixture ${fixture_id}; falling back to QuickSim:`,
+        err
+      );
+      return QuickSimResolver.resolve(simulateRequest);
     }
-    return result.match;
   };
 
   return runSimulation()
@@ -290,14 +301,14 @@ export async function play(
         id: m.Home._id,
         name: m.Home.Name,
         clubCode: m.Home.ClubCode,
-        manager: m.Home.ManagerId,
+        manager: m.Home.ManagerId && typeof m.Home.ManagerId === 'string' && m.Home.ManagerId.trim() ? m.Home.ManagerId : null,
       };
 
       const awayObj = {
         id: m.Away._id,
         name: m.Away.Name,
         clubCode: m.Away.ClubCode,
-        manager: m.Away.ManagerId,
+        manager: m.Away.ManagerId && typeof m.Away.ManagerId === 'string' && m.Away.ManagerId.trim() ? m.Away.ManagerId : null,
       };
 
       let match: Fixture;

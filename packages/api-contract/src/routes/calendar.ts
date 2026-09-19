@@ -84,6 +84,43 @@ export const calendarContract = c.router(
         400: failEnvelope(),
       },
     },
+
+    healCalendar: {
+      method: 'POST',
+      path: '/heal',
+      body: z.object({}).optional(),
+      responses: {
+        200: successEnvelope(
+          z.object({
+            healedCount: z.number(),
+            currentDay: z.number(),
+          })
+        ),
+        400: failEnvelope(),
+      },
+    },
+
+    simulateToDate: {
+      method: 'POST',
+      path: '/simulate-to-date',
+      body: z.object({
+        targetDay: z.number().optional(),
+        targetDate: z.string().optional(),
+        includeTargetDay: z.boolean().optional(),
+      }),
+      responses: {
+        200: successEnvelope(
+          z.object({
+            startDay: z.number(),
+            currentDay: z.number(),
+            currentDate: z.string(),
+            simulatedFixtures: z.number(),
+            simulatedDays: z.number(),
+          })
+        ),
+        400: failEnvelope(),
+      },
+    },
   },
   { pathPrefix: '/calendar', strictStatusCodes: true }
 );

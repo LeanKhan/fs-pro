@@ -16,10 +16,17 @@
         <span class="cashflow-badge ml-1">{{ formattedCashflow }}</span>
       </div>
 
-      <!-- 3. Calendar Date Pill -->
-      <div class="ticker-pill d-flex align-center">
-        <v-icon size="small" color="grey-lighten-1" class="mr-2">mdi-calendar-month-outline</v-icon>
-        <span>{{ formattedGameDate }}</span>
+      <!-- 3. Calendar Date Pill (Clickable -> Opens Year Calendar) -->
+      <div
+        class="ticker-pill ticker-clickable d-flex align-center cursor-pointer"
+        @click="router.push('/u/calendar')"
+        title="Click to open Season Calendar of the Year"
+      >
+        <v-icon size="small" color="indigo-lighten-2" class="mr-2">mdi-calendar-month-outline</v-icon>
+        <span class="font-weight-medium">{{ formattedGameDate }}</span>
+        <v-chip size="x-small" color="indigo-lighten-3" variant="tonal" class="ml-2 px-1">
+          CALENDAR
+        </v-chip>
       </div>
 
       <!-- 4. Next Match / World Event Ticker (Highlighted Purple/Indigo Pill) -->
@@ -122,6 +129,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useStore } from '@/store';
 import { client } from '@/services/api';
 
@@ -133,6 +141,7 @@ defineEmits<{
   (e: 'logout'): void;
 }>();
 
+const router = useRouter();
 const store = useStore();
 const showWorldFeedModal = ref(false);
 const worldHeadlines = ref<any[]>([]);
@@ -319,6 +328,12 @@ onUnmounted(() => {
 .ticker-pill:hover {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.2);
+}
+
+.ticker-clickable:hover {
+  background: rgba(99, 102, 241, 0.18) !important;
+  border-color: rgba(129, 140, 248, 0.5) !important;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.2);
 }
 
 .cashflow-badge {
