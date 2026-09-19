@@ -80,20 +80,31 @@
         </div>
       </div>
 
-      <!-- Match context / Club context -->
+      <!-- Competition (and round) of the headline match -->
+      <div class="d-flex justify-center mb-1">
+        <competition-badge :fixture="primaryMatch" show-round />
+      </div>
+
+      <!-- Club context -->
       <div v-if="clubMatchContext" class="text-caption text-center text-truncate mb-1">
         <v-chip size="x-small" :color="clubMatchContext.isHome ? 'primary' : 'teal'" variant="tonal">
           {{ clubMatchContext.label }}
         </v-chip>
       </div>
-      <div v-else class="text-caption text-center text-medium-emphasis text-truncate mb-1">
-        {{ primaryMatch.LeagueCode }} &bull; Week {{ primaryMatch.Week }}
-      </div>
 
       <!-- Multiple matches footer / Dialog trigger -->
       <div class="d-flex justify-space-between align-center mt-1 pt-1 border-t">
-        <span class="text-caption text-medium-emphasis">
+        <span class="d-flex align-center gap-1 text-caption text-medium-emphasis">
           {{ day.Matches.length }} {{ day.Matches.length === 1 ? 'match' : 'matches' }}
+          <v-icon
+            v-for="c in dayCompetitions"
+            :key="c.code"
+            size="x-small"
+            :color="c.color"
+            :title="c.label"
+          >
+            {{ c.icon }}
+          </v-icon>
         </span>
 
         <v-dialog v-model="dialog" scrollable max-width="500px">
@@ -136,6 +147,9 @@
                     </span>
                     <span v-else class="text-medium-emphasis">vs</span>
                   </v-list-item-title>
+                  <v-list-item-subtitle class="text-center">
+                    <competition-badge :fixture="m" show-round />
+                  </v-list-item-subtitle>
                   <template #append>
                     <div class="d-flex align-center gap-1 ml-2" style="min-width: 80px; justify-content: flex-end">
                       <span class="text-caption font-weight-bold" :class="{'text-green-accent-3': m.Away === club}">
@@ -177,6 +191,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useStore } from '@/store';
+import CompetitionBadge from './competition-badge.vue';
+import { competitionStyle, type CompetitionStyle } from '@/utils/competitionStyle';
 
 interface Props {
   day: any;
@@ -205,6 +221,16 @@ const primaryMatch = computed(() => {
     if (clubM) return clubM;
   }
   return props.day.Matches[0];
+});
+
+/** Distinct competitions playing on this day, one icon each in the footer. */
+const dayCompetitions = computed<CompetitionStyle[]>(() => {
+  const seen = new Map<string, CompetitionStyle>();
+  for (const m of props.day.Matches ?? []) {
+    const style = competitionStyle(m);
+    if (!seen.has(style.code)) seen.set(style.code, style);
+  }
+  return [...seen.values()];
 });
 
 const clubMatchContext = computed(() => {

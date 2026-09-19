@@ -528,7 +528,7 @@ async function saveLineup() {
   try {
     const rawFormation = selectedFormation.value.replace(/-/g, ''); // '4-3-3' -> '433'
 
-    await client.clubs.updateClub({
+    const response = await client.clubs.updateClub.mutation({
       params: { id: props.club._id },
       body: {
         Lineup: {
@@ -541,6 +541,12 @@ async function saveLineup() {
         },
       },
     });
+
+    if (response.status !== 200) {
+      snackbarMessage.value = `Error saving team sheet: ${response.body.message}`;
+      snackbar.value = true;
+      return;
+    }
 
     snackbarMessage.value = 'Team sheet and tactics saved!';
     snackbar.value = true;

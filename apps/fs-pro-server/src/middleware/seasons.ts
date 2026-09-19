@@ -14,8 +14,9 @@ import {
   fixtureInterface,
 } from '../utils/seasons';
 import { incrementCounter } from '../utils/counter';
-import log from '../helpers/logger';
 import { ClubInterface } from '../controllers/clubs/club.model';
+import { TournamentEngineService } from '../services/competitions/tournament-engine.service';
+import log from '../helpers/logger';
 
 /**
  * Create Season :)
@@ -88,6 +89,27 @@ export async function create(
       competitionID
     )) as CompetitionInterface;
 
+    if (competition.Cup || competition.Type?.toLowerCase() === 'cup') {
+      const fixtureIds = await TournamentEngineService.createCupInitialFixtures({
+        competition,
+        seasonId: season_id,
+        seasonCode: season_code,
+        clubs: competition.Clubs as ClubInterface[],
+      });
+      return { isTournamentMode: true, fixtureIds, standings: [] };
+    }
+
+    if (competition.Tournament || competition.Type?.toLowerCase() === 'tournament') {
+      const { fixtureIds, standings } =
+        await TournamentEngineService.createGroupStageInitialFixtures({
+          competition,
+          seasonId: season_id,
+          seasonCode: season_code,
+          clubs: competition.Clubs as ClubInterface[],
+        });
+      return { isTournamentMode: true, fixtureIds, standings };
+    }
+
     const matchesPerWeek = competition.Clubs.length / 2;
 
     const roundrobin = new RoundRobin(competition.Clubs.length);
@@ -118,13 +140,18 @@ export async function create(
       return generateFixtureObject(data);
     });
 
-    return fixtureObjects;
+    return { isTournamentMode: false, fixtureObjects };
   };
 
-  const createF = async (fixtureObjects: any) => {
-    // respond.success(res, 200, 'Success creating Fixtures', fixtureObjects);
+  const createF = async (resData: any) => {
+    if (resData.isTournamentMode) {
+      if (resData.standings && resData.standings.length > 0) {
+        await updateSeasonFields(season_id, { Standings: resData.standings });
+      }
+      return resData.fixtureIds;
+    }
 
-    return createFixtures(fixtureObjects)
+    return createFixtures(resData.fixtureObjects)
       .then((fixtures: any) => {
         const fixtureIds: string[] = fixtures.map((fixture: any) => {
           return fixture._id;
@@ -148,6 +175,15 @@ export async function create(
 
   // TODO: Make standings separate collection
   const setInitialStandings = () => {
+    if (
+      competition.Cup ||
+      competition.Type?.toLowerCase() === 'cup' ||
+      competition.Tournament ||
+      competition.Type?.toLowerCase() === 'tournament'
+    ) {
+      return Promise.resolve(null);
+    }
+
     const numberOfMatches: number =
       (competition.Clubs.length - 1) * competition.Clubs.length;
 
@@ -258,6 +294,29 @@ export async function generateSeasonFixtures(
   seasonCode: string,
   leagueCode: string
 ): Promise<string[]> {
+  if (competition.Cup || competition.Type?.toLowerCase() === 'cup') {
+    return TournamentEngineService.createCupInitialFixtures({
+      competition,
+      seasonId,
+      seasonCode,
+      clubs: competition.Clubs as ClubInterface[],
+    });
+  }
+
+  if (competition.Tournament || competition.Type?.toLowerCase() === 'tournament') {
+    const { fixtureIds, standings } =
+      await TournamentEngineService.createGroupStageInitialFixtures({
+        competition,
+        seasonId,
+        seasonCode,
+        clubs: competition.Clubs as ClubInterface[],
+      });
+    if (standings && standings.length > 0) {
+      await updateSeasonFields(seasonId, { Standings: standings });
+    }
+    return fixtureIds;
+  }
+
   const matchesPerWeek = competition.Clubs.length / 2;
 
   const roundrobin = new RoundRobin(competition.Clubs.length);
@@ -296,6 +355,15 @@ export async function setSeasonInitialStandings(
   competition: CompetitionInterface,
   seasonId: string
 ) {
+  if (
+    competition.Cup ||
+    competition.Type?.toLowerCase() === 'cup' ||
+    competition.Tournament ||
+    competition.Type?.toLowerCase() === 'tournament'
+  ) {
+    return null;
+  }
+
   const numberOfMatches: number =
     (competition.Clubs.length - 1) * competition.Clubs.length;
   const matchesPerWeek = Math.round(competition.Clubs.length / 2);

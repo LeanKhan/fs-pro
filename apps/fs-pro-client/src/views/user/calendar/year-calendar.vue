@@ -58,6 +58,22 @@
             </v-btn>
           </v-btn-toggle>
 
+          <!-- Competition Filter -->
+          <v-select
+            v-if="availableCompetitions.length > 2"
+            v-model="selectedCompetition"
+            :items="availableCompetitions.map((c) => ({
+              title: competitionFilterLabel(c),
+              value: c,
+            }))"
+            density="compact"
+            variant="outlined"
+            hide-details
+            style="min-width: 180px; max-width: 230px;"
+            class="elevation-1 rounded"
+            prepend-inner-icon="mdi-trophy-outline"
+          />
+
           <!-- View Mode Toggle: Grid vs List -->
           <v-btn-toggle
             v-model="viewMode"
@@ -91,7 +107,7 @@
         <div class="d-flex align-center gap-4 flex-wrap">
           <div>
             <span class="text-medium-emphasis">Total Matches: </span>
-            <span class="font-weight-bold text-white">{{ allFixtures.length }}</span>
+            <span class="font-weight-bold text-white">{{ totalCount }}</span>
           </div>
           <div>
             <span class="text-medium-emphasis">Played: </span>
@@ -127,7 +143,7 @@
 
     <template v-else>
       <!-- 2. Month Navigator Bar -->
-      <v-card class="elevation-2 rounded-lg mb-4 bg-surface border">
+      <v-card class="elevation-2 rounded-lg mb-4 bg-surface border" :loading="pendingLoads > 0">
         <div class="d-flex align-center justify-space-between pa-3 flex-wrap gap-2">
           <!-- Prev / Next Month Nav -->
           <div class="d-flex align-center gap-2">
@@ -240,8 +256,12 @@
                     getMatchResultClass(fixture),
                     { 'is-my-club-match': isClubInFixture(fixture) }
                   ]"
-                  :title="`${fixture.Home} vs ${fixture.Away} - ${fixture.Played ? fixture.Details?.FullTimeScore : 'Scheduled'}`"
+                  :style="{ borderLeft: `3px solid ${competitionStyle(fixture).hex}` }"
+                  :title="`${competitionStyle(fixture).label} - ${fixture.Home} vs ${fixture.Away} - ${fixture.Played ? fixture.Details?.FullTimeScore : 'Scheduled'}`"
                 >
+                  <v-icon size="10" :color="competitionStyle(fixture).color" class="mr-1">
+                    {{ competitionStyle(fixture).icon }}
+                  </v-icon>
                   <span class="match-teams text-truncate">
                     <span :class="{ 'font-weight-bold text-white': fixture.Home === userClubCode }">
                       {{ fixture.Home }}
@@ -303,9 +323,7 @@
                 <span class="text-caption text-medium-emphasis">
                   {{ formatFixtureDate(fixture.ScheduledDate) }}
                 </span>
-                <v-chip size="x-small" color="grey" variant="outlined">
-                  {{ fixture.LeagueCode }}
-                </v-chip>
+                <competition-badge :fixture="fixture" show-round />
               </div>
 
               <!-- Center: Clubs & Score -->
@@ -446,9 +464,10 @@
                 </span>
               </div>
 
-              <!-- Venue / Competition info -->
-              <div class="text-caption text-medium-emphasis">
-                {{ fixture.Stadium || fixture.LeagueCode }}
+              <!-- Competition & venue info -->
+              <div class="d-flex align-center gap-2 text-caption text-medium-emphasis">
+                <competition-badge :fixture="fixture" show-round size="small" />
+                <span>{{ fixture.Stadium }}</span>
               </div>
 
               <!-- Action Link -->
@@ -607,19 +626,46 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from '@/store';
 import { client } from '@/services/api';
 import type { Fixture } from '@repo/api-contract';
+import CompetitionBadge from '@/components/calendar/competition-badge.vue';
+import { competitionStyle } from '@/utils/competitionStyle';
+
+/** Filter/heading text for a competition code: leagues keep their code,
+ * cups and the continental competition get a readable name plus the code. */
+function competitionFilterLabel(code: string): string {
+  if (code === 'all') return 'All Competitions';
+  const style = competitionStyle({ LeagueCode: code });
+  return style.kind === 'league' ? code : `${style.label} (${code})`;
+}
 
 const store = useStore();
 
 const loading = ref(true);
 const simulating = ref(false);
 const allFixtures = ref<Fixture[]>([]);
+const scheduleSummary = ref<{
+  firstDay: number | null;
+  lastDay: number | null;
+  total: number;
+  played: number;
+} | null>(null);
+const loadedMonths = new Set<string>();
+const pendingLoads = ref(0);
 const fixtureFilter = ref<'all' | 'club'>('all');
+const selectedCompetition = ref<string>('all');
 const viewMode = ref<'grid' | 'list'>('grid');
 const activeMonthIndex = ref(0);
+
+const availableCompetitions = computed(() => {
+  const codes = new Set<string>();
+  for (const f of allFixtures.value) {
+    if (f.LeagueCode) codes.add(f.LeagueCode);
+  }
+  return ['all', ...Array.from(codes)];
+});
 
 // Modal state
 const showDayModal = ref(false);
@@ -672,6 +718,9 @@ const formattedTodayDate = computed(() => {
 });
 
 const activeCompetitionName = computed(() => {
+  if (selectedCompetition.value !== 'all') {
+    return competitionFilterLabel(selectedCompetition.value);
+  }
   return userClub.value?.LeagueCode || 'Premier Division';
 });
 
@@ -680,21 +729,41 @@ function isClubInFixture(fixture: Fixture): boolean {
   return fixture.Home === userClubCode.value || fixture.Away === userClubCode.value;
 }
 
-// Filtered fixtures based on All vs My Club
+// Filtered fixtures based on All vs My Club and selected Competition
 const filteredFixtures = computed(() => {
+  let list = allFixtures.value;
   if (fixtureFilter.value === 'club' && userClubCode.value) {
-    return allFixtures.value.filter((f) => isClubInFixture(f));
+    list = list.filter((f) => isClubInFixture(f));
   }
-  return allFixtures.value;
+  if (selectedCompetition.value !== 'all') {
+    list = list.filter(
+      (f) =>
+        f.LeagueCode === selectedCompetition.value ||
+        (f.Type && f.Type.toLowerCase() === selectedCompetition.value.toLowerCase())
+    );
+  }
+  return list;
 });
 
-const playedCount = computed(() => {
-  return filteredFixtures.value.filter((f) => f.Played).length;
-});
+// With no filter the whole schedule is summarised server-side (only the
+// visible months are loaded); with a filter we count what is loaded.
+const unfiltered = computed(
+  () => fixtureFilter.value === 'all' && selectedCompetition.value === 'all'
+);
 
-const remainingCount = computed(() => {
-  return filteredFixtures.value.filter((f) => !f.Played).length;
-});
+const totalCount = computed(() =>
+  unfiltered.value && scheduleSummary.value
+    ? scheduleSummary.value.total
+    : filteredFixtures.value.length
+);
+
+const playedCount = computed(() =>
+  unfiltered.value && scheduleSummary.value
+    ? scheduleSummary.value.played
+    : filteredFixtures.value.filter((f) => f.Played).length
+);
+
+const remainingCount = computed(() => totalCount.value - playedCount.value);
 
 const clubRecord = computed(() => {
   if (!userClubCode.value) return { wins: 0, draws: 0, losses: 0, points: 0 };
@@ -742,19 +811,26 @@ const availableMonths = computed<MonthMeta[]>(() => {
     hasToday: true,
   });
 
-  for (const f of allFixtures.value) {
-    if (!f.ScheduledDate) continue;
-    const d = new Date(f.ScheduledDate);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    if (!map.has(key)) {
-      map.set(key, {
-        key,
-        year: d.getFullYear(),
-        month: d.getMonth(),
-        label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-        shortLabel: d.toLocaleDateString('en-US', { month: 'short' }),
-        hasToday: key === curKey,
-      });
+  // Every month between the first and last scheduled day - known from the
+  // schedule summary, so months can be listed without loading their fixtures.
+  const summary = scheduleSummary.value;
+  if (summary?.firstDay != null && summary.lastDay != null) {
+    const cursor = dateForDay(summary.firstDay);
+    cursor.setDate(1);
+    const end = dateForDay(summary.lastDay);
+    while (cursor <= end) {
+      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          year: cursor.getFullYear(),
+          month: cursor.getMonth(),
+          label: cursor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+          shortLabel: cursor.toLocaleDateString('en-US', { month: 'short' }),
+          hasToday: key === curKey,
+        });
+      }
+      cursor.setMonth(cursor.getMonth() + 1);
     }
   }
 
@@ -955,20 +1031,104 @@ async function executeSimToDate() {
   }
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function startOfDay(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+function calendarAnchor(): { day: number; date: Date } {
+  const cal = calendar.value;
+  return {
+    day: cal?.CurrentDay ?? 1,
+    date: cal?.CurrentDate ? new Date(cal.CurrentDate) : new Date(),
+  };
+}
+
+/** Game day that falls on a calendar date (the schedule is anchored on the
+ * calendar's current day/date, one game day per real day). */
+function dayForDate(d: Date): number {
+  const { day, date } = calendarAnchor();
+  return day + Math.round((startOfDay(d) - startOfDay(date)) / DAY_MS);
+}
+
+function dateForDay(day: number): Date {
+  const { day: curDay, date } = calendarAnchor();
+  const d = new Date(startOfDay(date));
+  d.setDate(d.getDate() + (day - curDay));
+  return d;
+}
+
+function mergeFixtures(incoming: Fixture[]) {
+  const byId = new Map(allFixtures.value.map((f) => [f._id, f]));
+  for (const f of incoming) byId.set(f._id, f);
+  allFixtures.value = [...byId.values()];
+}
+
+/** Loads only the game days a month covers (light rows, no per-player stats). */
+async function ensureMonthLoaded(m: MonthMeta | undefined) {
+  if (!m || loadedMonths.has(m.key)) return;
+  loadedMonths.add(m.key);
+  pendingLoads.value++;
+  try {
+    const from = dayForDate(new Date(m.year, m.month, 1)) - 1;
+    const to = dayForDate(new Date(m.year, m.month + 1, 0)) + 1;
+    const response = await client.fixtures.getFixtures.query({
+      query: { scheduledDayFrom: from, scheduledDayTo: to, light: true },
+    });
+    if (response.status === 200) mergeFixtures(response.body.payload);
+    else loadedMonths.delete(m.key);
+  } catch (err) {
+    loadedMonths.delete(m.key);
+    console.error('Error fetching calendar month:', err);
+  } finally {
+    pendingLoads.value--;
+  }
+}
+
+/** The user's own club plays ~46 matches - load all of them once so "My
+ * Club" and the record strip cover the whole season, not just loaded months. */
+async function loadClubFixtures() {
+  const club = userClubCode.value;
+  if (!club) return;
+  try {
+    const response = await client.fixtures.getFixtures.query({
+      query: { club, light: true },
+    });
+    if (response.status === 200) mergeFixtures(response.body.payload);
+  } catch (err) {
+    console.error('Error fetching club fixtures:', err);
+  }
+}
+
+function prefetchNeighbours() {
+  const idx = activeMonthIndex.value;
+  ensureMonthLoaded(availableMonths.value[idx - 1]);
+  ensureMonthLoaded(availableMonths.value[idx + 1]);
+}
+
 async function fetchFixtures() {
   loading.value = true;
+  loadedMonths.clear();
+  allFixtures.value = [];
   try {
-    const response = await client.fixtures.getFixtures.query({});
-    if (response.status === 200) {
-      allFixtures.value = response.body.payload;
-    }
+    const summary = await client.fixtures.getScheduleSummary.query();
+    if (summary.status === 200) scheduleSummary.value = summary.body.payload;
+    jumpToToday();
+    await Promise.all([ensureMonthLoaded(activeMonth.value), loadClubFixtures()]);
   } catch (err) {
     console.error('Error fetching calendar fixtures:', err);
   } finally {
     loading.value = false;
-    jumpToToday();
   }
+  prefetchNeighbours();
 }
+
+watch(activeMonth, (m) => {
+  if (loading.value) return;
+  ensureMonthLoaded(m);
+  prefetchNeighbours();
+});
 
 onMounted(async () => {
   await store.setCalendar();

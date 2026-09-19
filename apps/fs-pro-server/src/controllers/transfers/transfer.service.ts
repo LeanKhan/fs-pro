@@ -5,6 +5,7 @@ import { getPlayerById } from '../players/player.service';
 import { getClubById, calculateAndUpdateClubRating } from '../clubs/club.service';
 import type { PlayerInterface } from '../../interfaces/Player';
 import type { ClubInterface } from '../clubs/club.model';
+import { assertTransferWindowOpen } from '../../services/transfers/transfer-window.service';
 
 export interface PurchaseResult {
   player: PlayerInterface;
@@ -32,6 +33,8 @@ export async function executePurchase(
     getClubById(buyingClubId),
   ]);
 
+  await assertTransferWindowOpen();
+
   if (!player) throw new Error('Player not found');
   if (!buyingClub) throw new Error('Buying club not found');
 
@@ -48,6 +51,13 @@ export async function executePurchase(
     throw new Error('This player has retired and can no longer be transferred');
   }
 
+  // A player who belongs to a club is bought by bidding (transfer-market.service
+  // placeBid) so the owner can accept, counter or refuse; only free agents
+  // have nobody to negotiate with and are bought outright.
+  if (player.ClubId) {
+    throw new Error('This player is under contract - place a bid with his club instead');
+  }
+
   const askingPrice = player.Value ?? 0;
   if (offerAmount < askingPrice) {
     throw new Error(
@@ -59,6 +69,30 @@ export async function executePurchase(
   if (buyerBudget < offerAmount) {
     throw new Error('Insufficient Budget for this offer');
   }
+
+  return settleTransfer({ playerId, buyingClubId, amount: offerAmount });
+}
+
+/**
+ * Moves a player to `buyingClubId` and settles the money: buyer debited,
+ * seller (if any) credited, ledger row written - all in one transaction -
+ * then both clubs' ratings are refreshed. No affordability/window/ownership
+ * checks: callers (executePurchase for free agents, the bid flow in
+ * transfer-market.service.ts) validate first. `note` is stored on the ledger row.
+ */
+export async function settleTransfer(params: {
+  playerId: string;
+  buyingClubId: string;
+  amount: number;
+  note?: string;
+}): Promise<PurchaseResult> {
+  const { playerId, buyingClubId, amount: offerAmount, note } = params;
+  const [player, buyingClub] = await Promise.all([
+    getPlayerById(playerId),
+    getClubById(buyingClubId),
+  ]);
+  if (!player) throw new Error('Player not found');
+  if (!buyingClub) throw new Error('Buying club not found');
 
   const sellingClubId = player.ClubId ?? null;
   const db = DrizzleDatabase.getInstance().database;
@@ -103,6 +137,7 @@ export async function executePurchase(
       BuyerClubId: buyingClubId,
       SellerClubId: sellingClubId,
       Amount: offerAmount,
+      Note: note ?? null,
       updatedAt: new Date(),
     });
   });

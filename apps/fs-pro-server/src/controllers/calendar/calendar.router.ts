@@ -26,7 +26,17 @@ import {
 import { refreshAllClubsRatings } from '../clubs/club.service';
 import type { SeasonInterface } from '../seasons/season.model';
 import { WorldFeedService } from '../../services/world/world-feed.service';
+import {
+  generateSeasonReport,
+  getSeasonReport,
+  listSeasonReports,
+} from '../../services/world/season-report.service';
 import { MatchdayRunnerService } from '../../services/calendar/matchday-runner.service';
+import { TournamentEngineService } from '../../services/competitions/tournament-engine.service';
+import {
+  openTransferWindow,
+  scheduleWindowCloseAfterCycleStart,
+} from '../../services/transfers/transfer-window.service';
 
 const s = initServer();
 
@@ -65,6 +75,23 @@ function arrangeSeasonFixturesAcrossDays(
 
   seasons.forEach((season) => {
     const seasonFixtures = season.Fixtures ?? [];
+    if (!seasonFixtures.length) return;
+
+    // If fixtures already have ScheduledDay (from TournamentEngineService for Cup/Tournament):
+    if (seasonFixtures[0].ScheduledDay != null) {
+      seasonFixtures.forEach((f) => {
+        if (f.ScheduledDay != null) {
+          scheduled.push({
+            fixtureId: f._id as unknown as string,
+            day: f.ScheduledDay,
+          });
+        }
+      });
+      return;
+    }
+
+    if (!season.Standings?.length) return;
+
     const matchesPerWeek = seasonFixtures.length / season.Standings.length;
     const numberOfWeeks = season.Standings.length;
 
@@ -137,6 +164,57 @@ export const calendarTsRestRoutes = s.router(contract.calendar, {
         body: {
           success: false,
           message: 'Error fetching current Calendar',
+          payload: fail(err),
+        },
+      };
+    }
+  },
+
+  getSeasonReports: async () => {
+    try {
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Season reports fetched successfully',
+          payload: await listSeasonReports(),
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error fetching season reports',
+          payload: fail(err),
+        },
+      };
+    }
+  },
+
+  getSeasonReport: async ({ params }) => {
+    try {
+      const report = await getSeasonReport(params.year.trim().toUpperCase());
+      if (!report) {
+        return {
+          status: 404,
+          body: { success: false, message: 'No report for that season cycle' },
+        };
+      }
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Season report fetched successfully',
+          payload: report,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error fetching season report',
           payload: fail(err),
         },
       };
@@ -233,7 +311,10 @@ export const calendarTsRestRoutes = s.router(contract.calendar, {
     }
 
     try {
-      const competitions = await getCompetitions();
+      await TournamentEngineService.seedDefaultTournaments(Year);
+      const competitions = (await getCompetitions()).filter(
+        (c) => !TournamentEngineService.isRetiredGlobalCup(c)
+      );
       const calendar = await getCalendar();
 
       await Promise.all(
@@ -261,6 +342,8 @@ export const calendarTsRestRoutes = s.router(contract.calendar, {
           })
         )
       );
+
+      await scheduleWindowCloseAfterCycleStart();
 
       await Promise.all(
         seasons.map((season) =>
@@ -347,15 +430,45 @@ export const calendarTsRestRoutes = s.router(contract.calendar, {
       };
     }
 
+    // The steps below are not idempotent (players age, wages are charged,
+    // clubs move leagues), so a cycle that has already ended must not run again.
+    if (allSeasons.some((s) => s.Status === 'ended')) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: `Season cycle ${year} has already ended - start the next one instead.`,
+        },
+      };
+    }
+
     try {
       await Promise.all(allSeasons.map((season) => prolegate(season._id as string)));
       console.log('Seasons prolegated Successfully!');
 
       await updateAllPlayerDetailsForYear(year);
       await deductWagesForYear(year);
-      await retireEligiblePlayersForYear(year);
+      const { retired } = await retireEligiblePlayersForYear(year);
       await runYouthIntakeForYear(year);
       await refreshAllClubsRatings();
+
+      // The cycle's changes are already committed by this point, so a report
+      // failure must not fail the request (and the 'ended' guard below would
+      // block a retry) - log it and carry on.
+      try {
+        await generateSeasonReport(year, { retired });
+      } catch (reportError) {
+        console.error('Could not generate the season report:', reportError);
+      }
+      await Promise.all(
+        allSeasons.map((season) =>
+          updateSeasonFields(season._id as string, { Status: 'ended' })
+        )
+      );
+
+      // Off-season: the transfer window opens now and stays open until the
+      // next cycle starts (which schedules its closing day).
+      await openTransferWindow();
       console.log('Calendar Year Ended Successfully!');
 
       return {

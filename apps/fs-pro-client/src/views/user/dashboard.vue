@@ -489,7 +489,7 @@ async function getDays() {
 
   try {
     const response = await client.fixtures.getFixtures.query({
-      query: { scheduledDayFrom: from, scheduledDayTo: to },
+      query: { scheduledDayFrom: from, scheduledDayTo: to, light: true },
     });
     if (response.status === 200) {
       days.value = groupFixturesByDay(response.body.payload);

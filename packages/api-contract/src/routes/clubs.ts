@@ -4,6 +4,7 @@ import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 import { ClubSchema } from '../schemas/club';
 import { PlayerSchema } from '../schemas/player';
+import { ClubPerformanceSchema } from '../schemas/club-performance';
 import { successEnvelope, failEnvelope } from '../schemas/envelope';
 import { booleanQuery } from '../schemas/query';
 
@@ -52,6 +53,24 @@ export const clubsContract = c.router(
       responses: {
         200: successEnvelope(ClubSchema),
         404: failEnvelope(),
+      },
+    },
+
+    // Results, expected results, squad strength and plain-language findings
+    // explaining how a club is doing. `year` picks a season cycle (default: the latest).
+    getClubPerformance: {
+      method: 'GET',
+      path: '/:id/performance',
+      pathParams: z.object({
+        id: z.string(),
+      }),
+      query: z.object({
+        year: z.string().optional(),
+      }),
+      responses: {
+        200: successEnvelope(ClubPerformanceSchema),
+        404: failEnvelope(),
+        400: failEnvelope(),
       },
     },
 

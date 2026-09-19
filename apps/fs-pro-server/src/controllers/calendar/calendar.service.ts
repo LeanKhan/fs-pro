@@ -75,6 +75,13 @@ export async function healCalendar(): Promise<{
   };
 }
 
+import { TournamentEngineService } from '../../services/competitions/tournament-engine.service';
+import { runTransferDay } from '../../services/transfers/transfer-market.service';
+
+/** Most game days of AI transfer activity run for one calendar advance, so a
+ * long jump (e.g. simulate-to-date) does not flood the market in one go. */
+const MAX_TRANSFER_DAYS_PER_ADVANCE = 3;
+
 /**
  * Advances `CurrentDay`/`CurrentDate` to the next scheduled day that still
  * has an unplayed fixture, but only once every fixture on `scheduledDay`
@@ -91,6 +98,13 @@ export async function advanceDayIfDone(
     return null;
   }
 
+  // Check and advance any Cup or Champions League stages that completed today
+  try {
+    await TournamentEngineService.checkAndAdvanceTournaments();
+  } catch (err) {
+    console.error('[advanceDayIfDone] Error advancing tournaments:', err);
+  }
+
   const next = await findNextUnplayedDay(scheduledDay);
   if (!next) {
     return null;
@@ -105,5 +119,18 @@ export async function advanceDayIfDone(
     }
   }
 
-  return updateCalendar({ CurrentDay: next.day, CurrentDate: next.date });
+  const advanced = await updateCalendar({ CurrentDay: next.day, CurrentDate: next.date });
+
+  // The transfer market moves with the calendar: expire stale offers and, while
+  // the window is open, let AI clubs bid and trade for each day that passed.
+  try {
+    const firstDay = Math.max(scheduledDay + 1, next.day - MAX_TRANSFER_DAYS_PER_ADVANCE + 1);
+    for (let day = firstDay; day <= next.day; day++) {
+      await runTransferDay(day);
+    }
+  } catch (err) {
+    console.error('[advanceDayIfDone] Error running the transfer market:', err);
+  }
+
+  return advanced;
 }

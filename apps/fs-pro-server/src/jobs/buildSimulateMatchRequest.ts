@@ -19,7 +19,12 @@ export async function buildSimulateMatchRequest(
   fixtureId: string,
   home: string,
   away: string,
-  prefetchedTactics?: { home: ITactic; away: ITactic }
+  prefetchedTactics?: { home: ITactic; away: ITactic },
+  options?: {
+    fixtureType?: string;
+    stage?: string;
+    isKnockout?: boolean;
+  }
 ): Promise<SimulateMatchRequest> {
   // `withPlayersAndManager` populates Players (needed for the match
   // roster) - ManagerId stays a bare id regardless (see IClubReadOptions).
@@ -48,5 +53,8 @@ export async function buildSimulateMatchRequest(
     clubs: plainClubs,
     sides: { home, away },
     tactics,
+    fixtureType: options?.fixtureType,
+    stage: options?.stage,
+    isKnockout: options?.isKnockout,
   };
 }

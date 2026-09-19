@@ -116,6 +116,14 @@ const routes: RouteRecordRaw[] = [
               ),
             name: 'Year Calendar',
           },
+          {
+            path: 'history',
+            component: () =>
+              import(
+                /* webpackChunkName: "season_history" */ '../views/user/history/season-history.vue'
+              ),
+            name: 'Season History',
+          },
 
           {
             path: 'fixtures',

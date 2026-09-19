@@ -350,7 +350,7 @@ async function expandStadium() {
     const newCapacity = stadiumCapacity.value + 5000;
     const newBudget = (props.club.Budget ?? 0) - 2500000;
 
-    await client.clubs.updateClub({
+    const response = await client.clubs.updateClub.mutation({
       params: { id: props.club._id },
       body: {
         Budget: newBudget,
@@ -360,6 +360,12 @@ async function expandStadium() {
         },
       },
     });
+
+    if (response.status !== 200) {
+      snackbarText.value = `Error completing stadium expansion: ${response.body.message}`;
+      snackbar.value = true;
+      return;
+    }
 
     snackbarText.value = 'Stadium expansion completed! +5,000 seats added.';
     snackbar.value = true;
