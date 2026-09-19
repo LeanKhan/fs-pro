@@ -13,6 +13,8 @@ import { saveReplay } from '../match-replays/match-replay.service';
 import { ITactic } from '../../simulation/state/PersistentState/Formations';
 import { simulateMatch } from '../../jobs/matchQueue';
 import { buildSimulateMatchRequest } from '../../jobs/buildSimulateMatchRequest';
+import { QuickSimResolver } from '../../simulation/quick-sim/QuickSimResolver';
+import { SimulatedMatchData } from '../../jobs/simulationContract';
 
 /** Fetches a Season by id, but only returns it if it's still in progress -
  * replaces the raw `fetchSeason({_id, isStarted: true, isFinished: false})`
@@ -70,7 +72,10 @@ export interface PlayResult {
   lastMatchOfSeason: boolean | undefined;
 }
 
-export async function play(fixture_id: string) {
+export async function play(
+  fixture_id: string,
+  options?: { quickSim?: boolean }
+) {
   let CurrentMatch: CurrentMatch = {};
 
   // [1]
@@ -252,18 +257,23 @@ export async function play(fixture_id: string) {
   // instance, but every field the rest of this chain reads off it
   // (Home/Away identity incl. ManagerId, Details, Events, Frames) is
   // plain data either way.
-  return simulateMatch(simulateRequest)
-    .then((result) => {
-      if (!result.ok) {
-        throw new Error(result.error);
-      }
-      return result.match;
-    })
+  const runSimulation = async (): Promise<SimulatedMatchData> => {
+    if (options?.quickSim) {
+      return QuickSimResolver.resolve(simulateRequest);
+    }
+    const result = await simulateMatch(simulateRequest);
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+    return result.match;
+  };
+
+  return runSimulation()
     .then(async (m) => {
-      // Fire-and-forget: stream the recorded match live over sockets,
-      // keyed by fixture_id (known ahead of the kickoff call, unlike
-      // match.id) so a debug client can join the room before triggering it.
-      startMatchReplay(m, fixture_id);
+      // Stream live replay over sockets if high-fidelity simulation
+      if (!options?.quickSim) {
+        startMatchReplay(m, fixture_id);
+      }
 
       // Also persist the same Frames so this match can be re-streamed later
       // on demand (see restRewatchMatch) without re-simulating it. Gated by
