@@ -1054,6 +1054,19 @@ export class Actions {
           x: home.x,
           y: (home.y + centerY) / 2,
         });
+      case 'support-box': {
+        // Shots-per-team realism gap fix - a central MID's moderate
+        // version of 'attack-box' above: shallower bias toward goal, and a
+        // lateral reference weighted toward the player's own home column
+        // rather than the goal-mouth midpoint, so an attacking midfielder
+        // cuts in from their own zone instead of making a beeline for the
+        // exact centre the way a striker legitimately does.
+        const movementConfig = getSimulationConfig().movement;
+        return this.getShapeTarget(player, team, team.ScoringSide, movementConfig.supportBoxBias, {
+          x: home.x,
+          y: home.y * movementConfig.supportBoxLateralWeight + centerY * (1 - movementConfig.supportBoxLateralWeight),
+        });
+      }
       case 'overlap':
         // Push forward while holding station on the OWN flank (lateral
         // reference is the player's own anchor, so the width-blend pulls
@@ -1499,7 +1512,7 @@ export class Actions {
       `${player.FirstName} ${player.LastName} [${player.ClubCode}] 
       dribbled ${dribbled.FirstName} ${dribbled.LastName}`,
       'dribble',
-      player.PlayerID,
+      player._id,
       player.ClubCode
     );
   }
@@ -1569,7 +1582,7 @@ export class Actions {
         `${tackler.FirstName} ${tackler.LastName} [${tackler.ClubCode}]
         tackled the ball from ${player.FirstName} ${player.LastName}`,
         'tackle',
-        tackler.PlayerID,
+        tackler._id,
         tackler.ClubCode
       );
     }

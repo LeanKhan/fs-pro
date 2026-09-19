@@ -29,7 +29,24 @@ export const defaultSimulationConfig: SimulationConfig = {
       MID: {
         shoot: {
           withMindset: { threshold: 85, distance: 2 },
-          without: { threshold: 65, distance: 2 },
+          // Shots-per-team realism gap fix. `calculateDistance()` is
+          // Manhattan (|dx|+|dy|), and `getAttackingPhase()`'s own
+          // 'final-third' cutoff is defined against the SAME metric
+          // (fraction of `pitchLength`, itself a pure Manhattan distance
+          // between the two goal points) - so a player sitting at the
+          // OUTER edge of the final third, dead-central (zero Y offset),
+          // is already close to `pitchLength / 3` blocks from goal. On
+          // this 33-wide grid that's ~10.7 blocks - distance:2 or :3
+          // (scaled ~4.4/6.6 blocks) left most of that zone unreachable
+          // regardless of scoring; confirmed live via a first pass at
+          // distance:3 and :4 (behaviorRegressionSuite.ts's shot
+          // conversion funnel) - MID's shoot-candidate rate stayed flat at
+          // ~14-18% either way, both still short of covering the outer
+          // final-third band. Widened to :5 (scaled ~11 blocks, matching
+          // ATT's own longShot distance) to actually cover the zone this
+          // phase is named for - re-verify against a larger sample before
+          // calling this settled.
+          without: { threshold: 65, distance: 5 },
         },
         longShot: {
           withMindset: { threshold: 65, distance: 3 },
@@ -144,6 +161,10 @@ export const defaultSimulationConfig: SimulationConfig = {
     // OffBallPolicy.decideAttackingOffBallIntent()'s getSpaceAhead radii.
     spaceAheadNear: 3,
     spaceAheadFar: 4,
+    // Shots-per-team realism gap fix - a central MID's 'support-box' pull
+    // toward goal, shallower than ATT's 'attack-box' (0.7).
+    supportBoxBias: 0.45,
+    supportBoxLateralWeight: 0.75,
   },
 
   // Milestone 20 (Fatigue, Confidence, And Player Memory) - see

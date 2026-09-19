@@ -1736,32 +1736,165 @@ first for same-team collisions specifically).
 
 ### Remaining realism-tuning gaps
 
-**Status:** Deferred, not urgent — user said "I am satisfied with the
-results for now." Numbers below are current as of the possession/movement
-bug-fixing pass (`FieldPlayer.move()`, `Actions.tackle()`,
-`Actions.successfulDribble()`, `Actions.move()`'s no-marking-opponent
-fallback) - passes-per-team roughly doubled (12→22 avg) and goals per match
-went up (2.1→3.5 avg) once play stopped freezing/getting silently
-corrupted, so re-check this table again if more engine changes land.
+**Status:** Investigated across two sessions (2026-09-12, 2026-09-14), gap
+narrowed but NOT closed — shots per team now sit around 4.6 (up from the
+original 4.2) vs. the 7-18 reference band. Three real, independently
+verified fixes have landed; the residual gap is now well-understood, not a
+mystery - see "Session 2" below for where it actually is and why it wasn't
+chased further this pass.
 
-**What's off:** Per `simRealismCheck.ts`, shots per team sit around 3.6 vs.
-a real-world reference band of 7-18; tackles/interceptions/fouls/yellow
-cards are somewhat under their reference bands too (plausibly a natural
-side effect of fixing the inverted pass-success bug and the possession
-freezes — passes/dribbles now succeed and progress correctly, so the ball
-changes hands defensively less often than the reference bands assume).
+**Session 1 (2026-09-12) - instrumentation and the first two fixes.**
 
-**Diagnosis so far:** Believed structural, not a formula bug — i.e. how
-often an attacker gets close enough to goal _with the ball_ to justify a
-shot, rather than the shoot-decision formula itself being wrong. Not
-investigated further.
+**Instrumentation built** (kept, not throwaway): `Decider.makeDecision()`'s
+existing per-decision debug stream (`decisionLog.ts`'s `decisionEvents`)
+now carries the live `phase` alongside its candidates; `simRealismCheck.ts`
+tracks two new diagnostic metrics (`finalThirdCarrierDecisionsPerTeam`,
+`finalThirdShootCandidateRatePct`); `scripts/behaviorRegressionSuite.ts`
+gained a 6th comparison, "Shot conversion funnel" (`runShotConversionFunnel`)
+- per position, how often the ball carrier's decision fires in `'final-
+third'`/`'chance'` phase, what fraction of those have a shoot candidate at
+all, and how many shots are actually attempted.
 
-**Next step when revisited:** Instrument how often attacking players reach
-the final third/box with possession per match, compare against the
-shots-per-team gap, before touching `Decider.ts`'s shoot thresholds again.
+**What the funnel found, confirmed live (not guessed):**
+- ATT: ~17.6-18.7 final-third/chance carrier decisions/match, 100% have a
+  shoot candidate, ~6.3-7.0 shots attempted/match.
+- MID: only ~2.0-3.3 final-third/chance carrier decisions/match (an order
+  of magnitude below ATT) - **root cause #1**, off-ball positioning: a
+  CENTRAL midfielder (not wide - a wide MID already gets `'overlap'`
+  unconditional on phase) in final-third/attacking-transition/counter
+  phase had no forward-pushing off-ball intent at all before this pass
+  (`OffBallPolicy.ts`'s `'attack-box'` was ATT-only; `'move-between-lines'`
+  is phase-gated to progression/build-up only) - fell straight through to
+  passive `'support'`.
+- Of the MID decisions that DID reach final-third, only ~16% had a shoot
+  candidate at all (vs. ATT's 100%) - **root cause #2**, the range gate:
+  `Decider.shootUtility()`'s distance check is Manhattan
+  (`CO.co.calculateDistance` = `|dx|+|dy|`), the SAME metric
+  `getAttackingPhase()`'s own final-third cutoff uses (a fraction of pure
+  pitch length) - so a dead-central player at the OUTER edge of the final
+  third is already ~10.7 blocks from goal on the real 33-wide grid, while
+  MID's old `shoot.without.distance: 2` only reached ~4.4 blocks.
 
-**Files:** `scripts/simRealismCheck.ts` (the diagnostic), `Decider.ts`
-(`tryShoot`, `SHOOT_PROFILES`).
+**Fixes applied, both real and verified independently:**
+1. `OffBallPolicy.ts` gained a new `'support-box'` intent - a central
+   MID's more moderate version of `'attack-box'` (shallower bias toward
+   goal via new `movement.supportBoxBias`/`supportBoxLateralWeight`
+   config, not a literal second-striker run), added to the fatigue
+   downgrade set. **Confirmed actually firing** (a temporary counter
+   instrumented directly in the function showed it chosen ~60/match,
+   comparable in volume to `'attack-box'`) - the WIRING works.
+2. `defaultSimulationConfig.ts`'s `shooting.profiles.MID.shoot.without.
+distance` widened `2 → 5` (matching ATT's own `longShot` distance, wide
+   enough to cover the true final-third zone under the Manhattan metric).
+   **Confirmed working**: MID's shoot-candidate rate jumped from ~16% to
+   ~45-53% across repeated runs at n=200+ (not noise - a first attempt at
+   `3` then `4` looked flat at n=60, which was itself a real lesson: this
+   funnel needs a large sample, small-n runs bounced around 14-18% with no
+   visible trend even though the true signal was there).
+
+**Why the aggregate `Shots per team` still didn't move (confirmed via
+`simRealismCheck.ts --compare`, 477 vs 475 matches: +0.1 mean, well within
+noise):** fix #2 tripled MID's CONVERSION rate once they're in the final
+third, but fix #1 did NOT measurably increase MID's final-third
+carrier-decision VOLUME (stayed ~2.0-3.3/match across every run, before
+and after `'support-box'` was added) despite the intent demonstrably
+firing at a healthy rate. So central MIDs are being told to push toward
+the box, and arriving there in the pure positioning sense - but they still
+essentially never end up as the actual ball carrier once they arrive.
+**Likely next place to look, not yet investigated:** pass-target/option
+selection (`passing/PassingOption.ts`'s `generatePassingOptions`/
+`scorePassingOption`/`selectBestPass`) may not be preferentially routing
+the ball to a forward-repositioned central MID over a safer/closer option
+- this is a genuinely different subsystem than either off-ball positioning
+or the shoot-decision gate, and reaching it would mean instrumenting
+`generatePassingOptions`'s candidate list and how often a `'support-box'`-
+positioned MID is even scored highly by `scorePassingOption`, not guessed
+at from here.
+
+**Files (session 1):** `scripts/simRealismCheck.ts`,
+`scripts/behaviorRegressionSuite.ts`, `scripts/replaySanityCheck.ts`
+(Milestone 22, all reusable for this), `simulation/decision/decisionLog.ts`,
+`simulation/state/ImmutableState/Actions/Decider.ts` (`shootUtility`),
+`simulation/player/OffBallPolicy.ts` (`'support-box'`), `simulation/state/
+ImmutableState/Actions/Actions.ts` (`resolveAttackingOffBallTarget`'s new
+case), `simulation/config/{SimulationConfig,defaultSimulationConfig}.ts`.
+
+**Session 2 (2026-09-14) - the actually dominant lever, found by following
+session 1's own "next attempt" pointer into `PassingOption.ts`.**
+
+Checked the hypothesis directly: instrumented `selectBestPass` to log,
+across 20 real matches, which position won the single-winner pass-target
+argmax. ATT won 3829 times, MID 1548, DEF 390 - confirmed ATT does
+dominate pass-target selection. But on reflection (and after reading
+`scorePassingOption`'s formula - `expectedThreat` rewards forward
+progress, and ATT sits more forward by baseline formation anchor almost by
+definition) this is **not obviously a bug** - real teams legitimately
+favor a striker over an AM when both are viable, and MID losing most
+forward-pass competitions to a genuinely-more-advanced ATT teammate is
+realistic, not broken. Reprioritized rather than chasing this further.
+
+**The actually dominant lever, found instead:** re-examined ATT's OWN
+numbers from session 1's funnel - ATT gets a shoot candidate 100% of the
+time in final-third (~17-18/match) yet only converts to ~6.3-7.0 shots/
+match, a ~35-40% conversion **despite never failing the range gate**.
+Instrumented `Decider.makeDecision()`'s `decisionEvents` stream directly
+(zero production-code changes needed - the stream already carries every
+candidate's score) across 738 real ATT final-third/chance decisions with a
+shoot candidate present: `scoreDribble()` (favored by tight marking - the
+exact condition that also exists wherever a shoot candidate exists, i.e.
+near goal, tightly defended) scored close enough to `shootUtility()` that
+**`'dribble'` was the single highest-scored candidate almost exactly as
+often as `'shoot'` itself (339 vs 335 of 738)** - `PHASE_BIAS['final-
+third'].shoot` (`+0.15`) wasn't enough separation. `chooseCandidate()`'s
+score²-weighted probabilistic draw then only actually picked shoot 32.2%
+of the time.
+
+**Fix applied:** `Decider.ts`'s `PHASE_BIAS['final-third'].shoot` widened
+`0.15 → 0.3`, sized off the measured ~0.095 gap between shoot's average
+score (0.734) and the winning-candidate average (0.829), with margin.
+Re-measured with the same instrumentation after the change: shoot's
+argmax-win share rose to 465/579 (80.3%, up from 45.4%), and the actual
+CHOSEN rate rose to 47.0% (up from 32.2%) - a real, substantial,
+independently-confirmed improvement, not a guess.
+
+**Why this wasn't pushed further:** the gap between an 80% argmax-win rate
+and a 47% actual-pick rate is BY DESIGN, not a residual bug -
+`chooseCandidate()`'s own doc comment is explicit that Milestone 18
+deliberately wanted "a higher-scored candidate is more likely to be
+chosen, not guaranteed to be" (real strikers do sometimes take an extra
+touch or lay it off even with a sight of goal). Pushing the bias further
+to force a bigger aggregate number would fight that intentional design,
+not fix a bug - stopped here rather than over-tuning toward a
+near-deterministic "always shoot when in range" model that isn't
+realistic either.
+
+**Cumulative result, all three fixes together** (confirmed via
+`simRealismCheck.ts --compare`, 477 vs 481 matches against the session-1
+starting baseline): `Shots per team` +0.4 (4.2 → 4.6, ~9.5% relative),
+`Shots on target per team` +0.2, `Goals per match` flat (+0.0 - more shots
+without a proportional goals bump is plausible, not alarming, since shot
+quality/on-target rate moved in step). Full `behaviorRegressionSuite.ts`
+re-run afterward (all 6 comparisons) - zero regressions; replay invariants
+still 100% clean; attacking-midfielder role's shots/player rose from
+~0.11 to ~0.25 across the session, a real, visible improvement in exactly
+the role this investigation targeted.
+
+**Still open, not yet investigated - the likely next place to look:** ATT's
+own final-third carrier VOLUME itself (~15-18/match) hasn't been
+questioned yet - is that number itself artificially low (an off-ball
+positioning or pass-selection ceiling on how often ATT even gets fed the
+ball that far forward, the same class of question session 2 asked about
+MID), or is it a reasonable number that just needs the conversion-rate
+work continued a little further within `chooseCandidate`'s intentionally-
+probabilistic model? Not guessed at here - would need the same "instrument
+first" discipline this whole investigation has used throughout.
+
+**Files (session 2):** `simulation/state/ImmutableState/Actions/Decider.ts`
+(`PHASE_BIAS`), plus every file the diagnostic scripts from session 1
+already cover (no new durable script needed this session - two throwaway
+`decisionEvents`-subscribing scripts were used to get the real numbers
+above, then deleted, matching this codebase's own "durable regression
+tooling stays, one-off confirmatory scripts don't" convention).
 
 ---
 
