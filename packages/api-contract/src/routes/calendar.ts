@@ -4,6 +4,7 @@ import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 import { CalendarSchema, DaySchema, WorldFeedSchema } from '../schemas/calendar';
 import { SeasonSchema } from '../schemas/season';
+import { SeasonReportSchema } from '../schemas/season-report';
 import { successEnvelope, failEnvelope } from '../schemas/envelope';
 
 const c = initContract();
@@ -15,6 +16,30 @@ export const calendarContract = c.router(
       path: '/current',
       responses: {
         200: successEnvelope(CalendarSchema),
+        400: failEnvelope(),
+      },
+    },
+
+    // What changed when each season cycle ended (promotions/relegations,
+    // champions, retirements, breakouts) - newest cycle first.
+    getSeasonReports: {
+      method: 'GET',
+      path: '/season-reports',
+      responses: {
+        200: successEnvelope(z.array(SeasonReportSchema)),
+        400: failEnvelope(),
+      },
+    },
+
+    getSeasonReport: {
+      method: 'GET',
+      path: '/season-reports/:year',
+      pathParams: z.object({
+        year: z.string(),
+      }),
+      responses: {
+        200: successEnvelope(SeasonReportSchema),
+        404: failEnvelope(),
         400: failEnvelope(),
       },
     },

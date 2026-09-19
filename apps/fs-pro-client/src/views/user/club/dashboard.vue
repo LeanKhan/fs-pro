@@ -66,6 +66,7 @@
           <v-tab>Club Zone</v-tab>
           <v-tab>{{ isMyClub ? "Director's Box" : 'Infrastructure' }}</v-tab>
           <v-tab>Transfer Zone</v-tab>
+          <v-tab v-if="isMyClub">Analysis</v-tab>
         </v-tabs>
       </v-card>
 
@@ -340,6 +341,9 @@
         <v-window-item>
           <transfer-zone :club="club" @update-available="refresh" />
         </v-window-item>
+        <v-window-item v-if="isMyClub">
+          <performance-zone :club="club" />
+        </v-window-item>
       </v-window>
     </template>
   </div>
@@ -357,6 +361,7 @@ import {
   TransferZone,
   TeamSheetZone,
   OwnerZone,
+  PerformanceZone,
 } from './zones';
 import DayScroll from '@/components/calendar/day-scroll.vue';
 import StandingsScroller from '@/components/seasons/standings-scroller.vue';
@@ -491,6 +496,7 @@ const fixturesQuery = useQuery({
         season: season.value?._id,
         scheduledDayFrom: from,
         scheduledDayTo: to,
+        light: true,
       },
     });
 

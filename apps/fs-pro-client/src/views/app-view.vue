@@ -217,6 +217,12 @@ const userNavItems = computed((): any[] => {
       link: '/u/calendar',
       color: 'indigo',
     },
+    {
+      title: 'Season History',
+      icon: 'mdi-history',
+      link: '/u/history',
+      color: 'amber',
+    },
   ];
 
   if (

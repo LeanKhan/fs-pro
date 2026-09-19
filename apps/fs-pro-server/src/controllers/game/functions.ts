@@ -265,20 +265,23 @@ export async function updateStandings(
       throw new Error('Season does not exist!');
     }
 
-    const standings = season.Standings.map((weekStandings, i) => {
-      if (i !== week - 1) return weekStandings;
+    if (season.Standings && season.Standings.length > 0 && week != null && week > 0) {
+      const standings = season.Standings.map((weekStandings, i) => {
+        if (i !== week - 1) return weekStandings;
+        if (!weekStandings?.Table) return weekStandings;
 
-      return {
-        ...weekStandings,
-        Table: weekStandings.Table.map((row: ClubStandings) => {
-          if (row.ClubCode === home.clubCode) return homeTable;
-          if (row.ClubCode === away.clubCode) return awayTable;
-          return row;
-        }),
-      };
-    });
+        return {
+          ...weekStandings,
+          Table: weekStandings.Table.map((row: ClubStandings) => {
+            if (row.ClubCode === home.clubCode) return homeTable;
+            if (row.ClubCode === away.clubCode) return awayTable;
+            return row;
+          }),
+        };
+      });
 
-    await updateSeasonFields(seasonID, { Standings: standings });
+      await updateSeasonFields(seasonID, { Standings: standings });
+    }
 
     const allMatchesPlayedThatDay =
       fixture.ScheduledDay != null

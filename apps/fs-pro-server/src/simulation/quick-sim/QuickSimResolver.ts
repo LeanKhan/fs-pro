@@ -126,6 +126,67 @@ function computeUnitRating(players: PlayerInterface[], fallback: number): number
   return sum / players.length;
 }
 
+/** A side's four unit ratings, as the resolver derives them from its XI. */
+export interface UnitRatings {
+  att: number;
+  mid: number;
+  def: number;
+  gk: number;
+}
+
+function unitRatingsForSquad(squad: PickedSquad, club: IClub): UnitRatings {
+  const ovr = club.Rating ?? 60;
+  return {
+    att: computeUnitRating(squad.attackers, club.AttackingClass ?? ovr),
+    mid: computeUnitRating(squad.midfielders, ovr),
+    def: computeUnitRating(squad.defenders, club.DefensiveClass ?? ovr),
+    gk: squad.gk?.Rating ?? ovr,
+  };
+}
+
+/** The unit ratings the resolver would use for this club today (its saved
+ * XI, or the auto-picked best XI), plus the XI itself. */
+export function unitRatingsForClub(club: IClub): UnitRatings & { xi: PlayerInterface[] } {
+  const squad = selectStartingLineup(club.Players ?? [], club.Lineup?.startingXI);
+  return {
+    ...unitRatingsForSquad(squad, club),
+    xi: [...(squad.gk ? [squad.gk] : []), ...squad.defenders, ...squad.midfielders, ...squad.attackers],
+  };
+}
+
+function styleBonus(styleName?: string): { att: number; def: number } {
+  const style = styleName?.toLowerCase() ?? '';
+  if (style.includes('press') || style.includes('attack')) return { att: 0.2, def: -0.15 };
+  if (style.includes('block') || style.includes('defend')) return { att: -0.2, def: 0.25 };
+  return { att: 0, def: 0 };
+}
+
+/**
+ * The resolver's expected-goals model, exported so the performance analysis
+ * uses exactly the same numbers as the matches themselves: each side's
+ * expected goals move by (its attack + midfield - the opponent's defence +
+ * goalkeeper) / 25, plus a home edge and a small tactical-style effect.
+ */
+export function computeExpectedGoals(
+  home: UnitRatings,
+  away: UnitRatings,
+  homeStyle?: string,
+  awayStyle?: string
+): { lambdaHome: number; lambdaAway: number } {
+  const homeTactic = styleBonus(homeStyle);
+  const awayTactic = styleBonus(awayStyle);
+
+  // Baseline Expected Goals (xG): Real-world averages ~1.45 home, ~1.15 away
+  const homeAdvantage = 0.25;
+  const homeStrengthDiff = (home.att + home.mid - (away.def + away.gk)) / 25;
+  const awayStrengthDiff = (away.att + away.mid - (home.def + home.gk)) / 25;
+
+  return {
+    lambdaHome: clamp(1.4 + homeAdvantage + homeStrengthDiff + homeTactic.att - awayTactic.def, 0.2, 5.0),
+    lambdaAway: clamp(1.15 + awayStrengthDiff + awayTactic.att - homeTactic.def, 0.15, 4.5),
+  };
+}
+
 /**
  * Fast Statistical Match Resolver.
  * Computes realistic match outcomes, team statistics, player match details, and
@@ -145,49 +206,17 @@ export class QuickSimResolver {
     const homeSquad = selectStartingLineup(homeClub.Players ?? [], homeClub.Lineup?.startingXI);
     const awaySquad = selectStartingLineup(awayClub.Players ?? [], awayClub.Lineup?.startingXI);
 
-    const homeOvr = homeClub.Rating ?? 60;
-    const awayOvr = awayClub.Rating ?? 60;
+    const homeUnits = unitRatingsForSquad(homeSquad, homeClub);
+    const awayUnits = unitRatingsForSquad(awaySquad, awayClub);
+    const homeMid = homeUnits.mid;
+    const awayMid = awayUnits.mid;
 
-    const homeAtt = computeUnitRating(homeSquad.attackers, homeClub.AttackingClass ?? homeOvr);
-    const homeMid = computeUnitRating(homeSquad.midfielders, homeOvr);
-    const homeDef = computeUnitRating(homeSquad.defenders, homeClub.DefensiveClass ?? homeOvr);
-    const homeGk = homeSquad.gk?.Rating ?? homeOvr;
-
-    const awayAtt = computeUnitRating(awaySquad.attackers, awayClub.AttackingClass ?? awayOvr);
-    const awayMid = computeUnitRating(awaySquad.midfielders, awayOvr);
-    const awayDef = computeUnitRating(awaySquad.defenders, awayClub.DefensiveClass ?? awayOvr);
-    const awayGk = awaySquad.gk?.Rating ?? awayOvr;
-
-    // Tactical influence
-    let homeTacticalBonusAtt = 0;
-    let homeTacticalBonusDef = 0;
-    const homeStyle = tactics.home?.styleName?.toLowerCase() ?? '';
-    if (homeStyle.includes('press') || homeStyle.includes('attack')) {
-      homeTacticalBonusAtt += 0.2;
-      homeTacticalBonusDef -= 0.15;
-    } else if (homeStyle.includes('block') || homeStyle.includes('defend')) {
-      homeTacticalBonusDef += 0.25;
-      homeTacticalBonusAtt -= 0.2;
-    }
-
-    let awayTacticalBonusAtt = 0;
-    let awayTacticalBonusDef = 0;
-    const awayStyle = tactics.away?.styleName?.toLowerCase() ?? '';
-    if (awayStyle.includes('press') || awayStyle.includes('attack')) {
-      awayTacticalBonusAtt += 0.2;
-      awayTacticalBonusDef -= 0.15;
-    } else if (awayStyle.includes('block') || awayStyle.includes('defend')) {
-      awayTacticalBonusDef += 0.25;
-      awayTacticalBonusAtt -= 0.2;
-    }
-
-    // Baseline Expected Goals (xG): Real-world averages ~1.45 home, ~1.15 away
-    const homeAdvantage = 0.25;
-    const homeStrengthDiff = (homeAtt + homeMid - (awayDef + awayGk)) / 25;
-    const awayStrengthDiff = (awayAtt + awayMid - (homeDef + homeGk)) / 25;
-
-    const lambdaHome = clamp(1.4 + homeAdvantage + homeStrengthDiff + homeTacticalBonusAtt - awayTacticalBonusDef, 0.2, 5.0);
-    const lambdaAway = clamp(1.15 + awayStrengthDiff + awayTacticalBonusAtt - homeTacticalBonusDef, 0.15, 4.5);
+    const { lambdaHome, lambdaAway } = computeExpectedGoals(
+      homeUnits,
+      awayUnits,
+      tactics.home?.styleName,
+      tactics.away?.styleName
+    );
 
     const homeGoals = samplePoisson(lambdaHome);
     const awayGoals = samplePoisson(lambdaAway);
@@ -415,9 +444,69 @@ export class QuickSimResolver {
       name: `${motmPlayer.FirstName} ${motmPlayer.LastName}`,
     };
 
-    const isDraw = homeGoals === awayGoals;
-    const winnerClub = isDraw ? null : homeGoals > awayGoals ? homeClub : awayClub;
-    const loserClub = isDraw ? null : homeGoals > awayGoals ? awayClub : homeClub;
+    let isDraw = homeGoals === awayGoals;
+    let winnerClub = isDraw ? null : homeGoals > awayGoals ? homeClub : awayClub;
+    let loserClub = isDraw ? null : homeGoals > awayGoals ? awayClub : homeClub;
+    let penalties: { Home: number; Away: number; Winner: string } | undefined = undefined;
+
+    const isKnockout =
+      request.isKnockout === true ||
+      request.fixtureType === 'cup' ||
+      (request.stage &&
+        (request.stage.toLowerCase().includes('knockout') ||
+          request.stage.toLowerCase().includes('round') ||
+          request.stage.toLowerCase().includes('quarter') ||
+          request.stage.toLowerCase().includes('semi') ||
+          request.stage.toLowerCase().includes('final')));
+
+    if (isDraw && isKnockout) {
+      let hPens = 0;
+      let aPens = 0;
+      let hKicks = 0;
+      let aKicks = 0;
+
+      // Best of 5 kicks
+      while (hKicks < 5 || aKicks < 5) {
+        if (hKicks <= aKicks) {
+          hKicks++;
+          if (Math.random() < 0.76) hPens++;
+        } else {
+          aKicks++;
+          if (Math.random() < 0.74) aPens++;
+        }
+        const hRemaining = 5 - hKicks;
+        const aRemaining = 5 - aKicks;
+        if (hPens > aPens + aRemaining || aPens > hPens + hRemaining) {
+          break;
+        }
+      }
+
+      // Sudden death
+      while (hPens === aPens) {
+        const hScore = Math.random() < 0.75;
+        const aScore = Math.random() < 0.72;
+        if (hScore) hPens++;
+        if (aScore) aPens++;
+      }
+
+      const penWinner = hPens > aPens ? homeClub : awayClub;
+      const penLoser = hPens > aPens ? awayClub : homeClub;
+      winnerClub = penWinner;
+      loserClub = penLoser;
+      isDraw = false;
+      penalties = {
+        Home: hPens,
+        Away: aPens,
+        Winner: penWinner.ClubCode,
+      };
+
+      events.push({
+        type: 'penalty-shootout',
+        minute: 120,
+        playerTeamID: penWinner.ClubCode,
+        message: `PENALTIES: ${penWinner.Name} win ${Math.max(hPens, aPens)} - ${Math.min(hPens, aPens)} on penalties!`,
+      } as any);
+    }
 
     const homeSideDetails: IMatchSideDetails = {
       ClubId: homeClub._id as string,
@@ -434,7 +523,7 @@ export class QuickSimResolver {
       Passes: homePasses,
       Events: events.filter((e: any) => e.playerTeamID === homeClub.ClubCode),
       PlayerStats: Array.from(homePlayerStatsMap.values()),
-      Won: !isDraw && homeGoals > awayGoals,
+      Won: !isDraw && winnerClub === homeClub,
       Drew: isDraw,
     };
 
@@ -453,12 +542,16 @@ export class QuickSimResolver {
       Passes: awayPasses,
       Events: events.filter((e: any) => e.playerTeamID === awayClub.ClubCode),
       PlayerStats: Array.from(awayPlayerStatsMap.values()),
-      Won: !isDraw && awayGoals > homeGoals,
+      Won: !isDraw && winnerClub === awayClub,
       Drew: isDraw,
     };
 
     const halfTimeHomeGoals = Math.min(homeGoals, randomInt(0, homeGoals));
     const halfTimeAwayGoals = Math.min(awayGoals, randomInt(0, awayGoals));
+
+    const fullTimeScore = penalties
+      ? `${homeGoals} - ${awayGoals} (${penalties.Home} - ${penalties.Away} pens)`
+      : `${homeGoals} - ${awayGoals}`;
 
     const details: IMatchDetails = {
       Title: `${homeClub.Name} vs ${awayClub.Name}`,
@@ -467,7 +560,7 @@ export class QuickSimResolver {
       Played: true,
       Time: new Date(),
       FirstHalfScore: `${halfTimeHomeGoals} - ${halfTimeAwayGoals}`,
-      FullTimeScore: `${homeGoals} - ${awayGoals}`,
+      FullTimeScore: fullTimeScore,
       HomeTeamScore: homeGoals,
       AwayTeamScore: awayGoals,
       Winner: winnerClub ? { code: winnerClub.ClubCode, id: winnerClub._id as string } : null,
@@ -477,6 +570,7 @@ export class QuickSimResolver {
       Goals: homeGoals + awayGoals,
       HomeTeamDetails: homeSideDetails,
       AwayTeamDetails: awaySideDetails,
+      Penalties: penalties,
     };
 
     return {

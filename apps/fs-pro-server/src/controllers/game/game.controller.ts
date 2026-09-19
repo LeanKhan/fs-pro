@@ -132,13 +132,28 @@ export async function play(
   // still happens here, on the main thread - the worker_thread the
   // simulation itself runs in stays DB-free (see simulateMatch()/
   // buildSimulateMatchRequest.ts).
+  const isKnockout =
+    fixture.Type === 'cup' ||
+    fixture.Stage === 'knockout' ||
+    Boolean(fixture.Stage?.toLowerCase().includes('knockout')) ||
+    Boolean(fixture.Stage?.toLowerCase().includes('round')) ||
+    Boolean(fixture.Stage?.toLowerCase().includes('quarter')) ||
+    Boolean(fixture.Stage?.toLowerCase().includes('semi')) ||
+    Boolean(fixture.Stage?.toLowerCase().includes('final')) ||
+    fixture.isFinalMatch === true;
+
   let simulateRequest;
   try {
     simulateRequest = await buildSimulateMatchRequest(
       fixture_id,
       home,
       away,
-      prefetchedTactics
+      prefetchedTactics,
+      {
+        fixtureType: fixture.Type ?? undefined,
+        stage: fixture.Stage ?? undefined,
+        isKnockout,
+      }
     );
   } catch (error) {
     log(`Error setting up game! (in Rest) => ${error}`);
@@ -281,6 +296,52 @@ export async function play(
 
   return runSimulation()
     .then(async (m) => {
+      // If knockout match ended in draw, ensure winner is decided via penalties
+      if (isKnockout && m.Details.Draw) {
+        let hPens = 0;
+        let aPens = 0;
+        let hKicks = 0;
+        let aKicks = 0;
+        while (hKicks < 5 || aKicks < 5) {
+          if (hKicks <= aKicks) {
+            hKicks++;
+            if (Math.random() < 0.75) hPens++;
+          } else {
+            aKicks++;
+            if (Math.random() < 0.75) aPens++;
+          }
+          const hRem = 5 - hKicks;
+          const aRem = 5 - aKicks;
+          if (hPens > aPens + aRem || aPens > hPens + hRem) break;
+        }
+        while (hPens === aPens) {
+          if (Math.random() < 0.75) hPens++;
+          if (Math.random() < 0.75) aPens++;
+        }
+        const homeWon = hPens > aPens;
+        m.Details.Draw = false;
+        m.Details.Penalties = {
+          Home: hPens,
+          Away: aPens,
+          Winner: homeWon ? m.Home.ClubCode : m.Away.ClubCode,
+        };
+        m.Details.FullTimeScore = `${m.Details.HomeTeamScore} - ${m.Details.AwayTeamScore} (${hPens} - ${aPens} pens)`;
+        m.Details.Winner = homeWon
+          ? { code: m.Home.ClubCode, id: m.Home._id }
+          : { code: m.Away.ClubCode, id: m.Away._id };
+        m.Details.Loser = homeWon
+          ? { code: m.Away.ClubCode, id: m.Away._id }
+          : { code: m.Home.ClubCode, id: m.Home._id };
+        if (m.Details.HomeTeamDetails) {
+          m.Details.HomeTeamDetails.Won = homeWon;
+          m.Details.HomeTeamDetails.Drew = false;
+        }
+        if (m.Details.AwayTeamDetails) {
+          m.Details.AwayTeamDetails.Won = !homeWon;
+          m.Details.AwayTeamDetails.Drew = false;
+        }
+      }
+
       // Stream live replay over sockets if high-fidelity simulation
       if (!options?.quickSim) {
         startMatchReplay(m, fixture_id);

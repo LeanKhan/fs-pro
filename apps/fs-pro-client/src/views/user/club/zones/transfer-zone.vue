@@ -6,7 +6,34 @@
       <v-chip color="green">Budget: {{ currency(club.Budget) }}</v-chip>
     </v-card-title>
 
+    <v-alert
+      :type="windowState?.open ? 'success' : 'warning'"
+      variant="tonal"
+      density="compact"
+      class="mx-4 mt-2"
+    >
+      <template v-if="windowState?.open">
+        Transfer window is <strong>open</strong>
+        <template v-if="windowState.daysLeft !== null">
+          - closes in {{ windowState.daysLeft }} day{{ windowState.daysLeft === 1 ? '' : 's' }}
+          (day {{ windowState.closesDay }})
+        </template>
+        <template v-else> until the next season starts.</template>
+      </template>
+      <template v-else>
+        Transfer window is <strong>closed</strong>. Bids and purchases reopen
+        when the next window opens.
+      </template>
+    </v-alert>
+
     <v-card-text>
+      <transfer-offers-panel
+        ref="offersPanel"
+        :club-id="club._id"
+        :window-open="!!windowState?.open"
+        @changed="onPurchase"
+      />
+
       <v-row dense>
         <v-col cols="12" md="6">
           <v-text-field
@@ -48,12 +75,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { client } from '@/services/api';
+import { useStore } from '@/store';
 import { currency } from '@/helpers/misc';
 import TransferMarketTable from '@/components/players/transfer-market-table.vue';
 import BuyPlayerDialog from '@/components/players/buy-player-dialog.vue';
+import TransferOffersPanel from '@/components/players/transfer-offers-panel.vue';
+import type { TransferWindow } from '@repo/api-contract';
 import type { MarketPlayer } from '@/components/players/transfer-market-table.vue';
 
 const props = defineProps<{ club: any }>();
+const store = useStore();
 const emit = defineEmits<{ (e: 'update-available'): void }>();
 
 const freeAgents = ref<MarketPlayer[]>([]);
@@ -62,6 +93,17 @@ const search = ref('');
 const filter = ref<'all' | 'free-agents' | 'other-clubs'>('all');
 const showBuyDialog = ref(false);
 const selectedPlayer = ref<MarketPlayer | null>(null);
+const windowState = ref<TransferWindow | null>(null);
+const offersPanel = ref<InstanceType<typeof TransferOffersPanel> | null>(null);
+
+async function loadWindow() {
+  try {
+    const res = await client.transfers.getTransferWindow.query();
+    if (res.status === 200) windowState.value = res.body.payload;
+  } catch (error) {
+    console.error('Error loading the transfer window:', error);
+  }
+}
 
 const filteredPlayers = computed<MarketPlayer[]>(() => {
   if (filter.value === 'free-agents') return freeAgents.value;
@@ -104,12 +146,18 @@ async function loadOtherClubsPlayers() {
 }
 
 function openBuyDialog(player: MarketPlayer) {
+  if (windowState.value && !windowState.value.open) {
+    store.showToast({ message: 'The transfer window is closed', style: 'warning' });
+    return;
+  }
   selectedPlayer.value = player;
   showBuyDialog.value = true;
 }
 
 function onPurchase() {
   emit('update-available');
+  loadWindow();
+  offersPanel.value?.load();
   loadFreeAgents();
   loadOtherClubsPlayers();
 }
@@ -122,6 +170,7 @@ watch(
 );
 
 onMounted(() => {
+  loadWindow();
   loadFreeAgents();
   loadOtherClubsPlayers();
 });

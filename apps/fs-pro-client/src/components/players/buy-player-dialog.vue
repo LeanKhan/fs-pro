@@ -7,7 +7,7 @@
   >
     <v-card class="pa-0" :loading="loading">
       <v-card-title class="text-h5 bg-cyan-darken-2" primary-title>
-        Buy Player
+        {{ isBid ? 'Place Bid' : 'Buy Player' }}
         <v-spacer></v-spacer>
         <v-btn size="small" icon @click="close">
           <v-icon size="small">mdi-close</v-icon>
@@ -29,12 +29,17 @@
           class="mt-4"
           type="number"
           color="cyan-darken-1"
-          label="Offer Amount"
+          :label="isBid ? 'Bid Amount' : 'Offer Amount'"
           v-model.number="offerAmount"
           :rules="[
-            (v: number) => v >= (player?.Value ?? 0) || `Must be at least ${currency(player?.Value)}`,
+            (v: number) => v >= minAmount || `Must be at least ${currency(minAmount)}`,
           ]"
         ></v-text-field>
+
+        <div v-if="isBid" class="text-caption text-medium-emphasis mb-1">
+          {{ player.ClubCode }} will accept, counter or refuse. Bids of at least
+          half his value are considered.
+        </div>
 
         <div class="text-caption">
           Your Budget: {{ currency(myBudget) }}
@@ -50,7 +55,7 @@
           :loading="loading"
           :disabled="loading || !canSubmit"
         >
-          Confirm Purchase
+          {{ isBid ? 'Place Bid' : 'Confirm Purchase' }}
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -90,8 +95,16 @@ watch(
   }
 );
 
+/** A player who belongs to a club is bid for; a free agent is bought outright. */
+const isBid = computed(() => !!props.player?.ClubId);
+
+const minAmount = computed(() => {
+  const value = props.player?.Value ?? 0;
+  return isBid.value ? Math.ceil(value * 0.5) : value;
+});
+
 const canSubmit = computed(
-  () => !!props.player && offerAmount.value >= (props.player.Value ?? 0)
+  () => !!props.player && offerAmount.value >= minAmount.value
 );
 
 const close = () => {
@@ -105,6 +118,42 @@ const confirmPurchase = async () => {
   error.value = '';
 
   try {
+    if (isBid.value) {
+      const bid = await client.transfers.placeBid.mutation({
+        body: {
+          playerId: props.player._id ?? '',
+          biddingClubId: props.club,
+          amount: offerAmount.value,
+        },
+      });
+
+      if (bid.status !== 200) {
+        error.value = bid.body.message;
+        store.showToast({ message: bid.body.message, style: 'error' });
+        return;
+      }
+
+      const offer = bid.body.payload;
+      if (offer.status === 'accepted') {
+        store.showToast({ message: `${props.player.LastName} signed!`, style: 'success' });
+      } else if (offer.status === 'countered') {
+        store.showToast({
+          message: `${offer.toClub.code} want ${currency(offer.counterAmount ?? 0)} - see My Offers`,
+          style: 'warning',
+        });
+      } else if (offer.status === 'pending') {
+        store.showToast({ message: 'Bid sent - waiting for their answer', style: 'info' });
+      } else {
+        // Refused: keep the dialog open so the bid can be raised.
+        error.value = offer.note ?? 'Bid refused';
+        emit('update-available');
+        return;
+      }
+      emit('update:show', false);
+      emit('update-available');
+      return;
+    }
+
     const response = await client.transfers.purchasePlayer.mutation({
       body: {
         playerId: props.player._id ?? '',
