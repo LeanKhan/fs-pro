@@ -2,7 +2,7 @@
 
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
-import { CalendarSchema, DaySchema } from '../schemas/calendar';
+import { CalendarSchema, DaySchema, WorldFeedSchema } from '../schemas/calendar';
 import { SeasonSchema } from '../schemas/season';
 import { successEnvelope, failEnvelope } from '../schemas/envelope';
 
@@ -15,6 +15,15 @@ export const calendarContract = c.router(
       path: '/current',
       responses: {
         200: successEnvelope(CalendarSchema),
+        400: failEnvelope(),
+      },
+    },
+
+    getWorldFeed: {
+      method: 'GET',
+      path: '/world-feed',
+      responses: {
+        200: successEnvelope(WorldFeedSchema),
         400: failEnvelope(),
       },
     },

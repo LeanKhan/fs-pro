@@ -23,6 +23,8 @@ export default class Player implements PlayerInterface {
   public isSubstituted?: boolean;
   public Role: Role;
   public GameStats: IGameStats;
+  public Fitness?: number;
+  public Injury?: { type: string; daysRemaining: number } | null;
 
   constructor(player: Player) {
     this._id = player._id;
@@ -39,6 +41,8 @@ export default class Player implements PlayerInterface {
     this.Value = player.Value;
     this.ClubCode = player.ClubCode;
     this.Role = player.Role;
+    this.Fitness = player.Fitness;
+    this.Injury = player.Injury;
     this.isStarting = false;
     this.GameStats = {
       Goals: 0,

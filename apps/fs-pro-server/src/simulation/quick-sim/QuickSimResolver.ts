@@ -43,16 +43,36 @@ interface PickedSquad {
   attackers: PlayerInterface[];
 }
 
-function selectStartingLineup(players: PlayerInterface[]): PickedSquad {
-  const sorted = [...players].sort((a, b) => (b.Rating ?? 50) - (a.Rating ?? 50));
+function selectStartingLineup(
+  players: PlayerInterface[],
+  preferredIds?: string[]
+): PickedSquad {
+  const healthyPlayers = players.filter(
+    (p) => !(p.Injury && (p.Injury as any).daysRemaining > 0)
+  );
+  const sorted = [...healthyPlayers].sort((a, b) => (b.Rating ?? 50) - (a.Rating ?? 50));
   const startingSet = new Set<string>();
   const startingXI: PlayerInterface[] = [];
 
-  // 1. Pick best GK
-  const gk = sorted.find((p) => p.Position === 'GK') ?? sorted[0];
-  if (gk?._id) {
-    startingSet.add(gk._id);
-    startingXI.push(gk);
+  // 0. If preferred starters are provided, select healthy preferred players first
+  if (preferredIds?.length) {
+    for (const pId of preferredIds) {
+      if (startingXI.length >= 11) break;
+      const found = healthyPlayers.find((p) => String(p._id) === pId);
+      if (found && found._id && !startingSet.has(found._id)) {
+        startingSet.add(found._id);
+        startingXI.push(found);
+      }
+    }
+  }
+
+  // 1. Pick best GK if not yet picked
+  if (!startingXI.some((p) => p.Position === 'GK')) {
+    const gk = sorted.find((p) => p.Position === 'GK') ?? sorted[0];
+    if (gk?._id && !startingSet.has(gk._id)) {
+      startingSet.add(gk._id);
+      startingXI.push(gk);
+    }
   }
 
   // 2. Pick up to 4 DEF
@@ -122,8 +142,8 @@ export class QuickSimResolver {
       throw new Error(`QuickSim: Club not found for sides ${sides.home} vs ${sides.away}`);
     }
 
-    const homeSquad = selectStartingLineup(homeClub.Players ?? []);
-    const awaySquad = selectStartingLineup(awayClub.Players ?? []);
+    const homeSquad = selectStartingLineup(homeClub.Players ?? [], homeClub.Lineup?.startingXI);
+    const awaySquad = selectStartingLineup(awayClub.Players ?? [], awayClub.Lineup?.startingXI);
 
     const homeOvr = homeClub.Rating ?? 60;
     const awayOvr = awayClub.Rating ?? 60;

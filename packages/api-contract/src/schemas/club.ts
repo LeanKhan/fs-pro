@@ -70,6 +70,21 @@ export const ClubSchema = z.object({
   // TransferLedger table, not on this field.
   Budget: z.number().nullable().optional(),
   Records: z.array(z.unknown()).optional(),
+  Lineup: z
+    .object({
+      startingXI: z.array(z.string()),
+      bench: z.array(z.string()),
+    })
+    .nullable()
+    .optional(),
+  Tactic: z
+    .object({
+      formationName: z.string(),
+      styleName: z.string(),
+    })
+    .nullable()
+    .optional(),
+  Finances: z.record(z.unknown()).nullable().optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
 });

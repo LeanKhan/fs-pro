@@ -4,6 +4,7 @@ import {
   allFixturesPlayedForDay,
   findNextUnplayedDay,
 } from '../fixtures/fixture.service';
+import { PlayerFitnessService } from '../../services/players/player-fitness.service';
 
 let calendarRepo: ReturnType<typeof CalendarRepositoryFactory.create> | null =
   null;
@@ -45,6 +46,15 @@ export async function advanceDayIfDone(
   const next = await findNextUnplayedDay(scheduledDay);
   if (!next) {
     return null;
+  }
+
+  const daysElapsed = next.day - scheduledDay;
+  if (daysElapsed > 0) {
+    try {
+      await PlayerFitnessService.recoverFitnessAndInjuries(daysElapsed);
+    } catch (err) {
+      console.error('Error recovering fitness and injuries on day advance:', err);
+    }
   }
 
   return updateCalendar({ CurrentDay: next.day, CurrentDate: next.date });

@@ -34,8 +34,8 @@ export async function buildSimulateMatchRequest(
   const tactics =
     prefetchedTactics ??
     ({
-      home: await resolveManagerTactic(homeClub?.ManagerId),
-      away: await resolveManagerTactic(awayClub?.ManagerId),
+      home: homeClub?.Tactic ?? (await resolveManagerTactic(homeClub?.ManagerId)),
+      away: awayClub?.Tactic ?? (await resolveManagerTactic(awayClub?.ManagerId)),
     } as { home: ITactic; away: ITactic });
 
   // Strip Mongoose/BSON ObjectId instances etc. down to plain data before

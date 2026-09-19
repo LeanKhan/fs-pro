@@ -160,6 +160,9 @@ export const clubs = pgTable('Clubs', {
   LeagueCode: text('LeagueCode'),
   LeagueId: uuid('LeagueId').references(() => competitions.id),
   UserId: uuid('UserId').references(() => users.id),
+  Lineup: jsonb('Lineup').$type<{ startingXI: string[]; bench: string[] } | null>(),
+  Tactic: jsonb('Tactic').$type<{ formationName: string; styleName: string } | null>(),
+  Finances: jsonb('Finances').$type<Record<string, unknown> | null>(),
   ...timestamps,
   // Players dropped - it's the exact inverse of players.Club below.
 });
@@ -275,6 +278,8 @@ export const players = pgTable('Players', {
    * POST /players/:id/update route as isRetired - no dedicated route, see
    * player-training.service.ts's doc comment for why. */
   TrainingFocus: text('TrainingFocus'),
+  Fitness: real('Fitness').notNull().default(100),
+  Injury: jsonb('Injury').$type<{ type: string; daysRemaining: number } | null>(),
   ClubCode: text('ClubCode'),
   ClubId: uuid('ClubId').references(() => clubs.id),
   ...timestamps,
