@@ -211,6 +211,12 @@ const socketConnected = computed(() => {
 const userNavItems = computed((): any[] => {
   let routes = [
     { title: 'Home', icon: 'mdi-soccer', link: '/u', color: 'primary' },
+    {
+      title: 'Year Calendar',
+      icon: 'mdi-calendar-month',
+      link: '/u/calendar',
+      color: 'indigo',
+    },
   ];
 
   if (

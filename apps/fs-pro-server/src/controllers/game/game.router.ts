@@ -8,6 +8,7 @@ import type {
 import { play, getInProgressSeason } from './game.controller';
 import { getFixturesByDay } from '../fixtures/fixture.service';
 import { createFixture } from '../fixtures/fixture.service';
+import { advanceDayIfDone } from '../calendar/calendar.service';
 import { getClubById } from '../clubs/club.service';
 import { startMatchReplay } from '../../realtime/matchBroadcaster';
 import { enqueueMatchPlay } from '../../jobs/matchQueue';
@@ -57,8 +58,18 @@ export const gameTsRestRoutes = s.router(contract.game, {
           .map((f) => f._id as string);
 
         for (const otherId of fixturesNotPlayed) {
-          const other = await play(otherId, { quickSim: true });
-          results.others.push(other as ContractPlayResult);
+          try {
+            const other = await play(otherId, { quickSim: true });
+            results.others.push(other as ContractPlayResult);
+          } catch (matchErr) {
+            console.error(`[simulate_rest] Error simulating match ${otherId}:`, matchErr);
+          }
+        }
+
+        try {
+          await advanceDayIfDone(scheduledDay);
+        } catch (advErr) {
+          console.error(`[simulate_rest] Error advancing day ${scheduledDay}:`, advErr);
         }
       }
 

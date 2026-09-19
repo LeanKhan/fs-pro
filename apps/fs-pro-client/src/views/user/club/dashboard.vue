@@ -244,19 +244,31 @@
                     <span class="text-subtitle-2 font-weight-bold text-white">
                       League Fixture Calendar
                     </span>
-                    <v-btn-toggle
-                      v-model="fixtureFilterMode"
-                      mandatory
-                      density="compact"
-                      color="primary"
-                    >
-                      <v-btn value="all" size="x-small">
-                        All League Matches
+                    <div class="d-flex align-center gap-2">
+                      <v-btn-toggle
+                        v-model="fixtureFilterMode"
+                        mandatory
+                        density="compact"
+                        color="primary"
+                      >
+                        <v-btn value="all" size="x-small">
+                          All League Matches
+                        </v-btn>
+                        <v-btn value="club" size="x-small">
+                          My Club Only
+                        </v-btn>
+                      </v-btn-toggle>
+
+                      <v-btn
+                        to="/u/calendar"
+                        color="indigo-lighten-2"
+                        variant="tonal"
+                        size="x-small"
+                        prepend-icon="mdi-calendar-multiselect"
+                      >
+                        Year Calendar
                       </v-btn>
-                      <v-btn value="club" size="x-small">
-                        My Club Only
-                      </v-btn>
-                    </v-btn-toggle>
+                    </div>
                   </div>
 
                   <v-sheet width="100%" color="transparent" class="mt-2 pb-3">

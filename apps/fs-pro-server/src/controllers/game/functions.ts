@@ -20,7 +20,7 @@ interface Team {
   id: string;
   name: string;
   clubCode: string;
-  manager: string;
+  manager: string | null;
 }
 
 // };
@@ -162,8 +162,8 @@ export async function updateFixture(
       Events,
       HomeSideDetailsId: homeMatchDetailsID,
       AwaySideDetailsId: awayMatchDetailsID,
-      HomeManagerId: home.manager,
-      AwayManagerId: away.manager,
+      HomeManagerId: home.manager && typeof home.manager === 'string' && home.manager.trim() ? home.manager : null,
+      AwayManagerId: away.manager && typeof away.manager === 'string' && away.manager.trim() ? away.manager : null,
     } as any),
     HSD,
     ASD,

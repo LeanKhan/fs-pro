@@ -6,7 +6,7 @@ import type {
   Season as ContractSeason,
 } from '@repo/api-contract';
 
-import { getCalendar } from './calendar.service';
+import { getCalendar, healCalendar } from './calendar.service';
 import { getEvents, deleteDayById } from '../days/day.service';
 import { getCompetitions } from '../competitions/competition.service';
 import { create as createSeason } from '../../middleware/seasons';
@@ -26,6 +26,7 @@ import {
 import { refreshAllClubsRatings } from '../clubs/club.service';
 import type { SeasonInterface } from '../seasons/season.model';
 import { WorldFeedService } from '../../services/world/world-feed.service';
+import { MatchdayRunnerService } from '../../services/calendar/matchday-runner.service';
 
 const s = initServer();
 
@@ -378,4 +379,57 @@ export const calendarTsRestRoutes = s.router(contract.calendar, {
       };
     }
   },
+
+  healCalendar: async () => {
+    try {
+      const result = await healCalendar();
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: `Calendar healed successfully! Auto-resolved ${result.healedCount} unplayed fixtures.`,
+          payload: result,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error healing calendar',
+          payload: fail(err),
+        },
+      };
+    }
+  },
+
+  simulateToDate: async ({ body }) => {
+    try {
+      const result = await MatchdayRunnerService.simulateToDate({
+        targetDay: body.targetDay,
+        targetDate: body.targetDate,
+        includeTargetDay: body.includeTargetDay,
+      });
+
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: `Simulation complete! Simulated ${result.simulatedFixtures} match(es) across ${result.simulatedDays} day(s).`,
+          payload: result,
+        },
+      };
+    } catch (err) {
+      console.error('[simulateToDate] Error:', err);
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error simulating to target date',
+          payload: fail(err),
+        },
+      };
+    }
+  },
 });
+

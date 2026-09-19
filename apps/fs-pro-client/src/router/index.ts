@@ -108,6 +108,14 @@ const routes: RouteRecordRaw[] = [
               ),
             name: 'User Home',
           },
+          {
+            path: 'calendar',
+            component: () =>
+              import(
+                /* webpackChunkName: "year_calendar" */ '../views/user/calendar/year-calendar.vue'
+              ),
+            name: 'Year Calendar',
+          },
 
           {
             path: 'fixtures',
