@@ -91,11 +91,19 @@ async function createClubKitSprite(kitUrl: string): Promise<string> {
     }
   }
   context.putImageData(pixels, 0, 0);
-  return canvas.toDataURL('image/png');
+  // A blob URL is a short string the browser decodes once; a base64 data URL
+  // would be hundreds of KB that gets re-parsed with every style update.
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, 'image/png')
+  );
+  if (!blob) throw new Error('Unable to encode club kit sprite');
+  return URL.createObjectURL(blob);
 }
 
-/** Generate once per club, never per player or animation frame. Retry failed
- * requests on the next watch rather than caching an unavailable image. */
+/** Generate once per club, never per player or animation frame. The returned
+ * blob URL stays valid for the page's lifetime (one small image per club).
+ * Retry failed requests on the next watch rather than caching an unavailable
+ * image. */
 export function getClubKitSprite(kitUrl: string): Promise<string> {
   let result = sprites.get(kitUrl);
   if (!result) {
