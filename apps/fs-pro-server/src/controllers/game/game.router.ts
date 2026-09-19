@@ -34,7 +34,8 @@ export const gameTsRestRoutes = s.router(contract.game, {
     const fixture_id = params.fixture;
 
     try {
-      const main = await play(fixture_id);
+      const isQuickSim = query.quick_sim === true;
+      const main = await play(fixture_id, { quickSim: isQuickSim });
       const results: ContractGameResults = {
         main: main as ContractPlayResult,
         others: [],
@@ -56,7 +57,7 @@ export const gameTsRestRoutes = s.router(contract.game, {
           .map((f) => f._id as string);
 
         for (const otherId of fixturesNotPlayed) {
-          const other = await play(otherId);
+          const other = await play(otherId, { quickSim: true });
           results.others.push(other as ContractPlayResult);
         }
       }

@@ -30,6 +30,7 @@ export const gameContract = c.router(
       query: z.object({
         send_other_results: booleanQuery().optional(),
         simulate_rest: booleanQuery().optional(),
+        quick_sim: booleanQuery().optional(),
       }),
       responses: {
         200: successEnvelope(z.union([GameResultsSchema, PlayResultSchema])),
