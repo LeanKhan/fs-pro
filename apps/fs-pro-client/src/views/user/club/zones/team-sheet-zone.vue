@@ -254,7 +254,20 @@ const emit = defineEmits<{
 }>();
 
 const formationOptions = ['4-3-3', '4-4-2', '4-2-3-1', '3-5-2'];
-const styleOptions = ['Balanced', 'High Press', 'Low Block', 'Possession', 'Direct'];
+// value = the match engine's PLAYING_STYLES key, title = what the user reads.
+const styleOptions = [
+  { title: 'Balanced', value: 'Balanced' },
+  { title: 'High Press', value: 'HighPress' },
+  { title: 'Low Block', value: 'LowBlock' },
+  { title: 'Possession', value: 'Possession' },
+  { title: 'Direct', value: 'Direct' },
+];
+
+/** Older saves stored the display label ('High Press'); map it to the key. */
+function toStyleKey(saved: string): string {
+  const squash = (v: string) => v.replace(/[\s_-]+/g, '').toLowerCase();
+  return styleOptions.find((o) => squash(o.value) === squash(saved))?.value ?? 'Balanced';
+}
 
 const selectedFormation = ref('4-3-3');
 const selectedStyle = ref('Balanced');
@@ -368,7 +381,7 @@ watch(
       else if (f === '352') selectedFormation.value = '3-5-2';
     }
     if (c.Tactic?.styleName) {
-      selectedStyle.value = c.Tactic.styleName;
+      selectedStyle.value = toStyleKey(c.Tactic.styleName);
     }
 
     if (c.Lineup?.startingXI?.length) {
