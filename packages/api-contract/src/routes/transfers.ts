@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { PlayerSchema } from '../schemas/player';
 import { ClubSchema } from '../schemas/club';
 import { successEnvelope, failEnvelope } from '../schemas/envelope';
+import { TransferOfferSchema, TransferWindowSchema } from '../schemas/transfer';
 
 const c = initContract();
 
@@ -33,6 +34,77 @@ export const transfersContract = c.router(
             amount: z.number(),
           })
         ),
+        400: failEnvelope(),
+        404: failEnvelope(),
+      },
+    },
+
+    /** Whether transfers are currently allowed. Purchases and bids are refused
+     * while the window is closed. */
+    getTransferWindow: {
+      method: 'GET',
+      path: '/window',
+      responses: {
+        200: successEnvelope(TransferWindowSchema),
+        400: failEnvelope(),
+      },
+    },
+
+    /** Admin: open the window (optionally for N game days) or close it. */
+    setTransferWindow: {
+      method: 'POST',
+      path: '/window',
+      body: z.object({
+        open: z.boolean(),
+        days: z.number().int().positive().optional(),
+      }),
+      responses: {
+        200: successEnvelope(TransferWindowSchema),
+        400: failEnvelope(),
+      },
+    },
+
+    /** Bid for a player who belongs to another club. An AI club answers at
+     * once (accept - the transfer happens now -, counter, or refuse); a
+     * human club gets it in their offers inbox. */
+    placeBid: {
+      method: 'POST',
+      path: '/bids',
+      body: z.object({
+        playerId: z.string(),
+        biddingClubId: z.string(),
+        amount: z.number().positive(),
+      }),
+      responses: {
+        200: successEnvelope(TransferOfferSchema),
+        400: failEnvelope(),
+        404: failEnvelope(),
+      },
+    },
+
+    /** A club's bids: ones it has made and ones made for its players. */
+    getOffers: {
+      method: 'GET',
+      path: '/offers',
+      query: z.object({ clubId: z.string() }),
+      responses: {
+        200: successEnvelope(z.array(TransferOfferSchema)),
+        400: failEnvelope(),
+      },
+    },
+
+    /** Answer an offer when it is the club's turn (owner of a pending bid, or
+     * bidder of a countered one). Accepting executes the transfer. */
+    respondToOffer: {
+      method: 'POST',
+      path: '/offers/:id/respond',
+      pathParams: z.object({ id: z.string() }),
+      body: z.object({
+        clubId: z.string(),
+        action: z.enum(['accept', 'reject']),
+      }),
+      responses: {
+        200: successEnvelope(TransferOfferSchema),
         400: failEnvelope(),
         404: failEnvelope(),
       },

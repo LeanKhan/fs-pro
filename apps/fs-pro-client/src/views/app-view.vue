@@ -77,41 +77,15 @@
       </v-list>
     </v-navigation-drawer>
 
-    <v-app-bar density="compact" v-if="!MatchZone">
+    <v-app-bar density="compact" elevation="2" v-if="!MatchZone" class="app-top-bar" color="#0c0e15">
       <v-app-bar-nav-icon @click.stop="drawer = !drawer" />
-      <img class="mx-4" width="40px" :src="`/logo-new.png`" />
-      <v-toolbar-title class="mr-12 align-center">
-        <span class="text-h6">FS Pro</span>
-      </v-toolbar-title>
+      <img class="mr-2 ml-1" width="30px" :src="`/logo-new.png`" />
 
-      <v-spacer></v-spacer>
-
-      <v-badge
-        bordered
-        location="bottom end"
-        :color="socketConnected ? 'deep-purple-accent-4' : 'grey'"
-        dot
-        offset-x="10"
-        offset-y="10"
-      >
-        <v-avatar size="30">
-          <v-img
-            :src="`${
-              userMode
-                ? 'https://randomuser.me/api/portraits/women/84.jpg'
-                : 'https://randomuser.me/api/portraits/men/85.jpg'
-            }`"
-          ></v-img>
-        </v-avatar>
-      </v-badge>
-
-      <span class="ml-2">
-        {{ user ? user.username : 'User' }}
-      </span>
-
-      <v-btn class="ml-2" size="small" icon>
-        <v-icon size="small" color="error" @click="logout">mdi-logout</v-icon>
-      </v-btn>
+      <!-- Top Bar Ticker Component (Competition, Treasury, Date, World Events, Persona) -->
+      <top-bar-ticker
+        :socket-connected="socketConnected"
+        @logout="logout"
+      />
     </v-app-bar>
 
     <v-main>
@@ -156,8 +130,9 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute, onBeforeRouteUpdate } from 'vue-router';
 import { useStore } from '@/store';
-import { client } from '@/services/api';
+import { client, apiUrl } from '@/services/api';
 import { appSocket } from '@/services/socket';
+import TopBarTicker from '@/components/navigation/top-bar-ticker.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -205,6 +180,11 @@ const logout = async (): Promise<void> => {
     if (response.status === 200) {
       appSocket.disconnect();
       store.unsetUser();
+      if (import.meta.env.VITE_IMAGINATION_LOGIN === 'true') {
+        // End the Imagination session too; it sends the browser back to the login page.
+        window.location.assign(`${apiUrl}/api/auth/logout`);
+        return;
+      }
       router.push('/auth');
     }
   } catch (error) {
@@ -236,6 +216,18 @@ const socketConnected = computed(() => {
 const userNavItems = computed((): any[] => {
   let routes = [
     { title: 'Home', icon: 'mdi-soccer', link: '/u', color: 'primary' },
+    {
+      title: 'Year Calendar',
+      icon: 'mdi-calendar-month',
+      link: '/u/calendar',
+      color: 'indigo',
+    },
+    {
+      title: 'Season History',
+      icon: 'mdi-history',
+      link: '/u/history',
+      color: 'amber',
+    },
   ];
 
   if (

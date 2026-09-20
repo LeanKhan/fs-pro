@@ -41,6 +41,14 @@ const routes: RouteRecordRaw[] = [
     redirect: 'auth/login',
     children: [
       {
+        // Where Imagination login lands: picks up the session the server just
+        // created and signs this app in.
+        path: 'complete',
+        component: () =>
+          import(/* webpackChunkName: "sso_complete" */ '../views/auth/sso-complete.vue'),
+        name: 'LoginComplete',
+      },
+      {
         path: 'login',
         component: () =>
           import(/* webpackChunkName: "login" */ '../views/auth/login.vue'),
@@ -107,6 +115,22 @@ const routes: RouteRecordRaw[] = [
                 /* webpackChunkName: "admin" */ '../views/user/dashboard.vue'
               ),
             name: 'User Home',
+          },
+          {
+            path: 'calendar',
+            component: () =>
+              import(
+                /* webpackChunkName: "year_calendar" */ '../views/user/calendar/year-calendar.vue'
+              ),
+            name: 'Year Calendar',
+          },
+          {
+            path: 'history',
+            component: () =>
+              import(
+                /* webpackChunkName: "season_history" */ '../views/user/history/season-history.vue'
+              ),
+            name: 'Season History',
           },
 
           {

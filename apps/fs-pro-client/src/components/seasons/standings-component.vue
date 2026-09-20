@@ -12,7 +12,19 @@
       hide-default-footer
     >
       <template v-slot:item.ClubCode="{ item }">
-        <v-icon>custom:{{ item.ClubCode }}</v-icon>
+        <router-link
+          v-if="item.ClubID"
+          :to="`/u/clubs/${item.ClubID}/${item.ClubCode}`"
+          class="d-flex align-center gap-2 text-decoration-none text-white font-weight-bold"
+          title="View Club Public Profile"
+        >
+          <v-icon size="small">custom:{{ item.ClubCode }}</v-icon>
+          <span class="text-caption font-weight-bold">{{ item.ClubCode }}</span>
+        </router-link>
+        <div v-else class="d-flex align-center gap-2">
+          <v-icon size="small">custom:{{ item.ClubCode }}</v-icon>
+          <span class="text-caption font-weight-bold">{{ item.ClubCode }}</span>
+        </div>
       </template>
     </v-data-table>
   </v-card>

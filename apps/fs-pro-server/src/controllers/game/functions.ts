@@ -13,12 +13,14 @@ import { Fixture } from '../fixtures/fixture.model';
 import { createManyPlayerMatches } from '../player-match/player-match.service';
 import { PlayerMatchDetailsInterface } from '../player-match/player-match.model';
 import { createClubMatch } from '../club-match/club-match.service';
+import { PlayerFitnessService } from '../../services/players/player-fitness.service';
+import { getClubById, updateClubFields } from '../clubs/club.service';
 
 interface Team {
   id: string;
   name: string;
   clubCode: string;
-  manager: string;
+  manager: string | null;
 }
 
 // };
@@ -78,6 +80,11 @@ export async function updateFixture(
     const clubMatchId = clubMatch._id;
 
     if (saveStats) {
+      // Apply player fitness loss and in-match injury rolls
+      await PlayerFitnessService.applyMatchFatigueAndInjuries(
+        club.PlayerStats as PlayerMatchDetailsInterface[]
+      );
+
       club.PlayerStats = club.PlayerStats.map((p: any) => ({
         ...p,
         FixtureId: fixture_id,
@@ -105,6 +112,48 @@ export async function updateFixture(
     savePlayerAndClubStats(AwaySideDetails),
   ]);
 
+  // Home team matchday attendance and gate receipts
+  try {
+    const homeClub = await getClubById(home.id);
+    if (homeClub) {
+      const stadiumCapacity = Number((homeClub.Stadium as any)?.Capacity) || 20000;
+      const attendance = Math.round(stadiumCapacity * (0.65 + 0.3 * Math.random()));
+      const ticketPrice = 28;
+      const matchdayRevenue = attendance * ticketPrice;
+      const matchdayCosts = Math.round(attendance * 6 + 10000);
+      const netProfit = matchdayRevenue - matchdayCosts;
+
+      const currentBudget = homeClub.Budget ?? 1000000;
+      const newBudget = currentBudget + netProfit;
+
+      const finances = (homeClub.Finances as any) || {
+        totalMatchdayRevenue: 0,
+        totalMatchdayCosts: 0,
+        history: [],
+      };
+
+      finances.totalMatchdayRevenue = (finances.totalMatchdayRevenue || 0) + matchdayRevenue;
+      finances.totalMatchdayCosts = (finances.totalMatchdayCosts || 0) + matchdayCosts;
+      if (!Array.isArray(finances.history)) finances.history = [];
+      finances.history.unshift({
+        fixtureId: fixture_id,
+        date: new Date(),
+        attendance,
+        revenue: matchdayRevenue,
+        costs: matchdayCosts,
+        net: netProfit,
+      });
+      if (finances.history.length > 25) finances.history.pop();
+
+      await updateClubFields(home.id, {
+        Budget: newBudget,
+        Finances: finances,
+      });
+    }
+  } catch (e) {
+    console.error('Error applying matchday financials:', e);
+  }
+
   return {
     fixture: await updateFixtureFields(fixture_id, {
       Played: true,
@@ -113,8 +162,8 @@ export async function updateFixture(
       Events,
       HomeSideDetailsId: homeMatchDetailsID,
       AwaySideDetailsId: awayMatchDetailsID,
-      HomeManagerId: home.manager,
-      AwayManagerId: away.manager,
+      HomeManagerId: home.manager && typeof home.manager === 'string' && home.manager.trim() ? home.manager : null,
+      AwayManagerId: away.manager && typeof away.manager === 'string' && away.manager.trim() ? away.manager : null,
     } as any),
     HSD,
     ASD,
@@ -216,20 +265,23 @@ export async function updateStandings(
       throw new Error('Season does not exist!');
     }
 
-    const standings = season.Standings.map((weekStandings, i) => {
-      if (i !== week - 1) return weekStandings;
+    if (season.Standings && season.Standings.length > 0 && week != null && week > 0) {
+      const standings = season.Standings.map((weekStandings, i) => {
+        if (i !== week - 1) return weekStandings;
+        if (!weekStandings?.Table) return weekStandings;
 
-      return {
-        ...weekStandings,
-        Table: weekStandings.Table.map((row: ClubStandings) => {
-          if (row.ClubCode === home.clubCode) return homeTable;
-          if (row.ClubCode === away.clubCode) return awayTable;
-          return row;
-        }),
-      };
-    });
+        return {
+          ...weekStandings,
+          Table: weekStandings.Table.map((row: ClubStandings) => {
+            if (row.ClubCode === home.clubCode) return homeTable;
+            if (row.ClubCode === away.clubCode) return awayTable;
+            return row;
+          }),
+        };
+      });
 
-    await updateSeasonFields(seasonID, { Standings: standings });
+      await updateSeasonFields(seasonID, { Standings: standings });
+    }
 
     const allMatchesPlayedThatDay =
       fixture.ScheduledDay != null

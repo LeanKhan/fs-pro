@@ -12,6 +12,7 @@ import {
   getCompetitions,
 } from '../competitions/competition.service';
 import { appendClubRecord } from '../clubs/club.service';
+import { payoutSeasonPrizes } from '../../services/economy/prize-money.service';
 
 /**
  * 1. Get the latest seasons of the Competitions involved ...
@@ -62,6 +63,26 @@ export async function finishSeasonPlain(season_id: string) {
   const cmp = competition;
   // TODO: Do Best Player etc...
 
+  // A league with no promotion/relegation count would silently move nobody
+  // (slice(len - null) and slice(0, null) both select no clubs), so refuse to
+  // finish it until the slot count is configured on the competition.
+  if (cmp.League) {
+    const slots = cmp.Division == 1 ? cmp.TeamsRelegated : cmp.TeamsPromoted;
+    const slotField = cmp.Division == 1 ? 'TeamsRelegated' : 'TeamsPromoted';
+    if (slots == null || !Number.isInteger(slots) || slots < 0) {
+      throw new FinishSeasonError(
+        `${cmp.Name} has no ${slotField} set, so no club would move league. Set it on the competition before finishing the season.`,
+        400
+      );
+    }
+    if (slots > standings.length) {
+      throw new FinishSeasonError(
+        `${cmp.Name} is set to move ${slots} clubs (${slotField}) but only has ${standings.length}.`,
+        400
+      );
+    }
+  }
+
   const prolegated =
     cmp.Division == 1 && cmp.League
       ? {
@@ -92,6 +113,14 @@ export async function finishSeasonPlain(season_id: string) {
     ],
     ...prolegated,
   } as Partial<SeasonInterface>);
+
+  // The season is already finished at this point, so a payout problem is
+  // logged rather than failing the request (the payout is idempotent).
+  try {
+    await payoutSeasonPrizes(season_id);
+  } catch (error) {
+    console.error('Could not pay out season prize money:', error);
+  }
 
   return { updatedSeason, standings, seasonChampions };
 }

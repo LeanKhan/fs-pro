@@ -2,8 +2,9 @@
 
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
-import { CalendarSchema, DaySchema } from '../schemas/calendar';
+import { CalendarSchema, DaySchema, WorldFeedSchema } from '../schemas/calendar';
 import { SeasonSchema } from '../schemas/season';
+import { SeasonReportSchema } from '../schemas/season-report';
 import { successEnvelope, failEnvelope } from '../schemas/envelope';
 
 const c = initContract();
@@ -15,6 +16,39 @@ export const calendarContract = c.router(
       path: '/current',
       responses: {
         200: successEnvelope(CalendarSchema),
+        400: failEnvelope(),
+      },
+    },
+
+    // What changed when each season cycle ended (promotions/relegations,
+    // champions, retirements, breakouts) - newest cycle first.
+    getSeasonReports: {
+      method: 'GET',
+      path: '/season-reports',
+      responses: {
+        200: successEnvelope(z.array(SeasonReportSchema)),
+        400: failEnvelope(),
+      },
+    },
+
+    getSeasonReport: {
+      method: 'GET',
+      path: '/season-reports/:year',
+      pathParams: z.object({
+        year: z.string(),
+      }),
+      responses: {
+        200: successEnvelope(SeasonReportSchema),
+        404: failEnvelope(),
+        400: failEnvelope(),
+      },
+    },
+
+    getWorldFeed: {
+      method: 'GET',
+      path: '/world-feed',
+      responses: {
+        200: successEnvelope(WorldFeedSchema),
         400: failEnvelope(),
       },
     },
@@ -72,6 +106,43 @@ export const calendarContract = c.router(
       body: z.object({}).optional(),
       responses: {
         200: successEnvelope(z.object({})),
+        400: failEnvelope(),
+      },
+    },
+
+    healCalendar: {
+      method: 'POST',
+      path: '/heal',
+      body: z.object({}).optional(),
+      responses: {
+        200: successEnvelope(
+          z.object({
+            healedCount: z.number(),
+            currentDay: z.number(),
+          })
+        ),
+        400: failEnvelope(),
+      },
+    },
+
+    simulateToDate: {
+      method: 'POST',
+      path: '/simulate-to-date',
+      body: z.object({
+        targetDay: z.number().optional(),
+        targetDate: z.string().optional(),
+        includeTargetDay: z.boolean().optional(),
+      }),
+      responses: {
+        200: successEnvelope(
+          z.object({
+            startDay: z.number(),
+            currentDay: z.number(),
+            currentDate: z.string(),
+            simulatedFixtures: z.number(),
+            simulatedDays: z.number(),
+          })
+        ),
         400: failEnvelope(),
       },
     },

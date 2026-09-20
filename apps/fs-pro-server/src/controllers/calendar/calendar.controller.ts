@@ -9,6 +9,7 @@ import { updateFixtureFields } from '../fixtures/fixture.service';
 import { getCalendar } from './calendar.service';
 import { CompetitionInterface } from '../competitions/competition.model';
 import { SeasonInterface } from '../seasons/season.model';
+import { TournamentEngineService } from '../../services/competitions/tournament-engine.service';
 import { getCompetitions } from '../competitions/competition.service';
 import { create } from '../../middleware/seasons';
 import { prolegate } from '../seasons/season.controller';
@@ -128,7 +129,10 @@ export async function startNextSeasonCycle(req: Request, res: Response) {
   }
 
   try {
-    const competitions: CompetitionInterface[] = await getCompetitions();
+    await TournamentEngineService.seedDefaultTournaments(Year);
+    const competitions: CompetitionInterface[] = (await getCompetitions()).filter(
+      (c) => !TournamentEngineService.isRetiredGlobalCup(c)
+    );
     const calendar = await getCalendar();
 
     await Promise.all(

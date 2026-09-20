@@ -13,6 +13,8 @@ import { saveReplay } from '../match-replays/match-replay.service';
 import { ITactic } from '../../simulation/state/PersistentState/Formations';
 import { simulateMatch } from '../../jobs/matchQueue';
 import { buildSimulateMatchRequest } from '../../jobs/buildSimulateMatchRequest';
+import { QuickSimResolver } from '../../simulation/quick-sim/QuickSimResolver';
+import { SimulatedMatchData } from '../../jobs/simulationContract';
 
 /** Fetches a Season by id, but only returns it if it's still in progress -
  * replaces the raw `fetchSeason({_id, isStarted: true, isFinished: false})`
@@ -28,7 +30,7 @@ interface TeamObject {
   id: string;
   name: string;
   clubCode: string;
-  manager: string;
+  manager: string | null;
 }
 
 interface CurrentMatch {
@@ -70,7 +72,10 @@ export interface PlayResult {
   lastMatchOfSeason: boolean | undefined;
 }
 
-export async function play(fixture_id: string) {
+export async function play(
+  fixture_id: string,
+  options?: { quickSim?: boolean }
+) {
   let CurrentMatch: CurrentMatch = {};
 
   // [1]
@@ -127,13 +132,28 @@ export async function play(fixture_id: string) {
   // still happens here, on the main thread - the worker_thread the
   // simulation itself runs in stays DB-free (see simulateMatch()/
   // buildSimulateMatchRequest.ts).
+  const isKnockout =
+    fixture.Type === 'cup' ||
+    fixture.Stage === 'knockout' ||
+    Boolean(fixture.Stage?.toLowerCase().includes('knockout')) ||
+    Boolean(fixture.Stage?.toLowerCase().includes('round')) ||
+    Boolean(fixture.Stage?.toLowerCase().includes('quarter')) ||
+    Boolean(fixture.Stage?.toLowerCase().includes('semi')) ||
+    Boolean(fixture.Stage?.toLowerCase().includes('final')) ||
+    fixture.isFinalMatch === true;
+
   let simulateRequest;
   try {
     simulateRequest = await buildSimulateMatchRequest(
       fixture_id,
       home,
       away,
-      prefetchedTactics
+      prefetchedTactics,
+      {
+        fixtureType: fixture.Type ?? undefined,
+        stage: fixture.Stage ?? undefined,
+        isKnockout,
+      }
     );
   } catch (error) {
     log(`Error setting up game! (in Rest) => ${error}`);
@@ -252,18 +272,80 @@ export async function play(fixture_id: string) {
   // instance, but every field the rest of this chain reads off it
   // (Home/Away identity incl. ManagerId, Details, Events, Frames) is
   // plain data either way.
-  return simulateMatch(simulateRequest)
-    .then((result) => {
+  const runSimulation = async (): Promise<SimulatedMatchData> => {
+    if (options?.quickSim) {
+      return QuickSimResolver.resolve(simulateRequest);
+    }
+    try {
+      const result = await simulateMatch(simulateRequest);
       if (!result.ok) {
-        throw new Error(result.error);
+        console.warn(
+          `[runSimulation] High-fidelity simulation failed for fixture ${fixture_id} (${result.error}); falling back to QuickSim.`
+        );
+        return QuickSimResolver.resolve(simulateRequest);
       }
       return result.match;
-    })
+    } catch (err) {
+      console.warn(
+        `[runSimulation] High-fidelity simulation threw for fixture ${fixture_id}; falling back to QuickSim:`,
+        err
+      );
+      return QuickSimResolver.resolve(simulateRequest);
+    }
+  };
+
+  return runSimulation()
     .then(async (m) => {
-      // Fire-and-forget: stream the recorded match live over sockets,
-      // keyed by fixture_id (known ahead of the kickoff call, unlike
-      // match.id) so a debug client can join the room before triggering it.
-      startMatchReplay(m, fixture_id);
+      // If knockout match ended in draw, ensure winner is decided via penalties
+      if (isKnockout && m.Details.Draw) {
+        let hPens = 0;
+        let aPens = 0;
+        let hKicks = 0;
+        let aKicks = 0;
+        while (hKicks < 5 || aKicks < 5) {
+          if (hKicks <= aKicks) {
+            hKicks++;
+            if (Math.random() < 0.75) hPens++;
+          } else {
+            aKicks++;
+            if (Math.random() < 0.75) aPens++;
+          }
+          const hRem = 5 - hKicks;
+          const aRem = 5 - aKicks;
+          if (hPens > aPens + aRem || aPens > hPens + hRem) break;
+        }
+        while (hPens === aPens) {
+          if (Math.random() < 0.75) hPens++;
+          if (Math.random() < 0.75) aPens++;
+        }
+        const homeWon = hPens > aPens;
+        m.Details.Draw = false;
+        m.Details.Penalties = {
+          Home: hPens,
+          Away: aPens,
+          Winner: homeWon ? m.Home.ClubCode : m.Away.ClubCode,
+        };
+        m.Details.FullTimeScore = `${m.Details.HomeTeamScore} - ${m.Details.AwayTeamScore} (${hPens} - ${aPens} pens)`;
+        m.Details.Winner = homeWon
+          ? { code: m.Home.ClubCode, id: m.Home._id }
+          : { code: m.Away.ClubCode, id: m.Away._id };
+        m.Details.Loser = homeWon
+          ? { code: m.Away.ClubCode, id: m.Away._id }
+          : { code: m.Home.ClubCode, id: m.Home._id };
+        if (m.Details.HomeTeamDetails) {
+          m.Details.HomeTeamDetails.Won = homeWon;
+          m.Details.HomeTeamDetails.Drew = false;
+        }
+        if (m.Details.AwayTeamDetails) {
+          m.Details.AwayTeamDetails.Won = !homeWon;
+          m.Details.AwayTeamDetails.Drew = false;
+        }
+      }
+
+      // Stream live replay over sockets if high-fidelity simulation
+      if (!options?.quickSim) {
+        startMatchReplay(m, fixture_id);
+      }
 
       // Also persist the same Frames so this match can be re-streamed later
       // on demand (see restRewatchMatch) without re-simulating it. Gated by
@@ -280,14 +362,14 @@ export async function play(fixture_id: string) {
         id: m.Home._id,
         name: m.Home.Name,
         clubCode: m.Home.ClubCode,
-        manager: m.Home.ManagerId,
+        manager: m.Home.ManagerId && typeof m.Home.ManagerId === 'string' && m.Home.ManagerId.trim() ? m.Home.ManagerId : null,
       };
 
       const awayObj = {
         id: m.Away._id,
         name: m.Away.Name,
         clubCode: m.Away.ClubCode,
-        manager: m.Away.ManagerId,
+        manager: m.Away.ManagerId && typeof m.Away.ManagerId === 'string' && m.Away.ManagerId.trim() ? m.Away.ManagerId : null,
       };
 
       let match: Fixture;

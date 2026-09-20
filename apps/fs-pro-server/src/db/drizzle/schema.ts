@@ -60,6 +60,9 @@ export const users = pgTable('Users', {
   Alerts: jsonb('Alerts').$type<Record<string, unknown> | null>(),
   isAdmin: boolean('isAdmin').notNull().default(false),
   Session: text('Session'),
+  /** The imagination account this user signs in as (its accounts.id). Null for
+   * users who have not moved to imagination login yet. */
+  accountId: text('accountId').unique(),
   ...timestamps,
   // Clubs (array of owned club ids) dropped - it's the exact inverse of
   // clubs.User below. See clubsRelations.user / usersRelations.clubs.
@@ -160,6 +163,13 @@ export const clubs = pgTable('Clubs', {
   LeagueCode: text('LeagueCode'),
   LeagueId: uuid('LeagueId').references(() => competitions.id),
   UserId: uuid('UserId').references(() => users.id),
+  Lineup: jsonb('Lineup').$type<{ startingXI: string[]; bench: string[] } | null>(),
+  Tactic: jsonb('Tactic').$type<{ formationName: string; styleName: string } | null>(),
+  Finances: jsonb('Finances').$type<Record<string, unknown> | null>(),
+  /** Imagination world place UUID – the club's home city/HQ polygon on the world map. */
+  homePlaceId: text('homePlaceId'),
+  /** Imagination world place UUID – the stadium polygon on the world map. */
+  stadiumPlaceId: text('stadiumPlaceId'),
   ...timestamps,
   // Players dropped - it's the exact inverse of players.Club below.
 });
@@ -178,6 +188,12 @@ export const calendars = pgTable('Calendars', {
   singleton: boolean('singleton').notNull().default(true).unique(),
   CurrentDay: integer('CurrentDay').notNull().default(0),
   CurrentDate: timestamp('CurrentDate', { precision: 3 }).notNull(),
+  /** Transfer window: purchases and bids are refused while it is closed.
+   * `TransferWindowClosesDay` is the last game day it stays open (null = open
+   * until closed explicitly / by the next cycle's scheduling). See
+   * services/transfers/transfer-window.service.ts. */
+  TransferWindowOpen: boolean('TransferWindowOpen').notNull().default(false),
+  TransferWindowClosesDay: integer('TransferWindowClosesDay'),
   ...timestamps,
 });
 
@@ -275,6 +291,8 @@ export const players = pgTable('Players', {
    * POST /players/:id/update route as isRetired - no dedicated route, see
    * player-training.service.ts's doc comment for why. */
   TrainingFocus: text('TrainingFocus'),
+  Fitness: real('Fitness').notNull().default(100),
+  Injury: jsonb('Injury').$type<{ type: string; daysRemaining: number } | null>(),
   ClubCode: text('ClubCode'),
   ClubId: uuid('ClubId').references(() => clubs.id),
   ...timestamps,
@@ -459,6 +477,59 @@ export const transferLedger = pgTable(
     index('transfer_ledger_buyer_idx').on(t.BuyerClubId),
     index('transfer_ledger_seller_idx').on(t.SellerClubId),
     index('transfer_ledger_type_year_idx').on(t.Type, t.Year),
+  ]
+);
+
+/**
+ * One row per finished season cycle (Season.Year label): what changed when
+ * the cycle ended - champions, promotions/relegations, retirements, breakout
+ * players - plus the ranked highlights derived from them. Written by
+ * endSeasonCycle (services/world/season-report.service.ts); the Data column
+ * holds a SeasonReportData snapshot, kept as jsonb because it is read whole and never
+ * queried by field.
+ */
+export const seasonReports = pgTable('SeasonReports', {
+  id: uuid('_id').primaryKey().defaultRandom(),
+  Year: text('Year').notNull().unique(),
+  Data: jsonb('Data').$type<Record<string, unknown>>().notNull(),
+  ...timestamps,
+});
+
+/**
+ * A bid for a player between two clubs. `Initiator` says who made it:
+ * 'user' (a human club bidding for a player) or 'ai' (an AI club bidding for
+ * a human club's player). `Status`: 'pending' (waiting for the owning club
+ * to respond), 'countered' (owner asked for `CounterAmount`; waiting for the
+ * bidder), then the terminal 'accepted' | 'rejected' | 'expired' | 'failed'
+ * (e.g. the bidder could no longer afford it). Days are game days
+ * (Calendar.CurrentDay).
+ */
+export const transferOffers = pgTable(
+  'TransferOffers',
+  {
+    id: uuid('_id').primaryKey().defaultRandom(),
+    PlayerId: uuid('PlayerId')
+      .notNull()
+      .references(() => players.id),
+    FromClubId: uuid('FromClubId')
+      .notNull()
+      .references(() => clubs.id),
+    ToClubId: uuid('ToClubId')
+      .notNull()
+      .references(() => clubs.id),
+    Amount: real('Amount').notNull(),
+    CounterAmount: real('CounterAmount'),
+    Status: text('Status').notNull().default('pending'),
+    Initiator: text('Initiator').notNull(),
+    Note: text('Note'),
+    CreatedDay: integer('CreatedDay').notNull(),
+    ExpiresDay: integer('ExpiresDay').notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    index('transfer_offers_to_status_idx').on(t.ToClubId, t.Status),
+    index('transfer_offers_from_status_idx').on(t.FromClubId, t.Status),
+    index('transfer_offers_player_idx').on(t.PlayerId),
   ]
 );
 

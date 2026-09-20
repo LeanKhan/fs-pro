@@ -28,6 +28,10 @@ export async function getFixtureById(id: string, options?: IFixtureReadOptions) 
   return getFixtureRepo().findById(id, options);
 }
 
+export async function getFixtureScheduleSummary() {
+  return getFixtureRepo().scheduleSummary();
+}
+
 export async function getFixtures(
   filter?: IFixtureFilter,
   options?: IFixtureReadOptions

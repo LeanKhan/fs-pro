@@ -1,5 +1,30 @@
 <template>
-  <form ref="form" @submit.prevent="login">
+  <!-- Imagination login: accounts live in the world service; this just sends
+       people there and back (see /api/auth/login on the server). -->
+  <v-card v-if="ssoEnabled">
+    <v-card-text>
+      <v-list-subheader>Login to FSPro</v-list-subheader>
+      <v-alert
+        v-if="ssoError"
+        type="error"
+        variant="tonal"
+        density="compact"
+        class="mb-4"
+      >
+        {{ ssoError }}
+      </v-alert>
+      <p class="mb-2">
+        FSPro sign-in is handled by Imagination, your world account.
+      </p>
+    </v-card-text>
+    <v-card-actions>
+      <v-btn color="green-darken-2" block :href="ssoLoginUrl">
+        Sign in with Imagination
+      </v-btn>
+    </v-card-actions>
+  </v-card>
+
+  <form v-else ref="form" @submit.prevent="login">
     <v-card>
       <v-card-text>
         <template v-if="!showForgotSection">
@@ -102,9 +127,9 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useStore } from '@/store';
-import { client } from '@/services/api';
+import { client, apiUrl } from '@/services/api';
 
 defineOptions({
   name: 'LoginView',
@@ -112,6 +137,13 @@ defineOptions({
 
 const router = useRouter();
 const store = useStore();
+const route = useRoute();
+
+// Set VITE_IMAGINATION_LOGIN=true to sign in through Imagination instead of
+// FSPro's own username/password form.
+const ssoEnabled = import.meta.env.VITE_IMAGINATION_LOGIN === 'true';
+const ssoLoginUrl = `${apiUrl}/api/auth/login`;
+const ssoError = typeof route.query.error === 'string' ? route.query.error : '';
 
 const Username = ref('');
 const Password = ref('');

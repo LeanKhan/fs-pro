@@ -10,6 +10,7 @@
     "dev": "dotenv -- turbo dev",
     "dev:client": "dotenv -- turbo dev --filter=fs-pro-client",
     "dev:server": "dotenv -- turbo dev --filter=fs-pro-server",
+    "start:all": "node ../imagination/scripts/start-ecosystem.mjs",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "lint": "oxlint",

@@ -63,14 +63,35 @@ export async function deleteCompetitionById(id: string) {
  * so this composes the two reverse lookups instead of a single populated
  * read.
  */
+import { DrizzleDatabase } from '../../db/drizzle';
+import { competitionClubs } from '../../db/drizzle/schema';
+import { eq } from 'drizzle-orm';
+
 export async function getCompetitionWithClubsAndSeasons(id: string) {
-  const [competition, clubs, seasons] = await Promise.all([
+  const [competition, seasons] = await Promise.all([
     getCompetitionById(id, { withCountry: true }),
-    getClubs({ LeagueId: id }),
     getSeasons({ CompetitionId: id }),
   ]);
 
   if (!competition) return null;
 
-  return { ...competition, Clubs: clubs, Seasons: seasons };
+  let clubs = await getClubs({ LeagueId: id });
+  if (!clubs || clubs.length === 0) {
+    try {
+      const db = DrizzleDatabase.getInstance().database;
+      const memberships = await db
+        .select()
+        .from(competitionClubs)
+        .where(eq(competitionClubs.CompetitionId, id));
+
+      if (memberships && memberships.length > 0) {
+        const clubIds = memberships.map((m) => m.ClubId);
+        clubs = await getClubs({ ids: clubIds });
+      }
+    } catch (e) {
+      console.error('Error fetching competitionClubs:', e);
+    }
+  }
+
+  return { ...competition, Clubs: clubs ?? [], Seasons: seasons };
 }

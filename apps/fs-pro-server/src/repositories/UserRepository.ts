@@ -11,6 +11,7 @@ import { IUser } from '../controllers/user/user.model';
 export interface IUserRepository {
   findById(id: string): Promise<IUser | null>;
   findByUsername(username: string): Promise<IUser | null>;
+  findByAccountId(accountId: string): Promise<IUser | null>;
   /**
    * If `data.Password` is present, implementations must hash it (see
    * utils/auth.ts's `hashPassword`) before persisting - this replaces the
