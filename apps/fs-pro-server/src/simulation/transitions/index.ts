@@ -35,7 +35,7 @@ import { createMatchEvent } from '../utils/events';
 import {
   ITactic,
   formationShapes,
-  PLAYING_STYLES,
+  findPlayingStyleKey,
 } from '../state/PersistentState/Formations';
 
 export type TransitionResult<T = void> =
@@ -104,7 +104,7 @@ export function applyTacticalChange(params: {
     return fail(`Unknown formation "${tactic.formationName}".`);
   }
 
-  if (!PLAYING_STYLES[tactic.styleName]) {
+  if (!findPlayingStyleKey(tactic.styleName)) {
     return fail(`Unknown playing style "${tactic.styleName}".`);
   }
 
