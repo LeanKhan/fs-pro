@@ -17,6 +17,20 @@ import log from '../../helpers/logger';
 
 const s = initServer();
 
+/** Password login/registration here is superseded by imagination login; set
+ * LEGACY_LOGIN_ENABLED=false to turn it off once users have been migrated. */
+function legacyLoginDisabled() {
+  return process.env.LEGACY_LOGIN_ENABLED?.trim().toLowerCase() === 'false';
+}
+
+const LEGACY_LOGIN_OFF = {
+  status: 403 as const,
+  body: {
+    success: false as const,
+    message: 'Password login is disabled - sign in through imagination.',
+  },
+};
+
 function fail(err: unknown) {
   return err instanceof Error ? err.message : String(err);
 }
@@ -45,6 +59,7 @@ export const userTsRestRoutes = s.router(contract.users, {
    * signup".
    */
   joinUser: async ({ body, req }) => {
+    if (legacyLoginDisabled()) return LEGACY_LOGIN_OFF as any;
     try {
       const user: any = await createUser({
         FullName: body.FullName,
@@ -99,6 +114,7 @@ export const userTsRestRoutes = s.router(contract.users, {
    * only, matching what `settings.vue` expects), not the stored
    * `Users.Clubs` array - see the schema doc comment for why. */
   loginUser: async ({ body, req }) => {
+    if (legacyLoginDisabled()) return LEGACY_LOGIN_OFF as any;
     try {
       const result: any = await getUserByUsername(body.Username);
       if (!result) {
@@ -152,6 +168,7 @@ export const userTsRestRoutes = s.router(contract.users, {
   /** Repository hashes `NewPassword` on write, same as every other user
    * update - no manual hashing here. */
   changePassword: async ({ body }) => {
+    if (legacyLoginDisabled()) return LEGACY_LOGIN_OFF as any;
     try {
       const result = await getUserByUsername(body.Username);
       if (!result) {

@@ -53,4 +53,15 @@ export interface ClubInterface {
    * TransferLedger table, not on this row. */
   Budget?: number;
   Records?: any[];
+  Lineup?: {
+    startingXI: string[];
+    bench: string[];
+  } | null;
+  Tactic?: {
+    formationName: string;
+    styleName: string;
+  } | null;
+  Finances?: Record<string, unknown> | null;
+  homePlaceId?: string | null;
+  stadiumPlaceId?: string | null;
 }

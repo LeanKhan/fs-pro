@@ -10,6 +10,8 @@ export interface IFixtureFilter {
   /** Inclusive `ScheduledDay` range - "what's playing between day N and M". */
   scheduledDayFrom?: number;
   scheduledDayTo?: number;
+  /** Fixtures a club plays in, by club code (Home or Away). */
+  club?: string;
 }
 
 export interface IFixtureReadOptions {
@@ -21,6 +23,18 @@ export interface IFixtureReadOptions {
    * plain `Home`/`Away` club-code text columns - only `GET /fixtures/:id`
    * (Matchzone) needs the populated object. */
   withClub?: boolean;
+  /** Skip the per-side ClubMatchDetails + PlayerStats join. List views
+   * (calendar, dashboard day scroll) only need the fixture row itself; the
+   * join is what makes fetching a whole season slow. */
+  light?: boolean;
+}
+
+/** Cheap aggregate over the whole schedule, for calendar navigation. */
+export interface IFixtureScheduleSummary {
+  firstDay: number | null;
+  lastDay: number | null;
+  total: number;
+  played: number;
 }
 
 /**
@@ -64,4 +78,5 @@ export interface IFixtureRepository {
     data: Partial<FixtureInterface>
   ): Promise<FixtureInterface | null>;
   delete(id: string): Promise<FixtureInterface>;
+  scheduleSummary(): Promise<IFixtureScheduleSummary>;
 }

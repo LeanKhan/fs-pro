@@ -1,9 +1,12 @@
 <template>
   <div>
     <v-row>
-      <v-col cols="6">
-        <v-card>
-          <v-card-title>Player Latest Ratings</v-card-title>
+      <v-col cols="12">
+        <v-card class="pa-2">
+          <v-card-title class="d-flex justify-space-between align-center">
+            <span>Squad Management & Performance</span>
+            <span class="text-caption text-medium-emphasis">{{ players.length }} Players</span>
+          </v-card-title>
 
           <table
             style="
@@ -14,13 +17,15 @@
           >
             <thead>
               <tr>
-                <th style="border: solid 1px white; padding: 4px 4px">
+                <th style="border: solid 1px white; padding: 6px 8px">
                   Player (POS)
                 </th>
-                <th style="border: solid 1px white; padding: 4px 4px">Age</th>
-                <th style="border: solid 1px white; padding: 4px 4px">Prev.</th>
-                <th style="border: solid 1px white; padding: 4px 4px">Curr.</th>
-                <th style="border: solid 1px white; padding: 4px 4px">
+                <th style="border: solid 1px white; padding: 6px 8px">Age</th>
+                <th style="border: solid 1px white; padding: 6px 8px">Condition</th>
+                <th style="border: solid 1px white; padding: 6px 8px">Status</th>
+                <th style="border: solid 1px white; padding: 6px 8px">Prev.</th>
+                <th style="border: solid 1px white; padding: 6px 8px">Curr.</th>
+                <th style="border: solid 1px white; padding: 6px 8px">
                   Training Focus
                 </th>
               </tr>
@@ -32,9 +37,7 @@
                 :key="player.id ?? player._id ?? i"
               >
                 <td>
-                  {{ player.FirstName ?? '' }}
-                  {{ player.LastName ?? '' }}
-
+                  <strong>{{ player.FirstName ?? '' }} {{ player.LastName ?? '' }}</strong>
                   <template v-if="player.Position">
                     ({{ player.Position }})
                   </template>
@@ -42,6 +45,32 @@
 
                 <td>
                   {{ player.Age ?? 'N/A' }}
+                </td>
+
+                <td style="min-width: 120px">
+                  <div class="d-flex align-center">
+                    <v-progress-linear
+                      :model-value="player.Fitness ?? 100"
+                      :color="(player.Fitness ?? 100) >= 80 ? 'success' : (player.Fitness ?? 100) >= 60 ? 'warning' : 'error'"
+                      height="8"
+                      rounded
+                      class="mr-2"
+                    ></v-progress-linear>
+                    <span class="text-caption font-weight-bold">{{ Math.round(player.Fitness ?? 100) }}%</span>
+                  </div>
+                </td>
+
+                <td>
+                  <v-chip
+                    v-if="player.Injury && player.Injury.daysRemaining > 0"
+                    color="error"
+                    size="x-small"
+                  >
+                    🏥 {{ player.Injury.type }} ({{ player.Injury.daysRemaining }}d)
+                  </v-chip>
+                  <v-chip v-else color="success" size="x-small" variant="tonal">
+                    Fit
+                  </v-chip>
                 </td>
 
                 <td>
@@ -101,7 +130,7 @@
               </tr>
 
               <tr v-if="players.length === 0">
-                <td colspan="5" class="text-center pa-4">
+                <td colspan="7" class="text-center pa-4">
                   No players available
                 </td>
               </tr>

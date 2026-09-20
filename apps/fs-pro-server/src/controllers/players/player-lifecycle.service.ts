@@ -40,6 +40,17 @@ export function retirementChanceForAge(age: number): number {
   return RETIREMENT_CHANCE_BY_AGE[age] ?? 0;
 }
 
+/** A player who retired at the end of a season cycle. */
+export interface RetiredPlayerSummary {
+  playerId: string;
+  name: string;
+  age: number | null;
+  position: string | null;
+  rating: number | null;
+  /** Club they left, captured before their club ties are cleared. */
+  clubCode: string | null;
+}
+
 /**
  * Rolls every currently-active (isRetired:false) Player's age-based
  * retirement chance for `year` and, for every roll that hits, marks them
@@ -67,17 +78,26 @@ export function retirementChanceForAge(age: number): number {
  */
 export async function retireEligiblePlayersForYear(
   year: string
-): Promise<{ retiredCount: number }> {
+): Promise<{ retiredCount: number; retired: RetiredPlayerSummary[] }> {
   const db = DrizzleDatabase.getInstance().database;
 
   const active = await db
-    .select({ id: players.id, Age: players.Age })
+    .select({
+      id: players.id,
+      Age: players.Age,
+      FirstName: players.FirstName,
+      LastName: players.LastName,
+      Position: players.Position,
+      Rating: players.Rating,
+      ClubCode: players.ClubCode,
+    })
     .from(players)
     .where(eq(players.isRetired, false));
 
-  const retiringIds = active
-    .filter((p) => p.Age != null && Math.random() < retirementChanceForAge(p.Age))
-    .map((p) => p.id);
+  const retiring = active.filter(
+    (p) => p.Age != null && Math.random() < retirementChanceForAge(p.Age)
+  );
+  const retiringIds = retiring.map((p) => p.id);
 
   if (retiringIds.length) {
     await getPlayerRepo().updateManyByIds(retiringIds, {
@@ -89,7 +109,18 @@ export async function retireEligiblePlayersForYear(
   }
 
   console.log(`[player-lifecycle] ${year}: ${retiringIds.length} player(s) retired.`);
-  return { retiredCount: retiringIds.length };
+  return {
+    retiredCount: retiringIds.length,
+    // Captured before the club ties were cleared above, for the season report.
+    retired: retiring.map((p) => ({
+      playerId: p.id,
+      name: `${p.FirstName} ${p.LastName}`,
+      age: p.Age,
+      position: p.Position,
+      rating: p.Rating,
+      clubCode: p.ClubCode,
+    })),
+  };
 }
 
 /** 11 starters + BENCH_SIZE (7, see classes/MatchSide.ts) - the "useful

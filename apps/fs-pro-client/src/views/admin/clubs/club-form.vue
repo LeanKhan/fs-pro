@@ -115,10 +115,28 @@
                       item-value="_id"
                       v-model="form.AddressCountryId"
                     ></v-select>
+
+                    <div class="d-flex align-center mt-2">
+                      <v-text-field
+                        color="amber-darken-1"
+                        label="World Map Home Place ID"
+                        v-model="form.homePlaceId"
+                        hide-details
+                      ></v-text-field>
+                      <v-btn color="primary" class="ml-2" @click="showPlacePicker = true">
+                        Pick Place
+                      </v-btn>
+                    </div>
                   </div>
                 </v-col>
               </v-row>
             </v-container>
+
+            <PlacePickerModal
+              v-model="showPlacePicker"
+              world-slug="asterra"
+              @select="onPlaceSelected"
+            />
 
             <v-divider></v-divider>
 
@@ -149,6 +167,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { apiUrl, useStore } from '@/store';
 import { client } from '@/services/api';
 import ImageUploader from '@/components/helpers/image-uploader.vue';
+import PlacePickerModal from '@/components/PlacePickerModal.vue';
 import type { Club } from '@repo/api-contract';
 
 const props = defineProps<{
@@ -162,6 +181,7 @@ const store = useStore();
 const club = ref<Club>({} as Club);
 const api = apiUrl;
 const countries = computed<any[]>(() => store.countries);
+const showPlacePicker = ref(false);
 
 const form = ref<Partial<Club>>({
   Name: '',
@@ -176,7 +196,17 @@ const form = ref<Partial<Club>>({
     Capacity: '',
     Location: '',
   },
+  homePlaceId: '',
+  stadiumPlaceId: '',
 });
+
+function onPlaceSelected(place: { id: string; name: string; kind: string; slug: string }) {
+  form.value.homePlaceId = place.id;
+  if (!form.value.Address?.City) {
+    if (!form.value.Address) form.value.Address = {};
+    form.value.Address.City = place.name;
+  }
+}
 
 function goBack() {
   router.back();

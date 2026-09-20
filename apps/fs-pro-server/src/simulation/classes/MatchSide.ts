@@ -128,43 +128,77 @@ export class MatchSide extends Club {
     startingXI: { player: Player; block: IBlock }[];
     bench: Player[];
   } {
-    const pool = [...this.MatchSquad];
+    // Filter out injured players from selection pool
+    const pool = this.MatchSquad.filter(
+      (p) => !(p.Injury && (p.Injury as any).daysRemaining > 0)
+    );
     const startingXI: { player: Player; block: IBlock }[] = [];
+
+    // Preferred starters from club Lineup if set
+    const preferredStarterIds = new Set(this.Lineup?.startingXI ?? []);
+    const preferredBenchIds = new Set(this.Lineup?.bench ?? []);
 
     slots.forEach((slot) => {
       let pick: Player | undefined;
 
+      // 1. Try preferred starters that match this slot position
       for (const pos of slot.positions) {
-        const candidates = pool
-          .filter((p) => p.Position === pos)
-          .sort((a, b) => b.Rating - a.Rating);
-        if (candidates.length) {
-          pick = candidates[0];
+        const preferred = pool.find(
+          (p) => p.Position === pos && preferredStarterIds.has(String(p._id))
+        );
+        if (preferred) {
+          pick = preferred;
           break;
         }
       }
 
+      // 2. If no preferred starter matched this slot, try any preferred starter left
+      if (!pick && preferredStarterIds.size > 0) {
+        pick = pool.find((p) => preferredStarterIds.has(String(p._id)));
+      }
+
+      // 3. Fallback to best-rated player matching slot
       if (!pick) {
-        // Nobody fits this slot's listed positions at all (thin roster at
-        // that position) - fall back to the best remaining player overall,
-        // same "give him something" spirit as the old getBlock() fallback,
-        // but bounded (pool is finite, never crashes).
+        for (const pos of slot.positions) {
+          const candidates = pool
+            .filter((p) => p.Position === pos)
+            .sort((a, b) => b.Rating - a.Rating);
+          if (candidates.length) {
+            pick = candidates[0];
+            break;
+          }
+        }
+      }
+
+      // 4. Fallback to best remaining player overall
+      if (!pick) {
         pick = [...pool].sort((a, b) => b.Rating - a.Rating)[0];
       }
 
       if (pick) {
         startingXI.push({ player: pick, block: slot.block });
         pool.splice(pool.indexOf(pick), 1);
+        preferredStarterIds.delete(String(pick._id));
       }
-      // If pick is still undefined here, the club has fewer signed players
-      // than formation slots - pre-existing, out-of-scope edge case (no
-      // minimum-squad-size validation added this pass); the slot is simply
-      // left unfilled rather than crashing.
     });
 
-    const bench = pool.sort((a, b) => b.Rating - a.Rating).slice(0, BENCH_SIZE);
+    // Populate bench: preferred bench first, then best remaining
+    const benchPicks: Player[] = [];
+    if (preferredBenchIds.size > 0) {
+      for (const bId of preferredBenchIds) {
+        const bp = pool.find((p) => String(p._id) === bId);
+        if (bp && benchPicks.length < BENCH_SIZE) {
+          benchPicks.push(bp);
+          pool.splice(pool.indexOf(bp), 1);
+        }
+      }
+    }
+    while (benchPicks.length < BENCH_SIZE && pool.length > 0) {
+      pool.sort((a, b) => b.Rating - a.Rating);
+      benchPicks.push(pool.shift()!);
+    }
 
-    return { startingXI, bench };
+    return { startingXI, bench: benchPicks };
   }
 
   /**

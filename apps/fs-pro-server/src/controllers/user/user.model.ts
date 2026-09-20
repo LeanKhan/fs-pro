@@ -10,4 +10,6 @@ export interface IUser {
   isAdmin: boolean;
   /** The Session ID associated with this user */
   Session: string;
+  /** imagination account id (accounts.id) this user signs in as, if migrated. */
+  accountId?: string | null;
 }

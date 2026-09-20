@@ -16,6 +16,9 @@ export class Club implements ClubInterface {
   public ATT_Rating: number;
   public DEF_Rating: number;
   public MID_Rating: number;
+  public Lineup?: ClubInterface['Lineup'];
+  public Tactic?: ClubInterface['Tactic'];
+  public Finances?: ClubInterface['Finances'];
   constructor(club: ClubInterface) {
     this._id = club._id as string;
     this.Name = club.Name;
@@ -32,6 +35,9 @@ export class Club implements ClubInterface {
     this.ATT_Rating = club.ATT_Rating;
     this.DEF_Rating = club.DEF_Rating;
     this.MID_Rating = club.MID_Rating;
+    this.Lineup = club.Lineup;
+    this.Tactic = club.Tactic;
+    this.Finances = club.Finances;
   }
 }
 

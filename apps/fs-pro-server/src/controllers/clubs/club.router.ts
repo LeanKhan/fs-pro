@@ -21,6 +21,8 @@ import {
   signManyPlayersToClub,
 } from '../players/player.service';
 import { recruitYouthPlayersForClub } from '../players/player-lifecycle.service';
+import { getClubPerformance } from '../../services/analytics/club-performance.service';
+import { worldClient } from '../../services/worldClient';
 
 const s = initServer();
 
@@ -105,6 +107,9 @@ export const clubTsRestRoutes = s.router(contract.clubs, {
   createClub: async ({ body }) => {
     try {
       const club = await createClub(body as Partial<ClubInterface>);
+      if (club?.homePlaceId) {
+        worldClient.upsertEntity(club).catch(console.error);
+      }
       return {
         status: 200,
         body: {
@@ -126,12 +131,35 @@ export const clubTsRestRoutes = s.router(contract.clubs, {
   },
 
   /** Plain fields only, no Mongo $set/$push/$unset operators. */
+  getClubPerformance: async ({ params, query }) => {
+    try {
+      const performance = await getClubPerformance(params.id, query.year);
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Club performance fetched successfully',
+          payload: performance,
+        },
+      };
+    } catch (err) {
+      const message = fail(err);
+      return {
+        status: /not found/i.test(message) ? (404 as const) : (400 as const),
+        body: { success: false, message, payload: message },
+      };
+    }
+  },
+
   updateClub: async ({ params, body }) => {
     try {
       const club = await updateClubFields(
         params.id,
         body as Partial<ClubInterface>
       );
+      if (club?.homePlaceId) {
+        worldClient.upsertEntity(club).catch(console.error);
+      }
       return {
         status: 200,
         body: {

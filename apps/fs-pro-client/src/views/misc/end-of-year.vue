@@ -17,6 +17,15 @@
         <p v-else>
           {{ year }} ended successfully! Admin will start a new year soon :)
 
+          <v-btn
+            block
+            color="amber"
+            class="mb-2"
+            @click="$router.push({ path: '/u/history', query: { year } })"
+          >
+            See what changed this season
+          </v-btn>
+
           <v-btn block color="success" @click="$router.push('/u')">
             Continue
           </v-btn>

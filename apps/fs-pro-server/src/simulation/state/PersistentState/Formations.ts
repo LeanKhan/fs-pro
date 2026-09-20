@@ -280,6 +280,20 @@ export function resolveFormation(
 }
 
 /**
+ * Maps a playing-style name as stored or typed ("High Press", "high press",
+ * "HighPress") onto its PLAYING_STYLES key ("HighPress"). Tactics saved from
+ * the team sheet used the display labels with a space, which previously made
+ * every match involving that club fail with "Unknown playing style".
+ * Returns undefined when no style matches.
+ */
+export function findPlayingStyleKey(styleName: string | undefined | null): string | undefined {
+  if (!styleName) return undefined;
+  if (PLAYING_STYLES[styleName]) return styleName;
+  const squash = (name: string) => name.replace(/[\s_-]+/g, '').toLowerCase();
+  return Object.keys(PLAYING_STYLES).find((key) => squash(key) === squash(styleName));
+}
+
+/**
  * Resolve a tactic (formation + playing style) into the in-play state a
  * MatchSide holds for the rest of a match (or until changeTactic() swaps
  * it again).
@@ -289,15 +303,16 @@ export function resolveTactic(
   field: Field,
   attackingDirection: AttackingDirection
 ): IActiveTactic {
-  const style = PLAYING_STYLES[tactic.styleName];
+  const styleKey = findPlayingStyleKey(tactic.styleName);
+  const style = styleKey ? PLAYING_STYLES[styleKey] : undefined;
 
-  if (!style) {
+  if (!style || !styleKey) {
     throw new Error(`Unknown playing style: "${tactic.styleName}"`);
   }
 
   return {
     formationName: tactic.formationName,
-    styleName: tactic.styleName,
+    styleName: styleKey,
     slots: resolveFormation(tactic.formationName, field, attackingDirection),
     style,
   };

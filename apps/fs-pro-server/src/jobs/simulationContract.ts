@@ -20,6 +20,9 @@ export interface SimulateMatchRequest {
   clubs: IClub[];
   sides: { home: string; away: string };
   tactics: { home: ITactic; away: ITactic };
+  fixtureType?: string;
+  stage?: string;
+  isKnockout?: boolean;
 }
 
 /**

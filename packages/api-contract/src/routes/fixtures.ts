@@ -19,9 +19,32 @@ export const fixturesContract = c.router(
         scheduledDayFrom: z.coerce.number().optional(),
         scheduledDayTo: z.coerce.number().optional(),
         played: booleanQuery().optional(),
+        /** Only fixtures this club code plays in (home or away). */
+        club: z.string().optional(),
+        /** Skip per-player match stats - what list views (calendar, day
+         * scroll) want. */
+        light: booleanQuery().optional(),
       }),
       responses: {
         200: successEnvelope(z.array(FixtureSchema)),
+        400: failEnvelope(),
+      },
+    },
+
+    /** First/last scheduled day and played/total counts across every
+     * fixture - lets the calendar page through days without loading them. */
+    getScheduleSummary: {
+      method: 'GET',
+      path: '/schedule-summary',
+      responses: {
+        200: successEnvelope(
+          z.object({
+            firstDay: z.number().nullable(),
+            lastDay: z.number().nullable(),
+            total: z.number(),
+            played: z.number(),
+          })
+        ),
         400: failEnvelope(),
       },
     },

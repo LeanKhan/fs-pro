@@ -81,6 +81,14 @@ export const PlayerSchema = z.object({
     .enum(['Attacking', 'Defending', 'Physical', 'Technical'])
     .nullable()
     .optional(),
+  Fitness: z.number().nullable().optional(),
+  Injury: z
+    .object({
+      type: z.string(),
+      daysRemaining: z.number(),
+    })
+    .nullable()
+    .optional(),
   ClubCode: z.string().nullable().optional(),
   ClubId: z.string().nullable().optional(),
   createdAt: z.string().optional(),

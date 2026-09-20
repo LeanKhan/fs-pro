@@ -5,6 +5,7 @@ import type { Fixture as ContractFixture } from '@repo/api-contract';
 import {
   getFixtureById,
   getFixtures,
+  getFixtureScheduleSummary,
   deleteFixtureById,
 } from './fixture.service';
 
@@ -16,13 +17,17 @@ export const fixtureTsRestRoutes = s.router(contract.fixtures, {
    * `played`) - powers the client's "upcoming days" dashboard view. */
   getFixtures: async ({ query }) => {
     try {
-      const fixtures = await getFixtures({
-        SeasonId: query.season,
-        Played: query.played,
-        scheduledDay: query.scheduledDay,
-        scheduledDayFrom: query.scheduledDayFrom,
-        scheduledDayTo: query.scheduledDayTo,
-      });
+      const fixtures = await getFixtures(
+        {
+          SeasonId: query.season,
+          Played: query.played,
+          scheduledDay: query.scheduledDay,
+          scheduledDayFrom: query.scheduledDayFrom,
+          scheduledDayTo: query.scheduledDayTo,
+          club: query.club,
+        },
+        { light: query.light }
+      );
 
       return {
         status: 200,
@@ -38,6 +43,28 @@ export const fixtureTsRestRoutes = s.router(contract.fixtures, {
         body: {
           success: false,
           message: 'Error fetching Fixtures',
+          payload: err instanceof Error ? err.message : String(err),
+        },
+      };
+    }
+  },
+
+  getScheduleSummary: async () => {
+    try {
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Schedule summary fetched successfully',
+          payload: await getFixtureScheduleSummary(),
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error fetching schedule summary',
           payload: err instanceof Error ? err.message : String(err),
         },
       };

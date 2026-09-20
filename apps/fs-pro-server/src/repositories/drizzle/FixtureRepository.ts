@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, lte } from 'drizzle-orm';
+import { and, count, eq, gte, inArray, isNotNull, lte, max, min, or } from 'drizzle-orm';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { Fixture as FixtureInterface } from '../../controllers/fixtures/fixture.model';
 import * as schema from '../../db/drizzle/full-schema';
@@ -14,6 +14,7 @@ import {
   IFixtureRepository,
   IFixtureFilter,
   IFixtureReadOptions,
+  IFixtureScheduleSummary,
 } from '../FixtureRepository';
 
 type DrizzleDb = PostgresJsDatabase<typeof schema>;
@@ -110,6 +111,26 @@ function toFixture(
   } as unknown as FixtureInterface;
 }
 
+function sanitizeFixtureData<T extends Record<string, any>>(data: T): Record<string, any> {
+  const result: Record<string, any> = { ...data };
+  const uuidKeys = [
+    'SeasonId',
+    'HomeTeamId',
+    'AwayTeamId',
+    'HomeSideDetailsId',
+    'AwaySideDetailsId',
+    'HomeManagerId',
+    'AwayManagerId',
+    'ReverseFixtureId',
+  ];
+  for (const key of uuidKeys) {
+    if (key in result && typeof result[key] === 'string' && !result[key].trim()) {
+      result[key] = null;
+    }
+  }
+  return result;
+}
+
 export class DrizzleFixtureRepository implements IFixtureRepository {
   constructor(private db: DrizzleDb) {}
 
@@ -160,10 +181,12 @@ export class DrizzleFixtureRepository implements IFixtureRepository {
       conditions.push(gte(fixtures.ScheduledDay, filter.scheduledDayFrom));
     if (filter.scheduledDayTo !== undefined)
       conditions.push(lte(fixtures.ScheduledDay, filter.scheduledDayTo));
+    if (filter.club !== undefined)
+      conditions.push(or(eq(fixtures.Home, filter.club), eq(fixtures.Away, filter.club)));
     const rows = await this.db.query.fixtures.findMany({
       where: conditions.length ? and(...conditions) : undefined,
 
-      with: {
+      with: options.light ? {} : {
         ...(options.withClub
           ? {
               homeTeam: { with: { players: true, manager: true } },
@@ -187,11 +210,33 @@ export class DrizzleFixtureRepository implements IFixtureRepository {
     return rows.map(toFixture);
   }
 
+  async scheduleSummary(): Promise<IFixtureScheduleSummary> {
+    const [row] = await this.db
+      .select({
+        firstDay: min(fixtures.ScheduledDay),
+        lastDay: max(fixtures.ScheduledDay),
+        total: count(),
+      })
+      .from(fixtures)
+      .where(isNotNull(fixtures.ScheduledDay));
+    const [played] = await this.db
+      .select({ played: count() })
+      .from(fixtures)
+      .where(and(isNotNull(fixtures.ScheduledDay), eq(fixtures.Played, true)));
+    return {
+      firstDay: row?.firstDay ?? null,
+      lastDay: row?.lastDay ?? null,
+      total: row?.total ?? 0,
+      played: played?.played ?? 0,
+    };
+  }
+
   async create(data: Partial<FixtureInterface>): Promise<FixtureInterface> {
+    const cleanData = sanitizeFixtureData(data);
     const [fixture] = await this.db
       .insert(fixtures)
       .values({
-        ...(data as typeof fixtures.$inferInsert),
+        ...(cleanData as typeof fixtures.$inferInsert),
         updatedAt: new Date(),
       })
       .returning();
@@ -207,7 +252,7 @@ export class DrizzleFixtureRepository implements IFixtureRepository {
       .insert(fixtures)
       .values(
         data.map((d) => ({
-          ...(d as typeof fixtures.$inferInsert),
+          ...(sanitizeFixtureData(d) as typeof fixtures.$inferInsert),
           updatedAt: new Date(),
         }))
       )
@@ -220,10 +265,11 @@ export class DrizzleFixtureRepository implements IFixtureRepository {
     id: string,
     data: Partial<FixtureInterface>
   ): Promise<FixtureInterface | null> {
+    const cleanData = sanitizeFixtureData(data);
     const [fixture] = await this.db
       .update(fixtures)
       .set({
-        ...(data as Partial<typeof fixtures.$inferInsert>),
+        ...(cleanData as Partial<typeof fixtures.$inferInsert>),
         updatedAt: new Date(),
       })
       .where(eq(fixtures.id, id))

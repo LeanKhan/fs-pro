@@ -760,6 +760,11 @@ export interface IMatchDetails {
   Goals: number;
   HomeTeamDetails: IMatchSideDetails;
   AwayTeamDetails: IMatchSideDetails;
+  Penalties?: {
+    Home: number;
+    Away: number;
+    Winner: string;
+  };
 }
 
 export interface IMatch {

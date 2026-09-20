@@ -107,11 +107,25 @@ export const useStore = defineStore('main', () => {
         .map((club) => (typeof club === 'string' ? club : club._id))
         .filter((id): id is string => Boolean(id));
       const response = await client.clubs.getClubs.query({
-        query: { ids: ids.join(',') },
+        query: { ids: ids.join(','), withPlayersAndManager: true },
       });
 
       if (response.status === 200) {
-        user.value.clubs = response.body.payload;
+        const owned = user.value.userID
+          ? response.body.payload.filter((c: any) => c.UserId === user.value.userID)
+          : response.body.payload;
+        user.value.clubs = owned.length > 0 ? owned : (response.body.payload.length > 0 ? [response.body.payload[0]] : []);
+
+        const savedUser = window.localStorage.getItem('fspro-user');
+        if (savedUser) {
+          try {
+            const parsed = JSON.parse(savedUser);
+            parsed.clubs = user.value.clubs.map((c: any) => c._id);
+            window.localStorage.setItem('fspro-user', JSON.stringify(parsed));
+          } catch (e) {
+            console.error('Error saving updated clubs to localStorage:', e);
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching user clubs:', error);
