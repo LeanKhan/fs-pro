@@ -85,6 +85,8 @@ export const ClubSchema = z.object({
     .nullable()
     .optional(),
   Finances: z.record(z.unknown()).nullable().optional(),
+  homePlaceId: z.string().nullable().optional(),
+  stadiumPlaceId: z.string().nullable().optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
 });
