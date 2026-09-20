@@ -102,6 +102,16 @@
                 &nbsp;
                 <span class="text-grey">{{ club.Stadium?.Location }}</span>
               </div>
+              <div class="text-h6" v-if="club.homePlaceId">
+                <a
+                  :href="`${imaginationUrl}/w/asterra/${club.homePlaceId}`"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="world-map-link text-decoration-none text-primary"
+                >
+                  🌍 View on World Map ↗
+                </a>
+              </div>
 
               <div class="text-h6">
                 <span class="text-subtitle-1 text-grey">Rating:</span>
@@ -162,6 +172,7 @@ const openYouthDialog = ref(false);
 const youthCount = ref(1);
 const recruitingYouth = ref(false);
 const shouldReload = ref(false);
+const imaginationUrl = import.meta.env.VITE_IMAGINATION_URL || 'http://localhost:8080';
 const labels = ref(['GK', 'DEF', 'MID', 'ATT']);
 const value = ref([5, 0, 0, 0]);
 

@@ -38,6 +38,15 @@ export class DrizzleUserRepository implements IUserRepository {
     return user ? toUser(user) : null;
   }
 
+  async findByAccountId(accountId: string): Promise<IUser | null> {
+    const [user] = await this.db
+      .select()
+      .from(users)
+      .where(eq(users.accountId, accountId))
+      .limit(1);
+    return user ? toUser(user) : null;
+  }
+
   async create(data: Partial<IUser>): Promise<IUser> {
     const insert: Record<string, unknown> = { ...data, updatedAt: new Date() };
     if (insert.Password) {

@@ -130,7 +130,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute, onBeforeRouteUpdate } from 'vue-router';
 import { useStore } from '@/store';
-import { client } from '@/services/api';
+import { client, apiUrl } from '@/services/api';
 import { appSocket } from '@/services/socket';
 import TopBarTicker from '@/components/navigation/top-bar-ticker.vue';
 
@@ -180,6 +180,11 @@ const logout = async (): Promise<void> => {
     if (response.status === 200) {
       appSocket.disconnect();
       store.unsetUser();
+      if (import.meta.env.VITE_IMAGINATION_LOGIN === 'true') {
+        // End the Imagination session too; it sends the browser back to the login page.
+        window.location.assign(`${apiUrl}/api/auth/logout`);
+        return;
+      }
       router.push('/auth');
     }
   } catch (error) {

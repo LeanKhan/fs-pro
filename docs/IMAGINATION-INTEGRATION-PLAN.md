@@ -43,3 +43,21 @@ Script in fs-pro-server (`src/scripts/`) that copies `Users` (username, bcrypt h
 
 ## Suggested order / risks
 Phases 1-3 first (identity is the entry point) and shippable alone; Phase 4 items are independent afterwards. Risks: cross-origin cookies/CORS across the two origins (use one parent domain or reverse proxy in dev), key management for JWT signing, and keeping the old fs-pro login working behind a flag until migration is verified.
+
+---
+
+## Status (2026-09-20)
+
+| Phase | State |
+| --- | --- |
+| 1. Imagination as identity provider | **Done.** Accounts, sessions, OAuth code + PKCE, RS256 tokens/JWKS, write protection, login/logout views. Go tests cover the flow (`internal/auth`). |
+| 2. fs-pro as OAuth client | **Done.** `/api/auth/{login,callback,session,logout}`, `Users.accountId`, client login/complete/logout. Old password login still works unless `LEGACY_LOGIN_ENABLED=false`. |
+| 3. User migration | **Done, not run on real users.** `npm run ts-node src/scripts/migrateUsersToImagination.ts` (dry run by default; `--write --i-have-a-backup` to apply). |
+| 4. Shared world data | **Not started here** - a separate plan (`imagination/fspro-places-integration-implementation_plan.md`) covers place anchors and `worldClient`; match-result outbox and world-clock remain. |
+
+### Turning it on (local)
+
+imagination API: `FSPRO_CLIENT_SECRET=<secret>` (plus the defaults in its README).
+fs-pro server: `IMAGINATION_CLIENT_SECRET=<same secret>`, and optionally `IMAGINATION_WEB_URL`, `IMAGINATION_PUBLIC_URL`, `IMAGINATION_API_URL`, `IMAGINATION_ISSUER` (must equal imagination's `AUTH_ISSUER`), `FSPRO_PUBLIC_URL`, `FSPRO_CLIENT_URL`, `SESSION_SECRET`.
+fs-pro client: `VITE_IMAGINATION_LOGIN=true`.
+Then run the migration script (dry run first), and once everyone has signed in that way set `LEGACY_LOGIN_ENABLED=false`.

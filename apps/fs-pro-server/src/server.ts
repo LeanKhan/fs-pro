@@ -33,6 +33,7 @@ import { registerIO } from './realtime/io';
 import { createExpressEndpoints } from '@ts-rest/express';
 import { apiContract } from '@repo/api-contract';
 import { apiRouter } from './routers';
+import { ssoRouter } from './controllers/auth/sso.router';
 
 const cors_whitelist = [
   'http://localhost:8080',
@@ -66,12 +67,22 @@ if (process.env.NODE_ENV?.trim() === 'dev') {
   app.use(morgan('dev'));
 }
 
+// Signs the session cookie. Set SESSION_SECRET; the built-in fallback is only
+// acceptable for local development.
+const sessionSecret = process.env.SESSION_SECRET?.trim() || 'thisisasecret:)';
+if (!process.env.SESSION_SECRET?.trim() && process.env.NODE_ENV?.trim() !== 'dev') {
+  console.warn('[server] SESSION_SECRET is not set - using the insecure development secret.');
+}
+
 const Session = session({
   name: 'fspro.sid',
-  secret: 'thisisasecret:)',
+  secret: sessionSecret,
   cookie: {
     maxAge: 60000 * 60 * 24 * 30,
     httpOnly: true,
+    // The login round-trip through imagination returns as a top-level GET, which
+    // Lax cookies accompany.
+    sameSite: 'lax',
   },
   store,
   saveUninitialized: false,
@@ -112,6 +123,8 @@ app.get('/api-docs.json', (req, res) => res.json(swaggerSpec));
 // Import routers after DB is started to avoid circular dependency issues
 const routerModule = require('./routers');
 const router = routerModule.default || routerModule;
+// Login through imagination - plain Express (redirects), not part of the ts-rest contract.
+app.use('/api/auth', ssoRouter);
 app.use('/api', router);
 
 createExpressEndpoints(apiContract, routerModule.apiRouter, router);

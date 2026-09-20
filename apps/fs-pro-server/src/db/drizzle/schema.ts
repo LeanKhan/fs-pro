@@ -60,6 +60,9 @@ export const users = pgTable('Users', {
   Alerts: jsonb('Alerts').$type<Record<string, unknown> | null>(),
   isAdmin: boolean('isAdmin').notNull().default(false),
   Session: text('Session'),
+  /** The imagination account this user signs in as (its accounts.id). Null for
+   * users who have not moved to imagination login yet. */
+  accountId: text('accountId').unique(),
   ...timestamps,
   // Clubs (array of owned club ids) dropped - it's the exact inverse of
   // clubs.User below. See clubsRelations.user / usersRelations.clubs.
@@ -163,6 +166,10 @@ export const clubs = pgTable('Clubs', {
   Lineup: jsonb('Lineup').$type<{ startingXI: string[]; bench: string[] } | null>(),
   Tactic: jsonb('Tactic').$type<{ formationName: string; styleName: string } | null>(),
   Finances: jsonb('Finances').$type<Record<string, unknown> | null>(),
+  /** Imagination world place UUID – the club's home city/HQ polygon on the world map. */
+  homePlaceId: text('homePlaceId'),
+  /** Imagination world place UUID – the stadium polygon on the world map. */
+  stadiumPlaceId: text('stadiumPlaceId'),
   ...timestamps,
   // Players dropped - it's the exact inverse of players.Club below.
 });

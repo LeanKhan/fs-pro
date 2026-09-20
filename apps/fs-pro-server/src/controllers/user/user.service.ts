@@ -18,6 +18,10 @@ export async function getUserByUsername(username: string) {
   return getUserRepo().findByUsername(username);
 }
 
+export async function getUserByAccountId(accountId: string) {
+  return getUserRepo().findByAccountId(accountId);
+}
+
 export async function createUser(data: Partial<IUser>) {
   return getUserRepo().create(data);
 }

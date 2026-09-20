@@ -62,4 +62,6 @@ export interface ClubInterface {
     styleName: string;
   } | null;
   Finances?: Record<string, unknown> | null;
+  homePlaceId?: string | null;
+  stadiumPlaceId?: string | null;
 }

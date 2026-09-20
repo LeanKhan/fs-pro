@@ -22,6 +22,7 @@ import {
 } from '../players/player.service';
 import { recruitYouthPlayersForClub } from '../players/player-lifecycle.service';
 import { getClubPerformance } from '../../services/analytics/club-performance.service';
+import { worldClient } from '../../services/worldClient';
 
 const s = initServer();
 
@@ -106,6 +107,9 @@ export const clubTsRestRoutes = s.router(contract.clubs, {
   createClub: async ({ body }) => {
     try {
       const club = await createClub(body as Partial<ClubInterface>);
+      if (club?.homePlaceId) {
+        worldClient.upsertEntity(club).catch(console.error);
+      }
       return {
         status: 200,
         body: {
@@ -153,6 +157,9 @@ export const clubTsRestRoutes = s.router(contract.clubs, {
         params.id,
         body as Partial<ClubInterface>
       );
+      if (club?.homePlaceId) {
+        worldClient.upsertEntity(club).catch(console.error);
+      }
       return {
         status: 200,
         body: {
