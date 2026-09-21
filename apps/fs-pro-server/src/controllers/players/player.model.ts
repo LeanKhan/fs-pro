@@ -36,6 +36,10 @@ export interface PlayerInterface {
   NationalityId?: string;
   Nationality?: import('../places/places.model').IPlace;
   RatingsHistory?: Record<string, unknown>[];
+  isTransferListed?: boolean;
+  AskingPrice?: number | null;
+  Morale?: string | null;
+  isYouth?: boolean;
 }
 
 export const roles = [

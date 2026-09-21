@@ -5,7 +5,20 @@
         <v-card class="pa-2">
           <v-card-title class="d-flex justify-space-between align-center">
             <span>Squad Management & Performance</span>
-            <span class="text-caption text-medium-emphasis">{{ players.length }} Players</span>
+            <div class="d-flex align-center">
+              <v-btn
+                color="teal-darken-1"
+                size="small"
+                variant="elevated"
+                class="mr-3 text-white"
+                :loading="recruitingYouth"
+                @click="recruitYouth"
+              >
+                <v-icon start size="small">mdi-school</v-icon>
+                Promote Youth Player
+              </v-btn>
+              <span class="text-caption text-medium-emphasis">{{ players.length }} Players</span>
+            </div>
           </v-card-title>
 
           <table
@@ -28,6 +41,9 @@
                 <th style="border: solid 1px white; padding: 6px 8px">
                   Training Focus
                 </th>
+                <th style="border: solid 1px white; padding: 6px 8px">
+                  Market / Sale
+                </th>
               </tr>
             </thead>
 
@@ -41,6 +57,24 @@
                   <template v-if="player.Position">
                     ({{ player.Position }})
                   </template>
+                  <v-chip
+                    v-if="player.isYouth || (player.Age && player.Age <= 20)"
+                    size="x-small"
+                    color="teal"
+                    variant="flat"
+                    class="ml-1 text-white"
+                  >
+                    Youth
+                  </v-chip>
+                  <v-chip
+                    v-if="player.Morale"
+                    size="x-small"
+                    :color="moraleChipColor(player.Morale)"
+                    variant="tonal"
+                    class="ml-1"
+                  >
+                    {{ player.Morale }}
+                  </v-chip>
                 </td>
 
                 <td>
@@ -127,10 +161,36 @@
                     </v-chip>
                   </div>
                 </td>
+
+                <td style="min-width: 150px">
+                  <div class="d-flex align-center">
+                    <v-chip
+                      v-if="player.isTransferListed"
+                      size="small"
+                      color="purple-darken-1"
+                      variant="flat"
+                      class="cursor-pointer font-weight-medium"
+                      @click="openListDialog(player)"
+                    >
+                      <v-icon start size="x-small">mdi-tag</v-icon>
+                      For Sale: {{ formatCurrency(player.AskingPrice ?? player.Value) }}
+                    </v-chip>
+                    <v-btn
+                      v-else
+                      size="x-small"
+                      variant="tonal"
+                      color="purple-darken-1"
+                      @click="openListDialog(player)"
+                    >
+                      <v-icon start size="x-small">mdi-tag-plus</v-icon>
+                      Put on Sale
+                    </v-btn>
+                  </div>
+                </td>
               </tr>
 
               <tr v-if="players.length === 0">
-                <td colspan="7" class="text-center pa-4">
+                <td colspan="8" class="text-center pa-4">
                   No players available
                 </td>
               </tr>
@@ -139,13 +199,31 @@
         </v-card>
       </v-col>
     </v-row>
+
+    <!-- List Player Dialog -->
+    <list-player-dialog
+      v-model:show="showListDialog"
+      :player="selectedPlayerForSale"
+      :club-id="club?._id"
+      @update-available="onPlayerListed"
+    />
+
+    <v-snackbar
+      v-model="showSnackbar"
+      :color="snackbarColor"
+      timeout="4000"
+      location="top"
+    >
+      {{ snackbarText }}
+    </v-snackbar>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from 'vue';
+import { ref, computed, reactive } from 'vue';
 import { currency } from '@/helpers/misc';
 import { client } from '@/services/api';
+import ListPlayerDialog from '@/components/players/list-player-dialog.vue';
 
 const props = defineProps<{
   club?: any | null;
@@ -154,6 +232,13 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update-available'): void;
 }>();
+
+const showListDialog = ref(false);
+const selectedPlayerForSale = ref<any | null>(null);
+const recruitingYouth = ref(false);
+const showSnackbar = ref(false);
+const snackbarText = ref('');
+const snackbarColor = ref('success');
 
 /** null = no explicit choice - the server auto-picks a Role-appropriate
  * default (see DEFAULT_TRAINING_CATEGORY_BY_ROLE, player-training.service.ts)
@@ -185,6 +270,64 @@ const players = computed(() => {
     };
   });
 });
+
+function openListDialog(player: any) {
+  selectedPlayerForSale.value = player;
+  showListDialog.value = true;
+}
+
+function onPlayerListed() {
+  emit('update-available');
+}
+
+async function recruitYouth() {
+  const clubId = props.club?._id;
+  if (!clubId) return;
+
+  recruitingYouth.value = true;
+  try {
+    const res = await client.clubs.recruitYouthPlayers.mutation({
+      params: { id: clubId },
+      body: { count: 1 },
+    });
+
+    if (res.status === 200 && res.body.payload?.length) {
+      const p = res.body.payload[0];
+      snackbarText.value = `🌟 Promoted ${p.FirstName} ${p.LastName} (${p.Position}, Age ${p.Age}) from the Academy!`;
+      snackbarColor.value = 'teal-darken-2';
+      showSnackbar.value = true;
+      emit('update-available');
+    } else {
+      snackbarText.value = 'No youth recruits available right now.';
+      snackbarColor.value = 'warning';
+      showSnackbar.value = true;
+    }
+  } catch (error: any) {
+    console.error('Error recruiting youth:', error);
+    snackbarText.value = error?.message ?? 'Failed to scout youth prospect';
+    snackbarColor.value = 'error';
+    showSnackbar.value = true;
+  } finally {
+    recruitingYouth.value = false;
+  }
+}
+
+function moraleChipColor(morale: string) {
+  switch (morale) {
+    case 'Very High':
+    case 'High':
+      return 'success';
+    case 'Determined':
+      return 'indigo';
+    case 'Content':
+      return 'teal';
+    case 'Low':
+    case 'Unhappy':
+      return 'error';
+    default:
+      return 'grey';
+  }
+}
 
 async function setTrainingFocus(player: any, value: string | null) {
   const playerId = player._id;

@@ -131,7 +131,7 @@ export async function create(
         // the compettion of this fixture
         competition: competition._id,
         leagueCode: competition.CompetitionCode.toUpperCase(),
-        stadium: home.Stadium!.Name,
+        stadium: home.Stadium?.Name ?? 'Home Ground',
         index,
         matchesPerWeek,
         type: competition.Type.toLowerCase(),
@@ -335,7 +335,7 @@ export async function generateSeasonFixtures(
       seasonCode,
       seasonId,
       leagueCode: leagueCode.toUpperCase(),
-      stadium: home.Stadium!.Name,
+      stadium: home.Stadium?.Name ?? 'Home Ground',
       index,
       matchesPerWeek,
       type: competition.Type.toLowerCase(),

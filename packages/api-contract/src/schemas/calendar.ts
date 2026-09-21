@@ -10,6 +10,17 @@ export const CalendarSchema = z.object({
   updatedAt: z.string().optional(),
 });
 
+export const ClockStateSchema = z.object({
+  mode: z.enum(['live', 'paused']),
+  currentDay: z.number(),
+  currentDate: z.string(),
+  nextTickAt: z.string().nullable(),
+  lastTickAt: z.string().nullable(),
+  matchdaySlotMinutes: z.number(),
+  offDaySlotMinutes: z.number(),
+});
+export type ClockState = z.infer<typeof ClockStateSchema>;
+
 // Sparse - a row only exists for a day that actually needs one (a real,
 // non-match calendar event). Matches live on Fixture.ScheduledDay instead.
 export const DaySchema = z

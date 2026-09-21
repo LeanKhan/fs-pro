@@ -22,24 +22,28 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, computed } from 'vue';
+import type { PickedPlace } from '@/utils/worldPlace';
 
 const props = defineProps<{
   modelValue: boolean;
   worldSlug: string;
+  /** Restrict the picker to one place kind, e.g. 'country'. */
+  kind?: string;
 }>();
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void;
-  (e: 'select', place: { id: string; name: string; kind: string; slug: string }): void;
+  (e: 'select', place: PickedPlace): void;
 }>();
 
 const dialogRef = ref<HTMLDialogElement | null>(null);
 
-const imaginationUrl = import.meta.env.VITE_IMAGINATION_URL || 'http://localhost:8080';
+const imaginationUrl = import.meta.env.VITE_IMAGINATION_URL || 'http://localhost:5173';
 
 const iframeSrc = computed(() => {
   const origin = encodeURIComponent(window.location.origin);
-  return `${imaginationUrl}/w/${props.worldSlug}/pick?origin=${origin}`;
+  const kind = props.kind ? `&kind=${encodeURIComponent(props.kind)}` : '';
+  return `${imaginationUrl}/w/${props.worldSlug}/pick?origin=${origin}${kind}`;
 });
 
 watch(() => props.modelValue, (isOpen) => {

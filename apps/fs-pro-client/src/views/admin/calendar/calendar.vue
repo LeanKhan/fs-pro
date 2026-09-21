@@ -114,6 +114,47 @@
 
     <v-card class="mt-3">
       <v-card-title class="d-flex align-center gap-2">
+        <v-icon :color="clock?.mode === 'live' ? 'success' : 'warning'">mdi-clock-outline</v-icon>
+        Live Game Clock
+        <v-chip size="small" class="ml-2" :color="clock?.mode === 'live' ? 'success' : 'warning'" variant="tonal">
+          {{ clock?.mode === 'live' ? 'Live' : 'Paused' }}
+        </v-chip>
+      </v-card-title>
+      <v-card-text>
+        <p class="text-caption text-medium-emphasis mb-3">
+          While live, the server advances the day by itself: at each kickoff it plays any unplayed
+          fixtures for the current day and moves to the next match day. Each match day lasts the
+          match-day slot, plus the off-day slot for every skipped day in between. Sim-to-date above
+          still works whether the clock is live or paused.
+          <span v-if="clock?.mode === 'live' && clock.nextTickAt">
+            Next kickoff: {{ new Date(clock.nextTickAt).toLocaleString() }}.
+          </span>
+        </p>
+        <v-row dense>
+          <v-col cols="6" md="3">
+            <v-text-field v-model.number="matchdayMinutes" type="number" min="1" density="compact"
+              label="Match-day slot (min)" hide-details />
+          </v-col>
+          <v-col cols="6" md="3">
+            <v-text-field v-model.number="offDayMinutes" type="number" min="1" density="compact"
+              label="Off-day slot (min)" hide-details />
+          </v-col>
+        </v-row>
+        <div class="mt-3">
+          <v-btn color="success" class="mr-2" :disabled="clockBusy" @click="updateClock({ mode: 'live', ...slots() })">
+            {{ clock?.mode === 'live' ? 'Save pacing' : 'Go live' }}
+          </v-btn>
+          <v-btn color="warning" variant="tonal" class="mr-2" :disabled="clockBusy || clock?.mode !== 'live'"
+            @click="updateClock({ mode: 'paused' })">
+            Pause
+          </v-btn>
+          <v-btn variant="tonal" :disabled="clockBusy" @click="tickClockNow">Advance now</v-btn>
+        </div>
+      </v-card-text>
+    </v-card>
+
+    <v-card class="mt-3">
+      <v-card-title class="d-flex align-center gap-2">
         <v-icon :color="transferWindow?.open ? 'success' : 'warning'">mdi-swap-horizontal</v-icon>
         Transfer Window
         <v-chip
@@ -239,6 +280,75 @@ const transferWindow = ref<{
   daysLeft: number | null;
 } | null>(null);
 const windowBusy = ref(false);
+
+const clock = ref<{
+  mode: 'live' | 'paused';
+  nextTickAt: string | null;
+  matchdaySlotMinutes: number;
+  offDaySlotMinutes: number;
+} | null>(null);
+const clockBusy = ref(false);
+const matchdayMinutes = ref(180);
+const offDayMinutes = ref(10);
+
+const slots = () => ({
+  matchdaySlotMinutes: matchdayMinutes.value,
+  offDaySlotMinutes: offDayMinutes.value,
+});
+
+async function loadClock() {
+  try {
+    const res = await client.calendar.getClock.query();
+    if (res.status === 200) {
+      clock.value = res.body.payload;
+      matchdayMinutes.value = res.body.payload.matchdaySlotMinutes;
+      offDayMinutes.value = res.body.payload.offDaySlotMinutes;
+    }
+  } catch (error) {
+    console.error('Error loading the clock:', error);
+  }
+}
+
+async function updateClock(body: {
+  mode?: 'live' | 'paused';
+  matchdaySlotMinutes?: number;
+  offDaySlotMinutes?: number;
+}) {
+  clockBusy.value = true;
+  try {
+    const res = await client.calendar.setClock.mutation({ body });
+    if (res.status === 200) {
+      clock.value = res.body.payload;
+      toast.value = { show: true, color: 'success', message: res.body.message };
+    } else {
+      toast.value = { show: true, color: 'error', message: res.body.message };
+    }
+  } catch (error) {
+    console.error('Error updating the clock:', error);
+    toast.value = { show: true, color: 'error', message: 'Could not update the clock' };
+  } finally {
+    clockBusy.value = false;
+  }
+}
+
+async function tickClockNow() {
+  clockBusy.value = true;
+  try {
+    const res = await client.calendar.tickClock.mutation({ body: {} });
+    toast.value = {
+      show: true,
+      color: res.status === 200 ? 'success' : 'error',
+      message: res.body.message,
+    };
+    await store.setCalendar();
+    await loadClock();
+  } catch (error) {
+    console.error('Error advancing the clock:', error);
+    toast.value = { show: true, color: 'error', message: 'Could not advance the day' };
+  } finally {
+    clockBusy.value = false;
+  }
+}
 
 async function loadWindow() {
   try {
@@ -483,5 +593,6 @@ async function runStep() {
 onMounted(() => {
   refreshStep();
   loadWindow();
+  loadClock();
 });
 </script>

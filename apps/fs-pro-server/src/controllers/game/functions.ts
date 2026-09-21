@@ -294,3 +294,100 @@ export async function updateStandings(
     throw new Error(error as any);
   }
 }
+
+/**
+ * Atomically batch-updates standings for multiple matches played on the same day.
+ * Eliminates race conditions by grouping matches by Season and applying all
+ * table deltas in a single read-modify-write per Season.
+ */
+export async function batchUpdateStandings(
+  matchResults: Array<{
+    home: Team;
+    away: Team;
+    match: Fixture;
+    HomeSideDetails: IMatchSideDetails;
+    AwaySideDetails: IMatchSideDetails;
+    season_id?: string;
+  }>
+): Promise<void> {
+  if (!matchResults || matchResults.length === 0) return;
+
+  const bySeason = new Map<string, typeof matchResults>();
+  for (const res of matchResults) {
+    if (!res.season_id) continue;
+    const list = bySeason.get(res.season_id) ?? [];
+    list.push(res);
+    bySeason.set(res.season_id, list);
+  }
+
+  for (const [seasonID, seasonResults] of bySeason.entries()) {
+    try {
+      const season = await getSeasonById(seasonID);
+      if (!season || !Array.isArray(season.Standings) || season.Standings.length === 0) {
+        continue;
+      }
+
+      let standings = [...season.Standings];
+
+      for (const res of seasonResults) {
+        const week = res.match?.Week as number;
+        if (week == null || week <= 0 || week > standings.length) continue;
+
+        const weekIndex = week - 1;
+        const weekStandings = standings[weekIndex];
+        if (!weekStandings?.Table) continue;
+
+        const homeDetails = res.HomeSideDetails;
+        const awayDetails = res.AwaySideDetails;
+        const home = res.home;
+        const away = res.away;
+
+        const homeGoals = homeDetails?.Goals ?? 0;
+        const awayGoals = awayDetails?.Goals ?? 0;
+
+        const homeWon = homeGoals > awayGoals;
+        const awayWon = awayGoals > homeGoals;
+        const draw = homeGoals === awayGoals;
+
+        const homeTable: ClubStandings = {
+          ClubCode: home.clubCode,
+          ClubID: home.id,
+          Points: homeWon ? 3 : draw ? 1 : 0,
+          Played: 1,
+          Wins: homeWon ? 1 : 0,
+          Losses: awayWon ? 1 : 0,
+          Draws: draw ? 1 : 0,
+          GF: homeGoals,
+          GA: awayGoals,
+          GD: homeGoals - awayGoals,
+        };
+
+        const awayTable: ClubStandings = {
+          ClubCode: away.clubCode,
+          ClubID: away.id,
+          Points: awayWon ? 3 : draw ? 1 : 0,
+          Played: 1,
+          Wins: awayWon ? 1 : 0,
+          Losses: homeWon ? 1 : 0,
+          Draws: draw ? 1 : 0,
+          GF: awayGoals,
+          GA: homeGoals,
+          GD: awayGoals - homeGoals,
+        };
+
+        standings[weekIndex] = {
+          ...weekStandings,
+          Table: weekStandings.Table.map((row: ClubStandings) => {
+            if (row.ClubCode === home.clubCode) return homeTable;
+            if (row.ClubCode === away.clubCode) return awayTable;
+            return row;
+          }),
+        };
+      }
+
+      await updateSeasonFields(seasonID, { Standings: standings });
+    } catch (err) {
+      console.error(`[batchUpdateStandings] Error updating standings for season ${seasonID}:`, err);
+    }
+  }
+}

@@ -1,6 +1,7 @@
 import { DrizzleDatabase } from '../../db/drizzle';
 import { calendars } from '../../db/drizzle/schema';
 import { eq } from 'drizzle-orm';
+import { ensureFreeAgentMarketStock } from './foreign-intake.service';
 
 /** Game days the window stays open after a new season cycle starts. */
 export const WINDOW_DAYS_AFTER_CYCLE_START = 14;
@@ -57,6 +58,14 @@ async function writeWindow(open: boolean, closesDay: number | null) {
 export async function openTransferWindow(days?: number): Promise<TransferWindowState> {
   const { currentDay } = await getTransferWindow();
   await writeWindow(true, days === undefined ? null : currentDay + days);
+
+  // Bring in fresh overseas arrivals if stock is low
+  try {
+    await ensureFreeAgentMarketStock();
+  } catch (err) {
+    console.error('[transfer-window] Failed to replenish market stock:', err);
+  }
+
   return getTransferWindow();
 }
 

@@ -42,6 +42,57 @@ export const placesContract = c.router(
       },
     },
 
+    /** Adds (or refreshes) a local country row from a `country` place in the world. */
+    importFromWorld: {
+      method: 'POST',
+      path: '/import-from-world',
+      body: z.object({ entity_id: z.string().min(1) }),
+      responses: {
+        200: successEnvelope(PlaceSchema),
+        400: failEnvelope(),
+      },
+    },
+
+    /** Refreshes every world-linked country row from the world. */
+    syncFromWorld: {
+      method: 'POST',
+      path: '/sync-from-world',
+      body: z.object({}),
+      responses: {
+        200: successEnvelope(
+          z.object({
+            offline: z.boolean(),
+            checked: z.number(),
+            updated: z.array(z.string()),
+            stale: z.array(z.string()),
+            errors: z.array(z.string()),
+          })
+        ),
+        400: failEnvelope(),
+      },
+    },
+
+    /** Derives a country and city from an anchor place, without saving anything. */
+    resolveAnchor: {
+      method: 'POST',
+      path: '/resolve-anchor',
+      body: z.object({ entity_id: z.string().min(1) }),
+      responses: {
+        200: successEnvelope(
+          z.object({
+            resolved: z.boolean(),
+            breadcrumbs: z.array(z.string()),
+            city: z.string().nullable(),
+            countryId: z.string().nullable(),
+            missingCountry: z
+              .object({ entity_id: z.string(), name: z.string() })
+              .nullable(),
+          })
+        ),
+        400: failEnvelope(),
+      },
+    },
+
     getPlace: {
       method: 'GET',
       path: '/:id',

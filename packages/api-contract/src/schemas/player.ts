@@ -91,6 +91,10 @@ export const PlayerSchema = z.object({
     .optional(),
   ClubCode: z.string().nullable().optional(),
   ClubId: z.string().nullable().optional(),
+  isTransferListed: z.boolean().optional(),
+  AskingPrice: z.number().nullable().optional(),
+  Morale: z.string().nullable().optional(),
+  isYouth: z.boolean().optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
 });

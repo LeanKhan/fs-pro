@@ -1,8 +1,11 @@
-import { and, desc, eq, inArray, lt, or } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lt, or } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
-import { clubs, players, transferOffers } from '../../db/drizzle/schema';
+import { clubs, players, seasons, transferOffers } from '../../db/drizzle/schema';
+import { recruitYouthPlayersForClub } from '../../controllers/players/player-lifecycle.service';
 import { settleTransfer } from '../../controllers/transfers/transfer.service';
 import { getTransferWindow, assertTransferWindowOpen } from './transfer-window.service';
+import { JevService } from '../ai/jev.service';
+import { ensureFreeAgentMarketStock } from './foreign-intake.service';
 
 /** Placeholder tuning values - everything that shapes the market lives here.
  * Squads in this world run ~12-19 players (11 starters + a thin bench), so a club
@@ -20,6 +23,11 @@ const AI_BID_CHANCE_PER_DAY = 0.4;
 const AI_DEALS_PER_DAY = 3;
 const AI_DEAL_CHANCE = 0.6;
 
+/** Minimum players an AI club wants per position; shortfalls are filled
+ * from free agents before the random market deals run. GK comes first. */
+const MIN_PER_POSITION: Record<string, number> = { GK: 2, DEF: 3, MID: 3, ATT: 2 };
+const POSITION_PRIORITY = ['GK', 'DEF', 'MID', 'ATT'];
+
 const OPEN_STATUSES = ['pending', 'countered'];
 
 const rand = (min: number, max: number) => min + Math.random() * (max - min);
@@ -33,6 +41,10 @@ interface RosterPlayer {
   Rating: number;
   Value: number;
   name: string;
+  isTransferListed?: boolean | null;
+  AskingPrice?: number | null;
+  Morale?: string | null;
+  isYouth?: boolean | null;
 }
 
 interface ClubRow {
@@ -70,6 +82,10 @@ async function loadPlayers() {
       Value: players.Value,
       FirstName: players.FirstName,
       LastName: players.LastName,
+      isTransferListed: players.isTransferListed,
+      AskingPrice: players.AskingPrice,
+      Morale: players.Morale,
+      isYouth: players.isYouth,
     })
     .from(players)
     .where(eq(players.isRetired, false));
@@ -84,6 +100,10 @@ async function loadPlayers() {
       Rating: r.Rating ?? 0,
       Value: r.Value ?? 0,
       name: `${r.FirstName} ${r.LastName}`,
+      isTransferListed: r.isTransferListed,
+      AskingPrice: r.AskingPrice,
+      Morale: r.Morale,
+      isYouth: r.isYouth,
     };
     if (r.isSigned && r.ClubId) {
       byClub.set(r.ClubId, [...(byClub.get(r.ClubId) ?? []), player]);
@@ -289,14 +309,53 @@ export interface OfferView {
   toClub: { id: string; name: string; code: string };
 }
 
+export interface ListOffersOptions {
+  limit?: number;
+  offset?: number;
+  currentSeasonOnly?: boolean;
+}
+
 /** A club's offers, newest first (open ones and recently finished ones). */
-export async function listOffers(clubId: string, limit = 40): Promise<OfferView[]> {
+export async function listOffers(
+  clubId: string,
+  options: number | ListOffersOptions = 40
+): Promise<OfferView[]> {
+  const opts: ListOffersOptions = typeof options === 'number' ? { limit: options } : options;
+  const limit = Math.min(Math.max(opts.limit ?? 40, 1), 100);
+  const offset = Math.max(opts.offset ?? 0, 0);
+
+  const conditions = [
+    or(eq(transferOffers.FromClubId, clubId), eq(transferOffers.ToClubId, clubId))!,
+  ];
+
+  if (opts.currentSeasonOnly) {
+    const activeSeasons = await db()
+      .select({ id: seasons.id, StartDate: seasons.StartDate })
+      .from(seasons)
+      .where(eq(seasons.isFinished, false));
+
+    if (activeSeasons.length > 0) {
+      const minStart = new Date(Math.min(...activeSeasons.map((s) => s.StartDate.getTime())));
+      conditions.push(gte(transferOffers.createdAt, minStart));
+    } else {
+      const [latestSeason] = await db()
+        .select({ StartDate: seasons.StartDate })
+        .from(seasons)
+        .orderBy(desc(seasons.EndDate))
+        .limit(1);
+      if (latestSeason) {
+        conditions.push(gte(transferOffers.createdAt, latestSeason.StartDate));
+      }
+    }
+  }
+
   const rows = await db()
     .select()
     .from(transferOffers)
-    .where(or(eq(transferOffers.FromClubId, clubId), eq(transferOffers.ToClubId, clubId)))
+    .where(and(...conditions))
     .orderBy(desc(transferOffers.createdAt))
-    .limit(limit);
+    .limit(limit)
+    .offset(offset);
   if (!rows.length) return [];
 
   const clubRows = await db()
@@ -350,6 +409,7 @@ export interface TransferDaySummary {
   expired: number;
   aiBids: number;
   aiDeals: number;
+  aiNeedSignings: number;
 }
 
 /**
@@ -358,7 +418,7 @@ export interface TransferDaySummary {
  * players (answered from the human's inbox) and trade among themselves.
  */
 export async function runTransferDay(day: number): Promise<TransferDaySummary> {
-  const summary: TransferDaySummary = { expired: 0, aiBids: 0, aiDeals: 0 };
+  const summary: TransferDaySummary = { expired: 0, aiBids: 0, aiDeals: 0, aiNeedSignings: 0 };
 
   const expired = await db()
     .update(transferOffers)
@@ -369,6 +429,12 @@ export async function runTransferDay(day: number): Promise<TransferDaySummary> {
 
   const window = await getTransferWindow();
   if (!window.open) return summary;
+
+  try {
+    await ensureFreeAgentMarketStock();
+  } catch (err) {
+    console.error('[transfer-market] Failed to maintain market stock:', err);
+  }
 
   const [allClubs, { byClub, freeAgents }] = await Promise.all([loadClubs(), loadPlayers()]);
   const humanClubs = allClubs.filter((c) => c.UserId);
@@ -384,7 +450,6 @@ export async function runTransferDay(day: number): Promise<TransferDaySummary> {
   for (const human of humanClubs) {
     const pendingIncoming = openOffers.filter((o) => o.ToClubId === human.id && o.Status === 'pending');
     if (pendingIncoming.length >= MAX_PENDING_OFFERS_PER_HUMAN_CLUB) continue;
-    if (Math.random() > AI_BID_CHANCE_PER_DAY) continue;
 
     const roster = byClub.get(human.id) ?? [];
     if (roster.length <= MIN_SQUAD_SIZE) continue;
@@ -392,12 +457,24 @@ export async function runTransferDay(day: number): Promise<TransferDaySummary> {
     const candidates = roster.filter((p) => !alreadyBidOn.has(p.id) && p.Value > 0);
     if (!candidates.length) continue;
 
-    // Better players attract more interest.
-    const weighted = candidates.flatMap((p) => Array(Math.max(1, Math.round(p.Rating / 20))).fill(p) as RosterPlayer[]);
+    const listedCandidates = candidates.filter((p) => p.isTransferListed);
+    const hasListed = listedCandidates.length > 0;
+    const bidChance = hasListed ? 0.85 : AI_BID_CHANCE_PER_DAY;
+    if (Math.random() > bidChance) continue;
+
+    // Prioritize listed players and youth prospects
+    const pool = hasListed && Math.random() < 0.85 ? listedCandidates : candidates;
+    const weighted = pool.flatMap((p) => {
+      let weight = Math.max(1, Math.round(p.Rating / 20));
+      if (p.isTransferListed) weight *= 6;
+      if (p.isYouth) weight *= 2;
+      return Array(weight).fill(p) as RosterPlayer[];
+    });
     const target = pick(weighted);
     if (!target) continue;
 
-    const amount = Math.round(target.Value * rand(0.95, 1.35));
+    const baseVal = target.isTransferListed && target.AskingPrice ? target.AskingPrice : target.Value;
+    const amount = Math.round(baseVal * rand(0.92, 1.15));
     const bidders = aiClubs
       .filter(
         (c) =>
@@ -421,6 +498,71 @@ export async function runTransferDay(day: number): Promise<TransferDaySummary> {
       updatedAt: new Date(),
     });
     summary.aiBids++;
+  }
+
+  // 1b. Needs first: each AI club short at a position signs a free agent
+  // for it (most urgent gap first, at most one per club per day). A club
+  // with no goalkeeper at all can't field a match, so it signs the best
+  // free-agent keeper it can afford, or the cheapest one for whatever it has.
+  for (const club of aiClubs) {
+    const roster = byClub.get(club.id) ?? [];
+    if (roster.length >= MAX_SQUAD_SIZE) continue;
+    const budget = budgets.get(club.id) ?? 0;
+
+    const gaps = POSITION_PRIORITY.map((position) => ({
+      position,
+      have: roster.filter((p) => p.Position === position).length,
+      want: MIN_PER_POSITION[position],
+    }))
+      .filter((g) => g.have < g.want)
+      .sort((a, b) => (a.have === 0 ? 0 : 1) - (b.have === 0 ? 0 : 1) || b.want - b.have - (a.want - a.have));
+
+    for (const gap of gaps) {
+      const candidates = freeAgents.filter((p) => p.Position === gap.position && p.Value > 0);
+      const priced = candidates.map((p) => ({ player: p, price: Math.round(p.Value * 0.6) }));
+      const affordable = priced.filter((o) => o.price <= budget).sort((a, b) => b.player.Rating - a.player.Rating);
+      let chosen = affordable[0];
+      const emergency = gap.position === 'GK' && gap.have === 0;
+      if (!chosen && emergency && priced.length) {
+        const cheapest = priced.sort((a, b) => a.price - b.price)[0];
+        chosen = { player: cheapest.player, price: Math.min(cheapest.price, Math.max(budget, 0)) };
+      }
+      if (!chosen && emergency) {
+        // No free-agent keeper exists at all: the club promotes a youth GK
+        // rather than stay unable to field a match.
+        try {
+          await recruitYouthPlayersForClub(
+            { _id: club.id, ClubCode: club.ClubCode },
+            1,
+            { forceGK: true, note: 'emergency youth goalkeeper (no free agent available)' }
+          );
+          byClub.set(club.id, [...roster, { id: '', ClubId: club.id, Position: 'GK', Rating: 0, Value: 0, name: 'youth GK' }]);
+          summary.aiNeedSignings++;
+          break;
+        } catch (error) {
+          console.error('[transfer-market] Emergency GK failed:', error);
+          continue;
+        }
+      }
+      if (!chosen) continue;
+
+      try {
+        await settleTransfer({
+          playerId: chosen.player.id,
+          buyingClubId: club.id,
+          amount: chosen.price,
+          note: `ai need signing (${gap.position})`,
+        });
+      } catch (error) {
+        console.error('[transfer-market] AI need signing failed:', error);
+        continue;
+      }
+      budgets.set(club.id, budget - chosen.price);
+      freeAgents.splice(freeAgents.indexOf(chosen.player), 1);
+      byClub.set(club.id, [...roster, { ...chosen.player, ClubId: club.id }]);
+      summary.aiNeedSignings++;
+      break;
+    }
   }
 
   // 2. AI clubs trade with each other and sign free agents.
@@ -486,3 +628,158 @@ export async function runTransferDay(day: number): Promise<TransferDaySummary> {
 
   return summary;
 }
+
+/**
+ * Places a player on the transfer list with an asking price, or removes them.
+ * Triggers Jev reaction for player morale & quotes, updates the database,
+ * and if listed during an open window, scouts AI clubs for an immediate opening bid.
+ */
+export async function listPlayerForSale(input: {
+  playerId: string;
+  clubId: string;
+  isListed: boolean;
+  askingPrice?: number | null;
+}) {
+  const { playerId, clubId, isListed, askingPrice } = input;
+  const [player] = await db().select().from(players).where(eq(players.id, playerId));
+  if (!player) throw new Error('Player not found');
+  if (player.ClubId !== clubId) throw new Error('This player does not belong to your club');
+
+  const [club] = await db().select().from(clubs).where(eq(clubs.id, clubId));
+  const clubName = club?.Name ?? 'your club';
+
+  if (!isListed) {
+    const [updated] = await db()
+      .update(players)
+      .set({
+        isTransferListed: false,
+        AskingPrice: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(players.id, playerId))
+      .returning();
+
+    return {
+      player: updated,
+      reaction: {
+        sentiment: 'reassured',
+        quote: "I'm relieved the speculation is over and I can focus entirely on playing for this club.",
+        morale: updated.Morale ?? 'Content',
+      },
+      marketInterest: 'Player removed from the transfer list.',
+      newOffer: null,
+    };
+  }
+
+  const baseVal = player.Value ?? 100000;
+  const finalAskingPrice = askingPrice && askingPrice > 0 ? askingPrice : baseVal;
+
+  // Use Jev for player action/reaction
+  const reaction = await JevService.generatePlayerListingReaction({
+    playerName: `${player.FirstName} ${player.LastName}`,
+    age: player.Age ?? 24,
+    rating: player.Rating ?? 65,
+    value: baseVal,
+    askingPrice: finalAskingPrice,
+    isYouth: Boolean(player.isYouth || (player.Age && player.Age <= 20)),
+    clubName,
+  });
+
+  const [updated] = await db()
+    .update(players)
+    .set({
+      isTransferListed: true,
+      AskingPrice: finalAskingPrice,
+      Morale: reaction.morale,
+      updatedAt: new Date(),
+    })
+    .where(eq(players.id, playerId))
+    .returning();
+
+  let newOffer: OfferView | null = null;
+  let marketInterest = 'Moderate interest from domestic scouts.';
+
+  const window = await getTransferWindow();
+  if (window.open) {
+    const [allClubs, { byClub }] = await Promise.all([loadClubs(), loadPlayers()]);
+    const aiClubs = allClubs.filter((c) => !c.UserId);
+    const budgets = new Map(allClubs.map((c) => [c.id, c.Budget]));
+
+    const targetPlayer: RosterPlayer = {
+      id: updated.id,
+      ClubId: updated.ClubId,
+      Position: updated.Position,
+      Rating: updated.Rating ?? 0,
+      Value: updated.Value ?? 0,
+      name: `${updated.FirstName} ${updated.LastName}`,
+      isTransferListed: true,
+      AskingPrice: finalAskingPrice,
+      isYouth: updated.isYouth,
+    };
+
+    const eligibleBidders = aiClubs.filter((c) => {
+      const b = budgets.get(c.id) ?? 0;
+      const roster = byClub.get(c.id) ?? [];
+      if (roster.length >= MAX_SQUAD_SIZE) return false;
+      if (b < finalAskingPrice * 0.9) return false;
+      return improvesSquad(targetPlayer, roster);
+    });
+
+    if (eligibleBidders.length > 0) {
+      marketInterest = `High interest: ${eligibleBidders.length} club(s) are actively tracking ${updated.FirstName}.`;
+      const bidder = pick(eligibleBidders)!;
+      const bidAmount = Math.round(Math.min(finalAskingPrice * rand(0.95, 1.05), (budgets.get(bidder.id) ?? 0) * 0.9));
+
+      const day = await currentDay();
+      const [insertedOffer] = await db()
+        .insert(transferOffers)
+        .values({
+          PlayerId: updated.id,
+          FromClubId: bidder.id,
+          ToClubId: clubId,
+          Amount: bidAmount,
+          Status: 'pending',
+          Initiator: 'ai',
+          Note: updated.isYouth ? 'Opening bid for promising youth prospect' : 'Opening bid for transfer-listed target',
+          CreatedDay: day,
+          ExpiresDay: day + OFFER_LIFETIME_DAYS,
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      newOffer = {
+        id: insertedOffer.id,
+        status: insertedOffer.Status,
+        initiator: insertedOffer.Initiator,
+        amount: insertedOffer.Amount,
+        counterAmount: insertedOffer.CounterAmount,
+        note: insertedOffer.Note,
+        createdDay: insertedOffer.CreatedDay,
+        expiresDay: insertedOffer.ExpiresDay,
+        awaiting: 'me',
+        direction: 'incoming',
+        player: {
+          id: updated.id,
+          name: `${updated.FirstName} ${updated.LastName}`,
+          position: updated.Position,
+          rating: updated.Rating ?? 0,
+          value: updated.Value ?? 0,
+        },
+        fromClub: { id: bidder.id, name: bidder.Name, code: bidder.ClubCode },
+        toClub: { id: clubId, name: club?.Name ?? 'Your Club', code: club?.ClubCode ?? 'YOU' },
+      };
+    } else {
+      marketInterest = 'Scouts have noted the listing. Clubs are reviewing their wage budgets.';
+    }
+  } else {
+    marketInterest = 'Transfer window is closed. Enquiries will begin once the window opens.';
+  }
+
+  return {
+    player: updated,
+    reaction,
+    marketInterest,
+    newOffer,
+  };
+}
+

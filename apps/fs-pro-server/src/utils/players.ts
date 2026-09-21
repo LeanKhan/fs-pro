@@ -428,6 +428,7 @@ function generatePlayer({
   firstname,
   lastname,
   nationality,
+  nationalityId,
   ageRange = [18, 30],
   attributeRange = [20, 60],
   positionAttributeRange,
@@ -436,6 +437,8 @@ function generatePlayer({
   firstname: string;
   lastname: string;
   nationality: string;
+  /** Resolved local country id (see services/nationality.ts); overrides the legacy `nationality` switch. */
+  nationalityId?: string;
   /** Passed straight to randomBetween - default [18,30] reproduces the
    * original generic-generation behavior unchanged. Youth intake
    * (player-lifecycle.service.ts) passes a distinctly younger range. */
@@ -487,6 +490,9 @@ function generatePlayer({
   };
 
   // set nationality
+  if (nationalityId) {
+    obj.NationalityId = nationalityId;
+  } else
   switch (nationality) {
     case 'kev':
       obj.NationalityId = 'f526f31c-53e6-4eac-8b07-9591deea5a6e';

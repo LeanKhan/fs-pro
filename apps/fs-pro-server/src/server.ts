@@ -17,6 +17,10 @@ import path from 'path';
 
 import log from './helpers/logger';
 import { store } from './sessionStore';
+import {
+  startCalendarClock,
+  stopCalendarClock,
+} from './services/calendar/calendar-clock.service';
 
 const app: Application = express();
 
@@ -169,6 +173,8 @@ http.on('error', (err: NodeJS.ErrnoException) => {
 
 http.listen(port, () => {
   console.log('Game Server running successfully! on port ' + port);
+  // Live game clock: no-op until an admin sets ClockMode to 'live'.
+  startCalendarClock();
 });
 
 /**
@@ -180,6 +186,7 @@ http.listen(port, () => {
  * signals do work.
  */
 function shutdown(signal: string) {
+  stopCalendarClock();
   console.log(`${signal} received, shutting down gracefully...`);
   http.close(() => {
     void DB.disconnect().finally(() => process.exit(0));

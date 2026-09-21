@@ -1,9 +1,24 @@
 <template>
   <v-card>
-    <v-card-title>
-      Transfer Market
-      <v-spacer></v-spacer>
-      <v-chip color="green">Budget: {{ currency(club.Budget) }}</v-chip>
+    <v-card-title class="d-flex align-center justify-space-between flex-wrap gap-2">
+      <div class="d-flex align-center gap-2">
+        <span>Transfer Market</span>
+      </div>
+      <div class="d-flex align-center gap-2">
+        <v-chip color="green" variant="flat" class="font-weight-bold">
+          Budget: {{ currency(club.Budget) }}
+        </v-chip>
+        <v-btn
+          size="small"
+          color="amber-darken-2"
+          variant="tonal"
+          prepend-icon="mdi-briefcase-account"
+          class="font-weight-bold text-caption"
+          @click="showBoardBudgetDialog = true"
+        >
+          Request Board Funding
+        </v-btn>
+      </div>
     </v-card-title>
 
     <v-alert
@@ -34,6 +49,34 @@
         @changed="onPurchase"
       />
 
+      <!-- Listed Players for Sale Banner -->
+      <v-alert
+        v-if="myListedPlayers.length > 0"
+        color="purple-darken-3"
+        variant="tonal"
+        density="compact"
+        class="mb-3"
+      >
+        <div class="d-flex justify-space-between align-center">
+          <div>
+            <v-icon size="small" class="mr-1">mdi-tag-multiple</v-icon>
+            <strong>Your Players on the Market ({{ myListedPlayers.length }} listed):</strong>
+            <span class="ml-2">
+              <span
+                v-for="p in myListedPlayers"
+                :key="p._id ?? p.id"
+                class="mr-2"
+              >
+                <strong>{{ p.FirstName }} {{ p.LastName }}</strong> ({{ currency(p.AskingPrice ?? p.Value) }})
+              </span>
+            </span>
+          </div>
+          <div class="text-caption font-weight-bold text-purple-lighten-2">
+            Potential Revenue: {{ currency(totalPotentialRevenue) }}
+          </div>
+        </div>
+      </v-alert>
+
       <v-row dense>
         <v-col cols="12" md="6">
           <v-text-field
@@ -60,7 +103,23 @@
       :my-budget="club.Budget ?? 0"
       :search="search"
       @buy-player="openBuyDialog"
+      @scout-player="openScoutDialog"
     ></transfer-market-table>
+
+    <transfer-scout-dialog
+      v-model="showScoutDialog"
+      :player="scoutedPlayer"
+      :club-id="club._id || club.id"
+      :my-budget="club.Budget ?? 0"
+      :window-open="!!windowState?.open"
+      @buy-player="openBuyDialog"
+    />
+
+    <board-budget-dialog
+      v-model="showBoardBudgetDialog"
+      :club="club"
+      @budget-updated="onBudgetUpdated"
+    />
 
     <buy-player-dialog
       v-model:show="showBuyDialog"
@@ -68,6 +127,7 @@
       :club="club._id"
       :my-budget="club.Budget ?? 0"
       @update-available="onPurchase"
+      @scout-player="openScoutDialog"
     ></buy-player-dialog>
   </v-card>
 </template>
@@ -80,6 +140,8 @@ import { currency } from '@/helpers/misc';
 import TransferMarketTable from '@/components/players/transfer-market-table.vue';
 import BuyPlayerDialog from '@/components/players/buy-player-dialog.vue';
 import TransferOffersPanel from '@/components/players/transfer-offers-panel.vue';
+import TransferScoutDialog from '@/components/players/transfer-scout-dialog.vue';
+import BoardBudgetDialog from '@/components/players/board-budget-dialog.vue';
 import type { TransferWindow } from '@repo/api-contract';
 import type { MarketPlayer } from '@/components/players/transfer-market-table.vue';
 
@@ -93,6 +155,9 @@ const search = ref('');
 const filter = ref<'all' | 'free-agents' | 'other-clubs'>('all');
 const showBuyDialog = ref(false);
 const selectedPlayer = ref<MarketPlayer | null>(null);
+const showScoutDialog = ref(false);
+const scoutedPlayer = ref<MarketPlayer | null>(null);
+const showBoardBudgetDialog = ref(false);
 const windowState = ref<TransferWindow | null>(null);
 const offersPanel = ref<InstanceType<typeof TransferOffersPanel> | null>(null);
 
@@ -111,6 +176,15 @@ const filteredPlayers = computed<MarketPlayer[]>(() => {
   return [...freeAgents.value, ...otherClubsPlayers.value];
 });
 
+const myListedPlayers = computed(() => {
+  if (!Array.isArray(props.club?.Players)) return [];
+  return props.club.Players.filter((p: any) => p.isTransferListed);
+});
+
+const totalPotentialRevenue = computed(() => {
+  return myListedPlayers.value.reduce((sum: number, p: any) => sum + (p.AskingPrice ?? p.Value ?? 0), 0);
+});
+
 async function loadFreeAgents() {
   try {
     const response = await client.players.getPlayers.query({
@@ -119,7 +193,7 @@ async function loadFreeAgents() {
     if (response.status === 200) {
       freeAgents.value = response.body.payload.map((p) => ({
         ...p,
-        source: 'Free Agent',
+        source: 'Overseas Free Agent',
       }));
     }
   } catch (error) {
@@ -145,6 +219,11 @@ async function loadOtherClubsPlayers() {
   }
 }
 
+function openScoutDialog(player: MarketPlayer) {
+  scoutedPlayer.value = player;
+  showScoutDialog.value = true;
+}
+
 function openBuyDialog(player: MarketPlayer) {
   if (windowState.value && !windowState.value.open) {
     store.showToast({ message: 'The transfer window is closed', style: 'warning' });
@@ -160,6 +239,17 @@ function onPurchase() {
   offersPanel.value?.load();
   loadFreeAgents();
   loadOtherClubsPlayers();
+}
+
+function onBudgetUpdated(newBudget: number) {
+  if (props.club) {
+    props.club.Budget = newBudget;
+  }
+  emit('update-available');
+  store.showToast({
+    message: `Board granted transfer funding! New Budget: ${currency(newBudget)}`,
+    style: 'success',
+  });
 }
 
 watch(

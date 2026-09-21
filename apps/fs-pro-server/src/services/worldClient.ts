@@ -9,6 +9,29 @@ interface UpsertEntityPayload {
   url: string;
 }
 
+/** Universal entity card returned by Imaginations' GET /api/entity/:id. */
+export interface WorldEntityCard {
+  id: string;
+  name: string;
+  type: string;
+  kind: string;
+  code: string | null;
+  breadcrumbs: string[];
+  ancestors: { id: string; name: string; kind: string; code: string | null }[];
+  summary: string;
+  url: string;
+  revision: number;
+  updatedAt: string;
+}
+
+/** `offline` means the world could not be reached - callers must keep using their local snapshot. */
+export type CardResult =
+  | { status: 'ok'; card: WorldEntityCard }
+  | { status: 'missing' }
+  | { status: 'offline' };
+
+const READ_TIMEOUT_MS = 3000;
+
 class WorldClient {
   private apiUrl: string;
   private worldId: string;
@@ -65,6 +88,52 @@ class WorldClient {
     }
   }
 
+  /** Reads are public, so they only need the API url, not client credentials. */
+  public canRead(): boolean {
+    return Boolean(this.apiUrl);
+  }
+
+  public async getCard(entityId: string): Promise<CardResult> {
+    if (!this.canRead()) return { status: 'offline' };
+    try {
+      const res = await fetch(
+        `${this.apiUrl}/api/entity/${encodeURIComponent(entityId)}`,
+        { signal: AbortSignal.timeout(READ_TIMEOUT_MS) }
+      );
+      if (res.status === 404) return { status: 'missing' };
+      if (!res.ok) return { status: 'offline' };
+      return { status: 'ok', card: (await res.json()) as WorldEntityCard };
+    } catch (err) {
+      console.warn('WorldClient: getCard failed:', err);
+      return { status: 'offline' };
+    }
+  }
+
+  /** Batch lookup. Unknown ids are simply absent from `cards`; `offline` is true when the world was unreachable. */
+  public async getCards(
+    entityIds: string[]
+  ): Promise<{ cards: Map<string, WorldEntityCard>; offline: boolean }> {
+    const cards = new Map<string, WorldEntityCard>();
+    if (!this.canRead()) return { cards, offline: true };
+    for (let i = 0; i < entityIds.length; i += 100) {
+      const chunk = entityIds.slice(i, i + 100);
+      try {
+        const res = await fetch(
+          `${this.apiUrl}/api/entity?ids=${chunk.map(encodeURIComponent).join(',')}`,
+          { signal: AbortSignal.timeout(READ_TIMEOUT_MS) }
+        );
+        if (!res.ok) return { cards, offline: true };
+        for (const card of (await res.json()) as WorldEntityCard[]) {
+          cards.set(card.id, card);
+        }
+      } catch (err) {
+        console.warn('WorldClient: getCards failed:', err);
+        return { cards, offline: true };
+      }
+    }
+    return { cards, offline: false };
+  }
+
   public async upsertEntity(club: any): Promise<void> {
     if (!this.isConfigured()) {
       console.debug('WorldClient: skipping upsertEntity, not configured');
@@ -82,8 +151,9 @@ class WorldClient {
       entityType: 'club',
       externalId: club.id || club._id,
       name: club.Name,
-      homePlaceId: club.homePlaceId || null,
-      stadiumPlaceId: club.stadiumPlaceId || null,
+      // Anchors live in Address.entity_id / Stadium.entity_id; the legacy columns are a fallback.
+      homePlaceId: club.Address?.entity_id || club.homePlaceId || null,
+      stadiumPlaceId: club.Stadium?.entity_id || club.stadiumPlaceId || null,
       url: `${fsproUrl}/clubs/${club.id || club._id}`,
     };
 
