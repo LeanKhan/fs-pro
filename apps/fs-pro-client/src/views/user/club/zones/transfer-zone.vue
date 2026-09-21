@@ -1,9 +1,24 @@
 <template>
   <v-card>
-    <v-card-title>
-      Transfer Market
-      <v-spacer></v-spacer>
-      <v-chip color="green">Budget: {{ currency(club.Budget) }}</v-chip>
+    <v-card-title class="d-flex align-center justify-space-between flex-wrap gap-2">
+      <div class="d-flex align-center gap-2">
+        <span>Transfer Market</span>
+      </div>
+      <div class="d-flex align-center gap-2">
+        <v-chip color="green" variant="flat" class="font-weight-bold">
+          Budget: {{ currency(club.Budget) }}
+        </v-chip>
+        <v-btn
+          size="small"
+          color="amber-darken-2"
+          variant="tonal"
+          prepend-icon="mdi-briefcase-account"
+          class="font-weight-bold text-caption"
+          @click="showBoardBudgetDialog = true"
+        >
+          Request Board Funding
+        </v-btn>
+      </div>
     </v-card-title>
 
     <v-alert
@@ -88,7 +103,23 @@
       :my-budget="club.Budget ?? 0"
       :search="search"
       @buy-player="openBuyDialog"
+      @scout-player="openScoutDialog"
     ></transfer-market-table>
+
+    <transfer-scout-dialog
+      v-model="showScoutDialog"
+      :player="scoutedPlayer"
+      :club-id="club._id || club.id"
+      :my-budget="club.Budget ?? 0"
+      :window-open="!!windowState?.open"
+      @buy-player="openBuyDialog"
+    />
+
+    <board-budget-dialog
+      v-model="showBoardBudgetDialog"
+      :club="club"
+      @budget-updated="onBudgetUpdated"
+    />
 
     <buy-player-dialog
       v-model:show="showBuyDialog"
@@ -96,6 +127,7 @@
       :club="club._id"
       :my-budget="club.Budget ?? 0"
       @update-available="onPurchase"
+      @scout-player="openScoutDialog"
     ></buy-player-dialog>
   </v-card>
 </template>
@@ -108,6 +140,8 @@ import { currency } from '@/helpers/misc';
 import TransferMarketTable from '@/components/players/transfer-market-table.vue';
 import BuyPlayerDialog from '@/components/players/buy-player-dialog.vue';
 import TransferOffersPanel from '@/components/players/transfer-offers-panel.vue';
+import TransferScoutDialog from '@/components/players/transfer-scout-dialog.vue';
+import BoardBudgetDialog from '@/components/players/board-budget-dialog.vue';
 import type { TransferWindow } from '@repo/api-contract';
 import type { MarketPlayer } from '@/components/players/transfer-market-table.vue';
 
@@ -121,6 +155,9 @@ const search = ref('');
 const filter = ref<'all' | 'free-agents' | 'other-clubs'>('all');
 const showBuyDialog = ref(false);
 const selectedPlayer = ref<MarketPlayer | null>(null);
+const showScoutDialog = ref(false);
+const scoutedPlayer = ref<MarketPlayer | null>(null);
+const showBoardBudgetDialog = ref(false);
 const windowState = ref<TransferWindow | null>(null);
 const offersPanel = ref<InstanceType<typeof TransferOffersPanel> | null>(null);
 
@@ -182,6 +219,11 @@ async function loadOtherClubsPlayers() {
   }
 }
 
+function openScoutDialog(player: MarketPlayer) {
+  scoutedPlayer.value = player;
+  showScoutDialog.value = true;
+}
+
 function openBuyDialog(player: MarketPlayer) {
   if (windowState.value && !windowState.value.open) {
     store.showToast({ message: 'The transfer window is closed', style: 'warning' });
@@ -197,6 +239,17 @@ function onPurchase() {
   offersPanel.value?.load();
   loadFreeAgents();
   loadOtherClubsPlayers();
+}
+
+function onBudgetUpdated(newBudget: number) {
+  if (props.club) {
+    props.club.Budget = newBudget;
+  }
+  emit('update-available');
+  store.showToast({
+    message: `Board granted transfer funding! New Budget: ${currency(newBudget)}`,
+    style: 'success',
+  });
 }
 
 watch(

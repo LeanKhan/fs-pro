@@ -41,6 +41,17 @@
               </v-btn>
               <v-btn
                 size="small"
+                variant="tonal"
+                color="deep-purple-lighten-2"
+                prepend-icon="mdi-creation"
+                :loading="suggesting"
+                @click="askForSuggestion"
+                title="Ask Jev to suggest positions for your players"
+              >
+                Suggest
+              </v-btn>
+              <v-btn
+                size="small"
                 variant="flat"
                 color="success"
                 :loading="saving"
@@ -68,6 +79,40 @@
             <v-btn size="x-small" variant="text" color="error" class="ml-2" @click="swapCandidate = null">
               Cancel
             </v-btn>
+          </v-alert>
+
+          <!-- Lineup problems: shape vs formation, out-of-position, injured -->
+          <v-alert
+            v-if="lineupIssues.length && !readOnly"
+            type="warning"
+            variant="tonal"
+            density="compact"
+            class="mb-2 py-1 text-caption"
+          >
+            <div v-for="(issue, i) in lineupIssues" :key="i">{{ issue }}</div>
+          </v-alert>
+
+          <!-- Suggestion from Jev (or the local standby) -->
+          <v-alert
+            v-if="suggestion"
+            type="info"
+            variant="tonal"
+            density="compact"
+            class="mb-2"
+            closable
+            @click:close="suggestion = null"
+          >
+            <div class="d-flex align-center gap-2 mb-1">
+              <strong>Suggested lineup</strong>
+              <v-chip size="x-small" :color="suggestion.source === 'jev' ? 'deep-purple' : 'grey'" variant="flat">
+                {{ suggestion.source === 'jev' ? 'Jev' : 'Local standby' }}
+              </v-chip>
+            </div>
+            <div class="text-caption mb-1">{{ suggestion.reasoning }}</div>
+            <div v-if="suggestion.excludedInjured.length" class="text-caption mb-1">
+              Left out (injured): {{ suggestion.excludedInjured.join(', ') }}
+            </div>
+            <v-btn size="x-small" color="primary" variant="flat" @click="applySuggestion">Apply to pitch</v-btn>
           </v-alert>
 
           <!-- Interactive 2D Football Pitch -->
@@ -109,6 +154,15 @@
                     ></span>
                   </div>
                   <div class="player-name">{{ slot.player.LastName || slot.player.FirstName }}</div>
+                  <div
+                    class="player-natural"
+                    :class="{ mismatch: slot.player.Position !== slot.pos }"
+                    :title="slot.player.Position !== slot.pos
+                      ? `Natural ${slot.player.Position}, playing ${slot.pos}`
+                      : `Natural ${slot.player.Position}`"
+                  >
+                    {{ slot.player.Position }}<span v-if="slot.player.Position !== slot.pos"> ⚠</span>
+                  </div>
                   <div class="player-ovr">{{ Math.round(slot.player.Rating ?? 60) }}</div>
                   <div v-if="isInjured(slot.player)" class="injury-badge" title="Injured">
                     🏥
@@ -584,6 +638,8 @@ function toStyleKey(saved: string): string {
 const selectedFormation = ref('4-3-3');
 const selectedStyle = ref('Balanced');
 const saving = ref(false);
+const suggesting = ref(false);
+const suggestion = ref<any | null>(null);
 const snackbar = ref(false);
 const snackbarMessage = ref('');
 
@@ -671,6 +727,48 @@ const pitchSlots = computed(() => {
   });
 });
 
+const POS_ORDER: Record<string, number> = { GK: 0, DEF: 1, MID: 2, ATT: 3 };
+
+/** Plain-language problems with the current XI, so the shape can be fixed. */
+const lineupIssues = computed(() => {
+  const issues: string[] = [];
+  const slots = pitchSlots.value;
+  const filled = slots.filter((s) => s.player);
+  if (filled.length < 11) issues.push(`${11 - filled.length} slot(s) are empty.`);
+
+  for (const pos of ['GK', 'DEF', 'MID', 'ATT']) {
+    const needed = slots.filter((s) => s.pos === pos).length;
+    const natural = filled.filter((s) => s.pos === pos && s.player.Position === pos).length;
+    if (natural < needed) {
+      const fitInSquad = allClubPlayers.value.filter(
+        (p: any) => p.Position === pos && !isInjured(p)
+      ).length;
+      issues.push(
+        `${selectedFormation.value} needs ${needed} ${pos}, but only ${natural} starting ${pos === 'GK' ? 'is' : 'are'} natural ${pos} (${fitInSquad} fit in the squad).`
+      );
+    }
+  }
+
+  const misplaced = filled.filter((s) => s.player.Position !== s.pos);
+  if (misplaced.length) {
+    issues.push(
+      'Out of position: ' +
+        misplaced.map((s) => `${s.player.LastName || s.player.FirstName} (${s.player.Position} as ${s.pos})`).join(', ') +
+        '.'
+    );
+  }
+
+  const hurt = filled.filter((s) => isInjured(s.player));
+  if (hurt.length) {
+    issues.push(
+      'Injured starters (the match engine will replace them): ' +
+        hurt.map((s) => s.player.LastName || s.player.FirstName).join(', ') +
+        '.'
+    );
+  }
+  return issues;
+});
+
 const benchPlayers = computed(() => {
   return benchIds.value
     .map((id) => allClubPlayers.value.find((p: any) => String(p._id) === id))
@@ -679,7 +777,12 @@ const benchPlayers = computed(() => {
 
 const reservePlayers = computed(() => {
   const selected = new Set([...starterIds.value, ...benchIds.value]);
-  return allClubPlayers.value.filter((p: any) => !selected.has(String(p._id)));
+  return allClubPlayers.value
+    .filter((p: any) => !selected.has(String(p._id)))
+    .sort(
+      (a: any, b: any) =>
+        (POS_ORDER[a.Position] ?? 9) - (POS_ORDER[b.Position] ?? 9) || (b.Rating ?? 0) - (a.Rating ?? 0)
+    );
 });
 
 const emptyBenchSlotsCount = computed(() => Math.max(0, 7 - benchPlayers.value.length));
@@ -711,6 +814,45 @@ watch(
   },
   { immediate: true }
 );
+
+async function askForSuggestion() {
+  if (!props.club?._id) return;
+  suggesting.value = true;
+  try {
+    const anchors = FORMATION_ANCHORS[selectedFormation.value] || FORMATION_ANCHORS['4-3-3'];
+    const res = await client.clubs.suggestLineup.mutation({
+      params: { id: props.club._id },
+      body: {
+        formation: selectedFormation.value,
+        style: selectedStyle.value,
+        slots: anchors.map((a) => ({ label: a.label, pos: a.pos as 'GK' | 'DEF' | 'MID' | 'ATT' })),
+      },
+    });
+    if (res.status === 200) {
+      suggestion.value = res.body.payload;
+    } else {
+      snackbarMessage.value = `Could not get a suggestion: ${res.body.message}`;
+      snackbar.value = true;
+    }
+  } catch (e) {
+    console.error('Lineup suggestion failed:', e);
+    snackbarMessage.value = 'Could not get a lineup suggestion';
+    snackbar.value = true;
+  } finally {
+    suggesting.value = false;
+  }
+}
+
+function applySuggestion() {
+  if (!suggestion.value) return;
+  const ids: string[] = new Array(11).fill('');
+  for (const s of suggestion.value.starters) ids[s.slot] = s.playerId;
+  starterIds.value = ids;
+  benchIds.value = [...suggestion.value.bench];
+  suggestion.value = null;
+  snackbarMessage.value = 'Suggestion applied - review it, then Save Tactics.';
+  snackbar.value = true;
+}
 
 function isInjured(player: any): boolean {
   return Boolean(player?.Injury && Number(player.Injury.daysRemaining) > 0);
@@ -1260,6 +1402,19 @@ async function saveLineup() {
   padding: 1px 4px;
   border-radius: 3px;
   margin-bottom: 2px;
+}
+
+.player-natural {
+  font-size: 9px;
+  font-weight: bold;
+  color: #cfd8dc;
+  margin-top: 1px;
+}
+.player-natural.mismatch {
+  color: #fff;
+  background: #e53935;
+  border-radius: 3px;
+  padding: 0 3px;
 }
 
 .player-shirt {

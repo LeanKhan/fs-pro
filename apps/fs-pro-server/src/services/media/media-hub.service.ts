@@ -1,4 +1,4 @@
-import { desc, eq, sql, or, like } from 'drizzle-orm';
+import { and, desc, eq, ne, sql, or, like } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
 import {
   clubs,
@@ -7,10 +7,15 @@ import {
   seasons,
   competitions,
   transferLedger,
+  players,
 } from '../../db/drizzle/schema';
 import type { MediaItem } from '@repo/api-contract';
 import { DerbyDetectorService, DerbyContext } from '../ai/derby-detector.service';
-import { JevService, ScoreAnswer } from '../ai/jev.service';
+import { gatherFixtureFacts } from './story-facts.service';
+import { buildMatchStory, MatchStory } from './story-angles.service';
+import { buildFinaleStory, buildTransferStory } from './story-copy.service';
+import { generateCycleNews } from './cycle-news.service';
+import { generateResultsNews } from './results-news.service';
 import { compileStandings } from '../../utils/seasons';
 
 const COMPETITION_NAMES: Record<string, string> = {
@@ -58,6 +63,25 @@ export class MediaHubService {
     // 3. Resolve Target Channel / Competition
     const selectedChannel = params.channel || 'MY_CLUB';
 
+    // Promotion/relegation/champion coverage from the latest season report,
+    // put first so a club that just moved divisions sees it straight away.
+    const withCycleNews = async (base: MediaItem[]): Promise<MediaItem[]> => {
+      try {
+        const cycle = await generateCycleNews({
+          db,
+          club: currentClub
+            ? { id: currentClub.id, ClubCode: currentClub.ClubCode, Name: currentClub.Name }
+            : null,
+          formattedDate,
+          isMyClubChannel: selectedChannel === 'MY_CLUB',
+        });
+        return [...cycle, ...base];
+      } catch (err) {
+        console.warn('[media-hub] cycle news failed:', err);
+        return base;
+      }
+    };
+
     // === CHANNEL: OVERSEAS DISPATCH ===
     if (selectedChannel === 'OVERSEAS') {
       return MediaHubService.generateOverseasFeed(formattedDate, currentDay);
@@ -70,8 +94,12 @@ export class MediaHubService {
     } else if (params.competitionCode) {
       targetCompCode = params.competitionCode.toUpperCase();
     } else if (currentClub) {
+      // The club's CURRENT league: its latest-scheduled league fixture. (A bare
+      // findFirst could return last cycle's fixture, e.g. the division a
+      // promoted club just left.)
       const sampleFix = await db.query.fixtures.findFirst({
-        where: sql`("HomeTeamId" = ${currentClub.id} OR "AwayTeamId" = ${currentClub.id}) AND "LeagueCode" IS NOT NULL`,
+        where: sql`("HomeTeamId" = ${currentClub.id} OR "AwayTeamId" = ${currentClub.id}) AND "LeagueCode" IS NOT NULL AND "Type" = 'league'`,
+        orderBy: [desc(fixtures.ScheduledDay)],
       });
       if (sampleFix?.LeagueCode) {
         targetCompCode = sampleFix.LeagueCode.toUpperCase();
@@ -115,30 +143,34 @@ export class MediaHubService {
       Array.isArray(targetSeason.Standings) &&
       targetSeason.Standings.length > 0
     ) {
-      return MediaHubService.generateSeasonFinaleFeed({
-        db,
-        targetSeason,
-        targetCompCode,
-        compDisplayName,
-        currentClub,
-        formattedDate,
-        isMyClubChannel: selectedChannel === 'MY_CLUB',
-      });
+      return withCycleNews(
+        await MediaHubService.generateSeasonFinaleFeed({
+          db,
+          targetSeason,
+          targetCompCode,
+          compDisplayName,
+          currentClub,
+          formattedDate,
+          isMyClubChannel: selectedChannel === 'MY_CLUB',
+        })
+      );
     }
 
     // === CASE 2: ACTIVE SEASON IN PROGRESS ===
-    return MediaHubService.generateActiveSeasonFeed({
-      db,
-      params,
-      currentClub,
-      targetSeason,
-      targetCompCode,
-      compDisplayName,
-      formattedDate,
-      currentDay,
-      seasonFixtures,
-      isMyClubChannel: selectedChannel === 'MY_CLUB',
-    });
+    return withCycleNews(
+      await MediaHubService.generateActiveSeasonFeed({
+        db,
+        params,
+        currentClub,
+        targetSeason,
+        targetCompCode,
+        compDisplayName,
+        formattedDate,
+        currentDay,
+        seasonFixtures,
+        isMyClubChannel: selectedChannel === 'MY_CLUB',
+      })
+    );
   }
 
   /**
@@ -212,26 +244,24 @@ export class MediaHubService {
     const seasonYear = targetSeason.Year || '2027';
     const isUserChampion = userRank === 1;
 
-    // 1. HERO: CROWNED CHAMPIONS (format: 'season_champions')
-    const bulletPoints = [
-      `🥇 Champion: ${championName} (${championRow.ClubCode}) finish 1st with ${championRow.Points} pts (${championRow.Wins}W, ${championRow.Draws}D, ${championRow.Losses}L | GD: ${championRow.GD >= 0 ? '+' : ''}${championRow.GD})`,
-    ];
+    const nameRows: any[] = await db.query.clubs.findMany({
+      where: (c: any, { inArray }: any) =>
+        inArray(c.ClubCode, compiled.map((r: any) => r.ClubCode)),
+    });
+    const finale = buildFinaleStory({
+      seed: String(targetSeason.id),
+      compName: compDisplayName,
+      year: seasonYear,
+      table: compiled as any,
+      names: Object.fromEntries(nameRows.map((c) => [c.ClubCode, c.Name])),
+      user: userRank && currentClub ? { code: currentClub.ClubCode, name: currentClub.Name, rank: userRank } : null,
+    });
 
-    if (userRank && currentClub) {
+    // 1. HERO: CROWNED CHAMPIONS (format: 'season_champions')
+    const bulletPoints = [...finale.bullets];
+    if (userRank && currentClub && userRank !== 1) {
       bulletPoints.push(
         `📊 Your Finish: ${currentClub.Name} (${currentClub.ClubCode}) finish ${getOrdinal(userRank)} of ${compiled.length} with ${userRow?.Points ?? 0} pts (${userRow?.Wins ?? 0}W, ${userRow?.Draws ?? 0}D, ${userRow?.Losses ?? 0}L)`
-      );
-    }
-
-    if (runnerUpRow) {
-      bulletPoints.push(
-        `🥈 Promotion / Runner-Up: ${runnerUpName} (${runnerUpRow.ClubCode}) finish 2nd with ${runnerUpRow.Points} pts`
-      );
-    }
-
-    if (bottomRow && bottomRow.ClubCode !== championRow.ClubCode) {
-      bulletPoints.push(
-        `🔻 Drop Zone: ${bottomName} (${bottomRow.ClubCode}) finish at the base of the table with ${bottomRow.Points} pts`
       );
     }
 
@@ -241,17 +271,15 @@ export class MediaHubService {
       category: 'general',
       badge: '🏆 SEASON FINALE & CHAMPIONS',
       badgeColor: 'amber-accent-4',
-      title: `${compDisplayName} Season Finale: ${championName} Crowned Champions!`,
+      title: finale.headline,
       subtitle: `Official Final Classifications • ${seasonYear} Campaign Concluded`,
-      summary: isUserChampion
-        ? `Incredible scenes as ${currentClub?.Name} lift the trophy! After ${championRow.Played} matchdays of unrelenting determination, the title is officially ours!`
-        : `The curtain comes down on the ${compDisplayName} campaign! ${championName} have officially secured the championship title with ${championRow.Points} points across ${championRow.Played} matchdays in an unforgettable season finale.`,
+      summary: finale.summary,
       bulletPoints,
-      fullStory: `The ${compDisplayName} season has officially reached its conclusion, crowning ${championName} as champions after ${championRow.Played} matchdays of unrelenting tactical combat.\n\nFrom opening day optimism through grueling winter fixture congestion, this campaign pushed every squad to its physical and strategic limits. ${championName} demonstrated remarkable consistency, securing top honors with ${championRow.Points} points.\n\nWith promotion tickets punched, survival battles resolved, and final prize allocations distributed, all eyes now turn toward the transfer market as managers prepare for the upcoming campaign cycle.`,
+      fullStory: finale.fullStory,
       quote: {
         author: `${championName} Captain`,
         role: 'Championship Winning Captain',
-        text: 'This title is the culmination of relentless sacrifice, tactical discipline, and the unconditional belief of our supporters. Every single point was earned through blood, sweat, and team spirit.',
+        text: finale.championQuote,
       },
       hero: {
         format: 'season_champions',
@@ -324,33 +352,21 @@ export class MediaHubService {
     });
 
     // 4. NEWS: EXECUTIVE POST-MORTEM & PRESS BRIEFING
-    const postMortemTitle = userRank && currentClub
-      ? `${currentClub.Name}: Board Reviews Campaign Performance`
-      : `${championName} Celebrates Historic Championship Triumph`;
-
-    const postMortemSummary = userRank && currentClub
-      ? `Following a hard-fought campaign culminating in a ${getOrdinal(userRank)}-place finish with ${userRow?.Points ?? 0} points, the board of ${currentClub.Name} expressed appreciation for squad commitment while outlining strategic targets for the upcoming transfer window.`
-      : `Supporters poured into city plazas and the club grounds to celebrate ${championName}'s memorable league title after an arduous and thrilling campaign.`;
-
     items.push({
       id: `season-press-${targetSeason.id}`,
       type: 'news',
       category: 'club_press',
       badge: '📰 EXECUTIVE POST-MORTEM',
       badgeColor: 'deep-purple-accent-2',
-      title: postMortemTitle,
+      title: finale.postMortem.title,
       subtitle: `Ivania Sports Gazette • Season Wrap-up`,
-      summary: postMortemSummary,
-      bulletPoints: [
-        `Squad Reflection: Key areas of strength identified alongside depth needs for next season.`,
-        `Transfer Ambitions: Scouting department actively monitoring domestic and overseas talent.`,
-        `Supporter Backing: Season ticket renewals open ahead of the upcoming campaign cycle.`,
-      ],
-      fullStory: `In a comprehensive post-season boardroom address, club directors and sporting leadership conducted a detailed audit of on-pitch results, financial health, and squad readiness.\n\nWith player contracts, wage structures, and upcoming tournament qualifications under review, the technical staff confirmed that targeted transfer bids are being prepared to address specific tactical needs before the next competitive cycle begins.`,
+      summary: finale.postMortem.summary,
+      bulletPoints: finale.postMortem.bullets,
+      fullStory: finale.postMortem.fullStory,
       quote: {
         author: currentClub?.Name ?? 'Boardroom Directorate',
         role: 'Official Club Statement',
-        text: 'Every season teaches valuable lessons. We have established solid foundations, and our priority now is aggressive recruitment to ensure we take the next competitive leap.',
+        text: finale.postMortem.quote,
       },
       hero: {
         format: 'poster',
@@ -403,15 +419,29 @@ export class MediaHubService {
         id: `commercial-${currentClub.id}`,
         type: 'promo',
         category: 'commercial',
+        ...(() => {
+          const variants = [
+            {
+              title: `${currentClub.Name}: Commemorative Season Merchandise`,
+              summary: `Celebrate the ${seasonYear} campaign with official commemorative kits, badges and memorabilia in the club store.`,
+              bulletPoints: [`Special-edition jerseys with league sleeve badges.`, `Part of the revenue goes to the academy.`],
+            },
+            {
+              title: `${currentClub.Name} Open Season Ticket Renewals`,
+              summary: `After ${userRank ? `a ${getOrdinal(userRank)}-place finish` : 'the season'}, ${currentClub.Name} have opened renewals for next year with loyalty pricing for existing holders.`,
+              bulletPoints: [`Existing holders get first access.`, `Loyalty pricing applies until the window closes.`],
+            },
+            {
+              title: `${currentClub.Name} Thank Supporters With Open Training Day`,
+              summary: `${currentClub.Name} are inviting supporters to an open training day to mark the end of the ${seasonYear} season.`,
+              bulletPoints: [`Free entry, with player meet-and-greets.`, `Kit and memorabilia stalls on site.`],
+            },
+          ];
+          return variants[(String(targetSeason.id).charCodeAt(0) + (userRank ?? 0)) % variants.length];
+        })(),
+        subtitle: `Official Club Megastore`,
         badge: '✨ SEASON CAMPAIGN',
         badgeColor: 'cyan-accent-3',
-        title: `${currentClub.Name}: Commemorative Season Merchandise`,
-        subtitle: `Official Club Megastore`,
-        summary: `Celebrate the campaign with official season commemorative kits, badges, and supporter memorabilia now available in the club store.`,
-        bulletPoints: [
-          `Special Edition: Commemorative jerseys with official league sleeve badges.`,
-          `Academy Benefit: Percentage of merchandise revenue reinvested into youth development.`,
-        ],
         hero: {
           format: 'poster',
           bannerTheme: 'classic_gold',
@@ -488,23 +518,27 @@ export class MediaHubService {
     }
 
     const isDerby = Boolean(derbyContext?.isSpecialEvent);
-    const jevResponse = await JevService.ask(
-      {
-        isDerby,
-        isTopClash: derbyContext?.eventType === 'title_decider',
-        clubCode: currentClub?.ClubCode ?? 'CLUB',
-      },
-      {
-        hypeScore: {
-          type: 'score',
-          instructions: 'Rate the matchday excitement and media buzz.',
-          criteria: ['quiet', 'routine', 'buzzing', 'high_anticipation', 'fever_pitch'],
-        },
-      }
-    );
 
-    const hypeAnswer = jevResponse.answers.hypeScore as ScoreAnswer;
-    const hypeScore = derbyContext?.hypeScore ?? (hypeAnswer?.score ? hypeAnswer.score + 1 : 3);
+    // Real facts -> an angle (Jev only when the top angles are close) -> copy.
+    // Best-effort: on any failure the cards fall back to their generic text.
+    let story: MatchStory | null = null;
+    if (activeFixture?.Home && activeFixture?.Away) {
+      try {
+        // The fixture's own season - the channel's season can be a different competition.
+        const factsSeason =
+          activeFixture.SeasonId && activeFixture.SeasonId !== targetSeason?.id
+            ? await db.query.seasons.findFirst({ where: eq(seasons.id, activeFixture.SeasonId) })
+            : targetSeason;
+        const facts = await gatherFixtureFacts(db, {
+          fixture: activeFixture,
+          season: factsSeason ?? null,
+        });
+        story = await buildMatchStory(activeFixture.id, facts);
+      } catch (err) {
+        console.warn('[media-hub] story generation failed, using generic copy:', err);
+      }
+    }
+    const hypeScore = derbyContext?.hypeScore ?? story?.intensity ?? 3;
 
     const items: MediaItem[] = [];
 
@@ -565,11 +599,11 @@ export class MediaHubService {
         badgeColor: 'deep-purple-accent-2',
         title: `Press Conference: The Stakes Ahead of ${derbyContext.eventName}`,
         subtitle: `Ivania Sports Gazette • Matchday Press Room`,
-        summary: `Both managers took to the microphones ahead of the rivalry clash, emphasizing tactical discipline, composure under pressure, and the immense weight of supporter expectations.`,
-        bulletPoints: [
-          `Home Strategy: Fast direct progression through midfield channels.`,
-          `Away Counter: High pressing block aiming to disrupt buildup tempo.`,
-          `Key Duel: Midfield battle expected to dictate the tempo of play.`,
+        summary:
+          story?.press.summary ??
+          `Both managers took to the microphones ahead of the rivalry clash, emphasizing tactical discipline and the weight of supporter expectations.`,
+        bulletPoints: story?.press.bullets ?? [
+          `Both managers stressed discipline and composure under pressure.`,
         ],
         hero: {
           format: 'poster',
@@ -601,11 +635,13 @@ export class MediaHubService {
         badgeColor: 'primary',
         title: `${homeName} vs ${awayName}`,
         subtitle: `${stadium} • ${compDisplayName} • Day ${activeFixture.ScheduledDay || currentDay}`,
-        summary: `${homeName} host ${awayName} in a pivotal fixture with both clubs seeking three crucial league points.`,
-        bulletPoints: [
-          `Form Check: Crucial test of momentum for the starting XI.`,
-          `Tactical Matchup: Balancing offensive class against defensive structure.`,
+        summary:
+          story?.summary ??
+          `${homeName} host ${awayName} in a fixture with three league points at stake.`,
+        bulletPoints: story?.bullets ?? [
+          `Form Check: a test of momentum for both starting XIs.`,
         ],
+        fullStory: story?.fullStory,
         hero: {
           format: 'crest_clash',
           homeCode: activeFixture.Home,
@@ -631,8 +667,61 @@ export class MediaHubService {
           },
         ],
         timestamp: formattedDate,
-        hypeScore: 3,
+        hypeScore,
       });
+
+      // Press conference for any fixture with a real angle (derbies add theirs above).
+      if (story && story.angle !== 'routine') {
+        items.push({
+          id: `news-press-${activeFixture.id}`,
+          type: 'news',
+          category: 'matchday',
+          badge: '📰 PRESS ROOM',
+          badgeColor: 'deep-purple-accent-2',
+          title: story.press.title,
+          subtitle: `Ivania Sports Gazette • Matchday Press Room`,
+          summary: story.press.summary,
+          bulletPoints: story.press.bullets,
+          fullStory: story.press.fullStory,
+          hero: {
+            format: 'poster',
+            bannerTheme: 'press_dark',
+            caption: 'Pre-match press conference',
+          },
+          actions: [
+            {
+              label: 'Read Story',
+              action: 'open_story',
+              icon: 'mdi-newspaper-variant-outline',
+              color: 'deep-purple-accent-2',
+            },
+          ],
+          timestamp: formattedDate,
+          hypeScore,
+        });
+      }
+    }
+
+    // --- WHAT JUST HAPPENED: latest match report + matchweek round-up ---
+    try {
+      const resultsSeason =
+        activeFixture?.SeasonId && activeFixture.SeasonId !== targetSeason?.id
+          ? await db.query.seasons.findFirst({ where: eq(seasons.id, activeFixture.SeasonId) })
+          : targetSeason;
+      items.push(
+        ...(await generateResultsNews({
+          db,
+          season: resultsSeason ?? null,
+          club: currentClub
+            ? { id: currentClub.id, ClubCode: currentClub.ClubCode, Name: currentClub.Name }
+            : null,
+          compName: compDisplayName,
+          formattedDate,
+          isMyClubChannel,
+        }))
+      );
+    } catch (err) {
+      console.warn('[media-hub] results news failed:', err);
     }
 
     // --- RECENT CONFIRMED TRANSFERS ---
@@ -646,19 +735,44 @@ export class MediaHubService {
 
     // Club Commercial & Squad Media if user club
     if (isMyClubChannel && currentClub) {
+      // Rotates weekly (stable within a week) instead of one fixed announcement.
+      const commercialVariants = [
+        {
+          title: `${currentClub.Name}: New Commercial Partnership`,
+          summary: `The commercial arm of ${currentClub.Name} has agreed an expanded sponsorship portfolio for the season cycle.`,
+          bullets: [`Financial Injection: boosting training facility and academy budgets.`, `Merchandise: refreshed home and away kits go on sale.`],
+        },
+        {
+          title: `${currentClub.Name} Announce Matchday Experience Upgrade`,
+          summary: `${currentClub.Name} are investing in the supporter experience at ${currentClub.Stadium?.Name ?? 'their ground'}, from concourses to fan zones.`,
+          bullets: [`Fan zones and food outlets expanded ahead of the next home fixture.`, `Season-ticket holders get early access to the new lounges.`],
+        },
+        {
+          title: `${currentClub.Name} Community Day Draws the Crowds`,
+          summary: `Players and staff from ${currentClub.Name} spent the day with local supporters, with youth coaching sessions and a fan Q&A.`,
+          bullets: [`Youth coaching clinics run by first-team players.`, `Proceeds go toward local grassroots facilities.`],
+        },
+        {
+          title: `${currentClub.Name} Unveil Kit Launch Event`,
+          summary: `${currentClub.Name} showed off the season's kits to a packed audience, with limited-run shirts available to supporters.`,
+          bullets: [`Home and away designs revealed.`, `Limited numbered shirts available online and at the club store.`],
+        },
+      ];
+      const variant =
+        commercialVariants[
+          (String(currentClub.id).charCodeAt(0) + Math.floor(currentDay / 7)) %
+            commercialVariants.length
+        ];
       items.push({
         id: `commercial-${currentClub.id}`,
         type: 'promo',
         category: 'commercial',
         badge: '✨ CLUB CAMPAIGN',
         badgeColor: 'cyan-accent-3',
-        title: `${currentClub.Name}: New Commercial Partnership`,
+        title: variant.title,
         subtitle: `Executive Commercial Office`,
-        summary: `The commercial arm of ${currentClub.Name} has finalized an expanded sponsorship portfolio, reinforcing club balance sheets for the current season cycle.`,
-        bulletPoints: [
-          `Financial Injection: Bolstering training facility investments and academy operations.`,
-          `Merchandise Launch: New official home and away kits available for supporters.`,
-        ],
+        summary: variant.summary,
+        bulletPoints: variant.bullets,
         hero: {
           format: 'poster',
           bannerTheme: 'classic_gold',
@@ -728,16 +842,43 @@ export class MediaHubService {
       const playerName = `${player.FirstName} ${player.LastName}`;
       const rating = Math.round(player.Rating || 70);
 
+      const peers = await db
+        .select({ rating: players.Rating })
+        .from(players)
+        .where(
+          and(
+            eq(players.ClubId, buyer.id),
+            eq(players.Position, player.Position ?? ''),
+            eq(players.isRetired, false),
+            ne(players.id, player.id)
+          )
+        );
+      const story = buildTransferStory({
+        seed: String(t.id),
+        playerName,
+        firstName: player.FirstName,
+        position: player.Position ?? 'player',
+        age: player.Age ?? 25,
+        rating,
+        value: player.Value ?? fee,
+        fee,
+        buyerName: buyer.Name,
+        sellerName: seller?.Name ?? null,
+        note: t.Note ?? null,
+        peersInPosition: peers.map((p: any) => ({ rating: p.rating ?? 0 })),
+      });
+
       items.push({
         id: `transfer-news-${t.id}`,
         type: 'news',
         category: 'transfer',
         badge: isFreeAgent ? '⚡ FREE AGENT SIGNING' : '💰 CONFIRMED TRANSFER',
         badgeColor: isFreeAgent ? 'light-blue-accent-3' : 'teal-accent-4',
-        title: `TRANSFER CONFIRMED: ${playerName} Signs for ${buyer.Name}!`,
+        title: story.title,
         subtitle: `${isFreeAgent ? 'Signed as Free Agent' : `Transferred from ${seller?.Name ?? fromOrigin}`} • Fee: ${formattedFee}`,
-        summary: `${buyer.Name} have officially secured the signature of ${player.Position || 'player'} ${playerName} (Age ${player.Age}) ${seller ? `from ${fromOrigin}` : 'on a free transfer'}. Full terms and medical completed.`,
+        summary: story.summary,
         bulletPoints: [
+          `📰 ${story.insight}`,
           `📋 Transferred From: ${fromOrigin}`,
           `🎯 Destination: ${toDestination}`,
           `💶 Agreed Fee: ${formattedFee} (Valuation: €${(player.Value || fee).toLocaleString()})`,
@@ -762,14 +903,14 @@ export class MediaHubService {
           toDestination,
           dealType,
           date: formattedDate,
-          managerQuote: `We are absolutely delighted to finalize terms with ${player.FirstName}. Their technical maturity and competitive drive make them an ideal addition to our squad structure.`,
-          scoutingVerdict: `A versatile ${player.Position} capable of excelling under pressure. Brings immediate tactical balance and depth to ${buyer.Name}.`,
+          managerQuote: story.managerQuote,
+          scoutingVerdict: story.scoutingVerdict,
         },
-        fullStory: `In a landmark piece of transfer business finalized today, ${buyer.Name} have officially confirmed the acquisition of ${playerName}.\n\nThe ${player.Age}-year-old ${player.Position} arrives ${seller ? `from ${fromOrigin} in a deal structured at ${formattedFee}` : 'following contract agreements via free agency'}.\n\nClub sporting directors praised the smooth conclusion of negotiations, noting that ${playerName} passed medical examinations without incident and will immediately join training ahead of upcoming fixtures.`,
+        fullStory: story.fullStory,
         quote: {
           author: `${buyer.Name} Sporting Director`,
           role: 'Official Club Transfer Statement',
-          text: `Signing a player of ${player.FirstName}'s calibre reinforces our commitment to competing at the highest level. We look forward to seeing their impact on the pitch.`,
+          text: story.directorQuote,
         },
         hero: {
           format: 'transfer_wire',

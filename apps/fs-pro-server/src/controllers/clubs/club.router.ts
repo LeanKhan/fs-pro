@@ -24,6 +24,7 @@ import { recruitYouthPlayersForClub } from '../players/player-lifecycle.service'
 import { getClubPerformance } from '../../services/analytics/club-performance.service';
 import { worldClient } from '../../services/worldClient';
 import { applyClubAnchors } from '../../services/worldPlaceService';
+import { suggestLineup } from '../../services/ai/lineup-advisor.service';
 import { MediaHubService } from '../../services/media/media-hub.service';
 
 const s = initServer();
@@ -145,6 +146,27 @@ export const clubTsRestRoutes = s.router(contract.clubs, {
           message: 'Club performance fetched successfully',
           payload: performance,
         },
+      };
+    } catch (err) {
+      const message = fail(err);
+      return {
+        status: /not found/i.test(message) ? (404 as const) : (400 as const),
+        body: { success: false, message, payload: message },
+      };
+    }
+  },
+
+  suggestLineup: async ({ params, body }) => {
+    try {
+      const suggestion = await suggestLineup({
+        clubId: params.id,
+        formation: body.formation,
+        style: body.style,
+        slots: body.slots,
+      });
+      return {
+        status: 200,
+        body: { success: true, message: 'Lineup suggested', payload: suggestion },
       };
     } catch (err) {
       const message = fail(err);
