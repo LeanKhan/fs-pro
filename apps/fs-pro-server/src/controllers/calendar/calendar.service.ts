@@ -77,6 +77,7 @@ export async function healCalendar(): Promise<{
 
 import { TournamentEngineService } from '../../services/competitions/tournament-engine.service';
 import { runTransferDay } from '../../services/transfers/transfer-market.service';
+import { completeDueUpgrades } from '../../services/facilities/facilities.service';
 
 /** Most game days of AI transfer activity run for one calendar advance, so a
  * long jump (e.g. simulate-to-date) does not flood the market in one go. */
@@ -120,6 +121,16 @@ export async function advanceDayIfDone(
   }
 
   const advanced = await updateCalendar({ CurrentDay: next.day, CurrentDate: next.date });
+
+  // Club facility upgrades are built in game days: finish whatever is due.
+  try {
+    const finished = await completeDueUpgrades(next.day);
+    if (finished.length) {
+      console.log(`[advanceDayIfDone] ${finished.length} facility upgrade(s) completed on day ${next.day}`);
+    }
+  } catch (err) {
+    console.error('[advanceDayIfDone] Error completing facility upgrades:', err);
+  }
 
   // The transfer market moves with the calendar: expire stale offers and, while
   // the window is open, let AI clubs bid and trade for each day that passed.
