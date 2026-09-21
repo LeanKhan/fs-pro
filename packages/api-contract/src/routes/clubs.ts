@@ -9,6 +9,38 @@ import { MediaItemSchema } from '../schemas/media';
 import { successEnvelope, failEnvelope } from '../schemas/envelope';
 import { booleanQuery } from '../schemas/query';
 
+const SlotPosSchema = z.enum(['GK', 'DEF', 'MID', 'ATT']);
+const ApproachSchema = z.enum(['balanced', 'attacking', 'solid']);
+
+const LineupSuggestionSchema = z.object({
+  approach: ApproachSchema,
+  source: z.enum(['jev', 'local']),
+  confidence: z.number().nullable(),
+  reasoning: z.string(),
+  starters: z.array(
+    z.object({
+      slot: z.number(),
+      label: z.string(),
+      slotPos: SlotPosSchema,
+      playerId: z.string(),
+      playerName: z.string(),
+      naturalPos: SlotPosSchema,
+      rating: z.number(),
+      outOfPosition: z.boolean(),
+    })
+  ),
+  bench: z.array(z.string()),
+  candidates: z.array(
+    z.object({
+      approach: ApproachSchema,
+      score: z.number(),
+      outOfPosition: z.number(),
+      avgRating: z.number(),
+    })
+  ),
+  excludedInjured: z.array(z.string()),
+});
+
 const c = initContract();
 
 // Writable subset of Club - excludes populate-only/server-computed fields
@@ -70,6 +102,27 @@ export const clubsContract = c.router(
       }),
       responses: {
         200: successEnvelope(ClubPerformanceSchema),
+        404: failEnvelope(),
+        400: failEnvelope(),
+      },
+    },
+
+    // Suggests a starting XI + bench for a formation: candidate lineups are
+    // built locally, Jev picks the approach, and the local emulator stands by
+    // when Jev is unavailable.
+    suggestLineup: {
+      method: 'POST',
+      path: '/:id/lineup-suggestion',
+      pathParams: z.object({ id: z.string() }),
+      body: z.object({
+        formation: z.string(),
+        style: z.string().optional(),
+        slots: z
+          .array(z.object({ label: z.string(), pos: z.enum(['GK', 'DEF', 'MID', 'ATT']) }))
+          .length(11),
+      }),
+      responses: {
+        200: successEnvelope(LineupSuggestionSchema),
         404: failEnvelope(),
         400: failEnvelope(),
       },

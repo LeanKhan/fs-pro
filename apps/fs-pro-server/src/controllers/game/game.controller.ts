@@ -72,9 +72,16 @@ export interface PlayResult {
   lastMatchOfSeason: boolean | undefined;
 }
 
+export interface PlayOptions {
+  quickSim?: boolean;
+  skipStandings?: boolean;
+  skipDayAdvance?: boolean;
+  skipReplay?: boolean;
+}
+
 export async function play(
   fixture_id: string,
-  options?: { quickSim?: boolean }
+  options?: PlayOptions
 ) {
   let CurrentMatch: CurrentMatch = {};
 
@@ -351,7 +358,7 @@ export async function play(
       // on demand (see restRewatchMatch) without re-simulating it. Gated by
       // the same SaveStats flag used for permanent stats below - a friendly
       // played with SaveStats off is meant to leave nothing behind.
-      if (isFriendly ? fixture.SaveStats === true : true) {
+      if (!options?.skipReplay && (isFriendly ? fixture.SaveStats === true : true)) {
         saveReplay(fixture_id, m).catch((err: any) => {
           console.error(`[replay] error saving replay for ${fixture_id}:`, err);
         });
@@ -443,8 +450,12 @@ export async function play(
         // }});
       }
     })
-    .then((result: any) => (isFriendly ? result : updateRelatedData(result)))
-    .then((result: any) => (isFriendly ? result : afterMatch(result)));
+    .then((result: any) =>
+      isFriendly || options?.skipStandings ? result : updateRelatedData(result)
+    )
+    .then((result: any) =>
+      isFriendly || options?.skipDayAdvance ? result : afterMatch(result)
+    );
 
   // [5] Update standings and shii... do later :)
 }

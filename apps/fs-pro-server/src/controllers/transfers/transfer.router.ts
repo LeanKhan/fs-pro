@@ -17,6 +17,8 @@ import {
   listOffers,
   listPlayerForSale,
 } from '../../services/transfers/transfer-market.service';
+import { scoutPlayerTransfer } from '../../services/ai/transfer-scout.service';
+import { processBoardBudgetRequest } from '../../services/ai/board-budget.service';
 
 const s = initServer();
 
@@ -164,6 +166,47 @@ export const transferTsRestRoutes = s.router(contract.transfers, {
             marketInterest: result.marketInterest,
             newOffer: result.newOffer,
           },
+        },
+      };
+    } catch (err) {
+      return errorResponse(err) as any;
+    }
+  },
+
+  scoutPlayerTransfer: async ({ body }) => {
+    try {
+      const report = await scoutPlayerTransfer(body.playerId, body.clubId);
+      return {
+        status: 200 as const,
+        body: {
+          success: true as const,
+          message: 'Player transfer scouted successfully',
+          payload: report as any,
+        },
+      };
+    } catch (err) {
+      return errorResponse(err) as any;
+    }
+  },
+
+  requestBudgetIncrease: async ({ body }) => {
+    try {
+      const result = await processBoardBudgetRequest(
+        body.clubId,
+        body.amount,
+        body.justification
+      );
+      return {
+        status: 200 as const,
+        body: {
+          success: true as const,
+          message:
+            result.status === 'ACCEPTED'
+              ? 'Board approved your budget increase request in full'
+              : result.status === 'COMPROMISE'
+                ? 'Board approved a partial budget increase'
+                : 'Board declined your budget increase request',
+          payload: result as any,
         },
       };
     } catch (err) {

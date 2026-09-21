@@ -42,41 +42,137 @@ export type JevAnswer = ChoiceAnswer | ScoreAnswer | NoulAnswer;
 
 export interface JevResponse {
   answers: Record<string, JevAnswer>;
+  /** 'jev' = answered by the remote API, 'local' = the built-in emulator. */
+  source?: 'jev' | 'local';
 }
 
 export class JevService {
-  private static apiKey = process.env.TYPESAFE_API_KEY ?? '';
-  private static apiUrl = process.env.TYPESAFE_API_URL ?? 'https://api.typesafe.ai/v1/system-one';
-  private static model = process.env.TYPESAFE_MODEL ?? 'jev';
+  private static get apiKey(): string {
+    return process.env.TYPESAFE_API_KEY ?? process.env.JEV_API_KEY ?? '';
+  }
+
+  private static get apiUrl(): string {
+    return process.env.TYPESAFE_API_URL ?? 'https://api.typesafe.ai/v1/systemone';
+  }
+
+  private static get model(): string {
+    return process.env.TYPESAFE_MODEL ?? 'jev-latest';
+  }
+
+  /**
+   * Tests the connection to the live Jev / TypeSafe AI API.
+   * Returns details on connection status, latency, model, and active source.
+   */
+  public static async testConnection(): Promise<{
+    connected: boolean;
+    source: 'jev' | 'local';
+    model: string;
+    endpoint: string;
+    latencyMs?: number;
+    error?: string;
+  }> {
+    const key = this.apiKey;
+    const url = this.apiUrl;
+    const model = this.model;
+
+    if (!key) {
+      return {
+        connected: false,
+        source: 'local',
+        model,
+        endpoint: url,
+        error: 'No JEV_API_KEY or TYPESAFE_API_KEY configured in environment.',
+      };
+    }
+
+    const start = Date.now();
+    try {
+      const response = await axios.post(
+        url,
+        {
+          model,
+          state: { ping: true, timestamp: Date.now() },
+          questions: {
+            status: {
+              type: 'choice',
+              instructions: 'Confirm operational status.',
+              criteria: { ready: 'System is ready', standby: 'System in standby' },
+            },
+          },
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${key}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 6000,
+        }
+      );
+
+      const latencyMs = Date.now() - start;
+      if (response.status === 200 && response.data?.answers) {
+        return {
+          connected: true,
+          source: 'jev',
+          model: response.data.model ?? model,
+          endpoint: url,
+          latencyMs,
+        };
+      }
+
+      return {
+        connected: false,
+        source: 'local',
+        model,
+        endpoint: url,
+        latencyMs,
+        error: `Unexpected response status ${response.status}`,
+      };
+    } catch (err: any) {
+      const latencyMs = Date.now() - start;
+      return {
+        connected: false,
+        source: 'local',
+        model,
+        endpoint: url,
+        latencyMs,
+        error: err?.response?.data ? JSON.stringify(err.response.data) : (err?.message ?? String(err)),
+      };
+    }
+  }
 
   /**
    * Evaluates one or more typed questions against a domain state payload.
-   * If no API key is provided, gracefully resolves via calibrated heuristic fallback.
+   * If no API key is provided or call fails, gracefully resolves via calibrated heuristic fallback.
    */
   public static async ask(
     state: Record<string, unknown>,
     questions: Record<string, JevQuestion>
   ): Promise<JevResponse> {
-    if (this.apiKey) {
+    const key = this.apiKey;
+    const url = this.apiUrl;
+    const model = this.model;
+
+    if (key) {
       try {
         const response = await axios.post(
-          this.apiUrl,
+          url,
           {
-            model: this.model,
+            model,
             state,
             questions,
           },
           {
             headers: {
-              Authorization: `Bearer ${this.apiKey}`,
+              Authorization: `Bearer ${key}`,
               'Content-Type': 'application/json',
             },
-            timeout: 5000,
+            timeout: 6000,
           }
         );
 
         if (response.status === 200 && response.data?.answers) {
-          return response.data as JevResponse;
+          return { ...(response.data as JevResponse), source: 'jev' };
         }
       } catch (err: any) {
         console.warn(`[JevService] API call failed, falling back to calibrated default:`, err?.message ?? err);
@@ -145,6 +241,24 @@ export class JevService {
           } else {
             probabilities = { match_preview: 0.65, club_feature: 0.25, derby_spotlight: 0.10 };
           }
+        } else if (id === 'lineupApproach' || id === 'storyAngle') {
+          // Local standby for the lineup advisor: prefer the approach whose
+          // candidate XI scores best, nudged by the playing style.
+          const candidates = (state.candidates as { approach: string; score: number; outOfPosition: number }[]) ?? [];
+          const style = String(state.style ?? '').toLowerCase();
+          const nudge = (a: string) =>
+            (a === 'attacking' && /press|direct/.test(style) ? 6 : 0) +
+            (a === 'solid' && /block|defen/.test(style) ? 6 : 0);
+          const utilities = candidates.map((c) => ({
+            approach: c.approach,
+            u: c.score - c.outOfPosition * 8 + nudge(c.approach),
+          }));
+          const max = Math.max(...utilities.map((x) => x.u), 0);
+          const exps = utilities.map((x) => ({ approach: x.approach, e: Math.exp((x.u - max) / 12) }));
+          const total = exps.reduce((s, x) => s + x.e, 0) || 1;
+          exps.forEach((x) => {
+            probabilities[x.approach] = x.e / total;
+          });
         } else if (id === 'crisisLevel') {
           const gamesWithoutWin = (state.gamesWithoutWin as number) ?? 0;
           const concededRate = (state.concededRate as number) ?? 1.2;
@@ -224,6 +338,31 @@ export class JevService {
               youth_breakout_eager: 0.0,
             };
           }
+        } else if (id === 'transferVerdict') {
+          const delta = ((state.squadContext as any)?.ratingDelta as number) ?? 0;
+          const budgetShare = ((state.squadContext as any)?.budgetSharePercent as number) ?? 50;
+          const age = ((state.targetPlayer as any)?.age as number) ?? 25;
+          if (delta >= 3 && budgetShare <= 60) {
+            probabilities = { MUST_BUY: 0.70, RECOMMENDED: 0.22, ROTATION: 0.05, OVERPRICED: 0.02, HIGH_RISK: 0.01 };
+          } else if (delta >= 0 && budgetShare <= 80) {
+            probabilities = { RECOMMENDED: 0.65, MUST_BUY: 0.15, ROTATION: 0.15, OVERPRICED: 0.03, HIGH_RISK: 0.02 };
+          } else if (budgetShare > 95 || age > 33) {
+            probabilities = { HIGH_RISK: 0.55, OVERPRICED: 0.30, ROTATION: 0.10, RECOMMENDED: 0.05, MUST_BUY: 0.0 };
+          } else {
+            probabilities = { ROTATION: 0.58, RECOMMENDED: 0.25, OVERPRICED: 0.12, HIGH_RISK: 0.05, MUST_BUY: 0.0 };
+          }
+        } else if (id === 'tacticalFit') {
+          probabilities = { EXCELLENT: 0.48, GOOD: 0.38, NEUTRAL: 0.11, POOR: 0.03 };
+        } else if (id === 'squadRole') {
+          const delta = ((state.squadContext as any)?.ratingDelta as number) ?? 0;
+          const age = ((state.targetPlayer as any)?.age as number) ?? 25;
+          if (delta > 0) {
+            probabilities = { STARTER_UPGRADE: 0.75, KEY_DEPTH: 0.20, FUTURE_PROSPECT: 0.04, SURPLUS: 0.01 };
+          } else if (age <= 21) {
+            probabilities = { FUTURE_PROSPECT: 0.70, KEY_DEPTH: 0.22, STARTER_UPGRADE: 0.05, SURPLUS: 0.03 };
+          } else {
+            probabilities = { KEY_DEPTH: 0.65, SURPLUS: 0.15, FUTURE_PROSPECT: 0.10, STARTER_UPGRADE: 0.10 };
+          }
         } else {
           // Uniform / first-choice distribution for general questions
           const share = 1 / keys.length;
@@ -273,7 +412,7 @@ export class JevService {
       }
     }
 
-    return { answers };
+    return { answers, source: 'local' };
   }
 
   /**
