@@ -555,5 +555,34 @@ export const transferOffers = pgTable(
   ]
 );
 
+/**
+ * A club's levelled facilities (Stadium Grounds, Stands, Training Ground,
+ * Youth Academy...). One row per (club, AssetType); a missing row means
+ * Level 0 (the starting dirt-turf state). While an upgrade is in progress
+ * `UpgradingTo`/`StartDay`/`CompleteDay` are set; the calendar advance
+ * (services/facilities/facilities.service.ts's completeDueUpgrades) bumps
+ * Level and clears them once CompleteDay is reached. Levels, costs, build
+ * days and effects live in services/facilities/asset-config.ts.
+ */
+export const clubAssets = pgTable(
+  'ClubAssets',
+  {
+    id: uuid('_id').primaryKey().defaultRandom(),
+    ClubId: uuid('ClubId')
+      .notNull()
+      .references(() => clubs.id),
+    AssetType: text('AssetType').notNull(),
+    Level: integer('Level').notNull().default(0),
+    UpgradingTo: integer('UpgradingTo'),
+    StartDay: integer('StartDay'),
+    CompleteDay: integer('CompleteDay'),
+    ...timestamps,
+  },
+  (t) => [
+    unique('club_assets_club_type_uniq').on(t.ClubId, t.AssetType),
+    index('club_assets_upgrading_idx').on(t.CompleteDay),
+  ]
+);
+
 export type Place = typeof places.$inferSelect;
 export type NewPlace = typeof places.$inferInsert;
