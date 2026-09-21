@@ -1,6 +1,18 @@
 <template>
   <v-card flat>
-    <v-card-subtitle>
+    <v-card-subtitle class="d-flex align-center">
+      <v-chip size="small" variant="tonal" :color="weeksRemaining === 0 ? 'success' : 'primary'">
+        {{
+          totalWeeks === 0
+            ? 'No weeks scheduled'
+            : weeksRemaining === 0
+              ? 'Season complete'
+              : `${weeksRemaining} week${weeksRemaining === 1 ? '' : 's'} remaining`
+        }}
+        <span v-if="totalWeeks > 0" class="ml-1 text-medium-emphasis">
+          ({{ weeksPlayed }}/{{ totalWeeks }})
+        </span>
+      </v-chip>
       <v-spacer></v-spacer>
       <v-switch
         :model-value="showWeekly"
@@ -25,6 +37,7 @@
       v-else
       :WeekStandings="compiledStandings"
       :compiled="showWeekly"
+      :movement="movement"
     ></standings>
 
     <v-card-actions v-if="showWeekly" class="justify-space-between">
@@ -85,44 +98,71 @@ const length = computed(() => {
   return props.standings.length;
 });
 
-const total = computed(() => {
-  return props.standings.reduce(
-    (acc: any, week: WeekStandings) => acc.concat(week.Table),
+const aggregate = (weeks: WeekStandings[]): any[] => {
+  const all = weeks.reduce(
+    (acc: any[], week: WeekStandings) => acc.concat(week.Table),
     []
   );
-});
-
-const compiledStandings = computed(() => {
   const sum: any[] = [];
 
-  Array.from(new Set(total.value.map((x: any) => x.ClubCode))).forEach((x) => {
+  Array.from(new Set(all.map((x: any) => x.ClubCode))).forEach((x) => {
     sum.push(
-      total.value
+      all
         .filter((y: any) => y.ClubCode === x)
         .reduce((output: any, item: any) => {
-          const pnts = output['Points'] === undefined ? 0 : output['Points'];
-          const gd = output['GD'] === undefined ? 0 : output['GD'];
-          const ga = output['GA'] === undefined ? 0 : output['GA'];
-          const gf = output['GF'] === undefined ? 0 : output['GF'];
-          const plyd = output['Played'] === undefined ? 0 : output['Played'];
-          const w = output['Wins'] === undefined ? 0 : output['Wins'];
-          const l = output['Losses'] === undefined ? 0 : output['Losses'];
-          const d = output['Draws'] === undefined ? 0 : output['Draws'];
-
           output['ClubCode'] = x;
-          output['Points'] = item.Points + pnts;
-          output['GD'] = item.GD + gd;
-          output['GA'] = item.GA + ga;
-          output['GF'] = item.GF + gf;
-          output['Played'] = item.Played + plyd;
-          output['Wins'] = item.Wins + w;
-          output['Losses'] = item.Losses + l;
-          output['Draws'] = item.Draws + d;
+          output['ClubID'] = item.ClubID ?? output['ClubID'];
+          output['Points'] = item.Points + (output['Points'] ?? 0);
+          output['GD'] = item.GD + (output['GD'] ?? 0);
+          output['GA'] = item.GA + (output['GA'] ?? 0);
+          output['GF'] = item.GF + (output['GF'] ?? 0);
+          output['Played'] = item.Played + (output['Played'] ?? 0);
+          output['Wins'] = item.Wins + (output['Wins'] ?? 0);
+          output['Losses'] = item.Losses + (output['Losses'] ?? 0);
+          output['Draws'] = item.Draws + (output['Draws'] ?? 0);
 
           return output;
         }, {})
     );
   });
   return sum;
+};
+
+const compiledStandings = computed(() => aggregate(props.standings));
+
+// The season's empty weekly tables are created up front, so the array length
+// is the season length; a week counts as played once anyone has a game in it.
+const totalWeeks = computed(() => props.standings.length);
+const weeksPlayed = computed(
+  () =>
+    props.standings.filter((w) => w.Table.some((r: any) => r.Played > 0)).length
+);
+const weeksRemaining = computed(() =>
+  Math.max(totalWeeks.value - weeksPlayed.value, 0)
+);
+
+const rankOf = (rows: any[]): Map<string, number> =>
+  new Map(
+    [...rows]
+      .sort(
+        (a, b) => b.Points - a.Points || b.GD - a.GD || b.GF - a.GF
+      )
+      .map((r, i) => [r.ClubCode, i + 1] as [string, number])
+  );
+
+// Positions gained (+) / lost (-) since the previous played week; empty
+// until two weeks have been played.
+const movement = computed<Record<string, number>>(() => {
+  if (weeksPlayed.value < 2) return {};
+  const played = props.standings.filter((w) =>
+    w.Table.some((r: any) => r.Played > 0)
+  );
+  const now = rankOf(aggregate(played));
+  const before = rankOf(aggregate(played.slice(0, -1)));
+  const out: Record<string, number> = {};
+  now.forEach((rank, code) => {
+    out[code] = (before.get(code) ?? rank) - rank;
+  });
+  return out;
 });
 </script>

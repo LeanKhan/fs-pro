@@ -76,6 +76,10 @@ export interface PlayerInterface {
   ClubCode?: string;
   ClubId?: string;
   RatingsHistory?: Record<string, unknown>[];
+  isTransferListed?: boolean;
+  AskingPrice?: number | null;
+  Morale?: string | null;
+  isYouth?: boolean;
 }
 
 // It's not all players that will have club :)

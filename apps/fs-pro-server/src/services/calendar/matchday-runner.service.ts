@@ -1,8 +1,10 @@
 import {
   getFixturesByDay,
   findNextUnplayedDay,
+  getFixtureById,
 } from '../../controllers/fixtures/fixture.service';
-import { play } from '../../controllers/game/game.controller';
+import { play, PlayOptions } from '../../controllers/game/game.controller';
+import { batchUpdateStandings } from '../../controllers/game/functions';
 import {
   getCalendar,
   advanceDayIfDone,
@@ -14,19 +16,94 @@ export interface MatchdayRunResult {
   day: number;
   totalFixtures: number;
   simulatedFixtures: number;
+  failedFixtures: number;
   results: any[];
   advancedToDay: number | null;
 }
 
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Executes an individual fixture simulation with automatic retry, exponential backoff,
+ * and idempotency checking.
+ */
+async function simulateFixtureWithRetry(
+  fixtureId: string,
+  options: PlayOptions,
+  maxRetries = 3
+): Promise<any> {
+  const existing = await getFixtureById(fixtureId);
+  if (!existing) {
+    throw new Error(`Fixture ${fixtureId} not found`);
+  }
+  // Idempotency: if already marked played (e.g. from previous run), do not duplicate stats
+  if (existing.Played) {
+    return { skipped: true, fixture: existing };
+  }
+
+  let lastError: any;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await play(fixtureId, options);
+    } catch (err: any) {
+      lastError = err;
+      console.warn(
+        `[simulateFixtureWithRetry] Attempt ${attempt}/${maxRetries} failed for fixture ${fixtureId}:`,
+        err?.message || err
+      );
+      if (attempt < maxRetries) {
+        // Exponential backoff with random jitter (50ms, 100ms, 150ms...)
+        await delay(attempt * 50 + Math.floor(Math.random() * 30));
+      }
+    }
+  }
+  throw lastError;
+}
+
+/**
+ * Runs a list of items with controlled concurrency pool.
+ * Guarantees that no more than `concurrency` tasks run in parallel,
+ * protecting PostgreSQL connection pool from exhaustion.
+ */
+async function runWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  workerFn: (item: T) => Promise<R>
+): Promise<PromiseSettledResult<R>[]> {
+  const results: PromiseSettledResult<R>[] = new Array(items.length);
+  let nextIdx = 0;
+
+  async function worker() {
+    while (nextIdx < items.length) {
+      const current = nextIdx++;
+      try {
+        const value = await workerFn(items[current]);
+        results[current] = { status: 'fulfilled', value };
+      } catch (reason) {
+        results[current] = { status: 'rejected', reason };
+      }
+    }
+  }
+
+  const workerCount = Math.min(concurrency, items.length);
+  if (workerCount <= 0) return [];
+
+  const workers = Array.from({ length: workerCount }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
 export class MatchdayRunnerService {
   /**
-   * Simulates all unplayed fixtures for a given day in the calendar.
-   * If liveFixtureId is provided, simulates that specific match with full 2D fidelity;
-   * all other fixtures on the day run via QuickSim.
+   * Simulates all unplayed fixtures for a given day in the calendar concurrently.
+   * - Uses controlled worker concurrency (default 4) matching DB pool limits.
+   * - Automatic idempotency check & 3x retries with exponential backoff on transient errors.
+   * - Decouples standings updates and day advance from individual matches, eliminating race conditions.
+   * - Atomically updates standings once per affected Season at day conclusion.
    */
   public static async simulateDay(
     dayNumber?: number,
-    options?: { liveFixtureId?: string }
+    options?: { liveFixtureId?: string; concurrency?: number }
   ): Promise<MatchdayRunResult> {
     const calendar = await getCalendar();
     const targetDay = dayNumber ?? calendar.CurrentDay;
@@ -34,46 +111,87 @@ export class MatchdayRunnerService {
     const dayFixtures = await getFixturesByDay(targetDay);
     const unplayed = dayFixtures.filter((f) => !f.Played && f._id);
 
-    const results: any[] = [];
+    if (unplayed.length === 0) {
+      const advanceResult = await advanceDayIfDone(targetDay);
+      const updatedCalendar = advanceResult ?? (await getCalendar());
+      return {
+        day: targetDay,
+        totalFixtures: dayFixtures.length,
+        simulatedFixtures: 0,
+        failedFixtures: 0,
+        results: [],
+        advancedToDay: updatedCalendar.CurrentDay,
+      };
+    }
 
-    for (const fixture of unplayed) {
+    const concurrency = options?.concurrency ?? 4;
+
+    // Run unplayed fixtures concurrently with retries
+    const settled = await runWithConcurrency(unplayed, concurrency, async (fixture) => {
       const isLive = Boolean(
         options?.liveFixtureId && String(fixture._id) === String(options.liveFixtureId)
       );
-      try {
-        const res = await play(fixture._id as string, { quickSim: !isLive });
-        results.push(res);
-      } catch (err) {
-        console.error(`[simulateDay] Error simulating fixture ${fixture._id}:`, err);
+      return simulateFixtureWithRetry(
+        fixture._id as string,
+        {
+          quickSim: !isLive,
+          skipStandings: true,
+          skipDayAdvance: true,
+          skipReplay: !isLive,
+        },
+        3
+      );
+    });
+
+    const fulfilledResults: any[] = [];
+    let failedCount = 0;
+
+    for (let i = 0; i < settled.length; i++) {
+      const outcome = settled[i];
+      if (outcome.status === 'fulfilled') {
+        fulfilledResults.push(outcome.value);
+      } else {
+        failedCount++;
+        console.error(
+          `[simulateDay] Fixture ${unplayed[i]._id} failed permanently after 3 retries:`,
+          outcome.reason
+        );
       }
     }
 
+    // Atomically batch-update standings across all affected seasons
+    if (fulfilledResults.length > 0) {
+      await batchUpdateStandings(fulfilledResults);
+    }
+
+    // Advance calendar day once after all fixtures have settled
     const advanceResult = await advanceDayIfDone(targetDay);
     const updatedCalendar = advanceResult ?? (await getCalendar());
 
     return {
       day: targetDay,
       totalFixtures: dayFixtures.length,
-      simulatedFixtures: unplayed.length,
-      results,
+      simulatedFixtures: fulfilledResults.length,
+      failedFixtures: failedCount,
+      results: fulfilledResults,
       advancedToDay: updatedCalendar.CurrentDay,
     };
   }
 
   /**
-   * Simulates forward up to a target day or date.
-   * Simulates all unplayed fixtures via QuickSim, sequentially advancing the calendar
-   * and recovering player fitness/injuries day by day.
+   * Simulates forward up to a target day or date using high-speed fail-safe parallel simulation.
    */
   public static async simulateToDate(options: {
     targetDay?: number;
     targetDate?: string | Date;
     includeTargetDay?: boolean;
+    concurrency?: number;
   }): Promise<{
     startDay: number;
     currentDay: number;
     currentDate: string;
     simulatedFixtures: number;
+    failedFixtures: number;
     simulatedDays: number;
   }> {
     const DAY_MS = 24 * 60 * 60 * 1000;
@@ -94,13 +212,14 @@ export class MatchdayRunnerService {
         targetDay !== undefined &&
         targetDay === calendar.CurrentDay
       ) {
-        const run = await this.simulateDay(calendar.CurrentDay);
+        const run = await this.simulateDay(calendar.CurrentDay, { concurrency: options.concurrency });
         const updated = await getCalendar();
         return {
           startDay,
           currentDay: updated.CurrentDay,
           currentDate: new Date(updated.CurrentDate).toISOString(),
           simulatedFixtures: run.simulatedFixtures,
+          failedFixtures: run.failedFixtures,
           simulatedDays: run.advancedToDay && run.advancedToDay !== startDay ? 1 : 0,
         };
       }
@@ -110,11 +229,13 @@ export class MatchdayRunnerService {
         currentDay: calendar.CurrentDay,
         currentDate: new Date(calendar.CurrentDate).toISOString(),
         simulatedFixtures: 0,
+        failedFixtures: 0,
         simulatedDays: 0,
       };
     }
 
     let totalSimulatedFixtures = 0;
+    let totalFailedFixtures = 0;
     let totalSimulatedDays = 0;
     const maxDay = options.includeTargetDay === false ? targetDay - 1 : targetDay;
 
@@ -126,6 +247,7 @@ export class MatchdayRunnerService {
       const currentDay = calendar.CurrentDay;
       const dayFixtures = await getFixturesByDay(currentDay);
 
+      // If no fixtures on this calendar day, fast-forward directly to next unplayed day
       if (dayFixtures.length === 0) {
         const next = await findNextUnplayedDay(currentDay);
         if (next && next.day <= maxDay) {
@@ -145,14 +267,17 @@ export class MatchdayRunnerService {
         }
       }
 
-      const dayRun = await this.simulateDay(currentDay);
+      // Simulate day concurrently with retry mechanism
+      const dayRun = await this.simulateDay(currentDay, { concurrency: options.concurrency });
       totalSimulatedFixtures += dayRun.simulatedFixtures;
+      totalFailedFixtures += dayRun.failedFixtures;
 
       const updated = await getCalendar();
       if (updated.CurrentDay > currentDay) {
         totalSimulatedDays += updated.CurrentDay - currentDay;
         calendar = updated;
       } else {
+        // Guard against infinite loop if day could not advance
         break;
       }
     }
@@ -163,8 +288,8 @@ export class MatchdayRunnerService {
       currentDay: finalCalendar.CurrentDay,
       currentDate: new Date(finalCalendar.CurrentDate).toISOString(),
       simulatedFixtures: totalSimulatedFixtures,
+      failedFixtures: totalFailedFixtures,
       simulatedDays: totalSimulatedDays,
     };
   }
 }
-

@@ -46,7 +46,18 @@
                 item-title="Name"
                 item-value="_id"
                 v-model="form.CountryId"
+                :hint="importMessage || 'Only countries imported from the world are listed.'"
+                persistent-hint
               ></v-select>
+              <v-btn size="small" class="mt-2" @click="showCountryPicker = true">
+                Add country from world
+              </v-btn>
+              <PlacePickerModal
+                v-model="showCountryPicker"
+                :world-slug="worldSlug"
+                kind="country"
+                @select="importCountry"
+              />
             </v-col>
 
             <v-col cols="6">
@@ -155,6 +166,8 @@ import { useRouter, useRoute } from 'vue-router';
 import { useStore } from '@/store';
 import { client } from '@/services/api';
 import ClubList from '@/components/clubs/club-list.vue';
+import PlacePickerModal from '@/components/PlacePickerModal.vue';
+import { WORLD_SLUG, type PickedPlace } from '@/utils/worldPlace';
 import ClubsTable from '@/components/clubs/clubs-table.vue';
 import type { Competition } from '@repo/api-contract';
 
@@ -187,6 +200,29 @@ const form = ref<any>({
 });
 
 const countries = computed(() => store.countries);
+const worldSlug = WORLD_SLUG;
+const showCountryPicker = ref(false);
+const importMessage = ref('');
+
+/** Imports the picked world country (name and code come from the world) and selects it. */
+async function importCountry(place: PickedPlace) {
+  importMessage.value = '';
+  try {
+    const response = await client.places.importFromWorld.mutation({
+      body: { entity_id: place.entity_id ?? place.id },
+    });
+    if (response.status === 200) {
+      await store.getCountries();
+      form.value.CountryId = response.body.payload._id;
+      importMessage.value = `Imported ${response.body.payload.Name} (${response.body.payload.Code}).`;
+    } else {
+      importMessage.value = String((response.body as any).payload ?? 'Import failed');
+    }
+  } catch (error) {
+    console.error('Error importing country:', error);
+    importMessage.value = 'Import failed.';
+  }
+}
 
 function typeChanged(type: string) {
   switch (type) {

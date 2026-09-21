@@ -56,7 +56,7 @@
         </p>
 
         <p class="mb-0 text-caption text-medium-emphasis">
-          {{ Match.Stadium || 'Stadium' }}
+          <WorldLink :entity-id="(Match as any).entity_id" :fallback="Match.Stadium || 'Stadium'" />
         </p>
       </div>
     </v-card-text>
@@ -88,6 +88,7 @@
 
 <script setup lang="ts">
 import type { Fixture } from '@repo/api-contract';
+import WorldLink from '@/components/world/WorldLink.vue';
 
 interface Props {
   Match: Fixture;

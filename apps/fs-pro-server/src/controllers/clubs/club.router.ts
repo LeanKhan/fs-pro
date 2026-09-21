@@ -23,6 +23,9 @@ import {
 import { recruitYouthPlayersForClub } from '../players/player-lifecycle.service';
 import { getClubPerformance } from '../../services/analytics/club-performance.service';
 import { worldClient } from '../../services/worldClient';
+import { applyClubAnchors } from '../../services/worldPlaceService';
+import { suggestLineup } from '../../services/ai/lineup-advisor.service';
+import { MediaHubService } from '../../services/media/media-hub.service';
 
 const s = initServer();
 
@@ -106,8 +109,10 @@ export const clubTsRestRoutes = s.router(contract.clubs, {
 
   createClub: async ({ body }) => {
     try {
-      const club = await createClub(body as Partial<ClubInterface>);
-      if (club?.homePlaceId) {
+      const club = await createClub(
+        await applyClubAnchors(body as Partial<ClubInterface>)
+      );
+      if (club?.Address?.entity_id || club?.homePlaceId) {
         worldClient.upsertEntity(club).catch(console.error);
       }
       return {
@@ -151,13 +156,34 @@ export const clubTsRestRoutes = s.router(contract.clubs, {
     }
   },
 
+  suggestLineup: async ({ params, body }) => {
+    try {
+      const suggestion = await suggestLineup({
+        clubId: params.id,
+        formation: body.formation,
+        style: body.style,
+        slots: body.slots,
+      });
+      return {
+        status: 200,
+        body: { success: true, message: 'Lineup suggested', payload: suggestion },
+      };
+    } catch (err) {
+      const message = fail(err);
+      return {
+        status: /not found/i.test(message) ? (404 as const) : (400 as const),
+        body: { success: false, message, payload: message },
+      };
+    }
+  },
+
   updateClub: async ({ params, body }) => {
     try {
       const club = await updateClubFields(
         params.id,
-        body as Partial<ClubInterface>
+        await applyClubAnchors(body as Partial<ClubInterface>)
       );
-      if (club?.homePlaceId) {
+      if (club?.Address?.entity_id || club?.homePlaceId) {
         worldClient.upsertEntity(club).catch(console.error);
       }
       return {
@@ -422,6 +448,35 @@ export const clubTsRestRoutes = s.router(contract.clubs, {
         body: {
           success: false,
           message: 'Error updating Players and Clubs',
+          payload: fail(err),
+        },
+      };
+    }
+  },
+
+  getMediaFeed: async ({ params, query }) => {
+    try {
+      const feed = await MediaHubService.getMediaFeed({
+        clubId: params.id,
+        fixtureId: query.fixtureId,
+        competitionCode: query.competitionCode,
+        channel: query.channel,
+      });
+
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Media feed fetched successfully',
+          payload: feed,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error fetching media feed',
           payload: fail(err),
         },
       };

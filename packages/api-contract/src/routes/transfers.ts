@@ -6,6 +6,7 @@ import { PlayerSchema } from '../schemas/player';
 import { ClubSchema } from '../schemas/club';
 import { successEnvelope, failEnvelope } from '../schemas/envelope';
 import { TransferOfferSchema, TransferWindowSchema } from '../schemas/transfer';
+import { booleanQuery } from '../schemas/query';
 
 const c = initContract();
 
@@ -86,7 +87,12 @@ export const transfersContract = c.router(
     getOffers: {
       method: 'GET',
       path: '/offers',
-      query: z.object({ clubId: z.string() }),
+      query: z.object({
+        clubId: z.string(),
+        limit: z.coerce.number().optional(),
+        offset: z.coerce.number().optional(),
+        currentSeasonOnly: booleanQuery().optional(),
+      }),
       responses: {
         200: successEnvelope(z.array(TransferOfferSchema)),
         400: failEnvelope(),
@@ -105,6 +111,102 @@ export const transfersContract = c.router(
       }),
       responses: {
         200: successEnvelope(TransferOfferSchema),
+        400: failEnvelope(),
+        404: failEnvelope(),
+      },
+    },
+
+    /** List a player for sale or update asking price / unlist. Also returns Jev's reaction
+     * and potential market interest / immediate AI offers. */
+    listPlayerForSale: {
+      method: 'POST',
+      path: '/list',
+      body: z.object({
+        playerId: z.string(),
+        clubId: z.string(),
+        isListed: z.boolean(),
+        askingPrice: z.number().positive().optional().nullable(),
+      }),
+      responses: {
+        200: successEnvelope(
+          z.object({
+            player: PlayerSchema,
+            reaction: z.object({
+              sentiment: z.string(),
+              quote: z.string(),
+              morale: z.string(),
+            }),
+            marketInterest: z.string(),
+            newOffer: TransferOfferSchema.nullable().optional(),
+          })
+        ),
+        400: failEnvelope(),
+        404: failEnvelope(),
+      },
+    },
+
+    /** Jev AI Transfer Scouting Analysis: evaluates target player's tactical fit,
+     * financial value, and squad impact for the manager's club. */
+    scoutPlayerTransfer: {
+      method: 'POST',
+      path: '/scout',
+      body: z.object({
+        playerId: z.string(),
+        clubId: z.string(),
+      }),
+      responses: {
+        200: successEnvelope(
+          z.object({
+            player: PlayerSchema,
+            recommendation: z.enum(['MUST_BUY', 'RECOMMENDED', 'ROTATION', 'OVERPRICED', 'HIGH_RISK']),
+            dealRating: z.number(),
+            confidence: z.number(),
+            verdict: z.string(),
+            tacticalFit: z.string(),
+            tacticalFitLevel: z.enum(['EXCELLENT', 'GOOD', 'NEUTRAL', 'POOR']),
+            financialAssessment: z.string(),
+            squadRole: z.string(),
+            squadRoleLevel: z.enum(['STARTER_UPGRADE', 'KEY_DEPTH', 'FUTURE_PROSPECT', 'SURPLUS']),
+            comparisonWithSquad: z.object({
+              currentBestRating: z.number().nullable(),
+              ratingDelta: z.number(),
+              samePositionCount: z.number(),
+            }),
+            source: z.enum(['jev', 'local']),
+          })
+        ),
+        400: failEnvelope(),
+        404: failEnvelope(),
+      },
+    },
+
+    /** Request budget increase from club board of directors evaluated by Jev AI. */
+    requestBudgetIncrease: {
+      method: 'POST',
+      path: '/budget-request',
+      body: z.object({
+        clubId: z.string(),
+        amount: z.number().positive(),
+        justification: z.enum(['TITLE_CHALLENGE', 'SQUAD_DEPTH', 'REINVEST_PROFITS', 'PROMOTION_PUSH']),
+      }),
+      responses: {
+        200: successEnvelope(
+          z.object({
+            status: z.enum(['ACCEPTED', 'COMPROMISE', 'REJECTED']),
+            requestedAmount: z.number(),
+            grantedAmount: z.number(),
+            newBudget: z.number(),
+            boardStatement: z.string(),
+            confidence: z.number(),
+            financialContext: z.object({
+              currentBudget: z.number(),
+              netMatchdayProfit: z.number(),
+              annualWageBill: z.number(),
+              wageToBudgetRatio: z.number(),
+            }),
+            source: z.enum(['jev', 'local']),
+          })
+        ),
         400: failEnvelope(),
         404: failEnvelope(),
       },

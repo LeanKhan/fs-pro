@@ -27,6 +27,8 @@ export interface ClubInterface {
     Capacity: string;
     YearOccupied: string;
     Location: string;
+    /** Universal entity id of the venue place in the Imaginations world. */
+    entity_id?: string | null;
   };
   Stats?: {
     LeagueTitles: number;
@@ -43,6 +45,8 @@ export interface ClubInterface {
     Section: string;
     City: string;
     Country: string;
+    /** Universal entity id of the parcel / HQ place; city and country derive from its ancestors. */
+    entity_id?: string | null;
   };
   AddressCountryId?: string;
   AddressCountry?: import('../places/places.model').IPlace;
@@ -62,6 +66,7 @@ export interface ClubInterface {
     styleName: string;
   } | null;
   Finances?: Record<string, unknown> | null;
+  entity_id?: string | null;
   homePlaceId?: string | null;
   stadiumPlaceId?: string | null;
 }

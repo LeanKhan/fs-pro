@@ -25,6 +25,19 @@
           <v-list-item>Wage: {{ currency(player.Wage) }}</v-list-item>
         </v-list>
 
+        <div class="my-2">
+          <v-btn
+            size="x-small"
+            variant="tonal"
+            color="cyan-accent-3"
+            prepend-icon="mdi-brain"
+            block
+            @click="$emit('scout-player', player); close();"
+          >
+            Full Player Details & Jev AI Analysis
+          </v-btn>
+        </div>
+
         <v-text-field
           class="mt-4"
           type="number"
@@ -80,6 +93,7 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   'update:show': [value: boolean];
   'update-available': [];
+  'scout-player': [player: MarketPlayer];
 }>();
 
 const store = useStore();

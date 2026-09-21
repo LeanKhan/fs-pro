@@ -74,6 +74,106 @@
         </v-col>
       </v-row>
 
+      <!-- Jev Tactical Advisor Card -->
+      <v-card
+        v-if="data.advisorSummary"
+        class="mb-4 jev-advisor-card rounded-lg elevation-4 border overflow-hidden"
+        :class="data.advisorSummary.crisisLevel === 'crisis' ? 'border-error' : 'border-amber'"
+      >
+        <div class="pa-4 bg-gradient-advisor">
+          <div class="d-flex align-center justify-space-between flex-wrap gap-2 mb-2">
+            <div class="d-flex align-center gap-2">
+              <v-avatar size="32" color="deep-purple-accent-3">
+                <v-icon size="20" color="white">mdi-brain</v-icon>
+              </v-avatar>
+              <div>
+                <span class="text-subtitle-2 font-weight-black text-uppercase text-white tracking-wide">
+                  JEV TACTICAL ADVISOR
+                </span>
+                <span class="text-caption text-medium-emphasis ml-2">
+                  System One Decision Engine &bull; {{ data.advisorSummary.confidence }}% Confidence
+                </span>
+              </div>
+            </div>
+
+            <v-chip
+              size="small"
+              :color="crisisPillColor(data.advisorSummary.crisisLevel)"
+              variant="flat"
+              class="font-weight-bold"
+            >
+              {{ crisisPillLabel(data.advisorSummary.crisisLevel) }}
+            </v-chip>
+          </div>
+
+          <div class="text-subtitle-1 font-weight-black text-amber-accent-2 mb-1">
+            {{ data.advisorSummary.headline }}
+          </div>
+          <p class="text-caption text-white-50 mb-3">
+            {{ data.advisorSummary.summary }}
+          </p>
+
+          <!-- Strategic Prescriptions Grid -->
+          <v-row v-if="data.strategies?.length" dense>
+            <v-col
+              v-for="strat in data.strategies"
+              :key="strat.id"
+              cols="12"
+              md="6"
+            >
+              <v-card
+                variant="outlined"
+                class="pa-3 h-100 strategy-subcard d-flex flex-column justify-space-between rounded"
+                :class="'border-' + strategyColor(strat.severity)"
+              >
+                <div>
+                  <div class="d-flex align-center justify-space-between mb-1">
+                    <v-chip
+                      size="x-small"
+                      :color="strategyColor(strat.severity)"
+                      variant="tonal"
+                      class="font-weight-bold text-uppercase"
+                    >
+                      <v-icon size="12" class="mr-1">{{ pillarIcon(strat.pillar) }}</v-icon>
+                      {{ strat.pillar }}
+                    </v-chip>
+                    <span class="text-caption font-weight-bold text-uppercase text-medium-emphasis">
+                      {{ strat.severity }}
+                    </span>
+                  </div>
+
+                  <div class="text-subtitle-2 font-weight-bold text-white mb-1">
+                    {{ strat.title }}
+                  </div>
+                  <div class="text-caption text-medium-emphasis mb-2">
+                    {{ strat.diagnosis }}
+                  </div>
+                  <p class="text-caption text-white-50 mb-3">
+                    {{ strat.recommendation }}
+                  </p>
+                </div>
+
+                <div v-if="strat.actionLabel" class="pt-2 border-t d-flex align-center justify-space-between flex-wrap gap-2">
+                  <div v-if="strat.suggestedFormation || strat.suggestedStyle" class="text-caption font-weight-medium text-amber-lighten-2">
+                    Suggested: {{ strat.suggestedFormation }} &bull; {{ strat.suggestedStyle }}
+                  </div>
+                  <v-btn
+                    size="x-small"
+                    variant="flat"
+                    :color="strategyColor(strat.severity)"
+                    class="font-weight-bold text-black ml-auto"
+                    prepend-icon="mdi-arrow-right-circle"
+                    @click="emitSwitchTab(strat.actionTab ?? 1)"
+                  >
+                    {{ strat.actionLabel }}
+                  </v-btn>
+                </div>
+              </v-card>
+            </v-col>
+          </v-row>
+        </div>
+      </v-card>
+
       <!-- Findings -->
       <v-card class="mb-4">
         <v-card-title>What's going on</v-card-title>
@@ -330,4 +430,67 @@ watch(() => props.club?._id, () => {
   load();
 });
 onMounted(load);
+
+const emit = defineEmits<{
+  (e: 'switch-tab', tab: number): void;
+}>();
+
+function emitSwitchTab(tabIndex: number) {
+  emit('switch-tab', tabIndex);
+}
+
+function crisisPillColor(level: string) {
+  if (level === 'crisis') return 'red-accent-4';
+  if (level === 'underperforming') return 'amber-accent-4';
+  if (level === 'surging') return 'green-accent-4';
+  return 'cyan-accent-3';
+}
+
+function crisisPillLabel(level: string) {
+  if (level === 'crisis') return '🚨 CRISIS INTERVENTION';
+  if (level === 'underperforming') return '⚠️ UNDERPERFORMING';
+  if (level === 'surging') return '🔥 SURGING FORM';
+  return '⚖️ BALANCED TRAJECTORY';
+}
+
+function strategyColor(sev: string) {
+  if (sev === 'crisis') return 'red-accent-3';
+  if (sev === 'warning') return 'amber-accent-3';
+  if (sev === 'opportunity') return 'cyan-accent-3';
+  return 'teal-accent-3';
+}
+
+function pillarIcon(pillar: string) {
+  if (pillar === 'tactics') return 'mdi-strategy';
+  if (pillar === 'selection') return 'mdi-account-switch';
+  if (pillar === 'training') return 'mdi-dumbbell';
+  return 'mdi-swap-horizontal-bold';
+}
 </script>
+
+<style scoped>
+.jev-advisor-card {
+  background: #141324 !important;
+}
+
+.bg-gradient-advisor {
+  background: linear-gradient(135deg, rgba(88, 28, 135, 0.25) 0%, rgba(15, 23, 42, 0.4) 100%);
+}
+
+.strategy-subcard {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-width: 1px !important;
+}
+
+.border-error {
+  border-color: rgba(244, 67, 54, 0.6) !important;
+}
+
+.border-amber {
+  border-color: rgba(255, 193, 7, 0.4) !important;
+}
+
+.text-white-50 {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+</style>
