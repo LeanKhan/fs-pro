@@ -112,7 +112,8 @@ export class MatchdayRunnerService {
     const unplayed = dayFixtures.filter((f) => !f.Played && f._id);
 
     if (unplayed.length === 0) {
-      const advanceResult = await advanceDayIfDone(targetDay);
+      // Nothing left to play today - an empty day (off-season idling) counts as done.
+      const advanceResult = await advanceDayIfDone(targetDay, { allowEmptyDay: true });
       const updatedCalendar = advanceResult ?? (await getCalendar());
       return {
         day: targetDay,

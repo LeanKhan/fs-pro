@@ -9,6 +9,7 @@ import { userTsRestRoutes } from '../controllers/user/user.router';
 import { gameTsRestRoutes } from '../controllers/game/game.router';
 import { transferTsRestRoutes } from '../controllers/transfers/transfer.router';
 import { facilitiesTsRestRoutes } from '../controllers/facilities/facilities.router';
+import { playTsRestRoutes } from '../controllers/play/play.router';
 import { calendarTsRestRoutes } from '../controllers/calendar/calendar.router';
 import { fixtureTsRestRoutes } from '../controllers/fixtures/fixture.router';
 import files from '../services/file/file.service';
@@ -39,6 +40,7 @@ export const apiRouter = s.router(apiContract, {
   game: gameTsRestRoutes,
   transfers: transferTsRestRoutes,
   facilities: facilitiesTsRestRoutes,
+  play: playTsRestRoutes,
 });
 
 // export default mainRouter;

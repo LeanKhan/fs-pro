@@ -47,69 +47,17 @@
 
       <!-- Stadium & Infrastructure -->
       <v-col cols="12" md="7">
-        <v-card class="pa-4 elevation-3 mb-4">
-          <div class="text-h6 font-weight-bold d-flex justify-space-between align-center mb-3">
-            <span>Stadium & Infrastructure</span>
-            <v-chip color="primary" size="small">{{ stadiumName }}</v-chip>
-          </div>
+        <play-panel
+          :club-id="club?._id"
+          :read-only="readOnly"
+          @update-available="emit('update-available')"
+        ></play-panel>
 
-          <v-row class="mt-1">
-            <v-col cols="6">
-              <div class="text-caption text-medium-emphasis">Current Capacity</div>
-              <div class="text-h6 font-weight-bold">{{ stadiumCapacity.toLocaleString() }} seats</div>
-            </v-col>
-            <v-col cols="6">
-              <div class="text-caption text-medium-emphasis">Location</div>
-              <div class="text-body-1">{{ stadiumLocation }}</div>
-            </v-col>
-          </v-row>
-
-          <v-divider class="my-4"></v-divider>
-
-          <div v-if="!readOnly">
-            <div class="text-subtitle-2 font-weight-bold mb-2">Stadium Expansion Project</div>
-            <p class="text-body-2 text-medium-emphasis mb-3">
-              Add 5,000 additional seats to increase matchday ticket capacity.
-              Construction cost: <strong>€2,500,000</strong>.
-            </p>
-
-            <v-btn
-              color="indigo"
-              variant="flat"
-              :disabled="(club?.Budget ?? 0) < 2500000 || expanding"
-              :loading="expanding"
-              @click="expandStadium"
-            >
-              Expand Capacity (+5,000 Seats)
-            </v-btn>
-          </div>
-          <div v-else class="pa-2 rounded border" style="background: rgba(255, 255, 255, 0.03)">
-            <div class="text-caption text-medium-emphasis">
-              <v-icon size="small" class="mr-1">mdi-eye-outline</v-icon>
-              Viewing autonomous club infrastructure & public matchday venue.
-            </div>
-          </div>
-
-          <v-divider class="my-4"></v-divider>
-
-          <div class="text-subtitle-2 font-weight-bold mb-2">Facility Upgrades</div>
-          <v-row>
-            <v-col cols="6">
-              <v-card variant="outlined" class="pa-3">
-                <div class="font-weight-bold text-body-2">Training Grounds</div>
-                <div class="text-caption text-medium-emphasis">Improves player fitness recovery (+15%)</div>
-                <v-chip size="x-small" color="success" class="mt-2">Level 3 / 5</v-chip>
-              </v-card>
-            </v-col>
-            <v-col cols="6">
-              <v-card variant="outlined" class="pa-3">
-                <div class="font-weight-bold text-body-2">Youth Academy</div>
-                <div class="text-caption text-medium-emphasis">Attracts higher potential youth prospects</div>
-                <v-chip size="x-small" color="primary" class="mt-2">Level 2 / 5</v-chip>
-              </v-card>
-            </v-col>
-          </v-row>
-        </v-card>
+        <facilities-panel
+          :club-id="club?._id"
+          :read-only="readOnly"
+          @update-available="emit('update-available')"
+        ></facilities-panel>
 
         <!-- Matchday Ledger -->
         <v-card class="pa-4 elevation-3">
@@ -273,8 +221,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { currency } from '@/helpers/misc';
-import { client } from '@/services/api';
 import { ManagerPicker, ManagerFirer } from '@/components/clubzone';
+import FacilitiesPanel from './facilities-panel.vue';
+import PlayPanel from './play-panel.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -290,7 +239,6 @@ const emit = defineEmits<{
   (e: 'update-available'): void;
 }>();
 
-const expanding = ref(false);
 const openHireDialog = ref(false);
 const openFireDialog = ref(false);
 const snackbar = ref(false);
@@ -313,18 +261,6 @@ const netMargin = computed(() => {
   return rev - costs;
 });
 
-const stadiumName = computed(() => {
-  return props.club?.Stadium?.Name || 'Municipal Stadium';
-});
-
-const stadiumCapacity = computed(() => {
-  return Number(props.club?.Stadium?.Capacity) || 20000;
-});
-
-const stadiumLocation = computed(() => {
-  return props.club?.Stadium?.Location || props.club?.Address?.City || 'Home Grounds';
-});
-
 const matchHistory = computed(() => {
   return Array.isArray(props.club?.Finances?.history) ? props.club.Finances.history : [];
 });
@@ -340,43 +276,6 @@ const boardConfidence = computed(() => {
 function formatDate(date: string | Date | undefined): string {
   if (!date) return 'N/A';
   return new Date(date).toLocaleDateString();
-}
-
-async function expandStadium() {
-  if (!props.club?._id) return;
-  expanding.value = true;
-
-  try {
-    const newCapacity = stadiumCapacity.value + 5000;
-    const newBudget = (props.club.Budget ?? 0) - 2500000;
-
-    const response = await client.clubs.updateClub.mutation({
-      params: { id: props.club._id },
-      body: {
-        Budget: newBudget,
-        Stadium: {
-          ...(props.club.Stadium || {}),
-          Capacity: newCapacity,
-        },
-      },
-    });
-
-    if (response.status !== 200) {
-      snackbarText.value = `Error completing stadium expansion: ${response.body.message}`;
-      snackbar.value = true;
-      return;
-    }
-
-    snackbarText.value = 'Stadium expansion completed! +5,000 seats added.';
-    snackbar.value = true;
-    emit('update-available');
-  } catch (err) {
-    console.error('Failed to expand stadium:', err);
-    snackbarText.value = 'Error completing stadium expansion.';
-    snackbar.value = true;
-  } finally {
-    expanding.value = false;
-  }
 }
 </script>
 
