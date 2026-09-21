@@ -2,7 +2,12 @@
 
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
-import { CalendarSchema, DaySchema, WorldFeedSchema } from '../schemas/calendar';
+import {
+  CalendarSchema,
+  ClockStateSchema,
+  DaySchema,
+  WorldFeedSchema,
+} from '../schemas/calendar';
 import { SeasonSchema } from '../schemas/season';
 import { SeasonReportSchema } from '../schemas/season-report';
 import { successEnvelope, failEnvelope } from '../schemas/envelope';
@@ -106,6 +111,50 @@ export const calendarContract = c.router(
       body: z.object({}).optional(),
       responses: {
         200: successEnvelope(z.object({})),
+        400: failEnvelope(),
+      },
+    },
+
+    // Live game clock: server-driven day advancement (see
+    // fs-pro-server services/calendar/calendar-clock.service.ts).
+    getClock: {
+      method: 'GET',
+      path: '/clock',
+      responses: {
+        200: successEnvelope(ClockStateSchema),
+        400: failEnvelope(),
+      },
+    },
+
+    setClock: {
+      method: 'POST',
+      path: '/clock',
+      body: z.object({
+        mode: z.enum(['live', 'paused']).optional(),
+        matchdaySlotMinutes: z.number().int().min(1).optional(),
+        offDaySlotMinutes: z.number().int().min(1).optional(),
+      }),
+      responses: {
+        200: successEnvelope(ClockStateSchema),
+        400: failEnvelope(),
+      },
+    },
+
+    // Runs one tick right now (play today's fixtures, advance the day).
+    tickClock: {
+      method: 'POST',
+      path: '/clock/tick',
+      body: z.object({}).optional(),
+      responses: {
+        200: successEnvelope(
+          z.object({
+            ran: z.boolean(),
+            fromDay: z.number(),
+            toDay: z.number(),
+            simulatedFixtures: z.number(),
+            nextTickAt: z.string().nullable(),
+          })
+        ),
         400: failEnvelope(),
       },
     },

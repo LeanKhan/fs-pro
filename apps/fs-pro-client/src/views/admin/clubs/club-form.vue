@@ -89,6 +89,19 @@
                       label="Location"
                       v-model="form.Stadium.Location"
                     ></v-text-field>
+
+                    <div class="d-flex align-center">
+                      <v-text-field
+                        color="amber-darken-1"
+                        label="Stadium place (world)"
+                        :model-value="anchorLabel.stadium"
+                        readonly
+                        hide-details
+                      ></v-text-field>
+                      <v-btn color="primary" class="ml-2" @click="openPicker('stadium')">
+                        Pick
+                      </v-btn>
+                    </div>
                   </div>
                 </v-col>
 
@@ -119,14 +132,25 @@
                     <div class="d-flex align-center mt-2">
                       <v-text-field
                         color="amber-darken-1"
-                        label="World Map Home Place ID"
-                        v-model="form.homePlaceId"
+                        label="Address place (world)"
+                        :model-value="anchorLabel.address"
+                        readonly
                         hide-details
                       ></v-text-field>
-                      <v-btn color="primary" class="ml-2" @click="showPlacePicker = true">
-                        Pick Place
+                      <v-btn color="primary" class="ml-2" @click="openPicker('address')">
+                        Pick
                       </v-btn>
                     </div>
+                    <div class="text-caption mt-1" v-if="anchorNote">{{ anchorNote }}</div>
+                    <v-btn
+                      v-if="missingCountry"
+                      size="small"
+                      class="mt-1"
+                      color="warning"
+                      @click="importMissingCountry"
+                    >
+                      Import {{ missingCountry.name }} from the world
+                    </v-btn>
                   </div>
                 </v-col>
               </v-row>
@@ -134,7 +158,7 @@
 
             <PlacePickerModal
               v-model="showPlacePicker"
-              world-slug="asterra"
+              :world-slug="worldSlug"
               @select="onPlaceSelected"
             />
 
@@ -169,6 +193,7 @@ import { client } from '@/services/api';
 import ImageUploader from '@/components/helpers/image-uploader.vue';
 import PlacePickerModal from '@/components/PlacePickerModal.vue';
 import type { Club } from '@repo/api-contract';
+import { WORLD_SLUG, type PickedPlace } from '@/utils/worldPlace';
 
 const props = defineProps<{
   isUpdate?: boolean;
@@ -182,6 +207,11 @@ const club = ref<Club>({} as Club);
 const api = apiUrl;
 const countries = computed<any[]>(() => store.countries);
 const showPlacePicker = ref(false);
+const worldSlug = WORLD_SLUG;
+const pickTarget = ref<'address' | 'stadium'>('address');
+const anchorLabels = ref({ address: '', stadium: '' });
+const anchorNote = ref('');
+const missingCountry = ref<{ entity_id: string; name: string } | null>(null);
 
 const form = ref<Partial<Club>>({
   Name: '',
@@ -196,15 +226,69 @@ const form = ref<Partial<Club>>({
     Capacity: '',
     Location: '',
   },
-  homePlaceId: '',
-  stadiumPlaceId: '',
 });
 
-function onPlaceSelected(place: { id: string; name: string; kind: string; slug: string }) {
-  form.value.homePlaceId = place.id;
-  if (!form.value.Address?.City) {
-    if (!form.value.Address) form.value.Address = {};
-    form.value.Address.City = place.name;
+/** Shows the picked place's name when known, otherwise the raw id. */
+const anchorLabel = computed(() => ({
+  address: anchorLabels.value.address || form.value.Address?.entity_id || '',
+  stadium: anchorLabels.value.stadium || form.value.Stadium?.entity_id || '',
+}));
+
+function openPicker(target: 'address' | 'stadium') {
+  pickTarget.value = target;
+  showPlacePicker.value = true;
+}
+
+async function onPlaceSelected(place: PickedPlace) {
+  const entityId = place.entity_id ?? place.id;
+  if (pickTarget.value === 'stadium') {
+    form.value.Stadium = { ...form.value.Stadium, entity_id: entityId };
+    if (!form.value.Stadium?.Name) form.value.Stadium.Name = place.name;
+    anchorLabels.value.stadium = place.name;
+    return;
+  }
+  form.value.Address = { ...form.value.Address, entity_id: entityId };
+  anchorLabels.value.address = place.name;
+  await resolveAddress(entityId);
+}
+
+/** City and country derive from the anchor place's ancestors in the world. */
+async function resolveAddress(entityId: string) {
+  anchorNote.value = '';
+  missingCountry.value = null;
+  try {
+    const response = await client.places.resolveAnchor.mutation({
+      body: { entity_id: entityId },
+    });
+    if (response.status !== 200 || !response.body.payload.resolved) {
+      anchorNote.value = 'The world could not be reached; city and country were not derived.';
+      return;
+    }
+    const derived = response.body.payload;
+    if (derived.city) form.value.Address = { ...form.value.Address, City: derived.city };
+    if (derived.countryId) form.value.AddressCountryId = derived.countryId;
+    missingCountry.value = derived.missingCountry;
+    anchorNote.value = derived.breadcrumbs.join(' > ');
+  } catch (error) {
+    console.error('Error resolving anchor:', error);
+  }
+}
+
+async function importMissingCountry() {
+  if (!missingCountry.value) return;
+  try {
+    const response = await client.places.importFromWorld.mutation({
+      body: { entity_id: missingCountry.value.entity_id },
+    });
+    if (response.status === 200) {
+      await store.getCountries();
+      form.value.AddressCountryId = response.body.payload._id;
+      missingCountry.value = null;
+    } else {
+      anchorNote.value = String((response.body as any).payload ?? 'Import failed');
+    }
+  } catch (error) {
+    console.error('Error importing country:', error);
   }
 }
 

@@ -9,9 +9,36 @@
     loading-text="Fetching players..."
     class="elevation-1"
   >
+    <template v-slot:item.FirstName="{ item }">
+      <strong>{{ item.FirstName }} {{ item.LastName }}</strong>
+      <v-chip
+        v-if="item.isYouth"
+        size="x-small"
+        color="teal"
+        variant="flat"
+        class="ml-1 text-white"
+      >
+        Youth
+      </v-chip>
+    </template>
+
     <template v-slot:item.Rating="{ item }">
       <v-chip :color="getColor(item.Rating)">
         {{ Math.round(item.Rating) }}
+      </v-chip>
+    </template>
+
+    <template v-slot:item.source="{ item }">
+      <v-chip
+        v-if="item.source && (item.source.includes('Overseas') || item.source.includes('Free Agent'))"
+        size="x-small"
+        color="blue-darken-2"
+        variant="tonal"
+      >
+        🌍 {{ item.source }}
+      </v-chip>
+      <v-chip v-else size="x-small" color="indigo" variant="tonal">
+        {{ item.source }}
       </v-chip>
     </template>
 
@@ -65,12 +92,11 @@ defineEmits<{
 }>();
 
 const headers = ref<any[]>([
-  { title: 'First Name', key: 'FirstName' },
-  { title: 'Last Name', key: 'LastName' },
+  { title: 'Player', key: 'FirstName' },
   { title: 'Position', key: 'Position', filterable: false },
   { title: 'Age', key: 'Age', filterable: false },
   { title: 'Rating', key: 'Rating', filterable: false },
-  { title: 'Source', key: 'source', filterable: true },
+  { title: 'Origin / Club', key: 'source', filterable: true },
   { title: 'Value', key: 'Value', filterable: false },
   { title: 'Wage', key: 'Wage', filterable: false },
   { title: 'Actions', key: 'Actions', filterable: false, sortable: false },

@@ -55,6 +55,26 @@ export const ClubPerformanceInsightSchema = z.object({
   detail: z.string(),
 });
 
+export const ClubPerformanceStrategySchema = z.object({
+  id: z.string(),
+  pillar: z.enum(['tactics', 'selection', 'training', 'transfer']),
+  severity: z.enum(['crisis', 'warning', 'opportunity', 'fine_tuning']),
+  title: z.string(),
+  diagnosis: z.string(),
+  recommendation: z.string(),
+  suggestedFormation: z.string().optional(),
+  suggestedStyle: z.string().optional(),
+  actionLabel: z.string().optional(),
+  actionTab: z.number().optional(),
+});
+
+export const ClubPerformanceAdvisorSummarySchema = z.object({
+  crisisLevel: z.enum(['crisis', 'underperforming', 'balanced', 'surging']),
+  confidence: z.number(),
+  headline: z.string(),
+  summary: z.string(),
+});
+
 /** Why a club is (not) winning, built from its results and its squad. */
 export const ClubPerformanceSchema = z.object({
   clubId: z.string(),
@@ -85,7 +105,11 @@ export const ClubPerformanceSchema = z.object({
   topPlayers: z.array(ClubPerformancePlayerSchema),
   weakestStarters: z.array(ClubPerformancePlayerSchema),
   insights: z.array(ClubPerformanceInsightSchema),
+  strategies: z.array(ClubPerformanceStrategySchema).optional(),
+  advisorSummary: ClubPerformanceAdvisorSummarySchema.optional(),
 });
 
 export type ClubPerformance = z.infer<typeof ClubPerformanceSchema>;
 export type ClubPerformanceInsight = z.infer<typeof ClubPerformanceInsightSchema>;
+export type ClubPerformanceStrategy = z.infer<typeof ClubPerformanceStrategySchema>;
+export type ClubPerformanceAdvisorSummary = z.infer<typeof ClubPerformanceAdvisorSummarySchema>;

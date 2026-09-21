@@ -1,10 +1,16 @@
 import { and, eq, inArray, or } from 'drizzle-orm';
-import type { ClubPerformance, ClubPerformanceInsight } from '@repo/api-contract';
+import type {
+  ClubPerformance,
+  ClubPerformanceInsight,
+  ClubPerformanceStrategy,
+  ClubPerformanceAdvisorSummary,
+} from '@repo/api-contract';
 import { DrizzleDatabase } from '../../db/drizzle';
 import { fixtures, playerMatchDetails } from '../../db/drizzle/schema';
 import { getClubs } from '../../controllers/clubs/club.service';
 import { getSeasons } from '../../controllers/seasons/season.service';
 import { getTransferWindow } from '../transfers/transfer-window.service';
+import { JevService, ChoiceAnswer } from '../ai/jev.service';
 import {
   computeExpectedGoals,
   unitRatingsForClub,
@@ -294,6 +300,17 @@ export async function getClubPerformance(
     formationStyle: squad.style,
   });
 
+  const { strategies, advisorSummary } = await buildManagerStrategies({
+    clubName: club.Name,
+    overall,
+    form,
+    units,
+    squad,
+    leagueGoalsPerGame,
+    weakestStarters,
+    windowOpen,
+  });
+
   return {
     clubId,
     clubName: club.Name,
@@ -313,6 +330,8 @@ export async function getClubPerformance(
     topPlayers,
     weakestStarters,
     insights,
+    strategies,
+    advisorSummary,
   };
 }
 
@@ -419,4 +438,183 @@ function suffix(n: number): string {
   const mod100 = n % 100;
   if (mod100 >= 11 && mod100 <= 13) return 'th';
   return ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th';
+}
+
+async function buildManagerStrategies(input: {
+  clubName: string;
+  overall: RecordSummary;
+  form: ('W' | 'D' | 'L')[];
+  units: ClubPerformance['units'];
+  squad: ClubPerformance['squad'];
+  leagueGoalsPerGame: number;
+  weakestStarters: ClubPerformance['weakestStarters'];
+  windowOpen: boolean;
+}): Promise<{
+  strategies: ClubPerformanceStrategy[];
+  advisorSummary: ClubPerformanceAdvisorSummary;
+}> {
+  const { clubName, overall, form, units, squad, leagueGoalsPerGame, weakestStarters, windowOpen } = input;
+
+  const gamesWithoutWin = form.slice(0, 5).filter((r) => r !== 'W').length;
+  const concededRate = overall.played ? overall.goalsAgainst / overall.played : 1.2;
+  const scoredRate = overall.played ? overall.goalsFor / overall.played : 1.2;
+  const concededHigh = concededRate >= leagueGoalsPerGame + 0.4;
+  const weakestUnit = [...units].sort((a, b) => a.rating - a.leagueAverage - (b.rating - b.leagueAverage))[0] ?? units[0];
+
+  // Invoke Jev Decision Engine (or fallback emulator)
+  const jevResponse = await JevService.ask(
+    {
+      gamesWithoutWin,
+      concededRate,
+      leagueAvg: leagueGoalsPerGame,
+      concededHigh,
+      weakestUnit: weakestUnit?.unit ?? 'Defence',
+      currentStyle: squad.style ?? 'Balanced',
+      squadSize: squad.size,
+    },
+    {
+      crisisLevel: {
+        type: 'choice',
+        instructions: "Determine the severity of the club's performance crisis.",
+        criteria: {
+          crisis: 'High crisis with urgent intervention needed',
+          underperforming: 'Underperforming relative to squad baseline',
+          balanced: 'Stable performance close to par',
+          surging: 'Exceeding targets and in strong momentum',
+        },
+      },
+      tacticalPivot: {
+        type: 'choice',
+        instructions: 'Recommend the optimal tactical system adjustment.',
+        criteria: {
+          'low-block': 'Compact defensive low block to stop goal leakage',
+          'counter-attack': 'Direct transition counter-attack exploiting space',
+          possession: 'Control tempo and retain possession in midfield',
+          'high-press': 'Aggressive high-line pressing overload',
+        },
+      },
+      trainingDirective: {
+        type: 'choice',
+        instructions: 'Select the priority training focus area.',
+        criteria: {
+          Defending: 'Tactical positioning, marking, and tackling',
+          Physical: 'Conditioning, stamina, and duel strength',
+          Attacking: 'Finishing, chance creation, and crossing',
+          Technical: 'Passing precision, first touch, and ball retention',
+        },
+      },
+    }
+  );
+
+  const crisisAnswer = (jevResponse.answers.crisisLevel as ChoiceAnswer)?.choice ?? (gamesWithoutWin >= 4 ? 'crisis' : 'underperforming');
+  const tacticalAnswer = (jevResponse.answers.tacticalPivot as ChoiceAnswer)?.choice ?? (weakestUnit?.unit === 'Defence' ? 'low-block' : 'counter-attack');
+  const trainingAnswer = (jevResponse.answers.trainingDirective as ChoiceAnswer)?.choice ?? (weakestUnit?.unit === 'Defence' ? 'Defending' : 'Physical');
+  const confidence = Math.round(((jevResponse.answers.tacticalPivot as ChoiceAnswer)?.confidence ?? 0.88) * 100);
+
+  const strategies: ClubPerformanceStrategy[] = [];
+
+  // 1. TACTICS STRATEGY
+  if (tacticalAnswer === 'low-block' || concededHigh) {
+    strategies.push({
+      id: 'strat-tactics',
+      pillar: 'tactics',
+      severity: crisisAnswer === 'crisis' ? 'crisis' : 'warning',
+      title: 'Shift to a Compact 5-3-2 or 4-2-3-1 Low Block',
+      diagnosis: `${clubName}'s defence is ranked ${weakestUnit.rank} of ${weakestUnit.of}, conceding ${round(concededRate, 1)} goals per match. An aggressive high line exposes your centre-backs.`,
+      recommendation: `Drop into a disciplined low block and adopt Counter-Attack Direct. Tightening width shields the backline and reduces expected goals conceded by ~30%.`,
+      suggestedFormation: '5-3-2',
+      suggestedStyle: 'counter-attack',
+      actionLabel: 'Adjust Tactics on Team Sheet',
+      actionTab: 1,
+    });
+  } else if (tacticalAnswer === 'counter-attack') {
+    strategies.push({
+      id: 'strat-tactics',
+      pillar: 'tactics',
+      severity: 'warning',
+      title: 'Adopt Fast Direct Counter-Attacking (4-3-3)',
+      diagnosis: `${clubName} struggles to break down compact blocks in slow build-up play.`,
+      recommendation: `Transition through rapid vertical balls into wide channels. Direct counters exploit space behind opposition lines without compromising defensive shape.`,
+      suggestedFormation: '4-3-3',
+      suggestedStyle: 'counter-attack',
+      actionLabel: 'Adjust Tactics on Team Sheet',
+      actionTab: 1,
+    });
+  } else {
+    strategies.push({
+      id: 'strat-tactics',
+      pillar: 'tactics',
+      severity: 'opportunity',
+      title: 'Maintain Tactical Structure with Balanced Line Height',
+      diagnosis: `Tactical underlying metrics are competitive; avoid overreacting with radical shape changes.`,
+      recommendation: `Refine mid-block pressing triggers without compromising the core shape.`,
+      suggestedFormation: squad.formation || '4-4-2',
+      suggestedStyle: 'balanced',
+      actionLabel: 'Review Team Sheet',
+      actionTab: 1,
+    });
+  }
+
+  // 2. SELECTION STRATEGY
+  if (weakestStarters.length > 0) {
+    const lowest = weakestStarters[0];
+    const ratingGap = round(squad.startingAverage - lowest.rating, 1);
+    strategies.push({
+      id: 'strat-selection',
+      pillar: 'selection',
+      severity: lowest.rating < 55 ? 'crisis' : 'warning',
+      title: `Bench Underperforming Starter: ${lowest.name}`,
+      diagnosis: `${lowest.name} (${lowest.position || 'Starter'}, Rating ${lowest.rating}) is trailing the starting XI average by ${ratingGap} rating points.`,
+      recommendation: `Rotate ${lowest.name} out of the starting lineup. Give minutes to fresh bench reserves or promote an eager squad alternative to eliminate defensive vulnerabilities.`,
+      actionLabel: 'Adjust Lineup on Team Sheet',
+      actionTab: 1,
+    });
+  }
+
+  // 3. TRAINING STRATEGY
+  strategies.push({
+    id: 'strat-training',
+    pillar: 'training',
+    severity: weakestUnit.rating < weakestUnit.leagueAverage - 2 ? 'warning' : 'fine_tuning',
+    title: `Shift Squad Training Priority to "${trainingAnswer}"`,
+    diagnosis: `The ${weakestUnit.unit.toLowerCase()} unit (rated ${weakestUnit.rating} vs league average ${weakestUnit.leagueAverage}) is the primary statistical bottleneck.`,
+    recommendation: `Allocate individual and squad training sessions to ${trainingAnswer}. Concentrated weekly repetitions will stimulate targeted progression before the next matchday cycle.`,
+    actionLabel: 'Review Training in Squad Zone',
+    actionTab: 2,
+  });
+
+  // 4. TRANSFER STRATEGY
+  const positionNeed = weakestUnit.unit === 'Defence' ? 'Commanding Centre-Back (CB)' : weakestUnit.unit === 'Midfield' ? 'Central Midfielder (CM/DM)' : 'Clinical Striker (ST)';
+  strategies.push({
+    id: 'strat-transfer',
+    pillar: 'transfer',
+    severity: windowOpen ? 'warning' : 'opportunity',
+    title: `Scouting Directive: Recruit a ${positionNeed}`,
+    diagnosis: `Long-term competitive ceiling is constrained by personnel quality in the ${weakestUnit.unit.toLowerCase()} unit.`,
+    recommendation: windowOpen
+      ? `The transfer window is currently open. Target a specialist ${positionNeed} with a minimum rating of ${Math.round(weakestUnit.leagueAverage)} to raise the floor of the squad.`
+      : `Shortlist potential ${positionNeed} targets now so the board can move aggressively as soon as the transfer window unlocks.`,
+    actionLabel: 'Explore Transfer Zone',
+    actionTab: 5,
+  });
+
+  // SUMMARY
+  const crisisHeadline =
+    crisisAnswer === 'crisis'
+      ? `CRISIS DETECTED: Tactical Overhaul & Defensive Reinforcement Required`
+      : crisisAnswer === 'underperforming'
+        ? `UNDERPERFORMING: Tactical Tweaks & Key Rotations Advised`
+        : `STABLE TRAJECTORY: Fine-Tuning Opportunities Available`;
+
+  const advisorSummary: ClubPerformanceAdvisorSummary = {
+    crisisLevel: crisisAnswer as any,
+    confidence,
+    headline: crisisHeadline,
+    summary:
+      crisisAnswer === 'crisis'
+        ? `${clubName} is experiencing significant leakage and dropped points. Jev advises an immediate retreat from high-pressing lines into a resilient low block, benching underperforming starters, and drilling defence in training.`
+        : `${clubName} has solid structural foundations but is losing key marginal battles. Applying the tactical adjustments below will restore balance and maximize expected points.`,
+  };
+
+  return { strategies, advisorSummary };
 }

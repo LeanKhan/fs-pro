@@ -377,9 +377,17 @@ export default class Referee {
     const defendingSide = matchActions.getPlayingSides
       .defendingSide as MatchSide;
 
-    const keeper = playerFunc.getGK(
-      defendingSide.StartingSquad
-    ) as IFieldPlayer;
+    // Prefer the keeper Actions.shoot() already resolved the shot against:
+    // getPlayingSides.defendingSide can disagree with the shooter's opposing
+    // team (or lack a GK in StartingSquad), which left `keeper` undefined.
+    const keeper = (data.keeper ??
+      playerFunc.getGK(defendingSide.StartingSquad)) as IFieldPlayer;
+
+    if (!keeper) {
+      throw new Error(
+        `handleShot: no goalkeeper found for defending side ${defendingSide?.ClubCode}`
+      );
+    }
 
     this.moveToBlockIfFree(keeper, keeper.StartingPosition);
 

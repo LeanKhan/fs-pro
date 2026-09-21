@@ -6,4 +6,9 @@ export interface IPlace {
   Region: string; // east
   Type: string; // country
   Picture?: string; // ?
+  /** Universal entity id of the matching world place (countries). */
+  entity_id?: string | null;
+  WorldRevision?: number | null;
+  WorldSyncedAt?: Date | null;
+  WorldStale?: boolean;
 }

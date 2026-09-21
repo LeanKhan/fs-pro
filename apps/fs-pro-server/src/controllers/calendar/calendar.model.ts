@@ -8,4 +8,9 @@ export interface CalendarInterface {
   _id?: string;
   CurrentDay: number;
   CurrentDate: Date;
+  ClockMode?: 'live' | 'paused' | string;
+  NextTickAt?: Date | null;
+  LastTickAt?: Date | null;
+  MatchdaySlotMinutes?: number;
+  OffDaySlotMinutes?: number;
 }

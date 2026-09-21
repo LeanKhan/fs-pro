@@ -305,11 +305,13 @@
             </v-col>
 
             <v-col cols="4">
-              <v-card>
-                <v-sheet height="400px" width="100%" color="green-darken-2">
-                  Yeet beat
-                </v-sheet>
-              </v-card>
+              <general-media-card
+                :club="club"
+                :selected-match="selectedMatch"
+                :selected-day="selectedDay"
+                :season="season"
+                :is-my-club="isMyClub"
+              />
             </v-col>
           </v-row>
         </v-window-item>
@@ -342,7 +344,7 @@
           <transfer-zone :club="club" @update-available="refresh" />
         </v-window-item>
         <v-window-item v-if="isMyClub">
-          <performance-zone :club="club" />
+          <performance-zone :club="club" @switch-tab="(t: number) => tab = t" />
         </v-window-item>
       </v-window>
     </template>
@@ -365,6 +367,7 @@ import {
 } from './zones';
 import DayScroll from '@/components/calendar/day-scroll.vue';
 import StandingsScroller from '@/components/seasons/standings-scroller.vue';
+import GeneralMediaCard from '@/components/media/general-media-card.vue';
 
 import type { Club, Competition, Fixture, Season } from '@repo/api-contract';
 import type { IDayGroup } from '@/interfaces/calendar';

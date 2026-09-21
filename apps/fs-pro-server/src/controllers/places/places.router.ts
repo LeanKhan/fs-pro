@@ -3,6 +3,11 @@ import { apiContract as contract } from '@repo/api-contract';
 import type { Place as ContractPlace } from '@repo/api-contract';
 
 import {
+  importCountryFromWorld,
+  resolveAnchor,
+  syncPlacesFromWorld,
+} from '../../services/worldPlaceService';
+import {
   getAllPlaces,
   getPlace,
   getPlaceByNameOrCode,
@@ -61,6 +66,83 @@ export const placeTsRestRoutes = s.router(contract.places, {
         body: {
           success: false,
           message: 'Error fetching Countries',
+          payload: fail(err),
+        },
+      };
+    }
+  },
+
+  importFromWorld: async ({ body }) => {
+    try {
+      const place = await importCountryFromWorld(body.entity_id);
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: 'Country imported from the world',
+          payload: place as unknown as ContractPlace,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error importing country',
+          payload: fail(err),
+        },
+      };
+    }
+  },
+
+  syncFromWorld: async () => {
+    try {
+      const summary = await syncPlacesFromWorld();
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: summary.offline
+            ? 'World unreachable; local snapshots left unchanged'
+            : 'Countries synced from the world',
+          payload: summary,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error syncing countries',
+          payload: fail(err),
+        },
+      };
+    }
+  },
+
+  resolveAnchor: async ({ body }) => {
+    try {
+      const anchor = await resolveAnchor(body.entity_id);
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: anchor ? 'Anchor resolved' : 'Anchor could not be resolved',
+          payload: {
+            resolved: anchor !== null,
+            breadcrumbs: anchor?.card.breadcrumbs ?? [],
+            city: anchor?.city ?? null,
+            countryId: anchor?.countryId ?? null,
+            missingCountry: anchor?.missingCountry ?? null,
+          },
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: 'Error resolving anchor',
           payload: fail(err),
         },
       };

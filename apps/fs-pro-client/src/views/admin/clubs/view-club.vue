@@ -96,21 +96,45 @@
                 {{ club.LeagueCode }}
               </div>
 
+              <div class="text-h6" v-if="club.AddressCountry">
+                <span class="text-subtitle-1 text-grey">Country:</span>
+                <WorldLink
+                  :entity-id="club.AddressCountry?.entity_id"
+                  :fallback="club.AddressCountry?.Fullname || club.AddressCountry?.Name"
+                />
+              </div>
+
+              <div class="text-h6" v-if="club.Address?.City">
+                <span class="text-subtitle-1 text-grey">City:</span>
+                <WorldLink
+                  :entity-id="club.Address?.city_entity_id || (club.Address?.City?.toLowerCase() === 'tobakaeem' ? 'tobakaeem' : null)"
+                  :fallback="club.Address?.City"
+                />
+              </div>
+
+              <div class="text-h6" v-if="club.Address?.Section">
+                <span class="text-subtitle-1 text-grey">District:</span>
+                <WorldLink
+                  :entity-id="club.Address?.section_entity_id || club.Address?.entity_id || club.homePlaceId"
+                  :fallback="club.Address?.Section"
+                />
+              </div>
+
               <div class="text-h6">
                 <span class="text-subtitle-1 text-grey">Stadium:</span>
-                <span>{{ club.Stadium?.Name }}</span>
+                <WorldLink
+                  :entity-id="club.Stadium?.entity_id || club.stadiumPlaceId"
+                  :fallback="club.Stadium?.Name"
+                />
                 &nbsp;
                 <span class="text-grey">{{ club.Stadium?.Location }}</span>
               </div>
-              <div class="text-h6" v-if="club.homePlaceId">
-                <a
-                  :href="`${imaginationUrl}/w/asterra/${club.homePlaceId}`"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="world-map-link text-decoration-none text-primary"
-                >
-                  🌍 View on World Map ↗
-                </a>
+
+              <div class="text-h6" v-if="club.entity_id">
+                <WorldLink
+                  :entity-id="club.entity_id"
+                  fallback="🌍 Explore Club in World Wiki ↗"
+                />
               </div>
 
               <div class="text-h6">
@@ -161,6 +185,7 @@ import { useStore, apiUrl } from '@/store';
 import { client } from '@/services/api';
 import PlayersTable from '@/components/players/players-table.vue';
 import AllPlayersTable from '@/components/players/allplayers-table.vue';
+import WorldLink from '@/components/world/WorldLink.vue';
 
 const router = useRouter();
 const route = useRoute();

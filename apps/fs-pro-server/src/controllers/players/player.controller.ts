@@ -16,6 +16,7 @@ import { applyTrainingGrowth } from './player-training.service';
 import { PlayerInterface, IPlayerAttributes } from '../../interfaces/Player';
 import { runSpawn } from '../../utils/scripts';
 import { titleCase } from '../../helpers/misc';
+import { nationalityIdForCulture } from '../../services/nationality';
 
 /** Recompute every active signed Player's Attributes/Rating/Value for
  * `year` (appending to RatingsHistory), then age everyone up. Plain
@@ -138,12 +139,14 @@ export async function generateAndSavePlayers(
     .filter((x) => x || null)
     .map((n) => n.split('__').map((l) => titleCase(l)));
 
+  const nationalityId = await nationalityIdForCulture(culture);
   const generatedPlayers = names.map((p) =>
     generatePlayer({
       position,
       firstname: p[0],
       lastname: p[1],
       nationality: culture,
+      nationalityId,
     })
   );
 

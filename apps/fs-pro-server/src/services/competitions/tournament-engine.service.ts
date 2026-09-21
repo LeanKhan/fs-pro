@@ -8,6 +8,7 @@ import {
   clubs as clubsTable,
 } from '../../db/drizzle/schema';
 import { getClubs, getClubById } from '../../controllers/clubs/club.service';
+import { syncPlacesFromWorld } from '../worldPlaceService';
 import {
   getCompetitions,
   getCompetitionById,
@@ -73,6 +74,12 @@ export class TournamentEngineService {
     cups: any[];
     ccl: any;
   }> {
+    // Refresh country rows from the world before grouping clubs by country. Best effort: offline keeps the local snapshot.
+    try {
+      await syncPlacesFromWorld();
+    } catch (err) {
+      console.warn('World place sync skipped:', err);
+    }
     const allCompetitions: any[] = await getCompetitions(undefined, {
       withCountry: true,
     });

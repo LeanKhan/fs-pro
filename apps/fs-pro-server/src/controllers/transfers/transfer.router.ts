@@ -15,6 +15,7 @@ import {
   placeBid,
   respondToOffer,
   listOffers,
+  listPlayerForSale,
 } from '../../services/transfers/transfer-market.service';
 
 const s = initServer();
@@ -87,7 +88,15 @@ export const transferTsRestRoutes = s.router(contract.transfers, {
     try {
       return {
         status: 200 as const,
-        body: { success: true as const, message: 'Offers fetched', payload: await listOffers(query.clubId) },
+        body: {
+          success: true as const,
+          message: 'Offers fetched',
+          payload: await listOffers(query.clubId, {
+            limit: query.limit,
+            offset: query.offset,
+            currentSeasonOnly: query.currentSeasonOnly,
+          }),
+        },
       };
     } catch (err) {
       return errorResponse(err) as any;
@@ -138,6 +147,27 @@ export const transferTsRestRoutes = s.router(contract.transfers, {
         status: /not found/i.test(message) ? (404 as const) : (400 as const),
         body: { success: false, message, payload: message },
       };
+    }
+  },
+
+  listPlayerForSale: async ({ body }) => {
+    try {
+      const result = await listPlayerForSale(body);
+      return {
+        status: 200 as const,
+        body: {
+          success: true as const,
+          message: body.isListed ? 'Player listed for sale' : 'Player unlisted',
+          payload: {
+            player: result.player as unknown as ContractPlayer,
+            reaction: result.reaction,
+            marketInterest: result.marketInterest,
+            newOffer: result.newOffer,
+          },
+        },
+      };
+    } catch (err) {
+      return errorResponse(err) as any;
     }
   },
 });

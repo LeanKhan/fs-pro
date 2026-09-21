@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { ClubSchema } from '../schemas/club';
 import { PlayerSchema } from '../schemas/player';
 import { ClubPerformanceSchema } from '../schemas/club-performance';
+import { MediaItemSchema } from '../schemas/media';
 import { successEnvelope, failEnvelope } from '../schemas/envelope';
 import { booleanQuery } from '../schemas/query';
 
@@ -223,6 +224,23 @@ export const clubsContract = c.router(
       }),
       responses: {
         200: successEnvelope(ClubSchema),
+        400: failEnvelope(),
+      },
+    },
+
+    getMediaFeed: {
+      method: 'GET',
+      path: '/:id/media-feed',
+      pathParams: z.object({
+        id: z.string(),
+      }),
+      query: z.object({
+        fixtureId: z.string().optional(),
+        competitionCode: z.string().optional(),
+        channel: z.string().optional(),
+      }),
+      responses: {
+        200: successEnvelope(z.array(MediaItemSchema)),
         400: failEnvelope(),
       },
     },

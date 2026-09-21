@@ -7,6 +7,11 @@ import type {
 } from '@repo/api-contract';
 
 import { getCalendar, healCalendar } from './calendar.service';
+import {
+  getClockState,
+  setClock,
+  tickNow,
+} from '../../services/calendar/calendar-clock.service';
 import { getEvents, deleteDayById } from '../days/day.service';
 import { getCompetitions } from '../competitions/competition.service';
 import { create as createSeason } from '../../middleware/seasons';
@@ -489,6 +494,54 @@ export const calendarTsRestRoutes = s.router(contract.calendar, {
           message: 'Error prolegating Seasons!',
           payload: fail(err),
         },
+      };
+    }
+  },
+
+  getClock: async () => {
+    try {
+      return {
+        status: 200,
+        body: { success: true, message: 'Clock state', payload: await getClockState() },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: { success: false, message: 'Error reading clock', payload: fail(err) },
+      };
+    }
+  },
+
+  setClock: async ({ body }) => {
+    try {
+      const state = await setClock(body);
+      return {
+        status: 200,
+        body: { success: true, message: `Clock ${state.mode}`, payload: state },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: { success: false, message: 'Error updating clock', payload: fail(err) },
+      };
+    }
+  },
+
+  tickClock: async () => {
+    try {
+      const result = await tickNow();
+      return {
+        status: 200,
+        body: {
+          success: true,
+          message: `Advanced day ${result.fromDay} -> ${result.toDay}`,
+          payload: result,
+        },
+      };
+    } catch (err) {
+      return {
+        status: 400,
+        body: { success: false, message: 'Error running tick', payload: fail(err) },
       };
     }
   },
