@@ -34,6 +34,34 @@
         @changed="onPurchase"
       />
 
+      <!-- Listed Players for Sale Banner -->
+      <v-alert
+        v-if="myListedPlayers.length > 0"
+        color="purple-darken-3"
+        variant="tonal"
+        density="compact"
+        class="mb-3"
+      >
+        <div class="d-flex justify-space-between align-center">
+          <div>
+            <v-icon size="small" class="mr-1">mdi-tag-multiple</v-icon>
+            <strong>Your Players on the Market ({{ myListedPlayers.length }} listed):</strong>
+            <span class="ml-2">
+              <span
+                v-for="p in myListedPlayers"
+                :key="p._id ?? p.id"
+                class="mr-2"
+              >
+                <strong>{{ p.FirstName }} {{ p.LastName }}</strong> ({{ currency(p.AskingPrice ?? p.Value) }})
+              </span>
+            </span>
+          </div>
+          <div class="text-caption font-weight-bold text-purple-lighten-2">
+            Potential Revenue: {{ currency(totalPotentialRevenue) }}
+          </div>
+        </div>
+      </v-alert>
+
       <v-row dense>
         <v-col cols="12" md="6">
           <v-text-field
@@ -111,6 +139,15 @@ const filteredPlayers = computed<MarketPlayer[]>(() => {
   return [...freeAgents.value, ...otherClubsPlayers.value];
 });
 
+const myListedPlayers = computed(() => {
+  if (!Array.isArray(props.club?.Players)) return [];
+  return props.club.Players.filter((p: any) => p.isTransferListed);
+});
+
+const totalPotentialRevenue = computed(() => {
+  return myListedPlayers.value.reduce((sum: number, p: any) => sum + (p.AskingPrice ?? p.Value ?? 0), 0);
+});
+
 async function loadFreeAgents() {
   try {
     const response = await client.players.getPlayers.query({
@@ -119,7 +156,7 @@ async function loadFreeAgents() {
     if (response.status === 200) {
       freeAgents.value = response.body.payload.map((p) => ({
         ...p,
-        source: 'Free Agent',
+        source: 'Overseas Free Agent',
       }));
     }
   } catch (error) {

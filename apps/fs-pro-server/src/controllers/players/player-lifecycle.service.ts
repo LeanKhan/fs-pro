@@ -6,6 +6,7 @@ import { getClubs } from '../clubs/club.service';
 import { generatePlayer } from '../../utils/players';
 import { pickPlaceholderName } from '../../utils/placeholder-names';
 import { pickRandomFromArray } from '../../helpers/misc';
+import { nationalityIdForCulture } from '../../services/nationality';
 import type { PlayerInterface } from '../../interfaces/Player';
 
 let playerRepo: ReturnType<typeof PlayerRepositoryFactory.create> | null = null;
@@ -94,9 +95,31 @@ export async function retireEligiblePlayersForYear(
     .from(players)
     .where(eq(players.isRetired, false));
 
-  const retiring = active.filter(
+  const rolled = active.filter(
     (p) => p.Age != null && Math.random() < retirementChanceForAge(p.Age)
   );
+
+  // A club must never lose its last goalkeeper - the match engine can't
+  // run without one (Referee.handleShot has no keeper to resolve against).
+  // Spare the best-rated retiring GK of any club that would be left with none.
+  const remainingGKsByClub = new Map<string, number>();
+  for (const p of active) {
+    if (p.Position === 'GK' && p.ClubCode) {
+      remainingGKsByClub.set(
+        p.ClubCode,
+        (remainingGKsByClub.get(p.ClubCode) ?? 0) + 1
+      );
+    }
+  }
+  const retiring: typeof rolled = [];
+  for (const p of [...rolled].sort((a, b) => (a.Rating ?? 0) - (b.Rating ?? 0))) {
+    if (p.Position === 'GK' && p.ClubCode) {
+      const left = remainingGKsByClub.get(p.ClubCode) ?? 0;
+      if (left <= 1) continue;
+      remainingGKsByClub.set(p.ClubCode, left - 1);
+    }
+    retiring.push(p);
+  }
   const retiringIds = retiring.map((p) => p.id);
 
   if (retiringIds.length) {
@@ -161,18 +184,32 @@ const YOUTH_POSITION_POOL = [
  * between the automatic once-per-year runYouthIntakeForYear and the
  * on-demand admin recruitYouthPlayersForClub below - same generation logic,
  * different insertion/guard rules around it. */
-function generateYouthPlayers(count: number) {
-  return Array.from({ length: count }, () => {
+async function generateYouthPlayers(count: number, forceGK = false) {
+  const cultures = ['kev', 'bellean'];
+  const nationalityIds = new Map(
+    await Promise.all(
+      cultures.map(
+        async (c) => [c, await nationalityIdForCulture(c)] as [string, string]
+      )
+    )
+  );
+  return Array.from({ length: count }, (_, i) => {
     const { firstName, lastName } = pickPlaceholderName();
-    return generatePlayer({
-      position: pickRandomFromArray(YOUTH_POSITION_POOL),
-      firstname: firstName,
-      lastname: lastName,
-      nationality: pickRandomFromArray(['kev', 'bellean']),
-      ageRange: YOUTH_AGE_RANGE,
-      attributeRange: YOUTH_ATTRIBUTE_RANGE,
-      positionAttributeRange: YOUTH_POSITION_ATTRIBUTE_RANGE,
-    });
+    const culture = pickRandomFromArray(cultures);
+    return {
+      ...generatePlayer({
+        position:
+          forceGK && i === 0 ? 'GK' : pickRandomFromArray(YOUTH_POSITION_POOL),
+        firstname: firstName,
+        lastname: lastName,
+        nationality: culture,
+        nationalityId: nationalityIds.get(culture),
+        ageRange: YOUTH_AGE_RANGE,
+        attributeRange: YOUTH_ATTRIBUTE_RANGE,
+        positionAttributeRange: YOUTH_POSITION_ATTRIBUTE_RANGE,
+      }),
+      isYouth: true,
+    };
   });
 }
 
@@ -209,13 +246,29 @@ export async function runYouthIntakeForYear(
     rosterCounts.map((r) => [r.ClubId, Number(r.count)])
   );
 
+  // Clubs with no active goalkeeper get topped up regardless of roster
+  // size, with a guaranteed GK youngster.
+  const gkRows = await db
+    .select({ ClubId: players.ClubId })
+    .from(players)
+    .where(
+      and(
+        eq(players.isSigned, true),
+        eq(players.isRetired, false),
+        eq(players.Position, 'GK')
+      )
+    )
+    .groupBy(players.ClubId);
+  const clubsWithGK = new Set(gkRows.map((r) => r.ClubId));
+
   const allClubs = await getClubs();
   let addedCount = 0;
 
   for (const club of allClubs) {
     const clubId = club._id as string;
     const current = countByClub.get(clubId) ?? 0;
-    if (current >= TARGET_SQUAD_SIZE) continue;
+    const needsGK = !clubsWithGK.has(clubId);
+    if (current >= TARGET_SQUAD_SIZE && !needsGK) continue;
 
     await db.transaction(async (tx) => {
       const already = await tx.query.transferLedger.findFirst({
@@ -228,7 +281,7 @@ export async function runYouthIntakeForYear(
       if (already) return;
 
       const intakeCount = pickRandomFromArray([1, 1, 2]);
-      const youngsters = generateYouthPlayers(intakeCount).map(
+      const youngsters = (await generateYouthPlayers(intakeCount, needsGK)).map(
         (generated) => ({
           ...generated,
           isSigned: true,
@@ -285,11 +338,12 @@ export const MAX_ADMIN_YOUTH_RECRUITS = 3;
  */
 export async function recruitYouthPlayersForClub(
   club: { _id: string; ClubCode: string },
-  count: number
+  count: number,
+  opts: { forceGK?: boolean; note?: string } = {}
 ) {
   const db = DrizzleDatabase.getInstance().database;
 
-  const recruits = generateYouthPlayers(count).map((generated) => ({
+  const recruits = (await generateYouthPlayers(count, opts.forceGK)).map((generated) => ({
     ...generated,
     isSigned: true,
     ClubId: club._id,
@@ -306,7 +360,7 @@ export async function recruitYouthPlayersForClub(
     Type: 'youth_scouted',
     BuyerClubId: club._id,
     Amount: 0,
-    Note: `${created.length} youth player(s) scouted by admin`,
+    Note: opts.note ?? `${created.length} youth player(s) scouted by admin`,
     updatedAt: new Date(),
   });
 

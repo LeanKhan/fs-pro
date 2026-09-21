@@ -11,6 +11,10 @@ export const PlaceSchema = z.object({
   Region: z.string(),
   Type: z.string(),
   Picture: z.string().nullable().optional(),
+  entity_id: z.string().nullable().optional(),
+  WorldRevision: z.number().nullable().optional(),
+  WorldSyncedAt: z.string().nullable().optional(),
+  WorldStale: z.boolean().optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
 });

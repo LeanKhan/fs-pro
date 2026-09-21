@@ -108,6 +108,14 @@ export class MatchSide extends Club {
 
     const { startingXI, bench } = this.selectMatchdaySquad(this.Tactic.slots);
 
+    // Fail early with the club named - the engine needs a GK in the XI
+    // (getGK() / Referee.handleShot) and would otherwise crash mid-match.
+    if (!startingXI.some(({ player }) => player.Position === 'GK')) {
+      throw new Error(
+        `${this.ClubCode} has no available goalkeeper for the starting XI`
+      );
+    }
+
     this.Substitutes = bench;
     this.StartingSquad = startingXI.map(
       ({ player, block }) => new FieldPlayer(player, true, block, ball)

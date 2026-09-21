@@ -46,6 +46,13 @@ export const places = pgTable('Places', {
   Region: text('Region'),
   Type: text('Type'),
   Picture: text('Picture'),
+  /** Universal entity id of the matching `country` place in the Imaginations world. */
+  entity_id: text('entity_id').unique(),
+  /** Latest world revision seen at the last sync; a higher world revision means this snapshot is stale. */
+  WorldRevision: integer('WorldRevision'),
+  WorldSyncedAt: timestamp('WorldSyncedAt', { withTimezone: true }),
+  /** The world no longer knows this place (deleted); last known values are kept. */
+  WorldStale: boolean('WorldStale').notNull().default(false),
   ...timestamps,
 });
 
@@ -166,6 +173,8 @@ export const clubs = pgTable('Clubs', {
   Lineup: jsonb('Lineup').$type<{ startingXI: string[]; bench: string[] } | null>(),
   Tactic: jsonb('Tactic').$type<{ formationName: string; styleName: string } | null>(),
   Finances: jsonb('Finances').$type<Record<string, unknown> | null>(),
+  /** Universal entity id of the club in the Imaginations world. */
+  entity_id: text('entity_id'),
   /** Imagination world place UUID – the club's home city/HQ polygon on the world map. */
   homePlaceId: text('homePlaceId'),
   /** Imagination world place UUID – the stadium polygon on the world map. */
@@ -194,6 +203,15 @@ export const calendars = pgTable('Calendars', {
    * services/transfers/transfer-window.service.ts. */
   TransferWindowOpen: boolean('TransferWindowOpen').notNull().default(false),
   TransferWindowClosesDay: integer('TransferWindowClosesDay'),
+  /** Live clock (services/calendar/calendar-clock.service.ts): 'live' = the
+   * server advances the day on its own at NextTickAt; 'paused' = only admin
+   * actions move it. NextTickAt doubles as a short lease while a tick runs. */
+  ClockMode: text('ClockMode').notNull().default('paused'),
+  NextTickAt: timestamp('NextTickAt', { precision: 3 }),
+  LastTickAt: timestamp('LastTickAt', { precision: 3 }),
+  /** Real minutes a match day lasts, plus per skipped off-day in the gap. */
+  MatchdaySlotMinutes: integer('MatchdaySlotMinutes').notNull().default(180),
+  OffDaySlotMinutes: integer('OffDaySlotMinutes').notNull().default(10),
   ...timestamps,
 });
 
@@ -295,6 +313,10 @@ export const players = pgTable('Players', {
   Injury: jsonb('Injury').$type<{ type: string; daysRemaining: number } | null>(),
   ClubCode: text('ClubCode'),
   ClubId: uuid('ClubId').references(() => clubs.id),
+  isTransferListed: boolean('isTransferListed').notNull().default(false),
+  AskingPrice: real('AskingPrice'),
+  Morale: text('Morale'),
+  isYouth: boolean('isYouth').notNull().default(false),
   ...timestamps,
 });
 

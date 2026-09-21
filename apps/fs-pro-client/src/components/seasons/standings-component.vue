@@ -11,6 +11,28 @@
       disable-pagination
       hide-default-footer
     >
+      <template v-slot:item.Pos="{ item }">
+        <div class="d-flex align-center">
+          <span class="text-caption mr-1">{{ item.Pos }}</span>
+          <v-icon
+            v-if="(movement?.[item.ClubCode] ?? 0) > 0"
+            size="x-small"
+            color="success"
+            :title="`Up ${movement?.[item.ClubCode]}`"
+            >mdi-arrow-up</v-icon
+          >
+          <v-icon
+            v-else-if="(movement?.[item.ClubCode] ?? 0) < 0"
+            size="x-small"
+            color="error"
+            :title="`Down ${Math.abs(movement?.[item.ClubCode] ?? 0)}`"
+            >mdi-arrow-down</v-icon
+          >
+          <v-icon v-else-if="movement" size="x-small" color="grey"
+            >mdi-minus</v-icon
+          >
+        </div>
+      </template>
       <template v-slot:item.ClubCode="{ item }">
         <router-link
           v-if="item.ClubID"
@@ -37,6 +59,8 @@ import type { WeekStandings as IWeek } from '@repo/api-contract';
 interface Props {
   WeekStandings: IWeek;
   weekly?: boolean;
+  /** ClubCode -> positions gained (+) / lost (-); omit to hide arrows. */
+  movement?: Record<string, number>;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -44,6 +68,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const headers = ref<any[]>([
+  { title: '#', key: 'Pos', sortable: false, filterable: false },
   {
     title: 'Club',
     align: 'start',
@@ -76,7 +101,9 @@ const Table = computed(() => {
 });
 
 const SortedTable = computed(() => {
-  return [...Table.value].sort((a: any, b: any) => {
+  const rows = Array.isArray(Table.value) ? Table.value : (Table.value as any).Table ?? [];
+  return [...rows]
+    .sort((a: any, b: any) => {
     if (b.Points === a.Points) {
       if (b.GD === a.GD) {
         return b.GF - a.GF;
@@ -85,7 +112,8 @@ const SortedTable = computed(() => {
       }
     }
     return b.Points - a.Points;
-  });
+  })
+    .map((row: any, i: number) => ({ ...row, Pos: i + 1 }));
 });
 
 //   get totalTable() {

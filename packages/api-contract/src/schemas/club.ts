@@ -38,6 +38,7 @@ export const ClubSchema = z.object({
       Capacity: z.union([z.string(), z.number()]).optional(),
       YearOccupied: z.union([z.string(), z.number()]).optional(),
       Location: z.string().optional(),
+      entity_id: z.string().nullable().optional(),
     })
     .nullable()
     .optional(),
@@ -59,6 +60,9 @@ export const ClubSchema = z.object({
       Section: z.string().optional(),
       City: z.string().optional(),
       Country: z.string().optional(),
+      entity_id: z.string().nullable().optional(),
+      city_entity_id: z.string().nullable().optional(),
+      section_entity_id: z.string().nullable().optional(),
     })
     .nullable()
     .optional(),
@@ -85,6 +89,7 @@ export const ClubSchema = z.object({
     .nullable()
     .optional(),
   Finances: z.record(z.unknown()).nullable().optional(),
+  entity_id: z.string().nullable().optional(),
   homePlaceId: z.string().nullable().optional(),
   stadiumPlaceId: z.string().nullable().optional(),
   createdAt: z.string().optional(),

@@ -49,7 +49,8 @@ export type { Calendar, Day, WorldFeed, WorldFeedHeadline } from './schemas/cale
 export type { Place } from './schemas/place';
 export type { SeasonReport, SeasonHighlight } from './schemas/season-report';
 export type { TransferWindow, TransferOffer } from './schemas/transfer';
-export type { ClubPerformance, ClubPerformanceInsight } from './schemas/club-performance';
+export type { ClubPerformance, ClubPerformanceInsight, ClubPerformanceStrategy, ClubPerformanceAdvisorSummary } from './schemas/club-performance';
 export type { Award } from './schemas/award';
 export type { User } from './schemas/user';
 export type { Tactic, PlayResult, GameResults } from './schemas/game';
+export type { MediaItem } from './schemas/media';
