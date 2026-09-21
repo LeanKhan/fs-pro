@@ -1,47 +1,38 @@
 import { initServer } from '@ts-rest/express';
 import { apiContract as contract } from '@repo/api-contract';
+import { getPlayState, playMatch } from '../../services/play/play.service';
 import { accessDenied, canManageClub } from '../auth/club-access';
-import { getCampus, startUpgrade } from '../../services/facilities/facilities.service';
 
 const s = initServer();
 
-function fail(err: unknown) {
-  return err instanceof Error ? err.message : String(err);
-}
-
 function errorResponse(err: unknown) {
-  const message = fail(err);
+  const message = err instanceof Error ? err.message : String(err);
   return {
     status: /not found/i.test(message) ? (404 as const) : (400 as const),
     body: { success: false as const, message, payload: message },
   };
 }
 
-export const facilitiesTsRestRoutes = s.router(contract.facilities, {
-  getCampus: async ({ params }) => {
+export const playTsRestRoutes = s.router(contract.play, {
+  getPlayState: async ({ params }) => {
     try {
       return {
         status: 200 as const,
-        body: {
-          success: true as const,
-          message: 'Club facilities',
-          payload: await getCampus(params.clubId),
-        },
+        body: { success: true as const, message: 'Play state', payload: await getPlayState(params.clubId) },
       };
     } catch (err) {
       return errorResponse(err) as any;
     }
   },
 
-  startUpgrade: async ({ params, body, req }) => {
+  playMatch: async ({ params, req }) => {
     try {
       const access = await canManageClub(req.session as { userID?: string } | undefined, params.clubId);
       if (access !== 'ok') return accessDenied(access);
 
-      const campus = await startUpgrade(params.clubId, body.assetType);
       return {
         status: 200 as const,
-        body: { success: true as const, message: 'Upgrade started', payload: campus },
+        body: { success: true as const, message: 'Match played', payload: await playMatch(params.clubId) },
       };
     } catch (err) {
       return errorResponse(err) as any;

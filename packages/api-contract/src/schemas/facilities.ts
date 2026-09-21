@@ -12,9 +12,9 @@ export const AssetStateSchema = z.object({
   upgrade: z
     .object({
       toLevel: z.number(),
-      startDay: z.number(),
-      completeDay: z.number(),
-      daysLeft: z.number(),
+      startAt: z.string(),
+      completeAt: z.string(),
+      secondsLeft: z.number(),
     })
     .nullable(),
   /** The next level's price and whether it can be started now; null at max level. */
@@ -22,7 +22,7 @@ export const AssetStateSchema = z.object({
     .object({
       level: z.number(),
       cost: z.number(),
-      days: z.number(),
+      minutes: z.number(),
       effectLabel: z.string(),
       blockedReason: z.string().nullable(),
     })
@@ -32,7 +32,6 @@ export const AssetStateSchema = z.object({
 export const CampusSchema = z.object({
   clubId: z.string(),
   budget: z.number(),
-  currentDay: z.number(),
   maxConcurrentUpgrades: z.number(),
   activeUpgrades: z.number(),
   assets: z.array(AssetStateSchema),

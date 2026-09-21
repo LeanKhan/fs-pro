@@ -106,6 +106,13 @@ export const competitions = pgTable('Competitions', {
   Division: integer('Division').notNull().default(0),
   NumberOfTeams: integer('NumberOfTeams').notNull(),
   NumberOfWeeks: integer('NumberOfWeeks').notNull(),
+  /** League pyramid position (services/competitions/pyramid-config.ts): Tier
+   * 1 = top flight, higher = lower; Pod = which parallel league within the
+   * tier. Both null for cups/tournaments and for any league not yet placed
+   * in the pyramid (those keep the legacy two-division promotion rules).
+   * Deliberately separate from Division, which is 0 for every cup. */
+  Tier: integer('Tier'),
+  Pod: integer('Pod'),
   TeamsPromoted: integer('TeamsPromoted'),
   TeamsRelegated: integer('TeamsRelegated'),
   CountryId: uuid('CountryId').references(() => places.id),
@@ -179,6 +186,9 @@ export const clubs = pgTable('Clubs', {
   homePlaceId: text('homePlaceId'),
   /** Imagination world place UUID – the stadium polygon on the world map. */
   stadiumPlaceId: text('stadiumPlaceId'),
+  /** Club XP earned from matches/challenges (services/play/play.service.ts);
+   * Club Level is derived from it. */
+  XP: integer('XP').notNull().default(0),
   ...timestamps,
   // Players dropped - it's the exact inverse of players.Club below.
 });
@@ -574,6 +584,10 @@ export const clubAssets = pgTable(
     AssetType: text('AssetType').notNull(),
     Level: integer('Level').notNull().default(0),
     UpgradingTo: integer('UpgradingTo'),
+    /** Real-time upgrade window (the live model). StartDay/CompleteDay are the
+     * old calendar-day columns - unused since the switch to real time. */
+    StartAt: timestamp('StartAt', { precision: 3 }),
+    CompleteAt: timestamp('CompleteAt', { precision: 3 }),
     StartDay: integer('StartDay'),
     CompleteDay: integer('CompleteDay'),
     ...timestamps,
@@ -581,7 +595,36 @@ export const clubAssets = pgTable(
   (t) => [
     unique('club_assets_club_type_uniq').on(t.ClubId, t.AssetType),
     index('club_assets_upgrading_idx').on(t.CompleteDay),
+    index('club_assets_complete_at_idx').on(t.CompleteAt),
   ]
+);
+
+/**
+ * A timed club goal, e.g. "win N matches within T hours" (Type 'win_matches').
+ * Progress is updated by the play flow and expiry is resolved lazily on read
+ * (services/play/challenge.service.ts). One 'active' row per club at a time.
+ */
+export const clubChallenges = pgTable(
+  'ClubChallenges',
+  {
+    id: uuid('_id').primaryKey().defaultRandom(),
+    ClubId: uuid('ClubId')
+      .notNull()
+      .references(() => clubs.id),
+    Type: text('Type').notNull(),
+    Title: text('Title').notNull(),
+    TargetWins: integer('TargetWins').notNull(),
+    Wins: integer('Wins').notNull().default(0),
+    MatchesPlayed: integer('MatchesPlayed').notNull().default(0),
+    /** active | completed | failed */
+    Status: text('Status').notNull().default('active'),
+    ExpiresAt: timestamp('ExpiresAt', { precision: 3 }).notNull(),
+    RewardCash: real('RewardCash').notNull(),
+    RewardXP: integer('RewardXP').notNull(),
+    ResolvedAt: timestamp('ResolvedAt', { precision: 3 }),
+    ...timestamps,
+  },
+  (t) => [index('club_challenges_club_status_idx').on(t.ClubId, t.Status)]
 );
 
 export type Place = typeof places.$inferSelect;

@@ -15,6 +15,7 @@ import { PlayerMatchDetailsInterface } from '../player-match/player-match.model'
 import { createClubMatch } from '../club-match/club-match.service';
 import { PlayerFitnessService } from '../../services/players/player-fitness.service';
 import { getClubById, updateClubFields } from '../clubs/club.service';
+import { getAssetEffects } from '../../services/facilities/facilities.service';
 
 interface Team {
   id: string;
@@ -116,11 +117,13 @@ export async function updateFixture(
   try {
     const homeClub = await getClubById(home.id);
     if (homeClub) {
-      const stadiumCapacity = Number((homeClub.Stadium as any)?.Capacity) || 20000;
+      // Capacity comes from the club's Stands level (services/facilities).
+      const stadiumCapacity = (await getAssetEffects(home.id)).capacity;
       const attendance = Math.round(stadiumCapacity * (0.65 + 0.3 * Math.random()));
       const ticketPrice = 28;
       const matchdayRevenue = attendance * ticketPrice;
-      const matchdayCosts = Math.round(attendance * 6 + 10000);
+      // Per-head running costs plus ground upkeep that grows with stadium size.
+      const matchdayCosts = Math.round(attendance * 6 + 1000 + stadiumCapacity * 0.5);
       const netProfit = matchdayRevenue - matchdayCosts;
 
       const currentBudget = homeClub.Budget ?? 1000000;
@@ -139,6 +142,7 @@ export async function updateFixture(
         fixtureId: fixture_id,
         date: new Date(),
         attendance,
+        capacity: stadiumCapacity,
         revenue: matchdayRevenue,
         costs: matchdayCosts,
         net: netProfit,

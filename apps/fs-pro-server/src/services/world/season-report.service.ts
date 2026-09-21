@@ -1,4 +1,5 @@
 import { desc, eq } from 'drizzle-orm';
+import { getTierInfo, planMoves } from '../competitions/pyramid.service';
 import type { SeasonReport, SeasonHighlight } from '@repo/api-contract';
 import { DrizzleDatabase } from '../../db/drizzle';
 import { players, seasonReports } from '../../db/drizzle/schema';
@@ -205,7 +206,26 @@ export async function generateSeasonReport(
 
     if (kind !== 'league') continue;
 
-    // Same rule prolegate uses: the league one division up/down, same country.
+    // Pyramid leagues: destinations come from the same planner prolegate uses.
+    const tierInfo = season.CompetitionId ? await getTierInfo(season.CompetitionId) : null;
+    if (tierInfo) {
+      const planned = await planMoves(tierInfo, season.Promoted ?? [], season.Relegated ?? []);
+      for (const m of planned) {
+        const club = clubById.get(m.clubId);
+        if (!club) continue;
+        movements.push({
+          clubId: m.clubId,
+          clubName: club.Name,
+          clubCode: club.ClubCode,
+          direction: m.direction,
+          from: competition.CompetitionCode,
+          to: m.to?.code ?? '?',
+        });
+      }
+      continue;
+    }
+
+    // Legacy rule prolegate uses: the league one division up/down, same country.
     const moved: [string[], 'promoted' | 'relegated', number][] = [
       [season.Promoted ?? [], 'promoted', -1],
       [season.Relegated ?? [], 'relegated', 1],

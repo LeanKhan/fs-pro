@@ -1,8 +1,8 @@
 /**
  * Club facility definitions: what can be built, what each level costs, how
- * many calendar days it takes and what it does. Balancing lives here only -
+ * how many real minutes it takes and what it does. Balancing lives here only -
  * a new club starts at Level 0 everywhere (dirt pitch, no stands) and pays
- * cash + waits game days for each level. All figures are placeholder tuning
+ * cash + waits real time for each level. All figures are placeholder tuning
  * values (a typical club Budget is ~18M).
  */
 
@@ -27,8 +27,8 @@ export interface AssetDefinition {
   /** Cost of the first level; later levels scale by `costGrowth`. */
   baseCost: number;
   costGrowth: number;
-  /** Game days to build level N = baseDays * N. */
-  baseDays: number;
+  /** Real minutes to build level N = baseMinutes * N. */
+  baseMinutes: number;
   /** Other assets that must already be at (target level - offset) or better. */
   requires?: { type: AssetType; levelOffset: number }[];
   /** Human-readable effect at a given level, for the UI. */
@@ -38,7 +38,23 @@ export interface AssetDefinition {
 }
 
 /** Home-stand seats per Stands level (Level 0 = an open dirt bank). */
-const CAPACITY_BY_LEVEL = [500, 2_000, 6_000, 15_000, 30_000, 55_000];
+const CAPACITY_BY_LEVEL = [1_000, 3_000, 8_000, 18_000, 32_000, 55_000];
+
+/**
+ * Levels an already-existing club is given by the one-off backfill
+ * (scripts/migration/backfill-club-assets.ts), scaled by its league division
+ * (1 = top flight). Newly created clubs do NOT use this - they start at
+ * Level 0 everywhere. A club that is claimed later keeps whatever it has.
+ */
+export function legacyClubLevels(division: number | null): Record<AssetType, number> {
+  const tier =
+    division === 1
+      ? { stadium_grounds: 3, stands: 3, training_ground: 2, youth_academy: 2 }
+      : division === 2
+        ? { stadium_grounds: 2, stands: 2, training_ground: 1, youth_academy: 1 }
+        : { stadium_grounds: 1, stands: 1, training_ground: 1, youth_academy: 0 };
+  return tier;
+}
 
 export const ASSET_CONFIG: Record<AssetType, AssetDefinition> = {
   stadium_grounds: {
@@ -47,7 +63,7 @@ export const ASSET_CONFIG: Record<AssetType, AssetDefinition> = {
     description: 'Pitch quality and floodlights. Starts as a bare dirt turf.',
     baseCost: 250_000,
     costGrowth: 2.4,
-    baseDays: 5,
+    baseMinutes: 20,
     effectLabel: (l) =>
       ['Dirt turf', 'Patchy grass', 'Maintained grass', 'Pro pitch', 'Floodlit pitch', 'World-class pitch'][l] ??
       `Level ${l}`,
@@ -59,7 +75,7 @@ export const ASSET_CONFIG: Record<AssetType, AssetDefinition> = {
     description: 'Seating capacity. More seats mean more matchday income.',
     baseCost: 300_000,
     costGrowth: 2.5,
-    baseDays: 6,
+    baseMinutes: 30,
     requires: [{ type: 'stadium_grounds', levelOffset: 1 }],
     effectLabel: (l) => `${(CAPACITY_BY_LEVEL[l] ?? 0).toLocaleString('en-US')} capacity`,
     effects: (l) => ({ capacity: CAPACITY_BY_LEVEL[l] ?? 0 }),
@@ -70,7 +86,7 @@ export const ASSET_CONFIG: Record<AssetType, AssetDefinition> = {
     description: 'Boosts player growth from training.',
     baseCost: 200_000,
     costGrowth: 2.3,
-    baseDays: 5,
+    baseMinutes: 20,
     effectLabel: (l) => `+${l * 8}% training growth`,
     effects: (l) => ({ trainingGrowthMultiplier: 1 + l * 0.08 }),
   },
@@ -80,7 +96,7 @@ export const ASSET_CONFIG: Record<AssetType, AssetDefinition> = {
     description: 'Improves the quality of the yearly youth intake.',
     baseCost: 350_000,
     costGrowth: 2.4,
-    baseDays: 8,
+    baseMinutes: 40,
     requires: [{ type: 'training_ground', levelOffset: 1 }],
     effectLabel: (l) => `Youth intake quality +${l * 6}%`,
     effects: (l) => ({ youthQualityBonus: l * 0.06 }),
@@ -97,7 +113,7 @@ export function upgradeCost(type: AssetType, targetLevel: number): number {
   return Math.round(def.baseCost * Math.pow(def.costGrowth, targetLevel - 1));
 }
 
-/** Game days it takes to build `targetLevel` of an asset. */
-export function upgradeDays(type: AssetType, targetLevel: number): number {
-  return ASSET_CONFIG[type].baseDays * targetLevel;
+/** Real minutes it takes to build `targetLevel` of an asset. */
+export function upgradeMinutes(type: AssetType, targetLevel: number): number {
+  return ASSET_CONFIG[type].baseMinutes * targetLevel;
 }

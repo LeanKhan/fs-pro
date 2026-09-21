@@ -1,71 +1,71 @@
-# FSPro → "Clash of Clans / SimCity for Football"
+# FSPro — "Clash of Clans / SimCity for Football"
 
-## Context
-FSPro already has a persistent, server-driven world: one global calendar ticked by `calendar-clock.service.ts` (live mode, CAS lease), a tournament engine, a match engine with live streaming, transfer market + AI scout, training, youth/retirement lifecycle, board budget requests, SSO auth and club ownership (`Clubs.UserId`). That is ~60% of a *persistent world* (Bartle: world keeps evolving while players are offline). What is missing is the **builder/base layer** (SimCity, CoC's village) and the **asynchronous social/PvP layer** (CoC's clans, wars, raids).
+Direction source: [GAME-PHILOSOPHY.md](./GAME-PHILOSOPHY.md). Tracker: [PERSISTENT-STRATEGY-GAME-TRACKER.md](./PERSISTENT-STRATEGY-GAME-TRACKER.md).
+Rewritten 2026-09-21 (replaces the earlier league-pods/season-cycle plan).
 
-Source takeaways:
-- **Clash of Clans**: two-currency loop (earn → spend on timed upgrades → stronger), limited builders as a scarcity gate, trophies/leagues, clans + wars/CWL, seasons, shields/offline-safe attacks.
-- **City-builders**: player is planner/leader; budget & salary dials; interconnected systems whose decisions cascade; open-ended goals with satisfaction + balance as health metrics; disasters/events.
-- **Persistent world**: world advances offline. FSPro chooses *true persistence* (server tick) — already built; design everything as "queue an order, world resolves it on ticks".
+## Core idea
+**The match is the primary interaction loop, not an activity inside a league season.**
 
-## Core concept mapping
-| Inspiration | FSPro equivalent |
+> build club -> press PLAY -> get matchmade -> earn cash / XP / reputation -> upgrade club -> play stronger opponents
+
+- You don't ask "which league am I in?" but "what level is my club and what can it do?".
+- A new club starts from scratch: dirt turf, 11 players, Level 0 facilities, little cash.
+- Matches have **stakes** (fatigue and injuries, challenges with deadlines, entry-fee tournaments) so nobody just grinds endlessly.
+- The club is a **persistent world object**: it keeps existing (upgrades finishing, income, events) while the player is away, and "N things happened while you were away" is the return experience.
+- No traditional leagues are needed going forward. The seeded league world (2 countries, divisions 1 and 2, the AI clubs) is kept **only as memories/history** and as the pool of AI opponent clubs.
+
+## Mapping to Clash of Clans / SimCity
+| Inspiration | FSPro |
 |---|---|
-| Village / city | **Club campus**: stadium, training ground, academy, medical, scouting HQ, commercial, fan zone (grid or slot-based, on the existing world map `Places`) |
-| Gold/Elixir | **Cash** (existing `Budget`) + **Reputation/Fan Base** (soft) + **Youth Points / Scouting Points** |
-| Builders + upgrade timers | **Staff/contractors**: N concurrent projects; timers measured in **calendar days**, resolved by the tick |
-| Zoning / traffic / citizen happiness | Fan happiness, attendance, stadium capacity vs demand, wage-to-revenue ratio, board confidence |
-| Troops/defenses | Squad + tactics (existing lineup/tactic); "defense" = your tactic setup when AI/other users play you |
-| Trophies/leagues | Existing leagues + promotion/relegation → the "trophy ladder" |
-| Clans / wars | **Supporters' consortiums / Federations**: shared league, loan pool, joint scouting, inter-clan cups |
-| Raids | **Async challenges**: friendly/cup ties simulated by QuickSim vs another player's saved setup (no need for both online) |
-| Disasters/events | Injuries wave, scandal, sponsor collapse, stadium fire, cup upsets — random world events via `world-feed` |
-| Seasons/battle pass | Season Report (exists) + seasonal objectives, cosmetic kits/crests |
+| Village | Club campus: stadium grounds, stands, training ground, academy (later medical, scouting, coaching, media) |
+| Attack | **A match** (PLAY -> matchmaking -> battle -> rewards) |
+| Loot / trophies | Cash, Club XP -> Club Level, reputation, fans |
+| Builders + upgrade timers | Limited concurrent upgrade projects, **real-time** timers |
+| Clan wars / events | Rival matches, entry-fee tournaments, event clubs (later) |
+| City simulation | Stadium income, wage bill, fan growth, injuries |
+| Persistent world | Club state advances offline; return summary |
 
-## Facility & staff levels (user direction)
-Every asset is a leveled building/role; a new club starts at **Level 0/1 everywhere: dirt pitch, no stands, 11 players**, and grows by paying cash + waiting calendar days.
-- **Assets** (each with `level`, cost curve, build days, per-level effect): Stadium Grounds (pitch quality → match/injury effects), Stands (capacity, per-stand), Training Ground, Youth Academy, Scouting Network, Medical/Physio, Media + PR team, Commercial/Sponsorship office, Club Shop/Fan Zone.
-- **Staff** are the same pattern (Head Coach, Chief Scout, Physio, PR Manager): hire level-N staff with wages that hit the ledger.
-- **Table shape**: `clubAssets(clubId, assetType, level, upgradingTo, startDay, completeDay)`; effect lookup from a static config (`assetConfig.ts`: `{type, level → cost, days, effects}`) so balancing is data, not code.
-- Prereqs like CoC (e.g. Stands L3 needs Grounds L2), and a max level gated by club **tier/reputation** so nobody can buy everything on day one.
+## Systems
+### 1. Club campus (levelled assets) — built
+Levels 0-5, cash cost, **real-time build time**, prerequisites, concurrency limit. Effects should change how you play, not just apply a stat bonus: Training Ground unlocks training programmes, Academy produces real players, Scouting finds better opponents/targets, Medical cuts injury downtime, Stadium raises match revenue and unlocks bigger events, **Coaching staff unlock tactical abilities** in the match engine (Level 0: pass/shoot/defend; Level 3: through ball, press, counter...; Level 8: overloads, offside trap...).
 
-## Decision: do we keep league groupings?
-**Recommendation: keep leagues/divisions, but decouple them from facility level.** Leagues stay the competitive ladder (promotion/relegation = trophies); facilities are the economy ladder. Clubs in a division *may* differ wildly, and that is a feature.
-- **Ground licensing** (real-football style): each division tier requires minimum Stadium/Stands level (and later Academy) to *enter* it. Promotion without the ground = you must upgrade in the off-season or be denied/fined. This keeps divisions roughly comparable without forcing equal levels.
-- **Matchday economy handles small-vs-big cases** (your away-fans example):
-  - `homeDemand = f(fanBase, form, ticketPrice, opponent draw)`; `awayDemand = f(visitor fanBase, distance via world map Places)`.
-  - Away allocation is a slice of capacity (e.g. 5–10%, upgradable via segregated-stand level). Excess demand is turned away = lost revenue for the host, not free money.
-  - Small stadium + huge visiting fanbase → **crowd-safety risk**: if attendance pressure > stand safety level, roll for incident: fines, stand damage (asset level temporarily reduced / repair project), fan-happiness drop. Upgraded stands/security lower the risk.
-  - Upside for small clubs: **giant-kill windfall** (cup draw vs big club = big gate/TV/prize), which funds an upgrade — the CoC "underdog loot" feel.
-- **Cup/friendly matchmaking across tiers** allowed; league play stays within division so sporting fairness is preserved; no level-based matchmaking needed.
-- Fallback if this feels too complex: cap attendance at capacity with no incident model (Phase 1), add incidents in Phase 4.
+### 2. PLAY and matchmaking
+Press PLAY -> the system finds an appropriate opponent by **power** (club rating today). Opponent pool, in order of build: AI clubs -> other humans' clubs played **asynchronously** from a saved snapshot -> event/rival/tournament opponents. Matches use QuickSim (the live engine can drive a "BATTLE" screen later). Stadium gate income is credited per match, and wins/draws/losses pay cash + XP.
 
-## Phased roadmap (each phase shippable; ordered by leverage)
-1. **Structured economy (SimCity foundation)** — replace untyped `Clubs.Finances` jsonb with a `clubLedger` table + income streams (gate receipts, sponsors, merch, TV, prize money already in `prize-money.service.ts`) and expense streams (wages, upkeep, projects). Add per-tick/per-matchday accrual in the calendar clock. Finance dashboard on the owner zone.
-2. **Club campus & timed upgrades (CoC core loop)** — new `clubBuildings` + `buildProjects` tables (type, level, startDay, completeDay). Use the unused `Clubs.Stadium`. Buildings give effects: stadium capacity → gate income; training ground → multiplier in `player-training.service.ts`; academy → youth intake quality (extend `player-lifecycle.service.ts`); medical → `player-fitness.service.ts` recovery; scouting → `transfer-scout.service.ts` reach. Project completion resolved in the calendar tick. Limited concurrent projects ("builders").
-3. **Contracts & board pressure** — add contract length/expiry/renewal to players (only `Wage` exists today); make board persistent: objectives per season, confidence meter, sack/ultimatum, reuse `board-budget.service.ts` (ACCEPTED/COMPROMISE/REJECTED) as the negotiation layer for project funding.
-4. **Fan/city simulation feedback loops** — fan happiness, attendance = f(form, ticket price, stadium level, rivalry); ticket price & wage policy as player-facing dials (the "tax sliders"). Random events feed via `world-feed.service.ts`.
-5. **Async social/PvP** — Federations (clan) table; async challenge matches using saved lineup/tactic vs QuickSim; shared leaderboards; inter-federation cup via `tournament-engine.service.ts`. Add per-user notification inbox (Users.Alerts is barely used) + push/email, since async play depends on it.
-6. **Live-ops & seasons** — seasonal objectives, events, cosmetic monetization (kits/crests/stadium skins; avoid pay-to-win gem-skipping since sims are deterministic and competitive).
-7. **Mobile client** (none exists) — a thin companion app (Expo) for checking projects, approving upgrades, notifications; the Vue web stays the main manager UI.
+### 3. Stakes and objectives
+- **Club challenges**: "Win N matches within T hours" for cash + XP (MVP: one challenge type, auto-issued).
+- Entry-fee tournaments (8 clubs, winner takes the pot), rival battles, milestones (Club XP thresholds unlock facilities).
+- Anti-grind: squad fatigue/injuries, match cooldown, entry fees. Economy must be tuned so matches don't print money.
 
-## Key design decisions to confirm with user
-- One shared world (current singleton calendar) vs multiple world shards/servers.
-- Real-time timers vs calendar-day timers (recommend calendar-day: works with pause/speed and keeps the sim deterministic).
-- Monetization stance (none / cosmetic-only / time-skips).
-- Whether other human clubs can be "attacked"/challenged, or interaction stays league-based + async friendlies.
-- Club-per-user limit and inactivity handling (AI takeover of abandoned clubs; AI board/transfer already exists).
+### 4. Progression
+Club XP -> Club Level (gates facility max levels later). Reputation and fans grow with results and stadium level.
 
-## Critical files
-- `apps/fs-pro-server/src/db/drizzle/schema.ts` (new tables + migration)
-- `apps/fs-pro-server/src/services/calendar/calendar-clock.service.ts` (tick hooks for accrual/project completion)
-- `services/economy/prize-money.service.ts`, `services/transfers/transfer.service.ts` (ledger integration)
-- `services/ai/board-budget.service.ts` (reuse for project funding/negotiation)
-- `controllers/players/player-training.service.ts`, `player-fitness.service.ts`, `player-lifecycle.service.ts`, `services/ai/transfer-scout.service.ts` (building effects)
-- `packages/api-contract` (ts-rest contracts for new endpoints); client zones in `apps/fs-pro-client/src/views/user/club/zones/`
+### 5. Persistence
+Timers are real time (upgrade completion, challenge deadlines). Completion is lazy-resolved on read plus a periodic sweep, so it works with nobody online. Away-summary feed is a later item.
 
-## Verification (per phase)
-Follow the dual-backend live-test method (memory: DB migration verification): run migration, drive the calendar tick in live mode, assert ledger rows/building completion after N ticks, run `tsc`, and check the client zone renders real data. Keep dev-data footprint minimal or disclose it.
+## Reuse from the existing codebase
+Match engine + QuickSim + penalties, live streaming, prize-money/ledger patterns (`TransferLedger`), transfer market + scouting, training/fitness/lifecycle services, world feed and media, auth + club ownership, the facilities system built 2026-09-21.
 
-## Recommended first step
-Phase 1 + 2 together as an MVP slice: ledger + `clubAssets` (Stadium Grounds, Stands, Training Ground, Youth Academy first) with day-based timers, new clubs starting at Level 0 with 11 players, capacity-capped gate income. That alone creates the earn → upgrade → grow loop. Ground licensing and the away-fan incident model follow in Phase 4.
+## Deferred / superseded (kept in code, not extended)
+- League pyramid, pods, tiers, generalised promotion (migration 0024, `pyramid.service.ts`) — designed for scheduled seasons; harmless, backward compatible, no longer central.
+- Automatic season cycle, off-season idle days on the calendar clock — the global fixtures calendar no longer drives gameplay.
+- Bot-seat takeover / mid-season join rules — not needed with matchmaking.
+- Calendar-day timers — replaced by real-time timers.
+
+## Roadmap
+1. **MVP loop (in progress)**: facilities with real-time timers, PLAY vs AI clubs with power-based matchmaking, match rewards (cash + XP + gate income), one challenge type, Club Level from XP, play + facilities UI.
+2. Away summary ("while you were away"), notifications inbox, challenge variety, daily challenges.
+3. Facility effects that change play: coaching staff -> tactical abilities, academy produces players, scouting -> opponent choice, medical -> injuries; more facilities (medical, scouting, coaching, media/PR).
+4. Async human-vs-human: saved club snapshots, opponent pool, rivalries.
+5. Tournaments (entry fee, 8 clubs, knockout via the existing engine), rival battles, event clubs.
+6. Economy structure: proper club ledger (income/expense streams), sponsors, fans, reputation; anti-grind tuning.
+7. New-club creation flow (start from scratch), onboarding first challenge.
+8. BATTLE screen: live match presentation, tactical abilities in play.
+9. Live-ops, cosmetics, mobile companion.
+
+## Decisions (2026-09-21)
+- Timers: real time. Calendar demoted to background for the seeded AI world.
+- Match structure: on-demand matchmaking, not scheduled fixtures, lobbies or pods.
+- Old leagues: memories only, not used for new players.
+- New clubs start from scratch (Level 0, 11 players).
+- Open: monetization stance; exact anti-grind levers (cooldown vs energy vs fatigue only); async human opponents timing; whether stakes include losing something on defeat.
