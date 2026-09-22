@@ -70,6 +70,32 @@ const routes: RouteRecordRaw[] = [
     name: 'Credits',
   },
   {
+    // The new match-centred game: its own full-screen page, outside the
+    // manager app chrome (AppView). See docs/GAME-PHILOSOPHY.md.
+    path: '/game/:clubId',
+    alias: ['/games/:clubId'],
+    component: () =>
+      import(/* webpackChunkName: "club_game" */ '../views/game/club-game.vue'),
+    name: 'Club Game',
+    meta: { title: 'Play' },
+  },
+  {
+    path: '/games',
+    alias: ['/game'],
+    redirect: () => {
+      try {
+        const stored = window.localStorage.getItem('fspro-user');
+        if (stored) {
+          const u = JSON.parse(stored);
+          const firstClub = u.clubs?.[0];
+          const clubId = typeof firstClub === 'string' ? firstClub : firstClub?._id;
+          if (clubId) return `/game/${clubId}`;
+        }
+      } catch (_) {}
+      return '/u';
+    },
+  },
+  {
     path: '/',
     component: AppView,
     name: 'AppView',

@@ -11,6 +11,9 @@ export const ASSET_TYPES = [
   'stands',
   'training_ground',
   'youth_academy',
+  'scouting',
+  'medical_centre',
+  'staff_house',
 ] as const;
 
 export type AssetType = (typeof ASSET_TYPES)[number];
@@ -49,10 +52,10 @@ const CAPACITY_BY_LEVEL = [1_000, 3_000, 8_000, 18_000, 32_000, 55_000];
 export function legacyClubLevels(division: number | null): Record<AssetType, number> {
   const tier =
     division === 1
-      ? { stadium_grounds: 3, stands: 3, training_ground: 2, youth_academy: 2 }
+      ? { stadium_grounds: 3, stands: 3, training_ground: 2, youth_academy: 2, scouting: 0, medical_centre: 0, staff_house: 0 }
       : division === 2
-        ? { stadium_grounds: 2, stands: 2, training_ground: 1, youth_academy: 1 }
-        : { stadium_grounds: 1, stands: 1, training_ground: 1, youth_academy: 0 };
+        ? { stadium_grounds: 2, stands: 2, training_ground: 1, youth_academy: 1, scouting: 0, medical_centre: 0, staff_house: 0 }
+        : { stadium_grounds: 1, stands: 1, training_ground: 1, youth_academy: 0, scouting: 0, medical_centre: 0, staff_house: 0 };
   return tier;
 }
 
@@ -100,6 +103,38 @@ export const ASSET_CONFIG: Record<AssetType, AssetDefinition> = {
     requires: [{ type: 'training_ground', levelOffset: 1 }],
     effectLabel: (l) => `Youth intake quality +${l * 6}%`,
     effects: (l) => ({ youthQualityBonus: l * 0.06 }),
+  },
+  scouting: {
+    type: 'scouting',
+    name: 'Scouting Department',
+    description: 'Scouts rival clubs so you can choose who to face.',
+    baseCost: 220_000,
+    costGrowth: 2.3,
+    baseMinutes: 25,
+    effectLabel: (l) => `${1 + Math.min(l, 4)} opponent option${l === 0 ? '' : 's'} per match`,
+    effects: (l) => ({ opponentOptions: 1 + Math.min(l, 4) }),
+  },
+  medical_centre: {
+    type: 'medical_centre',
+    name: 'Medical Centre',
+    description: 'Your squad recovers faster between matches.',
+    baseCost: 260_000,
+    costGrowth: 2.4,
+    baseMinutes: 25,
+    requires: [{ type: 'training_ground', levelOffset: 1 }],
+    effectLabel: (l) => `-${l * 10}% rest time between matches`,
+    effects: (l) => ({ cooldownMultiplier: 1 - l * 0.1 }),
+  },
+  staff_house: {
+    type: 'staff_house',
+    name: 'Staff House',
+    description: 'Houses specialist coaches. Higher levels unlock tactical abilities (coming soon).',
+    baseCost: 300_000,
+    costGrowth: 2.5,
+    baseMinutes: 35,
+    requires: [{ type: 'training_ground', levelOffset: 1 }],
+    effectLabel: (l) => `Coaching level ${l}`,
+    effects: (l) => ({ coachingLevel: l }),
   },
 };
 

@@ -54,7 +54,7 @@ export type { Place } from './schemas/place';
 export type { SeasonReport, SeasonHighlight } from './schemas/season-report';
 export type { TransferWindow, TransferOffer } from './schemas/transfer';
 export type { AssetState, Campus } from './schemas/facilities';
-export type { Challenge, PlayState, MatchResult } from './schemas/play';
+export type { Challenge, PlayState, MatchResult, Opponent } from './schemas/play';
 export type { ClubPerformance, ClubPerformanceInsight, ClubPerformanceStrategy, ClubPerformanceAdvisorSummary } from './schemas/club-performance';
 export type { Award } from './schemas/award';
 export type { User } from './schemas/user';

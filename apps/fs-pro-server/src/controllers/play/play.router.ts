@@ -1,6 +1,6 @@
 import { initServer } from '@ts-rest/express';
 import { apiContract as contract } from '@repo/api-contract';
-import { getPlayState, playMatch } from '../../services/play/play.service';
+import { findOpponents, getPlayState, playMatch } from '../../services/play/play.service';
 import { accessDenied, canManageClub } from '../auth/club-access';
 
 const s = initServer();
@@ -25,14 +25,29 @@ export const playTsRestRoutes = s.router(contract.play, {
     }
   },
 
-  playMatch: async ({ params, req }) => {
+  findOpponents: async ({ params }) => {
+    try {
+      return {
+        status: 200 as const,
+        body: {
+          success: true as const,
+          message: 'Opponent options',
+          payload: await findOpponents(params.clubId),
+        },
+      };
+    } catch (err) {
+      return errorResponse(err) as any;
+    }
+  },
+
+  playMatch: async ({ params, body, req }) => {
     try {
       const access = await canManageClub(req.session as { userID?: string } | undefined, params.clubId);
       if (access !== 'ok') return accessDenied(access);
 
       return {
         status: 200 as const,
-        body: { success: true as const, message: 'Match played', payload: await playMatch(params.clubId) },
+        body: { success: true as const, message: 'Match played', payload: await playMatch(params.clubId, body?.opponentId) },
       };
     } catch (err) {
       return errorResponse(err) as any;

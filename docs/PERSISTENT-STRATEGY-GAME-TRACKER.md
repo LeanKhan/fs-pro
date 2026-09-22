@@ -36,6 +36,23 @@ Rewritten 2026-09-21 after the direction change (match = primary loop; real-time
 - A pre-existing unplayed friendly in dev data has tactics stored as "[object Object]" and can't be played (old bug, unrelated)
 - Matchmaking opponents are AI clubs only; no human opponents or power bands beyond "closest 5"
 
+## After MVP - matchmaking and facilities made real (2026-09-21, alongside the new Club HQ hub `club-rpg-hub.vue`)
+- [x] Matchmaking preview: `GET /play/:clubId/opponents` (1 + Scouting level options from the 5 closest-power AI clubs, first = closest) and `POST /play/:clubId/match` takes an optional `opponentId` (must still be in the pool). The hub's mocked "Abuja Lions" opponent replaced with the real preview
+- [x] Power scale: matchmaking power = rating x 2.5 (75 rating = 188) to match the hub's ~180 scale
+- [x] New real facilities: `scouting` (opponent options), `medical_centre` (-10% match cooldown per level, wired in `play.service.ts`), `staff_house` (coaching level; tactical abilities NOT wired yet). Hub pins/quick list read them from the campus; only `main_office` is still a placeholder
+- [x] Verified on dev DB (snapshot + restore): new assets appear at L0, power scale, scouting L2 -> 3 distinct options with the closest first, bad opponent refused, chosen opponent played, base cooldown 300s and 210s with Medical L3; hub screenshot against the live backend. Client builds; not type-checked (`vue-tsc` not installed)
+- [ ] Still mocked in the hub: Fans and Reputation (derived from level), Squad Value fallback, Main Office, Settings, Shop/Objectives/Matches tabs, the "coins" currency
+- [ ] Note: the hub's background image seems to have HUD/labels baked in that duplicate the live overlays (visible in the screenshot)
+- [ ] `staff_house` -> tactical abilities in the match engine; `opponentOptions` UI only shows the recommended opponent so far
+
+## Game route (2026-09-21)
+- [x] Removed the "Club HQ" tab from the manager club dashboard (reverted the uncommitted `club/dashboard.vue` edits; original Home tab restored)
+- [x] New standalone route `/game/:clubId` (`views/game/club-game.vue`, outside `AppView`, so no manager chrome) hosting `club-rpg-hub.vue`; the user dashboard's button is now "Play" -> `/game/:id`. Dock tabs for squad/tactics/club/transfers hand off to the manager dashboard (`?tab=`). Verified in the real router with a headless-Chrome load (client builds; not type-checked)
+- [x] New game screen built (2026-09-21) from `docs/sample-code`: full-screen map = clean base image `public/campus-clean.jpg` (1376x768, fetched from the sample's image URL; the old `campus-base.jpg` has the whole HUD baked in, which is why overlays could never work) + SVG hotspots sharing the image's viewBox + name/level/build-timer pins, all in one aspect-ratio-locked "cover" box so they never drift. Files: `components/game/map-config.ts` (polygons + pin positions, edit here to re-fit), `campus-map.vue`, `game-top-bar.vue`, `game-hud-cards.vue`, `game-dock.vue` (Vuetify + custom CSS, Lilita One/Nunito), `composables/use-club-game.ts`, `views/game/club-game.vue` (add `?debug=1` to outline hotspots). Reuses the existing `facility-detail-sheet`, `matchmaking-modal`, `match-rewards-dialog`
+- [x] Verified in headless Chrome with a really registered user + server session: hotspot click opens the real facility sheet; PLAY -> real matchmaking preview (188 vs 189) -> BATTLE NOW -> real match (2-0) -> rewards dialog (reward, gate, XP) -> HUD updates (challenge 2/3, XP 60/100, cash, PLAY -> RESTING). Fixed a bug found on the way: the standalone route skipped `store.getUser()` so a refresh showed every club as not yours. Snapshot + restore around the run (temp user and match removed)
+- [ ] Known gaps: on phones the cover-crop shows only the middle of the map and the top bar/dock are cramped (needs drag-to-pan + compact bar); the base image has decorative coin/bolt/star bubbles baked in that look clickable but aren't; Main Office and Club Shop have no hotspot; only the recommended opponent is shown (scouting options unused in the UI); the client is not type-checked (`vue-tsc` not installed)
+- [ ] Superseded, now unused, safe to delete: `views/user/club/club-rpg-hub.vue`, `components/hud/*`, `components/campus/club-campus-stage.vue`, `public/campus-base.jpg`
+
 ## Next (after MVP)
 - [ ] Away summary + notifications inbox
 - [ ] Facility effects that change play (coaching -> tactical abilities, academy -> players, scouting, medical); new facilities (medical, scouting, coaching, media/PR)
@@ -94,4 +111,5 @@ Decisions: flexible config-driven tiers (start: 5 tiers, pod 20, fan-out 2, U=2 
 - [ ] Regional pods via `homePlaceId` (later)
 
 ## Log
+- 2026-09-21: Dev-DB hygiene note: an earlier snapshot/restore cycle was not re-verified and the dev DB drifted by one played match (30 XP, a challenge row, ~+335k budget) before the game-screen tests; caught at the end and restored from the last verified-clean snapshot (day 348, 2,089 fixtures, 0 matchmade, XP 0, 0 challenges, 176 asset rows). Always run a count check after each restore.
 - 2026-09-21: Direction change after reading GAME-PHILOSOPHY.md; plan and tracker rewritten; MVP loop started. Everything under "Built before..." and "DEFERRED" is kept for history.
