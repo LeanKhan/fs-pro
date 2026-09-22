@@ -4,6 +4,7 @@ import { clubs, fixtures } from '../../db/drizzle/schema';
 import { createFixture, getFixtureById } from '../../controllers/fixtures/fixture.service';
 import { play } from '../../controllers/game/game.controller';
 import { ensureChallenge, recordMatchForChallenge, type ChallengeState } from './challenge.service';
+import { getAssetEffects } from '../facilities/facilities.service';
 import { levelForXp, payClub, xpForLevel } from './rewards';
 
 /**
@@ -72,7 +73,10 @@ export interface MatchResult {
   state: PlayState;
 }
 
-const power = (rating: number | null | undefined) => Math.round((rating ?? 0) * 10) / 10;
+/** Matchmaking power: the club rating on a game-style scale (a 75 rating is
+ * ~188 power), so "POWER 184 vs 177" reads well in the UI. */
+const POWER_SCALE = 2.5;
+const power = (rating: number | null | undefined) => Math.round((rating ?? 0) * POWER_SCALE);
 
 function summarise(club: typeof clubs.$inferSelect): ClubSummary {
   const level = levelForXp(club.XP);
@@ -105,6 +109,7 @@ const matchmadeBy = (clubId: string) =>
   );
 
 async function cooldownSeconds(clubId: string): Promise<number> {
+  const cooldownMultiplier = (await getAssetEffects(clubId)).cooldownMultiplier ?? 1;
   const [last] = await db()
     .select({ playedAt: fixtures.PlayedAt })
     .from(fixtures)
@@ -112,7 +117,7 @@ async function cooldownSeconds(clubId: string): Promise<number> {
     .orderBy(desc(fixtures.PlayedAt))
     .limit(1);
   if (!last?.playedAt) return 0;
-  const left = MATCH_COOLDOWN_SECONDS - (Date.now() - last.playedAt.getTime()) / 1000;
+  const left = MATCH_COOLDOWN_SECONDS * cooldownMultiplier - (Date.now() - last.playedAt.getTime()) / 1000;
   return Math.max(Math.ceil(left), 0);
 }
 
@@ -166,7 +171,38 @@ async function opponentCandidates(club: typeof clubs.$inferSelect) {
     .slice(0, OPPONENT_POOL);
 }
 
-export async function playMatch(clubId: string): Promise<MatchResult> {
+export interface OpponentOption {
+  id: string;
+  name: string;
+  code: string;
+  power: number;
+}
+
+const toOption = (c: typeof clubs.$inferSelect): OpponentOption => ({
+  id: c.id,
+  name: c.Name,
+  code: c.ClubCode,
+  power: power(c.Rating),
+});
+
+/**
+ * Matchmaking preview: 1 + Scouting-level opponent options from the
+ * closest-power pool (the scouting department lets you choose who to face).
+ * The first option is the recommended (closest-power) one.
+ */
+export async function findOpponents(clubId: string): Promise<OpponentOption[]> {
+  const [club] = await db().select().from(clubs).where(eq(clubs.id, clubId));
+  if (!club) throw new Error('Club not found');
+  const options = (await getAssetEffects(clubId)).opponentOptions ?? 1;
+  const candidates = await opponentCandidates(club);
+  if (!candidates.length) throw new Error('No opponent available right now');
+  // Recommended = closest; the rest are random from the remaining pool.
+  const [closest, ...rest] = candidates;
+  const extras = rest.sort(() => Math.random() - 0.5).slice(0, Math.max(options - 1, 0));
+  return [closest, ...extras].map(toOption);
+}
+
+export async function playMatch(clubId: string, opponentId?: string): Promise<MatchResult> {
   const [club] = await db().select().from(clubs).where(eq(clubs.id, clubId));
   if (!club) throw new Error('Club not found');
 
@@ -177,7 +213,13 @@ export async function playMatch(clubId: string): Promise<MatchResult> {
   if (!candidates.length) throw new Error('No opponent available right now');
   // Random pick from the closest-power pool; fall through to the next one if a
   // club can't field a match (e.g. too few signed players).
-  const order = [...candidates].sort(() => Math.random() - 0.5);
+  let order = [...candidates].sort(() => Math.random() - 0.5);
+  if (opponentId) {
+    // The player chose from the matchmaking preview - it must still be in the pool.
+    const chosen = candidates.find((c) => c.id === opponentId);
+    if (!chosen) throw new Error('That opponent is no longer available - search again');
+    order = [chosen];
+  }
 
   let fixtureId: string | null = null;
   let opponent = order[0];
@@ -228,12 +270,7 @@ export async function playMatch(clubId: string): Promise<MatchResult> {
 
   return {
     fixtureId,
-    opponent: {
-      id: opponent.id,
-      name: opponent.Name,
-      code: opponent.ClubCode,
-      power: power(opponent.Rating),
-    },
+    opponent: toOption(opponent),
     score: { you: home, them: away },
     outcome,
     rewards: reward,

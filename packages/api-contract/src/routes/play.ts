@@ -3,7 +3,7 @@
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 import { successEnvelope, failEnvelope } from '../schemas/envelope';
-import { MatchResultSchema, PlayStateSchema } from '../schemas/play';
+import { MatchResultSchema, OpponentSchema, PlayStateSchema } from '../schemas/play';
 
 const c = initContract();
 
@@ -21,6 +21,19 @@ export const playContract = c.router(
       },
     },
 
+    /** Matchmaking preview: 1 + Scouting-level opponent options of similar
+     * power, the first being the recommended one. Nothing is played or reserved. */
+    findOpponents: {
+      method: 'GET',
+      path: '/:clubId/opponents',
+      pathParams: z.object({ clubId: z.string() }),
+      responses: {
+        200: successEnvelope(z.array(OpponentSchema)),
+        400: failEnvelope(),
+        404: failEnvelope(),
+      },
+    },
+
     /** Press PLAY: matchmake an opponent of similar power, play the match now
      * and pay out rewards (cash + XP, stadium gate, challenge progress).
      * Only the club's owner (or an admin) may do this; refused during the
@@ -29,7 +42,8 @@ export const playContract = c.router(
       method: 'POST',
       path: '/:clubId/match',
       pathParams: z.object({ clubId: z.string() }),
-      body: z.object({}).optional(),
+      /** Optional: fight a specific opponent from the matchmaking preview. */
+      body: z.object({ opponentId: z.string().optional() }).optional(),
       responses: {
         200: successEnvelope(MatchResultSchema),
         400: failEnvelope(),

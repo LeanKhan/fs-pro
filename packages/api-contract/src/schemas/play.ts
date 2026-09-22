@@ -37,6 +37,14 @@ export const RecentMatchSchema = z.object({
   playedAt: z.string(),
 });
 
+export const OpponentSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  code: z.string(),
+  /** Matchmaking power on the game-style scale (rating x 2.5). */
+  power: z.number(),
+});
+
 export const PlayStateSchema = z.object({
   club: ClubSummarySchema,
   /** Seconds until the squad can play again (0 = ready). */
@@ -47,12 +55,7 @@ export const PlayStateSchema = z.object({
 
 export const MatchResultSchema = z.object({
   fixtureId: z.string(),
-  opponent: z.object({
-    id: z.string(),
-    name: z.string(),
-    code: z.string(),
-    power: z.number(),
-  }),
+  opponent: OpponentSchema,
   score: z.object({ you: z.number(), them: z.number() }),
   outcome: OutcomeSchema,
   rewards: z.object({ cash: z.number(), xp: z.number() }),
@@ -69,6 +72,7 @@ export const MatchResultSchema = z.object({
   state: PlayStateSchema,
 });
 
+export type Opponent = z.infer<typeof OpponentSchema>;
 export type Challenge = z.infer<typeof ChallengeSchema>;
 export type PlayState = z.infer<typeof PlayStateSchema>;
 export type MatchResult = z.infer<typeof MatchResultSchema>;
