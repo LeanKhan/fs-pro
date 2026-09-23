@@ -29,7 +29,7 @@ Rewritten 2026-09-21 after the direction change (match = primary loop; real-time
 - [ ] Economy is unbalanced (see below)
 
 ### Known issues / tuning (found during the MVP)
-- Gate income dwarfs rewards: backfilled clubs at Stands L3 earn ~250-330k net per match (rewards are 2-25k) and upgrades cost 1-5M. A new Level 0 club earns ~15k/match, which is fine; established clubs are the problem. Levers: cooldown (default now 5 min), ticket price, upkeep scaling, or gate only from real stadium events
+- ~~Gate income dwarfs rewards~~ **Fixed 2026-09-23**: rewards are now a % of that match's own gate net (see "Core loop integrity fixes" below), so outcome matters at every stadium size instead of being swamped by gate income past Stands L1
 - Matches feel one-note: QuickSim result only, no BATTLE presentation yet
 - The Stadium Grounds description still says "Starts as a bare dirt turf" on a Level 3 pitch (cosmetic)
 - `@repo/api-contract` must be rebuilt (`npm run build` in packages/api-contract) before the server starts; runtime loads the gitignored `dist`
@@ -43,25 +43,33 @@ Rewritten 2026-09-21 after the direction change (match = primary loop; real-time
 - [x] Verified on dev DB (snapshot + restore): new assets appear at L0, power scale, scouting L2 -> 3 distinct options with the closest first, bad opponent refused, chosen opponent played, base cooldown 300s and 210s with Medical L3; hub screenshot against the live backend. Client builds; not type-checked (`vue-tsc` not installed)
 - [ ] Still mocked in the hub: Fans and Reputation (derived from level), Squad Value fallback, Main Office, Settings, Shop/Objectives/Matches tabs, the "coins" currency
 - [ ] Note: the hub's background image seems to have HUD/labels baked in that duplicate the live overlays (visible in the screenshot)
-- [ ] `staff_house` -> tactical abilities in the match engine; `opponentOptions` UI only shows the recommended opponent so far
+- [x] Multi-opponent selection UI via Scouting Department: `matchmaking-modal.vue` renders selectable rival cards with matchup difficulty ratings (Favored, Balanced, Challenger) and passes the chosen opponent to `POST /play/:clubId/match`.
+- [x] Live BATTLE arena presentation: `battle-arena-modal.vue` transforms the match into a high-energy Clash-style battle screen with minute-by-minute highlights, live momentum meter (Home vs Away pressure), and tactical coaching orders (High Press, Counter Attack, Overload) derived from `staff_house` coaching level.
+- [x] Away summary executive briefing: `away-summary-modal.vue` detects time away (> 2 min) and greets returning managers with completed constructions, squad recovery status, and campus scouting reports.
+- [x] Dynamic facility quick list: `club-game.vue` binds all 7 facilities (`stands`, `stadium_grounds`, `training_ground`, `youth_academy`, `medical_centre`, `scouting`, `staff_house`) with real levels and live upgrade progress.
+- [x] Facility detail sheet upgrade polish: `facility-detail-sheet.vue` features side-by-side current vs next tier unlock comparison, live treasury affordability checks, and upgrade button state.
 
-## Game route (2026-09-21)
-- [x] Removed the "Club HQ" tab from the manager club dashboard (reverted the uncommitted `club/dashboard.vue` edits; original Home tab restored)
-- [x] New standalone route `/game/:clubId` (`views/game/club-game.vue`, outside `AppView`, so no manager chrome) hosting `club-rpg-hub.vue`; the user dashboard's button is now "Play" -> `/game/:id`. Dock tabs for squad/tactics/club/transfers hand off to the manager dashboard (`?tab=`). Verified in the real router with a headless-Chrome load (client builds; not type-checked)
-- [x] New game screen built (2026-09-21) from `docs/sample-code`: full-screen map = clean base image `public/campus-clean.jpg` (1376x768, fetched from the sample's image URL; the old `campus-base.jpg` has the whole HUD baked in, which is why overlays could never work) + SVG hotspots sharing the image's viewBox + name/level/build-timer pins, all in one aspect-ratio-locked "cover" box so they never drift. Files: `components/game/map-config.ts` (polygons + pin positions, edit here to re-fit), `campus-map.vue`, `game-top-bar.vue`, `game-hud-cards.vue`, `game-dock.vue` (Vuetify + custom CSS, Lilita One/Nunito), `composables/use-club-game.ts`, `views/game/club-game.vue` (add `?debug=1` to outline hotspots). Reuses the existing `facility-detail-sheet`, `matchmaking-modal`, `match-rewards-dialog`
-- [x] Verified in headless Chrome with a really registered user + server session: hotspot click opens the real facility sheet; PLAY -> real matchmaking preview (188 vs 189) -> BATTLE NOW -> real match (2-0) -> rewards dialog (reward, gate, XP) -> HUD updates (challenge 2/3, XP 60/100, cash, PLAY -> RESTING). Fixed a bug found on the way: the standalone route skipped `store.getUser()` so a refresh showed every club as not yours. Snapshot + restore around the run (temp user and match removed)
-- [ ] Known gaps: on phones the cover-crop shows only the middle of the map and the top bar/dock are cramped (needs drag-to-pan + compact bar); the base image has decorative coin/bolt/star bubbles baked in that look clickable but aren't; Main Office and Club Shop have no hotspot; only the recommended opponent is shown (scouting options unused in the UI); the client is not type-checked (`vue-tsc` not installed)
-- [ ] Superseded, now unused, safe to delete: `views/user/club/club-rpg-hub.vue`, `components/hud/*`, `components/campus/club-campus-stage.vue`, `public/campus-base.jpg`
+## Core loop integrity fixes (2026-09-23)
+Research (background Explore agents + direct reads) found two integrity problems undercutting the "upgrade facilities -> get stronger" premise: 4 of 7 facilities had `effects()` computed and shown in the UI but read by nothing else, and gate income (Stands-driven, outcome-independent) had grown to dwarf win/draw/loss rewards by up to ~40x. Full plan: `delegated-scribbling-metcalfe.md` (local plan file, not checked in).
+- [x] **Gate-relative rewards**: `REWARDS` flat cash (25k/8k/2k) replaced by a % of *that match's own* gate net - win +50%, draw +10%, loss -15% (floor `MIN_WIN_CASH=3,000` on a win). XP stays flat per outcome. Verified live: draw net 285,240 -> reward 28,524 (exactly x0.1); win net 274,218 -> 137,109 (x0.5); loss net 354,606 -> -53,191 (x-0.15) - all exact matches to the formula
+- [x] **Scouting redesigned**: was gating opponent *choice* in matchmaking (wrong fit - "Scouting pertains to finding talent, not opponents"). Now drives a new **scouted transfer shortlist** (`GET /transfers/scouted-shortlist/:clubId`, `getScoutedShortlist` in `services/transfers/scouted-shortlist.service.ts`): `1 + min(level,4)` AI-recommended targets (free agents + transfer-listed players from other clubs), ranked by rating-per-value, surfaced in `zones/transfer-zone.vue`. Verified: Level 0 -> 1 target, Level 4 -> 5 targets, own club excluded
+- [x] **Opponent choice moved to Club Level** (not a facility): `findOpponents` option count is now `1 + min(floor(level/2), 4)`. Verified: XP 0 (level 0) -> 1 option, XP 1000 (level 3) -> 2 options
+- [x] **Training Ground wired**: `applyTrainingGrowth(player, growthMultiplier)` in `player-training.service.ts` takes the club's `trainingGrowthMultiplier`, batched once per distinct club in `player.controller.ts`'s yearly pass. Verified over 500 trials: avg rating gain 1.952 (Lv0) vs 2.614 (Lv4 bonus x1.32) - matches the intended +32%
+- [x] **Youth Academy wired**: `generateYouthPlayers(count, forceGK, qualityBonus)` shifts the generated attribute ranges up by `round(qualityBonus * 40)` points (capped at 99); both `runYouthIntakeForYear` and `recruitYouthPlayersForClub` now pass the club's `youthQualityBonus`. Verified directionally (Lv0 avg 45.62 vs Lv4 avg 47.15 over 8 recruits each - small N, but correctly signed)
+- [x] **Stadium Grounds + Staff House wired** as a small pre-match home-side Rating nudge (`homeRatingBonus = pitchQuality*0.3 + coachingLevel*0.4`, capped in practice by facility max level), threaded through `PlayOptions` -> `buildSimulateMatchRequest` -> the plain club/player JSON sent to the sim (never persisted to the DB). Chose this over deep-wiring `pitchQuality` into the worker-thread `injuryRisk` config (no existing per-match override point there, and adding one was out of proportion for this pass) and over a live mid-match tactical-ability system (matches resolve instantly via QuickSim server-side before the client ever sees them, so there's no live match to intervene in - the battle-arena's 3 tactical buttons stay cosmetic, a deliberate scope call). Verified: +3.5 bonus raises the home club's Rating 75.2 -> 78.7 and every home player's Rating by +3.5 in the built sim request; away side unaffected
+- [x] Verification: `tsc` clean (server + contract), client `vite build` clean, dev DB snapshotted before and restored+count-checked after (2,089 fixtures / 0 matchmade / XP 0 / 0 challenges / 176 assets / 0 reward+facility ledger rows, matching the last known-clean baseline)
+- [ ] NOT done this pass: rebalancing `challenge.service.ts`'s flat challenge reward (left as-is, it's a periodic bonus goal not a per-match one); a full statistical check of the Stadium Grounds bonus's effect on injury *rate* specifically (the chosen implementation affects Rating, not injury risk directly - see above)
 
 ## Next (after MVP)
-- [ ] Away summary + notifications inbox
-- [ ] Facility effects that change play (coaching -> tactical abilities, academy -> players, scouting, medical); new facilities (medical, scouting, coaching, media/PR)
+- [x] Away summary + notifications inbox
+- [x] Facility effects that change play: Training Ground, Youth Academy, Stadium Grounds and Staff House all now affect real outcomes (see "Core loop integrity fixes" below); new facilities (media/PR, commercial office) still not started
 - [ ] Async human-vs-human matchmaking (club snapshots, rivalries)
 - [ ] Tournaments (entry fee, 8 clubs), rival battles, event clubs, daily challenges
 - [ ] Proper economy ledger, sponsors, fans, reputation; anti-grind tuning
 - [ ] New-club creation flow + onboarding challenge
-- [ ] BATTLE screen / live presentation
+- [x] BATTLE screen / live presentation
 - [ ] Mobile companion, cosmetics, live-ops
+
 
 ## Built before the direction change: facilities (done 2026-09-21)
 Design notes decided so far: new clubs start at Level 0 everywhere with 11 players; assets are levelled (0–5), cost + calendar-day build time, one concurrent project to start; upgrades resolve in `advanceDayIfDone`; spending recorded in `TransferLedger` (`Type: 'facility'`) until a dedicated ledger exists.

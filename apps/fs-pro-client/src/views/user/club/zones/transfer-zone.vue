@@ -49,6 +49,40 @@
         @changed="onPurchase"
       />
 
+      <!-- Scouted Shortlist: Scouting Department facility feature -->
+      <v-card v-if="scoutedShortlist.length" variant="tonal" color="indigo-darken-4" class="mb-3">
+        <v-card-title class="text-body-1 d-flex align-center gap-2">
+          <v-icon size="20" color="indigo-lighten-2">mdi-radar</v-icon>
+          Scouted Shortlist
+          <v-chip size="x-small" color="indigo" variant="flat" class="font-weight-bold">
+            {{ scoutedShortlist.length }}
+          </v-chip>
+          <span class="text-caption text-medium-emphasis ml-auto">
+            Recommended by your Scouting Department
+          </span>
+        </v-card-title>
+        <v-card-text class="d-flex flex-wrap gap-2">
+          <v-chip
+            v-for="target in scoutedShortlist"
+            :key="target.id"
+            variant="elevated"
+            color="grey-darken-3"
+            class="pa-2"
+            style="height: auto"
+            @click="openScoutedTarget(target)"
+          >
+            <div class="d-flex flex-column py-1">
+              <span class="font-weight-bold text-white">{{ target.name }}</span>
+              <span class="text-caption text-medium-emphasis">
+                {{ target.position ?? '?' }} · OVR {{ target.rating }} ·
+                {{ currency(target.askingPrice ?? target.value) }}
+                <template v-if="target.isListed">(listed)</template>
+              </span>
+            </div>
+          </v-chip>
+        </v-card-text>
+      </v-card>
+
       <!-- Listed Players for Sale Banner -->
       <v-alert
         v-if="myListedPlayers.length > 0"
@@ -142,7 +176,7 @@ import BuyPlayerDialog from '@/components/players/buy-player-dialog.vue';
 import TransferOffersPanel from '@/components/players/transfer-offers-panel.vue';
 import TransferScoutDialog from '@/components/players/transfer-scout-dialog.vue';
 import BoardBudgetDialog from '@/components/players/board-budget-dialog.vue';
-import type { TransferWindow } from '@repo/api-contract';
+import type { ScoutedTarget, TransferWindow } from '@repo/api-contract';
 import type { MarketPlayer } from '@/components/players/transfer-market-table.vue';
 
 const props = defineProps<{ club: any }>();
@@ -160,6 +194,35 @@ const scoutedPlayer = ref<MarketPlayer | null>(null);
 const showBoardBudgetDialog = ref(false);
 const windowState = ref<TransferWindow | null>(null);
 const offersPanel = ref<InstanceType<typeof TransferOffersPanel> | null>(null);
+const scoutedShortlist = ref<ScoutedTarget[]>([]);
+
+async function loadScoutedShortlist() {
+  if (!props.club?._id) return;
+  try {
+    const res = await client.transfers.getScoutedShortlist.query({
+      params: { clubId: props.club._id },
+    });
+    if (res.status === 200) scoutedShortlist.value = res.body.payload;
+  } catch (error) {
+    console.error('Error loading the scouted shortlist:', error);
+  }
+}
+
+/** Opens the existing deep scout-report dialog for a shortlist target. It
+ * fetches the real report from the server itself; these fields only seed
+ * the dialog's header while that loads. */
+function openScoutedTarget(target: ScoutedTarget) {
+  const [FirstName, ...rest] = target.name.split(' ');
+  openScoutDialog({
+    id: target.id,
+    FirstName,
+    LastName: rest.join(' '),
+    Position: target.position,
+    Rating: target.rating,
+    Value: target.value,
+    source: target.isListed ? 'Transfer Listed' : 'Scouted Target',
+  } as unknown as MarketPlayer);
+}
 
 async function loadWindow() {
   try {
@@ -239,6 +302,7 @@ function onPurchase() {
   offersPanel.value?.load();
   loadFreeAgents();
   loadOtherClubsPlayers();
+  loadScoutedShortlist();
 }
 
 function onBudgetUpdated(newBudget: number) {
@@ -255,7 +319,10 @@ function onBudgetUpdated(newBudget: number) {
 watch(
   () => props.club?._id,
   (id) => {
-    if (id) loadOtherClubsPlayers();
+    if (id) {
+      loadOtherClubsPlayers();
+      loadScoutedShortlist();
+    }
   }
 );
 
@@ -263,5 +330,6 @@ onMounted(() => {
   loadWindow();
   loadFreeAgents();
   loadOtherClubsPlayers();
+  loadScoutedShortlist();
 });
 </script>

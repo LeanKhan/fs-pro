@@ -52,7 +52,7 @@ export type { Manager, ManagerClubRef } from './schemas/manager';
 export type { Calendar, Day, WorldFeed, WorldFeedHeadline } from './schemas/calendar';
 export type { Place } from './schemas/place';
 export type { SeasonReport, SeasonHighlight } from './schemas/season-report';
-export type { TransferWindow, TransferOffer } from './schemas/transfer';
+export type { TransferWindow, TransferOffer, ScoutedTarget } from './schemas/transfer';
 export type { AssetState, Campus } from './schemas/facilities';
 export type { Challenge, PlayState, MatchResult, Opponent } from './schemas/play';
 export type { ClubPerformance, ClubPerformanceInsight, ClubPerformanceStrategy, ClubPerformanceAdvisorSummary } from './schemas/club-performance';

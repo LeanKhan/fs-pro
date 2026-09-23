@@ -17,10 +17,17 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
   // Matchmaking / result dialogs
   const showMatchmaking = ref(false);
   const matchmakingSearching = ref(false);
-  const matchedOpponent = ref<{ name: string; power: number } | null>(null);
+  const matchedOpponent = ref<{ id?: string; name: string; power: number; code?: string } | null>(null);
   const matchedOpponentId = ref<string | null>(null);
+  const opponentOptions = ref<Array<{ id: string; name: string; power: number; code?: string }>>([]);
+  const showBattleArena = ref(false);
   const showRewards = ref(false);
   const matchResult = ref<MatchResult | null>(null);
+
+  const coachingLevel = computed(() => {
+    const staff = campus.value?.assets.find((a: AssetState) => a.type === 'staff_house');
+    return staff?.level ?? 0;
+  });
 
   // Toast
   const snackbar = ref(false);
@@ -87,21 +94,33 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
     }
   }
 
-  /** PLAY pressed: ask the server for a real opponent, then wait for "battle". */
+  function selectOpponent(opp: { id: string; name: string; power: number; code?: string }) {
+    matchedOpponent.value = opp;
+    matchedOpponentId.value = opp.id;
+  }
+
+  /** PLAY pressed: ask the server for real opponents, then wait for "battle". */
   async function findMatch() {
     if (!clubId.value || cooldownLeft.value > 0 || playing.value) return;
     matchmakingSearching.value = true;
     matchedOpponent.value = null;
     matchedOpponentId.value = null;
+    opponentOptions.value = [];
     showMatchmaking.value = true;
     try {
       const [res] = await Promise.all([
         client.play.findOpponents.query({ params: { clubId: clubId.value } }),
-        new Promise((resolve) => setTimeout(resolve, 900)), // let the radar show
+        new Promise((resolve) => setTimeout(resolve, 800)), // let the radar show
       ]);
       if (res.status === 200 && res.body.payload.length) {
+        opponentOptions.value = res.body.payload;
         const [recommended] = res.body.payload; // closest power
-        matchedOpponent.value = { name: recommended.name, power: recommended.power };
+        matchedOpponent.value = {
+          id: recommended.id,
+          name: recommended.name,
+          power: recommended.power,
+          code: recommended.code,
+        };
         matchedOpponentId.value = recommended.id;
       } else {
         showMatchmaking.value = false;
@@ -129,7 +148,8 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
         matchResult.value = res.body.payload;
         playState.value = res.body.payload.state;
         loadedAt.value = Date.now();
-        showRewards.value = true;
+        // Launch the dramatic Clash-of-Clans style Battle Arena
+        showBattleArena.value = true;
         onChanged?.();
         await load();
       } else {
@@ -143,6 +163,11 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
     } finally {
       playing.value = false;
     }
+  }
+
+  function finishBattle() {
+    showBattleArena.value = false;
+    showRewards.value = true;
   }
 
   // When a running upgrade's timer hits zero, refresh once to show the new level.
@@ -165,13 +190,14 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
 
   return {
     playState, campus, loading, playing, upgradingAsset,
-    now, cooldownLeft, challengeLeft,
-    showMatchmaking, matchmakingSearching, matchedOpponent,
-    showRewards, matchResult,
+    now, cooldownLeft, challengeLeft, coachingLevel,
+    showMatchmaking, matchmakingSearching, matchedOpponent, opponentOptions,
+    showBattleArena, showRewards, matchResult,
     snackbar, snackbarText, snackbarColor,
-    load, startUpgrade, findMatch, startBattle,
+    load, startUpgrade, findMatch, selectOpponent, startBattle, finishBattle,
   };
 }
+
 
 /** m:ss, or h:mm:ss for an hour or more. */
 export function formatClock(totalSeconds: number) {

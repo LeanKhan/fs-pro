@@ -107,12 +107,12 @@ export const ASSET_CONFIG: Record<AssetType, AssetDefinition> = {
   scouting: {
     type: 'scouting',
     name: 'Scouting Department',
-    description: 'Scouts rival clubs so you can choose who to face.',
+    description: 'Finds transfer talent: a shortlist of recommended signings, refreshed as you upgrade.',
     baseCost: 220_000,
     costGrowth: 2.3,
     baseMinutes: 25,
-    effectLabel: (l) => `${1 + Math.min(l, 4)} opponent option${l === 0 ? '' : 's'} per match`,
-    effects: (l) => ({ opponentOptions: 1 + Math.min(l, 4) }),
+    effectLabel: (l) => `${1 + Math.min(l, 4)} scouted transfer target${l === 0 ? '' : 's'}`,
+    effects: (l) => ({ scoutingReach: 1 + Math.min(l, 4) }),
   },
   medical_centre: {
     type: 'medical_centre',

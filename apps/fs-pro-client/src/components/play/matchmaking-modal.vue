@@ -15,11 +15,16 @@
 
       <!-- State 2: Opponent Found / Pre-Battle VS Screen -->
       <div v-else-if="opponent" class="py-3">
-        <div class="text-overline text-amber font-weight-bold letter-spacing-2 mb-2">
-          MATCHMAKING CONFIRMED
+        <div class="d-flex align-center justify-space-between mb-2">
+          <div class="text-overline text-amber font-weight-bold letter-spacing-2">
+            MATCHMAKING CONFIRMED
+          </div>
+          <v-chip v-if="opponents.length > 1" size="x-small" color="indigo-lighten-2" variant="tonal" class="font-weight-bold">
+            🔭 {{ opponents.length }} SCOUTED
+          </v-chip>
         </div>
 
-        <div class="vs-container d-flex align-center justify-space-between my-4 px-2">
+        <div class="vs-container d-flex align-center justify-space-between my-3 px-2">
           <!-- Home Team -->
           <div class="team-side d-flex flex-column align-center flex-1">
             <div class="team-avatar-box mb-2">
@@ -42,9 +47,48 @@
               <span class="team-emoji">🦁</span>
             </div>
             <span class="team-name font-weight-bold text-white text-truncate">{{ opponent.name }}</span>
-            <v-chip size="x-small" color="amber-darken-2" class="mt-1 font-weight-bold">
-              ⚔ Power {{ opponent.power }}
+            <v-chip size="x-small" :color="matchupDifficultyColor" class="mt-1 font-weight-bold">
+              ⚔ Power {{ opponent.power }} · {{ matchupDifficultyText }}
             </v-chip>
+          </div>
+        </div>
+
+        <!-- Multiple Scouted Targets Selection (Unlocked by Scouting Dept) -->
+        <div v-if="opponents.length > 1" class="scouted-pool-box pa-2 rounded-xl mb-3 text-left">
+          <div class="text-caption font-weight-bold text-medium-emphasis mb-2 d-flex align-center justify-space-between">
+            <span>CHOOSE OPPONENT (SCOUTING REPORT)</span>
+            <span class="text-indigo-lighten-3 text-caption">Select target</span>
+          </div>
+          <div class="d-flex flex-column gap-2">
+            <div
+              v-for="opp in opponents"
+              :key="opp.id"
+              class="scout-option-card d-flex align-center justify-space-between pa-2 rounded-lg cursor-pointer"
+              :class="{ 'scout-selected': opp.id === opponent.id }"
+              @click="$emit('select-opponent', opp)"
+            >
+              <div class="d-flex align-center gap-2">
+                <span class="scout-icon">{{ opp.id === opponent.id ? '🎯' : '🛡️' }}</span>
+                <div>
+                  <div class="text-body-2 font-weight-bold text-white line-height-tight">
+                    {{ opp.name }}
+                  </div>
+                  <div class="text-caption text-medium-emphasis">
+                    {{ opp.code || 'Rival Club' }}
+                  </div>
+                </div>
+              </div>
+              <div class="text-right">
+                <v-chip
+                  size="x-small"
+                  :color="getDifficultyColor(opp.power)"
+                  variant="flat"
+                  class="font-weight-bold"
+                >
+                  ⚔ {{ opp.power }}
+                </v-chip>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -96,6 +140,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
+export interface OpponentItem {
+  id: string;
+  name: string;
+  power: number;
+  code?: string;
+}
+
 const props = withDefaults(
   defineProps<{
     modelValue: boolean;
@@ -103,7 +154,8 @@ const props = withDefaults(
     starting?: boolean;
     myClubName?: string;
     myPower?: number;
-    opponent?: { name: string; power: number } | null;
+    opponent?: OpponentItem | null;
+    opponents?: OpponentItem[];
   }>(),
   {
     modelValue: false,
@@ -112,19 +164,42 @@ const props = withDefaults(
     myClubName: 'Segun FC',
     myPower: 180,
     opponent: null,
+    opponents: () => [],
   }
 );
 
 const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void;
   (e: 'start-battle'): void;
+  (e: 'select-opponent', opp: OpponentItem): void;
 }>();
 
 const show = computed({
   get: () => props.modelValue,
   set: (val: boolean) => emit('update:modelValue', val),
 });
+
+function getDifficultyColor(oppPower: number) {
+  const diff = oppPower - props.myPower;
+  if (diff < -5) return 'success';
+  if (diff > 5) return 'amber-darken-2';
+  return 'primary';
+}
+
+const matchupDifficultyColor = computed(() => {
+  if (!props.opponent) return 'primary';
+  return getDifficultyColor(props.opponent.power);
+});
+
+const matchupDifficultyText = computed(() => {
+  if (!props.opponent) return 'Balanced';
+  const diff = props.opponent.power - props.myPower;
+  if (diff < -5) return 'Favored';
+  if (diff > 5) return 'Challenger';
+  return 'Balanced';
+});
 </script>
+
 
 <style scoped>
 .matchmaking-dialog {
@@ -213,4 +288,36 @@ const show = computed({
 .letter-spacing-2 {
   letter-spacing: 2px;
 }
+
+.scouted-pool-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.scout-option-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+}
+
+.scout-option-card:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.scout-selected {
+  background: rgba(99, 102, 241, 0.15) !important;
+  border-color: #6366f1 !important;
+}
+
+.line-height-tight {
+  line-height: 1.2;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
 </style>
+

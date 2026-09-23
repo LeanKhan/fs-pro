@@ -141,7 +141,13 @@ function breakoutChanceForAge(age: number): number {
  * TransferLedger entry - locked scope), and applies to every signed player
  * every year regardless of human management (see effectiveTrainingCategory).
  */
-export function applyTrainingGrowth(player: PlayerInterface): {
+export function applyTrainingGrowth(
+  player: PlayerInterface,
+  /** Training Ground facility multiplier (1 = no bonus, e.g. 1.32 at Level
+   * 4). Defaults to 1 so a caller that doesn't pass one behaves exactly as
+   * before - see asset-config.ts's `training_ground.effects`. */
+  growthMultiplier = 1
+): {
   attributes: typeof player.Attributes;
   new_rating: number;
   new_value: number;
@@ -164,6 +170,7 @@ export function applyTrainingGrowth(player: PlayerInterface): {
   let points = basePointsForAge(player.Age);
   points *= ratingDampeningMultiplier(player.Rating);
   points *= poolSizeScale(livePool.length);
+  points *= growthMultiplier;
 
   const breakout = Math.random() < breakoutChanceForAge(player.Age);
   if (breakout) points *= BREAKOUT_MULTIPLIER;

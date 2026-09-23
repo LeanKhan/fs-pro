@@ -77,6 +77,10 @@ export interface PlayOptions {
   skipStandings?: boolean;
   skipDayAdvance?: boolean;
   skipReplay?: boolean;
+  /** Small home-side Rating nudge for this match only (never persisted) -
+   * used by play.service.ts's playMatch() to apply Stadium Grounds/Staff
+   * House facility effects without mutating the club's real Rating. */
+  homeRatingBonus?: number;
 }
 
 export async function play(
@@ -160,7 +164,8 @@ export async function play(
         fixtureType: fixture.Type ?? undefined,
         stage: fixture.Stage ?? undefined,
         isKnockout,
-      }
+      },
+      options?.homeRatingBonus
     );
   } catch (error) {
     log(`Error setting up game! (in Rest) => ${error}`);
