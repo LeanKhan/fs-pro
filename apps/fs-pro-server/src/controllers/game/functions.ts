@@ -65,7 +65,7 @@ export async function updateFixture(
   //  { _id: fixture_id, Played: false }, TODO - Change back to this!
   //  Find that particular fixture that has not been played of course...
 
-  const savePlayerAndClubStats = async (club: IMatchSideDetails) => {
+  const savePlayerAndClubStats = async (club: IMatchSideDetails, teamId?: string) => {
     // ClubMatchDetails is created first (with an empty PlayerStats) so each
     // PlayerMatchDetails row can set its own ClubMatchDetails FK back to it
     // - the reverse FK Postgres uses instead of a PlayerStats array (that
@@ -81,9 +81,10 @@ export async function updateFixture(
     const clubMatchId = clubMatch._id;
 
     if (saveStats) {
-      // Apply player fitness loss and in-match injury rolls
+      // Apply player fitness loss and in-match injury rolls (modulated by team's Medical Centre)
       await PlayerFitnessService.applyMatchFatigueAndInjuries(
-        club.PlayerStats as PlayerMatchDetailsInterface[]
+        club.PlayerStats as PlayerMatchDetailsInterface[],
+        teamId
       );
 
       club.PlayerStats = club.PlayerStats.map((p: any) => ({
@@ -109,8 +110,8 @@ export async function updateFixture(
   };
 
   const [homeMatchDetailsID, awayMatchDetailsID] = await Promise.all([
-    savePlayerAndClubStats(HomeSideDetails),
-    savePlayerAndClubStats(AwaySideDetails),
+    savePlayerAndClubStats(HomeSideDetails, home.id),
+    savePlayerAndClubStats(AwaySideDetails, away.id),
   ]);
 
   // Home team matchday attendance and gate receipts

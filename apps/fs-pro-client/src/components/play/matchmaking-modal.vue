@@ -93,19 +93,51 @@
         </div>
 
         <!-- Stakes / Rewards Preview -->
-        <v-card variant="tonal" color="indigo-darken-4" class="pa-3 mb-4 rounded-xl text-left">
+        <v-card variant="tonal" color="indigo-darken-4" class="pa-3 mb-3 rounded-xl text-left">
           <div class="text-caption font-weight-bold text-indigo-lighten-2 mb-1">MATCH STAKES & REWARDS</div>
           <div class="d-flex justify-space-between text-caption text-medium-emphasis mb-1">
             <span>Victory Bounty:</span>
-            <strong class="text-success">💵 $25,000 + 30 XP</strong>
+            <strong class="text-success">💵 50% of the gate + 30 XP</strong>
           </div>
           <div class="d-flex justify-space-between text-caption text-medium-emphasis mb-1">
             <span>Draw / Defeat:</span>
-            <strong class="text-white">$8,000 / $2,000</strong>
+            <strong class="text-white">+10% / -15% of the gate</strong>
           </div>
           <div class="d-flex justify-space-between text-caption text-medium-emphasis">
             <span>Stadium Gate:</span>
             <strong class="text-teal-lighten-2">Home Crowd Ticket Receipts</strong>
+          </div>
+        </v-card>
+
+        <!-- Tactics readiness: a glance, not a second editor - see the Dugout -->
+        <v-card
+          v-if="tacticsSummary"
+          variant="tonal"
+          :color="tacticsSummary.ready ? 'indigo-darken-4' : 'amber-darken-4'"
+          class="pa-3 mb-4 rounded-xl text-left"
+        >
+          <div class="d-flex align-center justify-space-between mb-1">
+            <span class="text-caption font-weight-bold text-indigo-lighten-2">TACTICS</span>
+            <v-btn size="x-small" variant="text" color="amber-lighten-2" class="font-weight-bold" @click="$emit('change-tactics')">
+              Change Tactics
+            </v-btn>
+          </div>
+          <div class="text-body-2 text-white">
+            {{ tacticsSummary.formationLabel }} · {{ tacticsSummary.styleLabel }} · {{ tacticsSummary.filledCount }}/11 starters
+          </div>
+          <div v-if="!tacticsSummary.ready" class="text-caption text-amber-lighten-2 mt-1 d-flex align-center justify-space-between flex-wrap gap-1">
+            <span>⚠ {{ tacticsSummary.issues.join(' · ') }} - the engine will fill gaps automatically.</span>
+            <v-btn
+              v-if="tacticsSummary.issues.some(i => i.toLowerCase().includes('injured'))"
+              size="x-small"
+              color="teal-accent-3"
+              variant="flat"
+              class="font-weight-bold text-black px-2"
+              prepend-icon="mdi-hospital-box"
+              @click="$emit('open-medical')"
+            >
+              Treat in Medical
+            </v-btn>
           </div>
         </v-card>
 
@@ -122,20 +154,32 @@
             Cancel
           </v-btn>
           <v-btn
-            color="amber-darken-2"
+            :color="isQuickSim ? 'teal-darken-2' : 'amber-darken-2'"
             size="large"
             class="flex-2 font-weight-black text-uppercase"
             variant="flat"
             :loading="starting"
             @click="$emit('start-battle')"
           >
-            ⚔️ BATTLE NOW
+            {{ isQuickSim ? '⚡ QUICK SIM NOW' : '⚔️ BATTLE NOW' }}
           </v-btn>
+        </div>
+
+        <!-- Mode Toggle Indicator -->
+        <div class="mt-2 text-center">
+          <a
+            href="javascript:void(0)"
+            class="text-caption text-medium-emphasis text-decoration-none"
+            @click="$emit('toggle-quick-sim', !isQuickSim)"
+          >
+            Mode: <strong :class="isQuickSim ? 'text-teal-lighten-2' : 'text-amber'">{{ isQuickSim ? '⚡ Quick Sim (Instant)' : '⚔️ Live Battle Arena' }}</strong> · <span class="text-indigo-lighten-3 font-weight-bold">Switch</span>
+          </a>
         </div>
       </div>
     </v-card>
   </v-dialog>
 </template>
+
 
 <script setup lang="ts">
 import { computed } from 'vue';
@@ -147,6 +191,14 @@ export interface OpponentItem {
   code?: string;
 }
 
+export interface TacticsSummary {
+  formationLabel: string;
+  styleLabel: string;
+  filledCount: number;
+  issues: string[];
+  ready: boolean;
+}
+
 const props = withDefaults(
   defineProps<{
     modelValue: boolean;
@@ -156,6 +208,8 @@ const props = withDefaults(
     myPower?: number;
     opponent?: OpponentItem | null;
     opponents?: OpponentItem[];
+    tacticsSummary?: TacticsSummary | null;
+    isQuickSim?: boolean;
   }>(),
   {
     modelValue: false,
@@ -165,6 +219,8 @@ const props = withDefaults(
     myPower: 180,
     opponent: null,
     opponents: () => [],
+    tacticsSummary: null,
+    isQuickSim: false,
   }
 );
 
@@ -172,7 +228,11 @@ const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void;
   (e: 'start-battle'): void;
   (e: 'select-opponent', opp: OpponentItem): void;
+  (e: 'change-tactics'): void;
+  (e: 'open-medical'): void;
+  (e: 'toggle-quick-sim', val: boolean): void;
 }>();
+
 
 const show = computed({
   get: () => props.modelValue,

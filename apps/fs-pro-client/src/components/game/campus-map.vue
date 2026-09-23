@@ -30,6 +30,20 @@
         draggable="false"
       />
 
+      <!-- Walking Supporters (scales with fan count) -->
+      <campus-fans :fans-count="fansCount" />
+
+      <!-- Club signage: the viewed club's own crest, layered onto each sign's panel -->
+      <img
+        v-for="(s, i) in signCrests"
+        :key="`crest-${i}`"
+        :src="s.src"
+        class="cm-crest"
+        :style="{ left: pct(s.left, MAP_WIDTH), top: pct(s.top, MAP_HEIGHT), width: pct(s.w, MAP_WIDTH) }"
+        alt=""
+        draggable="false"
+      />
+
       <!-- Interactable areas: same viewBox as the image, so they never drift. -->
       <svg class="cm-hotspots" :viewBox="`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`" preserveAspectRatio="none">
         <rect
@@ -69,7 +83,7 @@
         <span class="cm-tag">
           <span class="cm-tag-icon">{{ h.icon }}</span>
           <span class="cm-tag-name">{{ h.title }}</span>
-          <span class="cm-tag-level">Lv {{ h.level }}</span>
+          <span v-if="!h.nonFacility" class="cm-tag-level">Lv {{ h.level }}</span>
         </span>
       </button>
     </div>
@@ -85,6 +99,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import type { AssetState } from '@repo/api-contract';
+import CampusFans from './campus-fans.vue';
 import {
   DECOR,
   GROUND_IMAGE,
@@ -93,6 +108,8 @@ import {
   MAP_IMAGE,
   MAP_WIDTH,
   placeSprite,
+  SIGN_PANELS,
+  SIGNS,
   spritesFor,
 } from './map-config';
 
@@ -102,7 +119,11 @@ const props = defineProps<{
   nowMs: number;
   /** Outline every hotspot (for fitting polygons to the image). */
   debug?: boolean;
+  fansCount?: number;
+  /** The viewed club's code, for the crest on its campus signage. */
+  clubCode?: string | null;
 }>();
+
 const emit = defineEmits<{ (e: 'select', key: string): void }>();
 
 const pct = (v: number, of: number) => `${(v / of) * 100}%`;
@@ -141,6 +162,7 @@ const views = computed(() =>
       title: h.title,
       icon: h.icon,
       level,
+      nonFacility: h.nonFacility,
       upgrade,
       placed,
       box: { x: x0, y: y0, width: x1 - x0, height: y1 - y0 },
@@ -165,9 +187,26 @@ const areas = computed(() =>
 const sprites = computed(() => {
   const all = [
     ...DECOR.map((d) => ({ ...placeSprite(d), building: false })),
+    ...SIGNS.map((s) => ({ ...placeSprite(s), building: false })),
     ...views.value.flatMap((v) => v.placed.map((p) => ({ ...p, building: !!v.upgrade }))),
   ];
   return all.sort((a, b) => (a.z ?? 1) - (b.z ?? 1) || a.y - b.y);
+});
+
+/** The club crest, sized and positioned onto each sign's blank panel. */
+const signCrests = computed(() => {
+  if (!props.clubCode) return [];
+  const src = `/club-icons/${props.clubCode}.svg`;
+  return SIGNS.map((s) => {
+    const board = placeSprite(s);
+    const panel = SIGN_PANELS[s.img];
+    return {
+      src,
+      left: board.left + panel.left * board.w,
+      top: board.top + panel.top * board.h,
+      w: panel.width * board.w,
+    };
+  });
 });
 
 // ---- Zoom & pan -----------------------------------------------------------
@@ -423,6 +462,12 @@ onBeforeUnmount(() => {
 }
 .cm-sprite.is-flipped {
   transform: scaleX(-1);
+}
+.cm-crest {
+  position: absolute;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
 }
 /* Under construction: dimmed and pulsing until the timer finishes. */
 .cm-sprite.is-building {

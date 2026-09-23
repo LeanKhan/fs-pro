@@ -117,13 +117,25 @@ export const ASSET_CONFIG: Record<AssetType, AssetDefinition> = {
   medical_centre: {
     type: 'medical_centre',
     name: 'Medical Centre',
-    description: 'Your squad recovers faster between matches.',
+    description: 'Your squad recovers faster between matches with specialized treatment bays.',
     baseCost: 260_000,
     costGrowth: 2.4,
     baseMinutes: 25,
     requires: [{ type: 'training_ground', levelOffset: 1 }],
-    effectLabel: (l) => `-${l * 10}% rest time between matches`,
-    effects: (l) => ({ cooldownMultiplier: 1 - l * 0.1 }),
+    effectLabel: (l) =>
+      l === 0
+        ? '1 Treatment Bay · Standard recovery'
+        : `${1 + Math.floor(l / 2)} Treatment Bays · -${l * 8}% match fatigue · -${l * 10}% rest cooldown`,
+    effects: (l) => ({
+      medicalLevel: l,
+      cooldownMultiplier: 1 - l * 0.1,
+      fatigueReduction: l * 0.08,
+      injuryRiskReduction: l * 0.1,
+      injuryDurationReduction: Math.min(l, 3),
+      treatmentBays: 1 + Math.floor(l / 2),
+      treatmentDiscount: l * 0.08,
+      passiveRecoveryRate: 10 + l * 5,
+    }),
   },
   staff_house: {
     type: 'staff_house',

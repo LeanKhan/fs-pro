@@ -10,10 +10,11 @@ Rewritten 2026-09-21 after the direction change (match = primary loop; real-time
 - [x] Matchmaking on demand, not scheduled fixtures/pods/lobbies
 - [x] Old leagues kept as memories only (also the AI opponent pool)
 - [x] New clubs start from scratch (Level 0, 11 players)
-- [ ] Monetization stance
-- [ ] Exact anti-grind levers (cooldown / energy / fatigue only)
+- [x] **Single-player first, in a shared world** (2026-09-23; see the top of [GAME-PHILOSOPHY.md](./GAME-PHILOSOPHY.md)): the AI-club world stands on its own, and humans who join later are just more clubs in the matchmaking pool. Gate for every feature: *is it fun if no other human ever shows up?* Never assume one human club; ownership stays per club (`club-access.ts`)
+- [-] Monetization stance: deferred until there are other players
+- [ ] Exact anti-grind levers (cooldown / energy / fatigue only): tune for the developer's own fun, not retention; put every timer (upgrades, cooldowns, challenge windows) on one time-scale setting
 - [ ] Do players lose anything on a defeat?
-- [ ] Async human-vs-human timing
+- [x] Async human-vs-human timing: human clubs are played asynchronously, like any AI club (the owner doesn't need to be online), whenever that lands. No real-time head-to-head
 
 ## MVP loop (done 2026-09-21)
 - [x] Migration 0025 (`0025_play_loop.sql` + runner, applied): `ClubAssets.StartAt/CompleteAt`, `Clubs.XP`, `ClubChallenges`
@@ -48,6 +49,15 @@ Rewritten 2026-09-21 after the direction change (match = primary loop; real-time
 - [x] Away summary executive briefing: `away-summary-modal.vue` detects time away (> 2 min) and greets returning managers with completed constructions, squad recovery status, and campus scouting reports.
 - [x] Dynamic facility quick list: `club-game.vue` binds all 7 facilities (`stands`, `stadium_grounds`, `training_ground`, `youth_academy`, `medical_centre`, `scouting`, `staff_house`) with real levels and live upgrade progress.
 - [x] Facility detail sheet upgrade polish: `facility-detail-sheet.vue` features side-by-side current vs next tier unlock comparison, live treasury affordability checks, and upgrade button state.
+- [x] Animated supporters on campus (`campus-fans.vue`): Featherweight SVG walking character rig with alternating limbs, torso bobbing, directional facing, varied club kits/accessories, walking realistic campus routes and scaling dynamically with club fan count (3 -> 6 -> 10 -> 15 fans).
+- [x] GitHub-style Play Match / Quick Sim split button: Integrated into both the standalone RPG game route (`/game/:clubId` via `bottom-dock-nav.vue`) and the Club Home manager dashboard (`/u/clubs/:id/:code` via `dashboard.vue`). Remembers user execution preference in `localStorage` and triggers instant QuickSim with query invalidation and notification feedback.
+- [x] Medical Centre & Player Fitness/Injury deep integration (`medical.service.ts`, `player-fitness.service.ts`, `facility-detail-sheet.vue`):
+  - **Facility Scaling**: Unlocks 1 to 3 Treatment Bays, -8% to -40% match fatigue loss, -10% to -50% injury roll chance, -1 to -3 days initial injury roll duration, and up to 40% treatment cost discount.
+  - **Match Resistance**: Integrated into `applyMatchFatigueAndInjuries` so upgraded medical centers directly shield squad fitness and reduce injury frequency.
+  - **Squad Cryotherapy Session**: Whole-squad treatment restoring +30 Fitness and reducing 1 day off all active injuries across the club.
+  - **Targeted Treatment Bays**: Concentrate care on individual players with *Intensive Physio & Rehab* (shaves days or instantly cures minor strains), *Hyperbaric Chamber Boost* (conditions player to 100% Fitness), and *Specialist Surgery* (instantly cures severe injuries at Level 3+).
+  - **Audited Financials**: All procedures deduct club treasury with verified `TransferLedger` audit rows (`Type: 'medical_treatment'`).
+  - **Interactive UI**: Tabbed Medical Bay interface in `facility-detail-sheet.vue`, quick `➕ Treat` shortcuts in `squad-zone.vue`, and pre-match lineup injury recovery link in `matchmaking-modal.vue`.
 
 ## Core loop integrity fixes (2026-09-23)
 Research (background Explore agents + direct reads) found two integrity problems undercutting the "upgrade facilities -> get stronger" premise: 4 of 7 facilities had `effects()` computed and shown in the UI but read by nothing else, and gate income (Stands-driven, outcome-independent) had grown to dwarf win/draw/loss rewards by up to ~40x. Full plan: `delegated-scribbling-metcalfe.md` (local plan file, not checked in).
@@ -63,12 +73,16 @@ Research (background Explore agents + direct reads) found two integrity problems
 ## Next (after MVP)
 - [x] Away summary + notifications inbox
 - [x] Facility effects that change play: Training Ground, Youth Academy, Stadium Grounds and Staff House all now affect real outcomes (see "Core loop integrity fixes" below); new facilities (media/PR, commercial office) still not started
-- [ ] Async human-vs-human matchmaking (club snapshots, rivalries)
-- [ ] Tournaments (entry fee, 8 clubs), rival battles, event clubs, daily challenges
+- [ ] **Priority: a world that reacts** ([WORLD-THAT-REACTS.md](./WORLD-THAT-REACTS.md)): persistent fans, reputation, form and morale, with consumers the player can feel
+- [ ] **Priority: AI clubs change on their own** (transfers, facility upgrades, youth, retirements) so the world isn't static around the player's club
+- [ ] One global time-scale setting for all real-time timers
+- [ ] Tournaments (entry fee, 8 clubs), rival battles, event clubs, daily challenges (all against AI clubs, so they pass the zero-humans test)
 - [ ] Proper economy ledger, sponsors, fans, reputation; anti-grind tuning
 - [ ] New-club creation flow + onboarding challenge
 - [x] BATTLE screen / live presentation
-- [ ] Mobile companion, cosmetics, live-ops
+- [-] Async human-vs-human matchmaking (human clubs in the opponent pool, rivalries): parked until someone else is playing; the design already supports it
+- [-] Leaderboards, alliances/social, anti-cheat, live PvP: parked, since they only work with other players
+- [-] Mobile companion, cosmetics, live-ops: parked with monetization
 
 
 ## Built before the direction change: facilities (done 2026-09-21)
@@ -119,5 +133,6 @@ Decisions: flexible config-driven tiers (start: 5 tiers, pod 20, fan-out 2, U=2 
 - [ ] Regional pods via `homePlaceId` (later)
 
 ## Log
+- 2026-09-23: Direction settled as single-player first, in a shared world: the AI world stands on its own, humans are just extra clubs in the async matchmaking pool whenever they arrive, and multiplayer-only features are parked. Recorded at the top of GAME-PHILOSOPHY.md.
 - 2026-09-21: Dev-DB hygiene note: an earlier snapshot/restore cycle was not re-verified and the dev DB drifted by one played match (30 XP, a challenge row, ~+335k budget) before the game-screen tests; caught at the end and restored from the last verified-clean snapshot (day 348, 2,089 fixtures, 0 matchmade, XP 0, 0 challenges, 176 asset rows). Always run a count check after each restore.
 - 2026-09-21: Direction change after reading GAME-PHILOSOPHY.md; plan and tracker rewritten; MVP loop started. Everything under "Built before..." and "DEFERRED" is kept for history.

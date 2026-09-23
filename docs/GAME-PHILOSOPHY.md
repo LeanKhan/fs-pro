@@ -1,3 +1,24 @@
+# Direction update (2026-09-23): single-player first, in a shared world
+
+The rest of this document still describes the core loop. This section settles the multiplayer question it left open.
+
+**Spro is a single-player game in a world that can hold other humans.** You play in a world full of AI clubs that stands on its own with no other humans in it. Anyone who joins later just becomes another club in that same world. Adding multiplayer later won't require a rewrite.
+
+Why this works:
+- **Clash of Clans multiplayer is asynchronous.** The defender is never online; you play against a snapshot of their base. PLAY already works this way: matchmaking picks among the closest-power clubs and needs nobody on the other side.
+- **The existing clubs *are* the world.** The old league clubs are the AI opponent pool, not something multiplayer forces us to delete. A human club is just a club with an owner in that pool. When someone plays against it, its own squad and tactics play the match, the same as for an AI club.
+- **A "world" is one deployment.** One database is one world. If a second world is ever needed, it's a second instance, not sharding code.
+
+Rules that follow from this:
+1. **The zero-humans test.** Every feature must be fun if no other human ever shows up. If it only works with other players (leaderboards, alliances, live PvP), park it.
+2. **The world must move without you.** AI clubs change over time on their own through transfers, upgrades, youth, retirements and form. A world where only your club changes feels dead in either mode. See [WORLD-THAT-REACTS.md](./WORLD-THAT-REACTS.md).
+3. **Never assume one human club.** Keep ownership per club (`controllers/auth/club-access.ts`). Nothing global like "the user's club". This one rule keeps multiplayer possible later.
+4. **Timers serve fun, not retention.** Clash of Clans uses long timers, cooldowns and energy to drive retention and monetization across a large player base. Here the main player is the developer. Put every timer on one tunable time scale and set it for good play, not for engagement metrics.
+
+Deferred until there are other players: real-time head-to-head, alliances/social, anti-cheat, leaderboards, monetization.
+
+---
+
 Yes. I think this is a **much more coherent direction** for Spro.
 
 The important shift is:

@@ -67,7 +67,7 @@ export const gameTsRestRoutes = s.router(contract.game, {
         }
 
         try {
-          await advanceDayIfDone(scheduledDay);
+          await advanceDayIfDone(scheduledDay, { allowEmptyDay: true });
         } catch (advErr) {
           console.error(`[simulate_rest] Error advancing day ${scheduledDay}:`, advErr);
         }
