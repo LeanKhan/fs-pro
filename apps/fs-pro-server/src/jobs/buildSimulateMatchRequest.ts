@@ -24,7 +24,11 @@ export async function buildSimulateMatchRequest(
     fixtureType?: string;
     stage?: string;
     isKnockout?: boolean;
-  }
+  },
+  /** Small home-side Rating nudge for this match only (see PlayOptions in
+   * game.controller.ts) - applied to the plain club JSON below, never
+   * persisted to the database. */
+  homeRatingBonus?: number
 ): Promise<SimulateMatchRequest> {
   // `withPlayersAndManager` populates Players (needed for the match
   // roster) - ManagerId stays a bare id regardless (see IClubReadOptions).
@@ -47,6 +51,16 @@ export async function buildSimulateMatchRequest(
   // this crosses the worker_thread boundary (workerData is structured
   // clone, not every Mongoose-lean() field survives that cleanly).
   const plainClubs = JSON.parse(JSON.stringify(clubs));
+
+  if (homeRatingBonus) {
+    const homeClub = plainClubs.find((c: any) => c._id?.toString() === home);
+    if (homeClub) {
+      homeClub.Rating = (homeClub.Rating ?? 0) + homeRatingBonus;
+      for (const p of homeClub.Players ?? []) {
+        p.Rating = (p.Rating ?? 0) + homeRatingBonus;
+      }
+    }
+  }
 
   return {
     fixtureId,

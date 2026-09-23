@@ -80,6 +80,7 @@
         :read-only="!isMyClub"
         :upgrading="game.upgradingAsset.value !== null"
         :now-ms="game.now.value"
+        :budget="game.campus.value?.budget ?? null"
         @upgrade="game.startUpgrade"
       />
 
@@ -90,7 +91,19 @@
         :my-club-name="club.Name"
         :my-power="playState?.club.power ?? 0"
         :opponent="game.matchedOpponent.value"
+        :opponents="game.opponentOptions.value"
+        @select-opponent="game.selectOpponent"
         @start-battle="game.startBattle()"
+      />
+
+      <!-- Battle Arena: Animated football clash presentation -->
+      <battle-arena-modal
+        v-model="game.showBattleArena.value"
+        :result="game.matchResult.value"
+        :my-club-name="club.Name"
+        :my-power="playState?.club.power ?? 0"
+        :coaching-level="game.coachingLevel.value"
+        @finish="game.finishBattle()"
       />
 
       <match-rewards-dialog
@@ -100,6 +113,13 @@
         :my-power="playState?.club.power ?? 0"
       />
 
+      <!-- Executive Briefing: Offline catchup modal -->
+      <away-summary-modal
+        v-model="showAwaySummary"
+        :events="awayEvents"
+      />
+
+
       <v-snackbar v-model="game.snackbar.value" :timeout="3500" :color="game.snackbarColor.value">
         {{ game.snackbarText.value }}
       </v-snackbar>
@@ -108,7 +128,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@tanstack/vue-query';
 import type { AssetState } from '@repo/api-contract';
@@ -126,7 +146,10 @@ import BottomDockNav from '@/components/hud/bottom-dock-nav.vue';
 import { HOTSPOTS } from '@/components/game/map-config';
 import FacilityDetailSheet from '@/components/campus/facility-detail-sheet.vue';
 import MatchmakingModal from '@/components/play/matchmaking-modal.vue';
+import BattleArenaModal from '@/components/play/battle-arena-modal.vue';
 import MatchRewardsDialog from '@/components/play/match-rewards-dialog.vue';
+import AwaySummaryModal, { type AwayEventItem } from '@/components/hud/away-summary-modal.vue';
+
 
 const route = useRoute();
 const router = useRouter();
@@ -200,14 +223,20 @@ const managerBriefingMessage = computed(() => {
   return 'Your journey starts here. Build your club, train your team and take on your first opponents.';
 });
 
+const FACILITY_CONFIG: Array<{ key: string; name: string; icon: string }> = [
+  { key: 'stands', name: 'Stadium', icon: '🏟️' },
+  { key: 'stadium_grounds', name: 'Pitch Grounds', icon: '🌱' },
+  { key: 'training_ground', name: 'Training Ground', icon: '🦺' },
+  { key: 'youth_academy', name: 'Academy', icon: '🎓' },
+  { key: 'medical_centre', name: 'Medical Centre', icon: '➕' },
+  { key: 'scouting', name: 'Scouting Dept', icon: '🔭' },
+  { key: 'staff_house', name: 'Staff House', icon: '💼' },
+];
+
 // Quick facilities list for right sidebar
 const quickFacilityItems = computed<QuickFacilityItem[]>(() => {
   const assets = game.campus.value?.assets ?? [];
   const getAsset = (type: string) => assets.find((a) => a.type === type);
-
-  const stands = getAsset('stands');
-  const training = getAsset('training_ground');
-  const academy = getAsset('youth_academy');
 
   function getProgress(asset?: AssetState) {
     if (!asset?.upgrade) return 0;
@@ -216,57 +245,112 @@ const quickFacilityItems = computed<QuickFacilityItem[]>(() => {
     return Math.min(100, Math.max(0, Math.round(((game.now.value - start) / total) * 100)));
   }
 
-  return [
-    {
-      key: 'stands',
-      name: 'Stadium',
-      icon: '🏟️',
-      level: stands?.level ?? 0,
-      progress: getProgress(stands),
-      isUpgrading: !!stands?.upgrade,
-    },
-    {
-      key: 'training_ground',
-      name: 'Training Ground',
-      icon: '🦺',
-      level: training?.level ?? 0,
-      progress: getProgress(training),
-      isUpgrading: !!training?.upgrade,
-    },
-    {
-      key: 'youth_academy',
-      name: 'Academy',
-      icon: '🎓',
-      level: academy?.level ?? 0,
-      progress: getProgress(academy),
-      isUpgrading: !!academy?.upgrade,
-    },
-    {
-      key: 'medical_centre',
-      name: 'Medical Centre',
-      icon: '➕',
-      level: 0,
-      progress: 0,
-      isUpgrading: false,
-    },
-    {
-      key: 'scouting',
-      name: 'Scouting',
-      icon: '🔭',
-      level: 0,
-      progress: 0,
-      isUpgrading: false,
-    },
-    {
-      key: 'staff_house',
-      name: 'Staff House',
-      icon: '💼',
-      level: 0,
-      progress: 0,
-      isUpgrading: false,
-    },
-  ];
+  return FACILITY_CONFIG.map((cfg) => {
+    const asset = getAsset(cfg.key);
+    return {
+      key: cfg.key,
+      name: cfg.name,
+      icon: cfg.icon,
+      level: asset?.level ?? 0,
+      progress: getProgress(asset),
+      isUpgrading: !!asset?.upgrade,
+    };
+  });
 });
+
+// While You Were Away Executive Summary
+const showAwaySummary = ref(false);
+const awayEvents = ref<AwayEventItem[]>([]);
+
+function checkOfflineProgress() {
+  if (!clubId.value) return;
+  const storageKey = `fspro_last_seen_${clubId.value}`;
+  const rawLastSeen = localStorage.getItem(storageKey);
+  const nowTime = Date.now();
+  localStorage.setItem(storageKey, String(nowTime));
+
+  if (!rawLastSeen) return;
+  const lastSeenMs = Number(rawLastSeen);
+  const diffSec = (nowTime - lastSeenMs) / 1000;
+
+  // Only show if player was away for more than 2 minutes (120 seconds)
+  if (diffSec < 120) return;
+
+  const events: AwayEventItem[] = [];
+  const assets = game.campus.value?.assets ?? [];
+
+  // 1. Upgrades in progress or completed
+  const upgrading = assets.find((a) => a.upgrade);
+  if (upgrading) {
+    const completeAt = new Date(upgrading.upgrade!.completeAt).getTime();
+    if (completeAt <= nowTime) {
+      events.push({
+        icon: '🏗️',
+        title: `${upgrading.name} Upgrade Ready!`,
+        description: `Construction finished while you were away! Facility upgraded.`,
+        badge: 'COMPLETED',
+        badgeColor: 'success',
+      });
+    } else {
+      events.push({
+        icon: '🔨',
+        title: `Work Continues: ${upgrading.name}`,
+        description: `Contractors are advancing work towards Level ${upgrading.upgrade!.toLevel}.`,
+        badge: 'IN PROGRESS',
+        badgeColor: 'amber-darken-2',
+      });
+    }
+  }
+
+  // 2. Squad resting status
+  if (game.cooldownLeft.value === 0) {
+    events.push({
+      icon: '⚡',
+      title: 'Squad Fully Rested',
+      description: 'Your players have completely recovered stamina and are ready for battle.',
+      badge: 'READY',
+      badgeColor: 'teal',
+    });
+  }
+
+  // 3. Scouting & Matchmaking pool
+  const scouting = assets.find((a) => a.type === 'scouting');
+  if (scouting && scouting.level > 0) {
+    events.push({
+      icon: '🔭',
+      title: 'Scouting Network Active',
+      description: `Scouts surveyed the region and tracked ${1 + Math.min(scouting.level, 4)} rival clubs in your power bracket.`,
+      badge: 'POOL READY',
+      badgeColor: 'primary',
+    });
+  } else {
+    events.push({
+      icon: '🏟️',
+      title: 'Campus Operational',
+      description: 'Stadium maintenance staff kept the grounds in order for upcoming matches.',
+      badge: 'ACTIVE',
+      badgeColor: 'indigo',
+    });
+  }
+
+  if (events.length > 0) {
+    awayEvents.value = events;
+    showAwaySummary.value = true;
+  }
+}
+
+// Trigger offline check when campus data finishes initial load
+let checkedOffline = false;
+watch(
+  () => game.campus.value,
+  (loaded) => {
+    if (loaded && !checkedOffline) {
+      checkedOffline = true;
+      checkOfflineProgress();
+    }
+  }
+);
+
 
 // Facility sheet selection
 const showSheet = ref(false);

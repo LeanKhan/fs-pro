@@ -71,7 +71,10 @@ async function loadClubs(): Promise<ClubRow[]> {
 }
 
 /** Every active (non-retired) player: signed ones grouped by club, plus free agents. */
-async function loadPlayers() {
+/** Exported for scouted-shortlist.service.ts (Scouting facility feature) -
+ * every active player, listed-for-sale and free agents alike, grouped by
+ * club. */
+export async function loadPlayers() {
   const rows = await db()
     .select({
       id: players.id,

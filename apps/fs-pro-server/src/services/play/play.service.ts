@@ -27,11 +27,16 @@ export const MATCH_COOLDOWN_SECONDS = Number(process.env.MATCH_COOLDOWN_SECONDS)
 const OPPONENT_POOL = 5;
 const MATCH_TITLE_MARK = '(Matchmade)';
 
-const REWARDS = {
-  win: { cash: 25_000, xp: 30 },
-  draw: { cash: 8_000, xp: 10 },
-  loss: { cash: 2_000, xp: 5 },
-} as const;
+/** XP reward per outcome stays flat (drives club level, not cash). Cash is now
+ * a share of THIS match's own gate net (see playMatch) - gate income scales
+ * with Stadium level and used to dwarf a flat cash reward, so outcome barely
+ * mattered financially past Stands Level 1. A % of gate keeps outcome
+ * meaningful at every stadium size while keeping gate income the main
+ * earner, as intended. */
+const REWARD_XP = { win: 30, draw: 10, loss: 5 } as const;
+const GATE_SHARE = { win: 0.5, draw: 0.1, loss: -0.15 } as const;
+/** A win always pays at least this much cash, even at a Level 0 stadium. */
+const MIN_WIN_CASH = 3_000;
 
 export type Outcome = 'win' | 'draw' | 'loss';
 
@@ -71,7 +76,9 @@ export interface MatchResult {
   gate: { attendance: number; revenue: number; costs: number; net: number } | null;
   challengeCompleted: boolean;
   state: PlayState;
+  highlights?: Array<{ minute: number; type: string; message: string; side: 'you' | 'them' }>;
 }
+
 
 /** Matchmaking power: the club rating on a game-style scale (a 75 rating is
  * ~188 power), so "POWER 184 vs 177" reads well in the UI. */
@@ -186,14 +193,15 @@ const toOption = (c: typeof clubs.$inferSelect): OpponentOption => ({
 });
 
 /**
- * Matchmaking preview: 1 + Scouting-level opponent options from the
- * closest-power pool (the scouting department lets you choose who to face).
- * The first option is the recommended (closest-power) one.
+ * Matchmaking preview: 1 + club-level opponent options (more experienced
+ * clubs get a wider scouting picture of the closest-power pool). The first
+ * option is the recommended (closest-power) one. Not gated by any facility -
+ * Scouting instead drives the transfer shortlist (see transfer-market).
  */
 export async function findOpponents(clubId: string): Promise<OpponentOption[]> {
   const [club] = await db().select().from(clubs).where(eq(clubs.id, clubId));
   if (!club) throw new Error('Club not found');
-  const options = (await getAssetEffects(clubId)).opponentOptions ?? 1;
+  const options = 1 + Math.min(Math.floor(levelForXp(club.XP) / 2), 4);
   const candidates = await opponentCandidates(club);
   if (!candidates.length) throw new Error('No opponent available right now');
   // Recommended = closest; the rest are random from the remaining pool.
@@ -221,6 +229,15 @@ export async function playMatch(clubId: string, opponentId?: string): Promise<Ma
     order = [chosen];
   }
 
+  // Stadium Grounds (pitch quality) and Staff House (coaching) both nudge
+  // this match's simulation slightly in the home side's favour - a small,
+  // never-persisted Rating bump (see buildSimulateMatchRequest.ts), rather
+  // than a worker-thread config change. Kept modest: full marks on both is
+  // a +3.5 Rating nudge, on a 0-100ish scale.
+  const homeEffects = await getAssetEffects(clubId);
+  const homeRatingBonus =
+    (homeEffects.pitchQuality ?? 0) * 0.3 + (homeEffects.coachingLevel ?? 0) * 0.4;
+
   let fixtureId: string | null = null;
   let opponent = order[0];
   let lastError: unknown;
@@ -243,6 +260,7 @@ export async function playMatch(clubId: string, opponentId?: string): Promise<Ma
         skipStandings: true,
         skipDayAdvance: true,
         skipReplay: true,
+        homeRatingBonus,
       });
       fixtureId = fixture._id as string;
       break;
@@ -258,15 +276,71 @@ export async function playMatch(clubId: string, opponentId?: string): Promise<Ma
   const played = await getFixtureById(fixtureId);
   const { home, away } = scoresOf((played as any)?.Details);
   const outcome = outcomeFor(home, away);
-  const reward = REWARDS[outcome];
-  await payClub(clubId, reward, 'match_reward', `${club.Name} ${home}-${away} ${opponent.Name}`);
   const { completed } = await recordMatchForChallenge(clubId, outcome === 'win');
 
-  // The gate for this match was credited by updateFixture; read it back.
+  // The gate for this match was credited by updateFixture inside play();
+  // read it back so the cash reward can be a share of THIS match's gate
+  // (see GATE_SHARE) instead of a flat amount that gate income would dwarf.
   const [after] = await db().select().from(clubs).where(eq(clubs.id, clubId));
   const entry = ((after.Finances as any)?.history ?? []).find(
     (h: any) => h.fixtureId === fixtureId
   );
+
+  const gateNet = entry?.net ?? 0;
+  const rewardCash =
+    outcome === 'win'
+      ? Math.max(Math.round(gateNet * GATE_SHARE.win), MIN_WIN_CASH)
+      : Math.round(gateNet * GATE_SHARE[outcome]);
+  const reward = { cash: rewardCash, xp: REWARD_XP[outcome] };
+  await payClub(clubId, reward, 'match_reward', `${club.Name} ${home}-${away} ${opponent.Name}`);
+
+  const rawEvents = Array.isArray((played as any)?.Events) ? (played as any).Events : [];
+  const keyTypes = new Set(['goal', 'save', 'shot', 'foul', 'tackle']);
+  const extractedHighlights: Array<{ minute: number; type: string; message: string; side: 'you' | 'them' }> = [];
+
+  for (const ev of rawEvents) {
+    if (!ev || !ev.type) continue;
+    const isGoal = ev.type === 'goal' || String(ev.message || '').toLowerCase().includes('goal');
+    if (!keyTypes.has(ev.type) && !isGoal) continue;
+
+    const minMatch = typeof ev.time === 'string' ? ev.time.match(/\d+/) : null;
+    let minute = minMatch ? parseInt(minMatch[0], 10) : Math.floor(Math.random() * 85) + 5;
+    if (minute < 1 || minute > 90) minute = Math.min(Math.max(minute, 1), 90);
+
+    const isYou = ev.playerTeamID ? ev.playerTeamID === clubId : ev.side === 'home';
+    extractedHighlights.push({
+      minute,
+      type: ev.type,
+      message: ev.message || (isGoal ? 'Goal!' : 'Key match event'),
+      side: isYou ? 'you' : 'them',
+    });
+  }
+
+  // Ensure every scored goal is guaranteed in the highlights timeline
+  const yourGoalCount = extractedHighlights.filter((e) => e.type === 'goal' && e.side === 'you').length;
+  const theirGoalCount = extractedHighlights.filter((e) => e.type === 'goal' && e.side === 'them').length;
+
+  for (let i = yourGoalCount; i < home; i++) {
+    const min = Math.min(18 + i * 25 + Math.floor(Math.random() * 8), 89);
+    extractedHighlights.push({
+      minute: min,
+      type: 'goal',
+      message: `GOAL! ${club.Name} scores!`,
+      side: 'you',
+    });
+  }
+
+  for (let i = theirGoalCount; i < away; i++) {
+    const min = Math.min(22 + i * 28 + Math.floor(Math.random() * 8), 88);
+    extractedHighlights.push({
+      minute: min,
+      type: 'goal',
+      message: `GOAL! ${opponent.Name} finds the net!`,
+      side: 'them',
+    });
+  }
+
+  extractedHighlights.sort((a, b) => a.minute - b.minute);
 
   return {
     fixtureId,
@@ -279,5 +353,7 @@ export async function playMatch(clubId: string, opponentId?: string): Promise<Ma
       : null,
     challengeCompleted: completed,
     state: await getPlayState(clubId),
+    highlights: extractedHighlights.slice(0, 15),
   };
 }
+

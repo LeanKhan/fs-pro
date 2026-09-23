@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="show" max-width="480">
+  <v-dialog v-model="show" max-width="520">
     <v-card v-if="asset" class="facility-sheet pa-5 rounded-2xl">
       <!-- Header -->
       <div class="d-flex justify-space-between align-start mb-3">
@@ -9,75 +9,97 @@
           </div>
           <div>
             <div class="text-h6 font-weight-bold text-white">{{ asset.name }}</div>
-            <div class="text-caption text-medium-emphasis">
+            <v-chip size="x-small" color="indigo" variant="flat" class="font-weight-bold mt-1">
               Level {{ asset.level }} / {{ asset.maxLevel }}
-            </div>
+            </v-chip>
           </div>
         </div>
         <v-btn icon="mdi-close" variant="text" size="small" @click="show = false"></v-btn>
       </div>
 
-      <div class="text-body-2 text-medium-emphasis mb-3">
+      <div class="text-body-2 text-medium-emphasis mb-4">
         {{ asset.description }}
       </div>
 
-      <!-- Current Effect -->
-      <v-card variant="tonal" color="indigo-darken-4" class="pa-3 mb-4 rounded-xl">
-        <div class="text-caption font-weight-bold text-indigo-lighten-2 mb-1">CURRENT BENEFITS</div>
-        <div class="text-body-2 text-white">{{ asset.effectLabel }}</div>
-      </v-card>
-
-      <!-- If Currently Upgrading -->
+      <!-- Upgrading: progress only -->
       <div v-if="asset.upgrade" class="upgrade-progress-box pa-3 rounded-xl mb-3">
         <div class="d-flex justify-space-between text-caption font-weight-medium mb-1">
-          <span>Upgrading to Level {{ asset.upgrade.toLevel }}</span>
+          <span class="text-white">Upgrading to Level {{ asset.upgrade.toLevel }}</span>
           <span class="text-amber">⏱️ {{ formatDuration(secondsRemaining) }}</span>
         </div>
-        <v-progress-linear
-          :model-value="progressPercent"
-          color="amber"
-          height="8"
-          rounded
-        ></v-progress-linear>
+        <v-progress-linear :model-value="progressPercent" color="amber" height="8" rounded></v-progress-linear>
       </div>
 
-      <!-- Next Level Info & Action -->
-      <div v-else-if="asset.next && !readOnly" class="next-level-box pa-3 rounded-xl mb-3">
-        <div class="text-caption font-weight-bold text-teal-lighten-3 mb-1">NEXT LEVEL UNLOCK</div>
-        <div class="text-body-2 text-white mb-2">{{ asset.next.effectLabel }}</div>
+      <!-- Not upgrading: current vs next tier comparison -->
+      <template v-else>
+        <div class="tier-compare mb-3" :class="{ 'single-tier': !nextVisible }">
+          <!-- Current tier -->
+          <div class="tier-card pa-3 rounded-xl">
+            <div class="text-caption font-weight-bold text-indigo-lighten-2 text-uppercase mb-2">
+              Current · Lv {{ asset.level }}
+            </div>
+            <div class="text-body-2 text-white">{{ asset.effectLabel }}</div>
+          </div>
 
-        <div class="d-flex justify-space-between align-center text-caption text-medium-emphasis pt-2 border-top">
-          <span>Upgrade Cost: <strong class="text-success">{{ formatCurrency(asset.next.cost) }}</strong></span>
-          <span>Time: <strong>{{ formatDuration(asset.next.minutes * 60) }}</strong></span>
+          <!-- Next tier -->
+          <div v-if="nextVisible" class="tier-card tier-card-next pa-3 rounded-xl">
+            <div class="d-flex align-center justify-space-between mb-2">
+              <span class="text-caption font-weight-bold text-amber text-uppercase">Next · Lv {{ asset.next!.level }}</span>
+              <span class="text-amber">⚡</span>
+            </div>
+            <div class="text-body-2 text-white">{{ asset.next!.effectLabel }}</div>
+          </div>
+        </div>
+
+        <!-- Cost & requirement bar -->
+        <div v-if="nextVisible" class="cost-bar pa-3 rounded-xl mb-3">
+          <div class="d-flex align-center justify-space-between">
+            <div>
+              <div class="text-body-2 font-weight-bold text-white">
+                Upgrade Cost: <span class="text-success">{{ formatCurrency(asset.next!.cost) }}</span>
+              </div>
+              <div v-if="budget != null" class="text-caption" :class="canAfford ? 'text-success' : 'text-error'">
+                Available: {{ formatCurrency(budget) }} {{ canAfford ? '(Ready)' : '(Short)' }}
+              </div>
+            </div>
+            <div class="d-flex align-center gap-1 text-medium-emphasis text-caption">
+              <span>⏱️</span>
+              <span>{{ formatDuration(asset.next!.minutes * 60) }}</span>
+            </div>
+          </div>
         </div>
 
         <v-btn
+          v-if="nextVisible && !readOnly"
           block
           size="large"
           color="amber-darken-2"
-          class="mt-3 font-weight-bold"
+          class="font-weight-bold"
           variant="flat"
-          :disabled="!!asset.next.blockedReason || upgrading"
+          :disabled="!!asset.next!.blockedReason || upgrading || !canAfford"
           :loading="upgrading"
           @click="onUpgrade"
         >
-          Upgrade to Level {{ asset.next.level }}
+          Upgrade to Level {{ asset.next!.level }}
         </v-btn>
 
-        <div v-if="asset.next.blockedReason" class="text-caption text-warning text-center mt-2">
-          {{ asset.next.blockedReason }}
+        <div v-if="nextVisible && asset.next!.blockedReason" class="text-caption text-warning text-center mt-2">
+          {{ asset.next!.blockedReason }}
         </div>
-      </div>
+        <div v-else-if="nextVisible && !canAfford" class="text-caption text-error text-center mt-2">
+          Not enough cash for this upgrade yet.
+        </div>
 
-      <div v-else-if="asset.level >= asset.maxLevel" class="text-center py-3 text-caption text-medium-emphasis">
-        ⭐ Maximum Facility Level Reached!
-      </div>
+        <div v-if="!asset.next" class="text-center py-3 text-caption text-medium-emphasis">
+          ⭐ Maximum facility level reached!
+        </div>
+      </template>
     </v-card>
   </v-dialog>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed } from 'vue';
 import type { AssetState } from '@repo/api-contract';
 import { currency } from '@/helpers/misc';
 
@@ -89,6 +111,8 @@ const props = withDefaults(
     readOnly?: boolean;
     upgrading?: boolean;
     nowMs?: number;
+    /** Club treasury, for the "can you afford this" check; omit to hide it. */
+    budget?: number | null;
   }>(),
   {
     modelValue: false,
@@ -97,6 +121,7 @@ const props = withDefaults(
     readOnly: false,
     upgrading: false,
     nowMs: Date.now(),
+    budget: null,
   }
 );
 
@@ -111,6 +136,13 @@ const show = computed({
 });
 
 const formatCurrency = (val: number) => currency(val);
+
+// The next-tier card only makes sense when there's a next level to show.
+const nextVisible = computed(() => !!props.asset?.next);
+const canAfford = computed(() => {
+  if (props.budget == null || !props.asset?.next) return true;
+  return props.budget >= props.asset.next.cost;
+});
 
 const secondsRemaining = computed(() => {
   const u = props.asset?.upgrade;
@@ -161,12 +193,25 @@ function onUpgrade() {
 }
 
 .upgrade-progress-box,
-.next-level-box {
+.cost-bar {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.border-top {
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+.tier-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.tier-compare.single-tier {
+  grid-template-columns: 1fr;
+}
+.tier-card {
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+.tier-card-next {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.35);
 }
 </style>

@@ -53,6 +53,13 @@ export const PlayStateSchema = z.object({
   recent: z.array(RecentMatchSchema),
 });
 
+export const MatchHighlightSchema = z.object({
+  minute: z.number(),
+  type: z.string(),
+  message: z.string(),
+  side: z.enum(['you', 'them']),
+});
+
 export const MatchResultSchema = z.object({
   fixtureId: z.string(),
   opponent: OpponentSchema,
@@ -70,9 +77,12 @@ export const MatchResultSchema = z.object({
     .nullable(),
   challengeCompleted: z.boolean(),
   state: PlayStateSchema,
+  highlights: z.array(MatchHighlightSchema).optional(),
 });
 
 export type Opponent = z.infer<typeof OpponentSchema>;
 export type Challenge = z.infer<typeof ChallengeSchema>;
 export type PlayState = z.infer<typeof PlayStateSchema>;
+export type MatchHighlight = z.infer<typeof MatchHighlightSchema>;
 export type MatchResult = z.infer<typeof MatchResultSchema>;
+

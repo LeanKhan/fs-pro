@@ -18,6 +18,7 @@ import {
   listPlayerForSale,
 } from '../../services/transfers/transfer-market.service';
 import { scoutPlayerTransfer } from '../../services/ai/transfer-scout.service';
+import { getScoutedShortlist } from '../../services/transfers/scouted-shortlist.service';
 import { processBoardBudgetRequest } from '../../services/ai/board-budget.service';
 
 const s = initServer();
@@ -182,6 +183,22 @@ export const transferTsRestRoutes = s.router(contract.transfers, {
           success: true as const,
           message: 'Player transfer scouted successfully',
           payload: report as any,
+        },
+      };
+    } catch (err) {
+      return errorResponse(err) as any;
+    }
+  },
+
+  getScoutedShortlist: async ({ params }) => {
+    try {
+      const shortlist = await getScoutedShortlist(params.clubId);
+      return {
+        status: 200 as const,
+        body: {
+          success: true as const,
+          message: 'Scouted shortlist loaded',
+          payload: shortlist,
         },
       };
     } catch (err) {
