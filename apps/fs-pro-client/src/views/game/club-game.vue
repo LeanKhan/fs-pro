@@ -16,8 +16,11 @@
         :selected="showSheet ? selectedKey : null"
         :now-ms="game.now.value"
         :debug="debug"
+        :fans-count="fansCount"
+        :club-code="club.ClubCode"
         @select="onSelectFacility"
       />
+
 
       <!-- Top HUD header: crest, level, location, treasury -->
       <club-top-hud
@@ -69,12 +72,13 @@
         :cooldown-seconds="game.cooldownLeft.value"
         :playing="game.playing.value"
         @change-tab="onDockTabChange"
-        @play-match="game.findMatch()"
+        @play-match="onPlayMatchTrigger"
       />
 
       <!-- Sheets and dialogs -->
       <facility-detail-sheet
         v-model="showSheet"
+        :club-id="clubId"
         :asset="selectedAsset"
         :icon="selectedIcon"
         :read-only="!isMyClub"
@@ -82,6 +86,7 @@
         :now-ms="game.now.value"
         :budget="game.campus.value?.budget ?? null"
         @upgrade="game.startUpgrade"
+        @treated="onMedicalTreated"
       />
 
       <matchmaking-modal
@@ -92,9 +97,15 @@
         :my-power="playState?.club.power ?? 0"
         :opponent="game.matchedOpponent.value"
         :opponents="game.opponentOptions.value"
+        :tactics-summary="tacticsSummary"
+        :is-quick-sim="game.isQuickSim.value"
+        @toggle-quick-sim="(val) => (game.isQuickSim.value = val)"
         @select-opponent="game.selectOpponent"
         @start-battle="game.startBattle()"
+        @change-tactics="onChangeTactics"
+        @open-medical="onOpenMedicalFromMatchmaking"
       />
+
 
       <!-- Battle Arena: Animated football clash presentation -->
       <battle-arena-modal
@@ -208,6 +219,55 @@ const squadValue = computed(() => {
   if (!Array.isArray(players) || players.length === 0) return 80000;
   return players.reduce((sum: number, p: any) => sum + (Number(p.Value) || 10000), 0);
 });
+
+// Lightweight pre-match tactics readiness check (matchmaking-modal.vue): a
+// glance at the Team Sheet's formation/style/lineup, not a second editor -
+// the Dugout hotspot on the map opens the real editor (Team Sheet zone).
+const FORMATION_LABELS: Record<string, string> = {
+  '433': '4-3-3',
+  '442': '4-4-2',
+  '4231': '4-2-3-1',
+  '352': '3-5-2',
+};
+const STYLE_LABELS: Record<string, string> = {
+  HighPress: 'High Press',
+  LowBlock: 'Low Block',
+};
+const tacticsSummary = computed(() => {
+  const c = club.value as any;
+  if (!c) return null;
+  const formationRaw = c.Tactic?.formationName as string | undefined;
+  const formationLabel = formationRaw ? FORMATION_LABELS[formationRaw] ?? formationRaw : 'Not set';
+  const styleRaw = c.Tactic?.styleName as string | undefined;
+  const styleLabel = styleRaw ? STYLE_LABELS[styleRaw] ?? styleRaw : 'Balanced';
+
+  const startingIds: string[] = Array.isArray(c.Lineup?.startingXI) ? c.Lineup.startingXI : [];
+  const players: any[] = Array.isArray(c.Players) ? c.Players : [];
+  const starters = startingIds.map((id) => players.find((p) => String(p._id) === id)).filter(Boolean);
+  const injuredCount = starters.filter((p) => p.Injury && Number(p.Injury.daysRemaining) > 0).length;
+
+  const issues: string[] = [];
+  if (starters.length < 11) issues.push(`${11 - starters.length} lineup slot(s) empty`);
+  if (injuredCount > 0) issues.push(`${injuredCount} starter(s) injured`);
+
+  return { formationLabel, styleLabel, filledCount: starters.length, issues, ready: issues.length === 0 };
+});
+
+/** "Change Tactics" from the pre-match screen: close the modal, go edit. */
+function onChangeTactics() {
+  game.showMatchmaking.value = false;
+  goManager('tactics');
+}
+
+function onMedicalTreated() {
+  clubQuery.refetch();
+  game.load();
+}
+
+function onOpenMedicalFromMatchmaking() {
+  game.showMatchmaking.value = false;
+  onSelectFacility('medical_centre');
+}
 
 const managerBriefingTitle = computed(() => {
   if ((club.value as any)?.Manager) {
@@ -410,6 +470,12 @@ const selectedIcon = computed(() => {
 });
 
 function onSelectFacility(key: string) {
+  // The Dugout isn't a leveled facility (no ClubAssets row/upgrade economy) -
+  // it opens the Team Sheet editor directly instead of the upgrade sheet.
+  if (key === 'dugout') {
+    goManager('tactics');
+    return;
+  }
   selectedKey.value = key;
   showSheet.value = true;
 }
@@ -418,6 +484,11 @@ function onDockTabChange(key: string) {
   if (key === 'hq') return;
   goManager(key);
 }
+
+function onPlayMatchTrigger(mode: 'battle' | 'quick_sim') {
+  game.findMatch(mode === 'quick_sim');
+}
+
 
 function goManager(key?: string) {
   const c = club.value;

@@ -99,9 +99,12 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
     matchedOpponentId.value = opp.id;
   }
 
+  const isQuickSim = ref(false);
+
   /** PLAY pressed: ask the server for real opponents, then wait for "battle". */
-  async function findMatch() {
+  async function findMatch(quickSim = false) {
     if (!clubId.value || cooldownLeft.value > 0 || playing.value) return;
+    isQuickSim.value = quickSim;
     matchmakingSearching.value = true;
     matchedOpponent.value = null;
     matchedOpponentId.value = null;
@@ -135,8 +138,9 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
     }
   }
 
-  async function startBattle() {
+  async function startBattle(overrideQuickSim?: boolean) {
     if (!clubId.value) return;
+    const quick = overrideQuickSim !== undefined ? overrideQuickSim : isQuickSim.value;
     playing.value = true;
     try {
       const res = await client.play.playMatch.mutation({
@@ -148,8 +152,13 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
         matchResult.value = res.body.payload;
         playState.value = res.body.payload.state;
         loadedAt.value = Date.now();
-        // Launch the dramatic Clash-of-Clans style Battle Arena
-        showBattleArena.value = true;
+        if (quick) {
+          // Instant simulation skips battle arena directly to spoils
+          showRewards.value = true;
+        } else {
+          // Launch the dramatic Clash-of-Clans style Battle Arena
+          showBattleArena.value = true;
+        }
         onChanged?.();
         await load();
       } else {
@@ -169,6 +178,7 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
     showBattleArena.value = false;
     showRewards.value = true;
   }
+
 
   // When a running upgrade's timer hits zero, refresh once to show the new level.
   let refreshing = false;
@@ -192,11 +202,12 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
     playState, campus, loading, playing, upgradingAsset,
     now, cooldownLeft, challengeLeft, coachingLevel,
     showMatchmaking, matchmakingSearching, matchedOpponent, opponentOptions,
-    showBattleArena, showRewards, matchResult,
+    showBattleArena, showRewards, matchResult, isQuickSim,
     snackbar, snackbarText, snackbarColor,
     load, startUpgrade, findMatch, selectOpponent, startBattle, finishBattle,
   };
 }
+
 
 
 /** m:ss, or h:mm:ss for an hour or more. */

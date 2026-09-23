@@ -36,6 +36,9 @@ const SIZE: Record<string, [number, number]> = {
   'l0-car-red': [78, 61],
   'l0-regulation-pitch': [470, 272],
   'l0-training-pen': [302, 204],
+  'l0-sign-billboard': [159, 215],
+  'l0-sign-poster': [79, 208],
+  'l0-sign-aframe': [129, 91],
 };
 
 export interface SpriteDef {
@@ -67,6 +70,10 @@ export interface HotspotDef {
   pin?: [number, number];
   /** Sprites per level tier: the last tier with `from` <= level is shown. */
   tiers: { from: number; sprites: SpriteDef[] }[];
+  /** Not a leveled ClubAssets facility - no upgrade economy, no "Lv N" pin
+   * badge, and its click is handled specially (see club-game.vue). Used for
+   * the Dugout, which opens the Team Sheet tactics editor directly. */
+  nonFacility?: boolean;
 }
 
 export const HOTSPOTS: HotspotDef[] = [
@@ -132,6 +139,13 @@ export const HOTSPOTS: HotspotDef[] = [
       },
     ],
   },
+  {
+    key: 'dugout',
+    title: 'Dugout',
+    icon: '📋',
+    nonFacility: true,
+    tiers: [{ from: 0, sprites: [{ img: 'l0-bench-short', x: 660, y: 500, w: 100 }] }],
+  },
 ];
 
 /** Scenery that isn't a facility (drawn under the facilities, not clickable). */
@@ -140,6 +154,36 @@ export const DECOR: SpriteDef[] = [
   { img: 'l0-car-red', x: 1190, y: 660, w: 72 },
   { img: 'l0-merch-stall', x: 940, y: 655, w: 100 },
   { img: 'l0-lamp-short', x: 1040, y: 565, w: 30 },
+];
+
+/**
+ * Club signage: real signboard props (cut from club-signage.png, the
+ * isometric stadium-signage sheet) with a blank panel that the club's real
+ * crest (SVG, /club-icons/{ClubCode}.svg - the same set used elsewhere in
+ * the app) is layered onto live, so the map carries the viewed club's own
+ * branding rather than one baked-in logo. Each sign type has its own panel
+ * inset (fraction of its own width/height, shrunk a little inside the
+ * white area to allow for the isometric skew). Placed in open lawn, clear
+ * of every hotspot/DECOR item above.
+ */
+export interface SignDef {
+  img: 'l0-sign-billboard' | 'l0-sign-poster' | 'l0-sign-aframe';
+  x: number;
+  y: number;
+  w: number;
+}
+export const SIGN_PANELS: Record<SignDef['img'], { left: number; top: number; width: number; height: number }> = {
+  'l0-sign-billboard': { left: 0.18, top: 0.13, width: 0.65, height: 0.45 },
+  'l0-sign-poster': { left: 0.32, top: 0.1, width: 0.37, height: 0.53 },
+  'l0-sign-aframe': { left: 0.17, top: 0.2, width: 0.59, height: 0.57 },
+};
+export const SIGNS: SignDef[] = [
+  // Gap between Medical Centre and Staff House - clear of the screen-fixed HUD panels.
+  { img: 'l0-sign-billboard', x: 700, y: 140, w: 100 },
+  // Open grass below the pitch, before the car park.
+  { img: 'l0-sign-poster', x: 600, y: 645, w: 55 },
+  // Beside the merch stall, near the car park.
+  { img: 'l0-sign-aframe', x: 1010, y: 610, w: 90 },
 ];
 
 export function placeSprite(s: SpriteDef): PlacedSprite {

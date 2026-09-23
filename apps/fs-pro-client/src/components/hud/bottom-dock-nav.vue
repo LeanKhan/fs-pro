@@ -16,53 +16,172 @@
       </v-btn>
     </v-card>
 
-    <v-btn
-      class="play-match-btn"
-      :class="{ pulsating: !isCooldown && !playing }"
-      size="x-large"
-      rounded="xl"
-      color="amber-darken-2"
-      variant="flat"
-      :disabled="isCooldown || playing"
-      :append-icon="!isCooldown && !playing ? 'mdi-chevron-right' : undefined"
-      @click="$emit('play-match')"
+    <!-- GitHub-style Split Play Match / Quick Sim Button -->
+    <div
+      class="split-btn-group d-flex align-center"
+      :class="{
+        pulsating: !isCooldown && !playing,
+        'is-cooldown': isCooldown,
+        'is-playing': playing
+      }"
     >
-      <span class="text-h6 mr-1">⚽</span>
-      <div class="d-flex flex-column align-start">
-        <span class="font-weight-black">
-          {{ isCooldown ? 'Squad Resting' : playing ? 'Matchmaking...' : 'Play Match' }}
-        </span>
-        <span v-if="isCooldown" class="text-caption font-weight-bold">{{ formatClock(cooldownSeconds) }}</span>
-      </div>
-    </v-btn>
+      <!-- Main Action Button -->
+      <v-btn
+        class="play-match-main-btn"
+        size="x-large"
+        :color="activeModeColor"
+        variant="flat"
+        :disabled="isCooldown || playing"
+        @click="$emit('play-match', selectedMode)"
+      >
+        <span class="text-h6 mr-2">{{ activeModeIcon }}</span>
+        <div class="d-flex flex-column align-start text-left">
+          <span class="font-weight-black line-height-1">
+            {{ isCooldown ? 'Squad Resting' : playing ? 'Matchmaking...' : activeModeTitle }}
+          </span>
+          <span v-if="isCooldown" class="text-caption font-weight-bold text-amber-lighten-3 mt-1">
+            {{ formatClock(cooldownSeconds) }}
+          </span>
+          <span v-else-if="!playing" class="text-caption text-medium-emphasis">
+            {{ activeModeSubtitle }}
+          </span>
+        </div>
+      </v-btn>
+
+      <!-- Attached Dropdown Caret Button (like GitHub Merge Button) -->
+      <v-menu v-model="menuOpen" location="top end" offset="8">
+        <template #activator="{ props: menuProps }">
+          <v-btn
+            v-bind="menuProps"
+            class="play-match-dropdown-btn"
+            size="x-large"
+            :color="activeModeColor"
+            variant="flat"
+            :disabled="isCooldown || playing"
+            icon="mdi-menu-down"
+          ></v-btn>
+        </template>
+
+        <!-- Dropdown Menu List -->
+        <v-card class="play-mode-menu pa-2 rounded-xl" min-width="290">
+          <div class="text-caption font-weight-bold text-medium-emphasis px-3 py-1">
+            MATCH SIMULATION MODE
+          </div>
+          <v-list density="compact" class="bg-transparent pa-0">
+            <v-list-item
+              v-for="mode in modes"
+              :key="mode.id"
+              class="rounded-lg mb-1 cursor-pointer"
+              :class="{ 'mode-active': selectedMode === mode.id }"
+              @click="onSelectMode(mode.id)"
+            >
+              <template #prepend>
+                <v-icon v-if="selectedMode === mode.id" color="amber" size="20" class="mr-2">
+                  mdi-check
+                </v-icon>
+                <span v-else class="mr-6"></span>
+              </template>
+              <v-list-item-title class="font-weight-bold d-flex align-center gap-1 text-white">
+                <span>{{ mode.icon }}</span>
+                <span>{{ mode.title }}</span>
+              </v-list-item-title>
+              <v-list-item-subtitle class="text-caption text-medium-emphasis mt-1">
+                {{ mode.desc }}
+              </v-list-item-subtitle>
+            </v-list-item>
+          </v-list>
+        </v-card>
+      </v-menu>
+    </div>
 
     <div class="dock-spacer"></div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed, ref } from 'vue';
+
+export type PlayMode = 'battle' | 'quick_sim';
+
 export interface NavTabItem {
   key: string;
   label: string;
   icon: string;
 }
 
-withDefaults(
+interface ModeOption {
+  id: PlayMode;
+  title: string;
+  subtitle: string;
+  icon: string;
+  color: string;
+  desc: string;
+}
+
+const props = withDefaults(
   defineProps<{
     currentTab?: string;
     isCooldown?: boolean;
     cooldownSeconds?: number;
     playing?: boolean;
+    initialMode?: PlayMode;
   }>(),
-  { currentTab: 'hq', isCooldown: false, cooldownSeconds: 0, playing: false }
+  {
+    currentTab: 'hq',
+    isCooldown: false,
+    cooldownSeconds: 0,
+    playing: false,
+    initialMode: 'battle',
+  }
 );
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'change-tab', key: string): void;
-  (e: 'play-match'): void;
+  (e: 'play-match', mode: PlayMode): void;
+  (e: 'change-play-mode', mode: PlayMode): void;
 }>();
 
-// Only tabs that go somewhere real (see club-game.vue's goManager tab map).
+const menuOpen = ref(false);
+
+const savedMode = (localStorage.getItem('fspro_play_mode') as PlayMode) || props.initialMode;
+const selectedMode = ref<PlayMode>(savedMode === 'quick_sim' ? 'quick_sim' : 'battle');
+
+const modes: ModeOption[] = [
+  {
+    id: 'battle',
+    title: 'Play Match',
+    subtitle: 'Live Battle Arena',
+    icon: '⚔️',
+    color: 'amber-darken-2',
+    desc: 'Watch match action, momentum swings, and use coaching staff boosts.',
+  },
+  {
+    id: 'quick_sim',
+    title: 'Quick Sim',
+    subtitle: 'Instant Simulation',
+    icon: '⚡',
+    color: 'teal-darken-2',
+    desc: 'Instantly simulate the fixture and claim rewards without watching.',
+  },
+];
+
+const currentModeConfig = computed(() => {
+  return modes.find((m) => m.id === selectedMode.value) || modes[0];
+});
+
+const activeModeTitle = computed(() => currentModeConfig.value.title);
+const activeModeSubtitle = computed(() => currentModeConfig.value.subtitle);
+const activeModeIcon = computed(() => currentModeConfig.value.icon);
+const activeModeColor = computed(() => currentModeConfig.value.color);
+
+function onSelectMode(mode: PlayMode) {
+  selectedMode.value = mode;
+  localStorage.setItem('fspro_play_mode', mode);
+  menuOpen.value = false;
+  emit('change-play-mode', mode);
+}
+
+// Tabs that hand off to the manager dashboard
 const navItems: NavTabItem[] = [
   { key: 'squad', label: 'Squad', icon: 'mdi-account-group' },
   { key: 'tactics', label: 'Tactics', icon: 'mdi-clipboard-text' },
@@ -92,22 +211,67 @@ function formatClock(totalSeconds: number) {
   pointer-events: none;
 }
 .nav-dock,
-.play-match-btn {
+.split-btn-group {
   pointer-events: auto;
 }
 .nav-tab {
   min-width: 64px;
 }
-.play-match-btn {
+
+/* Split Button Group Styling (GitHub style) */
+.split-btn-group {
+  border-radius: 18px;
   box-shadow: 0 6px 24px rgba(245, 158, 11, 0.45);
 }
-.play-match-btn.pulsating {
+
+.play-match-main-btn {
+  border-top-left-radius: 18px !important;
+  border-bottom-left-radius: 18px !important;
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  height: 52px !important;
+  padding: 0 20px !important;
+}
+
+.play-match-dropdown-btn {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  border-top-right-radius: 18px !important;
+  border-bottom-right-radius: 18px !important;
+  border-left: 1px solid rgba(0, 0, 0, 0.25) !important;
+  height: 52px !important;
+  min-width: 42px !important;
+  padding: 0 6px !important;
+}
+
+.split-btn-group.pulsating {
   animation: dock-pulse 2.4s infinite;
 }
+
+.play-mode-menu {
+  background: rgba(15, 23, 42, 0.98) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(16px);
+}
+
+.mode-active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.line-height-1 {
+  line-height: 1.1;
+}
+
 /* Balances the nav dock's width so the Play button stays centred. */
 .dock-spacer {
   width: 190px;
 }
+
 @keyframes dock-pulse {
   0% {
     box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6);
@@ -119,6 +283,7 @@ function formatClock(totalSeconds: number) {
     box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
   }
 }
+
 @media (max-width: 720px) {
   .dock-spacer {
     display: none;
@@ -126,8 +291,9 @@ function formatClock(totalSeconds: number) {
   .nav-tab .text-caption {
     display: none;
   }
-  .play-match-btn {
-    padding: 0 16px !important;
+  .play-match-main-btn {
+    padding: 0 12px !important;
   }
 }
 </style>
+

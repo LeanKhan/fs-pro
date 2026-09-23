@@ -213,16 +213,86 @@
                             </span>
                           </template>
                           <template v-else-if="season?.isStarted">
-                            <v-btn
-                              color="green-darken-1"
-                              variant="flat"
-                              class="font-weight-bold"
-                              prepend-icon="mdi-play"
-                              :to="`/matchzone/${selectedMatch._id}`"
-                            >
-                              {{ (selectedMatch.Home === club?.ClubCode || selectedMatch.Away === club?.ClubCode) ? 'Play Match' : 'Simulate / Watch' }}
-                            </v-btn>
+                            <div class="d-inline-flex align-center">
+                              <!-- Main action button -->
+                              <v-btn
+                                :color="selectedSimMode === 'quick' ? 'teal-darken-1' : 'green-darken-1'"
+                                variant="flat"
+                                class="font-weight-bold"
+                                :class="{ 'rounded-e-0': isMyClubMatch }"
+                                :prepend-icon="selectedSimMode === 'quick' ? 'mdi-lightning-bolt' : 'mdi-play'"
+                                :to="selectedSimMode === 'play' ? `/matchzone/${selectedMatch._id}` : undefined"
+                                :loading="quickSimLoading"
+                                @click="selectedSimMode === 'quick' ? onQuickSim(selectedMatch._id) : undefined"
+                              >
+                                {{ matchButtonLabel }}
+                              </v-btn>
+
+                              <!-- GitHub-style dropdown caret button -->
+                              <v-menu v-if="isMyClubMatch" location="bottom end" offset="4">
+                                <template #activator="{ props: menuProps }">
+                                  <v-btn
+                                    v-bind="menuProps"
+                                    :color="selectedSimMode === 'quick' ? 'teal-darken-2' : 'green-darken-2'"
+                                    variant="flat"
+                                    class="px-1 rounded-s-0 border-s"
+                                    style="min-width: 32px;"
+                                    :disabled="quickSimLoading"
+                                  >
+                                    <v-icon size="20">mdi-menu-down</v-icon>
+                                  </v-btn>
+                                </template>
+
+                                <v-card class="pa-2 rounded-lg bg-grey-darken-4" min-width="270">
+                                  <div class="text-caption font-weight-bold text-medium-emphasis px-3 py-1">
+                                    MATCH EXECUTION MODE
+                                  </div>
+                                  <v-list density="compact" class="bg-transparent pa-0">
+                                    <v-list-item
+                                      class="rounded mb-1 cursor-pointer"
+                                      :class="{ 'bg-grey-darken-3': selectedSimMode === 'play' }"
+                                      @click="selectedSimMode = 'play'"
+                                    >
+                                      <template #prepend>
+                                        <v-icon v-if="selectedSimMode === 'play'" color="green" size="18" class="mr-2">
+                                          mdi-check
+                                        </v-icon>
+                                        <span v-else class="mr-6"></span>
+                                      </template>
+                                      <v-list-item-title class="font-weight-bold d-flex align-center gap-1">
+                                        <v-icon size="16" color="green">mdi-play</v-icon>
+                                        Play Match
+                                      </v-list-item-title>
+                                      <v-list-item-subtitle class="text-caption text-medium-emphasis">
+                                        Open 2D Matchzone simulation &amp; replay
+                                      </v-list-item-subtitle>
+                                    </v-list-item>
+
+                                    <v-list-item
+                                      class="rounded cursor-pointer"
+                                      :class="{ 'bg-grey-darken-3': selectedSimMode === 'quick' }"
+                                      @click="selectedSimMode = 'quick'"
+                                    >
+                                      <template #prepend>
+                                        <v-icon v-if="selectedSimMode === 'quick'" color="teal" size="18" class="mr-2">
+                                          mdi-check
+                                        </v-icon>
+                                        <span v-else class="mr-6"></span>
+                                      </template>
+                                      <v-list-item-title class="font-weight-bold d-flex align-center gap-1">
+                                        <v-icon size="16" color="teal">mdi-lightning-bolt</v-icon>
+                                        Quick Sim Day
+                                      </v-list-item-title>
+                                      <v-list-item-subtitle class="text-caption text-medium-emphasis">
+                                        Simulate entire matchday &amp; advance to next day
+                                      </v-list-item-subtitle>
+                                    </v-list-item>
+                                  </v-list>
+                                </v-card>
+                              </v-menu>
+                            </div>
                           </template>
+
                         </v-col>
                       </v-row>
                     </v-card-text>
@@ -348,8 +418,13 @@
         </v-window-item>
       </v-window>
     </template>
+
+    <v-snackbar v-model="simSnackbar" :timeout="3500" :color="simSnackbarColor">
+      {{ simSnackbarText }}
+    </v-snackbar>
   </div>
 </template>
+
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
@@ -617,10 +692,77 @@ async function refresh() {
   }
 
   await Promise.all([
+    store.setCalendar(),
     queryClient.invalidateQueries({ queryKey: ['club', clubId.value] }),
     queryClient.invalidateQueries({ queryKey: ['club-league'] }),
     queryClient.invalidateQueries({ queryKey: ['club-season'] }),
     queryClient.invalidateQueries({ queryKey: ['club-fixtures'] }),
   ]);
 }
+
+watch(
+  () => calendar.value?.CurrentDay,
+  (curDay) => {
+    if (curDay == null) return;
+    const todayIdx = displayDays.value.findIndex((d) => d.Day === curDay);
+    if (todayIdx !== -1) {
+      selectedDayIndex.value = todayIdx;
+    }
+  }
+);
+
+// GitHub-style match execution mode (Play Match vs Quick Sim)
+const savedSimMode = (typeof localStorage !== 'undefined' && localStorage.getItem('fspro_sim_mode')) as 'play' | 'quick' | null;
+const selectedSimMode = ref<'play' | 'quick'>(savedSimMode === 'quick' ? 'quick' : 'play');
+watch(selectedSimMode, (val) => {
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('fspro_sim_mode', val);
+  }
+});
+const quickSimLoading = ref(false);
+const simSnackbar = ref(false);
+const simSnackbarText = ref('');
+const simSnackbarColor = ref('success');
+
+const isMyClubMatch = computed(() => {
+  if (!selectedMatch.value) return false;
+  const code = club.value?.ClubCode;
+  return selectedMatch.value.Home === code || selectedMatch.value.Away === code;
+});
+
+const matchButtonLabel = computed(() => {
+  if (selectedSimMode.value === 'quick') {
+    return 'Quick Sim Day';
+  }
+  return isMyClubMatch.value ? 'Play Match' : 'Simulate / Watch';
+});
+
+async function onQuickSim(fixtureId: string) {
+  if (!fixtureId || quickSimLoading.value) return;
+  quickSimLoading.value = true;
+  try {
+    const res = await client.game.kickoffNew.query({
+      params: { fixture: fixtureId },
+      query: { quick_sim: true, simulate_rest: true },
+    });
+    if (res.status === 200) {
+      simSnackbarText.value = 'Matchday simulated successfully! Advanced to the next day.';
+      simSnackbarColor.value = 'success';
+      simSnackbar.value = true;
+      await refresh();
+    } else {
+      simSnackbarText.value = (res.body as any)?.message || 'Failed to simulate matchday';
+      simSnackbarColor.value = 'error';
+      simSnackbar.value = true;
+    }
+  } catch (err: any) {
+    console.error('QuickSim failed:', err);
+    simSnackbarText.value = err?.message || 'Error running Quick Sim';
+    simSnackbarColor.value = 'error';
+    simSnackbar.value = true;
+  } finally {
+    quickSimLoading.value = false;
+  }
+}
 </script>
+
