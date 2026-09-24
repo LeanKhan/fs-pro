@@ -17,6 +17,7 @@ import { PlayerInterface, IPlayerAttributes } from '../../interfaces/Player';
 import { runSpawn } from '../../utils/scripts';
 import { titleCase } from '../../helpers/misc';
 import { nationalityIdForCulture } from '../../services/nationality';
+import { getAssetEffects } from '../../services/facilities/facilities.service';
 
 /** Recompute every active signed Player's Attributes/Rating/Value for
  * `year` (appending to RatingsHistory), then age everyone up. Plain
@@ -80,13 +81,28 @@ export async function updateAllPlayerDetailsForYear(year: string) {
       .map((p) => [p.player._id, p.points])
   );
 
+  // Training Ground's growth bonus is per-club - fetch each distinct club's
+  // multiplier once up front (getAssetEffects hits the DB) rather than once
+  // per player.
+  const distinctClubIds = [
+    ...new Set(activePlayers.map((p) => (p as unknown as PlayerInterface).ClubId).filter(Boolean)),
+  ] as string[];
+  const trainingMultiplierByClub = new Map(
+    await Promise.all(
+      distinctClubIds.map(
+        async (id) => [id, (await getAssetEffects(id)).trainingGrowthMultiplier ?? 1] as const
+      )
+    )
+  );
+
   const toDo: any[] = [];
   activePlayers.forEach((p) => {
     const player = p as unknown as PlayerInterface;
     const old_rating = player.Rating;
     const old_value = player.Value;
 
-    const training = applyTrainingGrowth(player);
+    const growthMultiplier = player.ClubId ? trainingMultiplierByClub.get(player.ClubId) ?? 1 : 1;
+    const training = applyTrainingGrowth(player, growthMultiplier);
     let new_rating = training.new_rating;
     let new_value = training.new_value;
 

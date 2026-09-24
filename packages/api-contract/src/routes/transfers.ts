@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { PlayerSchema } from '../schemas/player';
 import { ClubSchema } from '../schemas/club';
 import { successEnvelope, failEnvelope } from '../schemas/envelope';
-import { TransferOfferSchema, TransferWindowSchema } from '../schemas/transfer';
+import { ScoutedTargetSchema, TransferOfferSchema, TransferWindowSchema } from '../schemas/transfer';
 import { booleanQuery } from '../schemas/query';
 
 const c = initContract();
@@ -176,6 +176,20 @@ export const transfersContract = c.router(
           })
         ),
         400: failEnvelope(),
+        404: failEnvelope(),
+      },
+    },
+
+    /** Scouting Department facility feature: a shortlist of AI-recommended
+     * transfer targets, length gated by the club's Scouting level. Separate
+     * from scoutPlayerTransfer above, which stays an on-demand deep report
+     * for a player you've already picked (from here or anywhere else). */
+    getScoutedShortlist: {
+      method: 'GET',
+      path: '/scouted-shortlist/:clubId',
+      pathParams: z.object({ clubId: z.string() }),
+      responses: {
+        200: successEnvelope(z.array(ScoutedTargetSchema)),
         404: failEnvelope(),
       },
     },

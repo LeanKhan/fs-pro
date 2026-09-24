@@ -2,6 +2,7 @@ import { getClubs } from '../controllers/clubs/club.service';
 import { resolveManagerTactic } from '../controllers/managers/manager.service';
 import { ITactic } from '../simulation/state/PersistentState/Formations';
 import { SimulateMatchRequest } from './simulationContract';
+import { moodRatingBonus } from '../services/world/club-standing.service';
 
 /**
  * Milestone 9 - the clubs-fetch + tactics-resolve-if-not-prefetched logic
@@ -24,7 +25,11 @@ export async function buildSimulateMatchRequest(
     fixtureType?: string;
     stage?: string;
     isKnockout?: boolean;
-  }
+  },
+  /** Small home-side Rating nudge for this match only (see PlayOptions in
+   * game.controller.ts) - applied to the plain club JSON below, never
+   * persisted to the database. */
+  homeRatingBonus?: number
 ): Promise<SimulateMatchRequest> {
   // `withPlayersAndManager` populates Players (needed for the match
   // roster) - ManagerId stays a bare id regardless (see IClubReadOptions).
@@ -47,6 +52,21 @@ export async function buildSimulateMatchRequest(
   // this crosses the worker_thread boundary (workerData is structured
   // clone, not every Mongoose-lean() field survives that cleanly).
   const plainClubs = JSON.parse(JSON.stringify(clubs));
+
+  // Squad morale + form: a bounded per-side nudge (+/-1.75, see
+  // world/club-standing.service.ts), on top of the home facility bonus.
+  const mood = await moodRatingBonus([home, away]);
+  const nudge = (clubId: string, bonus: number) => {
+    if (!bonus) return;
+    const club = plainClubs.find((c: any) => c._id?.toString() === clubId);
+    if (!club) return;
+    club.Rating = (club.Rating ?? 0) + bonus;
+    for (const p of club.Players ?? []) {
+      p.Rating = (p.Rating ?? 0) + bonus;
+    }
+  };
+  nudge(home, (homeRatingBonus ?? 0) + (mood.get(home) ?? 0));
+  nudge(away, mood.get(away) ?? 0);
 
   return {
     fixtureId,

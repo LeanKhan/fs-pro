@@ -15,6 +15,12 @@ import { PlayerMatchDetailsInterface } from '../player-match/player-match.model'
 import { createClubMatch } from '../club-match/club-match.service';
 import { PlayerFitnessService } from '../../services/players/player-fitness.service';
 import { getClubById, updateClubFields } from '../clubs/club.service';
+import { getAssetEffects } from '../../services/facilities/facilities.service';
+import {
+  applyMatchResult,
+  attendanceFill,
+  ensureStanding,
+} from '../../services/world/club-standing.service';
 
 interface Team {
   id: string;
@@ -64,7 +70,7 @@ export async function updateFixture(
   //  { _id: fixture_id, Played: false }, TODO - Change back to this!
   //  Find that particular fixture that has not been played of course...
 
-  const savePlayerAndClubStats = async (club: IMatchSideDetails) => {
+  const savePlayerAndClubStats = async (club: IMatchSideDetails, teamId?: string) => {
     // ClubMatchDetails is created first (with an empty PlayerStats) so each
     // PlayerMatchDetails row can set its own ClubMatchDetails FK back to it
     // - the reverse FK Postgres uses instead of a PlayerStats array (that
@@ -80,9 +86,10 @@ export async function updateFixture(
     const clubMatchId = clubMatch._id;
 
     if (saveStats) {
-      // Apply player fitness loss and in-match injury rolls
+      // Apply player fitness loss and in-match injury rolls (modulated by team's Medical Centre)
       await PlayerFitnessService.applyMatchFatigueAndInjuries(
-        club.PlayerStats as PlayerMatchDetailsInterface[]
+        club.PlayerStats as PlayerMatchDetailsInterface[],
+        teamId
       );
 
       club.PlayerStats = club.PlayerStats.map((p: any) => ({
@@ -108,19 +115,35 @@ export async function updateFixture(
   };
 
   const [homeMatchDetailsID, awayMatchDetailsID] = await Promise.all([
-    savePlayerAndClubStats(HomeSideDetails),
-    savePlayerAndClubStats(AwaySideDetails),
+    savePlayerAndClubStats(HomeSideDetails, home.id),
+    savePlayerAndClubStats(AwaySideDetails, away.id),
   ]);
 
   // Home team matchday attendance and gate receipts
   try {
     const homeClub = await getClubById(home.id);
     if (homeClub) {
-      const stadiumCapacity = Number((homeClub.Stadium as any)?.Capacity) || 20000;
-      const attendance = Math.round(stadiumCapacity * (0.65 + 0.3 * Math.random()));
+      // Capacity comes from the club's Stands level (services/facilities);
+      // how much of it fills comes from the fanbase, form going into this
+      // match and the opponent's pull (world/club-standing.service.ts).
+      const stadiumCapacity = (await getAssetEffects(home.id)).capacity;
+      const [homeStanding, awayStanding] = await Promise.all([
+        ensureStanding(home.id),
+        ensureStanding(away.id),
+      ]);
+      const attendance = Math.round(
+        stadiumCapacity *
+          attendanceFill({
+            fans: homeStanding.Fans,
+            capacity: stadiumCapacity,
+            form: homeStanding.Form,
+            opponentReputation: awayStanding.Reputation,
+          })
+      );
       const ticketPrice = 28;
       const matchdayRevenue = attendance * ticketPrice;
-      const matchdayCosts = Math.round(attendance * 6 + 10000);
+      // Per-head running costs plus ground upkeep that grows with stadium size.
+      const matchdayCosts = Math.round(attendance * 6 + 1000 + stadiumCapacity * 0.5);
       const netProfit = matchdayRevenue - matchdayCosts;
 
       const currentBudget = homeClub.Budget ?? 1000000;
@@ -139,6 +162,7 @@ export async function updateFixture(
         fixtureId: fixture_id,
         date: new Date(),
         attendance,
+        capacity: stadiumCapacity,
         revenue: matchdayRevenue,
         costs: matchdayCosts,
         net: netProfit,
@@ -152,6 +176,20 @@ export async function updateFixture(
     }
   } catch (e) {
     console.error('Error applying matchday financials:', e);
+  }
+
+  // The one seam where results move the world: fans, reputation, board
+  // confidence, form and squad morale for both clubs. League matchdays and
+  // PLAY matches both pass through here - don't call it anywhere else.
+  try {
+    await applyMatchResult(
+      home.id,
+      away.id,
+      Number((MatchDetails as any).HomeTeamScore ?? HomeSideDetails.Goals ?? 0),
+      Number((MatchDetails as any).AwayTeamScore ?? AwaySideDetails.Goals ?? 0)
+    );
+  } catch (e) {
+    console.error('Error applying club standing:', e);
   }
 
   return {
