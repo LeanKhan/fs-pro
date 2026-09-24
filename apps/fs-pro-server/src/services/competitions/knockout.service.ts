@@ -448,7 +448,7 @@ async function settleTie(
     await tx
       .update(fixtures)
       .set({
-        Details: { ...(fresh!.Details ?? {}), Tie: outcome },
+        Details: { ...fresh!.Details, Tie: outcome },
         updatedAt: new Date(),
       })
       .where(eq(fixtures.id, last.id));
@@ -583,7 +583,7 @@ export async function getBracket(seasonId: string, stageIndex?: number) {
   ).filter((l) => l.title === 'Bye' && l.stageIndex === index);
 
   const rounds: BracketRound[] = [];
-  for (const r of [...new Set(rows.map((f) => f.Round!))]) {
+  for (const r of new Set(rows.map((f) => f.Round!))) {
     const ties = tiesOf(rows.filter((f) => f.Round === r)).map((legs) => {
       const pairing = pairingOf(legs);
       const tie = (
