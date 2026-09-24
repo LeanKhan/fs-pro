@@ -173,8 +173,6 @@ async function dbChecks() {
       Type: 'League',
       CompetitionCode: tag,
       CompetitionID: tag,
-      NumberOfTeams: 0,
-      NumberOfWeeks: 0,
       Stages: [{ type: 'league', days: 30, rules: { minGamesToRank: 1 } }],
       WinCondition: { type: 'first-to', metric: 'wins', target: 2 },
       Rewards: {

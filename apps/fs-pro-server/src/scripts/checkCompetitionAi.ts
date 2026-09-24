@@ -176,8 +176,6 @@ async function dbChecks() {
       Type: 'League',
       CompetitionCode: 'AIL',
       CompetitionID: 'AIL',
-      NumberOfTeams: 0,
-      NumberOfWeeks: 0,
       Entry: { mode: 'open', minClubs: 4, maxClubs: 6, entryFee: 100 },
       Stages: [
         {

@@ -555,7 +555,9 @@ export class QuickSimResolver {
 
     const details: IMatchDetails = {
       Title: `${homeClub.Name} vs ${awayClub.Name}`,
-      LeagueName: homeClub.LeagueCode ?? '',
+      // Clubs have no single league in open play; the fixture carries its
+      // competition (Fixtures.LeagueCode).
+      LeagueName: '',
       Draw: isDraw,
       Played: true,
       Time: new Date(),

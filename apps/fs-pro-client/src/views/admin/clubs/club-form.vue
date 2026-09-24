@@ -122,6 +122,20 @@
 
                     <v-select
                       color="amber-darken-1"
+                      label="Campus layout"
+                      :items="[
+                        { title: 'City', value: 'city' },
+                        { title: 'Coastal', value: 'coastal' },
+                        { title: 'Hillside', value: 'hillside' },
+                      ]"
+                      hint="Only moves the campus scene and plots, never the facilities"
+                      persistent-hint
+                      class="mb-2"
+                      v-model="form.CampusLayout"
+                    ></v-select>
+
+                    <v-select
+                      color="amber-darken-1"
                       label="Country"
                       :items="countries"
                       item-title="Name"

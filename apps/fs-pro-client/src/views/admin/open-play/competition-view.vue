@@ -83,23 +83,63 @@
               :status="selected.status"
             />
             <v-table v-else density="compact">
-              <thead><tr><th>Club</th><th>Status</th><th class="text-right">Fee paid</th></tr></thead>
+              <thead><tr><th>Club</th><th>Status</th><th class="text-right">Fee paid</th><th /></tr></thead>
               <tbody>
                 <tr v-for="en in selected.entries" :key="en.clubId">
                   <td>{{ en.clubName }}</td>
                   <td><v-chip size="x-small" :color="STATUS_COLORS[en.status]">{{ en.status }}</v-chip></td>
                   <td class="text-right">{{ money(en.feePaid) }}</td>
+                  <td class="text-right">
+                    <v-btn
+                      v-if="['registered', 'invited'].includes(en.status)"
+                      size="x-small"
+                      variant="text"
+                      color="red-lighten-2"
+                      :loading="busy"
+                      @click="removeEntry(en.clubId)"
+                    >
+                      Remove
+                    </v-btn>
+                  </td>
                 </tr>
-                <tr v-if="!selected.entries.length"><td colspan="3" class="text-center text-medium-emphasis">No entries</td></tr>
+                <tr v-if="!selected.entries.length"><td colspan="4" class="text-center text-medium-emphasis">No entries</td></tr>
               </tbody>
             </v-table>
           </v-card>
-          <div v-else class="text-medium-emphasis text-center py-8">Pick an edition, or create one.</div>
+          <v-card v-if="selected && challenges.length" class="pa-3 mt-4">
+            <div class="text-subtitle-1 font-weight-bold mb-2">Challenges</div>
+            <v-table density="compact">
+              <thead>
+                <tr><th>Match</th><th>Status</th><th class="text-right">Answer by</th><th class="text-right">Day</th><th /></tr>
+              </thead>
+              <tbody>
+                <tr v-for="c in challenges" :key="c.id">
+                  <td>{{ dir.name(c.homeClubId) }} vs {{ dir.name(c.awayClubId) }}</td>
+                  <td><v-chip size="x-small" :color="STATUS_COLORS[c.played ? 'played' : (c.status ?? '')]">{{ c.played ? 'played' : c.status }}</v-chip></td>
+                  <td class="text-right">{{ c.status === 'proposed' ? c.respondBy : '' }}</td>
+                  <td class="text-right">{{ c.scheduledDay ?? '' }}</td>
+                  <td class="text-right">
+                    <v-btn
+                      v-if="!c.played && ['proposed', 'accepted'].includes(c.status ?? '')"
+                      size="x-small"
+                      variant="text"
+                      color="red-lighten-2"
+                      :loading="busy"
+                      @click="cancelChallenge(c)"
+                    >
+                      Cancel
+                    </v-btn>
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
+          </v-card>
+          <div v-if="!selected" class="text-medium-emphasis text-center py-8">Pick an edition, or create one.</div>
         </v-col>
       </v-row>
     </template>
 
-    <v-dialog v-model="newDialog" max-width="480">
+    <v-dialog v-model="newDialog" max-width="760">
       <v-card>
         <v-card-title>New edition</v-card-title>
         <v-card-text>
@@ -107,6 +147,13 @@
           <v-text-field v-model.number="draft.registrationOpensDay" type="number" label="Registration opens (day)" density="compact" variant="outlined" />
           <v-text-field v-model.number="draft.registrationClosesDay" type="number" label="Registration closes (day)" density="compact" variant="outlined" />
           <v-text-field v-model.number="draft.startDay" type="number" label="Starts (day)" density="compact" variant="outlined" />
+          <div class="text-caption text-medium-emphasis mb-1">Other editions around these days (registration light, play solid):</div>
+          <edition-timeline
+            :editions="allEditions"
+            :today="today"
+            :days="Math.max(45, draft.startDay - today + 30)"
+            :draft="{ title: `${competition?.name ?? 'New'} (new)`, ...draft }"
+          />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -121,9 +168,10 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import type { CompetitionSummary, Edition, EditionDetail, EditionListItem, WorldSettings } from '@repo/api-contract';
+import type { CompetitionSummary, Edition, EditionDetail, EditionListItem, MatchChallenge, WorldSettings } from '@repo/api-contract';
 import StageTimeline from '@/components/open-play/stage-timeline.vue';
 import EditionStandings from '@/components/open-play/edition-standings.vue';
+import EditionTimeline from '@/components/open-play/edition-timeline.vue';
 import { client } from '@/services/api';
 import { unwrap } from '@/store/open-play';
 import { STATUS_COLORS, formatSummary, money, useClubDirectory } from '@/helpers/open-play';
@@ -132,7 +180,9 @@ const route = useRoute();
 const dir = useClubDirectory();
 const competition = ref<CompetitionSummary | null>(null);
 const editions = ref<EditionListItem[]>([]);
+const allEditions = ref<EditionListItem[]>([]);
 const selected = ref<EditionDetail | null>(null);
+const challenges = ref<MatchChallenge[]>([]);
 const error = ref<string | null>(null);
 const busy = ref(false);
 const newDialog = ref(false);
@@ -169,8 +219,33 @@ async function load() {
 }
 async function select(id: string) {
   selected.value = unwrap<EditionDetail>(await client.editions.get.query({ params: { id } }));
+  try {
+    challenges.value = unwrap<MatchChallenge[]>(await client.challenges.forEdition.query({ params: { editionId: id } }));
+  } catch {
+    challenges.value = [];
+  }
 }
-function openNew() {
+async function removeEntry(clubId: string) {
+  if (!selected.value) return;
+  const id = selected.value.id;
+  const ok = await run(async () => unwrap(await client.editions.withdraw.mutation({ params: { id, clubId }, body: {} })));
+  if (ok) await select(id);
+}
+async function cancelChallenge(c: MatchChallenge) {
+  if (!selected.value) return;
+  const id = selected.value.id;
+  const clubId = c.homeClubId ?? c.awayClubId ?? '';
+  const ok = await run(async () =>
+    unwrap(await client.challenges.respond.mutation({ params: { fixtureId: c.id, action: 'cancel' }, body: { clubId } }))
+  );
+  if (ok) await select(id);
+}
+async function openNew() {
+  try {
+    allEditions.value = unwrap<EditionListItem[]>(await client.editions.list.query({ query: {} }));
+  } catch {
+    allEditions.value = [];
+  }
   Object.assign(draft, { registrationOpensDay: today.value + 1, registrationClosesDay: today.value + 7, startDay: today.value + 8 });
   newDialog.value = true;
 }

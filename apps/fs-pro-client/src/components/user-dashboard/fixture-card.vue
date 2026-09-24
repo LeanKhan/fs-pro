@@ -1,12 +1,11 @@
 <template>
   <v-card height="300px">
     <v-card-subtitle>
-      {{ Match.LeagueCode }}
-      <v-icon size="small" color="amber-lighten-3">mdi-trophy</v-icon>
+      <v-chip size="x-small" color="amber" variant="tonal" prepend-icon="mdi-trophy">{{ fixtureStageLabel(Match) }}</v-chip>
     </v-card-subtitle>
     <p class="mb-0 mt-0 text-caption">
-      Week
-      {{ Match.Week }}
+      <template v-if="Match.ScheduledDay != null">Day {{ Match.ScheduledDay }}</template>
+      <template v-if="!Match.Played && Match.PlayBy != null"> · play by day {{ Match.PlayBy }}</template>
     </p>
 
     <v-card-text class="text-center">
@@ -25,7 +24,11 @@
           <v-icon size="36">custom:{{ Match.Home }}</v-icon>
         </v-avatar>
 
-        <div v-if="Match.Played && Match.Details" class="mx-3">
+        <div v-if="isForfeit(Match)" class="mx-3">
+          <div class="text-h6 font-weight-bold text-red-lighten-2">Forfeit</div>
+          <v-chip size="x-small" color="red">3 - 0</v-chip>
+        </div>
+        <div v-else-if="Match.Played && Match.Details" class="mx-3">
           <div class="text-h5 font-weight-bold text-amber-lighten-2">
             {{ Match.Details.HomeTeamScore }} : {{ Match.Details.AwayTeamScore }}
           </div>
@@ -89,6 +92,7 @@
 <script setup lang="ts">
 import type { Fixture } from '@repo/api-contract';
 import WorldLink from '@/components/world/WorldLink.vue';
+import { fixtureStageLabel, isForfeit } from '@/helpers/open-play';
 
 interface Props {
   Match: Fixture;

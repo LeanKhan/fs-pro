@@ -40,6 +40,10 @@ export const EntrySchema = z.object({
   group: z.string().nullable(),
   feePaid: z.number(),
   eliminatedAtStage: z.number().nullable(),
+  /** Set when the edition finishes: final Rank (or round reached) and the
+   * board's finish score. */
+  finalPosition: z.number().nullable().optional(),
+  finishScore: z.number().nullable().optional(),
 });
 
 export const EditionDetailSchema = EditionSchema.extend({

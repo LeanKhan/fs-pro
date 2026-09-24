@@ -10,13 +10,16 @@
       <v-card>
         <v-toolbar>
           <v-toolbar-title>
-            <template v-if="season && clubLeague">
+            <template v-if="runningEntries.length">
               <v-icon size="x-large">custom:{{ club.ClubCode }}</v-icon>
               <v-chip
+                v-for="en in runningEntries"
+                :key="en.seasonId"
                 size="small"
                 class="ml-1 text-subtitle-1 font-weight-bold text-white"
+                :to="`/u/competitions/${en.seasonId}`"
               >
-                {{ clubLeague.Name }}
+                {{ en.edition.title }}
               </v-chip>
             </template>
           </v-toolbar-title>
@@ -213,7 +216,7 @@
                               Stats &amp; 2D Replay
                             </span>
                           </template>
-                          <template v-else-if="season?.isStarted">
+                          <template v-else-if="runningEntries.length">
                             <div class="d-inline-flex align-center">
                               <!-- Main action button -->
                               <v-btn
@@ -362,15 +365,30 @@
               <v-card color="deep-purple" class="mt-3">
                 <v-progress-linear v-if="isSeasonLoading" indeterminate />
 
-                <template v-else-if="season">
-                  <v-card-title>{{ season.CompetitionCode }}</v-card-title>
+                <template v-else-if="runningEntries.length">
+                  <v-tabs v-model="standingsTab" density="compact" show-arrows>
+                    <v-tab v-for="en in runningEntries" :key="en.seasonId" :value="en.seasonId">
+                      {{ en.edition.title }}
+                    </v-tab>
+                  </v-tabs>
                   <v-card-text>
-                    <standings-scroller :standings="season.Standings ?? []" />
+                    <v-window v-model="standingsTab">
+                      <v-window-item v-for="en in runningEntries" :key="en.seasonId" :value="en.seasonId">
+                        <edition-standings
+                          :edition-id="en.seasonId"
+                          :definition="en.edition.definition"
+                          :current-stage="en.edition.currentStage"
+                          :status="en.edition.status"
+                          :highlight-club-id="club._id"
+                          compact
+                        />
+                      </v-window-item>
+                    </v-window>
                   </v-card-text>
                 </template>
 
                 <template v-else>
-                  <v-card-text>No season yet :/</v-card-text>
+                  <v-card-text>Not playing in any competition right now.</v-card-text>
                 </template>
               </v-card>
             </v-col>
@@ -380,7 +398,6 @@
                 :club="club"
                 :selected-match="selectedMatch"
                 :selected-day="selectedDay"
-                :season="season"
                 :is-my-club="isMyClub"
               />
             </v-col>
@@ -446,10 +463,11 @@ import {
   ChallengesZone,
 } from './zones';
 import DayScroll from '@/components/calendar/day-scroll.vue';
-import StandingsScroller from '@/components/seasons/standings-scroller.vue';
+import EditionStandings from '@/components/open-play/edition-standings.vue';
+import { unwrap, type ClubEntry } from '@/store/open-play';
 import GeneralMediaCard from '@/components/media/general-media-card.vue';
 
-import type { Club, Competition, Fixture, Season } from '@repo/api-contract';
+import type { Club, Fixture } from '@repo/api-contract';
 import type { IDayGroup } from '@/interfaces/calendar';
 import { client } from '@/services/api';
 import { groupFixturesByDay } from '@/helpers/calendar';
@@ -508,65 +526,25 @@ const isMyClub = computed(() => {
   );
 });
 
-const clubLeagueQuery = useQuery({
-  queryKey: computed(() => ['club-league', club.value?.LeagueId]),
-  queryFn: async () => {
-    const leagueId = club.value?.LeagueId;
-
-    if (!leagueId) {
-      throw new Error('Club league not loaded');
-    }
-
-    const response = await client.competitions.getCompetitions.query({
-      query: { id: leagueId },
-    });
-
-    if (response.status !== 200) {
-      throw new Error(response.body.message);
-    }
-
-    return response.body.payload[0] ?? null;
-  },
-  enabled: computed(() => !!club.value?.LeagueId),
+// The club's competitions: every running edition it is entered in.
+const entriesQuery = useQuery({
+  queryKey: computed(() => ['club-entries', club.value?._id]),
+  queryFn: async () =>
+    unwrap<ClubEntry[]>(await client.editions.clubEntries.query({ params: { clubId: String(club.value!._id) } })),
+  enabled: computed(() => !!club.value?._id),
 });
-
-const clubLeague = computed<Competition | null>(() => {
-  return clubLeagueQuery.data.value ?? null;
-});
-
-const seasonQuery = useQuery({
-  queryKey: computed(() => ['club-season', club.value?.LeagueId]),
-  queryFn: async () => {
-    const leagueId = club.value?.LeagueId;
-
-    if (!leagueId) {
-      throw new Error('Club league not loaded');
-    }
-
-    const response = await client.seasons.getSeasons.query({
-      query: {
-        competition: leagueId,
-        current: true,
-      },
-    });
-
-    if (response.status !== 200) {
-      throw new Error(response.body.message);
-    }
-
-    return response.body.payload[0] ?? null;
-  },
-  enabled: computed(() => !!club.value?.LeagueId),
-});
-
-const season = computed<Season | null>(() => seasonQuery.data.value ?? null);
-const isSeasonLoading = computed(() => seasonQuery.isLoading.value);
+const runningEntries = computed(() =>
+  (entriesQuery.data.value ?? []).filter(
+    (e) => e.edition.status === 'running' && ['active', 'registered', 'eliminated'].includes(e.status)
+  )
+);
+const standingsTab = ref<string | null>(null);
+const isSeasonLoading = computed(() => entriesQuery.isLoading.value);
 
 const fixturesQuery = useQuery({
   queryKey: computed(() => [
     'club-fixtures',
     club.value?.ClubCode,
-    season.value?._id,
     calendar.value?.CurrentDay ?? 0,
   ]),
   queryFn: async () => {
@@ -576,7 +554,7 @@ const fixturesQuery = useQuery({
 
     const response = await client.fixtures.getFixtures.query({
       query: {
-        season: season.value?._id,
+        club: club.value?.ClubCode,
         scheduledDayFrom: from,
         scheduledDayTo: to,
         light: true,
@@ -700,7 +678,7 @@ async function refresh() {
     store.setCalendar(),
     queryClient.invalidateQueries({ queryKey: ['club', clubId.value] }),
     queryClient.invalidateQueries({ queryKey: ['club-league'] }),
-    queryClient.invalidateQueries({ queryKey: ['club-season'] }),
+    queryClient.invalidateQueries({ queryKey: ['club-entries'] }),
     queryClient.invalidateQueries({ queryKey: ['club-fixtures'] }),
   ]);
 }

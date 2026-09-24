@@ -17,7 +17,7 @@ import { buildFinaleStory, buildTransferStory } from './story-copy.service';
 import { generateCycleNews } from './cycle-news.service';
 import { generateStandingNews } from './standing-news.service';
 import { generateResultsNews } from './results-news.service';
-import { compileStandings } from '../../utils/seasons';
+import { editionStandings, type StandingLine } from '../competitions/ranking.service';
 
 const COMPETITION_NAMES: Record<string, string> = {
   EBSL: 'Epson Bellean Second League',
@@ -135,24 +135,17 @@ export class MediaHubService {
       });
       const isAllPlayed =
         seasonFixtures.length > 0 && seasonFixtures.every((f) => f.Played);
-      isSeasonConcluded =
-        targetSeason.isFinished === true ||
-        targetSeason.Status === 'ended' ||
-        targetSeason.Status === 'completed' ||
-        isAllPlayed;
+      isSeasonConcluded = targetSeason.Status === 'finished' || isAllPlayed;
     }
+    const finalTable = isSeasonConcluded && targetSeason ? await editionStandings(targetSeason.id) : [];
 
     // === CASE 1: SEASON CONCLUDED -> BROADCAST SEASON FINALE & CHAMPIONS ===
-    if (
-      isSeasonConcluded &&
-      targetSeason &&
-      Array.isArray(targetSeason.Standings) &&
-      targetSeason.Standings.length > 0
-    ) {
+    if (isSeasonConcluded && targetSeason && finalTable.length > 0) {
       return withCycleNews(
         await MediaHubService.generateSeasonFinaleFeed({
           db,
           targetSeason,
+          table: finalTable,
           targetCompCode,
           compDisplayName,
           currentClub,
@@ -186,6 +179,7 @@ export class MediaHubService {
   private static async generateSeasonFinaleFeed(ctx: {
     db: any;
     targetSeason: any;
+    table: StandingLine[];
     targetCompCode: string;
     compDisplayName: string;
     currentClub: any;
@@ -195,13 +189,14 @@ export class MediaHubService {
     const {
       db,
       targetSeason,
+      table,
       compDisplayName,
       currentClub,
       formattedDate,
       isMyClubChannel,
     } = ctx;
 
-    const compiled = compileStandings(targetSeason.Standings as any);
+    const compiled = table;
     if (!compiled || compiled.length === 0) {
       return [];
     }
@@ -247,7 +242,7 @@ export class MediaHubService {
     const userRow = userRankIdx >= 0 ? compiled[userRankIdx] : null;
 
     const items: MediaItem[] = [];
-    const seasonYear = targetSeason.Year || '2027';
+    const seasonYear: string = targetSeason.Title || targetSeason.SeasonCode || '';
     const isUserChampion = userRank === 1;
 
     const nameRows: any[] = await db.query.clubs.findMany({
@@ -304,7 +299,7 @@ export class MediaHubService {
         {
           label: 'View Final Standings',
           action: 'view_standings',
-          to: '/league',
+          to: `/finish/edition/${targetSeason.id}`,
           icon: 'mdi-trophy',
           color: 'amber-accent-4',
         },

@@ -92,10 +92,6 @@ const headers = ref<any[]>([
     text: 'Last Name',
     value: 'LastName',
   },
-  {
-    text: 'League',
-    value: 'Club.LeagueCode',
-  },
   { text: 'Club', value: 'Club' },
   { text: 'Country', value: 'Nationality.Name', filterable: false },
   {

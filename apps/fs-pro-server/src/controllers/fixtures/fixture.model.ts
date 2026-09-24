@@ -15,7 +15,6 @@ export interface Fixture {
   SeasonId: string;
   Played: boolean;
   PlayedAt: Date;
-  Week: number;
   Home: string;
   Away: string;
   HomeTeamId: string;

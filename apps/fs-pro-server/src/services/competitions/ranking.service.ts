@@ -443,3 +443,67 @@ export async function initStageRows(
 }
 
 export const RankingService = { applyResult, getStageTable, initStageRows };
+
+/** One club's line in a flat standings list (news, media, legacy views). */
+export interface StandingLine {
+  ClubID: string;
+  ClubCode: string;
+  Position: number;
+  Rank: number | null;
+  Group: string | null;
+  Points: number;
+  Played: number;
+  Wins: number;
+  Draws: number;
+  Losses: number;
+  GF: number;
+  GA: number;
+  GD: number;
+}
+
+/**
+ * An edition's table as one flat list, best first: the current stage (or
+ * the last league/groups stage before a knockout), groups in order, ranked
+ * clubs before unranked ones. Empty for an edition with no league or groups
+ * stage. Replaces the old week-table `compileStandings`.
+ */
+export async function editionStandings(seasonId: string): Promise<StandingLine[]> {
+  const [season] = await db()
+    .select()
+    .from(seasons)
+    .where(eq(seasons.id, seasonId));
+  if (!season) return [];
+  const stages = season.Definition?.Stages ?? [];
+  let stageIndex = Math.min(season.CurrentStage, Math.max(0, stages.length - 1));
+  while (stageIndex > 0 && stages[stageIndex]?.type === 'knockout') stageIndex--;
+  if (!stages[stageIndex] || stages[stageIndex]!.type === 'knockout') return [];
+
+  const table = await getStageTable(seasonId, stageIndex);
+  const flat = table.groups.flatMap((g) => g.rows.map((r) => ({ ...r, group: g.group })));
+  flat.sort(
+    (a, b) =>
+      Number(a.rank == null) - Number(b.rank == null) ||
+      (a.rank ?? 0) - (b.rank ?? 0) ||
+      (a.group ?? '').localeCompare(b.group ?? '')
+  );
+  const ids = flat.map((r) => r.row.ClubId);
+  const codes = ids.length
+    ? await db().select({ id: clubs.id, code: clubs.ClubCode }).from(clubs).where(inArray(clubs.id, ids))
+    : [];
+  const codeOf = Object.fromEntries(codes.map((c) => [c.id, c.code]));
+  return flat.map((r, i) => ({
+    ClubID: r.row.ClubId,
+    ClubCode: codeOf[r.row.ClubId] ?? '',
+    Position: i + 1,
+    Rank: r.rank,
+    Group: r.group,
+    Points: r.row.Points,
+    Played: r.row.Played,
+    Wins: r.row.Wins,
+    Draws: r.row.Draws,
+    Losses: r.row.Losses,
+    GF: r.row.GF,
+    GA: r.row.GA,
+    GD: r.row.GD,
+  }));
+}

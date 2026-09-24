@@ -3,7 +3,6 @@
  */
 
 export interface IModels {
-  Competition: any;
   Player: any;
   Season: any;
   Club: any;

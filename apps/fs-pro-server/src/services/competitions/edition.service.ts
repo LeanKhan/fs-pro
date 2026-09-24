@@ -718,7 +718,6 @@ export async function startEdition(seasonId: string): Promise<Season> {
         Status: 'running',
         CurrentStage: 0,
         StageStartedDay: today,
-        isStarted: true,
         updatedAt: new Date(),
       })
       .where(eq(seasons.id, seasonId));
@@ -1098,7 +1097,6 @@ export async function finish(
       .update(seasons)
       .set({
         Status: 'finished',
-        isFinished: true,
         EndDay: today,
         WinnerId: winnerId,
         updatedAt: new Date(),

@@ -40,7 +40,7 @@ function toManager(
         }
       : {}),
     // Only present when `options.withClub` was passed - mirrors the
-    // `.populate('Club', 'Name ClubCode LeagueCode')` projection the raw
+    // `.populate('Club', 'Name ClubCode')` projection the raw
     // Mongo path used, so it's a narrower object than a full Club record.
     ...(club
       ? {
@@ -48,7 +48,6 @@ function toManager(
             _id: club.id,
             Name: club.Name,
             ClubCode: club.ClubCode,
-            LeagueCode: club.LeagueCode,
           },
         }
       : {}),

@@ -2,7 +2,7 @@
 
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
-import { SeasonSchema, ClubStandingsSchema } from '../schemas/season';
+import { SeasonSchema, StandingLineSchema } from '../schemas/season';
 import { FixtureSchema } from '../schemas/fixture';
 import { successEnvelope, failEnvelope } from '../schemas/envelope';
 import { booleanQuery } from '../schemas/query';
@@ -11,15 +11,12 @@ const c = initContract();
 
 export const seasonsContract = c.router(
   {
-    // The real client filters are Year, Competition, and `current` (a
-    // competition's in-progress season - isStarted && !isFinished, there's
-    // only ever one at a time) - the previous arbitrary `?query={...}`
-    // JSON blob had no other caller.
+    // Seasons are open-play editions. Filters: competition, and `current`
+    // (open for entry or running).
     getSeasons: {
       method: 'GET',
       path: '/',
       query: z.object({
-        year: z.string().optional(),
         competition: z.string().optional(),
         current: booleanQuery().optional(),
       }),
@@ -41,19 +38,6 @@ export const seasonsContract = c.router(
       },
     },
 
-    getCurrentSeasonsForYear: {
-      method: 'GET',
-      path: '/:year/current',
-      pathParams: z.object({
-        year: z.string(),
-      }),
-      responses: {
-        200: successEnvelope(z.array(SeasonSchema)),
-        400: failEnvelope(),
-        404: failEnvelope(),
-      },
-    },
-
     getSeason: {
       method: 'GET',
       path: '/:id',
@@ -67,6 +51,8 @@ export const seasonsContract = c.router(
       },
     },
 
+    /** An edition's table as one flat list, best first (see
+     * ranking.service.ts's editionStandings). */
     getSeasonStandings: {
       method: 'GET',
       path: '/:id/standings',
@@ -74,7 +60,7 @@ export const seasonsContract = c.router(
         id: z.string(),
       }),
       responses: {
-        200: successEnvelope(z.array(ClubStandingsSchema)),
+        200: successEnvelope(z.array(StandingLineSchema)),
         400: failEnvelope(),
         404: failEnvelope(),
       },

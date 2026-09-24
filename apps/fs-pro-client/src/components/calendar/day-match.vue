@@ -1,7 +1,7 @@
 <template>
   <v-list-item>
     <v-list-item size="20px" color="amber" avatar>
-      {{ match ? `Week ${match.Week}` : 'No Match :P' }}
+      {{ match ? `Day ${match.ScheduledDay ?? '—'}` : 'No Match :P' }}
     </v-list-item>
     <v-list-item-title class="text-caption">
       {{ match ? `${match.Home} vs ${match.Away}` : 'No Match :P' }}

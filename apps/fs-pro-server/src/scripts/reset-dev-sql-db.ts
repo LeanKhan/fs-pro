@@ -15,7 +15,6 @@ const TABLES = [
   'Seasons',
   'Days',
   'Calendars',
-  'CompetitionClubs',
   'Clubs',
   'Competitions',
   'Managers',

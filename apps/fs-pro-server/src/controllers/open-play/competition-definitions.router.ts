@@ -76,7 +76,6 @@ function columns(def: ReturnType<typeof buildDefinition> & { ok: true }, type?: 
     Rewards: d.Rewards,
     Outcomes: d.Outcomes ?? null,
     Recurrence: d.Recurrence ?? null,
-    NumberOfTeams: d.Entry.maxClubs ?? 0,
     updatedAt: new Date(),
   };
 }
@@ -131,7 +130,7 @@ export const competitionDefinitionTsRestRoutes = s.router(contract.competitionDe
     if (clash) return { status: 409 as const, body: { success: false as const, message: `Code ${code} is taken` } };
     const [row] = await db()
       .insert(competitions)
-      .values({ ...columns(built, body.Type), CompetitionCode: code, CompetitionID: code, NumberOfWeeks: 0 })
+      .values({ ...columns(built, body.Type), CompetitionCode: code, CompetitionID: code })
       .returning();
     return { status: 201 as const, body: { success: true as const, message: 'Competition created', payload: (await summaries([row!]))[0]! } };
   },

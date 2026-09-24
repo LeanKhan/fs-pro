@@ -10,6 +10,7 @@ import { tickNow } from '../../services/calendar/calendar-clock.service';
 import { endYear } from '../../services/world/year.service';
 import { getPerformance } from '../../services/world/performance.service';
 import { accessDenied, isAdmin } from '../auth/club-access';
+import { emitOpenPlay } from '../../realtime/open-play-events';
 
 /** World settings and the open-play year (docs/OPEN-PLAY-COMPETITIONS-SPEC.md). */
 
@@ -126,6 +127,7 @@ export const worldTsRestRoutes = s.router(contract.world, {
     if (access !== 'ok') return accessDenied(access);
     try {
       const summary = await endYear();
+      if (summary) emitOpenPlay('world:year-ended', { year: summary.year, label: summary.label });
       if (!summary) {
         return {
           status: 409 as const,

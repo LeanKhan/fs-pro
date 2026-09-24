@@ -72,7 +72,7 @@
           </thead>
           <tbody>
             <tr v-for="en in pastEntries" :key="en.seasonId">
-              <td><router-link :to="`/u/competitions/${en.seasonId}`">{{ en.edition.title }}</router-link></td>
+              <td><router-link :to="en.edition.status === 'finished' ? `/finish/edition/${en.seasonId}` : `/u/competitions/${en.seasonId}`">{{ en.edition.title }}</router-link></td>
               <td>{{ en.edition.status }}</td>
               <td>
                 <v-icon v-if="en.edition.winnerId === store.clubId" color="amber" size="16">mdi-trophy</v-icon>
@@ -170,5 +170,6 @@ async function leave(id: string) {
 onMounted(() => store.start());
 // Eligibility needs the club id, which arrives with the user.
 watch(() => store.clubId, () => void load(), { immediate: true });
+watch(() => store.editionsVersion, () => void load());
 onUnmounted(() => store.stop());
 </script>

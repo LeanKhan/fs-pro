@@ -4,7 +4,7 @@
     <div class="d-flex align-center gap-2 flex-wrap">
       <!-- 1. Competition Pill -->
       <div class="ticker-pill d-flex align-center">
-        <v-icon size="small" color="indigo-lighten-3" class="mr-2">mdi-shield-outline</v-icon>
+        <v-icon size="small" color="indigo-lighten-3" class="mr-2">mdi-stairs</v-icon>
         <span class="font-weight-bold">{{ competitionName }}</span>
         <span class="text-caption text-medium-emphasis ml-1">{{ seasonYear }}</span>
       </div>
@@ -132,6 +132,8 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from '@/store';
 import { client } from '@/services/api';
+import { useOpenPlayStore } from '@/store/open-play';
+import { levelForXp, useClubDirectory } from '@/helpers/open-play';
 
 defineProps<{
   socketConnected?: boolean;
@@ -168,17 +170,17 @@ const avatarUrl = computed(() => {
   return 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80';
 });
 
+// The club's Level and the world year (open play has no single league).
+const openPlay = useOpenPlayStore();
+const directory = useClubDirectory();
 const competitionName = computed(() => {
-  return userClub.value?.LeagueCode || 'Premier Division';
+  const club = directory.get(openPlay.clubId);
+  return club ? `Level ${levelForXp(club.XP ?? 0, openPlay.settings?.levelThresholds)}` : 'Open play';
 });
 
 const seasonYear = computed(() => {
-  const curDate = calendar.value?.CurrentDate;
-  if (curDate) {
-    const y = new Date(curDate).getFullYear();
-    return `${y}/${(y + 1).toString().slice(-2)}`;
-  }
-  return '2026/27';
+  const s = openPlay.settings;
+  return s ? `Year ${s.currentYear} · ${s.dayOfYear}/${s.yearLengthDays}` : '';
 });
 
 const formattedBudget = computed(() => {
@@ -297,6 +299,7 @@ async function fetchWorldNews() {
 }
 
 onMounted(() => {
+  openPlay.start();
   fetchWorldNews();
   tickerTimer = setInterval(() => {
     currentTickerIndex.value = (currentTickerIndex.value + 1) % tickerItems.value.length;
@@ -304,6 +307,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  openPlay.stop();
   if (tickerTimer) clearInterval(tickerTimer);
 });
 </script>

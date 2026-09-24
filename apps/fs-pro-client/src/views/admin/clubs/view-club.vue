@@ -92,8 +92,8 @@
               </div>
 
               <div class="text-h6">
-                <span class="text-subtitle-1 text-grey">League:</span>
-                {{ club.LeagueCode }}
+                <span class="text-subtitle-1 text-grey">Elo:</span>
+                {{ Math.round(club.Elo ?? 1500) }} · XP {{ club.XP ?? 0 }}
               </div>
 
               <div class="text-h6" v-if="club.AddressCountry">

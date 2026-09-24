@@ -29,6 +29,11 @@ export function registerIO(io: Server): void {
   log('Match-replay Socket.IO namespace registered');
 }
 
+/** The server, or undefined in scripts and checks that never registered it. */
+export function getIO(): Server | undefined {
+  return ioInstance;
+}
+
 export function getMatchReplayNamespace(): Namespace {
   if (!ioInstance) {
     throw new Error(

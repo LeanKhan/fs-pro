@@ -572,12 +572,16 @@ Each day, for each AI club (`Clubs.UserId` null):
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET / POST / PATCH | `/competitions`, `/competitions/:id` | Admin CRUD of definitions (validated). *Not built yet.* |
+| GET / POST | `/competition-definitions`, `/competition-definitions/validate` | Admin: list, create (validated, defaults filled); validate without saving. |
+| GET / PUT | `/competition-definitions/:id` | Admin: read, update a definition. |
+| POST | `/competition-definitions/:id/archive` | Admin: archive or restore. |
 | GET | `/editions?status=&competitionId=&eligibleFor=:clubId` | Browse editions; `eligibleFor` adds that club's eligibility and reasons. |
 | POST | `/editions` | Admin: create a draft `{ competitionId, registrationOpensDay, registrationClosesDay, startDay }`. |
 | GET | `/editions/:id` | Edition overview with entries. |
 | POST | `/editions/:id/status/publish` \| `cancel` | Admin: publish (snapshots the definition) or cancel. |
 | POST | `/editions/:id/invite` | Admin: invite clubs. |
+| GET | `/challenges/edition/:editionId` | Admin: every challenge in an edition. |
+| GET | `/seasons/:id/standings` | An edition's table as one flat list (news, matchzone). |
 | GET | `/editions/:id/eligibility/:clubId` | Can this club enter now, and if not, why. |
 | POST / DELETE | `/editions/:id/entries/:clubId` | Register (or accept an invite) / withdraw (or decline an invite). Own club only. Refused with a 409 and the reasons. |
 | GET | `/editions/:id/rankings?stage=` | Stage table(s), ranked/unranked split, groups. |
@@ -602,22 +606,21 @@ routes. User-auth checks: a user acts only for their own club
 
 New components in `src/components/open-play/`.
 
-**Status (build step 10).** Built: `store/open-play.ts` (club entries,
-challenges, world settings and performance; polls every minute and on window
-focus, in place of the socket events below), every component in "New
-components" (the builder steps are `builder/stage-editor.vue` and
-`builder/position-list.vue`, with entry, win condition and rewards inline in
-`views/admin/open-play/competition-builder.vue`; brackets render in the new
-`bracket-view.vue`; `edition-standings.vue` picks table or bracket for a
-stage), the admin builder, competitions list and edition view
-(`views/admin/open-play/`), World settings (`world-settings-card.vue` in
-`calendar.vue`), the user Competitions and edition pages
-(`views/user/competitions/`), dashboard, challenges zone and performance zone.
-Legacy season admin screens are deleted. Not yet: socket events, the year
-calendar rebuild, fixture-card stage chips, the edition-finished screen,
-history page, friendly-setup hint, owner-zone board confidence, the edition
-timeline and board targets per Level in World settings, and the new-edition
-mini calendar.
+**Status (build step 10): done.** `store/open-play.ts` holds the club's
+entries, challenges, world settings and performance, kept fresh by the
+socket events below (with a 5-minute poll and a refresh on window focus as
+fallback). Every component in "New components" exists (builder steps:
+`builder/stage-editor.vue`, `builder/position-list.vue`, the rest inline in
+`views/admin/open-play/competition-builder.vue`; brackets in
+`bracket-view.vue`; `edition-standings.vue` picks table or bracket), plus
+`edition-timeline.vue`. Admin: builder, competitions list, competition page
+(editions, publish/cancel, invite/remove entries, cancel challenges, new
+edition dialog with the timeline), World settings (`world-settings-card.vue`:
+year, windows, entry cap, Levels and board targets, default rules, timeline).
+User: Competitions and edition pages, `/finish/edition/:id`, dashboard,
+challenges zone, performance and owner zones (board confidence vs the Level
+target), year calendar, year history with past entries, fixture cards with
+stage chips and forfeits, friendly-setup hint.
 
 ### Admin
 
@@ -663,8 +666,8 @@ mini calendar.
 
 ### Realtime
 
-Socket.IO (`realtime/io.ts`) → new Pinia store `store/competitions.ts`
-(replacing the placeholder in `store/socket.ts`):
+Socket.IO default namespace (`realtime/open-play-events.ts`, emitted from
+the world day loop and the edition/challenge routes) → `store/open-play.ts`:
 
 - `edition:updated` (registration opened/closed, started, stage changed,
   round drawn, finished, cancelled)
@@ -673,7 +676,8 @@ Socket.IO (`realtime/io.ts`) → new Pinia store `store/competitions.ts`
 - `world:day`, `world:year-ended`
 - `club:level-changed`
 
-Without sockets, poll on dashboard focus.
+Payloads carry ids only; screens refetch. Without sockets, the store polls
+every 5 minutes and on window focus.
 
 ### States to design for
 
@@ -739,18 +743,23 @@ Done (build step 9):
   pyramid (`pyramid.service.ts`, `pyramid-config.ts`), the old prize-money
   service (prizes are paid by `finish`).
 
-Still to do, after the data script has run on every database and the UI
-(step 10) no longer shows the old screens:
+Done after step 10 (migration `0031_drop_scheduled_seasons.sql`, run with
+`run-0031-migration.ts`, which refuses until every competition and season
+has been converted by the data script; that script lives on in commit
+9560529, see the runner's comment):
 
-- Drop `Seasons.Standings/Year/Promoted/Relegated/isStarted/isFinished`,
+- Dropped `Seasons.Standings/Year/Promoted/Relegated/isStarted/isFinished`,
   `Competitions.League/Cup/Tournament/Division/NumberOfTeams/NumberOfWeeks/
   TeamsPromoted/TeamsRelegated/CountryId/Tier/Pod`, `Fixtures.Week`,
   `Clubs.LeagueId/LeagueCode` and the `CompetitionClubs` table.
-- Remove their remaining readers: `compileStandings` and its users (media
-  stories, season standings route), `getCurrentSeasonsForYear`, the
-  competition add-club route.
+- Removed their readers: `compileStandings` (news, media and the season
+  standings route now use `editionStandings` in `ranking.service.ts`),
+  `getCurrentSeasonsForYear`, the legacy `/competitions` API (competitions
+  are `/competition-definitions`), the club-league middleware, the
+  one-off data and asset backfill scripts.
 - Client: `standings-component.vue`, `standings-scroller.vue`,
-  `group-stage-view.vue` and the admin season-cycle buttons.
+  `group-stage-view.vue`, `knockout-bracket.vue`, `all-competitions.vue`,
+  `seasons-table.vue`, `end-of-season.vue` and the season-cycle buttons.
 
 ## Build order
 

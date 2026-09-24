@@ -124,7 +124,6 @@ async function main() {
     '_id',
     'ManagerId',
     'AddressCountryId',
-    'LeagueId',
     'UserId',
     'NationalityId',
     'createdAt',
@@ -160,8 +159,6 @@ async function main() {
       Type: 'League',
       CompetitionCode: 'FOUR',
       CompetitionID: 'FOUR',
-      NumberOfTeams: 0,
-      NumberOfWeeks: 0,
       Entry: { mode: 'open', minClubs: 4, maxClubs: 4 },
       Stages: [
         {

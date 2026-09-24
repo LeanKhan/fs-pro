@@ -347,7 +347,7 @@ export async function listOffers(
     const activeSeasons = await db()
       .select({ id: seasons.id, StartDate: seasons.StartDate })
       .from(seasons)
-      .where(eq(seasons.isFinished, false));
+      .where(inArray(seasons.Status, ['registration', 'running']));
 
     if (activeSeasons.length > 0) {
       const minStart = new Date(Math.min(...activeSeasons.map((s) => s.StartDate.getTime())));

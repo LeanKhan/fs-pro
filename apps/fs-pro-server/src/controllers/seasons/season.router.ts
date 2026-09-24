@@ -7,8 +7,7 @@ import type {
 
 import { getSeasons, getSeasonById, deleteSeasonById } from './season.service';
 import { getFixtures } from '../fixtures/fixture.service';
-import { getCurrentSeasonsForYear } from './season.controller';
-import { compileStandings } from '../../utils/seasons';
+import { editionStandings } from '../../services/competitions/ranking.service';
 
 const s = initServer();
 
@@ -17,17 +16,12 @@ function fail(err: unknown) {
 }
 
 export const seasonTsRestRoutes = s.router(contract.seasons, {
-  /** The real client filters are Year, Competition, and `current` (a
-   * competition's in-progress season - isStarted && !isFinished, there's
-   * only ever one at a time). */
+  /** Filters: competition, and `current` (open for entry or running). */
   getSeasons: async ({ query }) => {
     try {
-      const seasons = await getSeasons({
-        Year: query.year,
-        CompetitionId: query.competition,
-      });
+      const seasons = await getSeasons({ CompetitionId: query.competition });
       const filtered = query.current
-        ? seasons.filter((season) => season.isStarted && !season.isFinished)
+        ? seasons.filter((season) => ['registration', 'running'].includes(season.Status))
         : seasons;
       const sorted = [...filtered].sort((a, b) =>
         a.CompetitionCode.localeCompare(b.CompetitionCode)
@@ -76,35 +70,6 @@ export const seasonTsRestRoutes = s.router(contract.seasons, {
     }
   },
 
-  getCurrentSeasonsForYear: async ({ params }) => {
-    try {
-      const seasons = await getCurrentSeasonsForYear(params.year);
-      if (seasons.length === 0) {
-        return {
-          status: 404,
-          body: { success: false, message: 'No Seasons found!' },
-        };
-      }
-      return {
-        status: 200,
-        body: {
-          success: true,
-          message: 'Found seasons',
-          payload: seasons as unknown as ContractSeason[],
-        },
-      };
-    } catch (err) {
-      return {
-        status: 400,
-        body: {
-          success: false,
-          message: 'Failed to get seasons \n ' + fail(err),
-          payload: fail(err),
-        },
-      };
-    }
-  },
-
   getSeason: async ({ params }) => {
     try {
       const season = await getSeasonById(params.id);
@@ -115,10 +80,7 @@ export const seasonTsRestRoutes = s.router(contract.seasons, {
         };
       }
 
-      const payload = {
-        ...season,
-        CompiledStandings: compileStandings(season.Standings),
-      };
+      const payload = season;
 
       return {
         status: 200,
@@ -150,7 +112,7 @@ export const seasonTsRestRoutes = s.router(contract.seasons, {
         };
       }
 
-      const standings = compileStandings(season.Standings);
+      const standings = await editionStandings(params.id);
       return {
         status: 200,
         body: {

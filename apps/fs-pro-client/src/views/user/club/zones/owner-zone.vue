@@ -126,6 +126,9 @@
                 class="mt-1"
               ></v-progress-linear>
               <span class="text-caption font-weight-bold">{{ boardConfidence }}%</span>
+              <div v-if="board" class="text-caption text-medium-emphasis">
+                Score {{ board.score.toFixed(2) }} vs target {{ board.expected.toFixed(2) }} for Level {{ board.level }}
+              </div>
             </v-col>
             <v-col cols="6">
               <div class="text-caption text-medium-emphasis">Fan Approval</div>
@@ -205,8 +208,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
+import type { PerformanceView } from '@repo/api-contract';
 import { currency } from '@/helpers/misc';
+import { client } from '@/services/api';
+import { unwrap } from '@/store/open-play';
 import { ManagerPicker, ManagerFirer } from '@/components/clubzone';
 import FacilitiesPanel from './facilities-panel.vue';
 import PlayPanel from './play-panel.vue';
@@ -251,7 +257,22 @@ const matchHistory = computed(() => {
   return Array.isArray(props.club?.Finances?.history) ? props.club.Finances.history : [];
 });
 
-// Both moved by every result on the server (world/club-standing.service.ts).
+// Board confidence moves with form after every result
+// (world/club-standing.service.ts) and with each finished competition
+// against the target for the club's Level (world/performance.service.ts).
+const board = ref<PerformanceView | null>(null);
+watch(
+  () => props.club?._id,
+  async (id) => {
+    if (!id) return;
+    try {
+      board.value = unwrap<PerformanceView>(await client.world.performance.query({ params: { clubId: String(id) }, query: {} }));
+    } catch {
+      board.value = null;
+    }
+  },
+  { immediate: true }
+);
 const boardConfidence = computed(() => Number(props.club?.BoardConfidence ?? 60));
 
 const fanApproval = computed(() => {

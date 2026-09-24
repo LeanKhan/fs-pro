@@ -157,8 +157,6 @@ async function dbChecks() {
       Type: 'Cup',
       CompetitionCode: 'ELITE',
       CompetitionID: 'ELITE',
-      NumberOfTeams: 0,
-      NumberOfWeeks: 0,
       Entry: { mode: 'invite', minClubs: 2, maxClubs: null },
       Stages: [{ type: 'league', days: 10 }],
       updatedAt: now,
@@ -172,8 +170,6 @@ async function dbChecks() {
       Type: 'League',
       CompetitionCode: 'RUMBLE',
       CompetitionID: 'RUMBLE',
-      NumberOfTeams: 0,
-      NumberOfWeeks: 0,
       Entry: {
         mode: 'open',
         minClubs: 4,
@@ -226,8 +222,6 @@ async function dbChecks() {
       Type: 'Cup',
       CompetitionCode: 'BROKEN',
       CompetitionID: 'BROKEN',
-      NumberOfTeams: 0,
-      NumberOfWeeks: 0,
       Stages: [
         {
           type: 'knockout',
@@ -646,8 +640,6 @@ async function dbChecks() {
       Type: 'League',
       CompetitionCode: 'RACE',
       CompetitionID: 'RACE',
-      NumberOfTeams: 0,
-      NumberOfWeeks: 0,
       Entry: { mode: 'open', minClubs: 2, maxClubs: null },
       Stages: [{ type: 'league', days: 30, rules: { minGamesToRank: 1 } }],
       WinCondition: { type: 'first-to', metric: 'wins', target: 2 },

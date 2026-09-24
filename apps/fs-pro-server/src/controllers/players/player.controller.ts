@@ -36,7 +36,7 @@ import { getAssetEffects } from '../../services/facilities/facilities.service';
  * active signed Player (getPlayers), not just getPlayerStats(year)'s
  * match-stats aggregation as before - a player who never took the pitch
  * still gets their club's training. */
-export async function updateAllPlayerDetailsForYear(year: string, range?: DayRange) {
+export async function updateAllPlayerDetailsForYear(year: string, range: DayRange) {
   const updPlayer = async (data: {
     player_id: string;
     attributes: IPlayerAttributes;
@@ -71,7 +71,7 @@ export async function updateAllPlayerDetailsForYear(year: string, range?: DayRan
   };
 
   const [agg, activePlayers] = await Promise.all([
-    getPlayerStats(year, range),
+    getPlayerStats(range),
     getPlayers({ isSigned: true }),
   ]);
   console.log('agg', agg.length, 'activePlayers', activePlayers.length);

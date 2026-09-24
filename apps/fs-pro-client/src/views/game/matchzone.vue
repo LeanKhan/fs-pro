@@ -557,7 +557,7 @@ async function getFixture() {
 // Editions finish themselves when their last stage ends (open play); this
 // just takes the manager to the competition page.
 function finishSeason() {
-  router.push(fixture.value.SeasonId ? `/u/competitions/${fixture.value.SeasonId}` : '/u');
+  router.push(fixture.value.SeasonId ? `/finish/edition/${fixture.value.SeasonId}` : '/u');
 }
 
 async function playGame() {

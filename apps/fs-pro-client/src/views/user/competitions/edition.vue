@@ -207,6 +207,12 @@ async function leave() {
 }
 
 watch([() => route.params.id, () => store.clubId], () => void load());
+watch(
+  () => store.editionsVersion,
+  () => {
+    if (store.touchedEditions.has(String(route.params.id))) void load();
+  }
+);
 onMounted(() => {
   store.start();
   void load();

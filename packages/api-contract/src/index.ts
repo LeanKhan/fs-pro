@@ -6,7 +6,6 @@ import { clubsContract } from './routes/clubs';
 import { metaContract } from './routes/meta';
 import { fixturesContract } from './routes/fixtures';
 import { playersContract } from './routes/players';
-import { competitionsContract } from './routes/competitions';
 import { managersContract } from './routes/managers';
 import { calendarContract } from './routes/calendar';
 import { placesContract } from './routes/places';
@@ -33,7 +32,6 @@ export const apiContract = c.router({
   meta: metaContract,
   fixtures: fixturesContract,
   players: playersContract,
-  competitions: competitionsContract,
   managers: managersContract,
   calendar: calendarContract,
   places: placesContract,
@@ -54,8 +52,7 @@ export type { Club } from './schemas/club';
 export type { DbStatus } from './schemas/meta';
 export type { Fixture } from './schemas/fixture';
 export type { Player, PlayerAttributes } from './schemas/player';
-export type { Competition } from './schemas/competition';
-export type { Season, ClubStandings, WeekStandings } from './schemas/season';
+export type { Season, ClubStandings, StandingLine } from './schemas/season';
 export type { Manager, ManagerClubRef } from './schemas/manager';
 export type { Calendar, Day, WorldFeed, WorldFeedHeadline } from './schemas/calendar';
 export type { Place } from './schemas/place';

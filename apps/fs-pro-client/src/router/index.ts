@@ -238,13 +238,14 @@ const routes: RouteRecordRaw[] = [
         name: 'MatchZone',
       },
       {
-        path: '/finish/season/:season_id',
+        path: '/finish/edition/:id',
         component: () =>
           import(
-            /* webpackChunkName: "finish_season" */ '../views/misc/end-of-season.vue'
+            /* webpackChunkName: "finish_edition" */ '../views/misc/edition-finished.vue'
           ),
-        name: 'Finish Season',
+        name: 'Edition Finished',
       },
+      { path: '/finish/season/:id', redirect: (to) => `/finish/edition/${to.params.id}` },
       {
         path: '/finish/year/:year',
         component: () =>

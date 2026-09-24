@@ -1,14 +1,13 @@
 import { z } from 'zod';
 import { PlaceSchema } from './place';
 
-/** Narrowed to _id/Name/ClubCode/LeagueCode when populated as the Manager
+/** Narrowed to _id/Name/ClubCode when populated as the Manager
  * on a fetched Club, or as the Club on a fetched Manager - see the
  * server's IManagerReadOptions/IClubReadOptions. NOT the full ClubSchema. */
 export const ManagerClubRefSchema = z.object({
   _id: z.string(),
   Name: z.string(),
   ClubCode: z.string(),
-  LeagueCode: z.string().nullable().optional(),
 });
 
 // Verified against real GET /managers?populate=Club responses.

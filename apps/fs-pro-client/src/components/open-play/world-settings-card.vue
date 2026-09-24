@@ -51,12 +51,36 @@
         </v-col>
         <v-col cols="6" md="4"><v-text-field v-model.number="review.promoteCount" type="number" label="Promote per Level" density="compact" variant="outlined" :disabled="!review.enabled" /></v-col>
         <v-col cols="6" md="4"><v-text-field v-model.number="review.relegateCount" type="number" label="Relegate per Level" density="compact" variant="outlined" :disabled="!review.enabled" /></v-col>
+        <v-col cols="12">
+          <v-text-field
+            v-model="targetsText"
+            label="Board target per Level (score 0–1, comma separated, from Level 0)"
+            density="compact"
+            variant="outlined"
+            hint="What the board expects from a club's performance score at each Level. Blank = built-in curve."
+            persistent-hint
+          />
+        </v-col>
+      </v-row>
+
+      <div class="text-subtitle-2 mt-4 mb-1">Default league rules</div>
+      <div class="text-caption text-medium-emphasis mb-2">Used by every league or group stage that doesn't set its own.</div>
+      <v-row dense>
+        <v-col cols="6" md="3">
+          <v-select v-model="rules.metric" :items="metricItems" label="Ranked by" density="compact" variant="outlined" clearable />
+        </v-col>
+        <v-col v-for="f in RULE_FIELDS" :key="f.key" cols="6" md="3">
+          <v-text-field v-model.number="rules[f.key]" type="number" :label="f.label" density="compact" variant="outlined" clearable />
+        </v-col>
       </v-row>
 
       <div class="d-flex justify-end ga-2 mt-2">
         <span v-if="message" class="text-caption align-self-center" :class="failed ? 'text-red' : 'text-teal'">{{ message }}</span>
         <v-btn color="teal" variant="flat" :loading="busy === 'save'" @click="save">Save world settings</v-btn>
       </div>
+
+      <div class="text-subtitle-2 mt-4 mb-1">Timeline</div>
+      <edition-timeline :editions="editions" :today="settings.currentDay" :days="90" />
     </v-card-text>
 
     <v-dialog v-model="confirmEnd" max-width="420">
@@ -78,8 +102,10 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
-import type { WorldDayReport, WorldSettings, WorldSettingsPatch, YearEndSummary } from '@repo/api-contract';
+import type { Edition, WorldDayReport, WorldSettings, WorldSettingsPatch, YearEndSummary } from '@repo/api-contract';
 import YearProgress from './year-progress.vue';
+import EditionTimeline from './edition-timeline.vue';
+import { METRIC_LABELS } from '@/helpers/open-play';
 import { client } from '@/services/api';
 import { unwrap } from '@/store/open-play';
 
@@ -97,6 +123,21 @@ const form = reactive({ yearLengthDays: 365, maxConcurrentEntries: 3, autoRollov
 const xp = reactive({ win: 30, draw: 15, loss: 5 });
 const review = reactive({ enabled: false, promoteCount: 0, relegateCount: 0 });
 const thresholdsText = ref('');
+const targetsText = ref('');
+const editions = ref<Edition[]>([]);
+const metricItems = Object.entries(METRIC_LABELS).map(([value, title]) => ({ value, title }));
+type RuleKey = 'minGamesToRank' | 'maxVsSameOpponent' | 'rematchCooldownDays' | 'challengeRange' | 'respondWithinDays' | 'maxOpenChallenges' | 'minDeclinesBeforeForfeit';
+const RULE_FIELDS: { key: RuleKey; label: string }[] = [
+  { key: 'minGamesToRank', label: 'Games to be ranked' },
+  { key: 'maxVsSameOpponent', label: 'Max vs same club' },
+  { key: 'rematchCooldownDays', label: 'Rematch cooldown (days)' },
+  { key: 'challengeRange', label: 'Challenge range (ranks)' },
+  { key: 'respondWithinDays', label: 'Days to answer' },
+  { key: 'maxOpenChallenges', label: 'Open challenges per club' },
+  { key: 'minDeclinesBeforeForfeit', label: 'Declines before forfeit' },
+];
+const rules = reactive<Record<string, number | string | null | undefined>>({});
+const numbers = (text: string) => text.split(/[\s,]+/).filter(Boolean).map(Number);
 
 async function load() {
   loading.value = true;
@@ -112,6 +153,10 @@ async function load() {
     if (s.xpPerMatch) Object.assign(xp, s.xpPerMatch);
     if (s.levelReview) Object.assign(review, s.levelReview);
     thresholdsText.value = s.levelThresholds?.join(', ') ?? '';
+    targetsText.value = s.levelTargets?.join(', ') ?? '';
+    for (const k of Object.keys(rules)) delete rules[k];
+    Object.assign(rules, s.defaultRules ?? {});
+    editions.value = unwrap<Edition[]>(await client.editions.list.query({ query: {} }));
   } catch (err) {
     failed.value = true;
     message.value = err instanceof Error ? err.message : String(err);
@@ -129,11 +174,17 @@ async function save() {
   busy.value = 'save';
   try {
     const t = thresholdsText.value.trim();
+    const g = targetsText.value.trim();
+    const defaultRules = Object.fromEntries(
+      Object.entries(rules).filter(([, v]) => v !== null && v !== undefined && v !== '' && !Number.isNaN(v))
+    );
     const patch: WorldSettingsPatch = {
       ...form,
       xpPerMatch: { ...xp },
       levelReview: { ...review },
-      levelThresholds: t ? t.split(/[\s,]+/).filter(Boolean).map(Number) : null,
+      levelThresholds: t ? numbers(t) : null,
+      levelTargets: g ? numbers(g) : null,
+      defaultRules: Object.keys(defaultRules).length ? (defaultRules as WorldSettingsPatch['defaultRules']) : null,
     };
     settings.value = unwrap<WorldSettings>(await client.world.updateSettings.mutation({ body: patch }));
     report('Saved');

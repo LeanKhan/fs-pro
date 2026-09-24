@@ -49,8 +49,6 @@ export class DrizzleSeasonRepository implements ISeasonRepository {
     const conditions = [];
     if (filter.CompetitionId !== undefined)
       conditions.push(eq(seasons.CompetitionId, filter.CompetitionId));
-    if (filter.Year !== undefined)
-      conditions.push(eq(seasons.Year, filter.Year));
     if (filter.SeasonCode !== undefined)
       conditions.push(eq(seasons.SeasonCode, filter.SeasonCode));
 
