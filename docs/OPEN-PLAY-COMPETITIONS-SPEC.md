@@ -187,7 +187,8 @@ run across a year boundary.
 ### Level
 
 Every club has a **Level**, derived from `Clubs.XP` through the world's
-`LevelThresholds` (e.g. Level 1 at 0 XP, Level 2 at 500, Level 3 at 1,200…).
+`LevelThresholds` (default `100 × n²`: Level 0 at 0 XP, Level 1 at 100,
+Level 2 at 400…, the same curve PLAY already used). Clubs start at Level 0.
 Higher is stronger. It replaces fixed divisions as the world's
 stratification axis.
 
@@ -210,7 +211,7 @@ stratification axis.
     `LevelReview`, off by default): within each Level, the top `promoteCount`
     clubs by performance score go up and the bottom `relegateCount` go down.
   - At most one promotion or relegation per club per year end, whatever the
-    sources; never below Level 1.
+    sources; never below Level 0.
 - Changes take effect immediately for future registrations. Current entries are
   unaffected, even if the club no longer fits the band.
 - Every Level change is logged (`LevelHistory`) with the source (XP earned,
@@ -241,7 +242,7 @@ change over the year (`+ clamp(ΔElo / 400, -0.1, 0.1)`), plus 0.05 per
 trophy. Recalculated at each edition finish, frozen at year end.
 
 - **Board expectation** depends on Level: `expected = LevelTargets[Level]`
-  (world setting; rises with Level, default 0.4 at Level 1 up to 0.7 at the
+  (world setting; rises with Level, default 0.4 at Level 0 up to 0.7 at the
   highest). Board
   budget (`services/ai/board-budget.service.ts`) and manager job security use
   `score - expected` instead of league position.
@@ -658,7 +659,7 @@ migration. Back up first.
 6. `Clubs.XP` = the threshold of a starting Level mapped from the old
    `Division` of the club's `LeagueId` competition (Division 1 → the highest
    seeded Level, each lower division one Level down; clubs with none start at
-   Level 1). Clubs that already have XP from `ideas/persistent-strat-game`
+   Level 0). Clubs that already have XP from `ideas/persistent-strat-game`
    keep the higher of the two.
 
 A follow-up migration drops the old columns and `CompetitionClubs`.
@@ -707,7 +708,7 @@ knockout stage), `standings-component.vue`, `standings-scroller.vue`,
   Level band, or barred.
 - Level: derived correctly from XP at every threshold; `level` outcomes and
   the review change XP to the right threshold, at most once per club per year
-  end, never below Level 1; history logged.
+  end, never below Level 0; history logged.
 - Rank: unranked clubs get no Rank; ties broken by the stage's tiebreakers.
 - Performance score: finish scores for league, knockout and mixed editions;
   Prestige weighting; 0 with no entries.
