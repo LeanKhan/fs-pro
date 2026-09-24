@@ -5,10 +5,9 @@ import type {
   PlayResult as ContractPlayResult,
 } from '@repo/api-contract';
 
-import { play, getInProgressSeason } from './game.controller';
+import { play } from './game.controller';
 import { getFixturesByDay } from '../fixtures/fixture.service';
 import { createFixture } from '../fixtures/fixture.service';
-import { advanceDayIfDone } from '../calendar/calendar.service';
 import { getClubById } from '../clubs/club.service';
 import { startMatchReplay } from '../../realtime/matchBroadcaster';
 import { enqueueMatchPlay } from '../../jobs/matchQueue';
@@ -65,12 +64,7 @@ export const gameTsRestRoutes = s.router(contract.game, {
             console.error(`[simulate_rest] Error simulating match ${otherId}:`, matchErr);
           }
         }
-
-        try {
-          await advanceDayIfDone(scheduledDay, { allowEmptyDay: true });
-        } catch (advErr) {
-          console.error(`[simulate_rest] Error advancing day ${scheduledDay}:`, advErr);
-        }
+        // The world day loop moves the calendar on; nothing to advance here.
       }
 
       return {
@@ -139,7 +133,11 @@ export const gameTsRestRoutes = s.router(contract.game, {
       console.error('Error fetching match replay =>', err);
       return {
         status: 400 as const,
-        body: { success: false, message: 'Error fetching match replay', payload: fail(err) },
+        body: {
+          success: false,
+          message: 'Error fetching match replay',
+          payload: fail(err),
+        },
       };
     }
 
@@ -222,7 +220,10 @@ export const gameTsRestRoutes = s.router(contract.game, {
       if (!homeClub || !awayClub) {
         return {
           status: 404 as const,
-          body: { success: false, message: 'One or both clubs could not be found' },
+          body: {
+            success: false,
+            message: 'One or both clubs could not be found',
+          },
         };
       }
 

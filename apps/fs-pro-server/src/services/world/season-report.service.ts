@@ -1,5 +1,4 @@
 import { and, between, desc, eq, inArray, isNotNull } from 'drizzle-orm';
-import { getTierInfo, planMoves } from '../competitions/pyramid.service';
 import type { SeasonReport, SeasonHighlight } from '@repo/api-contract';
 import { DrizzleDatabase } from '../../db/drizzle';
 import {
@@ -11,9 +10,6 @@ import {
   seasonReports,
   seasons as seasonsTable,
 } from '../../db/drizzle/schema';
-import { getSeasons } from '../../controllers/seasons/season.service';
-import { getCompetitions } from '../../controllers/competitions/competition.service';
-import { getClubs } from '../../controllers/clubs/club.service';
 import type { RetiredPlayerSummary } from '../../controllers/players/player-lifecycle.service';
 
 type Competition = SeasonReport['competitions'][number];
@@ -168,122 +164,6 @@ async function findBreakouts(year: string): Promise<Breakout[]> {
 }
 
 /**
- * Snapshots what changed in season cycle `year` - champions, league
- * movement, retirements, breakout players - ranks the highlights, and stores
- * the report (replacing any earlier one for that year). Call it once the
- * cycle's player/club updates have run, since breakouts are read from the
- * ratings those updates wrote.
- */
-export async function generateSeasonReport(
-  year: string,
-  context: { retired: RetiredPlayerSummary[] }
-): Promise<SeasonReport> {
-  const [seasons, competitions, clubs] = await Promise.all([
-    getSeasons({ Year: year }),
-    getCompetitions(),
-    getClubs(),
-  ]);
-
-  const clubById = new Map(clubs.map((c) => [c._id as string, c]));
-  const competitionById = new Map(competitions.map((c) => [c._id as string, c]));
-
-  const competitionEntries: Competition[] = [];
-  const movements: Movement[] = [];
-
-  for (const season of seasons) {
-    const competition = competitionById.get(season.CompetitionId ?? '');
-    if (!competition) continue;
-
-    const kind =
-      competition.Type?.toLowerCase() === 'tournament'
-        ? 'continental'
-        : competition.Type?.toLowerCase() === 'cup'
-          ? 'cup'
-          : 'league';
-    const champion = season.WinnerId ? clubById.get(season.WinnerId) : undefined;
-
-    competitionEntries.push({
-      code: competition.CompetitionCode,
-      name: competition.Name,
-      kind,
-      division: competition.Division ?? 0,
-      championId: season.WinnerId ?? null,
-      championName: champion?.Name ?? null,
-      championCode: champion?.ClubCode ?? null,
-    });
-
-    if (kind !== 'league') continue;
-
-    // Pyramid leagues: destinations come from the same planner prolegate uses.
-    const tierInfo = season.CompetitionId ? await getTierInfo(season.CompetitionId) : null;
-    if (tierInfo) {
-      const planned = await planMoves(tierInfo, season.Promoted ?? [], season.Relegated ?? []);
-      for (const m of planned) {
-        const club = clubById.get(m.clubId);
-        if (!club) continue;
-        movements.push({
-          clubId: m.clubId,
-          clubName: club.Name,
-          clubCode: club.ClubCode,
-          direction: m.direction,
-          from: competition.CompetitionCode,
-          to: m.to?.code ?? '?',
-        });
-      }
-      continue;
-    }
-
-    // Legacy rule prolegate uses: the league one division up/down, same country.
-    const moved: [string[], 'promoted' | 'relegated', number][] = [
-      [season.Promoted ?? [], 'promoted', -1],
-      [season.Relegated ?? [], 'relegated', 1],
-    ];
-    for (const [clubIds, direction, step] of moved) {
-      const target = competitions.find(
-        (c) =>
-          c.CountryId === competition.CountryId &&
-          c.Division === (competition.Division ?? 0) + step
-      );
-      for (const clubId of clubIds) {
-        const club = clubById.get(clubId);
-        if (!club) continue;
-        movements.push({
-          clubId,
-          clubName: club.Name,
-          clubCode: club.ClubCode,
-          direction,
-          from: competition.CompetitionCode,
-          to: target?.CompetitionCode ?? '?',
-        });
-      }
-    }
-  }
-
-  const body: ReportBody = {
-    year,
-    generatedAt: new Date().toISOString(),
-    competitions: competitionEntries.sort(
-      (a, b) => a.kind.localeCompare(b.kind) || a.division - b.division
-    ),
-    movements,
-    retirements: context.retired,
-    breakouts: await findBreakouts(year),
-  };
-  const report: SeasonReport = { ...body, highlights: deriveHighlights(body) };
-
-  const db = DrizzleDatabase.getInstance().database;
-  await db
-    .insert(seasonReports)
-    .values({ Year: year, Data: report as unknown as Record<string, unknown>, updatedAt: new Date() })
-    .onConflictDoUpdate({
-      target: seasonReports.Year,
-      set: { Data: report as unknown as Record<string, unknown>, updatedAt: new Date() },
-    });
-
-  return report;
-}
-
-/**
  * The report for one open-play year (docs/OPEN-PLAY-COMPETITIONS-SPEC.md,
  * "Year"): every edition that finished in the year's days with its winner,
  * every promotion/relegation (Level change) in those days, retirements and
@@ -363,10 +243,21 @@ export async function generateYearReport(
   const data = report as unknown as Record<string, unknown>;
   await db
     .insert(seasonReports)
-    .values({ Year: label, Data: data, FromDay: range.fromDay, ToDay: range.toDay, updatedAt: new Date() })
+    .values({
+      Year: label,
+      Data: data,
+      FromDay: range.fromDay,
+      ToDay: range.toDay,
+      updatedAt: new Date(),
+    })
     .onConflictDoUpdate({
       target: seasonReports.Year,
-      set: { Data: data, FromDay: range.fromDay, ToDay: range.toDay, updatedAt: new Date() },
+      set: {
+        Data: data,
+        FromDay: range.fromDay,
+        ToDay: range.toDay,
+        updatedAt: new Date(),
+      },
     });
   return report;
 }

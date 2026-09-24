@@ -2,14 +2,12 @@
 
 import { getFixtureById } from '../fixtures/fixture.service';
 import { Fixture } from '../fixtures/fixture.model';
-import { updateFixture, updateStandings } from './functions';
+import { updateFixture } from './functions';
 import { RankingService } from '../../services/competitions/ranking.service';
 import { EditionService } from '../../services/competitions/edition.service';
-import { advanceDayIfDone } from '../calendar/calendar.service';
 import App from '../app/App';
 import log from '../../helpers/logger';
-import { SeasonInterface, ClubStandings } from '../seasons/season.model';
-import { getSeasonById } from '../seasons/season.service';
+import { ClubStandings } from '../seasons/season.model';
 import { startMatchReplay } from '../../realtime/matchBroadcaster';
 import { saveReplay } from '../match-replays/match-replay.service';
 import { ITactic } from '../../simulation/state/PersistentState/Formations';
@@ -17,16 +15,6 @@ import { simulateMatch } from '../../jobs/matchQueue';
 import { buildSimulateMatchRequest } from '../../jobs/buildSimulateMatchRequest';
 import { QuickSimResolver } from '../../simulation/quick-sim/QuickSimResolver';
 import { SimulatedMatchData } from '../../jobs/simulationContract';
-
-/** Fetches a Season by id, but only returns it if it's still in progress -
- * replaces the raw `fetchSeason({_id, isStarted: true, isFinished: false})`
- * query both call sites below used to make. */
-export async function getInProgressSeason(
-  id: string
-): Promise<SeasonInterface | null> {
-  const season = await getSeasonById(id);
-  return season && season.isStarted && !season.isFinished ? season : null;
-}
 
 interface TeamObject {
   id: string;
@@ -58,7 +46,6 @@ interface UpdateRelatedDataParams {
 interface AfterMatchParams {
   homeTable: ClubStandings | undefined;
   awayTable: ClubStandings | undefined;
-  allMatchesPlayedThatDay: boolean;
 }
 
 /** `play()`'s resolved shape - matches the contract's `PlayResult` in
@@ -77,6 +64,7 @@ export interface PlayResult {
 export interface PlayOptions {
   quickSim?: boolean;
   skipStandings?: boolean;
+  /** Skip the post-match wrap-up (the caller ends the game itself). */
   skipDayAdvance?: boolean;
   skipReplay?: boolean;
   /** Small home-side Rating nudge for this match only (never persisted) -
@@ -175,6 +163,8 @@ export async function play(
   }
 
   // [3.1] Define helper functions
+  /** Competition fixtures go to Rankings (and may finish a first-to
+   * edition); the world day loop, not this match, moves the calendar on. */
   const updateRelatedData = async ({
     match,
     home,
@@ -193,98 +183,26 @@ export async function play(
       AwaySideDetails,
     };
 
-    // Competition fixtures (open play) go to Rankings; the calendar clock,
-    // not this match, decides when the day moves on.
     const applied = await RankingService.applyResult(String(match._id));
     if (applied.status === 'applied' && applied.firstToReachedBy) {
-      await EditionService.finish(applied.seasonId, { firstToWinner: applied.firstToReachedBy });
+      await EditionService.finish(applied.seasonId, {
+        firstToWinner: applied.firstToReachedBy,
+      });
     }
-    if (applied.status !== 'not-competition') {
-      return { homeTable: undefined, awayTable: undefined, allMatchesPlayedThatDay: false };
-    }
-
-    return updateStandings(
-      HomeSideDetails,
-      AwaySideDetails,
-      match,
-      home,
-      away,
-      season_id
-    );
+    return { homeTable: undefined, awayTable: undefined };
   };
 
-  const afterMatch = async ({
-    homeTable,
-    awayTable,
-    allMatchesPlayedThatDay,
-  }: AfterMatchParams) => {
-    /** If all matches scheduled for this day have been played, advance the
-     * Calendar's CurrentDay/CurrentDate to the next day with an unplayed
-     * fixture. */
-    if (allMatchesPlayedThatDay && CurrentMatch.match?.ScheduledDay != null) {
-      try {
-        await advanceDayIfDone(CurrentMatch.match.ScheduledDay);
-        // App._app.endGame();
-      } catch (error: any) {
-        console.log('Error changing current Calendar Day!', error);
-        // throw error;
-        throw new Error('Error updating current Day ' + error.toString());
-      }
-    }
-
-    // check the fixture position...
-    let season: SeasonInterface | null;
-    let lastMatchOfSeason;
-
-    // season.Competition maybe find the competition and do the needful...
-
-    try {
-      season = CurrentMatch.season_id
-        ? await getInProgressSeason(CurrentMatch.season_id)
-        : null;
-      // We also need to get the associated calendar day...
-      if (season) {
-        //  if this fixture's
-        lastMatchOfSeason =
-          (season.Fixtures ?? []).findIndex((f) => fixture_id == f._id) ==
-          (season.Fixtures ?? []).length - 1;
-      }
-
-      // THIS SHOULD BE THE LAST THING!
-
-      /**
-       * 1. Get current Day with other Matches
-       * 2. Check their Played status.
-       * 3. Call this same function for all Fixtures which have not been played yet.
-       * 4. When you're done, collect the results and send back to client...
-       */
-      CurrentMatch.App!.endGame();
-      log('GAME ENDED from App');
-
-      // console.log(`The Match instances ${Match.instances}`);
-      // console.log(`The Game instances ${Game.instances}`);
-      // console.log(CurrentMatch.App.Game);
-      // console.log(`The Ball instances ${Ball.instances}`);
-      // console.log(`The FieldPlayer instances ${FieldPlayer.instances}`);
-
-      // check
-      return {
-        homeTable,
-        awayTable,
-        match: CurrentMatch.match,
-        HomeSideDetails: CurrentMatch.HomeSideDetails,
-        AwaySideDetails: CurrentMatch.AwaySideDetails,
-        lastMatchOfSeason,
-      };
-    } catch (error: any) {
-      console.log(`Error at afterMatch -> ` + error.toString());
-
-      console.log(
-        'Could not check if Season is over, you should do that manually!'
-      );
-
-      throw error;
-    }
+  const afterMatch = async ({ homeTable, awayTable }: AfterMatchParams) => {
+    CurrentMatch.App!.endGame();
+    log('GAME ENDED from App');
+    return {
+      homeTable,
+      awayTable,
+      match: CurrentMatch.match,
+      HomeSideDetails: CurrentMatch.HomeSideDetails,
+      AwaySideDetails: CurrentMatch.AwaySideDetails,
+      lastMatchOfSeason: false,
+    };
   };
 
   // [4] Play Match

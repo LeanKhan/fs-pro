@@ -702,16 +702,38 @@ A follow-up migration drops the old columns and `CompetitionClubs`.
 
 ## Removed
 
-`RoundRobin`, `generateWeekTable`, `generateFixtureObject`, `compileStandings`
-(moved into the migration script), `middleware/seasons.ts` `create`,
-`arrangeSeasonFixturesAcrossDays`, `hydrateSeasonFixtures`,
-`startNextSeasonCycle`, `endSeasonCycle`, `prolegate`, `updateStandings`,
-`batchUpdateStandings`, `finishSeasonPlain`, `findNextUnplayedDay`,
-`TournamentEngineService.seedDefaultTournaments`,
-`createCupInitialFixtures`, `createGroupStageInitialFixtures`,
-`computeContinentalQualifiers` (its bracket/pairing helpers are reused by the
-knockout stage), `standings-component.vue`, `standings-scroller.vue`,
-`group-stage-view.vue`.
+Done (build step 9):
+
+- Fixture generation and scheduling: `middleware/seasons.ts` (`create`,
+  `RoundRobin` use), `RoundRobin`, `generateWeekTable`,
+  `generateFixtureObject`, `arrangeSeasonFixturesAcrossDays`,
+  `hydrateSeasonFixtures`.
+- Season cycles: `startNextSeasonCycle`, `endSeasonCycle` (routes, contract
+  entries and `controllers/calendar/calendar.controller.ts`), the legacy
+  `generateSeasonReport`, `scripts/backfillSeasonReport.ts`.
+- Legacy season lifecycle: season create / generate fixtures / start /
+  finish routes, `finishSeasonPlain`, `prolegate`.
+- Week-table writers: `updateStandings`, `batchUpdateStandings`.
+- Day jumping: `advanceDayIfDone`, `findNextUnplayedDay`,
+  `allFixturesPlayedForDay`; the matchday runner only plays a day, and
+  "simulate to date" runs the world day loop.
+- The old tournament engine (`tournament-engine.service.ts`,
+  `seedDefaultTournaments`, pre-created cup/group fixtures), the league
+  pyramid (`pyramid.service.ts`, `pyramid-config.ts`), the old prize-money
+  service (prizes are paid by `finish`).
+
+Still to do, after the data script has run on every database and the UI
+(step 10) no longer shows the old screens:
+
+- Drop `Seasons.Standings/Year/Promoted/Relegated/isStarted/isFinished`,
+  `Competitions.League/Cup/Tournament/Division/NumberOfTeams/NumberOfWeeks/
+  TeamsPromoted/TeamsRelegated/CountryId/Tier/Pod`, `Fixtures.Week`,
+  `Clubs.LeagueId/LeagueCode` and the `CompetitionClubs` table.
+- Remove their remaining readers: `compileStandings` and its users (media
+  stories, season standings route), `getCurrentSeasonsForYear`, the
+  competition add-club route.
+- Client: `standings-component.vue`, `standings-scroller.vue`,
+  `group-stage-view.vue` and the admin season-cycle buttons.
 
 ## Build order
 

@@ -86,35 +86,6 @@ export const calendarContract = c.router(
       },
     },
 
-    // Start the next season cycle - one Season per Competition, fixtures
-    // generated and scheduled from the Calendar's current day.
-    startNextSeasonCycle: {
-      method: 'POST',
-      path: '/seasons/next',
-      body: z.object({
-        Year: z.string(),
-      }),
-      responses: {
-        200: successEnvelope(z.array(SeasonSchema)),
-        400: failEnvelope(),
-      },
-    },
-
-    // End a season cycle - prolegates every Season in :year once they're
-    // all finished, then progresses Player/Club ratings for the new cycle.
-    endSeasonCycle: {
-      method: 'POST',
-      path: '/end-season/:year',
-      pathParams: z.object({
-        year: z.string(),
-      }),
-      body: z.object({}).optional(),
-      responses: {
-        200: successEnvelope(z.object({})),
-        400: failEnvelope(),
-      },
-    },
-
     // Live game clock: server-driven day advancement (see
     // fs-pro-server services/calendar/calendar-clock.service.ts).
     getClock: {

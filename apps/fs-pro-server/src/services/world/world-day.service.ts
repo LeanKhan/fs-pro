@@ -117,7 +117,7 @@ export async function runWorldDay(): Promise<WorldDayReport> {
     false;
 
   const run = await step('matches', () =>
-    MatchdayRunnerService.simulateDay(day, { skipAdvance: true })
+    MatchdayRunnerService.simulateDay(day)
   );
   if (run) {
     report.matches = {
@@ -130,4 +130,46 @@ export async function runWorldDay(): Promise<WorldDayReport> {
   const advanced = await advanceIdleDay();
   report.advancedTo = advanced.CurrentDay;
   return report;
+}
+
+export interface SimulateToDayResult {
+  startDay: number;
+  currentDay: number;
+  currentDate: string;
+  simulatedFixtures: number;
+  failedFixtures: number;
+  simulatedDays: number;
+}
+
+/**
+ * Admin fast-forward: run world days until the calendar reaches `targetDay`
+ * (inclusive of it unless `includeTargetDay` is false), at most 365 days at
+ * a time. Every day runs the full loop, so nothing is skipped; stops early
+ * if the year end pauses the world.
+ */
+export async function runWorldDaysUntil(
+  targetDay: number,
+  includeTargetDay = true
+): Promise<SimulateToDayResult> {
+  const start = await world();
+  const lastDay = includeTargetDay ? targetDay : targetDay - 1;
+  let simulatedFixtures = 0;
+  let failedFixtures = 0;
+  let days = 0;
+  while (days < 365 && (await world()).CurrentDay <= lastDay) {
+    const r = await runWorldDay();
+    if (r.pausedForYearEnd) break;
+    simulatedFixtures += r.matches.simulated;
+    failedFixtures += r.matches.failed;
+    days++;
+  }
+  const end = await world();
+  return {
+    startDay: start.CurrentDay,
+    currentDay: end.CurrentDay,
+    currentDate: new Date(end.CurrentDate).toISOString(),
+    simulatedFixtures,
+    failedFixtures,
+    simulatedDays: days,
+  };
 }

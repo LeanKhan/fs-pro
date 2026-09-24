@@ -1,11 +1,7 @@
+import { runTransferDay } from '../../services/transfers/transfer-market.service';
 import { CalendarInterface } from './calendar.model';
 import { CalendarRepositoryFactory } from '../../repositories/CalendarRepositoryFactory';
-import {
-  allFixturesPlayedForDay,
-  findNextUnplayedDay,
-  getFixturesByDay,
-  getFixturesInRange,
-} from '../fixtures/fixture.service';
+import { getFixturesInRange } from '../fixtures/fixture.service';
 import { PlayerFitnessService } from '../../services/players/player-fitness.service';
 import { play } from '../game/game.controller';
 
@@ -34,8 +30,12 @@ export async function updateCalendar(
  * Scans for and auto-simulates any unplayed fixtures strictly before `upToDay`
  * using QuickSim, ensuring past matchdays are never left incomplete.
  */
-export async function healPastUnplayedFixtures(upToDay: number): Promise<number> {
-  const pastUnplayed = await getFixturesInRange(0, upToDay - 1, { played: false });
+export async function healPastUnplayedFixtures(
+  upToDay: number
+): Promise<number> {
+  const pastUnplayed = await getFixturesInRange(0, upToDay - 1, {
+    played: false,
+  });
   if (!pastUnplayed.length) return 0;
 
   console.log(
@@ -58,8 +58,8 @@ export async function healPastUnplayedFixtures(upToDay: number): Promise<number>
 }
 
 /**
- * Public audit and repair tool: heals any unplayed fixtures from past days
- * up to the current day, and advances the calendar if today is also complete.
+ * Public audit and repair tool: plays any fixtures left unplayed on days
+ * before today. The world day loop moves the calendar, not this.
  */
 export async function healCalendar(): Promise<{
   healedCount: number;
@@ -67,17 +67,8 @@ export async function healCalendar(): Promise<{
 }> {
   const calendar = await getCalendar();
   const healedPast = await healPastUnplayedFixtures(calendar.CurrentDay);
-  const advanceResult = await advanceDayIfDone(calendar.CurrentDay);
-  const updatedCal = advanceResult ?? (await getCalendar());
-
-  return {
-    healedCount: healedPast,
-    currentDay: updatedCal.CurrentDay,
-  };
+  return { healedCount: healedPast, currentDay: calendar.CurrentDay };
 }
-
-import { TournamentEngineService } from '../../services/competitions/tournament-engine.service';
-import { runTransferDay } from '../../services/transfers/transfer-market.service';
 
 /** Most game days of AI transfer activity run for one calendar advance, so a
  * long jump (e.g. simulate-to-date) does not flood the market in one go. */
@@ -104,7 +95,10 @@ async function applyDayAdvance(
     }
   }
 
-  const advanced = await updateCalendar({ CurrentDay: toDay, CurrentDate: toDate });
+  const advanced = await updateCalendar({
+    CurrentDay: toDay,
+    CurrentDate: toDate,
+  });
 
   // The transfer market moves with the calendar: expire stale offers and, while
   // the window is open, let AI clubs bid and trade for each day that passed.
@@ -121,45 +115,9 @@ async function applyDayAdvance(
 }
 
 /**
- * Advances `CurrentDay`/`CurrentDate` to the next scheduled day that still
- * has an unplayed fixture, but only once every fixture on `scheduledDay`
- * itself has been played - a no-op otherwise. `allowEmptyDay` lets a day with
- * no fixtures at all count as done (used when the calendar is idling in the
- * off-season and a new cycle's fixtures are scheduled ahead).
- */
-export async function advanceDayIfDone(
-  scheduledDay: number,
-  options: { allowEmptyDay?: boolean } = {}
-): Promise<CalendarInterface | null> {
-  // First, self-heal any unplayed fixtures from prior days to ensure zero ghost fixtures
-  await healPastUnplayedFixtures(scheduledDay);
-
-  const done = options.allowEmptyDay
-    ? (await getFixturesByDay(scheduledDay)).every((f) => f.Played)
-    : await allFixturesPlayedForDay(scheduledDay);
-  if (!done) {
-    return null;
-  }
-
-  // Check and advance any Cup or Champions League stages that completed today
-  try {
-    await TournamentEngineService.checkAndAdvanceTournaments();
-  } catch (err) {
-    console.error('[advanceDayIfDone] Error advancing tournaments:', err);
-  }
-
-  const next = await findNextUnplayedDay(scheduledDay);
-  if (!next) {
-    return null;
-  }
-
-  return applyDayAdvance(scheduledDay, next.day, next.date);
-}
-
-/**
- * Off-season: nothing is scheduled ahead, so the calendar moves forward one
- * empty game day so day-based things (facility upgrades, the transfer window,
- * fitness recovery) keep progressing. Callers decide when idling is allowed.
+ * Moves the calendar forward exactly one game day (fitness recovery, the AI
+ * transfer market). Called once per world day by
+ * services/world/world-day.service.ts after the day's matches.
  */
 export async function advanceIdleDay(): Promise<CalendarInterface> {
   const cal = await getCalendar();

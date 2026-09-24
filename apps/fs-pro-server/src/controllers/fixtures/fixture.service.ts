@@ -74,30 +74,3 @@ export async function getFixturesInRange(
     Played: opts?.played,
   });
 }
-
-/** Whether every fixture scheduled on a given day has been played -
- * replaces `day.service.ts`'s old `Matches.every(m => m.Played)` check. */
-export async function allFixturesPlayedForDay(day: number): Promise<boolean> {
-  const dayFixtures = await getFixturesByDay(day);
-  return dayFixtures.length > 0 && dayFixtures.every((f) => f.Played);
-}
-
-/** The next scheduled day, after `afterDay`, that still has an unplayed
- * fixture - used by `calendar.service.ts`'s `advanceDayIfDone` to find where
- * to move `CurrentDay`/`CurrentDate` to. `null` if there's nothing left
- * scheduled (end of the current season cycle). */
-export async function findNextUnplayedDay(
-  afterDay: number
-): Promise<{ day: number; date: Date } | null> {
-  const upcoming = await getFixtureRepo().findAll({
-    scheduledDayFrom: afterDay + 1,
-    Played: false,
-  });
-  if (upcoming.length === 0) return null;
-
-  const next = upcoming.reduce((min, f) =>
-    f.ScheduledDay! < min.ScheduledDay! ? f : min
-  );
-
-  return { day: next.ScheduledDay!, date: next.ScheduledDate! };
-}
