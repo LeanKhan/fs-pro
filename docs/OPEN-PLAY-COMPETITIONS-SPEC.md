@@ -247,6 +247,10 @@ trophy. Recalculated at each edition finish, frozen at year end.
   budget (`services/ai/board-budget.service.ts`) and manager job security use
   `score - expected` instead of league position.
 - A club that entered nothing that year scores 0 (the board notices).
+- Each entry's `FinalPosition` and `FinishScore` are stored on `Entries`
+  when the edition finishes (`services/world/performance.service.ts`).
+  Scores live in `ClubPerformance`, one row per club per year, refreshed at
+  each finish and frozen at year end, where the optional Level review runs.
 - **Analytics** (`services/analytics/club-performance.service.ts`) reports the
   score, each entry's finish, Elo trend and Level history instead of per-league
   stats.
@@ -529,6 +533,12 @@ Each day, for each AI club (`Clubs.UserId` null):
 - **Propose**: if under its pace target for the stage (`maxGames` or the
   metric's needs × elapsed fraction), challenge one valid opponent chosen by
   closest Elo with some randomness.
+- Built: `services/competitions/ai-competitions.service.ts`. Registration
+  is choosy (40% × suitability) until the day before the start, then keen.
+  An AI club turns challenges down when its squad averages under 60
+  fitness, and always keeps one decline in hand before the forfeit limit.
+  Pace target: `maxGames`, else max(`minGamesToRank`, stage days ÷ 3),
+  times the share of the stage elapsed.
 - Deterministic heuristics only, per `docs/MANAGER-OWNER-MODE-PLAN.md`'s
   gatekeeper approach; no LLM calls in this loop.
 
@@ -577,10 +587,10 @@ Each day, for each AI club (`Clubs.UserId` null):
 | POST | `/challenges` | Propose `{ editionId, challengerClubId, opponentClubId }`. |
 | POST | `/challenges/:fixtureId/accept` \| `decline` \| `cancel` | Body `{ clubId }`. Admins may cancel any challenge. |
 | GET | `/challenges/club/:clubId?status=a,b` | Incoming/outgoing across all editions. |
-| PUT | `/clubs/:id/challenge-policy`, `/clubs/:id/entry-policy` | Own club only. |
+| GET / PUT | `/challenges/policy/:clubId`, `/editions/policy/:clubId` | Auto-accept / auto-register policy. PUT: own club only; `{ policy: null }` clears it. |
 | GET / PATCH | `/world/settings` | Admin: year, rollover, transfer windows, default rules, entry cap, Levels (XP thresholds, XP per match, targets, review). |
 | PATCH | `/clubs/:id/level` | Admin: set a club's Level by hand (sets XP to that Level's threshold; logged as `admin`). |
-| GET | `/clubs/:id/performance?year=` | Performance score, finishes, Elo and Level history. |
+| GET | `/world/performance/:clubId?year=` | Performance score, target, gap, finishes and Level moves for a year. |
 | POST | `/world/end-year` | Admin: end the year now (refused if the year only started today). |
 | POST | `/world/advance-day` | Admin: run one game day now. |
 

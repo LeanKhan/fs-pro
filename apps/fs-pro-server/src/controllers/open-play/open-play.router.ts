@@ -1,6 +1,10 @@
 import { initServer } from '@ts-rest/express';
 import { and, desc, eq } from 'drizzle-orm';
-import { apiContract as contract } from '@repo/api-contract';
+import {
+  apiContract as contract,
+  type ChallengePolicy,
+  type EntryPolicy,
+} from '@repo/api-contract';
 import { DrizzleDatabase } from '../../db/drizzle';
 import {
   clubs,
@@ -19,6 +23,7 @@ import {
 } from '../../services/competitions/edition.service';
 import { getStageTable } from '../../services/competitions/ranking.service';
 import { getBracket } from '../../services/competitions/knockout.service';
+import { applyChallengePolicy } from '../../services/competitions/ai-competitions.service';
 import { accessDenied, canManageClub, isAdmin } from '../auth/club-access';
 
 /**
@@ -358,6 +363,38 @@ export const editionTsRestRoutes = s.router(contract.editions, {
     }
   },
 
+  getEntryPolicy: async ({ params }) => {
+    try {
+      const [club] = await db()
+        .select({ policy: clubs.EntryPolicy })
+        .from(clubs)
+        .where(eq(clubs.id, params.clubId));
+      if (!club) return fail(new EditionError('Club not found', 'not-found'));
+      return ok((club.policy as EntryPolicy | null) ?? null);
+    } catch (err) {
+      return fail(err);
+    }
+  },
+
+  setEntryPolicy: async ({ params, body, req }) => {
+    try {
+      const denied = await requireClub(req.session as Session, params.clubId);
+      if (denied) return denied;
+      await db()
+        .update(clubs)
+        .set({ EntryPolicy: body.policy, updatedAt: new Date() })
+        .where(eq(clubs.id, params.clubId));
+      return ok(
+        body.policy,
+        body.policy
+          ? 'Auto-register policy saved'
+          : 'Auto-register policy cleared'
+      );
+    } catch (err) {
+      return fail(err);
+    }
+  },
+
   clubEntries: async ({ params }) => {
     try {
       const rows = await db()
@@ -399,12 +436,18 @@ export const challengeTsRestRoutes = s.router(contract.challenges, {
         body.challengerClubId,
         body.opponentClubId
       );
+      // The opponent's auto-accept policy answers straight away if it can.
+      await applyChallengePolicy(fixture.id);
+      const [answered] = await db()
+        .select()
+        .from(fixtures)
+        .where(eq(fixtures.id, fixture.id));
       return {
         status: 201 as const,
         body: {
           success: true as const,
           message: 'Challenge sent',
-          payload: toChallenge(fixture, { direction: 'outgoing' }),
+          payload: toChallenge(answered ?? fixture, { direction: 'outgoing' }),
         },
       };
     } catch (err) {
@@ -445,6 +488,36 @@ export const challengeTsRestRoutes = s.router(contract.challenges, {
         forfeited
           ? 'Declined too often: recorded as a forfeit'
           : `Challenge ${fixture!.ChallengeStatus}`
+      );
+    } catch (err) {
+      return fail(err);
+    }
+  },
+
+  getPolicy: async ({ params }) => {
+    try {
+      const [club] = await db()
+        .select({ policy: clubs.ChallengePolicy })
+        .from(clubs)
+        .where(eq(clubs.id, params.clubId));
+      if (!club) return fail(new ChallengeError('Club not found', 'not-found'));
+      return ok((club.policy as ChallengePolicy | null) ?? null);
+    } catch (err) {
+      return fail(err);
+    }
+  },
+
+  setPolicy: async ({ params, body, req }) => {
+    try {
+      const denied = await requireClub(req.session as Session, params.clubId);
+      if (denied) return denied;
+      await db()
+        .update(clubs)
+        .set({ ChallengePolicy: body.policy, updatedAt: new Date() })
+        .where(eq(clubs.id, params.clubId));
+      return ok(
+        body.policy,
+        body.policy ? 'Auto-accept policy saved' : 'Auto-accept policy cleared'
       );
     } catch (err) {
       return fail(err);

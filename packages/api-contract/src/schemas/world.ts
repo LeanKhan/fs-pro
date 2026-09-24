@@ -75,6 +75,7 @@ export const YearEndSummarySchema = z.object({
   fromDay: z.number(),
   toDay: z.number(),
   retired: z.number(),
+  levelReviewMoves: z.number(),
   errors: z.array(z.string()),
 });
 
@@ -87,6 +88,17 @@ export const WorldDayReportSchema = z.object({
   challenges: z
     .object({ expired: z.number(), forfeited: z.number() })
     .nullable(),
+  ai: z
+    .object({
+      registered: z.number(),
+      accepted: z.number(),
+      declined: z.number(),
+      proposed: z.number(),
+      policyAccepted: z.number(),
+      policyDeclined: z.number(),
+      policyRegistered: z.number(),
+    })
+    .nullable(),
   transferWindowOpened: z.boolean(),
   matches: z.object({
     total: z.number(),
@@ -96,6 +108,43 @@ export const WorldDayReportSchema = z.object({
   advancedTo: z.number().nullable(),
 });
 
+export const PerformanceViewSchema = z.object({
+  clubId: z.string(),
+  year: z.number(),
+  current: z.boolean(),
+  level: z.number(),
+  score: z.number(),
+  expected: z.number(),
+  gap: z.number(),
+  entries: z.number(),
+  trophies: z.number(),
+  eloStart: z.number(),
+  eloEnd: z.number(),
+  levelStart: z.number(),
+  levelEnd: z.number(),
+  finishes: z.array(
+    z.object({
+      seasonId: z.string(),
+      competitionName: z.string(),
+      editionCode: z.string(),
+      finalPosition: z.number().nullable(),
+      finishScore: z.number().nullable(),
+      prestige: z.number(),
+      endDay: z.number().nullable(),
+      won: z.boolean(),
+    })
+  ),
+  levelMoves: z.array(
+    z.object({
+      day: z.number(),
+      from: z.number(),
+      to: z.number(),
+      source: z.string(),
+    })
+  ),
+});
+
+export type PerformanceView = z.infer<typeof PerformanceViewSchema>;
 export type WorldSettings = z.infer<typeof WorldSettingsSchema>;
 export type WorldSettingsPatch = z.infer<typeof WorldSettingsPatchSchema>;
 export type YearEndSummary = z.infer<typeof YearEndSummarySchema>;

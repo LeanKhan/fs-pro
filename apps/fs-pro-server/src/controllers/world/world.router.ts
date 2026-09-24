@@ -8,6 +8,7 @@ import { DrizzleDatabase } from '../../db/drizzle';
 import { calendars } from '../../db/drizzle/schema';
 import { tickNow } from '../../services/calendar/calendar-clock.service';
 import { endYear } from '../../services/world/year.service';
+import { getPerformance } from '../../services/world/performance.service';
 import { accessDenied, isAdmin } from '../auth/club-access';
 
 /** World settings and the open-play year (docs/OPEN-PLAY-COMPETITIONS-SPEC.md). */
@@ -144,6 +145,22 @@ export const worldTsRestRoutes = s.router(contract.world, {
       };
     } catch (err) {
       return bad(err instanceof Error ? err.message : String(err));
+    }
+  },
+
+  performance: async ({ params, query }) => {
+    try {
+      const view = await getPerformance(params.clubId, query.year);
+      return {
+        status: 200 as const,
+        body: { success: true as const, message: 'Performance', payload: view },
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return {
+        status: 404 as const,
+        body: { success: false as const, message },
+      };
     }
   },
 

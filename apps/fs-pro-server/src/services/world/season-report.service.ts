@@ -1,8 +1,9 @@
-import { and, between, desc, eq, inArray } from 'drizzle-orm';
+import { and, between, desc, eq, inArray, isNotNull } from 'drizzle-orm';
 import { getTierInfo, planMoves } from '../competitions/pyramid.service';
 import type { SeasonReport, SeasonHighlight } from '@repo/api-contract';
 import { DrizzleDatabase } from '../../db/drizzle';
 import {
+  calendars as calendarsTable,
   clubs as clubsTable,
   competitions as competitionsTable,
   levelHistory,
@@ -359,14 +360,50 @@ export async function generateYearReport(
   };
   const report: SeasonReport = { ...body, highlights: deriveHighlights(body) };
 
+  const data = report as unknown as Record<string, unknown>;
   await db
     .insert(seasonReports)
-    .values({ Year: label, Data: report as unknown as Record<string, unknown>, updatedAt: new Date() })
+    .values({ Year: label, Data: data, FromDay: range.fromDay, ToDay: range.toDay, updatedAt: new Date() })
     .onConflictDoUpdate({
       target: seasonReports.Year,
-      set: { Data: report as unknown as Record<string, unknown>, updatedAt: new Date() },
+      set: { Data: data, FromDay: range.fromDay, ToDay: range.toDay, updatedAt: new Date() },
     });
   return report;
+}
+
+export interface YearSpan {
+  label: string;
+  number: number;
+  fromDay: number;
+  toDay: number;
+  current: boolean;
+}
+
+/** Every open-play year so far (from the reports' day ranges) plus the
+ * current one, oldest first. */
+export async function listYears(): Promise<YearSpan[]> {
+  const db = DrizzleDatabase.getInstance().database;
+  const [calendar] = await db.select().from(calendarsTable).limit(1);
+  const past = await db.select().from(seasonReports).where(isNotNull(seasonReports.FromDay));
+  const years: YearSpan[] = past
+    .filter((r) => /^Y\d+$/.test(r.Year))
+    .map((r) => ({
+      label: r.Year,
+      number: Number(r.Year.slice(1)),
+      fromDay: r.FromDay!,
+      toDay: r.ToDay!,
+      current: false,
+    }));
+  if (calendar) {
+    years.push({
+      label: `Y${calendar.CurrentYear}`,
+      number: calendar.CurrentYear,
+      fromDay: calendar.YearStartDay,
+      toDay: calendar.CurrentDay,
+      current: true,
+    });
+  }
+  return years.sort((a, b) => a.number - b.number);
 }
 
 export async function listSeasonReports(): Promise<SeasonReport[]> {

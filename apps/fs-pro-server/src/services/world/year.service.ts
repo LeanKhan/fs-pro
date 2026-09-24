@@ -10,6 +10,7 @@ import {
 } from '../../controllers/players/player-lifecycle.service';
 import { refreshAllClubsRatings } from '../../controllers/clubs/club.service';
 import { generateYearReport } from './season-report.service';
+import { closeYear } from './performance.service';
 
 /**
  * The open-play year (docs/OPEN-PLAY-COMPETITIONS-SPEC.md, "Year"): a fixed
@@ -29,6 +30,8 @@ export interface YearEndSummary {
   fromDay: number;
   toDay: number;
   retired: number;
+  /** Clubs moved by the optional year-end Level review. */
+  levelReviewMoves: number;
   errors: string[];
 }
 
@@ -83,6 +86,9 @@ export async function endYear(): Promise<YearEndSummary | null> {
     }
   };
 
+  const review = await step('performance and Level review', () =>
+    closeYear({ year, fromDay: range.fromDay, toDay: range.toDay })
+  );
   await step('player progression', () =>
     updateAllPlayerDetailsForYear(label, range)
   );
@@ -106,6 +112,7 @@ export async function endYear(): Promise<YearEndSummary | null> {
     fromDay: range.fromDay,
     toDay: range.toDay,
     retired: retired.length,
+    levelReviewMoves: review?.length ?? 0,
     errors,
   };
 }

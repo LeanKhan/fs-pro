@@ -20,7 +20,6 @@ import {
   seasons,
   users,
 } from '../db/drizzle/schema';
-import { accept, propose } from '../services/competitions/challenge.service';
 import {
   createEdition,
   publishEdition,
@@ -32,6 +31,8 @@ import {
 } from '../services/world/world-day.service';
 import { endYear } from '../services/world/year.service';
 import { worldTsRestRoutes } from '../controllers/world/world.router';
+import { getClubPerformance } from '../services/analytics/club-performance.service';
+import { processBoardBudgetRequest } from '../services/ai/board-budget.service';
 
 /**
  * End-to-end check of the open-play day loop (docs/OPEN-PLAY-COMPETITIONS-SPEC.md,
@@ -188,12 +189,29 @@ async function main() {
   };
   const cal = async () => (await db.select().from(calendars).limit(1))[0]!;
 
+  // Club 3 has an owner who never answers (no policy): the AI clubs run
+  // themselves, club 3's incoming challenges expire.
+  const [manager] = await db
+    .insert(users)
+    .values({
+      FullName: 'Absent',
+      Username: 'absent',
+      Password: 'x',
+      updatedAt: now,
+    })
+    .returning();
+  await db
+    .update(clubs)
+    .set({ UserId: manager!.id })
+    .where(eq(clubs.id, club[3]!));
+
   console.log('day loop');
   const d0 = await dayOn();
   await check(
-    'day 0: registration opens, the transfer window opens, the calendar moves one day',
+    'day 0: registration opens, AI clubs enter, the transfer window opens',
     async () => {
       assert.deepStrictEqual(d0.editions!.opened, [edition.id]);
+      assert.strictEqual(d0.ai!.registered, 3);
       assert.strictEqual(d0.transferWindowOpened, true);
       assert.strictEqual(d0.advancedTo, 1);
       const c = await cal();
@@ -203,57 +221,54 @@ async function main() {
       );
     }
   );
-  for (const id of club) await register(edition.id, id);
+  await register(edition.id, club[3]!); // the human registers by hand
   const d1 = await dayOn();
-  await check('day 1: the edition starts', () =>
-    assert.deepStrictEqual(d1.editions!.started, [edition.id])
-  );
-
-  // Day 2: two challenges accepted for day 3.
-  const a = await propose(edition.id, club[0]!, club[1]!);
-  const b = await propose(edition.id, club[2]!, club[3]!);
-  assert.strictEqual((await accept(a.id, club[1]!)).ScheduledDay, 3);
-  assert.strictEqual((await accept(b.id, club[3]!)).ScheduledDay, 3);
-  const d2 = await dayOn();
-  await check('an empty day plays nothing', () =>
-    assert.strictEqual(d2.matches.total, 0)
-  );
-  const d3 = await dayOn();
   await check(
-    'day 3: both challenges are played by the real engine and ranked',
-    async () => {
-      assert.deepStrictEqual(d3.matches, { total: 2, simulated: 2, failed: 0 });
-      const played = await db
-        .select()
-        .from(fixtures)
-        .where(eq(fixtures.SeasonId, edition.id));
-      assert.ok(
-        played.every((f) => f.Played && f.ChallengeStatus === 'played')
-      );
-      const rows = await db
-        .select()
-        .from(rankings)
-        .where(eq(rankings.SeasonId, edition.id));
-      assert.strictEqual(rows.length, 4);
-      assert.ok(rows.every((r) => r.Played === 1));
-      const [c0] = await db.select().from(clubs).where(eq(clubs.id, club[0]!));
-      assert.ok(c0!.XP > 0 && c0!.Elo !== 1500);
+    'day 1: the edition starts and AI clubs start sending challenges',
+    () => {
+      assert.deepStrictEqual(d1.editions!.started, [edition.id]);
+      assert.ok(d1.ai!.proposed > 0);
     }
   );
-
-  // Day 4: an unanswered challenge (answer by day 7) expires on day 8.
-  const ignored = await propose(edition.id, club[0]!, club[2]!);
-  while ((await cal()).CurrentDay < 8) await dayOn();
-  const d8 = await dayOn();
+  while ((await cal()).CurrentDay < 5) await dayOn();
+  await check('matches are played by the real engine and ranked', async () => {
+    const simulated = days.reduce((n, d) => n + d.matches.simulated, 0);
+    assert.ok(simulated > 0, 'some matches should have been played');
+    assert.ok(days.every((d) => d.matches.failed === 0));
+    const played = await db
+      .select()
+      .from(fixtures)
+      .where(and(eq(fixtures.SeasonId, edition.id), eq(fixtures.Played, true)));
+    assert.ok(
+      played.every((f) => ['played', 'forfeited'].includes(f.ChallengeStatus!))
+    );
+    const rows = await db
+      .select()
+      .from(rankings)
+      .where(eq(rankings.SeasonId, edition.id));
+    const total = rows.reduce((n, r) => n + r.Played, 0);
+    assert.strictEqual(total, played.length * 2);
+  });
+  while ((await cal()).CurrentDay < 9) await dayOn();
   await check(
-    'an unanswered challenge expires the day after its deadline',
+    'challenges to a club that never answers expire (or become forfeits)',
     async () => {
-      assert.deepStrictEqual(d8.challenges, { expired: 1, forfeited: 0 });
-      const [f] = await db
+      const toHuman = await db
         .select()
         .from(fixtures)
-        .where(eq(fixtures.id, ignored.id));
-      assert.strictEqual(f!.ChallengeStatus, 'expired');
+        .where(
+          and(
+            eq(fixtures.SeasonId, edition.id),
+            eq(fixtures.HomeTeamId, club[3]!)
+          )
+        );
+      assert.ok(toHuman.length > 0, 'AI clubs should have challenged club 3');
+      assert.ok(
+        toHuman.some((f) =>
+          ['expired', 'forfeited'].includes(f.ChallengeStatus!)
+        )
+      );
+      assert.ok(toHuman.every((f) => f.ChallengeStatus !== 'accepted'));
     }
   );
   while ((await cal()).CurrentDay < 11) await dayOn();
@@ -346,6 +361,26 @@ async function main() {
         [c.CurrentDay, c.CurrentYear, c.ClockMode],
         [60, 2, 'paused']
       );
+    }
+  );
+
+  await check('club analytics: same-Level peers, open-play years', async () => {
+    const report = await getClubPerformance(club[0]!, 'Y1');
+    assert.strictEqual(report.year, 'Y1');
+    assert.ok(report.availableYears.includes('Y1'));
+    assert.match(String(report.leagueCode), /^Level \d+$/);
+    assert.ok(report.matches.length >= 1);
+  });
+  await check(
+    'the board reviews a budget request on the performance score',
+    async () => {
+      const r = await processBoardBudgetRequest(
+        club[0]!,
+        100_000,
+        'SQUAD_DEPTH'
+      );
+      assert.ok(['ACCEPTED', 'COMPROMISE', 'REJECTED'].includes(r.status));
+      assert.ok(r.boardStatement.length > 0);
     }
   );
 

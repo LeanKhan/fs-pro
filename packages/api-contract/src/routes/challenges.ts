@@ -3,7 +3,10 @@
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 import { successEnvelope, failEnvelope } from '../schemas/envelope';
-import { MatchChallengeSchema } from '../schemas/open-play';
+import {
+  ChallengePolicySchema,
+  MatchChallengeSchema,
+} from '../schemas/open-play';
 
 const c = initContract();
 
@@ -62,6 +65,37 @@ export const challengesContract = c.router(
       query: z.object({ status: z.string().optional() }),
       responses: {
         200: successEnvelope(z.array(MatchChallengeSchema)),
+        400: failEnvelope(),
+        401: failEnvelope(),
+        403: failEnvelope(),
+        404: failEnvelope(),
+        409: failEnvelope(),
+      },
+    },
+
+    /** A club's auto-accept policy (null = answer every challenge by hand). */
+    getPolicy: {
+      method: 'GET',
+      path: '/policy/:clubId',
+      pathParams: z.object({ clubId: z.string() }),
+      responses: {
+        200: successEnvelope(ChallengePolicySchema.nullable()),
+        400: failEnvelope(),
+        401: failEnvelope(),
+        403: failEnvelope(),
+        404: failEnvelope(),
+        409: failEnvelope(),
+      },
+    },
+
+    /** Set or clear (null) the policy. Owner only. */
+    setPolicy: {
+      method: 'PUT',
+      path: '/policy/:clubId',
+      pathParams: z.object({ clubId: z.string() }),
+      body: z.object({ policy: ChallengePolicySchema.nullable() }),
+      responses: {
+        200: successEnvelope(ChallengePolicySchema.nullable()),
         400: failEnvelope(),
         401: failEnvelope(),
         403: failEnvelope(),

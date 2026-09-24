@@ -4,6 +4,7 @@ import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 import { successEnvelope, failEnvelope } from '../schemas/envelope';
 import {
+  PerformanceViewSchema,
   WorldDayReportSchema,
   WorldSettingsPatchSchema,
   WorldSettingsSchema,
@@ -62,6 +63,19 @@ export const worldContract = c.router(
         400: failEnvelope(),
         401: failEnvelope(),
         403: failEnvelope(),
+        404: failEnvelope(),
+      },
+    },
+
+    /** A club's performance score for a year (current year by default). */
+    performance: {
+      method: 'GET',
+      path: '/performance/:clubId',
+      pathParams: z.object({ clubId: z.string() }),
+      query: z.object({ year: z.coerce.number().int().min(1).optional() }),
+      responses: {
+        200: successEnvelope(PerformanceViewSchema),
+        400: failEnvelope(),
         404: failEnvelope(),
       },
     },

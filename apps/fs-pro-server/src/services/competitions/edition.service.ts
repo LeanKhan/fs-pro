@@ -26,12 +26,13 @@ import {
   competitions,
   entries,
   fixtures,
-  levelHistory,
   rankings,
   seasons,
   transferLedger,
 } from '../../db/drizzle/schema';
-import { levelForXp, xpAfterLevelChange } from '../world/level';
+import { levelForXp } from '../world/level';
+import { addXp, changeLevel } from '../world/level-change';
+import { scoreEdition } from '../world/performance.service';
 import {
   buildDefinition,
   resolveLeagueRules,
@@ -1133,15 +1134,7 @@ export async function finish(
       const xp =
         def.Rewards.xp.find((p) => p.position === position)?.amount ?? 0;
       if (xp > 0)
-        await addXp(
-          tx,
-          clubId,
-          xp,
-          'xp',
-          today,
-          seasonId,
-          calendar.LevelThresholds
-        );
+        await addXp(tx, clubId, xp, today, seasonId, calendar.LevelThresholds);
     }
 
     if (winnerId) {
@@ -1221,14 +1214,11 @@ export async function finish(
         const targets =
           outcome.change === 1 ? clubsAt.filter((c) => ranked.has(c)) : clubsAt;
         for (const clubId of targets) {
-          await changeLevel(
-            tx,
-            clubId,
-            outcome.change,
-            today,
+          await changeLevel(tx, clubId, outcome.change, {
+            day: today,
             seasonId,
-            calendar
-          );
+            calendar,
+          });
         }
       }
     }
@@ -1276,6 +1266,12 @@ export async function finish(
   });
 
   if (nextEditionId === undefined) return null;
+  // The board's view: final positions, finish scores, performance scores.
+  try {
+    await scoreEdition(seasonId, order);
+  } catch (err) {
+    console.error(`[editions] ${season.SeasonCode}: scoring failed`, err);
+  }
   return {
     seasonId,
     winnerId,
@@ -1298,107 +1294,6 @@ async function nextOpenEdition(tx: Tx, competitionId: string) {
     .orderBy(seasons.EditionNumber)
     .limit(1);
   return open;
-}
-
-async function addXp(
-  tx: Tx,
-  clubId: string,
-  amount: number,
-  source: string,
-  day: number,
-  seasonId: string,
-  thresholds: number[] | null
-) {
-  const [club] = await tx
-    .select({ XP: clubs.XP })
-    .from(clubs)
-    .where(eq(clubs.id, clubId))
-    .for('update');
-  if (!club) return;
-  await setXp(
-    tx,
-    clubId,
-    club.XP,
-    club.XP + amount,
-    source,
-    day,
-    seasonId,
-    thresholds
-  );
-}
-
-async function setXp(
-  tx: Tx,
-  clubId: string,
-  before: number,
-  after: number,
-  source: string,
-  day: number,
-  seasonId: string | null,
-  thresholds: number[] | null
-) {
-  await tx
-    .update(clubs)
-    .set({ XP: after, updatedAt: new Date() })
-    .where(eq(clubs.id, clubId));
-  const from = levelForXp(before, thresholds ?? undefined);
-  const to = levelForXp(after, thresholds ?? undefined);
-  if (from !== to || source !== 'xp') {
-    await tx.insert(levelHistory).values({
-      ClubId: clubId,
-      Day: day,
-      FromLevel: from,
-      ToLevel: to,
-      XPBefore: before,
-      XPAfter: after,
-      Source: source,
-      SeasonId: seasonId,
-    });
-  }
-}
-
-/** Promotion (+1) or relegation (-1) by setting XP to the Level threshold;
- * at most one per club per year. */
-async function changeLevel(
-  tx: Tx,
-  clubId: string,
-  change: 1 | -1,
-  day: number,
-  seasonId: string,
-  calendar: typeof calendars.$inferSelect
-) {
-  const already = await tx
-    .select({ id: levelHistory.id })
-    .from(levelHistory)
-    .where(
-      and(
-        eq(levelHistory.ClubId, clubId),
-        inArray(levelHistory.Source, ['promotion', 'relegation']),
-        gte(levelHistory.Day, calendar.YearStartDay)
-      )
-    )
-    .limit(1);
-  if (already.length) return;
-
-  const [club] = await tx
-    .select({ XP: clubs.XP })
-    .from(clubs)
-    .where(eq(clubs.id, clubId))
-    .for('update');
-  if (!club) return;
-  const thresholds = calendar.LevelThresholds ?? undefined;
-  const after = xpAfterLevelChange(club.XP, change, thresholds);
-  if (after === club.XP) return;
-  await setXp(
-    tx,
-    clubId,
-    club.XP,
-    after,
-    change === 1 ? 'promotion' : 'relegation',
-    day,
-    seasonId,
-    calendar.LevelThresholds
-  );
 }
 
 // ---------------------------------------------------------------------------
