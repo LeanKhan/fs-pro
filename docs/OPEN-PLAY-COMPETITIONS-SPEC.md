@@ -3,87 +3,114 @@
 ## Goal
 
 Let clubs belong to several leagues and competitions at once and be ranked in each,
-**without** a round-robin fixture list generated up front. Matches are arranged
-on demand (challenges), and a season is a time window, not a fixture list.
+**without** a fixture list generated up front. Matches are arranged on demand
+(challenges), a season is a time window, and the world runs on a fixed-length
+year that rolls over by itself.
 
-The current scheduled system stays, unchanged, as **legacy mode**. Every
-competition picks one mode; both run side by side on the same calendar.
+This **replaces** the scheduled system on this branch. The two never run side by
+side: no mode flag, no dual code paths.
+
+## Legacy
+
+The current scheduled system (round-robin leagues, week tables, manual season
+cycles) is preserved only in git:
+
+- Before any of this work merges, branch `legacy/scheduled-seasons` (and tag
+  `legacy-scheduled-v1`) from the last `main` commit that has it.
+- Switching back = checking out that branch against a database that was never
+  migrated (or a restored backup). There is no in-app switch and no down
+  migration.
+- Legacy code is deleted on this branch once its replacement lands (see
+  "Removed").
 
 ## Terms
 
 | Term | Meaning |
 | --- | --- |
-| Scheduled mode (legacy) | Current behaviour: round-robin / cup / group fixtures generated at season start and laid across days. |
-| Open mode | New behaviour: no fixtures at season start; matches come from accepted challenges. |
-| Challenge | A proposed match between two members of an open competition. Becomes a normal Fixture once accepted. |
-| Window | An open season's `StartDay`..`EndDay` range on the global calendar. |
-| Ranking row | One club's aggregate record in one open season. |
+| Year | Fixed run of `YearLengthDays` calendar days. Drives ageing, wages, retirement, youth intake, reports. |
+| Season | One competition's window (`StartDay`..`EndDay`) inside a year. |
+| Challenge | A proposed match between two members of a competition. Becomes a normal Fixture once accepted. |
+| Ranking row | One club's aggregate record in one season. |
 
-## Current system (what legacy mode is)
+## What changes from today
 
-- `middleware/seasons.ts` `create()` builds every fixture at season start:
-  `RoundRobin` for leagues, `TournamentEngineService.createCupInitialFixtures` /
-  `createGroupStageInitialFixtures` for cups and tournaments.
-- `controllers/calendar/calendar.controller.ts` `arrangeSeasonFixturesAcrossDays`
-  gives every fixture a `ScheduledDay`/`ScheduledDate`.
-- Standings live in `Seasons.Standings` as one table per week. Results are
-  written into the week given by `fixture.Week`
-  (`controllers/game/functions.ts` `updateStandings`, `batchUpdateStandings`)
-  and summed by `utils/seasons.ts` `compileStandings`.
-- `finishSeasonPlain` (`controllers/seasons/season.controller.ts`) refuses to
-  finish until every fixture is played, then `prolegate` moves clubs between
-  divisions.
-- The clock (`services/calendar/calendar-clock.service.ts` →
-  `calendar.service.ts` `advanceDayIfDone`) jumps `CurrentDay` straight to
-  `findNextUnplayedDay`. **With no scheduled fixtures it never advances.**
-
-None of this is removed. Open mode adds parallel paths and gates on
-`Competition.Mode`.
+- `middleware/seasons.ts` `create()` no longer generates fixtures (`RoundRobin`,
+  `createCupInitialFixtures`, `createGroupStageInitialFixtures`).
+- `arrangeSeasonFixturesAcrossDays` (`controllers/calendar/calendar.controller.ts`)
+  goes: fixtures get a day when accepted.
+- `Seasons.Standings` week tables (`controllers/game/functions.ts`
+  `updateStandings`/`batchUpdateStandings`, `utils/seasons.ts`
+  `compileStandings`) are replaced by the `Rankings` table.
+- A season ends when its window closes, not when every fixture is played
+  (`finishSeasonPlain`).
+- The clock no longer jumps to the next scheduled fixture
+  (`calendar.service.ts` `advanceDayIfDone` → `findNextUnplayedDay`); with no
+  schedule that stalls forever. It advances day by day.
+- The hand-typed `Year` label and the manual start/end season cycle
+  (`startNextSeasonCycle`, `endSeasonCycle`) are replaced by automatic year
+  rollover.
 
 ## Data model changes
 
-All additive; one Drizzle migration. Existing rows default to legacy.
+One Drizzle migration plus a one-off data script (see "Migrating existing data").
+
+### `Calendars` (world settings)
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `YearLengthDays` | integer, not null, default 360 | |
+| `CurrentYear` | integer, not null, default 1 | Shown as `Y1`, `Y2`… |
+| `YearStartDay` | integer, not null, default 0 | `Day.Index` the current year began. |
+| `AutoRollover` | boolean, not null, default true | Off = admin must end the year by hand. |
+| `SeasonGapDays` | integer, not null, default 0 | Days between year start and season start. |
+| `TransferWindows` | jsonb, not null | `[{ fromDay, toDay }]`, day-of-year ranges. Default `[{1,30},{180,210}]`. |
+| `DefaultRules` | jsonb, nullable | Competition rules used when a competition sets none. |
+
+`TransferWindowOpen`/`TransferWindowClosesDay` stay as the live state; the clock
+sets them from `TransferWindows`, and the admin override still writes them.
 
 ### `Competitions`
 
 | Column | Type | Notes |
 | --- | --- | --- |
-| `Mode` | text, not null, default `'scheduled'` | `'scheduled'` \| `'open'`. |
-| `Rules` | jsonb, nullable | Open-mode rules (below). Ignored in scheduled mode. |
+| `Format` | text, not null, default `'league'` | `'league'` \| `'knockout'` \| `'groups-knockout'`. Replaces the `League`/`Cup`/`Tournament` booleans. |
+| `Rules` | jsonb, nullable | Merged over `Calendars.DefaultRules` and code defaults. |
 
-`NumberOfWeeks` stays not-null for legacy; open competitions store `0`.
+Dropped: `NumberOfWeeks`, `League`, `Cup`, `Tournament`. `Type` is kept as a
+display label only.
 
 ### `Seasons`
 
 | Column | Type | Notes |
 | --- | --- | --- |
-| `StartDay` | integer, nullable | Calendar `Day.Index` the window opens. Open mode only. |
-| `EndDay` | integer, nullable | Last day matches may be played. Open mode only. |
+| `StartDay` | integer, not null | |
+| `EndDay` | integer, not null | Last day matches may be played. |
+| `YearNumber` | integer, not null | Replaces the text `Year` label. |
 
-`Standings` stays for legacy; open seasons leave it empty.
+Dropped: `Standings`, `Year`. `SeasonCode` becomes `<COMP>-Y<n>`.
 
 ### `Fixtures`
 
 | Column | Type | Notes |
 | --- | --- | --- |
-| `CompetitionId` | uuid FK → Competitions, nullable | Set on open-mode fixtures (legacy reaches it via Season). |
-| `ChallengeStatus` | text, nullable | `proposed` \| `accepted` \| `declined` \| `expired` \| `forfeited` \| `cancelled`. Null for legacy and friendlies. |
-| `ChallengerClubId` | uuid FK → Clubs, nullable | Who proposed it. |
+| `CompetitionId` | uuid FK → Competitions, nullable | Null only for friendlies. |
+| `ChallengeStatus` | text, nullable | `proposed` \| `accepted` \| `declined` \| `expired` \| `forfeited` \| `cancelled` \| `played`. Null for friendlies. |
+| `ChallengerClubId` | uuid FK → Clubs, nullable | Null for knockout ties (drawn, not challenged). |
 | `ProposedAt` | timestamp, nullable | |
-| `RespondBy` | integer, nullable | Last calendar day to accept before it expires. |
+| `RespondBy` | integer, nullable | Last day to accept before it expires. |
+| `PlayBy` | integer, nullable | Knockout ties: last day the tie may be played. |
 
-`Week` stays null for open fixtures. `Stage` = `'open-match'`. `Type` = `'league'`.
-`ScheduledDay`/`ScheduledDate` are set only on acceptance.
+Dropped: `Week`. `ScheduledDay`/`ScheduledDate` are set on acceptance.
 
-A proposed challenge **is** a Fixture row (not a separate table), so acceptance
-is a status flip plus a day assignment, and every downstream reader (runner,
-replays, player/club match details) already understands it.
+A proposed challenge **is** a Fixture row, so acceptance is a status flip plus a
+day assignment, and every downstream reader (runner, replays, player/club match
+details) already understands it.
 
 Index: `(CompetitionId, ChallengeStatus)`.
 
 ### New table `Rankings`
 
-One row per (open season, club).
+One row per (season, club).
 
 | Column | Type |
 | --- | --- |
@@ -91,9 +118,10 @@ One row per (open season, club).
 | `SeasonId` | uuid FK → Seasons, not null |
 | `CompetitionId` | uuid FK → Competitions, not null |
 | `ClubId` | uuid FK → Clubs, not null |
+| `Group` | text, nullable (groups-knockout only) |
 | `Played`, `Wins`, `Draws`, `Losses`, `GF`, `GA`, `GD`, `Points` | integer, default 0 |
 | `Forfeits` | integer, default 0 |
-| `Rating` | real, default from rules (Elo) |
+| `Rating` | real, default from rules |
 | `LastPlayedDay` | integer, nullable |
 | timestamps | |
 
@@ -112,23 +140,18 @@ Idempotency ledger so a replayed or retried match can never count twice.
 The result writer inserts here and updates both `Rankings` rows **in one
 transaction**. A conflict on insert means it was already applied; skip.
 
-### Global club rating (optional, phase 5)
+### `Clubs`
 
-`Clubs.Elo` real, default 1500. Updated by open-mode results only; legacy
-scheduled fixtures never touch it (legacy is frozen, see "Legacy mode
-guarantees"). Friendlies don't count either. Used for matchmaking and AI
-challenge choice, never for a competition's table.
-
-### `Clubs.ChallengePolicy`
-
-jsonb, nullable. A human club's auto-accept policy (see "Human clubs" below).
-Null = manual: every challenge waits for the user.
+| Column | Type | Notes |
+| --- | --- | --- |
+| `Elo` | real, not null, default 1500 | Updated by competition results; friendlies don't count. Used for matchmaking and AI choices, never for a competition's table. |
+| `ChallengePolicy` | jsonb, nullable | Human club's auto-accept policy. Null = manual. |
 
 ## Competition rules (`Competitions.Rules`)
 
 ```ts
-interface OpenCompetitionRules {
-  windowDays: number;            // season length, e.g. 120
+interface CompetitionRules {
+  windowDays: number | null;     // season length; null = rest of the year (default)
   ranking: 'points' | 'ppg' | 'elo'; // table ordering, default 'ppg'
   pointsForWin: number;          // default 3
   pointsForDraw: number;         // default 1
@@ -139,15 +162,19 @@ interface OpenCompetitionRules {
   challengeRange: number;        // may challenge clubs within N ranking places (0 = any); default 5
   respondWithinDays: number;     // after this, challenge expires; default 3
   maxOpenChallenges: number;     // outgoing proposed per club; default 3
-  minDeclinesBeforeForfeit: number; // declines inside the window that turn into forfeits; default 3
+  minDeclinesBeforeForfeit: number; // declines inside the window before the next becomes a forfeit; default 3
   maxMatchesPerClubPerDay: number;  // default 1
   initialRating: number;         // default 1500
   eloK: number;                  // default 24
+  // knockout / groups-knockout only
+  tieDays: number;               // days each knockout round has to be played; default 7
+  groupCount: number;            // groups-knockout; default 4
+  qualifiersPerGroup: number;    // groups-knockout; default 2
 }
 ```
 
-Defaults live in one module, `services/competitions/open-rules.ts`, merged over
-whatever is stored.
+Defaults live in `services/competitions/rules.ts`: code defaults, then
+`Calendars.DefaultRules`, then `Competitions.Rules`.
 
 ### Ranking order
 
@@ -157,7 +184,22 @@ whatever is stored.
   first), then GF. Clubs under `minGamesToRank` sort below all ranked clubs.
 - `elo`: `Rating` from that competition's own Elo, then Played.
 
-## Challenge lifecycle
+## Formats
+
+- **league**: challenges only, as below.
+- **knockout**: no challenges. At season start the bracket's first round is
+  drawn (seeded by `Clubs.Elo`). Each tie is a Fixture with `PlayBy = today +
+  tieDays` and no day yet; the scheduler (below) puts it on the first day both
+  clubs are free. The next round is drawn when every tie in the current one is
+  played. A tie unplayed by `PlayBy` is played on that day regardless of caps.
+  Reuses the bracket logic in `tournament-engine.service.ts`, minus its
+  up-front fixture creation.
+- **groups-knockout**: clubs are split into `groupCount` groups (Elo-seeded,
+  `Rankings.Group`). The group stage is a league window where challenges are
+  only allowed within the same group; the top `qualifiersPerGroup` go into a
+  knockout stage as above.
+
+## Challenge lifecycle (league and group stage)
 
 ```
 propose ──► proposed ──accept──► accepted ──(clock plays it)──► played
@@ -171,9 +213,9 @@ declines ≥ minDeclinesBeforeForfeit ─► next decline is recorded as forfeit
 
 ### Validation on propose (all must pass)
 
-1. Both clubs are members of the competition (`CompetitionClubs`).
-2. The competition is `Mode = 'open'` and has an active season whose window
-   covers today.
+1. Both clubs are members of the competition (`CompetitionClubs`); same group
+   for a group stage.
+2. The competition has an active season whose window covers today.
 3. Not the same club. Neither club is over `maxGamesPerSeason`.
 4. Pair count this season (played + accepted) < `maxVsSameOpponent`.
 5. Last meeting was ≥ `rematchCooldownDays` ago.
@@ -182,62 +224,61 @@ declines ≥ minDeclinesBeforeForfeit ─► next decline is recorded as forfeit
 7. Challenger has < `maxOpenChallenges` proposed.
 8. No existing proposed/accepted challenge between the pair in this competition.
 
-### Accept
+### Accept / scheduling
 
-Find the first day ≥ `CurrentDay + 1` and ≤ `EndDay` where neither club already
-has `maxMatchesPerClubPerDay` fixtures in **any** competition (both modes). Set
+Find the first day ≥ `CurrentDay + 1` and ≤ `EndDay` (or `PlayBy`) where neither
+club already has `maxMatchesPerClubPerDay` fixtures in any competition. Set
 `ScheduledDay`/`ScheduledDate`, `ChallengeStatus = 'accepted'`. No slot → reject
 the accept with a clear error.
 
-Home side = challenged club (the challenger travels).
+Home side = challenged club (the challenger travels). Knockout ties: higher
+seed at home.
 
 ## Result writing
 
-In `game.controller.ts` after a match, branch on the fixture:
+`RankingService.applyResult(fixtureId)` (ledger + both rows + both clubs' Elo,
+one transaction) replaces `updateStandings`/`batchUpdateStandings` in
+`game.controller.ts` and `matchday-runner.service.ts`. Knockout fixtures skip
+the table and instead mark the tie winner for the bracket. Friendlies unchanged.
 
-- Friendly → unchanged.
-- Legacy (Season with `Mode = 'scheduled'`) → unchanged `updateStandings` /
-  `batchUpdateStandings`.
-- Open (`fixture.CompetitionId` set, `Stage = 'open-match'`) → new
-  `RankingService.applyResult(fixtureId)` (ledger + both rows + Elo, one
-  transaction).
+## Year and season lifecycle
 
-`matchday-runner.service.ts` splits its `fulfilledResults` the same way before
-calling `batchUpdateStandings`.
-
-## Season lifecycle (open mode)
-
-- **Start**: `startNextSeasonCycle` skips fixture generation and arrangement for
-  open competitions. It creates the Season with `StartDay = CurrentDay`,
-  `EndDay = CurrentDay + windowDays`, and a zeroed `Rankings` row per member.
-- **Membership changes mid-season**: joining inserts a zero row; leaving cancels
-  the club's proposed/accepted challenges and keeps its row (marked in history).
-- **Close**: when `CurrentDay > EndDay`: expire outstanding proposed challenges,
-  cancel accepted-but-unplayed ones, then call a new `finishOpenSeason` that
-  takes the table from `Rankings` instead of `compileStandings`. Clubs under
-  `minGamesToRank` are not eligible for title or promotion, but can be relegated.
-- **Promotion/relegation**: `prolegate` takes a standings list as input instead
-  of reading `Season.Standings` itself, so both modes share it.
-- `endSeasonCycle` (year-based) keeps working because open seasons still carry
-  `Year`.
+- **Year start** (rollover or first boot): `CurrentYear++`, `YearStartDay =
+  CurrentDay`. For every competition, create a Season with `StartDay =
+  YearStartDay + SeasonGapDays`, `EndDay = StartDay + windowDays` (or the last
+  day of the year), a zeroed `Rankings` row per member, and for knockout formats
+  the first-round draw.
+- **Membership changes mid-season**: joining inserts a zero row (not allowed
+  once a knockout has started); leaving cancels the club's proposed/accepted
+  challenges and keeps its row.
+- **Season close** (day passes `EndDay`): expire proposed challenges, cancel
+  accepted-but-unplayed ones, then `finishSeason` reads the final table from
+  `Rankings`, sets the winner, pays prizes, and runs promotion/relegation.
+  Clubs under `minGamesToRank` can't win or be promoted, but can be relegated.
+  `prolegate` takes that ordered list as input.
+- **Year end** (day reaches `YearStartDay + YearLengthDays`): close any season
+  still open, then run the existing year-end steps in the same order as
+  `calendar.router.ts` does today: `updateAllPlayerDetailsForYear`,
+  `deductWagesForYear`, `retireEligiblePlayersForYear`,
+  `runYouthIntakeForYear`, `generateSeasonReport` (all re-keyed from the text
+  `Year` to `YearNumber`). Then start the next year. With `AutoRollover` off the
+  clock pauses here and the admin ends the year by hand.
 
 ## Calendar clock
 
-`advanceDayIfDone` currently returns `null` when there's no future scheduled
-fixture, which stalls the world. Change:
+Replace the jump-to-next-fixture logic in `advanceDayIfDone`:
 
-- If any open season is active (`StartDay <= day <= EndDay`), advance **one day**
-  when nothing is scheduled sooner, instead of stopping.
-- Before advancing each day: expire challenges past `RespondBy`, close any open
-  season whose `EndDay` has passed, and run the AI challenge pass (below).
-- Legacy-only worlds behave exactly as today.
-
-Off-day pacing uses the existing `OffDaySlotMinutes`.
+- Advance **one day** at a time. Days with matches take `MatchdaySlotMinutes`,
+  empty days `OffDaySlotMinutes`.
+- Each day, before advancing: expire challenges past `RespondBy`, play any
+  knockout ties at their `PlayBy`, run the AI and auto-accept pass, apply
+  transfer windows from `TransferWindows`, close seasons past `EndDay`, and run
+  year end at the boundary.
 
 ## AI clubs
 
-Without a schedule, AI clubs play nothing unless they act. On each day tick,
-per open competition, for each AI-controlled club (`Clubs.UserId` null):
+Without a schedule, AI clubs play nothing unless they act. Each day, per
+competition, for each AI-controlled club (`Clubs.UserId` null):
 
 - **Respond**: accept incoming challenges unless fatigued (average squad fitness
   below a threshold, via `PlayerFitnessService`) or already at the daily cap.
@@ -254,8 +295,8 @@ per open competition, for each AI-controlled club (`Clubs.UserId` null):
 Human clubs get incoming challenges in the dashboard; if they don't respond
 before `RespondBy` they get the normal expiry/forfeit rules.
 
-A human club can set an auto-accept policy, evaluated on the same day tick as
-the AI pass (and immediately when a challenge arrives):
+A human club can set an auto-accept policy, evaluated in the daily pass and
+immediately when a challenge arrives:
 
 ```ts
 interface ChallengePolicy {
@@ -268,10 +309,9 @@ interface ChallengePolicy {
 }
 ```
 
-A challenge matching the policy is accepted exactly like a manual accept
-(same slot search and caps). Auto-declines count toward the forfeit threshold
-like manual ones. The policy never proposes challenges; only AI clubs do that
-automatically.
+A challenge matching the policy is accepted exactly like a manual accept.
+Auto-declines count toward the forfeit threshold. The policy never proposes
+challenges.
 
 ## API (ts-rest, `packages/api-contract`)
 
@@ -282,117 +322,158 @@ automatically.
 | POST | `/challenges/:fixtureId/decline` | Decline. |
 | POST | `/challenges/:fixtureId/cancel` | Challenger or admin withdraws a proposed one. |
 | GET | `/clubs/:id/challenges?status=` | Incoming and outgoing challenges. |
-| GET | `/competitions/:id/eligible-opponents?clubId=` | Opponents passing validation right now. |
-| GET | `/seasons/:id/rankings` | Ordered table + ranked/unranked split. |
+| GET | `/competitions/:id/eligible-opponents?clubId=` | Opponents passing validation, plus ineligible ones with the failing rule. |
+| GET | `/seasons/:id/rankings` | Ordered table + ranked/unranked split (+ groups). |
+| GET | `/seasons/:id/bracket` | Knockout rounds and ties. |
 | PUT | `/clubs/:id/challenge-policy` | Set or clear the auto-accept policy (own club only). |
-| PATCH | `/competitions/:id` | Existing; now accepts `Mode` and `Rules`. |
+| GET / PATCH | `/world/settings` | Year length, rollover, season gap, transfer windows, default rules (admin). |
+| POST | `/world/end-year` | Admin: run year end now. |
+| POST | `/seasons/:id/close` | Admin: close a season now. |
+| PATCH | `/competitions/:id` | Existing; now takes `Format` and `Rules`. `Format` can't change during an active season. |
+
+Removed: `startNextSeasonCycle`, `endSeasonCycle`, arrange/setup-days routes.
 
 User-auth checks: a user may act only for their own club (`middleware/club.ts`).
 
-Changing `Mode` is only allowed when the competition has no active season.
-
 ## UI (`apps/fs-pro-client`, Vue 3 + Vuetify 3 + Pinia)
 
-Every screen that shows a competition branches on `competition.Mode`. Legacy
-(`'scheduled'`) screens render exactly as today. New components go in
-`src/components/open-play/`.
+New components go in `src/components/open-play/`.
 
 ### New components
 
 | Component | Purpose |
 | --- | --- |
-| `rankings-table.vue` | Open-season table. Columns: Pos, Club, P, W, D, L, GF, GA, GD, Pts, PPG, Rating (when `ranking = 'elo'`), Forfeits. A divider separates ranked clubs from clubs under `minGamesToRank`, which show a "needs N more" chip instead of a position. Promotion/relegation zones tinted as the legacy table does. The user's club is highlighted. |
-| `season-window-bar.vue` | Progress bar for the window: day X of Y, days left, and the user club's games played vs the `minGamesToRank` line and the pace target. |
+| `rankings-table.vue` | Season table. Columns: Pos, Club, P, W, D, L, GF, GA, GD, Pts, PPG, Rating (when `ranking = 'elo'`), Forfeits. A divider separates ranked clubs from clubs under `minGamesToRank`, which show a "needs N more" chip instead of a position. Promotion/relegation zones tinted. The user's club is highlighted. One table per group for group stages. Replaces `standings-component.vue` / `standings-scroller.vue`. |
+| `season-window-bar.vue` | Day X of Y in the season, days left, and the user club's games played vs the `minGamesToRank` line and the pace target. |
 | `challenge-card.vue` | One challenge: both crests, competition badge (reuse `calendar/competition-badge.vue`), ratings and ranking places, status chip, `RespondBy` countdown, and actions for the viewer (Accept / Decline for incoming, Cancel for outgoing proposed). Accepted shows the scheduled day. |
-| `challenge-inbox.vue` | Tabs: Incoming, Outgoing, Upcoming (accepted), History (played / declined / expired / forfeited). Filter by competition. Badge count on Incoming. |
-| `challenge-dialog.vue` | Propose a challenge: pick competition (only open ones the club is in), then an opponent from `eligible-opponents`. Ineligible clubs are listed greyed out with the failing rule ("played twice already", "cooldown: 6 days", "outside range"). Shows the club's remaining open-challenge slots. |
+| `challenge-inbox.vue` | Tabs: Incoming, Outgoing, Upcoming (accepted and knockout ties), History. Filter by competition. Badge count on Incoming. |
+| `challenge-dialog.vue` | Propose a challenge: pick competition, then an opponent from `eligible-opponents`. Ineligible clubs are greyed out with the failing rule ("played twice already", "cooldown: 6 days", "outside range"). Shows remaining open-challenge slots. |
 | `challenge-policy-form.vue` | Edit `Clubs.ChallengePolicy`: auto-accept switch, competition multi-select, max rating gap, min squad fitness slider, max per week, "decline outside policy" switch. Explains that declines count toward forfeits. |
-| `open-rules-form.vue` | Admin editor for `Competitions.Rules`, prefilled with defaults, with a short help line per field. |
+| `rules-form.vue` | Admin editor for competition rules (and the world default rules), prefilled with inherited values, a short help line per field. |
+| `year-progress.vue` | Year N, day X of `YearLengthDays`, transfer windows and season windows drawn on one bar. |
 
 ### Changed screens
 
 | Screen | Change |
 | --- | --- |
-| `views/user/dashboard.vue` | Add a "Challenges" card (right column, above the season list) with the Incoming count, the next 3 incoming as `challenge-card`s, and a "Challenge a club" button opening `challenge-dialog`. The "League Standings" tabs render `rankings-table` + `season-window-bar` for open seasons and `standings-scroller` for legacy ones. Title becomes "Standings". |
-| `components/user-dashboard/fixture-card.vue`, `day-fixtures-list.vue` | Show an "Open" competition badge on open-mode fixtures, and a "Forfeit" label instead of a score on forfeits. No other change: accepted challenges are normal fixtures. |
-| `views/user/calendar/year-calendar.vue` | Days with no fixtures now happen while an open season runs, so the empty-day text reads "No matches. Open challenges: N" with a link to the inbox. Window start/end days are marked on the calendar. |
-| `views/user/club/zones/owner-zone.vue` (or a new `challenges-zone.vue` in `zones/index.ts`) | Full `challenge-inbox` plus `challenge-policy-form`. A new zone is preferred so the policy sits next to the inbox. |
-| `views/user/seasons/fixtures.vue` | Filter chip for competition mode; open fixtures list the challenger. |
-| `views/misc/end-of-season.vue`, `views/user/history/season-history.vue` | Read the final table from `/seasons/:id/rankings` for open seasons; show "unranked (N games)" for clubs under the minimum. |
-| `views/game/friendly-setup.vue` | Unchanged; add a hint linking to "Challenge a club" when both clubs share an open competition, since friendlies don't count. |
-| `views/admin/competitions/competition-form.vue` | New "Mode" select (Scheduled / Open), shown for Type League only. Open: hide `NumberOfWeeks`, show `open-rules-form`. Mode is disabled while the competition has an active season. |
-| `views/admin/competitions/view-competition.vue` | Third branch next to cup/tournament: open mode shows `season-window-bar`, `rankings-table`, and an admin list of all challenges with a Cancel action. |
-| `views/admin/seasons/view-season.vue` | Same table branch as the dashboard. |
-| `views/admin/calendar/calendar.vue` | Show active open seasons and their windows; admin "close window now" action. |
+| `views/user/dashboard.vue` | "Challenges" card (right column, above the season list): Incoming count, next 3 incoming as `challenge-card`s, "Challenge a club" button. The "League Standings" tabs become "Standings" and render `rankings-table` + `season-window-bar` (knockouts: `knockout-bracket`). `year-progress` in the header. |
+| `components/user-dashboard/fixture-card.vue`, `day-fixtures-list.vue` | "Challenge" / "Knockout" label; "Forfeit" instead of a score on forfeits. |
+| `views/user/calendar/year-calendar.vue` | Driven by `YearLengthDays` instead of months of a real year. Empty days read "No matches. Open challenges: N" with a link to the inbox. Season windows and transfer windows marked. |
+| New `views/user/club/zones/challenges-zone.vue` (registered in `zones/index.ts`) | Full `challenge-inbox` plus `challenge-policy-form`. |
+| `views/user/seasons/fixtures.vue` | Filter by competition; challenge fixtures list the challenger. |
+| `views/misc/end-of-season.vue`, `views/user/history/season-history.vue` | Final table from `/seasons/:id/rankings`; "unranked (N games)" for clubs under the minimum. |
+| `views/misc/end-of-year.vue` | Route becomes `/finish/year/:yearNumber`; content unchanged (season report). |
+| `views/game/friendly-setup.vue` | Hint linking to "Challenge a club" when both clubs share a competition, since friendlies don't count. |
+| `views/admin/competitions/competition-form.vue` | "Format" select (League / Knockout / Groups + knockout) replaces the Type → League/Cup/Tournament flag juggling. `NumberOfWeeks` removed. `rules-form` below. Format disabled during an active season. |
+| `views/admin/competitions/view-competition.vue` | League: `season-window-bar`, `rankings-table`, and an admin list of all challenges with Cancel. Knockout / groups: existing `knockout-bracket` / `group-stage-view`, fed from the new endpoints. "Close season now" action. |
+| `views/admin/seasons/view-season.vue` | Same table / bracket as above. |
+| `views/admin/calendar/calendar.vue` → **World settings** | See below. |
+
+### Admin: World settings (`views/admin/calendar/calendar.vue`)
+
+Replaces the "Next step" season-cycle card, the "Year label" input and "Start
+Next Season Cycle":
+
+- **Clock**: unchanged (live/paused, match-day and off-day slot minutes,
+  advance now). "Target day" jump stays.
+- **Year**: `year-progress`, `YearLengthDays`, `AutoRollover` switch,
+  `SeasonGapDays`, "End year now" (confirm dialog listing what will run).
+- **Transfer windows**: editable list of day-of-year ranges; the existing
+  open/close buttons stay as a manual override for the current window.
+- **Default rules**: `rules-form` for `Calendars.DefaultRules`.
+- **Seasons this year**: every competition's window, status, and "Close now".
 
 ### Realtime
 
 Socket.IO events from the server (`realtime/io.ts`), consumed in a new Pinia
-store `stores/challenges.ts` (replacing the placeholder in `store/socket.ts`):
+store `store/challenges.ts` (replacing the placeholder in `store/socket.ts`):
 
 - `challenge:received`, `challenge:updated` (accepted, declined, expired,
-  forfeited, cancelled, auto-accepted) → update inbox and badge, show a snackbar.
+  forfeited, cancelled, auto-accepted) → update inbox and badge, snackbar.
 - `rankings:updated` `{ seasonId }` → refetch that table if it is on screen.
+- `world:day`, `world:year-ended` → refresh `year-progress` and the dashboard.
 
 Without sockets the inbox polls on dashboard focus.
 
 ### States to design for
 
-- Club in no open competition: hide the Challenges card; the dashboard is
-  unchanged.
+- Club in no competition: hide the Challenges card.
 - No eligible opponents: dialog says why (all on cooldown, cap reached, window
   closing).
-- Window ended: inbox read-only, table shows "Final".
-- Auto-accept on: incoming challenges that matched show "Auto-accepted" in
-  History instead of waiting in Incoming.
+- Season ended: inbox read-only for that competition, table shows "Final".
+- Between seasons (`SeasonGapDays`): tables show last season's final, the
+  Challenges card says when the next season opens.
+- Auto-accept on: matching challenges show "Auto-accepted" in History.
 - Mobile: tables scroll horizontally inside their card; cards stack.
 
-### API client
+## Migrating existing data
 
-Add the challenge, rankings and policy routes to `packages/api-contract` so the
-client gets typed calls.
+One-off script `src/scripts/migration/run-00xx-open-play.ts`, run once after
+the schema migration. Take a DB backup first.
 
-## Legacy mode guarantees
+1. Refuse to run if any season is started and unfinished, unless `--abandon`
+   is passed; with it, cancel that season's unplayed fixtures and mark it
+   finished with no promotion.
+2. Map `League`/`Cup`/`Tournament` → `Format`.
+3. Convert finished seasons' `Standings` into `Rankings` rows (via the old
+   `compileStandings`, inlined in the script) so history pages keep working.
+4. Map text `Year` labels to `YearNumber` in order of `StartDate`; set
+   `Calendars.CurrentYear` to the last one and start year `+1` at `CurrentDay`.
+5. Seed `Clubs.Elo` at 1500.
 
-- `Mode` defaults to `'scheduled'`; no existing competition changes behaviour.
-- `RoundRobin`, `arrangeSeasonFixturesAcrossDays`, `generateWeekTable`,
-  `compileStandings`, `updateStandings`, `batchUpdateStandings`,
-  `finishSeasonPlain`, and the tournament engine stay and keep being used
-  for scheduled competitions.
-- Cups and group tournaments stay scheduled-only. Open mode is for league-style
-  ranking competitions.
-- A club can be in a scheduled league and an open competition at the same time;
-  the per-day match cap in "Accept" checks both modes.
+Then drop the old columns in a follow-up migration once the script has run
+everywhere.
+
+## Removed
+
+`RoundRobin`, `generateWeekTable`, `generateFixtureObject`, `compileStandings`
+(moved into the migration script), `arrangeSeasonFixturesAcrossDays`,
+`hydrateSeasonFixtures`, `startNextSeasonCycle`, `endSeasonCycle`,
+`updateStandings`, `batchUpdateStandings`, `finishSeasonPlain`,
+`findNextUnplayedDay`, the up-front fixture creation in
+`tournament-engine.service.ts`, `standings-component.vue`,
+`standings-scroller.vue`.
 
 ## Build order
 
-1. Migration: `Competitions.Mode/Rules`, `Seasons.StartDay/EndDay`, Fixture
-   challenge columns, `Rankings`, `RankingResults`. Rules defaults module.
-2. `RankingService`: row init, `applyResult` (ledger, transaction), ordering.
-   Branch in `game.controller.ts` and `matchday-runner.service.ts`.
-3. Challenge service + endpoints (propose/accept/decline/cancel/list/eligible).
-4. Season start/close for open mode; refactor `prolegate` to take standings.
-5. Clock: one-day advance while open seasons are active; expiry and close hooks.
-6. AI respond/propose pass, human auto-accept policy (`Clubs.ChallengePolicy`). Optional `Clubs.Elo`.
-7. UI: rankings table and season window bar first (read-only), then the
-   challenge inbox and dialog, then the policy form and admin rules editor,
-   then socket events.
+1. `legacy/scheduled-seasons` branch + tag. DB backup.
+2. Migration (new columns and tables; old ones kept) + rules defaults module.
+3. `RankingService`: row init, `applyResult` (ledger, transaction, Elo),
+   ordering. Wire into `game.controller.ts` and `matchday-runner.service.ts`.
+4. Challenge service + scheduler + endpoints.
+5. Year/season lifecycle: season start and close, year end, `prolegate` taking
+   a ranked list.
+6. Clock: day-by-day advance with the daily pass (expiry, knockout deadlines,
+   transfer windows, season close, year end).
+7. AI respond/propose pass; human auto-accept policy.
+8. Knockout and groups-knockout on top of the scheduler.
+9. Data migration script; then delete the removed code and drop old columns.
+10. UI: rankings table, season window bar, year progress (read-only) → World
+    settings admin → challenge inbox and dialog → policy form and rules form →
+    socket events.
 
 ## Testing
 
 - Unit: rule validation (each rule has a pass/fail case), ranking order per
-  `ranking` type, Elo update, forfeit threshold.
+  `ranking` type, Elo update, forfeit threshold, scheduler slot search.
 - Idempotency: apply the same fixture result twice → counted once.
-- Scripted sim (`src/scripts/`): one open competition, all-AI, full window →
-  every club reaches ≥ `minGamesToRank`, no pair exceeds `maxVsSameOpponent`,
-  no club plays twice on one day, season closes, promotion runs.
-- Regression: an existing scheduled-league season cycle runs start → finish →
-  prolegate with identical results before and after the change.
+- Scripted sim (`src/scripts/`), all-AI, two full years → every club reaches
+  ≥ `minGamesToRank`, no pair exceeds `maxVsSameOpponent`, no club plays twice
+  on one day, every knockout completes before its season ends, seasons close,
+  promotion runs, year end runs once per year, transfer windows open and close
+  on their days.
+- Migration script against a copy of a real DB: history pages show the same
+  final tables before and after.
 
 ## Decisions
 
-1. `Clubs.Elo` is open mode only. Legacy scheduled fixtures are frozen and
-   don't feed it.
-2. A forfeit is recorded as a fixed 3-0 (goals count toward GF/GA/GD).
-3. Human clubs can set an auto-accept policy (`Clubs.ChallengePolicy`).
-4. A match counts for exactly one competition: one fixture, one competition.
+1. No coexistence: this branch replaces the scheduled system; legacy lives on
+   a git branch.
+2. `Clubs.Elo` is fed by competition results only (no friendlies).
+3. A forfeit is recorded as a fixed 3-0 (goals count toward GF/GA/GD).
+4. Human clubs can set an auto-accept policy (`Clubs.ChallengePolicy`).
+5. A match counts for exactly one competition.
+6. The year stays, as a fixed-length period that rolls over automatically;
+   seasons are windows inside it.
+7. Cups and tournaments stay, as knockout formats with deadlines instead of
+   fixed days.
