@@ -19,6 +19,7 @@ import { facilitiesContract } from './routes/facilities';
 import { playContract } from './routes/play';
 import { editionsContract } from './routes/editions';
 import { challengesContract } from './routes/challenges';
+import { worldContract } from './routes/world';
 
 const c = initContract();
 
@@ -44,6 +45,7 @@ export const apiContract = c.router({
   play: playContract,
   editions: editionsContract,
   challenges: challengesContract,
+  world: worldContract,
 });
 
 export type { Club } from './schemas/club';
@@ -108,3 +110,4 @@ export type {
   MatchChallenge,
   Bracket,
 } from './schemas/open-play';
+export type { WorldSettings, WorldSettingsPatch, YearEndSummary, WorldDayReport } from './schemas/world';

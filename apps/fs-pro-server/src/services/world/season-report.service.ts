@@ -1,8 +1,15 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, between, desc, eq, inArray } from 'drizzle-orm';
 import { getTierInfo, planMoves } from '../competitions/pyramid.service';
 import type { SeasonReport, SeasonHighlight } from '@repo/api-contract';
 import { DrizzleDatabase } from '../../db/drizzle';
-import { players, seasonReports } from '../../db/drizzle/schema';
+import {
+  clubs as clubsTable,
+  competitions as competitionsTable,
+  levelHistory,
+  players,
+  seasonReports,
+  seasons as seasonsTable,
+} from '../../db/drizzle/schema';
 import { getSeasons } from '../../controllers/seasons/season.service';
 import { getCompetitions } from '../../controllers/competitions/competition.service';
 import { getClubs } from '../../controllers/clubs/club.service';
@@ -272,6 +279,93 @@ export async function generateSeasonReport(
       set: { Data: report as unknown as Record<string, unknown>, updatedAt: new Date() },
     });
 
+  return report;
+}
+
+/**
+ * The report for one open-play year (docs/OPEN-PLAY-COMPETITIONS-SPEC.md,
+ * "Year"): every edition that finished in the year's days with its winner,
+ * every promotion/relegation (Level change) in those days, retirements and
+ * breakout players. Stored under `label` (e.g. "Y3").
+ */
+export async function generateYearReport(
+  label: string,
+  range: { fromDay: number; toDay: number },
+  context: { retired: RetiredPlayerSummary[] }
+): Promise<SeasonReport> {
+  const db = DrizzleDatabase.getInstance().database;
+  const finished = await db
+    .select({
+      season: seasonsTable,
+      competition: competitionsTable,
+      champion: clubsTable,
+    })
+    .from(seasonsTable)
+    .innerJoin(competitionsTable, eq(competitionsTable.id, seasonsTable.CompetitionId))
+    .leftJoin(clubsTable, eq(clubsTable.id, seasonsTable.WinnerId))
+    .where(
+      and(
+        eq(seasonsTable.Status, 'finished'),
+        between(seasonsTable.EndDay, range.fromDay, range.toDay)
+      )
+    );
+
+  const competitionEntries: Competition[] = finished.map(({ season, competition, champion }) => {
+    const stages = season.Definition?.Stages ?? [];
+    const kind = stages.every((st) => st.type === 'knockout')
+      ? 'cup'
+      : stages.some((st) => st.type === 'groups')
+        ? 'continental'
+        : 'league';
+    return {
+      code: season.SeasonCode,
+      name: competition.Name,
+      kind,
+      division: 0,
+      championId: season.WinnerId ?? null,
+      championName: champion?.Name ?? null,
+      championCode: champion?.ClubCode ?? null,
+    };
+  });
+
+  // Promotions and relegations only; Level ups from earned XP aren't news here.
+  const moves = await db
+    .select({ move: levelHistory, club: clubsTable })
+    .from(levelHistory)
+    .innerJoin(clubsTable, eq(clubsTable.id, levelHistory.ClubId))
+    .where(
+      and(
+        between(levelHistory.Day, range.fromDay, range.toDay),
+        inArray(levelHistory.Source, ['promotion', 'relegation'])
+      )
+    )
+    .orderBy(levelHistory.Day);
+  const movements: Movement[] = moves.map(({ move, club }) => ({
+    clubId: club.id,
+    clubName: club.Name,
+    clubCode: club.ClubCode,
+    direction: move.Source === 'promotion' ? 'promoted' : 'relegated',
+    from: `Level ${move.FromLevel}`,
+    to: `Level ${move.ToLevel}`,
+  }));
+
+  const body: ReportBody = {
+    year: label,
+    generatedAt: new Date().toISOString(),
+    competitions: competitionEntries.sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name)),
+    movements,
+    retirements: context.retired,
+    breakouts: await findBreakouts(label),
+  };
+  const report: SeasonReport = { ...body, highlights: deriveHighlights(body) };
+
+  await db
+    .insert(seasonReports)
+    .values({ Year: label, Data: report as unknown as Record<string, unknown>, updatedAt: new Date() })
+    .onConflictDoUpdate({
+      target: seasonReports.Year,
+      set: { Data: report as unknown as Record<string, unknown>, updatedAt: new Date() },
+    });
   return report;
 }
 
