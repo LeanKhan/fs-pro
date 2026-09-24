@@ -43,6 +43,17 @@ const ok = <T>(payload: T, message = 'OK') => ({
 
 /** Maps service errors to status codes; anything else is a 400. */
 function fail(err: unknown) {
+  // A malformed id (Postgres invalid_text_representation) is just "not found".
+  if ((err as { cause?: { code?: string } })?.cause?.code === '22P02') {
+    return {
+      status: 404 as const,
+      body: {
+        success: false as const,
+        message: 'Not found',
+        payload: undefined,
+      },
+    };
+  }
   const message = err instanceof Error ? err.message : String(err);
   const reasons =
     err instanceof ChallengeError
