@@ -251,11 +251,10 @@ the map.
 
 - Facility levels 0–5 on that branch become **Tier** (`ClubAssets` level
   column, `Lv N` pins, `facility-detail-sheet.vue` text).
-- That branch's XP-based **Club Level** keeps its name. To keep the two apart:
-  "Level" alone (and `Clubs.Level`) always means the club's standing from the
-  competitions spec; the XP progression is always written in full as "Club
-  Level" in UI text and derived from `Clubs.XP`, never stored in a column
-  named `Level`. The HUD shows both: a Level badge and a Club Level / XP bar.
+- That branch's XP-based Club Level **is** the competition spec's **Level**:
+  one concept, derived from `Clubs.XP`, deciding which competitions a club may
+  enter. A club's position in a table is its **Rank**. The HUD shows a Level
+  badge with an XP progress ring.
 - Its PLAY / matchmaking loop and the spec's challenges become one system:
   PLAY is the quick-match button that proposes a challenge to a suggested
   opponent in one of your running competitions.
@@ -277,7 +276,7 @@ the map.
 ## Decisions
 
 1. World map places clubs at their real home place only; no Level districts.
-2. The XP-based progression keeps the name **Club Level**; "Level" alone
-   means the competition standing.
+2. **Level** is the XP-based progression and decides competition entry;
+   **Rank** is a club's position in a ranked competition's table.
 3. Campuses come in 3 layout variants (city, coastal, hillside) that share all
    plates.
