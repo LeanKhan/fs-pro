@@ -22,6 +22,7 @@ import {
   stopCalendarClock,
 } from './services/calendar/calendar-clock.service';
 import { startFacilitiesSweep } from './services/facilities/facilities.service';
+import { startWorldTick } from './services/world/ai-world.service';
 
 const app: Application = express();
 
@@ -177,6 +178,7 @@ http.listen(port, () => {
   // Live game clock: no-op until an admin sets ClockMode to 'live'.
   startCalendarClock();
   startFacilitiesSweep();
+  startWorldTick();
 });
 
 /**
