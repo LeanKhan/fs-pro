@@ -11,6 +11,7 @@ import {
   EntrySchema,
   OpponentOptionSchema,
   StageTableSchema,
+  BracketSchema,
 } from '../schemas/open-play';
 
 const c = initContract();
@@ -160,6 +161,21 @@ export const editionsContract = c.router(
       query: z.object({ stage: z.coerce.number().int().min(0).optional() }),
       responses: {
         200: successEnvelope(StageTableSchema),
+        400: failEnvelope(),
+        401: failEnvelope(),
+        403: failEnvelope(),
+        404: failEnvelope(),
+        409: failEnvelope(),
+      },
+    },
+
+    bracket: {
+      method: 'GET',
+      path: '/:id/bracket',
+      pathParams: z.object({ id: z.string() }),
+      query: z.object({ stage: z.coerce.number().int().min(0).optional() }),
+      responses: {
+        200: successEnvelope(BracketSchema),
         400: failEnvelope(),
         401: failEnvelope(),
         403: failEnvelope(),

@@ -106,4 +106,5 @@ export type {
   StageTable,
   OpponentOption,
   MatchChallenge,
+  Bracket,
 } from './schemas/open-play';

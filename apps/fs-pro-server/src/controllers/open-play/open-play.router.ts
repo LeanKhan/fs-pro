@@ -18,6 +18,7 @@ import {
   EditionService,
 } from '../../services/competitions/edition.service';
 import { getStageTable } from '../../services/competitions/ranking.service';
+import { getBracket } from '../../services/competitions/knockout.service';
 import { accessDenied, canManageClub, isAdmin } from '../auth/club-access';
 
 /**
@@ -334,6 +335,14 @@ export const editionTsRestRoutes = s.router(contract.editions, {
           })),
         })),
       });
+    } catch (err) {
+      return fail(err);
+    }
+  },
+
+  bracket: async ({ params, query }) => {
+    try {
+      return ok(await getBracket(params.id, query.stage));
     } catch (err) {
       return fail(err);
     }

@@ -280,8 +280,17 @@ Rounds are drawn **when the round opens**, from the clubs still in:
    when both clubs are free. Higher seed at home.
 3. A tie still unplayed on `PlayBy` is played that day; any accepted league
    challenge on that day for either club is moved to its next free day.
-4. Draws resolve per `drawAtEnd`.
+4. Draws resolve per `drawAtEnd`. A single leg with `penalties` uses the
+   match engine's own shootout (the tie's `Stage` is `knockout`); two-leg
+   ties, away goals and higher-seed are decided after the last leg (legs use
+   `Stage` `ko-leg`, so the engine leaves a drawn leg alone), with a shootout
+   run in code when still level.
 5. Round done → draw the next one. One club left → stage over.
+
+Ties are scheduled as soon as they are drawn. The higher seed hosts a single
+leg and the second leg. The tie's outcome is written to the last leg's
+`Details.Tie`; byes are recorded in the edition's `Logs`. Final order: winner,
+runner-up, then by round lost (later first), then seed.
 
 ## Challenges (league and group stages)
 
@@ -557,7 +566,7 @@ Each day, for each AI club (`Clubs.UserId` null):
 | GET | `/editions/:id/rankings?stage=` | Stage table(s), ranked/unranked split, groups. |
 | GET | `/editions/:id/opponents/:clubId` | Eligible opponents + ineligible ones with the failing rule. |
 | GET | `/editions/club/:clubId` | The club's current and past entries. |
-| GET | `/editions/:id/bracket` | Knockout rounds and ties. *Step 6.* |
+| GET | `/editions/:id/bracket?stage=` | Knockout rounds, ties, legs, byes and how each tie was decided. |
 | POST | `/challenges` | Propose `{ editionId, challengerClubId, opponentClubId }`. |
 | POST | `/challenges/:fixtureId/accept` \| `decline` \| `cancel` | Body `{ clubId }`. Admins may cancel any challenge. |
 | GET | `/challenges/club/:clubId?status=a,b` | Incoming/outgoing across all editions. |
