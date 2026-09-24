@@ -68,3 +68,26 @@ export type { Award } from './schemas/award';
 export type { User } from './schemas/user';
 export type { Tactic, PlayResult, GameResults } from './schemas/game';
 export type { MediaItem } from './schemas/media';
+export {
+  CompetitionDefinitionSchema,
+  LeagueRulesSchema,
+  StageDefinitionSchema,
+  EntryConditionsSchema,
+  WinConditionSchema,
+  RewardsSchema,
+  OutcomeSchema,
+  RecurrenceSchema,
+  RankingMetricSchema,
+} from './schemas/competition-definition';
+export type {
+  CompetitionDefinition,
+  LeagueRules,
+  StageDefinition,
+  EntryConditions,
+  WinCondition,
+  Rewards,
+  Outcome,
+  Recurrence,
+  RankingMetric,
+  Advance,
+} from './schemas/competition-definition';

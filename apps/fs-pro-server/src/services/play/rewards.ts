@@ -2,12 +2,9 @@ import { eq, sql as drizzleSql } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
 import { clubs, transferLedger } from '../../db/drizzle/schema';
 
-/**
- * Club level from XP: level n needs 100 * n^2 XP (level 0 below 100). The
- * curve is a placeholder tuning value.
- */
-export const xpForLevel = (level: number) => 100 * level * level;
-export const levelForXp = (xp: number) => Math.floor(Math.sqrt(Math.max(xp, 0) / 100));
+/** Level from XP lives in services/world/level.ts (one Level concept for
+ * PLAY and competition entry). Re-exported for existing callers. */
+export { xpForLevel, levelForXp } from '../world/level';
 
 /**
  * Credits cash + XP to a club and records the cash in the ledger.
