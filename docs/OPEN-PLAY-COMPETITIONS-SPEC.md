@@ -37,6 +37,8 @@ tables, manual season cycles, pre-drawn cups) is preserved only in git:
 | Entry | A club registered in an edition. |
 | Challenge | A proposed match inside a league or group stage. Becomes a normal Fixture once accepted. |
 | Tie | A knockout pairing, drawn when its round opens, with a play-by deadline. |
+| Level | A club's standing in the world (1 = top, `LevelCount` = bottom). Promotion and relegation move a club's Level; they don't move it between competitions. |
+| Performance score | A club's general performance across every competition it played in a year. What the board judges. |
 | Year | Fixed run of `YearLengthDays` days. Only drives ageing, wages, retirement, youth intake, reports, transfer windows. Creates no competitions. |
 
 ## What changes from today
@@ -47,9 +49,12 @@ tables, manual season cycles, pre-drawn cups) is preserved only in git:
   `arrangeSeasonFixturesAcrossDays`, `createCupInitialFixtures`,
   `createGroupStageInitialFixtures` go. League/group matches come from
   challenges; knockout ties are drawn round by round from whoever is still in.
-- Fixed divisions and automatic promotion/relegation go. A competition can
-  still restrict entry by division or country, and can feed its top/bottom
-  finishers into other competitions (see "Outcomes").
+- Fixed divisions go. They're replaced by the club's **Level**: competitions
+  stratify by restricting entry to a Level band and by qualifying or barring
+  clubs from other competitions; promotion and relegation change a club's
+  Level (see "Level").
+- The board no longer judges a club on one league; it judges its **performance
+  score** across all competitions (see "Board and performance").
 - `Seasons.Standings` week tables are replaced by a `Rankings` table.
 - The clock advances day by day instead of jumping to the next scheduled
   fixture (with no schedule, `findNextUnplayedDay` would stall forever).
@@ -63,6 +68,7 @@ competition:
 interface CompetitionDefinition {
   Name: string;                   // "Summer Rumble"
   Description?: string;
+  Prestige: 1 | 2 | 3 | 4 | 5;    // weight in the performance score; default 2
   Entry: EntryConditions;
   Stages: StageDefinition[];      // run in order; at least one
   WinCondition: WinCondition;     // how the edition's winner is decided
@@ -77,10 +83,11 @@ interface EntryConditions {
   maxClubs: number | null;
   minElo?: number;  maxElo?: number;        // e.g. an underdog cup: maxElo 1400
   minRating?: number; maxRating?: number;   // Clubs.Rating
+  minLevel?: number; maxLevel?: number;     // Clubs.Level band, e.g. Level 1-2 only
   countryIds?: string[];          // AddressCountryId filter
   requiresWinOf?: string[];       // competition ids: only past winners may enter
   excludesEntrantsOf?: string[];  // can't be in these at the same time
-  entryFee?: number;              // taken from Budget on registration, refunded if cancelled
+  entryFee?: number;              // taken from Budget on registration, refunded if cancelled; entry blocked if Budget < fee
   lateEntryUntilDay?: number | null; // relative to start; league/groups stages only
 }
 
@@ -125,7 +132,8 @@ interface Rewards {
 
 type Outcome =
   | { type: 'qualify'; positions: [number, number]; targetCompetitionId: string } // top N get an invite to the next edition of X
-  | { type: 'bar'; positions: [number, number]; targetCompetitionId: string; editions: number }; // bottom N can't enter X for K editions
+  | { type: 'bar'; positions: [number, number]; targetCompetitionId: string; editions: number } // bottom N can't enter X for K editions
+  | { type: 'level'; positions: [number, number]; change: -1 | 1 }; // promote (-1 = up a Level) or relegate (+1) those finishers
 ```
 
 Defaults live in `services/competitions/definition.ts` (code defaults, then
@@ -169,6 +177,52 @@ draft ──publish──► registration ──(close day, ≥ minClubs)──�
 
 An edition never depends on the year: it can start and end on any day, and
 run across a year boundary.
+
+## Level
+
+Every club has a `Level` (1 = top). It's the world's stratification axis,
+replacing fixed divisions:
+
+- **Entry**: competitions use `minLevel`/`maxLevel` to decide who may enter
+  (e.g. "Elite Cup: Level 1 only", "Rising Stars: Level 3-5").
+- **Stratification between competitions**: `qualify` and `bar` outcomes decide
+  who may enter what next (e.g. top 4 of the Level 2 League qualify for the
+  Elite Cup's next edition).
+- **Promotion/relegation** moves the club's Level, and nothing else:
+  - `level` outcomes on a competition: e.g. top 2 of the Level 2 League go up
+    a Level, bottom 3 go down.
+  - Optional **year-end review** (world setting `LevelReview`, off by
+    default): per Level, the top `promoteCount` clubs by performance score go up
+    and the bottom `relegateCount` go down.
+  - A club moves at most one Level per year end, whatever the sources; Level is
+    clamped to `1..LevelCount`.
+- Changes take effect immediately for future registrations. Current entries are
+  unaffected, even if the club no longer fits the band.
+- Every change is logged (`LevelHistory`) with the source (edition or review).
+
+## Board and performance
+
+The board judges **general performance across all competitions**, not one
+league. At each edition finish, every entry gets a finish score:
+
+- League/groups finish: `1 - (position - 1) / (entrants - 1)`; unranked
+  (under `minGamesToRank`) = 0.
+- Knockout finish: rounds survived ÷ total rounds; winner = 1.
+- Mixed stages: the last stage the club reached decides.
+
+The club's **performance score** for a year = the Prestige-weighted average of
+its finish scores for editions finished that year, plus a small term for Elo
+change over the year (`+ clamp(ΔElo / 400, -0.1, 0.1)`), plus 0.05 per
+trophy. Recalculated at each edition finish, frozen at year end.
+
+- **Board expectation** depends on Level: `expected = LevelTargets[Level]`
+  (world setting; default 0.7 at Level 1 down to 0.4 at the bottom). Board
+  budget (`services/ai/board-budget.service.ts`) and manager job security use
+  `score - expected` instead of league position.
+- A club that entered nothing that year scores 0 (the board notices).
+- **Analytics** (`services/analytics/club-performance.service.ts`) reports the
+  score, each entry's finish, Elo trend and Level history instead of per-league
+  stats.
 
 ## Stages
 
@@ -339,9 +393,21 @@ a conflict means already applied.
 | `Elo` | real, not null, default 1500 | Updated by every competitive result; friendlies don't count. |
 | `ChallengePolicy` | jsonb, nullable | Auto-accept policy (human clubs). |
 | `EntryPolicy` | jsonb, nullable | Auto-register policy (human clubs, optional). |
+| `Level` | integer, not null, default `LevelCount` | 1 = top. |
 
-`LeagueId`/`LeagueCode` (the single "primary league") are dropped; see
-"Primary league" under open questions.
+`LeagueId`/`LeagueCode` (the single "primary league") are dropped; the board
+and analytics use the performance score instead.
+
+### New table `ClubPerformance`
+
+One row per (club, year): `ClubId`, `Year`, `Score`, `Entries`, `Trophies`,
+`EloStart`, `EloEnd`, `LevelStart`, `LevelEnd`, `Frozen` (set at year end).
+Unique `(ClubId, Year)`.
+
+### New table `LevelHistory`
+
+`ClubId`, `Day`, `FromLevel`, `ToLevel`, `Source` (`edition` \| `review` \|
+`admin`), `SeasonId` (nullable).
 
 ### `Calendars` (world settings)
 
@@ -353,6 +419,10 @@ a conflict means already applied.
 | `AutoRollover` | boolean, default true | |
 | `TransferWindows` | jsonb | `[{ fromDay, toDay }]` day-of-year ranges. |
 | `DefaultRules` | jsonb, nullable | Defaults for new competitions. |
+| `LevelCount` | integer, default 5 | |
+| `LevelTargets` | jsonb | Board expectation per Level. |
+| `LevelReview` | jsonb, nullable | `{ enabled, promoteCount, relegateCount }`. |
+| `MaxConcurrentEntries` | integer, default 3 | Applies to every club, AI and human. |
 
 ## Result writing
 
@@ -394,8 +464,8 @@ at a time (match days take `MatchdaySlotMinutes`, empty days
 Each day, for each AI club (`Clubs.UserId` null):
 
 - **Register**: for editions in registration that it's eligible for, register
-  if it's in fewer than `maxConcurrentEntries` (world setting, default 3),
-  the fee is under a share of `Budget`, and the competition suits it (Elo near
+  if it's in fewer than `MaxConcurrentEntries`, can afford the fee (and the
+  fee is under a share of `Budget`), and the competition suits it (Elo near
   the entry band's middle scores higher). Fill order is random so the same
   clubs don't take every slot.
 - **Respond**: accept incoming challenges unless fatigued (average squad
@@ -411,7 +481,8 @@ Each day, for each AI club (`Clubs.UserId` null):
 ## Human clubs
 
 - Browse competitions in registration they're eligible for and register (fee
-  shown up front), or accept an invite.
+  shown up front), or accept an invite. Same `MaxConcurrentEntries` cap as AI
+  clubs. Registration is **blocked** if `Budget` is below the fee.
 - Incoming challenges in the dashboard; unanswered by `RespondBy` → normal
   expiry/forfeit rules.
 - **Auto-accept policy** (`Clubs.ChallengePolicy`), evaluated in the daily
@@ -442,7 +513,7 @@ Each day, for each AI club (`Clubs.UserId` null):
 | PATCH | `/editions/:id` | Admin: edit dates while in draft/registration; publish; cancel. |
 | POST | `/editions/:id/invite` | Admin: invite clubs (invite mode). |
 | GET | `/editions?status=registration&eligibleFor=:clubId` | Browse open competitions. |
-| POST / DELETE | `/editions/:id/entries` | Register / withdraw a club (own club only). |
+| POST / DELETE | `/editions/:id/entries` | Register / withdraw a club (own club only). Refused with a reason when ineligible: Level/Elo/rating band, country, entry cap reached, fee above Budget, barred, full. |
 | POST | `/editions/:id/entries/:clubId/respond` | Accept or decline an invite. |
 | GET | `/editions/:id` | Edition overview: stages, current stage, entries, status. |
 | GET | `/editions/:id/rankings?stage=` | Table(s) for a stage, ranked/unranked split, groups. |
@@ -453,7 +524,9 @@ Each day, for each AI club (`Clubs.UserId` null):
 | GET | `/clubs/:id/challenges?status=` | Incoming/outgoing across all editions. |
 | GET | `/clubs/:id/entries` | The club's current and past entries. |
 | PUT | `/clubs/:id/challenge-policy`, `/clubs/:id/entry-policy` | Own club only. |
-| GET / PATCH | `/world/settings` | Admin: year, rollover, transfer windows, default rules, AI entry cap. |
+| GET / PATCH | `/world/settings` | Admin: year, rollover, transfer windows, default rules, entry cap, Levels (count, targets, review). |
+| PATCH | `/clubs/:id/level` | Admin: set a club's Level by hand (logged as `admin`). |
+| GET | `/clubs/:id/performance?year=` | Performance score, finishes, Elo and Level history. |
 | POST | `/world/end-year` | Admin: run year end now. |
 
 Removed: season-cycle start/end, arrange/setup-days, season create/start/finish
@@ -468,18 +541,20 @@ New components in `src/components/open-play/`.
 
 | Screen | Content |
 | --- | --- |
-| **Competition builder** (replaces `views/admin/competitions/competition-form.vue`) | Stepper: 1 Basics (name, label, description, badge) → 2 Entry (open/invite, min/max clubs, Elo/rating bands, countries, requires-win-of, exclusions, fee, late entry) → 3 Stages (add/reorder league, groups, knockout cards; each with its own days, rules, advance) → 4 Win condition → 5 Rewards (prize table, trophy, Elo bonus) → 6 Outcomes and recurrence → Review (plain-English summary, e.g. "16 clubs under 1600 Elo, 4 groups of 4 over 20 days, top 2 into a single-leg knockout"). Presets: "Classic league", "Knockout cup", "Groups + knockout", "Goal rush". |
+| **Competition builder** (replaces `views/admin/competitions/competition-form.vue`) | Stepper: 1 Basics (name, label, description, badge, Prestige) → 2 Entry (open/invite, min/max clubs, Level band, Elo/rating bands, countries, requires-win-of, exclusions, fee, late entry) → 3 Stages (add/reorder league, groups, knockout cards; each with its own days, rules, advance) → 4 Win condition → 5 Rewards (prize table, trophy, Elo bonus) → 6 Outcomes (qualify, bar, Level up/down) and recurrence → Review (plain-English summary, e.g. "16 clubs under 1600 Elo, 4 groups of 4 over 20 days, top 2 into a single-leg knockout"). Presets: "Classic league", "Knockout cup", "Groups + knockout", "Goal rush". |
 | **Competitions list** (`views/admin/competitions/dashboard.vue`) | Definitions with their latest edition's status, "New edition", archive. |
 | **Edition view** (`views/admin/competitions/view-competition.vue`) | Status timeline (registration → stages → finished), entries with invite/remove, current stage's table or bracket, all challenges with Cancel, "Cancel edition". |
 | **New edition dialog** | Registration open/close days and start day on a mini calendar, with other editions' windows drawn for overlap. |
-| **World settings** (`views/admin/calendar/calendar.vue`) | Clock (unchanged: live/paused, slot minutes, advance now, target day). Year: progress, `YearLengthDays`, auto-rollover, "End year now". Transfer window ranges (manual open/close override stays). Default rules. AI max concurrent entries. **Timeline**: every edition as a bar across the coming days, coloured by status. Removes the Year-label input and "Start Next Season Cycle". |
+| **World settings** (`views/admin/calendar/calendar.vue`) | Clock (unchanged: live/paused, slot minutes, advance now, target day). Year: progress, `YearLengthDays`, auto-rollover, "End year now". Transfer window ranges (manual open/close override stays). Default rules. Max concurrent entries. **Levels**: count, board targets per Level, year-end review switch and counts. **Timeline**: every edition as a bar across the coming days, coloured by status. Removes the Year-label input and "Start Next Season Cycle". |
 
 ### User
 
 | Screen | Content |
 | --- | --- |
-| New **Competitions** page (`views/user/competitions.vue`, nav item) | Tabs: Open for entry (eligible first, ineligible greyed with the reason; fee, dates, format summary, "Enter"), My competitions (active entries with stage and position), Past. |
-| `views/user/dashboard.vue` | "My competitions" strip (one chip per active entry: name, stage, position, days left). "Challenges" card: incoming count, next 3 as `challenge-card`s, "Challenge a club". Standings tabs become one tab per active entry, rendering `rankings-table`, `group-tables` or `knockout-bracket` for the current stage. `year-progress` in the header. |
+| New **Competitions** page (`views/user/competitions.vue`, nav item) | Header: entries used (e.g. 2 / 3) and Budget. Tabs: Open for entry (eligible first, ineligible greyed with the reason, including "can't afford fee" and "entry limit reached"; fee, dates, format summary, "Enter"), My competitions (active entries with stage and position), Past. |
+| `views/user/club/zones/performance-zone.vue` | Performance score vs board expectation for the club's Level, per-entry finishes, Elo trend, Level history. |
+| `views/user/club/zones/owner-zone.vue` | Board confidence driven by score vs expectation. |
+| `views/user/dashboard.vue` | Level badge next to the club name. "My competitions" strip (one chip per active entry: name, stage, position, days left). "Challenges" card: incoming count, next 3 as `challenge-card`s, "Challenge a club". Standings tabs become one tab per active entry, rendering `rankings-table`, `group-tables` or `knockout-bracket` for the current stage. `year-progress` in the header. |
 | New `views/user/club/zones/challenges-zone.vue` | `challenge-inbox`, `challenge-policy-form`, `entry-policy-form`. |
 | `views/user/calendar/year-calendar.vue` | Built from `YearLengthDays`; shows the club's fixtures, tie deadlines, registration closing days for eligible competitions, and transfer windows. Empty days: "No matches. Open challenges: N". |
 | `components/user-dashboard/fixture-card.vue`, `day-fixtures-list.vue` | Competition name + stage chip ("Summer Rumble · QF"), "Forfeit" instead of a score on forfeits, tie deadline for unscheduled ties. |
@@ -501,6 +576,8 @@ New components in `src/components/open-play/`.
 | `challenge-policy-form.vue`, `entry-policy-form.vue` | Policy editors. |
 | `stage-editor.vue`, `entry-conditions-form.vue`, `win-condition-form.vue`, `rewards-form.vue` | Builder steps. |
 | `year-progress.vue` | Year N, day X of Y, transfer windows. |
+| `level-badge.vue` | Club Level chip with up/down arrow for the last change. |
+| `performance-card.vue` | Score vs expectation gauge and the entries behind it. |
 
 ### Realtime
 
@@ -512,6 +589,7 @@ Socket.IO (`realtime/io.ts`) → new Pinia store `store/competitions.ts`
 - `challenge:received`, `challenge:updated`
 - `rankings:updated` `{ editionId, stage }`
 - `world:day`, `world:year-ended`
+- `club:level-changed`
 
 Without sockets, poll on dashboard focus.
 
@@ -524,6 +602,9 @@ Without sockets, poll on dashboard focus.
 - Registration closed short of `minClubs`: entry shows "Cancelled, fee
   refunded".
 - Eliminated: entry moves to Past with the round/stage reached.
+- Promoted/relegated: banner on the dashboard; competitions no longer in the
+  club's Level band show as ineligible from then on.
+- Entry cap reached or fee unaffordable: "Enter" disabled with the reason.
 - Knockout round not drawn yet / tie not scheduled yet.
 - `first-to` finish: edition ends mid-stage with a banner.
 - Mobile: tables scroll horizontally inside their card; cards stack.
@@ -546,6 +627,8 @@ migration. Back up first.
 4. `Calendars.CurrentYear` = number of distinct old `Year` labels + 1, starting
    at `CurrentDay`.
 5. `Clubs.Elo` = 1500.
+6. `Clubs.Level` = the old `Division` of the club's `LeagueId` competition
+   (clubs with none get `LevelCount`); `LevelCount` = the deepest division.
 
 A follow-up migration drops the old columns and `CompetitionClubs`.
 
@@ -573,7 +656,9 @@ knockout stage), `standings-component.vue`, `standings-scroller.vue`,
 5. Scheduler + challenges + endpoints.
 6. Knockout stage (round draw, ties, deadlines, legs) and groups stage.
 7. Clock: day-by-day daily pass; year end re-keyed to `CurrentYear`.
-8. AI register/respond/propose; human policies.
+8. AI register/respond/propose; human policies; entry cap and fee check.
+   Level: outcomes, year-end review, history. Performance score, board and
+   analytics switched over.
 9. Data migration script; delete removed code; drop old columns.
 10. UI: rankings/group/bracket read-only views and dashboard → admin
     competition builder and edition view → World settings → Competitions page
@@ -587,6 +672,12 @@ knockout stage), `standings-component.vue`, `standings-scroller.vue`,
 - Rankings: ordering for every metric and tiebreaker; unranked split;
   `first-to` ends the edition the same day.
 - Idempotency: apply the same result twice → counted once.
+- Entry: blocked when Budget < fee, at `MaxConcurrentEntries`, outside the
+  Level band, or barred.
+- Level: `level` outcomes and the review move a club at most one Level per
+  year end; clamped to `1..LevelCount`; history logged.
+- Performance score: finish scores for league, knockout and mixed editions;
+  Prestige weighting; 0 with no entries.
 - Knockout: byes with odd counts, two-leg aggregate, draw resolution, tie at
   `PlayBy` bumps a conflicting challenge.
 - Scripted sim (`src/scripts/`), all-AI, two years, the four example
@@ -615,18 +706,9 @@ knockout stage), `standings-component.vue`, `standings-scroller.vue`,
 8. A match counts for exactly one competition.
 9. The year stays as a fixed-length timekeeping period that rolls over
    automatically; editions run independently of it.
-
-## Open questions
-
-1. **Primary league.** `Clubs.LeagueId` feeds the board budget
-   (`services/ai/board-budget.service.ts`) and club performance analytics.
-   Without fixed divisions, what does the board judge a club on: average
-   finishing position across all entries, Elo change over the year, or a
-   competition the club marks as its main one?
-2. **Promotion/relegation.** Should `Outcomes` also be able to move clubs
-   between tiered competitions automatically (a real ladder), or is
-   qualify/bar enough?
-3. **Entry fees and budget.** Should the board block entries the club can't
-   afford, or allow going negative?
-4. **Concurrent entry cap for humans.** Same `maxConcurrentEntries` as AI, or
-   unlimited?
+10. The board judges general performance across all competitions (performance
+    score), not a primary league.
+11. Qualify/bar outcomes and Level entry bands are the stratification.
+    Promotion and relegation change a club's **Level**.
+12. Registration is blocked when the club can't afford the entry fee.
+13. Humans and AI share the same `MaxConcurrentEntries` cap.
