@@ -24,8 +24,10 @@
     <div class="d-flex align-center gap-2 text-caption pt-2" style="border-top: 1px solid rgba(255, 255, 255, 0.08)">
       <span class="text-medium-emphasis">Reward:</span>
       <span class="text-success font-weight-bold">{{ formatCurrency(rewardCash) }}</span>
-      <span class="text-medium-emphasis">+</span>
-      <span class="text-info font-weight-bold">{{ rewardFans }} Fans</span>
+      <template v-if="rewardFans">
+        <span class="text-medium-emphasis">+</span>
+        <span class="text-info font-weight-bold">{{ rewardFans }} Fans</span>
+      </template>
     </div>
   </v-card>
 </template>

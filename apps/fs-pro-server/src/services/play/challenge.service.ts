@@ -2,6 +2,7 @@ import { and, desc, eq, lt } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
 import { clubChallenges, clubs } from '../../db/drizzle/schema';
 import { levelForXp, payClub } from './rewards';
+import { describeHours, scaled } from './game-time';
 
 /**
  * Club challenges: timed goals ("win N matches within T hours"). One active
@@ -13,6 +14,7 @@ import { levelForXp, payClub } from './rewards';
 
 const db = () => DrizzleDatabase.getInstance().database;
 
+/** Design length of a challenge; the real window is scaled by GAME_TIME_SCALE. */
 const CHALLENGE_HOURS = 24;
 
 export interface ChallengeState {
@@ -81,9 +83,9 @@ export async function ensureChallenge(clubId: string): Promise<ChallengeState> {
     .values({
       ClubId: clubId,
       Type: 'win_matches',
-      Title: `Win ${targetWins} matches within ${CHALLENGE_HOURS} hours`,
+      Title: `Win ${targetWins} matches within ${describeHours(scaled(CHALLENGE_HOURS))}`,
       TargetWins: targetWins,
-      ExpiresAt: new Date(Date.now() + CHALLENGE_HOURS * 3_600_000),
+      ExpiresAt: new Date(Date.now() + scaled(CHALLENGE_HOURS) * 3_600_000),
       RewardCash: Math.round(40_000 * (1 + level * 0.5)),
       RewardXP: 60 + level * 20,
       updatedAt: new Date(),

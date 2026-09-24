@@ -2,6 +2,7 @@ import { getClubs } from '../controllers/clubs/club.service';
 import { resolveManagerTactic } from '../controllers/managers/manager.service';
 import { ITactic } from '../simulation/state/PersistentState/Formations';
 import { SimulateMatchRequest } from './simulationContract';
+import { moodRatingBonus } from '../services/world/club-standing.service';
 
 /**
  * Milestone 9 - the clubs-fetch + tactics-resolve-if-not-prefetched logic
@@ -52,15 +53,20 @@ export async function buildSimulateMatchRequest(
   // clone, not every Mongoose-lean() field survives that cleanly).
   const plainClubs = JSON.parse(JSON.stringify(clubs));
 
-  if (homeRatingBonus) {
-    const homeClub = plainClubs.find((c: any) => c._id?.toString() === home);
-    if (homeClub) {
-      homeClub.Rating = (homeClub.Rating ?? 0) + homeRatingBonus;
-      for (const p of homeClub.Players ?? []) {
-        p.Rating = (p.Rating ?? 0) + homeRatingBonus;
-      }
+  // Squad morale + form: a bounded per-side nudge (+/-1.75, see
+  // world/club-standing.service.ts), on top of the home facility bonus.
+  const mood = await moodRatingBonus([home, away]);
+  const nudge = (clubId: string, bonus: number) => {
+    if (!bonus) return;
+    const club = plainClubs.find((c: any) => c._id?.toString() === clubId);
+    if (!club) return;
+    club.Rating = (club.Rating ?? 0) + bonus;
+    for (const p of club.Players ?? []) {
+      p.Rating = (p.Rating ?? 0) + bonus;
     }
-  }
+  };
+  nudge(home, (homeRatingBonus ?? 0) + (mood.get(home) ?? 0));
+  nudge(away, mood.get(away) ?? 0);
 
   return {
     fixtureId,

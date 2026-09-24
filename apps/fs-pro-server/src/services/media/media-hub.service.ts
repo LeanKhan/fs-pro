@@ -15,6 +15,7 @@ import { gatherFixtureFacts } from './story-facts.service';
 import { buildMatchStory, MatchStory } from './story-angles.service';
 import { buildFinaleStory, buildTransferStory } from './story-copy.service';
 import { generateCycleNews } from './cycle-news.service';
+import { generateStandingNews } from './standing-news.service';
 import { generateResultsNews } from './results-news.service';
 import { compileStandings } from '../../utils/seasons';
 
@@ -66,6 +67,11 @@ export class MediaHubService {
     // Promotion/relegation/champion coverage from the latest season report,
     // put first so a club that just moved divisions sees it straight away.
     const withCycleNews = async (base: MediaItem[]): Promise<MediaItem[]> => {
+      // A running streak (from the club's persisted Form) leads the feed.
+      const standing =
+        selectedChannel === 'MY_CLUB'
+          ? generateStandingNews({ club: currentClub ?? null, formattedDate })
+          : [];
       try {
         const cycle = await generateCycleNews({
           db,
@@ -75,10 +81,10 @@ export class MediaHubService {
           formattedDate,
           isMyClubChannel: selectedChannel === 'MY_CLUB',
         });
-        return [...cycle, ...base];
+        return [...standing, ...cycle, ...base];
       } catch (err) {
         console.warn('[media-hub] cycle news failed:', err);
-        return base;
+        return [...standing, ...base];
       }
     };
 

@@ -89,6 +89,18 @@ export const ClubSchema = z.object({
     .nullable()
     .optional(),
   Finances: z.record(z.unknown()).nullable().optional(),
+  // World standing, moved by every result (server:
+  // services/world/club-standing.service.ts).
+  Fans: z.number().optional(),
+  Reputation: z.number().optional(),
+  BoardConfidence: z.number().optional(),
+  Form: z
+    .object({
+      recent: z.array(z.enum(['W', 'D', 'L'])),
+      streak: z.object({ type: z.enum(['W', 'D', 'L']), length: z.number() }).nullable(),
+    })
+    .nullable()
+    .optional(),
   entity_id: z.string().nullable().optional(),
   homePlaceId: z.string().nullable().optional(),
   stadiumPlaceId: z.string().nullable().optional(),

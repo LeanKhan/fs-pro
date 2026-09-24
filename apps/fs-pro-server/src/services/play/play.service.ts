@@ -6,6 +6,8 @@ import { play } from '../../controllers/game/game.controller';
 import { ensureChallenge, recordMatchForChallenge, type ChallengeState } from './challenge.service';
 import { getAssetEffects } from '../facilities/facilities.service';
 import { levelForXp, payClub, xpForLevel } from './rewards';
+import { getStanding, type StandingView } from '../world/club-standing.service';
+import { scaled } from './game-time';
 
 /**
  * PLAY: the match is the club's primary loop. Pressing PLAY matches the club
@@ -19,10 +21,10 @@ import { levelForXp, payClub, xpForLevel } from './rewards';
 
 const db = () => DrizzleDatabase.getInstance().database;
 
-/** Anti-grind: minimum gap between a club's matches. Gate income at higher
- * stadium levels is large, so this is the main brake - tune with the economy
- * (override with MATCH_COOLDOWN_SECONDS, e.g. 20 for local testing). */
-export const MATCH_COOLDOWN_SECONDS = Number(process.env.MATCH_COOLDOWN_SECONDS) || 300;
+/** Minimum gap between a club's matches, at the current game speed
+ * (GAME_TIME_SCALE, which also scales upgrades and challenges). Override
+ * the base with MATCH_COOLDOWN_SECONDS, e.g. 20 for local testing. */
+export const MATCH_COOLDOWN_SECONDS = scaled(Number(process.env.MATCH_COOLDOWN_SECONDS) || 300);
 /** Opponents are picked at random from this many closest-power AI clubs. */
 const OPPONENT_POOL = 5;
 const MATCH_TITLE_MARK = '(Matchmade)';
@@ -62,6 +64,7 @@ export interface RecentMatch {
 
 export interface PlayState {
   club: ClubSummary;
+  standing: StandingView;
   cooldownSeconds: number;
   challenge: ChallengeState;
   recent: RecentMatch[];
@@ -75,6 +78,7 @@ export interface MatchResult {
   rewards: { cash: number; xp: number };
   gate: { attendance: number; revenue: number; costs: number; net: number } | null;
   challengeCompleted: boolean;
+  standingChange?: { fans: number; reputation: number; boardConfidence: number };
   state: PlayState;
   highlights?: Array<{ minute: number; type: string; message: string; side: 'you' | 'them' }>;
 }
@@ -159,12 +163,13 @@ async function recentMatches(clubId: string): Promise<RecentMatch[]> {
 export async function getPlayState(clubId: string): Promise<PlayState> {
   const [club] = await db().select().from(clubs).where(eq(clubs.id, clubId));
   if (!club) throw new Error('Club not found');
-  const [challenge, cooldown, recent] = await Promise.all([
+  const [challenge, cooldown, recent, standing] = await Promise.all([
     ensureChallenge(clubId),
     cooldownSeconds(clubId),
     recentMatches(clubId),
+    getStanding(clubId),
   ]);
-  return { club: summarise(club), cooldownSeconds: cooldown, challenge, recent };
+  return { club: summarise(club), standing, cooldownSeconds: cooldown, challenge, recent };
 }
 
 /** AI clubs closest in power to `club`, best first, as candidate opponents. */
@@ -235,6 +240,7 @@ export async function playMatch(clubId: string, opponentId?: string): Promise<Ma
   // than a worker-thread config change. Kept modest: full marks on both is
   // a +3.5 Rating nudge, on a 0-100ish scale.
   const homeEffects = await getAssetEffects(clubId);
+  const standingBefore = await getStanding(clubId);
   const homeRatingBonus =
     (homeEffects.pitchQuality ?? 0) * 0.3 + (homeEffects.coachingLevel ?? 0) * 0.4;
 
@@ -342,6 +348,14 @@ export async function playMatch(clubId: string, opponentId?: string): Promise<Ma
 
   extractedHighlights.sort((a, b) => a.minute - b.minute);
 
+  // updateFixture already moved the standing; report the difference.
+  const state = await getPlayState(clubId);
+  const standingChange = {
+    fans: state.standing.fans - standingBefore.fans,
+    reputation: state.standing.reputation - standingBefore.reputation,
+    boardConfidence: state.standing.boardConfidence - standingBefore.boardConfidence,
+  };
+
   return {
     fixtureId,
     opponent: toOption(opponent),
@@ -352,7 +366,8 @@ export async function playMatch(clubId: string, opponentId?: string): Promise<Ma
       ? { attendance: entry.attendance, revenue: entry.revenue, costs: entry.costs, net: entry.net }
       : null,
     challengeCompleted: completed,
-    state: await getPlayState(clubId),
+    standingChange,
+    state,
     highlights: extractedHighlights.slice(0, 15),
   };
 }

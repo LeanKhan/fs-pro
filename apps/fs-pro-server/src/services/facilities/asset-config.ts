@@ -1,3 +1,5 @@
+import { scaled } from '../play/game-time';
+
 /**
  * Club facility definitions: what can be built, what each level costs, how
  * how many real minutes it takes and what it does. Balancing lives here only -
@@ -160,7 +162,9 @@ export function upgradeCost(type: AssetType, targetLevel: number): number {
   return Math.round(def.baseCost * Math.pow(def.costGrowth, targetLevel - 1));
 }
 
-/** Real minutes it takes to build `targetLevel` of an asset. */
+/** Real minutes it takes to build `targetLevel` of an asset, at the current
+ * game speed (GAME_TIME_SCALE). */
 export function upgradeMinutes(type: AssetType, targetLevel: number): number {
-  return ASSET_CONFIG[type].baseMinutes * targetLevel;
+  // Whole seconds, so a fractional scale still gives a clean countdown.
+  return Math.round(scaled(ASSET_CONFIG[type].baseMinutes * targetLevel) * 60) / 60;
 }

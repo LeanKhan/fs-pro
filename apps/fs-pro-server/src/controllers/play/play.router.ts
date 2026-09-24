@@ -1,6 +1,7 @@
 import { initServer } from '@ts-rest/express';
 import { apiContract as contract } from '@repo/api-contract';
 import { findOpponents, getPlayState, playMatch } from '../../services/play/play.service';
+import { getInbox, markInboxRead } from '../../services/world/club-standing.service';
 import { accessDenied, canManageClub } from '../auth/club-access';
 
 const s = initServer();
@@ -48,6 +49,32 @@ export const playTsRestRoutes = s.router(contract.play, {
       return {
         status: 200 as const,
         body: { success: true as const, message: 'Match played', payload: await playMatch(params.clubId, body?.opponentId) },
+      };
+    } catch (err) {
+      return errorResponse(err) as any;
+    }
+  },
+
+  getInbox: async ({ params, req }) => {
+    try {
+      const access = await canManageClub(req.session as { userID?: string } | undefined, params.clubId);
+      if (access !== 'ok') return accessDenied(access);
+      return {
+        status: 200 as const,
+        body: { success: true as const, message: 'Inbox', payload: await getInbox(params.clubId) },
+      };
+    } catch (err) {
+      return errorResponse(err) as any;
+    }
+  },
+
+  markInboxRead: async ({ params, req }) => {
+    try {
+      const access = await canManageClub(req.session as { userID?: string } | undefined, params.clubId);
+      if (access !== 'ok') return accessDenied(access);
+      return {
+        status: 200 as const,
+        body: { success: true as const, message: 'Inbox read', payload: await markInboxRead(params.clubId) },
       };
     } catch (err) {
       return errorResponse(err) as any;
