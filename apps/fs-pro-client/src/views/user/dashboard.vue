@@ -57,6 +57,18 @@
             <div class="text-caption text-medium-emphasis">
               Club Manager & Owner &bull; World Actor
             </div>
+            <div class="mt-2">
+              <v-btn
+                size="small"
+                color="amber-darken-2"
+                variant="flat"
+                class="font-weight-black"
+                :to="`/game/${userClub._id}`"
+              >
+                <v-icon start size="16">mdi-shield-crown</v-icon>
+                Play
+              </v-btn>
+            </div>
           </div>
         </v-col>
 

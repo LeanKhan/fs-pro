@@ -8,6 +8,7 @@ import { pickPlaceholderName } from '../../utils/placeholder-names';
 import { pickRandomFromArray } from '../../helpers/misc';
 import { nationalityIdForCulture } from '../../services/nationality';
 import type { PlayerInterface } from '../../interfaces/Player';
+import { getAssetEffects } from '../../services/facilities/facilities.service';
 
 let playerRepo: ReturnType<typeof PlayerRepositoryFactory.create> | null = null;
 function getPlayerRepo() {
@@ -184,7 +185,22 @@ const YOUTH_POSITION_POOL = [
  * between the automatic once-per-year runYouthIntakeForYear and the
  * on-demand admin recruitYouthPlayersForClub below - same generation logic,
  * different insertion/guard rules around it. */
-async function generateYouthPlayers(count: number, forceGK = false) {
+/** Shifts a [min, max] range up by `bonus` (both ends, capped at 99 - the
+ * game's attribute ceiling elsewhere) - used to make a better Youth Academy
+ * produce measurably better intake, not just more of them. */
+function shiftRange(range: [number, number], bonus: number): [number, number] {
+  if (!bonus) return range;
+  return [Math.min(range[0] + bonus, 99), Math.min(range[1] + bonus, 99)];
+}
+
+async function generateYouthPlayers(
+  count: number,
+  forceGK = false,
+  /** Youth Academy facility bonus (0 at Level 0) - see
+   * asset-config.ts's `youth_academy.effects`. Shifts the generated
+   * attribute ranges up; 0 leaves generation exactly as before. */
+  qualityBonus = 0
+) {
   const cultures = ['kev', 'bellean'];
   const nationalityIds = new Map(
     await Promise.all(
@@ -193,6 +209,9 @@ async function generateYouthPlayers(count: number, forceGK = false) {
       )
     )
   );
+  // qualityBonus (0-0.3ish) scaled onto the attribute point ranges, not used
+  // directly as points - keeps the shift modest without a second tuning knob.
+  const pointBonus = Math.round(qualityBonus * 40);
   return Array.from({ length: count }, (_, i) => {
     const { firstName, lastName } = pickPlaceholderName();
     const culture = pickRandomFromArray(cultures);
@@ -205,8 +224,8 @@ async function generateYouthPlayers(count: number, forceGK = false) {
         nationality: culture,
         nationalityId: nationalityIds.get(culture),
         ageRange: YOUTH_AGE_RANGE,
-        attributeRange: YOUTH_ATTRIBUTE_RANGE,
-        positionAttributeRange: YOUTH_POSITION_ATTRIBUTE_RANGE,
+        attributeRange: shiftRange(YOUTH_ATTRIBUTE_RANGE, pointBonus),
+        positionAttributeRange: shiftRange(YOUTH_POSITION_ATTRIBUTE_RANGE, pointBonus),
       }),
       isYouth: true,
     };
@@ -281,7 +300,8 @@ export async function runYouthIntakeForYear(
       if (already) return;
 
       const intakeCount = pickRandomFromArray([1, 1, 2]);
-      const youngsters = (await generateYouthPlayers(intakeCount, needsGK)).map(
+      const qualityBonus = (await getAssetEffects(clubId)).youthQualityBonus ?? 0;
+      const youngsters = (await generateYouthPlayers(intakeCount, needsGK, qualityBonus)).map(
         (generated) => ({
           ...generated,
           isSigned: true,
@@ -343,7 +363,8 @@ export async function recruitYouthPlayersForClub(
 ) {
   const db = DrizzleDatabase.getInstance().database;
 
-  const recruits = (await generateYouthPlayers(count, opts.forceGK)).map((generated) => ({
+  const qualityBonus = (await getAssetEffects(club._id)).youthQualityBonus ?? 0;
+  const recruits = (await generateYouthPlayers(count, opts.forceGK, qualityBonus)).map((generated) => ({
     ...generated,
     isSigned: true,
     ClubId: club._id,

@@ -15,6 +15,8 @@ import { seasonsContract } from './routes/seasons';
 import { usersContract } from './routes/users';
 import { gameContract } from './routes/game';
 import { transfersContract } from './routes/transfers';
+import { facilitiesContract } from './routes/facilities';
+import { playContract } from './routes/play';
 
 const c = initContract();
 
@@ -36,6 +38,8 @@ export const apiContract = c.router({
   users: usersContract,
   game: gameContract,
   transfers: transfersContract,
+  facilities: facilitiesContract,
+  play: playContract,
 });
 
 export type { Club } from './schemas/club';
@@ -48,7 +52,17 @@ export type { Manager, ManagerClubRef } from './schemas/manager';
 export type { Calendar, Day, WorldFeed, WorldFeedHeadline } from './schemas/calendar';
 export type { Place } from './schemas/place';
 export type { SeasonReport, SeasonHighlight } from './schemas/season-report';
-export type { TransferWindow, TransferOffer } from './schemas/transfer';
+export type { TransferWindow, TransferOffer, ScoutedTarget } from './schemas/transfer';
+export type { AssetState, Campus } from './schemas/facilities';
+export type {
+  Challenge,
+  PlayState,
+  MatchResult,
+  Opponent,
+  ClubStanding,
+  InboxMessage,
+  Inbox,
+} from './schemas/play';
 export type { ClubPerformance, ClubPerformanceInsight, ClubPerformanceStrategy, ClubPerformanceAdvisorSummary } from './schemas/club-performance';
 export type { Award } from './schemas/award';
 export type { User } from './schemas/user';

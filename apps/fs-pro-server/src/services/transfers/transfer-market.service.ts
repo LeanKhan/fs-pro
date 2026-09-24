@@ -71,7 +71,10 @@ async function loadClubs(): Promise<ClubRow[]> {
 }
 
 /** Every active (non-retired) player: signed ones grouped by club, plus free agents. */
-async function loadPlayers() {
+/** Exported for scouted-shortlist.service.ts (Scouting facility feature) -
+ * every active player, listed-for-sale and free agents alike, grouped by
+ * club. */
+export async function loadPlayers() {
   const rows = await db()
     .select({
       id: players.id,
@@ -136,13 +139,23 @@ export function aiResponse(params: {
   value: number;
   isKeyPlayer: boolean;
   sellerSquadSize: number;
+  /** Club Reputation (world/club-standing.service.ts). A bigger club won't
+   * let its best players go to a much smaller one cheaply, or at all. */
+  bidderReputation?: number;
+  sellerReputation?: number;
 }): { decision: 'accepted' | 'countered' | 'rejected'; ask: number; reason?: string } {
   const { amount, value, isKeyPlayer, sellerSquadSize } = params;
-  const multiplier = 1.05 + (isKeyPlayer ? 0.25 : 0) + rand(-0.05, 0.1);
+  const repGap = (params.sellerReputation ?? 50) - (params.bidderReputation ?? 50);
+  // Up to +30% on the ask when selling down to a much smaller club.
+  const reputationPremium = Math.min(Math.max(repGap, 0) / 100, 0.3);
+  const multiplier = 1.05 + (isKeyPlayer ? 0.25 : 0) + reputationPremium + rand(-0.05, 0.1);
   const ask = Math.round(value * multiplier);
 
   if (sellerSquadSize <= MIN_SQUAD_SIZE) {
     return { decision: 'rejected', ask, reason: 'They cannot sell - their squad is too thin' };
+  }
+  if (isKeyPlayer && repGap >= 25) {
+    return { decision: 'rejected', ask, reason: 'He is not interested in joining a club of your stature' };
   }
   if (amount >= ask) return { decision: 'accepted', ask };
   if (amount >= ask * 0.75) return { decision: 'countered', ask };
@@ -232,6 +245,8 @@ export async function placeBid(input: {
     value,
     isKeyPlayer: rosterPlayer ? rankInRoster(rosterPlayer, roster) <= 3 : false,
     sellerSquadSize: roster.length,
+    bidderReputation: bidder.Reputation,
+    sellerReputation: owner.Reputation,
   });
 
   if (response.decision === 'accepted') {
@@ -500,6 +515,35 @@ export async function runTransferDay(day: number): Promise<TransferDaySummary> {
     summary.aiBids++;
   }
 
+  const ai = await runAiMarket();
+  summary.aiDeals = ai.aiDeals;
+  summary.aiNeedSignings = ai.aiNeedSignings;
+
+  return summary;
+}
+
+export interface AiMarketSummary {
+  aiNeedSignings: number;
+  aiDeals: number;
+  /** Players an AI club in debt sold to another AI club. */
+  debtSales: number;
+  /** Players an AI club in debt put on the transfer list (no AI buyer). */
+  debtListings: number;
+}
+
+/**
+ * AI clubs managing their own squads: fill positional gaps from free agents,
+ * sell to get out of debt, and trade among themselves. Called by
+ * runTransferDay while the window is open, and by the real-time world tick
+ * (services/world/ai-world.service.ts) regardless of the window - the window
+ * gates human business, while the AI world keeps moving.
+ */
+export async function runAiMarket(): Promise<AiMarketSummary> {
+  const summary: AiMarketSummary = { aiNeedSignings: 0, aiDeals: 0, debtSales: 0, debtListings: 0 };
+  const [allClubs, { byClub, freeAgents }] = await Promise.all([loadClubs(), loadPlayers()]);
+  const aiClubs = allClubs.filter((c) => !c.UserId);
+  const budgets = new Map(allClubs.map((c) => [c.id, c.Budget]));
+
   // 1b. Needs first: each AI club short at a position signs a free agent
   // for it (most urgent gap first, at most one per club per day). A club
   // with no goalkeeper at all can't field a match, so it signs the best
@@ -624,6 +668,62 @@ export async function runTransferDay(day: number): Promise<TransferDaySummary> {
     }
     byClub.set(buyer.id, [...buyerRoster, { ...chosen.player, ClubId: buyer.id }]);
     summary.aiDeals++;
+  }
+
+  // 3. Clubs in debt sell their most expensive player to a richer AI club,
+  // or list him for anyone (including humans) to buy.
+  const wages = new Map(
+    (
+      await db()
+        .select({ id: players.id, Wage: players.Wage, isTransferListed: players.isTransferListed })
+        .from(players)
+        .where(inArray(players.ClubId, aiClubs.map((c) => c.id)))
+    ).map((r) => [r.id, r])
+  );
+  for (const club of aiClubs) {
+    if ((budgets.get(club.id) ?? 0) >= 0) continue;
+    const roster = byClub.get(club.id) ?? [];
+    if (roster.length <= MIN_SQUAD_SIZE + 2) continue;
+    // One player at a time: an already-listed player is offered again first,
+    // so a club in debt never lists its whole squad.
+    const listed = roster.find((p) => wages.get(p.id)?.isTransferListed);
+    const seller =
+      listed ??
+      [...roster]
+        .filter((p) => p.Value > 0)
+        .sort((a, b) => (wages.get(b.id)?.Wage ?? 0) - (wages.get(a.id)?.Wage ?? 0))[0];
+    if (!seller) continue;
+
+    const price = Math.round(seller.Value * 0.9);
+    const buyer = aiClubs
+      .filter(
+        (c) =>
+          c.id !== club.id &&
+          (budgets.get(c.id) ?? 0) >= price * 1.5 &&
+          (byClub.get(c.id)?.length ?? 0) < MAX_SQUAD_SIZE &&
+          improvesSquad(seller, byClub.get(c.id) ?? [])
+      )
+      .sort(() => Math.random() - 0.5)[0];
+
+    if (buyer) {
+      try {
+        await settleTransfer({ playerId: seller.id, buyingClubId: buyer.id, amount: price, note: 'ai debt sale' });
+      } catch (error) {
+        console.error('[transfer-market] AI debt sale failed:', error);
+        continue;
+      }
+      budgets.set(buyer.id, (budgets.get(buyer.id) ?? 0) - price);
+      budgets.set(club.id, (budgets.get(club.id) ?? 0) + price);
+      byClub.set(club.id, roster.filter((p) => p.id !== seller.id));
+      byClub.set(buyer.id, [...(byClub.get(buyer.id) ?? []), { ...seller, ClubId: buyer.id }]);
+      summary.debtSales++;
+    } else if (!listed) {
+      await db()
+        .update(players)
+        .set({ isTransferListed: true, AskingPrice: seller.Value, updatedAt: new Date() })
+        .where(eq(players.id, seller.id));
+      summary.debtListings++;
+    }
   }
 
   return summary;

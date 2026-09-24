@@ -928,109 +928,22 @@ async function fetchMediaFeed() {
 }
 
 /**
- * Robust zero-network local fallback with rich transfer and season details.
+ * The press office couldn't be reached: say so plainly rather than inventing
+ * stories that aren't about anything that happened.
  */
 function generateLocalFallback() {
-  const items: MediaItem[] = [];
-
-  // Transfer News Item
-  items.push({
-    id: 'transfer-fallback',
-    type: 'news',
-    category: 'transfer',
-    badge: '💰 CONFIRMED TRANSFER',
-    badgeColor: 'teal-accent-4',
-    title: 'TRANSFER CONFIRMED: Challs Lokomotive Signs for Rising Thunders!',
-    subtitle: 'Transferred from New Simeone Mirrors • Fee: €23,000,000',
-    summary: 'Rising Thunders have completed the signing of veteran midfield maestro Challs Lokomotive on a permanent deal.',
-    bulletPoints: [
-      '📋 Transferred From: New Simeone Mirrors F.C (NSM)',
-      '🎯 Destination: Rising Thunders A.C (RT)',
-      '💶 Transfer Fee: €23,000,000 (Valuation: €23,000,000)',
-      '⭐ Player Profile: MID | Age 36 | Overall Rating: 88',
-    ],
-    transferDetails: {
-      playerName: 'Challs Lokomotive',
-      position: 'MID',
-      age: 36,
-      rating: 88,
-      fee: 23000000,
-      wage: 140000,
-      value: 23000000,
-      buyerClubName: 'Rising Thunders A.C',
-      buyerClubCode: 'RT',
-      sellerClubName: 'New Simeone Mirrors F.C',
-      sellerClubCode: 'NSM',
-      fromOrigin: 'New Simeone Mirrors F.C (NSM)',
-      toDestination: 'Rising Thunders A.C (RT)',
-      dealType: 'Permanent Club Transfer',
-      date: 'Market Wire',
-      managerQuote: 'Challs brings world-class tactical vision and composure under pressure. An immense addition to our midfield.',
-      scoutingVerdict: 'Exceptional passing range, tempo control, and set-piece accuracy. Immediate impact player for the starting XI.',
+  rawMediaItems.value = [
+    {
+      id: 'media-offline',
+      type: 'news',
+      category: 'general',
+      badge: '📡 OFFLINE',
+      badgeColor: 'grey',
+      title: 'The press office is unreachable',
+      summary: 'Could not load the latest coverage. Try again in a moment.',
+      timestamp: new Date().toISOString(),
     },
-    fullStory: 'Rising Thunders have sent shockwaves through the league by completing the signing of Challs Lokomotive from New Simeone Mirrors for a reported fee of €23,000,000.\n\nThe 36-year-old midfielder completed a comprehensive medical this morning before signing a two-year contract. With over 250 appearances and multiple trophies under his belt, Lokomotive is expected to immediately captain the midfield unit.',
-    quote: {
-      author: 'Rising Thunders Sporting Director',
-      role: 'Official Club Transfer Statement',
-      text: 'To bring a player of Challs’ stature to this club is a proud milestone. We have secured one of the finest playmakers of his generation.',
-    },
-    hero: {
-      format: 'transfer_wire',
-      homeCode: 'NSM',
-      awayCode: 'RT',
-      homeName: 'New Simeone Mirrors F.C',
-      awayName: 'Rising Thunders A.C',
-    },
-    actions: [
-      {
-        label: 'View Deal Details',
-        action: 'open_story',
-        icon: 'mdi-file-document-outline',
-        color: 'teal-accent-4',
-      },
-    ],
-    timestamp: 'Market Wire',
-    hypeScore: 5,
-  });
-
-  // Season Finale Item
-  items.push({
-    id: 'season-finale-fallback',
-    type: 'news',
-    category: 'general',
-    badge: '🏆 SEASON FINALE',
-    badgeColor: 'amber-accent-4',
-    title: 'EBSL Season Finale: Khashiru 94 Crowned Champions!',
-    subtitle: 'Official Season Wrap-Up & Table Classifications',
-    summary: 'The campaign has concluded across the league circuit! Review the final standings and prepare for the transfer window.',
-    bulletPoints: [
-      '🥇 Champion: Khashiru 94 A.C (K94) finish 1st with 43 pts',
-      '📊 Your Club: Royal Philamentia (RP) finish 5th of 10 clubs with 24 pts',
-    ],
-    hero: {
-      format: 'season_champions',
-      championCode: 'K94',
-      championName: 'Khashiru 94 A.C',
-      championPoints: 43,
-      userClubRank: 5,
-      userClubCode: props.club?.ClubCode || 'RP',
-      totalTeams: 10,
-      competitionName: 'Epson Bellean Second League',
-    },
-    actions: [
-      {
-        label: 'View Final Standings',
-        action: 'view_standings',
-        to: '/league',
-        icon: 'mdi-trophy',
-        color: 'amber-accent-4',
-      },
-    ],
-    timestamp: 'Current Day',
-    hypeScore: 5,
-  });
-
-  rawMediaItems.value = items;
+  ];
 }
 
 watch(
