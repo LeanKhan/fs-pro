@@ -67,6 +67,7 @@
           <v-tab>{{ isMyClub ? "Director's Box" : 'Infrastructure' }}</v-tab>
           <v-tab>Transfer Zone</v-tab>
           <v-tab v-if="isMyClub">Analysis</v-tab>
+          <v-tab v-if="isMyClub">Challenges</v-tab>
         </v-tabs>
       </v-card>
 
@@ -416,6 +417,9 @@
         <v-window-item v-if="isMyClub">
           <performance-zone :club="club" @switch-tab="(t: number) => tab = t" />
         </v-window-item>
+        <v-window-item v-if="isMyClub">
+          <challenges-zone />
+        </v-window-item>
       </v-window>
     </template>
 
@@ -439,6 +443,7 @@ import {
   TeamSheetZone,
   OwnerZone,
   PerformanceZone,
+  ChallengesZone,
 } from './zones';
 import DayScroll from '@/components/calendar/day-scroll.vue';
 import StandingsScroller from '@/components/seasons/standings-scroller.vue';

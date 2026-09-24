@@ -34,7 +34,7 @@
           class="mz-action-btn mz-action-accent"
           @click="finishSeason"
         >
-          &lt; FINISH SEASON &gt;
+          &lt; SEE STANDINGS &gt;
         </button>
       </div>
     </header>
@@ -554,12 +554,10 @@ async function getFixture() {
   }
 }
 
+// Editions finish themselves when their last stage ends (open play); this
+// just takes the manager to the competition page.
 function finishSeason() {
-  const ans = confirm(
-    'Season is over hurray!\nEnd Season now... you must say okay.'
-  );
-  if (!ans) return;
-  router.push(`/finish/season/${fixture.value.SeasonId}`);
+  router.push(fixture.value.SeasonId ? `/u/competitions/${fixture.value.SeasonId}` : '/u');
 }
 
 async function playGame() {

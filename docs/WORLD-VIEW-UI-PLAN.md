@@ -273,6 +273,36 @@ the map.
 8. Two more campus layout variants (`coastal`, `hillside`); the ported
    campus becomes `city`.
 
+## Status
+
+Done:
+
+- Steps 1–5 and 8 (layout only). `components/world/world-scene.vue` renders
+  any scene (plates fitted to plots, empty-plot placeholder, scaffold, glow,
+  day/night filter, rain/overcast, hit boxes, pins, list view), with pan and
+  zoom in `use-pan-zoom.ts`. `manifest.ts` reads `public/world/manifest.json`
+  (`npm run world:manifest`) and applies the band fallback.
+- The campus runs on it (`campus-scene.vue`). The b0 plates were composited
+  from the old sprites by `scripts/world/composite-b0-plates.py`; the scene
+  moved to `public/world/campus/city/scene.jpg`. Pins show Tier and build
+  status only. The Office plot (no art yet) opens the dashboard.
+- `campus-plots/city.ts`, `coastal.ts`, `hillside.ts`. A club's variant is
+  `Clubs.CampusLayout`, else a stable pick from its id; a variant without its
+  scene image falls back to `city`.
+- HUD: Level badge, Elo, cash, entries used, challenge inbox; dock is Campus ·
+  World · Competitions · Squad · Office. Visiting a rival's campus shows a
+  Challenge button.
+- World map (`/world`, `views/game/world-map.vue`): clubs ring their home
+  place, unplaced clubs in a tray, editions as venue markers by format, rival
+  card with Challenge, venue sheet with table or bracket and Enter, filters.
+  Places have no coordinates yet, so each gets a stable spot from a hash of
+  its id (`world-layout.ts`); swap in real coordinates when places carry them.
+
+Not yet: b1/b2 plates and the office plate (step 6), idle cars (step 7), the
+coastal/hillside scene images and a default `CampusLayout` set at club
+creation, the painted world map scene and venue plates (the map draws a plain
+grid until `public/world/map/scene.jpg` exists).
+
 ## Decisions
 
 1. World map places clubs at their real home place only; no Level districts.

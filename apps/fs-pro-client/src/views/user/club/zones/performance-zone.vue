@@ -1,5 +1,6 @@
 <template>
   <div class="performance-zone">
+    <performance-card :performance="board" class="mb-4" />
     <v-card class="mb-4" :loading="loading">
       <v-card-title class="d-flex align-center flex-wrap gap-2">
         <v-icon color="amber">mdi-chart-line</v-icon>
@@ -344,9 +345,25 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
 import { client } from '@/services/api';
-import type { ClubPerformance } from '@repo/api-contract';
+import type { ClubPerformance, PerformanceView } from '@repo/api-contract';
+import PerformanceCard from '@/components/open-play/performance-card.vue';
+import { unwrap } from '@/store/open-play';
 
 const props = defineProps<{ club: any }>();
+
+// Board view: performance score across all competitions vs the Level target.
+const board = ref<PerformanceView | null>(null);
+async function loadBoard() {
+  if (!props.club?._id) return;
+  try {
+    board.value = unwrap<PerformanceView>(
+      await client.world.performance.query({ params: { clubId: String(props.club._id) }, query: {} })
+    );
+  } catch {
+    board.value = null;
+  }
+}
+watch(() => props.club?._id, loadBoard, { immediate: true });
 
 type Match = ClubPerformance['matches'][number];
 type Unit = ClubPerformance['units'][number];

@@ -15,6 +15,7 @@ import {
   editionTsRestRoutes,
 } from '../controllers/open-play/open-play.router';
 import { worldTsRestRoutes } from '../controllers/world/world.router';
+import { competitionDefinitionTsRestRoutes } from '../controllers/open-play/competition-definitions.router';
 import { calendarTsRestRoutes } from '../controllers/calendar/calendar.router';
 import { fixtureTsRestRoutes } from '../controllers/fixtures/fixture.router';
 import files from '../services/file/file.service';
@@ -49,6 +50,7 @@ export const apiRouter = s.router(apiContract, {
   editions: editionTsRestRoutes,
   challenges: challengeTsRestRoutes,
   world: worldTsRestRoutes,
+  competitionDefinitions: competitionDefinitionTsRestRoutes,
 });
 
 // export default mainRouter;

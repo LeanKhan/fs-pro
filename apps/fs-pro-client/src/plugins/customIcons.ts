@@ -70,4 +70,4 @@ const customIcons: IconSet = {
   },
 };
 
-export { customIcons /* aliases */ };
+export { customIcons /* aliases */, iconFileByName };

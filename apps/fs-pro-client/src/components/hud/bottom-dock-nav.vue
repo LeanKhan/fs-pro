@@ -18,6 +18,7 @@
 
     <!-- GitHub-style Split Play Match / Quick Sim Button -->
     <div
+      v-if="showPlay"
       class="split-btn-group d-flex align-center"
       :class="{
         pulsating: !isCooldown && !playing,
@@ -125,8 +126,10 @@ const props = withDefaults(
     cooldownSeconds?: number;
     playing?: boolean;
     initialMode?: PlayMode;
+    showPlay?: boolean;
   }>(),
   {
+    showPlay: true,
     currentTab: 'hq',
     isCooldown: false,
     cooldownSeconds: 0,
@@ -182,11 +185,13 @@ function onSelectMode(mode: PlayMode) {
 }
 
 // Tabs that hand off to the manager dashboard
+// docs/WORLD-VIEW-UI-PLAN.md, "HUD": Campus · World · Competitions · Squad · Office.
 const navItems: NavTabItem[] = [
+  { key: 'hq', label: 'Campus', icon: 'mdi-home-city' },
+  { key: 'world', label: 'World', icon: 'mdi-earth' },
+  { key: 'competitions', label: 'Competitions', icon: 'mdi-trophy-outline' },
   { key: 'squad', label: 'Squad', icon: 'mdi-account-group' },
-  { key: 'tactics', label: 'Tactics', icon: 'mdi-clipboard-text' },
-  { key: 'transfers', label: 'Transfers', icon: 'mdi-swap-horizontal' },
-  { key: 'club', label: 'Club', icon: 'mdi-bank' },
+  { key: 'office', label: 'Office', icon: 'mdi-office-building' },
 ];
 
 const glassStyle = {

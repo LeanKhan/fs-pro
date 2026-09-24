@@ -80,6 +80,14 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Play' },
   },
   {
+    // The world map: every club at its home place, competitions as venues.
+    path: '/world',
+    component: () =>
+      import(/* webpackChunkName: "world_map" */ '../views/game/world-map.vue'),
+    name: 'World Map',
+    meta: { title: 'World' },
+  },
+  {
     path: '/games',
     alias: ['/game'],
     redirect: () => {
@@ -150,6 +158,23 @@ const routes: RouteRecordRaw[] = [
               ),
             name: 'Year Calendar',
           },
+          {
+            path: 'competitions',
+            component: () =>
+              import(
+                /* webpackChunkName: "user_competitions" */ '../views/user/competitions/competitions.vue'
+              ),
+            name: 'User Competitions',
+          },
+          {
+            path: 'competitions/:id',
+            component: () =>
+              import(
+                /* webpackChunkName: "user_edition" */ '../views/user/competitions/edition.vue'
+              ),
+            name: 'User Edition',
+          },
+          { path: 'world', redirect: '/world' },
           {
             path: 'history',
             component: () =>
