@@ -200,21 +200,23 @@ const rounds = computed(() => {
 });
 
 const champion = computed(() => {
-  if (props.season?.WinnerId) {
-    return { ClubCode: 'Champion', Name: 'Season Winner', id: props.season.WinnerId };
-  }
   const finalRound = rounds.value.find((r) => r.name === 'Final');
-  if (finalRound && finalRound.fixtures.length > 0) {
-    const finalMatch = finalRound.fixtures[0];
-    if (finalMatch.Played && finalMatch.Details?.Winner) {
+  const finalMatch = finalRound?.fixtures[0];
+  // Details.Winner is stored as a bare club id (older data: { code, id }).
+  const stored = finalMatch?.Played ? finalMatch.Details?.Winner : null;
+  const winnerId = props.season?.WinnerId ?? (typeof stored === 'string' ? stored : stored?.id);
+  if (!winnerId) return null;
+  if (finalMatch) {
+    const side = winnerId === finalMatch.HomeTeamId ? 'home' : winnerId === finalMatch.AwayTeamId ? 'away' : null;
+    if (side) {
       return {
-        Name: finalMatch.Details.Winner.code || 'Winner',
-        ClubCode: finalMatch.Details.Winner.code,
-        id: finalMatch.Details.Winner.id,
+        Name: getTeamName(finalMatch, side),
+        ClubCode: side === 'home' ? finalMatch.Home : finalMatch.Away,
+        id: winnerId,
       };
     }
   }
-  return null;
+  return { ClubCode: 'Champion', Name: 'Season Winner', id: winnerId };
 });
 
 function getTeamName(match: any, side: 'home' | 'away'): string {

@@ -1,10 +1,15 @@
-import { and, eq, isNull, lte, or } from 'drizzle-orm';
+import { and, eq, isNull, lte, max, or } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
-import { calendars } from '../../db/drizzle/schema';
+import { calendars, fixtures } from '../../db/drizzle/schema';
 import {
+  advanceIdleDay,
   getCalendar,
   updateCalendar,
 } from '../../controllers/calendar/calendar.service';
+import {
+  findNextUnplayedDay,
+  getFixturesByDay,
+} from '../../controllers/fixtures/fixture.service';
 import { MatchdayRunnerService } from './matchday-runner.service';
 
 /**
@@ -25,6 +30,11 @@ const POLL_MS = 15_000;
 const LEASE_MS = 10 * 60_000;
 /** Re-check interval while there is no further match day to advance to. */
 const IDLE_RECHECK_MS = 5 * 60_000;
+
+/** How many empty game days the live clock idles through after the last
+ * scheduled fixture (the off-season) before waiting for the next cycle to be
+ * started. Stateless: measured from the latest fixture day. */
+export const OFFSEASON_DAYS = 30;
 
 const MIN_SLOT_MINUTES = 1;
 const MAX_SLOT_MINUTES = 60 * 24 * 14;
@@ -117,25 +127,42 @@ async function claimDueTick(): Promise<boolean> {
   return claimed.length > 0;
 }
 
+/** Live off-season idling: nothing left to play today, nothing scheduled
+ * ahead, and fewer than OFFSEASON_DAYS empty days since the last fixture. */
+async function shouldIdle(day: number): Promise<boolean> {
+  if (!(await getFixturesByDay(day)).every((f) => f.Played)) return false;
+  if (await findNextUnplayedDay(day)) return false;
+  const [row] = await db().select({ last: max(fixtures.ScheduledDay) }).from(fixtures);
+  return day - (row?.last ?? day) < OFFSEASON_DAYS;
+}
+
 async function performTick(): Promise<TickResult> {
   const before = await getCalendar();
   const fromDay = before.CurrentDay;
 
   const run = await MatchdayRunnerService.simulateDay(fromDay);
-  const after = await getCalendar();
+  let after = await getCalendar();
 
   const matchdayMin = before.MatchdaySlotMinutes ?? 180;
   const offDayMin = before.OffDaySlotMinutes ?? 10;
-  const advanced = after.CurrentDay > fromDay;
-  const waitMs = advanced
-    ? slotMs(after.CurrentDay - fromDay, matchdayMin, offDayMin)
-    : IDLE_RECHECK_MS;
+  let advanced = after.CurrentDay > fromDay;
+  let idled = false;
+  if (!advanced && before.ClockMode === 'live' && (await shouldIdle(fromDay))) {
+    await advanceIdleDay();
+    after = await getCalendar();
+    advanced = idled = true;
+  }
+  const waitMs = idled
+    ? offDayMin * 60_000
+    : advanced
+      ? slotMs(after.CurrentDay - fromDay, matchdayMin, offDayMin)
+      : IDLE_RECHECK_MS;
   const nextTickAt = new Date(Date.now() + waitMs);
 
   await updateCalendar({ LastTickAt: new Date(), NextTickAt: nextTickAt });
 
   console.log(
-    `[calendar-clock] tick: day ${fromDay} -> ${after.CurrentDay}, ${run.simulatedFixtures} fixture(s) simulated, next kickoff ${nextTickAt.toISOString()}`
+    `[calendar-clock] ${idled ? 'off-season idle ' : ''}tick: day ${fromDay} -> ${after.CurrentDay}, ${run.simulatedFixtures} fixture(s) simulated, next kickoff ${nextTickAt.toISOString()}`
   );
 
   return {

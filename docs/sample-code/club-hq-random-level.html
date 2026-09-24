@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Club Town Base - Clash of Football</title>
+<!-- Tailwind CSS CDN with forms and container queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- FontAwesome Icons for gaming HUD elements -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+<!-- Google Fonts: Lilita One (Clash style) & Nunito (Smooth UI) -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&amp;family=Nunito:wght@700;800;900&amp;display=swap" rel="stylesheet"/>
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            clash: ['"Lilita One"', 'cursive', 'sans-serif'],
+            sans: ['"Nunito"', 'sans-serif']
+          },
+          colors: {
+            gameGold: '#FFB800',
+            gameAmber: '#E67E22',
+            gameGreen: '#2ECC71',
+            gameEmerald: '#27AE60',
+            gameBlue: '#00A8FF',
+            gamePurple: '#9B59B6',
+            gameRuby: '#E74C3C'
+          },
+          boxShadow: {
+            'clash-btn': '0 6px 0 rgba(0, 0, 0, 0.35), inset 0 2px 2px rgba(255, 255, 255, 0.4)',
+            'clash-attack': '0 8px 0 #A84300, 0 14px 20px rgba(0, 0, 0, 0.5), inset 0 3px 2px rgba(255, 255, 255, 0.5)',
+            'pill-inset': 'inset 0 3px 6px rgba(0, 0, 0, 0.5), 0 1px 1px rgba(255, 255, 255, 0.2)'
+          }
+        }
+      }
+    }
+  </script>
+<!-- BEGIN: Custom Game Styles -->
+<style data-purpose="hud-effects">
+    /* Cartoon text outlines for Supercell / Clash game styling */
+    .text-stroke-sm {
+      -webkit-text-stroke: 1px rgba(0, 0, 0, 0.85);
+      text-shadow: 0 2px 0 rgba(0, 0, 0, 0.75);
+    }
+    .text-stroke-md {
+      -webkit-text-stroke: 1.5px #1F2937;
+      text-shadow: 0 3px 0 rgba(0, 0, 0, 0.75);
+    }
+    .text-stroke-lg {
+      -webkit-text-stroke: 2px #5a2000;
+      text-shadow: 0 4px 0 rgba(0, 0, 0, 0.85);
+    }
+
+    /* Floating collectible pin bounce */
+    @keyframes floatBob {
+      0%, 100% {
+        transform: translateY(0px) scale(1);
+      }
+      50% {
+        transform: translateY(-8px) scale(1.05);
+      }
+    }
+
+    .animate-bounce-bubble {
+      animation: floatBob 2.2s ease-in-out infinite;
+    }
+
+    .animate-bounce-delayed {
+      animation: floatBob 2.5s ease-in-out 0.8s infinite;
+    }
+
+    .animate-pulse-subtle {
+      animation: pulse 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  </style>
+<!-- END: Custom Game Styles -->
+</head>
+<body class="bg-slate-950 text-white font-sans overflow-hidden select-none w-screen h-screen">
+<!-- BEGIN: MainBaseViewport -->
+<!-- Full-screen isometric base village container with zoom-pinch-pan readiness -->
+<div class="relative w-full h-full overflow-hidden bg-sky-300" data-purpose="isometric-base-container">
+<!-- Primary 3D Isometric Base Ground Render -->
+<img alt="Isometric 3D mobile game view of a sprawling football club town base, Clash of Clans and SimCity style. In the center is a lively grass football stadium with floodlights. Surrounding it are training pitches, sports science medical clinics with red cross roof signs, scouting towers with satellite dishes, modern youth academy dormitories, a mega fan merchandise megastore with banners, parking lots, and palm trees. Vibrant colorful casual mobile game art style, glossy 3D render, tilt-shift lens, rich green pitch, detailed building upgrade stars, gold coin and energy icons floating above buildings ready for harvest." class="absolute inset-0 w-full h-full object-cover object-center pointer-events-none scale-105 transition-transform duration-700 ease-out" id="village-base-image" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBlxudRu24IZTl_rVyzWzVb1Upx2qPourso1mUT6Jh0DcjwlBjo2fX7oUMTcnbU422--sOPQRBLRAxOtf6UHTuRDcYqtwb5HKvoJjI3nnjvc8oOMbrirgqfD9mAs3ENL033Irb-rkraT3llFqehoxZVZW_Gpgvc-GYt36c2pXshpBnYm62Ng5cDLZVBx-isoQ06e5y5vHTEEuNL3RspomFOxhlzOLnULk0YgT8wxUG43nqa3DxbZxyr"/>
+<!-- BEGIN: Floating Interactive Building Markers -->
+<!-- Positioned precisely over the isometric buildings from IMAGE_16 -->
+<!-- Stadium Central Node -->
+<div class="absolute left-[50%] top-[45%] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer pointer-events-auto" data-purpose="building-node-stadium">
+<!-- Floating Harvest Coin Bubble -->
+<button class="animate-bounce-bubble flex items-center gap-1.5 bg-gradient-to-b from-amber-300 via-amber-400 to-yellow-500 hover:from-amber-200 hover:to-yellow-400 text-amber-950 font-clash px-3 py-1.5 rounded-full border-2 border-white shadow-xl transform active:scale-95 transition">
+<i class="fa-solid fa-coins text-yellow-900 text-lg drop-shadow"></i>
+<span class="text-sm font-black tracking-wide">+4,200</span>
+</button>
+<!-- Building Level & Name Badge -->
+<div class="mt-2 bg-slate-900/85 backdrop-blur-md px-3 py-1 rounded-xl border border-sky-400/40 shadow-lg text-center">
+<div class="flex items-center gap-1 text-[11px] font-extrabold text-amber-300">
+<i class="fa-solid fa-star text-[10px]"></i>
+<i class="fa-solid fa-star text-[10px]"></i>
+<i class="fa-solid fa-star text-[10px]"></i>
+<i class="fa-regular fa-star text-slate-500 text-[10px]"></i>
+<i class="fa-regular fa-star text-slate-500 text-[10px]"></i>
+</div>
+<p class="font-clash text-xs tracking-wider text-white drop-shadow">Central Arena <span class="text-sky-300">Lv.3</span></p>
+</div>
+</div>
+<!-- Sports Science & Medical Center Node -->
+<div class="absolute left-[34%] top-[25%] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer pointer-events-auto" data-purpose="building-node-medclinic">
+<!-- Floating Energy / Healing Collectible -->
+<button class="animate-bounce-delayed flex items-center justify-center w-10 h-10 bg-gradient-to-b from-cyan-300 to-blue-500 rounded-full border-2 border-white shadow-lg text-white transform active:scale-95 transition">
+<i class="fa-solid fa-bolt text-lg text-yellow-300 drop-shadow"></i>
+</button>
+<!-- Building Label -->
+<div class="mt-1 bg-slate-900/80 backdrop-blur-sm px-2.5 py-0.5 rounded-lg border border-red-500/40 text-center">
+<span class="text-[11px] font-clash text-red-300 flex items-center gap-1">
+<i class="fa-solid fa-square-plus text-red-500"></i> Med Center Lv.2
+        </span>
+</div>
+</div>
+<!-- Youth Academy Node (With Alert / Wonderkid Claim) -->
+<div class="absolute left-[91%] top-[54%] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer pointer-events-auto" data-purpose="building-node-academy">
+<!-- Floating Wonderkid Claim Notification -->
+<button class="animate-bounce-bubble flex items-center gap-1 bg-gradient-to-b from-purple-500 to-indigo-600 text-white font-clash px-3 py-1 rounded-full border-2 border-yellow-300 shadow-xl active:scale-95 transition">
+<span class="text-yellow-300 animate-spin text-xs">⭐</span>
+<span class="text-xs">PROSPECT!</span>
+</button>
+<!-- Building Tag -->
+<div class="mt-1.5 bg-slate-900/90 backdrop-blur-md px-2.5 py-1 rounded-xl border border-purple-400/50 shadow text-center">
+<p class="text-[11px] font-clash text-purple-200">Academy <span class="text-yellow-400">Lv.3</span></p>
+<p class="text-[9px] font-extrabold text-emerald-400">Emmanuel O. (4★)</p>
+</div>
+</div>
+<!-- Training Pitch Node (Active Upgrade Timer) -->
+<div class="absolute left-[19%] top-[42%] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-auto" data-purpose="building-node-training-ground">
+<!-- Active Upgrade Status Pill -->
+<div class="bg-amber-950/90 border-2 border-amber-500 rounded-xl p-1.5 shadow-2xl backdrop-blur-md flex flex-col items-center gap-1 min-w-[130px]">
+<div class="flex items-center justify-between w-full px-1 text-[10px] font-clash text-amber-200">
+<span><i class="fa-solid fa-hammer mr-1 text-yellow-400"></i> UPGRADING</span>
+<span class="text-white">04h 18m</span>
+</div>
+<!-- Progress Mini Bar -->
+<div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-amber-600/40">
+<div class="bg-gradient-to-r from-yellow-400 to-amber-500 h-full w-[65%] rounded-full"></div>
+</div>
+<!-- Gem Finish Button -->
+<button class="w-full bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 text-white text-[10px] font-clash py-0.5 rounded-lg border border-emerald-300 shadow flex items-center justify-center gap-1">
+<span>Speed Up</span>
+<span class="bg-emerald-950/60 px-1 rounded text-cyan-300"><i class="fa-solid fa-gem text-[9px]"></i> 18</span>
+</button>
+</div>
+<p class="mt-1 font-clash text-[11px] text-white drop-shadow bg-slate-900/70 px-2 rounded-md">Pitches Lv.2</p>
+</div>
+<!-- Mega Fan Store / Club Shop Node -->
+<div class="absolute left-[68%] top-[68%] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer pointer-events-auto" data-purpose="building-node-fan-megastore">
+<button class="animate-bounce-delayed flex items-center gap-1 bg-gradient-to-b from-amber-400 to-amber-600 text-amber-950 font-clash px-3 py-1 rounded-full border-2 border-white shadow-xl active:scale-95 transition">
+<i class="fa-solid fa-sack-dollar text-sm"></i>
+<span class="text-xs font-black">+1,850</span>
+</button>
+<div class="mt-1 bg-slate-900/80 px-2.5 py-0.5 rounded-lg border border-blue-500/40 text-center">
+<span class="text-[11px] font-clash text-sky-200">Fan Megastore</span>
+</div>
+</div>
+<!-- Scouting Radar Tower Node -->
+<div class="absolute left-[78%] top-[30%] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-auto" data-purpose="building-node-scout-tower">
+<div class="bg-blue-950/80 backdrop-blur-sm border border-cyan-400/50 rounded-lg px-2 py-0.5 flex items-center gap-1.5 shadow-md">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+</span>
+<span class="text-[10px] font-clash text-cyan-200">Radar Active</span>
+</div>
+</div>
+<!-- END: Floating Interactive Building Markers -->
+<!-- BEGIN: Top Game Resource Bar (Clash of Clans HUD Style) -->
+<header class="absolute top-0 left-0 right-0 p-3 flex flex-wrap justify-between items-start pointer-events-none z-30" data-purpose="top-navigation-hud">
+<!-- Left: Player Profile & Level XP Badge -->
+<div class="flex items-center gap-2 pointer-events-auto">
+<!-- Shield Badge with Level -->
+<div class="relative cursor-pointer group">
+<div class="w-14 h-14 bg-gradient-to-b from-sky-400 via-blue-600 to-indigo-800 rounded-2xl border-2 border-amber-300 shadow-xl flex items-center justify-center p-1 transform group-hover:scale-105 transition">
+<i class="fa-solid fa-shield-halved text-2xl text-yellow-300 drop-shadow"></i>
+<!-- Star Level Stamp -->
+<div class="absolute -bottom-1 -right-1 bg-gradient-to-b from-amber-400 to-orange-600 text-white font-clash text-xs rounded-full w-6 h-6 flex items-center justify-center border-2 border-white shadow">
+              4
+            </div>
+</div>
+</div>
+<!-- Name & XP Bar -->
+<div class="bg-slate-900/85 backdrop-blur-md p-2 rounded-2xl border border-white/20 shadow-xl min-w-[170px]">
+<div class="flex items-center justify-between">
+<span class="font-clash text-sm text-white tracking-wide">Segun FC</span>
+<span class="text-[10px] font-black text-amber-400">740/1000 XP</span>
+</div>
+<!-- Clash Style Level Progression Bar -->
+<div class="w-full bg-slate-950 rounded-full h-3 p-0.5 border border-sky-400/30 mt-1 shadow-pill-inset">
+<div class="bg-gradient-to-r from-blue-500 via-sky-400 to-cyan-300 h-full rounded-full transition-all duration-500" style="width: 74%"></div>
+</div>
+</div>
+<!-- Town Shield Indicator Pill -->
+<div class="hidden sm:flex items-center gap-1.5 bg-slate-900/80 backdrop-blur-md px-3 py-2 rounded-2xl border border-white/20 shadow-lg text-xs font-clash">
+<i class="fa-solid fa-shield-cat text-emerald-400 text-sm"></i>
+<div>
+<div class="text-[9px] text-slate-400 uppercase font-black">Base Shield</div>
+<div class="text-emerald-400 text-xs leading-none">14h 22m</div>
+</div>
+</div>
+</div>
+<!-- Center & Right: Floating Resource Banks & Controls -->
+<div class="flex items-center gap-2 sm:gap-3 pointer-events-auto ml-auto">
+<!-- Battle Energy / Stamina -->
+<div class="bg-slate-900/85 backdrop-blur-md border border-white/20 rounded-2xl py-1.5 px-3 flex items-center gap-2 shadow-xl">
+<div class="w-7 h-7 rounded-xl bg-gradient-to-b from-cyan-400 to-blue-600 flex items-center justify-center text-white shadow">
+<i class="fa-solid fa-bolt text-yellow-300 text-sm"></i>
+</div>
+<div class="leading-tight">
+<div class="font-clash text-xs tracking-wide text-white">4 / 5</div>
+<div class="text-[9px] font-bold text-slate-400">+1 in 14m</div>
+</div>
+</div>
+<!-- Gold Coins Counter -->
+<div class="bg-slate-900/85 backdrop-blur-md border border-white/20 rounded-2xl py-1 px-2.5 flex items-center gap-2 shadow-xl min-w-[130px]">
+<div class="w-8 h-8 rounded-xl bg-gradient-to-b from-amber-300 via-amber-400 to-yellow-600 flex items-center justify-center text-yellow-950 shadow-inner">
+<i class="fa-solid fa-coins text-base text-yellow-950 drop-shadow-sm"></i>
+</div>
+<div class="flex-1">
+<div class="font-clash text-xs sm:text-sm text-yellow-300 tracking-wider">785,356</div>
+<div class="text-[9px] font-black text-emerald-400">+4.2k/hr</div>
+</div>
+<button class="w-6 h-6 rounded-lg bg-gradient-to-b from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 border border-emerald-200 text-white font-black text-sm flex items-center justify-center shadow active:scale-95">
+            +
+          </button>
+</div>
+<!-- Diamonds / Gems Counter -->
+<div class="bg-slate-900/85 backdrop-blur-md border border-white/20 rounded-2xl py-1 px-2.5 flex items-center gap-2 shadow-xl min-w-[110px]">
+<div class="w-8 h-8 rounded-xl bg-gradient-to-b from-cyan-300 via-teal-400 to-emerald-600 flex items-center justify-center shadow">
+<i class="fa-solid fa-gem text-cyan-100 text-sm drop-shadow"></i>
+</div>
+<div class="flex-1">
+<div class="font-clash text-xs sm:text-sm text-cyan-300 tracking-wider">4,362</div>
+<div class="text-[9px] font-black text-slate-400">GEMS</div>
+</div>
+<button class="w-6 h-6 rounded-lg bg-gradient-to-b from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 border border-emerald-200 text-white font-black text-sm flex items-center justify-center shadow active:scale-95">
+            +
+          </button>
+</div>
+<!-- Settings & Store Glossy Buttons -->
+<div class="flex items-center gap-1.5 pl-1">
+<button class="w-10 h-10 rounded-2xl bg-gradient-to-b from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 border-2 border-white/80 shadow-clash-btn flex items-center justify-center active:translate-y-1 active:shadow-none transition" title="Club Store">
+<i class="fa-solid fa-cart-shopping text-white text-base drop-shadow"></i>
+</button>
+<button class="w-10 h-10 rounded-2xl bg-gradient-to-b from-slate-600 to-slate-800 hover:from-slate-500 hover:to-slate-700 border-2 border-white/80 shadow-clash-btn flex items-center justify-center active:translate-y-1 active:shadow-none transition" title="Base Settings">
+<i class="fa-solid fa-gear text-white text-base drop-shadow"></i>
+</button>
+</div>
+</div>
+</header>
+<!-- END: Top Game Resource Bar -->
+<!-- BEGIN: Left Quick-Stats & Defensive Log HUD -->
+<aside class="absolute left-3 top-24 flex flex-col gap-2.5 z-20 pointer-events-none" data-purpose="left-stats-drawer">
+<!-- Fan Population Card -->
+<div class="bg-slate-900/85 backdrop-blur-md border border-white/15 p-2.5 rounded-2xl shadow-2xl flex items-center gap-3 w-48 pointer-events-auto cursor-pointer hover:border-sky-400/50 transition">
+<div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-cyan-400 flex items-center justify-center shadow">
+<i class="fa-solid fa-users text-white text-lg drop-shadow"></i>
+</div>
+<div>
+<div class="text-[10px] uppercase font-black text-slate-400 leading-none">Club Fans</div>
+<div class="font-clash text-base text-white tracking-wide">18,400</div>
+<div class="text-[10px] font-bold text-emerald-400">+850 today</div>
+</div>
+</div>
+<!-- Club Power Rating (OVR) -->
+<div class="bg-slate-900/85 backdrop-blur-md border border-white/15 p-2.5 rounded-2xl shadow-2xl flex items-center gap-3 w-48 pointer-events-auto cursor-pointer hover:border-amber-400/50 transition">
+<div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center shadow">
+<i class="fa-solid fa-fire text-yellow-950 text-xl drop-shadow"></i>
+</div>
+<div>
+<div class="text-[10px] uppercase font-black text-slate-400 leading-none">Overall Power</div>
+<div class="font-clash text-base text-amber-300 tracking-wide">184 <span class="text-xs text-white">OVR</span></div>
+<div class="text-[10px] font-extrabold text-sky-400">Tier: Elite Div II</div>
+</div>
+</div>
+<!-- Defensive Raid Alert Log Banner -->
+<div class="bg-gradient-to-r from-red-950/90 to-slate-900/90 backdrop-blur-md border-l-4 border-red-500 border-y border-r border-white/10 p-2.5 rounded-r-2xl rounded-l-md shadow-2xl w-52 pointer-events-auto cursor-pointer hover:scale-[1.02] transition">
+<div class="flex items-center gap-1.5 text-red-400 font-clash text-xs tracking-wider">
+<i class="fa-solid fa-triangle-exclamation animate-bounce"></i>
+<span>Raid Defense Log</span>
+</div>
+<p class="text-[11px] font-bold text-slate-200 mt-1 leading-snug">
+          2 rivals raided while away!
+        </p>
+<div class="flex items-center gap-2 mt-1.5 text-[10px] font-black">
+<span class="bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/30">1 Defended</span>
+<span class="bg-red-500/20 text-red-300 px-1.5 py-0.5 rounded border border-red-500/30">1 Breached</span>
+</div>
+</div>
+</aside>
+<!-- END: Left Quick-Stats & Defensive Log HUD -->
+<!-- BEGIN: Top Right Urgent Quest Card -->
+<div class="absolute right-3 top-24 z-20 pointer-events-auto hidden md:block" data-purpose="urgent-quest-card">
+<div class="bg-slate-900/90 backdrop-blur-md border border-amber-400/40 p-3 rounded-2xl shadow-2xl w-64 hover:border-amber-400 transition">
+<div class="flex items-center justify-between border-b border-white/10 pb-1.5">
+<div class="flex items-center gap-1.5">
+<span class="flex h-2.5 w-2.5 relative">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+</span>
+<span class="font-clash text-xs tracking-wider text-amber-300 uppercase">Timed Challenge</span>
+</div>
+<span class="text-[10px] font-clash text-red-400 bg-red-950/60 px-2 py-0.5 rounded-full border border-red-500/30">
+<i class="fa-regular fa-clock mr-1"></i>31h left
+          </span>
+</div>
+<h4 class="font-clash text-sm text-white mt-2">Prove You're Ready</h4>
+<p class="text-[11px] text-slate-300 font-bold">Win 4 League Base Raids in 72h</p>
+<!-- Quest Progress Bar -->
+<div class="mt-2">
+<div class="flex justify-between text-[10px] font-clash text-slate-400 mb-1">
+<span>Victories</span>
+<span class="text-amber-300 font-bold">2 / 4 Cleared</span>
+</div>
+<div class="w-full bg-slate-950 rounded-full h-2.5 p-0.5 border border-white/10 shadow-pill-inset">
+<div class="bg-gradient-to-r from-amber-500 to-gameGold h-full rounded-full" style="width: 50%"></div>
+</div>
+</div>
+<!-- Reward Preview Pill -->
+<div class="mt-2.5 bg-amber-900/30 border border-amber-500/30 rounded-xl p-1.5 flex items-center justify-between text-[10px] font-clash">
+<span class="text-slate-300">Reward:</span>
+<div class="flex items-center gap-2 text-yellow-300 font-bold">
+<span><i class="fa-solid fa-coins text-amber-400"></i> $35,000</span>
+<span class="text-sky-300"><i class="fa-solid fa-scroll"></i> Lv.3 Blueprint</span>
+</div>
+</div>
+</div>
+</div>
+<!-- END: Top Right Urgent Quest Card -->
+<!-- BEGIN: Bottom Tactical Dock & Attack Hub -->
+<footer class="absolute bottom-4 left-0 right-0 px-4 flex items-end justify-between pointer-events-none z-30" data-purpose="bottom-action-dock">
+<!-- Dock Left: Village Layout / Edit Base Mode Button -->
+<div class="flex items-center gap-2 pointer-events-auto">
+<button class="group flex flex-col items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-b from-sky-500 to-blue-700 hover:from-sky-400 hover:to-blue-600 rounded-3xl border-2 border-white shadow-clash-btn active:translate-y-1 active:shadow-none transition">
+<i class="fa-solid fa-arrows-up-down-left-right text-white text-xl sm:text-2xl drop-shadow group-hover:scale-110 transition"></i>
+<span class="font-clash text-[10px] sm:text-xs text-white text-stroke-sm mt-0.5">EDIT BASE</span>
+</button>
+<button class="hidden sm:flex flex-col items-center justify-center w-16 h-16 bg-gradient-to-b from-slate-700 to-slate-900 hover:from-slate-600 hover:to-slate-800 rounded-2xl border border-white/40 shadow-clash-btn active:translate-y-1 active:shadow-none transition">
+<i class="fa-solid fa-envelope-open-text text-amber-300 text-lg drop-shadow"></i>
+<span class="font-clash text-[9px] text-white mt-1">LOGS</span>
+</button>
+</div>
+<!-- Dock Center: GIANT Glowing Battle / Attack Button (Clash of Clans Style) -->
+<div class="pointer-events-auto -mb-1 flex flex-col items-center">
+<!-- Giant Glowing Button Container -->
+<button class="relative group cursor-pointer active:translate-y-2 transition-transform duration-150">
+<!-- Outer Pulsing Glow Halo -->
+<div class="absolute -inset-2 bg-gradient-to-r from-amber-500 via-yellow-400 to-orange-600 rounded-full blur-lg opacity-70 group-hover:opacity-100 transition animate-pulse"></div>
+<!-- Main Button Body with 3D Bevel & Borders -->
+<div class="relative w-44 sm:w-56 h-16 sm:h-20 bg-gradient-to-b from-amber-400 via-orange-500 to-amber-700 rounded-3xl border-4 border-amber-200 shadow-clash-attack flex items-center justify-center px-4 overflow-hidden">
+<!-- Diagonal Specular Highlight Sheen -->
+<div class="absolute top-0 left-0 right-0 h-1/2 bg-white/25 rounded-t-2xl pointer-events-none"></div>
+<!-- Content: Crossed Boots/Swords & ATTACK Text -->
+<div class="flex items-center gap-2 sm:gap-3 text-white">
+<i class="fa-solid fa-futbol text-2xl sm:text-3xl text-yellow-200 drop-shadow-md group-hover:rotate-45 transition-transform duration-300"></i>
+<div class="text-left">
+<span class="block font-clash text-2xl sm:text-3xl leading-none tracking-wider text-stroke-md drop-shadow-md">
+                  ATTACK!
+                </span>
+<span class="text-[10px] sm:text-xs font-clash text-yellow-100 tracking-widest uppercase text-stroke-sm flex items-center gap-1">
+                  FIND MATCH <span class="bg-black/30 px-1.5 py-0.2 rounded text-cyan-300 font-black"><i class="fa-solid fa-bolt text-[10px]"></i> 1</span>
+</span>
+</div>
+</div>
+</div>
+</button>
+</div>
+<!-- Dock Right: Squad Management & Clan Federation -->
+<div class="flex items-center gap-2 pointer-events-auto">
+<!-- Squad / War Room Button -->
+<button class="group flex flex-col items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-b from-purple-500 to-indigo-800 hover:from-purple-400 hover:to-indigo-700 rounded-3xl border-2 border-white shadow-clash-btn active:translate-y-1 active:shadow-none transition">
+<i class="fa-solid fa-users-viewfinder text-white text-xl sm:text-2xl drop-shadow group-hover:scale-110 transition"></i>
+<span class="font-clash text-[10px] sm:text-xs text-white text-stroke-sm mt-0.5">SQUAD</span>
+</button>
+<!-- Clan / Club Federation Button -->
+<button class="group flex flex-col items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-b from-emerald-500 to-teal-800 hover:from-emerald-400 hover:to-teal-700 rounded-3xl border-2 border-white shadow-clash-btn active:translate-y-1 active:shadow-none transition">
+<i class="fa-solid fa-trophy text-yellow-300 text-xl sm:text-2xl drop-shadow group-hover:scale-110 transition"></i>
+<span class="font-clash text-[10px] sm:text-xs text-white text-stroke-sm mt-0.5">FEDERATION</span>
+</button>
+</div>
+</footer>
+<!-- END: Bottom Tactical Dock & Attack Hub -->
+<!-- BEGIN: Quick Harvest Floating Particle Overlay (Mock Interactive Effect) -->
+<div class="hidden pointer-events-none absolute z-50 transition-all duration-700 font-clash text-amber-300 text-lg font-black text-stroke-sm" id="harvest-flyout">
+      +$4,200
+    </div>
+<!-- END: Quick Harvest Floating Particle Overlay -->
+</div>
+<!-- END: MainBaseViewport -->
+<!-- BEGIN: Interactive Logic for Gamified Experience -->
+<script data-purpose="hud-interactions">
+    document.addEventListener('DOMContentLoaded', () => {
+      // Collect coins click effect on Stadium harvest
+      const stadiumHarvest = document.querySelector('[data-purpose="building-node-stadium"] button');
+      const flyout = document.getElementById('harvest-flyout');
+
+      if (stadiumHarvest && flyout) {
+        stadiumHarvest.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const rect = stadiumHarvest.getBoundingClientRect();
+          flyout.style.left = `${rect.left + 10}px`;
+          flyout.style.top = `${rect.top - 10}px`;
+          flyout.classList.remove('hidden');
+          flyout.style.opacity = '1';
+          flyout.style.transform = 'translateY(0px)';
+
+          // Animate floating up and vanishing
+          setTimeout(() => {
+            flyout.style.transform = 'translateY(-35px)';
+            flyout.style.opacity = '0';
+          }, 50);
+
+          setTimeout(() => {
+            flyout.classList.add('hidden');
+          }, 750);
+
+          // Change button state to collected
+          stadiumHarvest.innerHTML = '<i class="fa-solid fa-check text-green-800 text-base"></i> <span class="text-xs">COLLECTED</span>';
+          stadiumHarvest.classList.remove('animate-bounce-bubble');
+          stadiumHarvest.classList.add('opacity-80', 'bg-slate-400');
+        });
+      }
+
+      // Attack Button Sound / Click Feedback Simulation
+      const attackBtn = document.querySelector('[data-purpose="bottom-action-dock"] button.group');
+      if (attackBtn) {
+        attackBtn.addEventListener('click', () => {
+          console.log('Initiating Scouting Matchmaking against Rival Club Base...');
+        });
+      }
+    });
+  </script>
+<!-- END: Interactive Logic for Gamified Experience -->
+</body></html>
