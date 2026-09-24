@@ -13,6 +13,12 @@ import {
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
+/** Clubs.Form: recent results, most recent first. */
+export interface ClubForm {
+  recent: ('W' | 'D' | 'L')[];
+  streak: { type: 'W' | 'D' | 'L'; length: number } | null;
+}
+
 const timestamps = {
   createdAt: timestamp('createdAt', { precision: 3 }).defaultNow().notNull(),
   updatedAt: timestamp('updatedAt', { precision: 3 }).notNull(),
@@ -106,6 +112,13 @@ export const competitions = pgTable('Competitions', {
   Division: integer('Division').notNull().default(0),
   NumberOfTeams: integer('NumberOfTeams').notNull(),
   NumberOfWeeks: integer('NumberOfWeeks').notNull(),
+  /** League pyramid position (services/competitions/pyramid-config.ts): Tier
+   * 1 = top flight, higher = lower; Pod = which parallel league within the
+   * tier. Both null for cups/tournaments and for any league not yet placed
+   * in the pyramid (those keep the legacy two-division promotion rules).
+   * Deliberately separate from Division, which is 0 for every cup. */
+  Tier: integer('Tier'),
+  Pod: integer('Pod'),
   TeamsPromoted: integer('TeamsPromoted'),
   TeamsRelegated: integer('TeamsRelegated'),
   CountryId: uuid('CountryId').references(() => places.id),
@@ -179,6 +192,17 @@ export const clubs = pgTable('Clubs', {
   homePlaceId: text('homePlaceId'),
   /** Imagination world place UUID – the stadium polygon on the world map. */
   stadiumPlaceId: text('stadiumPlaceId'),
+  /** Club XP earned from matches/challenges (services/play/play.service.ts);
+   * Club Level is derived from it. */
+  XP: integer('XP').notNull().default(0),
+  /** World standing, moved by every result through services/world/
+   * club-standing.service.ts's applyMatchOutcome (the one seam, called from
+   * game/functions.ts's updateFixture). Fans drive attendance, Reputation
+   * gates the transfer market, BoardConfidence gates budget requests. */
+  Fans: integer('Fans').notNull().default(0),
+  Reputation: integer('Reputation').notNull().default(0),
+  BoardConfidence: integer('BoardConfidence').notNull().default(60),
+  Form: jsonb('Form').$type<ClubForm | null>(),
   ...timestamps,
   // Players dropped - it's the exact inverse of players.Club below.
 });
@@ -316,6 +340,9 @@ export const players = pgTable('Players', {
   isTransferListed: boolean('isTransferListed').notNull().default(false),
   AskingPrice: real('AskingPrice'),
   Morale: text('Morale'),
+  /** 0-100, moved by results (club-standing.service.ts) and read by the match
+   * sim as a small bounded Rating nudge. `Morale` above is a legacy label. */
+  MoraleValue: integer('MoraleValue').notNull().default(60),
   isYouth: boolean('isYouth').notNull().default(false),
   ...timestamps,
 });
@@ -553,6 +580,89 @@ export const transferOffers = pgTable(
     index('transfer_offers_from_status_idx').on(t.FromClubId, t.Status),
     index('transfer_offers_player_idx').on(t.PlayerId),
   ]
+);
+
+/**
+ * A club's levelled facilities (Stadium Grounds, Stands, Training Ground,
+ * Youth Academy...). One row per (club, AssetType); a missing row means
+ * Level 0 (the starting dirt-turf state). While an upgrade is in progress
+ * `UpgradingTo`/`StartDay`/`CompleteDay` are set; the calendar advance
+ * (services/facilities/facilities.service.ts's completeDueUpgrades) bumps
+ * Level and clears them once CompleteDay is reached. Levels, costs, build
+ * days and effects live in services/facilities/asset-config.ts.
+ */
+export const clubAssets = pgTable(
+  'ClubAssets',
+  {
+    id: uuid('_id').primaryKey().defaultRandom(),
+    ClubId: uuid('ClubId')
+      .notNull()
+      .references(() => clubs.id),
+    AssetType: text('AssetType').notNull(),
+    Level: integer('Level').notNull().default(0),
+    UpgradingTo: integer('UpgradingTo'),
+    /** Real-time upgrade window (the live model). StartDay/CompleteDay are the
+     * old calendar-day columns - unused since the switch to real time. */
+    StartAt: timestamp('StartAt', { precision: 3 }),
+    CompleteAt: timestamp('CompleteAt', { precision: 3 }),
+    StartDay: integer('StartDay'),
+    CompleteDay: integer('CompleteDay'),
+    ...timestamps,
+  },
+  (t) => [
+    unique('club_assets_club_type_uniq').on(t.ClubId, t.AssetType),
+    index('club_assets_upgrading_idx').on(t.CompleteDay),
+    index('club_assets_complete_at_idx').on(t.CompleteAt),
+  ]
+);
+
+/**
+ * A timed club goal, e.g. "win N matches within T hours" (Type 'win_matches').
+ * Progress is updated by the play flow and expiry is resolved lazily on read
+ * (services/play/challenge.service.ts). One 'active' row per club at a time.
+ */
+/** A club's inbox: things the world did in reaction to the club (fans, board,
+ * press). Written by services/world/club-standing.service.ts. */
+export const clubMessages = pgTable(
+  'ClubMessages',
+  {
+    id: uuid('_id').primaryKey().defaultRandom(),
+    ClubId: uuid('ClubId')
+      .notNull()
+      .references(() => clubs.id),
+    /** fans | board | press | squad */
+    Kind: text('Kind').notNull(),
+    /** good | bad | neutral */
+    Tone: text('Tone').notNull().default('neutral'),
+    Title: text('Title').notNull(),
+    Body: text('Body').notNull(),
+    Read: boolean('Read').notNull().default(false),
+    ...timestamps,
+  },
+  (t) => [index('club_messages_club_created_idx').on(t.ClubId, t.createdAt)]
+);
+
+export const clubChallenges = pgTable(
+  'ClubChallenges',
+  {
+    id: uuid('_id').primaryKey().defaultRandom(),
+    ClubId: uuid('ClubId')
+      .notNull()
+      .references(() => clubs.id),
+    Type: text('Type').notNull(),
+    Title: text('Title').notNull(),
+    TargetWins: integer('TargetWins').notNull(),
+    Wins: integer('Wins').notNull().default(0),
+    MatchesPlayed: integer('MatchesPlayed').notNull().default(0),
+    /** active | completed | failed */
+    Status: text('Status').notNull().default('active'),
+    ExpiresAt: timestamp('ExpiresAt', { precision: 3 }).notNull(),
+    RewardCash: real('RewardCash').notNull(),
+    RewardXP: integer('RewardXP').notNull(),
+    ResolvedAt: timestamp('ResolvedAt', { precision: 3 }),
+    ...timestamps,
+  },
+  (t) => [index('club_challenges_club_status_idx').on(t.ClubId, t.Status)]
 );
 
 export type Place = typeof places.$inferSelect;

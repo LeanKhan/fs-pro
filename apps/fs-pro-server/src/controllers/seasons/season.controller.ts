@@ -13,6 +13,12 @@ import {
 } from '../competitions/competition.service';
 import { appendClubRecord } from '../clubs/club.service';
 import { payoutSeasonPrizes } from '../../services/economy/prize-money.service';
+import {
+  bottomTierOf,
+  getTierInfo,
+  planMoves,
+  type TierInfo,
+} from '../../services/competitions/pyramid.service';
 
 /**
  * 1. Get the latest seasons of the Competitions involved ...
@@ -63,10 +69,44 @@ export async function finishSeasonPlain(season_id: string) {
   const cmp = competition;
   // TODO: Do Best Player etc...
 
+  // Pyramid leagues (Competitions.Tier set): a pod promotes its top
+  // TeamsPromoted clubs (unless top flight) and relegates its bottom
+  // TeamsRelegated (unless bottom tier). Anything else keeps the legacy rules.
+  const tierInfo = cmp.League ? await getTierInfo(cmp._id as string) : null;
+  let pyramidMoves: { Promoted: string[]; Relegated: string[] } | null = null;
+  if (tierInfo) {
+    const bottom = await bottomTierOf(tierInfo.countryId);
+    const up = tierInfo.tier > 1 ? tierInfo.teamsPromoted : 0;
+    const down = tierInfo.tier < bottom ? tierInfo.teamsRelegated : 0;
+    for (const [value, field] of [
+      [up, 'TeamsPromoted'],
+      [down, 'TeamsRelegated'],
+    ] as const) {
+      if (value == null || !Number.isInteger(value) || value < 0) {
+        throw new FinishSeasonError(
+          `${cmp.Name} (tier ${tierInfo.tier}) has no ${field} set, so no club would move league. Set it on the competition before finishing the season.`,
+          400
+        );
+      }
+    }
+    if ((up as number) + (down as number) > standings.length) {
+      throw new FinishSeasonError(
+        `${cmp.Name} is set to move ${(up as number) + (down as number)} clubs but only has ${standings.length}.`,
+        400
+      );
+    }
+    pyramidMoves = {
+      Promoted: standings.slice(0, up as number).map((s) => s.ClubID),
+      Relegated: (down as number) > 0
+        ? standings.slice(standings.length - (down as number)).map((s) => s.ClubID)
+        : [],
+    };
+  }
+
   // A league with no promotion/relegation count would silently move nobody
   // (slice(len - null) and slice(0, null) both select no clubs), so refuse to
   // finish it until the slot count is configured on the competition.
-  if (cmp.League) {
+  if (cmp.League && !tierInfo) {
     const slots = cmp.Division == 1 ? cmp.TeamsRelegated : cmp.TeamsPromoted;
     const slotField = cmp.Division == 1 ? 'TeamsRelegated' : 'TeamsPromoted';
     if (slots == null || !Number.isInteger(slots) || slots < 0) {
@@ -83,8 +123,9 @@ export async function finishSeasonPlain(season_id: string) {
     }
   }
 
-  const prolegated =
-    cmp.Division == 1 && cmp.League
+  const prolegated = pyramidMoves
+    ? pyramidMoves
+    : cmp.Division == 1 && cmp.League
       ? {
           Relegated: standings
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -140,6 +181,13 @@ export async function prolegate(season_id: string) {
   const cmp = await getCompetitionById(season.CompetitionId as string);
   if (!cmp) {
     throw new Error(`Competition for Season [${season_id}] does not exist`);
+  }
+
+  // Pyramid leagues: the destination pod comes from pyramid.service.planMoves
+  // (any number of tiers/pods; middle tiers both promote and relegate).
+  const tierInfo = cmp.League ? await getTierInfo(cmp._id as string) : null;
+  if (tierInfo) {
+    return prolegatePyramid(cmp, tierInfo, season);
   }
 
   const moveClub = async (
@@ -215,4 +263,39 @@ export async function prolegate(season_id: string) {
         season.Promoted.map((c) => moveClub(c, cmp, move_type))
       );
   }
+}
+
+async function prolegatePyramid(
+  cmp: CompetitionInterface,
+  info: TierInfo,
+  season: SeasonInterface
+) {
+  const moves = await planMoves(info, season.Promoted ?? [], season.Relegated ?? []);
+
+  // Refuse to move anyone if a destination league is missing, so a half
+  // applied cycle can't strand clubs.
+  const missing = moves.find((m) => !m.to);
+  if (missing) {
+    throw new Error(
+      `No league at tier ${missing.toTier} pod ${missing.toPod} to ${
+        missing.direction === 'promoted' ? 'promote' : 'relegate'
+      } clubs from ${cmp.Name} into`
+    );
+  }
+
+  return Promise.all(
+    moves.map((m) => {
+      const to = m.to!;
+      return appendClubRecord(
+        m.clubId,
+        { LeagueId: to.id, LeagueCode: to.code },
+        {
+          title: 'League Movement',
+          data: `From (${cmp.Name}) ${cmp._id} to (${to.name}) ${to.id}`,
+          content: `Got ${m.direction === 'promoted' ? 'Promoted' : 'Relegated'} to ${to.name}`,
+          date: new Date(),
+        }
+      );
+    })
+  );
 }

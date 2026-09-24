@@ -47,69 +47,17 @@
 
       <!-- Stadium & Infrastructure -->
       <v-col cols="12" md="7">
-        <v-card class="pa-4 elevation-3 mb-4">
-          <div class="text-h6 font-weight-bold d-flex justify-space-between align-center mb-3">
-            <span>Stadium & Infrastructure</span>
-            <v-chip color="primary" size="small">{{ stadiumName }}</v-chip>
-          </div>
+        <play-panel
+          :club-id="club?._id"
+          :read-only="readOnly"
+          @update-available="emit('update-available')"
+        ></play-panel>
 
-          <v-row class="mt-1">
-            <v-col cols="6">
-              <div class="text-caption text-medium-emphasis">Current Capacity</div>
-              <div class="text-h6 font-weight-bold">{{ stadiumCapacity.toLocaleString() }} seats</div>
-            </v-col>
-            <v-col cols="6">
-              <div class="text-caption text-medium-emphasis">Location</div>
-              <div class="text-body-1">{{ stadiumLocation }}</div>
-            </v-col>
-          </v-row>
-
-          <v-divider class="my-4"></v-divider>
-
-          <div v-if="!readOnly">
-            <div class="text-subtitle-2 font-weight-bold mb-2">Stadium Expansion Project</div>
-            <p class="text-body-2 text-medium-emphasis mb-3">
-              Add 5,000 additional seats to increase matchday ticket capacity.
-              Construction cost: <strong>€2,500,000</strong>.
-            </p>
-
-            <v-btn
-              color="indigo"
-              variant="flat"
-              :disabled="(club?.Budget ?? 0) < 2500000 || expanding"
-              :loading="expanding"
-              @click="expandStadium"
-            >
-              Expand Capacity (+5,000 Seats)
-            </v-btn>
-          </div>
-          <div v-else class="pa-2 rounded border" style="background: rgba(255, 255, 255, 0.03)">
-            <div class="text-caption text-medium-emphasis">
-              <v-icon size="small" class="mr-1">mdi-eye-outline</v-icon>
-              Viewing autonomous club infrastructure & public matchday venue.
-            </div>
-          </div>
-
-          <v-divider class="my-4"></v-divider>
-
-          <div class="text-subtitle-2 font-weight-bold mb-2">Facility Upgrades</div>
-          <v-row>
-            <v-col cols="6">
-              <v-card variant="outlined" class="pa-3">
-                <div class="font-weight-bold text-body-2">Training Grounds</div>
-                <div class="text-caption text-medium-emphasis">Improves player fitness recovery (+15%)</div>
-                <v-chip size="x-small" color="success" class="mt-2">Level 3 / 5</v-chip>
-              </v-card>
-            </v-col>
-            <v-col cols="6">
-              <v-card variant="outlined" class="pa-3">
-                <div class="font-weight-bold text-body-2">Youth Academy</div>
-                <div class="text-caption text-medium-emphasis">Attracts higher potential youth prospects</div>
-                <v-chip size="x-small" color="primary" class="mt-2">Level 2 / 5</v-chip>
-              </v-card>
-            </v-col>
-          </v-row>
-        </v-card>
+        <facilities-panel
+          :club-id="club?._id"
+          :read-only="readOnly"
+          @update-available="emit('update-available')"
+        ></facilities-panel>
 
         <!-- Matchday Ledger -->
         <v-card class="pa-4 elevation-3">
@@ -172,7 +120,7 @@
               <div class="text-caption text-medium-emphasis">Board Confidence</div>
               <v-progress-linear
                 :model-value="boardConfidence"
-                color="success"
+                :color="boardConfidence >= 50 ? 'success' : boardConfidence >= 35 ? 'warning' : 'error'"
                 height="10"
                 rounded
                 class="mt-1"
@@ -182,13 +130,13 @@
             <v-col cols="6">
               <div class="text-caption text-medium-emphasis">Fan Approval</div>
               <v-progress-linear
-                :model-value="82"
+                :model-value="fanApproval"
                 color="info"
                 height="10"
                 rounded
                 class="mt-1"
               ></v-progress-linear>
-              <span class="text-caption font-weight-bold">82%</span>
+              <span class="text-caption font-weight-bold">{{ fanApproval }}%</span>
             </v-col>
           </v-row>
 
@@ -221,30 +169,16 @@
 
         <!-- Board Expectations -->
         <v-card class="pa-4 elevation-3">
-          <div class="text-h6 font-weight-bold mb-3">Season Expectations</div>
+          <div class="text-h6 font-weight-bold mb-3">Board Expectations</div>
           <v-list density="compact" class="pa-0">
-            <v-list-item class="px-0">
+            <v-list-item v-for="e in expectations" :key="e.title" class="px-0">
               <template #prepend>
-                <v-icon color="success" class="mr-2">mdi-check-circle-outline</v-icon>
+                <v-icon :color="e.met ? 'success' : 'error'" class="mr-2">
+                  {{ e.met ? 'mdi-check-circle-outline' : 'mdi-alert-circle-outline' }}
+                </v-icon>
               </template>
-              <v-list-item-title class="text-body-2">Finish in top half of the table</v-list-item-title>
-              <v-list-item-subtitle class="text-caption">Current standing: On track</v-list-item-subtitle>
-            </v-list-item>
-
-            <v-list-item class="px-0">
-              <template #prepend>
-                <v-icon color="warning" class="mr-2">mdi-clock-outline</v-icon>
-              </template>
-              <v-list-item-title class="text-body-2">Maintain positive operating cash flow</v-list-item-title>
-              <v-list-item-subtitle class="text-caption">Budget healthy</v-list-item-subtitle>
-            </v-list-item>
-
-            <v-list-item class="px-0">
-              <template #prepend>
-                <v-icon color="info" class="mr-2">mdi-school-outline</v-icon>
-              </template>
-              <v-list-item-title class="text-body-2">Promote at least 1 youth prospect</v-list-item-title>
-              <v-list-item-subtitle class="text-caption">Academy active</v-list-item-subtitle>
+              <v-list-item-title class="text-body-2">{{ e.title }}</v-list-item-title>
+              <v-list-item-subtitle class="text-caption">{{ e.status }}</v-list-item-subtitle>
             </v-list-item>
           </v-list>
         </v-card>
@@ -273,8 +207,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { currency } from '@/helpers/misc';
-import { client } from '@/services/api';
 import { ManagerPicker, ManagerFirer } from '@/components/clubzone';
+import FacilitiesPanel from './facilities-panel.vue';
+import PlayPanel from './play-panel.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -290,7 +225,6 @@ const emit = defineEmits<{
   (e: 'update-available'): void;
 }>();
 
-const expanding = ref(false);
 const openHireDialog = ref(false);
 const openFireDialog = ref(false);
 const snackbar = ref(false);
@@ -313,70 +247,53 @@ const netMargin = computed(() => {
   return rev - costs;
 });
 
-const stadiumName = computed(() => {
-  return props.club?.Stadium?.Name || 'Municipal Stadium';
-});
-
-const stadiumCapacity = computed(() => {
-  return Number(props.club?.Stadium?.Capacity) || 20000;
-});
-
-const stadiumLocation = computed(() => {
-  return props.club?.Stadium?.Location || props.club?.Address?.City || 'Home Grounds';
-});
-
 const matchHistory = computed(() => {
   return Array.isArray(props.club?.Finances?.history) ? props.club.Finances.history : [];
 });
 
-const boardConfidence = computed(() => {
-  const won = Number(props.club?.Stats?.MatchesWon) || 0;
-  const played = won + (Number(props.club?.Stats?.MatchesLost) || 0) + (Number(props.club?.Stats?.MatchesDrawn) || 0);
-  if (played === 0) return 75;
-  const winRate = (won / played) * 100;
-  return Math.min(99, Math.max(25, Math.round(50 + winRate / 2)));
+// Both moved by every result on the server (world/club-standing.service.ts).
+const boardConfidence = computed(() => Number(props.club?.BoardConfidence ?? 60));
+
+const fanApproval = computed(() => {
+  const recent: string[] = (props.club?.Form?.recent ?? []).slice(0, 5);
+  const form = recent.length
+    ? (recent.filter((r) => r === 'W').length - recent.filter((r) => r === 'L').length) / 5
+    : 0;
+  return Math.min(99, Math.max(5, Math.round(55 + form * 30 + (boardConfidence.value - 60) * 0.3)));
+});
+
+const expectations = computed(() => {
+  const recent: string[] = (props.club?.Form?.recent ?? []).slice(0, 5);
+  const w = recent.filter((r) => r === 'W').length;
+  const l = recent.filter((r) => r === 'L').length;
+  const lastGate = matchHistory.value[0];
+  return [
+    {
+      title: 'Keep the board on side',
+      met: boardConfidence.value >= 35,
+      status:
+        boardConfidence.value >= 35
+          ? `Confidence ${boardConfidence.value}%`
+          : `Confidence ${boardConfidence.value}% - budget requests limited`,
+    },
+    {
+      title: 'Win more than you lose',
+      met: recent.length === 0 || w >= l,
+      status: recent.length ? `Last ${recent.length}: ${recent.join(' ')}` : 'No matches yet',
+    },
+    {
+      title: 'Matchdays turn a profit',
+      met: !lastGate || Number(lastGate.net) >= 0,
+      status: lastGate
+        ? `Last gate: ${Number(lastGate.attendance).toLocaleString()} fans, net ${Math.round(Number(lastGate.net)).toLocaleString()}`
+        : 'No home matches yet',
+    },
+  ];
 });
 
 function formatDate(date: string | Date | undefined): string {
   if (!date) return 'N/A';
   return new Date(date).toLocaleDateString();
-}
-
-async function expandStadium() {
-  if (!props.club?._id) return;
-  expanding.value = true;
-
-  try {
-    const newCapacity = stadiumCapacity.value + 5000;
-    const newBudget = (props.club.Budget ?? 0) - 2500000;
-
-    const response = await client.clubs.updateClub.mutation({
-      params: { id: props.club._id },
-      body: {
-        Budget: newBudget,
-        Stadium: {
-          ...(props.club.Stadium || {}),
-          Capacity: newCapacity,
-        },
-      },
-    });
-
-    if (response.status !== 200) {
-      snackbarText.value = `Error completing stadium expansion: ${response.body.message}`;
-      snackbar.value = true;
-      return;
-    }
-
-    snackbarText.value = 'Stadium expansion completed! +5,000 seats added.';
-    snackbar.value = true;
-    emit('update-available');
-  } catch (err) {
-    console.error('Failed to expand stadium:', err);
-    snackbarText.value = 'Error completing stadium expansion.';
-    snackbar.value = true;
-  } finally {
-    expanding.value = false;
-  }
 }
 </script>
 

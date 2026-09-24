@@ -7,6 +7,16 @@
             <span>Squad Management & Performance</span>
             <div class="d-flex align-center">
               <v-btn
+                color="indigo-darken-1"
+                size="small"
+                variant="elevated"
+                class="mr-2 text-white font-weight-bold"
+                prepend-icon="mdi-hospital-building"
+                @click="openMedicalModal"
+              >
+                Medical Bay
+              </v-btn>
+              <v-btn
                 color="teal-darken-1"
                 size="small"
                 variant="elevated"
@@ -95,16 +105,39 @@
                 </td>
 
                 <td>
-                  <v-chip
-                    v-if="player.Injury && player.Injury.daysRemaining > 0"
-                    color="error"
-                    size="x-small"
-                  >
-                    🏥 {{ player.Injury.type }} ({{ player.Injury.daysRemaining }}d)
-                  </v-chip>
-                  <v-chip v-else color="success" size="x-small" variant="tonal">
-                    Fit
-                  </v-chip>
+                  <div class="d-flex align-center gap-1">
+                    <v-chip
+                      v-if="player.Injury && player.Injury.daysRemaining > 0"
+                      color="error"
+                      size="x-small"
+                    >
+                      🏥 {{ player.Injury.type }} ({{ player.Injury.daysRemaining }}d)
+                    </v-chip>
+                    <v-chip
+                      v-else-if="(player.Fitness ?? 100) < 80"
+                      color="warning"
+                      size="x-small"
+                      variant="tonal"
+                    >
+                      Fatigued
+                    </v-chip>
+                    <v-chip v-else color="success" size="x-small" variant="tonal">
+                      Fit
+                    </v-chip>
+
+                    <v-btn
+                      v-if="(player.Injury && player.Injury.daysRemaining > 0) || (player.Fitness ?? 100) < 85"
+                      size="x-small"
+                      color="teal-accent-4"
+                      variant="tonal"
+                      class="ml-1 px-1 font-weight-bold"
+                      style="min-width: 22px; height: 20px;"
+                      title="Treat in Medical Bay"
+                      @click="openMedicalModal"
+                    >
+                      ➕
+                    </v-btn>
+                  </div>
                 </td>
 
                 <td>
@@ -200,6 +233,17 @@
       </v-col>
     </v-row>
 
+    <!-- Medical Bay Sheet -->
+    <facility-detail-sheet
+      v-model="showMedicalModal"
+      :club-id="club?._id"
+      :asset="medicalAsset"
+      icon="➕"
+      :read-only="false"
+      :budget="club?.Budget ?? null"
+      @treated="onMedicalTreated"
+    />
+
     <!-- List Player Dialog -->
     <list-player-dialog
       v-model:show="showListDialog"
@@ -221,9 +265,11 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue';
+import { useQuery } from '@tanstack/vue-query';
 import { currency } from '@/helpers/misc';
 import { client } from '@/services/api';
 import ListPlayerDialog from '@/components/players/list-player-dialog.vue';
+import FacilityDetailSheet from '@/components/campus/facility-detail-sheet.vue';
 
 const props = defineProps<{
   club?: any | null;
@@ -239,6 +285,47 @@ const recruitingYouth = ref(false);
 const showSnackbar = ref(false);
 const snackbarText = ref('');
 const snackbarColor = ref('success');
+
+const showMedicalModal = ref(false);
+
+const campusQuery = useQuery({
+  queryKey: computed(() => ['campus', props.club?._id]),
+  queryFn: async () => {
+    const id = props.club?._id;
+    if (!id) return null;
+    const res = await client.facilities.getCampus.query({
+      params: { clubId: id },
+    });
+    return res.status === 200 ? res.body.payload : null;
+  },
+  enabled: computed(() => !!props.club?._id),
+});
+
+const medicalAsset = computed(() => {
+  const assets = campusQuery.data.value?.assets ?? [];
+  return (
+    assets.find((a: any) => a.type === 'medical_centre') ?? {
+      type: 'medical_centre',
+      name: 'Medical Centre',
+      description: 'Your squad recovers faster between matches with specialized treatment bays.',
+      level: 0,
+      maxLevel: 5,
+      effectLabel: '1 Treatment Bay · Standard recovery',
+      effects: { medicalLevel: 0, treatmentBays: 1 },
+      upgrade: null,
+      next: null,
+    }
+  );
+});
+
+function openMedicalModal() {
+  showMedicalModal.value = true;
+}
+
+function onMedicalTreated() {
+  emit('update-available');
+  campusQuery.refetch();
+}
 
 /** null = no explicit choice - the server auto-picks a Role-appropriate
  * default (see DEFAULT_TRAINING_CATEGORY_BY_ROLE, player-training.service.ts)

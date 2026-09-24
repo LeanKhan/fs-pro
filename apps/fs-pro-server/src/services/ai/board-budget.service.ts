@@ -2,6 +2,7 @@ import { eq, and, sql as drizzleSql } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
 import { clubs, players, seasons, transferLedger } from '../../db/drizzle/schema';
 import { JevService, ChoiceAnswer } from './jev.service';
+import { formScore } from '../world/club-standing.service';
 
 export type BudgetJustification = 'TITLE_CHALLENGE' | 'SQUAD_DEPTH' | 'REINVEST_PROFITS' | 'PROMOTION_PUSH';
 
@@ -132,6 +133,8 @@ export async function processBoardBudgetRequest(
     justification,
     leaguePosition,
     financialHealth,
+    boardConfidence: club.BoardConfidence,
+    recentForm: (club.Form?.recent ?? []).slice(0, 5).join(''),
   };
 
   const jevRes = await JevService.ask(state, {
@@ -145,7 +148,7 @@ export async function processBoardBudgetRequest(
         COMPROMISE:
           'Ambition is welcomed and cashflow is positive, but prudent risk management requires granting a partial budget increase (50% to 75%).',
         REJECTED:
-          'Financial headroom is too tight, wage bill is already burdensome, requested amount is excessive relative to turnover, or performance does not warrant capital injection.',
+          'Financial headroom is too tight, wage bill is already burdensome, requested amount is excessive relative to turnover, board confidence is low, recent form is poor, or performance does not warrant capital injection.',
       },
     },
     grantPercentage: {
@@ -171,19 +174,31 @@ export async function processBoardBudgetRequest(
   if (status === 'REJECTED') percentage = 0;
   if (percentage > 0 && status === 'REJECTED') status = percentage >= 100 ? 'ACCEPTED' : 'COMPROMISE';
 
+  // Board confidence (moved by results, world/club-standing.service.ts) is a
+  // hard ceiling whatever Jev says: a board that has lost faith won't fund.
+  const confidenceCap =
+    club.BoardConfidence < 20 ? 0 : club.BoardConfidence < 35 ? 50 : formScore(club.Form) < -0.4 ? 75 : 100;
+  if (percentage > confidenceCap) {
+    percentage = confidenceCap;
+    status = percentage === 0 ? 'REJECTED' : 'COMPROMISE';
+  }
+  const lostFaith = confidenceCap === 0;
+
   const grantedAmount = Math.round((requestedAmount * percentage) / 100);
   const newBudget = currentBudget + grantedAmount;
   const confidence = Math.round((decisionAnswer?.confidence ?? 0.88) * 100);
 
-  const boardStatement = generateBoardStatement(
-    club.Name,
-    status,
-    grantedAmount,
-    requestedAmount,
-    justification,
-    financialHealth,
-    standingDesc
-  );
+  const boardStatement = lostFaith
+    ? `The Board has declined your request for €${requestedAmount.toLocaleString()}. Confidence in the current direction is at a low ebb after recent results; there will be no further investment until performances improve.`
+    : generateBoardStatement(
+        club.Name,
+        status,
+        grantedAmount,
+        requestedAmount,
+        justification,
+        financialHealth,
+        standingDesc
+      );
 
   // 7. If funds were granted, execute database atomic update & ledger entry
   if (grantedAmount > 0) {

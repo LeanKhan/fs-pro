@@ -40,5 +40,19 @@ export const TransferOfferSchema = z.object({
   toClub: OfferClubSchema,
 });
 
+/** Scouting Department facility feature: an AI-recommended transfer target
+ * (see services/transfers/scouted-shortlist.service.ts). Light card data -
+ * the full deep-dive analysis is `scoutPlayerTransfer`'s response. */
+export const ScoutedTargetSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  position: z.string().nullable(),
+  rating: z.number(),
+  value: z.number(),
+  isListed: z.boolean(),
+  askingPrice: z.number().nullable(),
+});
+
 export type TransferWindow = z.infer<typeof TransferWindowSchema>;
 export type TransferOffer = z.infer<typeof TransferOfferSchema>;
+export type ScoutedTarget = z.infer<typeof ScoutedTargetSchema>;
