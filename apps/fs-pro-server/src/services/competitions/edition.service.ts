@@ -39,6 +39,7 @@ import {
 } from './definition';
 import { rankRows, type RankedRow, type RankingRow } from './ranking';
 import { initStageRows } from './ranking.service';
+import { advanceKnockout, drawRound } from './knockout.service';
 
 /**
  * Edition lifecycle for open-play competitions
@@ -51,7 +52,7 @@ import { initStageRows } from './ranking.service';
  * An edition is a Seasons row. Publishing snapshots the competition's
  * definition into Seasons.Definition, so later edits to the competition
  * never change a published edition. Knockout rounds are drawn by the
- * knockout stage module (build step 6); this module opens and closes league
+ * knockout module (knockout.service.ts); this module opens and closes league
  * and groups stages and finishes editions.
  */
 
@@ -752,11 +753,8 @@ async function openStage(seasonId: string, stageIndex: number) {
     throw new Error(`Stage ${stageIndex} missing in ${season.SeasonCode}`);
 
   if (stage.type === 'knockout') {
-    // Round draws live in the knockout module (build step 6).
-    throw new EditionError(
-      'Knockout stages are not available yet',
-      'not-supported'
-    );
+    await drawRound(seasonId, stageIndex, 1);
+    return;
   }
 
   if (stage.type === 'groups') {
@@ -1025,7 +1023,8 @@ async function editionTotals(seasonId: string): Promise<RankingRow[]> {
 export interface FinishOptions {
   /** A first-to target was reached by this club. */
   firstToWinner?: string;
-  /** Full final order, best first (knockout module). */
+  /** Final order of the last (knockout) stage, best first; clubs out in
+   * earlier stages are appended after it. */
   order?: string[];
 }
 
@@ -1058,9 +1057,15 @@ export async function finish(
   const today = calendar.CurrentDay;
 
   // Order and winner.
-  let order = options.order
-    ? options.order.map((clubId) => ({ clubId, ranked: true }))
-    : await finalOrder(season, def, worldDefaults);
+  // A knockout's bracket order leads; clubs out in earlier stages follow.
+  let order = await finalOrder(season, def, worldDefaults);
+  if (options.order) {
+    const head = new Set(options.order);
+    order = [
+      ...options.order.map((clubId) => ({ clubId, ranked: true })),
+      ...order.filter((o) => !head.has(o.clubId)),
+    ];
+  }
 
   const win = def.WinCondition;
   if (win.type === 'best-at-end') {
@@ -1402,6 +1407,7 @@ async function changeLevel(
 
 export interface TickReport {
   opened: string[];
+  roundsDrawn: string[];
   started: string[];
   cancelled: string[];
   stagesEnded: string[];
@@ -1418,6 +1424,7 @@ export async function tickEditions(day?: number): Promise<TickReport> {
   const today = day ?? (await world()).CurrentDay;
   const report: TickReport = {
     opened: [],
+    roundsDrawn: [],
     started: [],
     cancelled: [],
     stagesEnded: [],
@@ -1472,15 +1479,25 @@ export async function tickEditions(day?: number): Promise<TickReport> {
     });
   }
 
-  // League/groups stages past their last day.
+  // Knockout stages move round by round; league/groups stages end on their last day.
   const running = await db()
     .select()
     .from(seasons)
     .where(and(eq(seasons.Status, 'running'), isNull(seasons.EndDay)));
   for (const s of running) {
     const stage = s.Definition?.Stages[s.CurrentStage];
-    if (!stage || stage.type === 'knockout' || s.StageStartedDay == null)
+    if (stage?.type === 'knockout') {
+      await attempt(s.id, async () => {
+        const step = await advanceKnockout(s.id);
+        if (step.status === 'drawn') report.roundsDrawn.push(s.id);
+        if (step.status === 'done') {
+          await finish(s.id, { order: step.order });
+          report.finished.push(s.id);
+        }
+      });
       continue;
+    }
+    if (!stage || s.StageStartedDay == null) continue;
     if (today < s.StageStartedDay + stage.days) continue;
     await attempt(s.id, async () => {
       const after = await endStage(s.id);

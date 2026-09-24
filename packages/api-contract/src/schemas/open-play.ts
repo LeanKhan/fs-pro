@@ -114,6 +114,38 @@ export const MatchChallengeSchema = z.object({
   played: z.boolean(),
 });
 
+export const BracketSchema = z.object({
+  seasonId: z.string(),
+  stageIndex: z.number(),
+  rounds: z.array(
+    z.object({
+      round: z.number(),
+      byeClubId: z.string().nullable(),
+      ties: z.array(
+        z.object({
+          highSeedClubId: z.string(),
+          lowSeedClubId: z.string(),
+          playBy: z.number().nullable(),
+          winnerId: z.string().nullable(),
+          decidedBy: z.string().nullable(),
+          legs: z.array(
+            z.object({
+              fixtureId: z.string(),
+              leg: z.number(),
+              homeClubId: z.string(),
+              awayClubId: z.string(),
+              scheduledDay: z.number().nullable(),
+              played: z.boolean(),
+              homeGoals: z.number().nullable(),
+              awayGoals: z.number().nullable(),
+            })
+          ),
+        })
+      ),
+    })
+  ),
+});
+
 export type EditionStatus = z.infer<typeof EditionStatusSchema>;
 export type Edition = z.infer<typeof EditionSchema>;
 export type EditionDetail = z.infer<typeof EditionDetailSchema>;
@@ -124,3 +156,4 @@ export type RankingTableRow = z.infer<typeof RankingRowSchema>;
 export type StageTable = z.infer<typeof StageTableSchema>;
 export type OpponentOption = z.infer<typeof OpponentOptionSchema>;
 export type MatchChallenge = z.infer<typeof MatchChallengeSchema>;
+export type Bracket = z.infer<typeof BracketSchema>;
