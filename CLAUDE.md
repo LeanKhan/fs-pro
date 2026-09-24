@@ -9,6 +9,9 @@ board. Key concepts:
 - **Level**: every club has a `Level` (1 = top). It replaces fixed divisions.
   Promotion and relegation change a club's Level. They never move a club
   between competitions.
+- **Club Level** is the separate XP-based progression (from `Clubs.XP`, on
+  `ideas/persistent-strat-game`). Always write it in full as "Club Level" and
+  never store it in a column named `Level`.
 - **Tier** is the word for facility grades (training ground, academy, etc.).
   Never call facility grades "Level": Level only means a club's standing.
 - **Stratification** between competitions comes from qualify/bar outcomes and
