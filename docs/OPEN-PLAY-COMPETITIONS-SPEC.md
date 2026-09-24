@@ -291,15 +291,66 @@ User-auth checks: a user may act only for their own club (`middleware/club.ts`).
 
 Changing `Mode` is only allowed when the competition has no active season.
 
-## Client (`apps/fs-pro-client`)
+## UI (`apps/fs-pro-client`, Vue 3 + Vuetify 3 + Pinia)
 
-- Rankings view for open seasons (reuse `standings-component.vue` layout;
-  add Played-min badge and PPG column).
-- Challenge inbox/outbox on the user dashboard, plus "Challenge" action from an
-  opponent list backed by `eligible-opponents`.
-- Auto-accept policy settings on the club page.
-- Competition admin form: Mode select + rules editor.
-- Calendar/fixtures views: no change; accepted challenges are ordinary fixtures.
+Every screen that shows a competition branches on `competition.Mode`. Legacy
+(`'scheduled'`) screens render exactly as today. New components go in
+`src/components/open-play/`.
+
+### New components
+
+| Component | Purpose |
+| --- | --- |
+| `rankings-table.vue` | Open-season table. Columns: Pos, Club, P, W, D, L, GF, GA, GD, Pts, PPG, Rating (when `ranking = 'elo'`), Forfeits. A divider separates ranked clubs from clubs under `minGamesToRank`, which show a "needs N more" chip instead of a position. Promotion/relegation zones tinted as the legacy table does. The user's club is highlighted. |
+| `season-window-bar.vue` | Progress bar for the window: day X of Y, days left, and the user club's games played vs the `minGamesToRank` line and the pace target. |
+| `challenge-card.vue` | One challenge: both crests, competition badge (reuse `calendar/competition-badge.vue`), ratings and ranking places, status chip, `RespondBy` countdown, and actions for the viewer (Accept / Decline for incoming, Cancel for outgoing proposed). Accepted shows the scheduled day. |
+| `challenge-inbox.vue` | Tabs: Incoming, Outgoing, Upcoming (accepted), History (played / declined / expired / forfeited). Filter by competition. Badge count on Incoming. |
+| `challenge-dialog.vue` | Propose a challenge: pick competition (only open ones the club is in), then an opponent from `eligible-opponents`. Ineligible clubs are listed greyed out with the failing rule ("played twice already", "cooldown: 6 days", "outside range"). Shows the club's remaining open-challenge slots. |
+| `challenge-policy-form.vue` | Edit `Clubs.ChallengePolicy`: auto-accept switch, competition multi-select, max rating gap, min squad fitness slider, max per week, "decline outside policy" switch. Explains that declines count toward forfeits. |
+| `open-rules-form.vue` | Admin editor for `Competitions.Rules`, prefilled with defaults, with a short help line per field. |
+
+### Changed screens
+
+| Screen | Change |
+| --- | --- |
+| `views/user/dashboard.vue` | Add a "Challenges" card (right column, above the season list) with the Incoming count, the next 3 incoming as `challenge-card`s, and a "Challenge a club" button opening `challenge-dialog`. The "League Standings" tabs render `rankings-table` + `season-window-bar` for open seasons and `standings-scroller` for legacy ones. Title becomes "Standings". |
+| `components/user-dashboard/fixture-card.vue`, `day-fixtures-list.vue` | Show an "Open" competition badge on open-mode fixtures, and a "Forfeit" label instead of a score on forfeits. No other change: accepted challenges are normal fixtures. |
+| `views/user/calendar/year-calendar.vue` | Days with no fixtures now happen while an open season runs, so the empty-day text reads "No matches. Open challenges: N" with a link to the inbox. Window start/end days are marked on the calendar. |
+| `views/user/club/zones/owner-zone.vue` (or a new `challenges-zone.vue` in `zones/index.ts`) | Full `challenge-inbox` plus `challenge-policy-form`. A new zone is preferred so the policy sits next to the inbox. |
+| `views/user/seasons/fixtures.vue` | Filter chip for competition mode; open fixtures list the challenger. |
+| `views/misc/end-of-season.vue`, `views/user/history/season-history.vue` | Read the final table from `/seasons/:id/rankings` for open seasons; show "unranked (N games)" for clubs under the minimum. |
+| `views/game/friendly-setup.vue` | Unchanged; add a hint linking to "Challenge a club" when both clubs share an open competition, since friendlies don't count. |
+| `views/admin/competitions/competition-form.vue` | New "Mode" select (Scheduled / Open), shown for Type League only. Open: hide `NumberOfWeeks`, show `open-rules-form`. Mode is disabled while the competition has an active season. |
+| `views/admin/competitions/view-competition.vue` | Third branch next to cup/tournament: open mode shows `season-window-bar`, `rankings-table`, and an admin list of all challenges with a Cancel action. |
+| `views/admin/seasons/view-season.vue` | Same table branch as the dashboard. |
+| `views/admin/calendar/calendar.vue` | Show active open seasons and their windows; admin "close window now" action. |
+
+### Realtime
+
+Socket.IO events from the server (`realtime/io.ts`), consumed in a new Pinia
+store `stores/challenges.ts` (replacing the placeholder in `store/socket.ts`):
+
+- `challenge:received`, `challenge:updated` (accepted, declined, expired,
+  forfeited, cancelled, auto-accepted) → update inbox and badge, show a snackbar.
+- `rankings:updated` `{ seasonId }` → refetch that table if it is on screen.
+
+Without sockets the inbox polls on dashboard focus.
+
+### States to design for
+
+- Club in no open competition: hide the Challenges card; the dashboard is
+  unchanged.
+- No eligible opponents: dialog says why (all on cooldown, cap reached, window
+  closing).
+- Window ended: inbox read-only, table shows "Final".
+- Auto-accept on: incoming challenges that matched show "Auto-accepted" in
+  History instead of waiting in Incoming.
+- Mobile: tables scroll horizontally inside their card; cards stack.
+
+### API client
+
+Add the challenge, rankings and policy routes to `packages/api-contract` so the
+client gets typed calls.
 
 ## Legacy mode guarantees
 
@@ -323,7 +374,9 @@ Changing `Mode` is only allowed when the competition has no active season.
 4. Season start/close for open mode; refactor `prolegate` to take standings.
 5. Clock: one-day advance while open seasons are active; expiry and close hooks.
 6. AI respond/propose pass, human auto-accept policy (`Clubs.ChallengePolicy`). Optional `Clubs.Elo`.
-7. Client views.
+7. UI: rankings table and season window bar first (read-only), then the
+   challenge inbox and dialog, then the policy form and admin rules editor,
+   then socket events.
 
 ## Testing
 
