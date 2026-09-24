@@ -20,6 +20,7 @@ import { playContract } from './routes/play';
 import { editionsContract } from './routes/editions';
 import { challengesContract } from './routes/challenges';
 import { worldContract } from './routes/world';
+import { competitionDefinitionsContract } from './routes/competition-definitions';
 
 const c = initContract();
 
@@ -46,6 +47,7 @@ export const apiContract = c.router({
   editions: editionsContract,
   challenges: challengesContract,
   world: worldContract,
+  competitionDefinitions: competitionDefinitionsContract,
 });
 
 export type { Club } from './schemas/club';
@@ -120,3 +122,13 @@ export type {
   PerformanceView,
 } from './schemas/world';
 export { ChallengePolicySchema, EntryPolicySchema } from './schemas/open-play';
+export {
+  CompetitionDefinitionInputSchema,
+  CompetitionSummarySchema,
+} from './routes/competition-definitions';
+export type CompetitionDefinitionInput = import('zod').infer<
+  typeof import('./routes/competition-definitions').CompetitionDefinitionInputSchema
+>;
+export type CompetitionSummary = import('zod').infer<
+  typeof import('./routes/competition-definitions').CompetitionSummarySchema
+>;

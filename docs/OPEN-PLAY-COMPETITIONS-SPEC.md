@@ -602,6 +602,23 @@ routes. User-auth checks: a user acts only for their own club
 
 New components in `src/components/open-play/`.
 
+**Status (build step 10).** Built: `store/open-play.ts` (club entries,
+challenges, world settings and performance; polls every minute and on window
+focus, in place of the socket events below), every component in "New
+components" (the builder steps are `builder/stage-editor.vue` and
+`builder/position-list.vue`, with entry, win condition and rewards inline in
+`views/admin/open-play/competition-builder.vue`; brackets render in the new
+`bracket-view.vue`; `edition-standings.vue` picks table or bracket for a
+stage), the admin builder, competitions list and edition view
+(`views/admin/open-play/`), World settings (`world-settings-card.vue` in
+`calendar.vue`), the user Competitions and edition pages
+(`views/user/competitions/`), dashboard, challenges zone and performance zone.
+Legacy season admin screens are deleted. Not yet: socket events, the year
+calendar rebuild, fixture-card stage chips, the edition-finished screen,
+history page, friendly-setup hint, owner-zone board confidence, the edition
+timeline and board targets per Level in World settings, and the new-edition
+mini calendar.
+
 ### Admin
 
 | Screen | Content |

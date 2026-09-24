@@ -15,7 +15,7 @@
         </p>
 
         <p v-else>
-          {{ year }} ended successfully! Admin will start a new year soon :)
+          {{ year }} ended. Competitions carry on as they were.
 
           <v-btn
             block
@@ -23,7 +23,7 @@
             class="mb-2"
             @click="$router.push({ path: '/u/history', query: { year } })"
           >
-            See what changed this season
+            See what changed this year
           </v-btn>
 
           <v-btn block color="success" @click="$router.push('/u')">
@@ -58,13 +58,12 @@ function endYear() {
   if (!ans) return false;
 
   loading.value = true;
-  client.calendar.endSeasonCycle
-    .mutation({ params: { year } })
+  client.world.endYear
+    .mutation({ body: {} })
     .then((response) => {
       if (response.status === 200) {
         ended.value = true;
         store.setCalendar();
-        store.setSeasons();
       }
     })
     .catch((error) => {

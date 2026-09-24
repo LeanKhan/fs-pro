@@ -6,3 +6,4 @@ export { default as OwnerZone } from './owner-zone.vue';
 export { default as PerformanceZone } from './performance-zone.vue';
 
 
+export { default as ChallengesZone } from './challenges-zone.vue';

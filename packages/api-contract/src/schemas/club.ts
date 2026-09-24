@@ -101,6 +101,11 @@ export const ClubSchema = z.object({
     })
     .nullable()
     .optional(),
+  /** Open play: XP decides the club's Level; Elo moves with every
+   * competition result; CampusLayout picks the campus scene variant. */
+  XP: z.number().optional(),
+  Elo: z.number().optional(),
+  CampusLayout: z.string().nullable().optional(),
   entity_id: z.string().nullable().optional(),
   homePlaceId: z.string().nullable().optional(),
   stadiumPlaceId: z.string().nullable().optional(),
