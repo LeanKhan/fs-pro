@@ -9,6 +9,8 @@ board. Key concepts:
 - **Level**: every club has a `Level` (1 = top). It replaces fixed divisions.
   Promotion and relegation change a club's Level. They never move a club
   between competitions.
+- **Tier** is the word for facility grades (training ground, academy, etc.).
+  Never call facility grades "Level": Level only means a club's standing.
 - **Stratification** between competitions comes from qualify/bar outcomes and
   Level entry bands, not from divisions.
 - **Competitions** are built by the admin at any time, with their own entry

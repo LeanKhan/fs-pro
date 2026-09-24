@@ -98,14 +98,14 @@
               <v-card variant="outlined" class="pa-3">
                 <div class="font-weight-bold text-body-2">Training Grounds</div>
                 <div class="text-caption text-medium-emphasis">Improves player fitness recovery (+15%)</div>
-                <v-chip size="x-small" color="success" class="mt-2">Level 3 / 5</v-chip>
+                <v-chip size="x-small" color="success" class="mt-2">Tier 3 / 5</v-chip>
               </v-card>
             </v-col>
             <v-col cols="6">
               <v-card variant="outlined" class="pa-3">
                 <div class="font-weight-bold text-body-2">Youth Academy</div>
                 <div class="text-caption text-medium-emphasis">Attracts higher potential youth prospects</div>
-                <v-chip size="x-small" color="primary" class="mt-2">Level 2 / 5</v-chip>
+                <v-chip size="x-small" color="primary" class="mt-2">Tier 2 / 5</v-chip>
               </v-card>
             </v-col>
           </v-row>
