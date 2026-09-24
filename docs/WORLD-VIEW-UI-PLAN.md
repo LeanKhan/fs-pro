@@ -150,6 +150,31 @@ plain flat white background, centred, whole plot visible
 | Idle life | Existing walking fans, a couple of cars moving on a path (existing car sprites) |
 | Club identity | Crest on sign panels, flags tinted with club colours |
 
+## Campus layout variants
+
+Three campus layouts, each a scene image plus its own plot coordinates. All
+plates are shared, so a variant costs one painted scene and one plots file.
+
+| Variant | Scene | Feel |
+| --- | --- | --- |
+| `city` | `public/world/campus/city/scene.jpg` | Tight plot, roads and buildings around the edges |
+| `coastal` | `public/world/campus/coastal/scene.jpg` | Shoreline along one side, promenade |
+| `hillside` | `public/world/campus/hillside/scene.jpg` | Terraced ground, trees, slope behind the stands |
+
+- Plots per variant in `components/world/campus-plots/<variant>.ts`. Every
+  variant must define a plot for every facility plus `office` and `dugout`;
+  a test checks this.
+- `Clubs.CampusLayout` text, not null, default picked at club creation:
+  from the Imagination home place's terrain/type if known, otherwise by a
+  stable hash of the club id, so existing clubs get a fixed variant without a
+  choice screen.
+- Admin can change it on the club form; changing it only swaps the scene and
+  plot positions, never the facilities.
+- Plate sizing: the plate prompt stays the same for all variants, so plots of
+  the same facility should have similar box sizes across variants.
+- File layout becomes `public/world/campus/<variant>/scene.jpg`; plates stay
+  in `public/world/campus/plates/`.
+
 ## Views
 
 ### 1. Campus (home)
@@ -167,11 +192,9 @@ The club's own scene. Tap a plot → its panel.
 One painted region image. Nothing on it has unique art.
 
 - **Clubs**: crest pins (existing SVGs), placed at their Imagination world
-  place (`Clubs.homePlaceId`) when set, otherwise laid out in their Level's
-  district.
-- **Level districts** (optional, strongly recommended): the map is painted as
-  rings, Level 1 in the centre, lower Levels further out. Promotion visibly
-  moves your pin inward. Uses the Level concept from the competitions spec.
+  home place (`Clubs.homePlaceId`). Clubs without one are listed in an
+  "Unplaced clubs" tray at the map edge until they get one. Level shows as a
+  badge on the pin, not as position.
 - **Competitions**: each edition in registration or running is a venue marker
   using one of 4 generic plates by format (`league`, `cup`, `groups`,
   `event`), tinted with the competition colour, with a name banner, holder's
@@ -228,8 +251,11 @@ the map.
 
 - Facility levels 0–5 on that branch become **Tier** (`ClubAssets` level
   column, `Lv N` pins, `facility-detail-sheet.vue` text).
-- That branch's XP-based "Club Level" clashes with the competition **Level**.
-  Proposed rename: **Club Rank**.
+- That branch's XP-based **Club Level** keeps its name. To keep the two apart:
+  "Level" alone (and `Clubs.Level`) always means the club's standing from the
+  competitions spec; the XP progression is always written in full as "Club
+  Level" in UI text and derived from `Clubs.XP`, never stored in a column
+  named `Level`. The HUD shows both: a Level badge and a Club Level / XP bar.
 - Its PLAY / matchmaking loop and the spec's challenges become one system:
   PLAY is the quick-match button that proposes a challenge to a suggested
   opponent in one of your running competitions.
@@ -241,16 +267,17 @@ the map.
 2. Overlays: scaffold, match day, day/night.
 3. HUD and bottom dock; Office opens the existing dashboard.
 4. Panels wired to facilities and venues.
-5. World map scene (with Level districts), club crest pins, venue markers,
+5. World map scene, club crest pins at home places, venue markers,
    challenge flow.
 6. b1 and b2 plates (14 images), generated with the template.
 7. Weather, idle life, visiting other clubs' campuses.
+8. Two more campus layout variants (`coastal`, `hillside`); the ported
+   campus becomes `city`.
 
-## Open questions
+## Decisions
 
-1. Level districts on the world map: yes, or place clubs only by their real
-   `homePlaceId`?
-2. "Club Rank" as the new name for the XP-based level?
-3. One campus layout for every club, or 2–3 layout variants (coastal, city,
-   hillside) picked per club for variety? Each variant is a new scene plus
-   plot coordinates, but reuses all plates.
+1. World map places clubs at their real home place only; no Level districts.
+2. The XP-based progression keeps the name **Club Level**; "Level" alone
+   means the competition standing.
+3. Campuses come in 3 layout variants (city, coastal, hillside) that share all
+   plates.
