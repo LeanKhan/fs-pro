@@ -38,6 +38,7 @@ tables, manual season cycles, pre-drawn cups) is preserved only in git:
 | Challenge | A proposed match inside a league or group stage. Becomes a normal Fixture once accepted. |
 | Tie | A knockout pairing, drawn when its round opens, with a play-by deadline. |
 | Level | A club's standing in the world (1 = top, `LevelCount` = bottom). Promotion and relegation move a club's Level; they don't move it between competitions. |
+| Tier | A facility's grade (training ground, academy…). Not related to Level; named differently on purpose. |
 | Performance score | A club's general performance across every competition it played in a year. What the board judges. |
 | Year | Fixed run of `YearLengthDays` days. Only drives ageing, wages, retirement, youth intake, reports, transfer windows. Creates no competitions. |
 
