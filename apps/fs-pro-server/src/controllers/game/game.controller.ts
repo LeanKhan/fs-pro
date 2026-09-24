@@ -3,6 +3,7 @@
 import { getFixtureById } from '../fixtures/fixture.service';
 import { Fixture } from '../fixtures/fixture.model';
 import { updateFixture, updateStandings } from './functions';
+import { RankingService } from '../../services/competitions/ranking.service';
 import { advanceDayIfDone } from '../calendar/calendar.service';
 import App from '../app/App';
 import log from '../../helpers/logger';
@@ -54,8 +55,8 @@ interface UpdateRelatedDataParams {
 }
 
 interface AfterMatchParams {
-  homeTable: ClubStandings;
-  awayTable: ClubStandings;
+  homeTable: ClubStandings | undefined;
+  awayTable: ClubStandings | undefined;
   allMatchesPlayedThatDay: boolean;
 }
 
@@ -173,14 +174,14 @@ export async function play(
   }
 
   // [3.1] Define helper functions
-  const updateRelatedData = ({
+  const updateRelatedData = async ({
     match,
     home,
     away,
     season_id,
     HomeSideDetails,
     AwaySideDetails,
-  }: UpdateRelatedDataParams) => {
+  }: UpdateRelatedDataParams): Promise<AfterMatchParams> => {
     CurrentMatch = {
       ...CurrentMatch,
       match,
@@ -190,6 +191,13 @@ export async function play(
       HomeSideDetails,
       AwaySideDetails,
     };
+
+    // Competition fixtures (open play) go to Rankings; the calendar clock,
+    // not this match, decides when the day moves on.
+    const applied = await RankingService.applyResult(String(match._id));
+    if (applied.status !== 'not-competition') {
+      return { homeTable: undefined, awayTable: undefined, allMatchesPlayedThatDay: false };
+    }
 
     return updateStandings(
       HomeSideDetails,

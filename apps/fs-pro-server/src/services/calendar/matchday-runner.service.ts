@@ -11,6 +11,7 @@ import {
   updateCalendar,
 } from '../../controllers/calendar/calendar.service';
 import { PlayerFitnessService } from '../players/player-fitness.service';
+import { RankingService } from '../competitions/ranking.service';
 
 export interface MatchdayRunResult {
   day: number;
@@ -160,9 +161,20 @@ export class MatchdayRunnerService {
       }
     }
 
+    // Competition fixtures go to Rankings (idempotent per fixture); the rest
+    // still use the legacy week tables until they're removed.
+    const legacyResults: any[] = [];
+    for (const res of fulfilledResults) {
+      const fixtureId = res?.match?._id ?? res?.fixture?._id;
+      const applied = fixtureId
+        ? await RankingService.applyResult(String(fixtureId))
+        : { status: 'not-competition' as const };
+      if (applied.status === 'not-competition' && !res?.skipped) legacyResults.push(res);
+    }
+
     // Atomically batch-update standings across all affected seasons
-    if (fulfilledResults.length > 0) {
-      await batchUpdateStandings(fulfilledResults);
+    if (legacyResults.length > 0) {
+      await batchUpdateStandings(legacyResults);
     }
 
     // Advance calendar day once after all fixtures have settled
