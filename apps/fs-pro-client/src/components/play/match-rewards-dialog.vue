@@ -28,7 +28,9 @@
 
         <div class="d-flex justify-space-between align-center mb-1.5 text-body-2">
           <span class="text-medium-emphasis">Match Reward:</span>
-          <span class="font-weight-bold text-success">+{{ formatCurrency(result.rewards.cash) }}</span>
+          <span class="font-weight-bold" :class="result.rewards.cash >= 0 ? 'text-success' : 'text-error'">
+            {{ result.rewards.cash >= 0 ? '+' : '-' }}{{ formatCurrency(Math.abs(result.rewards.cash)) }}
+          </span>
         </div>
 
         <div v-if="result.gate" class="d-flex justify-space-between align-center mb-1.5 text-body-2">
@@ -41,6 +43,21 @@
         <div class="d-flex justify-space-between align-center text-body-2 pt-1.5 border-top">
           <span class="text-medium-emphasis">Club XP Earned:</span>
           <span class="font-weight-bold text-amber">+{{ result.rewards.xp }} XP</span>
+        </div>
+      </div>
+
+      <!-- How the world reacted (server: world/club-standing.service.ts) -->
+      <div v-if="result.standingChange" class="loot-card pa-3 rounded-xl mb-3 text-left">
+        <div class="text-caption font-weight-bold text-amber mb-2">THE WORLD REACTS</div>
+        <div
+          v-for="row in reactionRows"
+          :key="row.label"
+          class="d-flex justify-space-between align-center mb-1 text-body-2"
+        >
+          <span class="text-medium-emphasis">{{ row.label }}:</span>
+          <span class="font-weight-bold" :class="row.value > 0 ? 'text-success' : row.value < 0 ? 'text-error' : 'text-medium-emphasis'">
+            {{ row.value > 0 ? '+' : '' }}{{ row.value.toLocaleString() }}{{ row.suffix }}
+          </span>
         </div>
       </div>
 
@@ -114,6 +131,16 @@ const show = computed({
 });
 
 const formatCurrency = (val: number) => currency(val);
+
+const reactionRows = computed(() => {
+  const c = props.result?.standingChange;
+  if (!c) return [];
+  return [
+    { label: 'Fans', value: c.fans, suffix: '' },
+    { label: 'Reputation', value: c.reputation, suffix: '' },
+    { label: 'Board confidence', value: c.boardConfidence, suffix: '%' },
+  ];
+});
 
 const xpPercent = computed(() => {
   if (!props.result?.state) return 0;

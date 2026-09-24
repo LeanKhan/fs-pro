@@ -395,7 +395,8 @@ const progressPercent = computed(() => {
   return Math.min(100, Math.max(0, Math.round((((props.nowMs || Date.now()) - start) / total) * 100)));
 });
 
-function formatDuration(totalSeconds: number) {
+function formatDuration(rawSeconds: number) {
+  const totalSeconds = Math.round(rawSeconds);
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
   const s = totalSeconds % 60;

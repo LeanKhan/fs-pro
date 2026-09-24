@@ -1,5 +1,5 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue';
-import type { AssetState, Campus, MatchResult, PlayState } from '@repo/api-contract';
+import type { AssetState, Campus, Inbox, MatchResult, PlayState } from '@repo/api-contract';
 import { client } from '@/services/api';
 
 /**
@@ -23,6 +23,8 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
   const showBattleArena = ref(false);
   const showRewards = ref(false);
   const matchResult = ref<MatchResult | null>(null);
+  /** How fans, the board and the squad reacted to results (owner only). */
+  const inbox = ref<Inbox | null>(null);
 
   const coachingLevel = computed(() => {
     const staff = campus.value?.assets.find((a: AssetState) => a.type === 'staff_house');
@@ -67,6 +69,27 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
       toast('Could not load your club.', 'error');
     } finally {
       loading.value = false;
+    }
+  }
+
+  /** Owner-only; a non-owner just gets no inbox. */
+  async function loadInbox() {
+    if (!clubId.value) return;
+    try {
+      const res = await client.play.getInbox.query({ params: { clubId: clubId.value } });
+      if (res.status === 200) inbox.value = res.body.payload;
+    } catch (err) {
+      console.error('Failed to load the inbox:', err);
+    }
+  }
+
+  async function markInboxRead() {
+    if (!clubId.value || !inbox.value?.unread) return;
+    try {
+      const res = await client.play.markInboxRead.mutation({ params: { clubId: clubId.value }, body: {} });
+      if (res.status === 200) inbox.value = res.body.payload;
+    } catch (err) {
+      console.error('Failed to mark the inbox read:', err);
     }
   }
 
@@ -202,9 +225,9 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
     playState, campus, loading, playing, upgradingAsset,
     now, cooldownLeft, challengeLeft, coachingLevel,
     showMatchmaking, matchmakingSearching, matchedOpponent, opponentOptions,
-    showBattleArena, showRewards, matchResult, isQuickSim,
+    showBattleArena, showRewards, matchResult, isQuickSim, inbox,
     snackbar, snackbarText, snackbarColor,
-    load, startUpgrade, findMatch, selectOpponent, startBattle, finishBattle,
+    load, loadInbox, markInboxRead, startUpgrade, findMatch, selectOpponent, startBattle, finishBattle,
   };
 }
 

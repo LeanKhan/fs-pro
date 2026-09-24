@@ -139,13 +139,23 @@ export function aiResponse(params: {
   value: number;
   isKeyPlayer: boolean;
   sellerSquadSize: number;
+  /** Club Reputation (world/club-standing.service.ts). A bigger club won't
+   * let its best players go to a much smaller one cheaply, or at all. */
+  bidderReputation?: number;
+  sellerReputation?: number;
 }): { decision: 'accepted' | 'countered' | 'rejected'; ask: number; reason?: string } {
   const { amount, value, isKeyPlayer, sellerSquadSize } = params;
-  const multiplier = 1.05 + (isKeyPlayer ? 0.25 : 0) + rand(-0.05, 0.1);
+  const repGap = (params.sellerReputation ?? 50) - (params.bidderReputation ?? 50);
+  // Up to +30% on the ask when selling down to a much smaller club.
+  const reputationPremium = Math.min(Math.max(repGap, 0) / 100, 0.3);
+  const multiplier = 1.05 + (isKeyPlayer ? 0.25 : 0) + reputationPremium + rand(-0.05, 0.1);
   const ask = Math.round(value * multiplier);
 
   if (sellerSquadSize <= MIN_SQUAD_SIZE) {
     return { decision: 'rejected', ask, reason: 'They cannot sell - their squad is too thin' };
+  }
+  if (isKeyPlayer && repGap >= 25) {
+    return { decision: 'rejected', ask, reason: 'He is not interested in joining a club of your stature' };
   }
   if (amount >= ask) return { decision: 'accepted', ask };
   if (amount >= ask * 0.75) return { decision: 'countered', ask };
@@ -235,6 +245,8 @@ export async function placeBid(input: {
     value,
     isKeyPlayer: rosterPlayer ? rankInRoster(rosterPlayer, roster) <= 3 : false,
     sellerSquadSize: roster.length,
+    bidderReputation: bidder.Reputation,
+    sellerReputation: owner.Reputation,
   });
 
   if (response.decision === 'accepted') {

@@ -171,14 +171,9 @@ const challengeSecondsLeft = computed(() =>
 const clubLevel = computed(() => playState.value?.club.level ?? 0);
 const clubPower = computed(() => playState.value?.club.power ?? 180);
 const treasury = computed(() => playState.value?.club.budget ?? props.club?.Budget ?? 10000);
-const fansCount = computed(() => {
-  if (props.club?.Fans) return Number(props.club.Fans);
-  return 120 + clubLevel.value * 150;
-});
-const reputationCount = computed(() => {
-  if (props.club?.Reputation) return Number(props.club.Reputation);
-  return 3 + clubLevel.value * 2;
-});
+// Real standing from the server (world/club-standing.service.ts).
+const fansCount = computed(() => playState.value?.standing.fans ?? props.club?.Fans ?? 0);
+const reputationCount = computed(() => playState.value?.standing.reputation ?? props.club?.Reputation ?? 0);
 
 const squadValue = computed(() => {
   if (!Array.isArray(props.club?.Players) || props.club.Players.length === 0) return 80000;

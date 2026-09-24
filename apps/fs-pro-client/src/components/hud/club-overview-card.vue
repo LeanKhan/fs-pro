@@ -43,6 +43,26 @@
             <span class="text-body-2 font-weight-bold text-white">{{ reputation }}</span>
           </template>
         </v-list-item>
+        <v-list-item v-if="fanApproval !== null" class="px-0" min-height="30">
+          <template #prepend>
+            <v-icon size="16" :color="fanApproval >= 60 ? 'success' : fanApproval >= 35 ? 'amber' : 'error'">mdi-heart</v-icon>
+          </template>
+          <v-list-item-title class="text-caption text-medium-emphasis">Fan Approval</v-list-item-title>
+          <template #append>
+            <span class="text-body-2 font-weight-bold text-white">{{ fanApproval }}%</span>
+          </template>
+        </v-list-item>
+        <v-list-item v-if="form.length" class="px-0" min-height="30">
+          <template #prepend>
+            <v-icon size="16" color="grey-lighten-1">mdi-chart-timeline-variant</v-icon>
+          </template>
+          <v-list-item-title class="text-caption text-medium-emphasis">Form</v-list-item-title>
+          <template #append>
+            <span class="d-flex gap-1">
+              <span v-for="(r, i) in form" :key="i" class="form-pip" :class="`form-${r}`">{{ r }}</span>
+            </span>
+          </template>
+        </v-list-item>
         <v-divider class="my-1" opacity="0.08"></v-divider>
         <v-list-item class="px-0" min-height="30">
           <template #prepend>
@@ -69,8 +89,12 @@ withDefaults(
     fans?: number;
     reputation?: number;
     power?: number;
+    /** 0-100, null to hide. */
+    fanApproval?: number | null;
+    /** Most recent first. */
+    form?: ('W' | 'D' | 'L')[];
   }>(),
-  { level: 0, squadValue: 80000, fans: 120, reputation: 3, power: 180 }
+  { level: 0, squadValue: 80000, fans: 120, reputation: 3, power: 180, fanApproval: null, form: () => [] }
 );
 
 const collapsed = ref(false);
@@ -85,6 +109,26 @@ const glassStyle = {
 <style scoped>
 .club-overview-card {
   pointer-events: auto;
+}
+.form-pip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+}
+.form-W {
+  background: #2e7d32;
+}
+.form-D {
+  background: #757575;
+}
+.form-L {
+  background: #c62828;
 }
 :deep(.v-list-item__prepend) {
   margin-right: 8px;

@@ -13,6 +13,12 @@ import {
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
+/** Clubs.Form: recent results, most recent first. */
+export interface ClubForm {
+  recent: ('W' | 'D' | 'L')[];
+  streak: { type: 'W' | 'D' | 'L'; length: number } | null;
+}
+
 const timestamps = {
   createdAt: timestamp('createdAt', { precision: 3 }).defaultNow().notNull(),
   updatedAt: timestamp('updatedAt', { precision: 3 }).notNull(),
@@ -189,6 +195,14 @@ export const clubs = pgTable('Clubs', {
   /** Club XP earned from matches/challenges (services/play/play.service.ts);
    * Club Level is derived from it. */
   XP: integer('XP').notNull().default(0),
+  /** World standing, moved by every result through services/world/
+   * club-standing.service.ts's applyMatchOutcome (the one seam, called from
+   * game/functions.ts's updateFixture). Fans drive attendance, Reputation
+   * gates the transfer market, BoardConfidence gates budget requests. */
+  Fans: integer('Fans').notNull().default(0),
+  Reputation: integer('Reputation').notNull().default(0),
+  BoardConfidence: integer('BoardConfidence').notNull().default(60),
+  Form: jsonb('Form').$type<ClubForm | null>(),
   ...timestamps,
   // Players dropped - it's the exact inverse of players.Club below.
 });
@@ -326,6 +340,9 @@ export const players = pgTable('Players', {
   isTransferListed: boolean('isTransferListed').notNull().default(false),
   AskingPrice: real('AskingPrice'),
   Morale: text('Morale'),
+  /** 0-100, moved by results (club-standing.service.ts) and read by the match
+   * sim as a small bounded Rating nudge. `Morale` above is a legacy label. */
+  MoraleValue: integer('MoraleValue').notNull().default(60),
   isYouth: boolean('isYouth').notNull().default(false),
   ...timestamps,
 });
@@ -604,6 +621,27 @@ export const clubAssets = pgTable(
  * Progress is updated by the play flow and expiry is resolved lazily on read
  * (services/play/challenge.service.ts). One 'active' row per club at a time.
  */
+/** A club's inbox: things the world did in reaction to the club (fans, board,
+ * press). Written by services/world/club-standing.service.ts. */
+export const clubMessages = pgTable(
+  'ClubMessages',
+  {
+    id: uuid('_id').primaryKey().defaultRandom(),
+    ClubId: uuid('ClubId')
+      .notNull()
+      .references(() => clubs.id),
+    /** fans | board | press | squad */
+    Kind: text('Kind').notNull(),
+    /** good | bad | neutral */
+    Tone: text('Tone').notNull().default('neutral'),
+    Title: text('Title').notNull(),
+    Body: text('Body').notNull(),
+    Read: boolean('Read').notNull().default(false),
+    ...timestamps,
+  },
+  (t) => [index('club_messages_club_created_idx').on(t.ClubId, t.createdAt)]
+);
+
 export const clubChallenges = pgTable(
   'ClubChallenges',
   {

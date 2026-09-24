@@ -39,6 +39,8 @@
           :fans="fansCount"
           :reputation="reputationCount"
           :power="playState?.club.power ?? 0"
+          :fan-approval="playState?.standing.fanApproval ?? null"
+          :form="playState?.standing.form ?? []"
         />
 
         <next-goal-card
@@ -47,7 +49,7 @@
           :target-wins="playState.challenge.targetWins"
           :current-wins="playState.challenge.wins"
           :reward-cash="playState.challenge.rewardCash"
-          :reward-fans="150"
+          :reward-fans="0"
           :seconds-left="game.challengeLeft.value"
         />
 
@@ -196,7 +198,6 @@ const isMyClub = computed(() => {
 });
 
 const treasury = computed(() => playState.value?.club.budget ?? club.value?.Budget ?? 10000);
-const clubLevel = computed(() => playState.value?.club.level ?? 0);
 
 const clubLocation = computed(() => {
   const city = (club.value as any)?.City || (club.value as any)?.HomePlace?.Name || 'Abuja';
@@ -204,15 +205,10 @@ const clubLocation = computed(() => {
   return `${city}, ${country}`;
 });
 
-const fansCount = computed(() => {
-  if ((club.value as any)?.Fans) return Number((club.value as any).Fans);
-  return 120 + clubLevel.value * 150;
-});
-
-const reputationCount = computed(() => {
-  if ((club.value as any)?.Reputation) return Number((club.value as any).Reputation);
-  return 3 + clubLevel.value * 2;
-});
+// Real standing from the server (world/club-standing.service.ts), moved by
+// every result.
+const fansCount = computed(() => playState.value?.standing.fans ?? 0);
+const reputationCount = computed(() => playState.value?.standing.reputation ?? 0);
 
 const squadValue = computed(() => {
   const players = (club.value as any)?.Players;
@@ -277,10 +273,23 @@ const managerBriefingTitle = computed(() => {
 });
 
 const managerBriefingMessage = computed(() => {
+  const standing = playState.value?.standing;
+  const streak = standing?.streak;
+  if (streak && streak.length >= 3 && streak.type === 'L') {
+    return standing!.boardConfidence < 35
+      ? `${streak.length} defeats in a row. The board is losing patience and the crowds are thinning - we need a result.`
+      : `${streak.length} defeats in a row. The dressing room is low and the fans are restless.`;
+  }
+  if (streak && streak.length >= 3 && streak.type === 'W') {
+    return `${streak.length} wins on the bounce! The squad is flying and the supporters are pouring in.`;
+  }
   if (game.cooldownLeft.value > 0) {
     return 'The squad is currently resting and recovering fitness between matches.';
   }
-  return 'Your journey starts here. Build your club, train your team and take on your first opponents.';
+  if (!standing?.form.length) {
+    return 'Your journey starts here. Build your club, train your team and take on your first opponents.';
+  }
+  return 'Every result counts: wins bring fans through the gates, defeats send them home.';
 });
 
 const FACILITY_CONFIG: Array<{ key: string; name: string; icon: string }> = [
@@ -329,14 +338,27 @@ function checkOfflineProgress() {
   const nowTime = Date.now();
   localStorage.setItem(storageKey, String(nowTime));
 
-  if (!rawLastSeen) return;
-  const lastSeenMs = Number(rawLastSeen);
+  const events: AwayEventItem[] = [];
+
+  // Unread inbox messages are real world reactions (fans, board, squad) and
+  // always make the briefing, however long you were away.
+  for (const m of (game.inbox.value?.messages ?? []).filter((m) => !m.read).slice(0, 5)) {
+    events.push({
+      icon: INBOX_ICONS[m.kind] ?? '📰',
+      title: m.title,
+      description: m.body,
+      badge: m.kind.toUpperCase(),
+      badgeColor: m.tone === 'good' ? 'success' : m.tone === 'bad' ? 'error' : 'primary',
+    });
+  }
+  const hasInboxNews = events.length > 0;
+
+  const lastSeenMs = rawLastSeen ? Number(rawLastSeen) : nowTime;
   const diffSec = (nowTime - lastSeenMs) / 1000;
 
-  // Only show if player was away for more than 2 minutes (120 seconds)
-  if (diffSec < 120) return;
+  // Otherwise only show if the player was away for more than 2 minutes.
+  if (!hasInboxNews && (!rawLastSeen || diffSec < 120)) return;
 
-  const events: AwayEventItem[] = [];
   const assets = game.campus.value?.assets ?? [];
 
   // 1. Upgrades in progress or completed
@@ -399,13 +421,34 @@ function checkOfflineProgress() {
   }
 }
 
-// Trigger offline check when campus data finishes initial load
+const INBOX_ICONS: Record<string, string> = { fans: '📣', board: '🏛️', squad: '👥', press: '📰' };
+
+// Trigger offline check when campus data (and, for the owner, the inbox)
+// finishes its initial load.
 let checkedOffline = false;
 watch(
   () => game.campus.value,
-  (loaded) => {
+  async (loaded) => {
     if (loaded && !checkedOffline) {
       checkedOffline = true;
+      if (isMyClub.value) await game.loadInbox();
+      checkOfflineProgress();
+    }
+  }
+);
+
+// Once the briefing is dismissed, its inbox messages count as read.
+watch(showAwaySummary, (open) => {
+  if (!open) game.markInboxRead();
+});
+
+// New reactions can arrive with any match; surface them after the result.
+watch(
+  () => game.showRewards.value,
+  async (open) => {
+    if (open || !isMyClub.value) return;
+    await game.loadInbox();
+    if (game.inbox.value?.unread) {
       checkOfflineProgress();
     }
   }

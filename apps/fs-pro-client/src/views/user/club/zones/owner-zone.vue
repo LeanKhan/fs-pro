@@ -120,7 +120,7 @@
               <div class="text-caption text-medium-emphasis">Board Confidence</div>
               <v-progress-linear
                 :model-value="boardConfidence"
-                color="success"
+                :color="boardConfidence >= 50 ? 'success' : boardConfidence >= 35 ? 'warning' : 'error'"
                 height="10"
                 rounded
                 class="mt-1"
@@ -130,13 +130,13 @@
             <v-col cols="6">
               <div class="text-caption text-medium-emphasis">Fan Approval</div>
               <v-progress-linear
-                :model-value="82"
+                :model-value="fanApproval"
                 color="info"
                 height="10"
                 rounded
                 class="mt-1"
               ></v-progress-linear>
-              <span class="text-caption font-weight-bold">82%</span>
+              <span class="text-caption font-weight-bold">{{ fanApproval }}%</span>
             </v-col>
           </v-row>
 
@@ -169,30 +169,16 @@
 
         <!-- Board Expectations -->
         <v-card class="pa-4 elevation-3">
-          <div class="text-h6 font-weight-bold mb-3">Season Expectations</div>
+          <div class="text-h6 font-weight-bold mb-3">Board Expectations</div>
           <v-list density="compact" class="pa-0">
-            <v-list-item class="px-0">
+            <v-list-item v-for="e in expectations" :key="e.title" class="px-0">
               <template #prepend>
-                <v-icon color="success" class="mr-2">mdi-check-circle-outline</v-icon>
+                <v-icon :color="e.met ? 'success' : 'error'" class="mr-2">
+                  {{ e.met ? 'mdi-check-circle-outline' : 'mdi-alert-circle-outline' }}
+                </v-icon>
               </template>
-              <v-list-item-title class="text-body-2">Finish in top half of the table</v-list-item-title>
-              <v-list-item-subtitle class="text-caption">Current standing: On track</v-list-item-subtitle>
-            </v-list-item>
-
-            <v-list-item class="px-0">
-              <template #prepend>
-                <v-icon color="warning" class="mr-2">mdi-clock-outline</v-icon>
-              </template>
-              <v-list-item-title class="text-body-2">Maintain positive operating cash flow</v-list-item-title>
-              <v-list-item-subtitle class="text-caption">Budget healthy</v-list-item-subtitle>
-            </v-list-item>
-
-            <v-list-item class="px-0">
-              <template #prepend>
-                <v-icon color="info" class="mr-2">mdi-school-outline</v-icon>
-              </template>
-              <v-list-item-title class="text-body-2">Promote at least 1 youth prospect</v-list-item-title>
-              <v-list-item-subtitle class="text-caption">Academy active</v-list-item-subtitle>
+              <v-list-item-title class="text-body-2">{{ e.title }}</v-list-item-title>
+              <v-list-item-subtitle class="text-caption">{{ e.status }}</v-list-item-subtitle>
             </v-list-item>
           </v-list>
         </v-card>
@@ -265,12 +251,44 @@ const matchHistory = computed(() => {
   return Array.isArray(props.club?.Finances?.history) ? props.club.Finances.history : [];
 });
 
-const boardConfidence = computed(() => {
-  const won = Number(props.club?.Stats?.MatchesWon) || 0;
-  const played = won + (Number(props.club?.Stats?.MatchesLost) || 0) + (Number(props.club?.Stats?.MatchesDrawn) || 0);
-  if (played === 0) return 75;
-  const winRate = (won / played) * 100;
-  return Math.min(99, Math.max(25, Math.round(50 + winRate / 2)));
+// Both moved by every result on the server (world/club-standing.service.ts).
+const boardConfidence = computed(() => Number(props.club?.BoardConfidence ?? 60));
+
+const fanApproval = computed(() => {
+  const recent: string[] = (props.club?.Form?.recent ?? []).slice(0, 5);
+  const form = recent.length
+    ? (recent.filter((r) => r === 'W').length - recent.filter((r) => r === 'L').length) / 5
+    : 0;
+  return Math.min(99, Math.max(5, Math.round(55 + form * 30 + (boardConfidence.value - 60) * 0.3)));
+});
+
+const expectations = computed(() => {
+  const recent: string[] = (props.club?.Form?.recent ?? []).slice(0, 5);
+  const w = recent.filter((r) => r === 'W').length;
+  const l = recent.filter((r) => r === 'L').length;
+  const lastGate = matchHistory.value[0];
+  return [
+    {
+      title: 'Keep the board on side',
+      met: boardConfidence.value >= 35,
+      status:
+        boardConfidence.value >= 35
+          ? `Confidence ${boardConfidence.value}%`
+          : `Confidence ${boardConfidence.value}% - budget requests limited`,
+    },
+    {
+      title: 'Win more than you lose',
+      met: recent.length === 0 || w >= l,
+      status: recent.length ? `Last ${recent.length}: ${recent.join(' ')}` : 'No matches yet',
+    },
+    {
+      title: 'Matchdays turn a profit',
+      met: !lastGate || Number(lastGate.net) >= 0,
+      status: lastGate
+        ? `Last gate: ${Number(lastGate.attendance).toLocaleString()} fans, net ${Math.round(Number(lastGate.net)).toLocaleString()}`
+        : 'No home matches yet',
+    },
+  ];
 });
 
 function formatDate(date: string | Date | undefined): string {

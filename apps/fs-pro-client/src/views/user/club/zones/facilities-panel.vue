@@ -102,7 +102,8 @@ function secondsLeft(asset: AssetState) {
   return u ? Math.max(Math.ceil((new Date(u.completeAt).getTime() - now.value) / 1000), 0) : 0;
 }
 
-function formatDuration(totalSeconds: number) {
+function formatDuration(rawSeconds: number) {
+  const totalSeconds = Math.round(rawSeconds);
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
   const s = totalSeconds % 60;

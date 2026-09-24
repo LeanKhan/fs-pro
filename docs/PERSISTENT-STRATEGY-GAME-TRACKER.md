@@ -35,7 +35,7 @@ Rewritten 2026-09-21 after the direction change (match = primary loop; real-time
 - The Stadium Grounds description still says "Starts as a bare dirt turf" on a Level 3 pitch (cosmetic)
 - `@repo/api-contract` must be rebuilt (`npm run build` in packages/api-contract) before the server starts; runtime loads the gitignored `dist`
 - A pre-existing unplayed friendly in dev data has tactics stored as "[object Object]" and can't be played (old bug, unrelated)
-- Matchmaking opponents are AI clubs only; no human opponents or power bands beyond "closest 5"
+- Matchmaking opponents are AI clubs only (by design for now, see Decisions); no power bands beyond "closest 5"
 
 ## After MVP - matchmaking and facilities made real (2026-09-21, alongside the new Club HQ hub `club-rpg-hub.vue`)
 - [x] Matchmaking preview: `GET /play/:clubId/opponents` (1 + Scouting level options from the 5 closest-power AI clubs, first = closest) and `POST /play/:clubId/match` takes an optional `opponentId` (must still be in the pool). The hub's mocked "Abuja Lions" opponent replaced with the real preview
@@ -70,14 +70,24 @@ Research (background Explore agents + direct reads) found two integrity problems
 - [x] Verification: `tsc` clean (server + contract), client `vite build` clean, dev DB snapshotted before and restored+count-checked after (2,089 fixtures / 0 matchmade / XP 0 / 0 challenges / 176 assets / 0 reward+facility ledger rows, matching the last known-clean baseline)
 - [ ] NOT done this pass: rebalancing `challenge.service.ts`'s flat challenge reward (left as-is, it's a periodic bonus goal not a per-match one); a full statistical check of the Stadium Grounds bonus's effect on injury *rate* specifically (the chosen implementation affects Rating, not injury risk directly - see above)
 
+## World that reacts (2026-09-23) - plan: [WORLD-THAT-REACTS.md](./WORLD-THAT-REACTS.md)
+- [x] Migration 0026 (`0026_club_standing.sql` + `run-0026-migration.ts`, applied): `Clubs.Fans/Reputation/BoardConfidence/Form`, `Players.MoraleValue`, new `ClubMessages` table (inbox). Backfill `backfill-club-standing.ts` (applied) seeds Fans from stadium capacity x quality and Reputation from Rating (Pace FZ 5.7k/27 ... Binatone 27k/82); the same `ensureStanding` runs lazily for any club without standing (e.g. new clubs)
+- [x] `services/world/club-standing.service.ts`: `applyMatchResult` is called from exactly one seam, `updateFixture` in `controllers/game/functions.ts` (league matchdays and PLAY both pass through it). It moves Form, Fans (+2.5% W / +0.4% D / -2% L, plus opponent gap and streak bonus, capped at +/-8% per match), Reputation (tracks who you beat: +2 upset, 0 for beating a much smaller club), BoardConfidence (+/-3 plus streak) and squad MoraleValue (+/-4 plus streak, reverting a quarter of the way to 60 each match). Inbox messages only for human-owned clubs, only on streaks of 3/5 and board-confidence crossings (35, 20, 80)
+- [x] Consumers: attendance = capacity x `attendanceFill` (fans/capacity, form, opponent pull, +/-4% noise) instead of a flat random 65-95%. Morale + form give a per-side Rating nudge clamped at +/-1.75 in `buildSimulateMatchRequest` (about +/-10% xG). Reputation in `aiResponse`: up to +30% on the asking price when selling to a smaller club, and key players refuse clubs 25+ reputation below. Board: confidence below 35 caps grants at 50%, below 20 refuses; poor form caps at 75%
+- [x] Visible: `generateStandingNews` leads the MY_CLUB media feed on a 3+ streak ("in freefall: 6 defeats in a row"). `gatherFixtureFacts` falls back to recent matches of any kind when there's no season (verified: a matchmade club's form went from empty to WWWWW). `GET /play/:clubId/inbox` + `POST .../inbox/read` (owner only); `PlayState.standing` and `MatchResult.standingChange` in the contract. Client: real Fans/Reputation/Fan Approval/Form in the overview card and Club HQ hub; unread inbox messages always open the "While You Were Away" briefing (marked read on close, re-checked after each match); a "The world reacts" block in the rewards dialog; owner-zone board confidence/fan approval/expectations use real fields; the media card's invented fallback stories replaced with a plain offline notice
+- [x] `GAME_TIME_SCALE` env (`services/play/game-time.ts`, default 1): divides facility upgrade times, match cooldown and challenge windows; challenge titles name the scaled duration
+- [x] Verification (dev DB snapshot -> tests -> restored and count-checked: 2,624 fixtures / 1 matchmade / XP 30 / 2 challenges / 177 assets / 44 clubs / 0 inbox rows). Losing run, Royal Philamentia vs Dagada: baseline fans 24,605, expected fill 74%, board 60, morale 60, nudge 0 -> after 3L 22,804 / 64% / 50 / 50 / -0.66 -> after 6L 19,778 / 54% / 33 / 42 / -1.14. The feed led with the crisis story and the inbox had 5 messages. 20 wins then 20 losses stayed bounded (morale 83 / 38, nudge +1.32 / -1.29, reputation 75 / 64). 3 real PLAY matches: each moved both clubs exactly once (opponent form 0 -> 1, fan deltas match a single application); gate attendance rose 14.7k -> 16.0k -> 17.2k over two wins. Live dev server: `GET /play/:id` returns `standing`, inbox returns 401 without a session. `tsc` clean (server + contract), client `vite build` clean
+- [ ] NOT covered: an authenticated browser check of `/game/:clubId` (the route redirects to login; no test credentials), a real league matchday through the seam (same code path as PLAY, not exercised separately), the scouted shortlist still ignores Reputation
+- [ ] Note for restores: `pg_dump --clean` from before 0026 can't drop `Clubs` while `ClubMessages` references it - drop `ClubMessages` first, or restore from a post-0026 dump
+
 ## Next (after MVP)
 - [x] Away summary + notifications inbox
 - [x] Facility effects that change play: Training Ground, Youth Academy, Stadium Grounds and Staff House all now affect real outcomes (see "Core loop integrity fixes" below); new facilities (media/PR, commercial office) still not started
-- [ ] **Priority: a world that reacts** ([WORLD-THAT-REACTS.md](./WORLD-THAT-REACTS.md)): persistent fans, reputation, form and morale, with consumers the player can feel
+- [x] **Priority: a world that reacts** ([WORLD-THAT-REACTS.md](./WORLD-THAT-REACTS.md)): persistent fans, reputation, form and morale, with consumers the player can feel (see section above)
 - [ ] **Priority: AI clubs change on their own** (transfers, facility upgrades, youth, retirements) so the world isn't static around the player's club
-- [ ] One global time-scale setting for all real-time timers
+- [x] One global time-scale setting for all real-time timers (`GAME_TIME_SCALE`)
 - [ ] Tournaments (entry fee, 8 clubs), rival battles, event clubs, daily challenges (all against AI clubs, so they pass the zero-humans test)
-- [ ] Proper economy ledger, sponsors, fans, reputation; anti-grind tuning
+- [ ] Proper economy ledger, sponsors; anti-grind tuning (fans and reputation now real, see above)
 - [ ] New-club creation flow + onboarding challenge
 - [x] BATTLE screen / live presentation
 - [-] Async human-vs-human matchmaking (human clubs in the opponent pool, rivalries): parked until someone else is playing; the design already supports it
@@ -133,6 +143,7 @@ Decisions: flexible config-driven tiers (start: 5 tiers, pod 20, fan-out 2, U=2 
 - [ ] Regional pods via `homePlaceId` (later)
 
 ## Log
+- 2026-09-23: World that reacts, phases 1-3 implemented and verified (section above), plus `GAME_TIME_SCALE`. Next priority: AI clubs changing on their own.
 - 2026-09-23: Direction settled as single-player first, in a shared world: the AI world stands on its own, humans are just extra clubs in the async matchmaking pool whenever they arrive, and multiplayer-only features are parked. Recorded at the top of GAME-PHILOSOPHY.md.
 - 2026-09-21: Dev-DB hygiene note: an earlier snapshot/restore cycle was not re-verified and the dev DB drifted by one played match (30 XP, a challenge row, ~+335k budget) before the game-screen tests; caught at the end and restored from the last verified-clean snapshot (day 348, 2,089 fixtures, 0 matchmade, XP 0, 0 challenges, 176 asset rows). Always run a count check after each restore.
 - 2026-09-21: Direction change after reading GAME-PHILOSOPHY.md; plan and tracker rewritten; MVP loop started. Everything under "Built before..." and "DEFERRED" is kept for history.

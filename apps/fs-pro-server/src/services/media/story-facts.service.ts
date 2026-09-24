@@ -1,4 +1,4 @@
-import { and, eq, inArray, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import { fixtures, players } from '../../db/drizzle/schema';
 import { compileStandings } from '../../utils/seasons';
 
@@ -76,6 +76,16 @@ export async function gatherFixtureFacts(
       ? compileStandings(season.Standings)
       : [];
 
+  // Without a season (the PLAY loop's matchmade friendlies are season-less)
+  // fall back to each club's most recent played matches of any kind, so
+  // form/streak angles still fire. Position/points stay null.
+  const selectPlayed = {
+    Home: fixtures.Home,
+    Away: fixtures.Away,
+    PlayedAt: fixtures.PlayedAt,
+    Details: fixtures.Details,
+    Events: fixtures.Events,
+  };
   const played: PlayedRow[] = season
     ? await db
         .select({
@@ -96,7 +106,20 @@ export async function gatherFixtureFacts(
             )
           )
         )
-    : [];
+    : await db
+        .select(selectPlayed)
+        .from(fixtures)
+        .where(
+          and(
+            eq(fixtures.Played, true),
+            or(
+              inArray(fixtures.Home, [homeCode, awayCode]),
+              inArray(fixtures.Away, [homeCode, awayCode])
+            )
+          )
+        )
+        .orderBy(desc(fixtures.PlayedAt))
+        .limit(40);
   played.sort(
     (a, b) => (b.PlayedAt?.getTime() ?? 0) - (a.PlayedAt?.getTime() ?? 0)
   );
