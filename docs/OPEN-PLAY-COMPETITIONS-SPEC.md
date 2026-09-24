@@ -546,21 +546,21 @@ Each day, for each AI club (`Clubs.UserId` null):
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET / POST / PATCH | `/competitions`, `/competitions/:id` | Admin CRUD of definitions (validated). |
-| POST | `/competitions/:id/editions` | Admin: create an edition with its registration and start days. |
-| PATCH | `/editions/:id` | Admin: edit dates while in draft/registration; publish; cancel. |
-| POST | `/editions/:id/invite` | Admin: invite clubs (invite mode). |
-| GET | `/editions?status=registration&eligibleFor=:clubId` | Browse open competitions. |
-| POST / DELETE | `/editions/:id/entries` | Register / withdraw a club (own club only). Refused with a reason when ineligible: Level/Elo/rating band, country, entry cap reached, fee above Budget, barred, full. |
-| POST | `/editions/:id/entries/:clubId/respond` | Accept or decline an invite. |
-| GET | `/editions/:id` | Edition overview: stages, current stage, entries, status. |
-| GET | `/editions/:id/rankings?stage=` | Table(s) for a stage, ranked/unranked split, groups. |
-| GET | `/editions/:id/bracket` | Knockout rounds and ties. |
-| POST | `/editions/:id/challenges` | Propose `{ challengerClubId, opponentClubId }`. |
-| GET | `/editions/:id/eligible-opponents?clubId=` | Eligible opponents + ineligible ones with the failing rule. |
-| POST | `/challenges/:fixtureId/accept` \| `decline` \| `cancel` | |
-| GET | `/clubs/:id/challenges?status=` | Incoming/outgoing across all editions. |
-| GET | `/clubs/:id/entries` | The club's current and past entries. |
+| GET / POST / PATCH | `/competitions`, `/competitions/:id` | Admin CRUD of definitions (validated). *Not built yet.* |
+| GET | `/editions?status=&competitionId=&eligibleFor=:clubId` | Browse editions; `eligibleFor` adds that club's eligibility and reasons. |
+| POST | `/editions` | Admin: create a draft `{ competitionId, registrationOpensDay, registrationClosesDay, startDay }`. |
+| GET | `/editions/:id` | Edition overview with entries. |
+| POST | `/editions/:id/status/publish` \| `cancel` | Admin: publish (snapshots the definition) or cancel. |
+| POST | `/editions/:id/invite` | Admin: invite clubs. |
+| GET | `/editions/:id/eligibility/:clubId` | Can this club enter now, and if not, why. |
+| POST / DELETE | `/editions/:id/entries/:clubId` | Register (or accept an invite) / withdraw (or decline an invite). Own club only. Refused with a 409 and the reasons. |
+| GET | `/editions/:id/rankings?stage=` | Stage table(s), ranked/unranked split, groups. |
+| GET | `/editions/:id/opponents/:clubId` | Eligible opponents + ineligible ones with the failing rule. |
+| GET | `/editions/club/:clubId` | The club's current and past entries. |
+| GET | `/editions/:id/bracket` | Knockout rounds and ties. *Step 6.* |
+| POST | `/challenges` | Propose `{ editionId, challengerClubId, opponentClubId }`. |
+| POST | `/challenges/:fixtureId/accept` \| `decline` \| `cancel` | Body `{ clubId }`. Admins may cancel any challenge. |
+| GET | `/challenges/club/:clubId?status=a,b` | Incoming/outgoing across all editions. |
 | PUT | `/clubs/:id/challenge-policy`, `/clubs/:id/entry-policy` | Own club only. |
 | GET / PATCH | `/world/settings` | Admin: year, rollover, transfer windows, default rules, entry cap, Levels (XP thresholds, XP per match, targets, review). |
 | PATCH | `/clubs/:id/level` | Admin: set a club's Level by hand (sets XP to that Level's threshold; logged as `admin`). |

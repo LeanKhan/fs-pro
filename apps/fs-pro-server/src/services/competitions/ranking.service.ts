@@ -180,6 +180,13 @@ export async function applyResult(
       .returning();
     if (!ledger) return { status: 'already-applied' };
 
+    if (fixture.ChallengeStatus === 'accepted') {
+      await tx
+        .update(fixtures)
+        .set({ ChallengeStatus: 'played', updatedAt: new Date() })
+        .where(eq(fixtures.id, fixture.id));
+    }
+
     const homeId = fixture.HomeTeamId;
     const awayId = fixture.AwayTeamId;
     const stageIndex = fixture.StageIndex ?? 0;

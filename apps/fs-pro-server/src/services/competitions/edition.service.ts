@@ -1464,6 +1464,8 @@ export async function tickEditions(day?: number): Promise<TickReport> {
       and(eq(seasons.Status, 'registration'), lte(seasons.StartDay, today))
     );
   for (const { id } of toStart) {
+    // Registration always gets at least one tick, even when it opens on the start day.
+    if (report.opened.includes(id)) continue;
     await attempt(id, async () => {
       const s = await startEdition(id);
       (s.Status === 'cancelled' ? report.cancelled : report.started).push(id);
