@@ -12,6 +12,7 @@ import {
 } from '../../controllers/calendar/calendar.service';
 import { PlayerFitnessService } from '../players/player-fitness.service';
 import { RankingService } from '../competitions/ranking.service';
+import { EditionService } from '../competitions/edition.service';
 
 export interface MatchdayRunResult {
   day: number;
@@ -169,6 +170,9 @@ export class MatchdayRunnerService {
       const applied = fixtureId
         ? await RankingService.applyResult(String(fixtureId))
         : { status: 'not-competition' as const };
+      if (applied.status === 'applied' && applied.firstToReachedBy) {
+        await EditionService.finish(applied.seasonId, { firstToWinner: applied.firstToReachedBy });
+      }
       if (applied.status === 'not-competition' && !res?.skipped) legacyResults.push(res);
     }
 

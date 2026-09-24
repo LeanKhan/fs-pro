@@ -389,6 +389,15 @@ accepted or a tie is scheduled.
 A challenge **is** a Fixture row, so every downstream reader (runner, replays,
 match details) already understands it.
 
+### New table `CompetitionAccess`
+
+Where `qualify` and `bar` outcomes are kept: `ClubId`, `CompetitionId` (the
+target), `Kind` (`qualified` \| `barred`), `UntilEditionNumber` (bars),
+`Used` (qualifications), `SourceSeasonId`. A qualification becomes an invite
+to the target's next edition that hasn't started, immediately if one is
+published, otherwise when the next one is published. A bar blocks the
+target's editions up to `UntilEditionNumber`.
+
 ### New table `Rankings`
 
 One row per (edition, stage, club).
@@ -748,3 +757,5 @@ knockout stage), `standings-component.vue`, `standings-scroller.vue`,
     ranked competition's table.
 12. Registration is blocked when the club can't afford the entry fee.
 13. Humans and AI share the same `MaxConcurrentEntries` cap.
+14. Invited clubs (by the admin or by qualifying) skip the Level, Elo,
+    rating and country bands; the entry cap, the fee and bars still apply.
