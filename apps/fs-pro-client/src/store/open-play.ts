@@ -8,13 +8,15 @@ import type {
   WorldSettings,
 } from '@repo/api-contract';
 import { client } from '@/services/api';
+import { appSocket } from '@/services/socket';
 import { useStore } from '@/store';
 
 /**
  * Open-play state shared by the dashboard, the world view and the
  * competitions pages (docs/OPEN-PLAY-COMPETITIONS-SPEC.md, "UI"): the user's
  * club, its entries and challenges, the world settings and its performance.
- * Refreshed every minute and whenever the window regains focus.
+ * Kept fresh by the server's open-play socket events (spec "Realtime"),
+ * with a slow poll and a refresh on window focus as the fallback.
  */
 
 export type ClubEntry = Entry & { edition: EditionListItem };
@@ -29,7 +31,7 @@ export function unwrap<T>(response: { status: number; body: unknown }): T {
   throw err;
 }
 
-const POLL_MS = 60_000;
+const POLL_MS = 5 * 60_000;
 
 export const useOpenPlayStore = defineStore('open-play', () => {
   const main = useStore();
@@ -39,6 +41,10 @@ export const useOpenPlayStore = defineStore('open-play', () => {
   const challenges = ref<MatchChallenge[]>([]);
   const performance = ref<PerformanceView | null>(null);
   const loading = ref(false);
+  /** Bumped by socket events; tables and brackets watch these to refetch. */
+  const rankingsVersion = ref(0);
+  const editionsVersion = ref(0);
+  const touchedEditions = ref<Set<string>>(new Set());
   const error = ref<string | null>(null);
   let timer: ReturnType<typeof setInterval> | null = null;
   // Screens call start() on mount and stop() on unmount; polling runs while
@@ -114,12 +120,56 @@ export const useOpenPlayStore = defineStore('open-play', () => {
   });
 
   const onFocus = () => void refresh();
+
+  // Socket events ------------------------------------------------------------
+  const mine = (ids: (string | null | undefined)[]) => !!clubId.value && ids.includes(clubId.value);
+  const handlers: Record<string, (p: any) => void> = {
+    'challenge:received': (p: { clubId: string }) => {
+      if (!mine([p.clubId])) return;
+      main.showToast({ message: 'New challenge received', style: 'info', withAction: true, actionText: 'View', actionLink: '/u/competitions' });
+      void loadClub();
+    },
+    'challenge:updated': (p: { clubIds: string[] }) => {
+      if (mine(p.clubIds)) void loadClub();
+    },
+    'rankings:updated': (p: { editionIds: string[] }) => {
+      touchedEditions.value = new Set(p.editionIds);
+      rankingsVersion.value++;
+    },
+    'edition:updated': (p: { editionIds: string[] }) => {
+      touchedEditions.value = new Set(p.editionIds);
+      editionsVersion.value++;
+      void loadClub();
+    },
+    'world:day': () => void refresh(),
+    'world:year-ended': (p: { label: string }) => {
+      main.showToast({ message: `Year ${p.label} is over`, style: 'info' });
+      void refresh();
+    },
+    'club:level-changed': (p: { clubId: string; from: number; to: number }) => {
+      if (!mine([p.clubId])) return;
+      main.showToast({
+        message: p.to > p.from ? `Promoted to Level ${p.to}!` : `Relegated to Level ${p.to}`,
+        style: p.to > p.from ? 'success' : 'warning',
+      });
+      void refresh();
+    },
+  };
+  function listen(on: boolean) {
+    for (const [event, fn] of Object.entries(handlers)) {
+      if (on) appSocket.on(event, fn);
+      else appSocket.off(event, fn);
+    }
+    if (on && !appSocket.connected) appSocket.connect();
+  }
+
   function start() {
     users++;
     if (timer) return;
     void refresh();
     timer = setInterval(() => void refresh(), POLL_MS);
     window.addEventListener('focus', onFocus);
+    listen(true);
   }
   function stop() {
     users = Math.max(0, users - 1);
@@ -127,6 +177,7 @@ export const useOpenPlayStore = defineStore('open-play', () => {
     if (timer) clearInterval(timer);
     timer = null;
     window.removeEventListener('focus', onFocus);
+    listen(false);
   }
 
   // Actions -----------------------------------------------------------------
@@ -180,6 +231,9 @@ export const useOpenPlayStore = defineStore('open-play', () => {
     performance,
     loading,
     error,
+    rankingsVersion,
+    editionsVersion,
+    touchedEditions,
     clubId,
     activeEntries,
     entriesUsed,

@@ -73,6 +73,21 @@ export const challengesContract = c.router(
       },
     },
 
+    /** Admin: every challenge in an edition, newest first. */
+    forEdition: {
+      method: 'GET',
+      path: '/edition/:editionId',
+      pathParams: z.object({ editionId: z.string() }),
+      responses: {
+        200: successEnvelope(z.array(MatchChallengeSchema)),
+        400: failEnvelope(),
+        401: failEnvelope(),
+        403: failEnvelope(),
+        404: failEnvelope(),
+        409: failEnvelope(),
+      },
+    },
+
     /** A club's auto-accept policy (null = answer every challenge by hand). */
     getPolicy: {
       method: 'GET',

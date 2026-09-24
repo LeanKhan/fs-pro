@@ -202,19 +202,15 @@ async function attachPlayersAndFixtures(
   }));
 }
 
-/** Aggregate player stats accumulated during one game-world Year cycle
- * (`Season.Year`) - was keyed by Calendar id before the Calendar became a
- * singleton with no per-year identity of its own. */
 /** A span of game days (Day.Index), inclusive. */
 export interface DayRange {
   fromDay: number;
   toDay: number;
 }
 
-/** Player stats for one game-world year. With `range`, the year is the
- * open-play fixed-length year: matches scheduled in those days, whatever
- * edition they belong to. Without it, the legacy text `Season.Year`. */
-export async function getPlayerStats(year: string, range?: DayRange) {
+/** Player stats for one game-world year: matches scheduled in its days
+ * (`range`), whatever edition they belong to. */
+export async function getPlayerStats(range: DayRange) {
   const db = DrizzleDatabase.getInstance().database;
   const rows = await db
     .select({
@@ -231,12 +227,7 @@ export async function getPlayerStats(year: string, range?: DayRange) {
     })
     .from(playerMatchDetails)
     .innerJoin(fixtures, eq(playerMatchDetails.FixtureId, fixtures.id))
-    .innerJoin(seasons, eq(fixtures.SeasonId, seasons.id))
-    .where(
-      range
-        ? drizzleSql`${fixtures.ScheduledDay} between ${range.fromDay} and ${range.toDay}`
-        : eq(seasons.Year, year)
-    )
+    .where(drizzleSql`${fixtures.ScheduledDay} between ${range.fromDay} and ${range.toDay}`)
     .groupBy(playerMatchDetails.PlayerId)
     .orderBy(desc(drizzleSql`avg(${playerMatchDetails.Points})`));
 

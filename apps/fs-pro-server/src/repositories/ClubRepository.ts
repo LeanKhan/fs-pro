@@ -5,7 +5,6 @@ export interface IClubFilter {
   /** Clubs with no owning User at all - powers registration's "pick an
    * unclaimed club" list. */
   unclaimed?: boolean;
-  LeagueId?: string;
   /** Batch-fetch by id - used by internal callers that build a
    * `{_id: {$in: [...]}}`-style query (App.ts, matchQueue.ts). */
   ids?: string[];

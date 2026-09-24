@@ -1,6 +1,7 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, gte, isNotNull, ne } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
-import { calendars } from '../../db/drizzle/schema';
+import { calendars, fixtures, levelHistory } from '../../db/drizzle/schema';
+import { emitOpenPlay } from '../../realtime/open-play-events';
 import {
   advanceIdleDay,
   healPastUnplayedFixtures,
@@ -129,7 +130,32 @@ export async function runWorldDay(): Promise<WorldDayReport> {
 
   const advanced = await advanceIdleDay();
   report.advancedTo = advanced.CurrentDay;
+  await step('realtime', () => announceDay(report));
   return report;
+}
+
+/** Tell connected clients what the day changed (they refetch). */
+async function announceDay(report: WorldDayReport) {
+  if (report.yearEnded)
+    emitOpenPlay('world:year-ended', { year: report.yearEnded.year, label: report.yearEnded.label });
+  const e = report.editions;
+  const changed = e
+    ? [...new Set([...e.opened, ...e.started, ...e.cancelled, ...e.stagesEnded, ...e.finished, ...e.roundsDrawn])]
+    : [];
+  if (changed.length) emitOpenPlay('edition:updated', { editionIds: changed, reason: 'day' });
+  const played = await db()
+    .selectDistinct({ seasonId: fixtures.SeasonId })
+    .from(fixtures)
+    .where(and(eq(fixtures.ScheduledDay, report.day), eq(fixtures.Played, true), isNotNull(fixtures.SeasonId)));
+  const editionIds = played.map((r) => r.seasonId).filter((id): id is string => !!id);
+  if (editionIds.length) emitOpenPlay('rankings:updated', { editionIds });
+  const moves = await db()
+    .select()
+    .from(levelHistory)
+    .where(and(gte(levelHistory.Day, report.day), ne(levelHistory.FromLevel, levelHistory.ToLevel)));
+  for (const m of moves)
+    emitOpenPlay('club:level-changed', { clubId: m.ClubId, from: m.FromLevel, to: m.ToLevel, source: m.Source });
+  emitOpenPlay('world:day', { day: report.day, nextDay: report.advancedTo, matches: report.matches.simulated });
 }
 
 export interface SimulateToDayResult {

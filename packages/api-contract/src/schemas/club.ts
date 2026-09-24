@@ -12,8 +12,6 @@ export const ClubSchema = z.object({
   _id: z.string().optional(),
   Name: z.string(),
   ClubCode: z.string(),
-  LeagueCode: z.string().nullable().optional(),
-  LeagueId: z.string().nullable().optional(),
   AttackingClass: z.number(),
   DefensiveClass: z.number(),
   Players: z.array(PlayerSchema).optional(),

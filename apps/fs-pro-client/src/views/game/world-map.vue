@@ -349,6 +349,7 @@ watch(
   () => void loadEditions().catch((err) => (toast.value = err instanceof Error ? err.message : String(err))),
   { immediate: true }
 );
+watch(() => openPlay.editionsVersion, () => void loadEditions().catch(() => undefined));
 onUnmounted(() => openPlay.stop());
 </script>
 

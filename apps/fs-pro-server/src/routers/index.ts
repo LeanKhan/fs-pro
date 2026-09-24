@@ -3,7 +3,6 @@ import { initServer } from '@ts-rest/express';
 
 import { clubTsRestRoutes } from '../controllers/clubs/club.router';
 import { playerTsRestRoutes } from '../controllers/players/player.router';
-import { competitionTsRestRoutes } from '../controllers/competitions/competition.router';
 import { seasonTsRestRoutes } from '../controllers/seasons/season.router';
 import { userTsRestRoutes } from '../controllers/user/user.router';
 import { gameTsRestRoutes } from '../controllers/game/game.router';
@@ -36,7 +35,6 @@ export const apiRouter = s.router(apiContract, {
   meta: metaTsRestRoutes,
   fixtures: fixtureTsRestRoutes,
   players: playerTsRestRoutes,
-  competitions: competitionTsRestRoutes,
   managers: managerTsRestRoutes,
   calendar: calendarTsRestRoutes,
   places: placeTsRestRoutes,

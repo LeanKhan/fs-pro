@@ -137,8 +137,6 @@ async function main() {
       Type: 'League',
       CompetitionCode: 'OPEN',
       CompetitionID: 'OPEN',
-      NumberOfTeams: 0,
-      NumberOfWeeks: 0,
       Entry: { mode: 'open', minClubs: 2, maxClubs: null },
       Stages: [
         {

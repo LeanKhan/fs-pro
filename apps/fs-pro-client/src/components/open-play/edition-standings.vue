@@ -29,7 +29,7 @@ import type { Bracket, StageTable } from '@repo/api-contract';
 import BracketView from './bracket-view.vue';
 import GroupTables from './group-tables.vue';
 import { client } from '@/services/api';
-import { unwrap } from '@/store/open-play';
+import { unwrap, useOpenPlayStore } from '@/store/open-play';
 import { stageName, type StageLike } from '@/helpers/open-play';
 
 /** The table (league / groups) or bracket (knockout) of an edition's stage. */
@@ -91,5 +91,13 @@ watch(
   { immediate: true }
 );
 watch(stage, () => void load());
+// Live: refetch when a result lands in this edition.
+const live = useOpenPlayStore();
+watch(
+  () => [live.rankingsVersion, live.editionsVersion],
+  () => {
+    if (live.touchedEditions.has(props.editionId)) void load();
+  }
+);
 defineExpose({ reload: load });
 </script>

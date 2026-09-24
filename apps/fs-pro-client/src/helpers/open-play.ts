@@ -142,3 +142,22 @@ export function useClubDirectory() {
   const get = (id: string | null | undefined) => (id ? directory.value.get(id) : undefined);
   return { clubs: directory, name, code, get };
 }
+
+/** "Summer Rumble · League", "Classic Cup · R2 leg 1" for a fixture. */
+export function fixtureStageLabel(f: {
+  LeagueCode?: string | null;
+  StageIndex?: number | null;
+  Round?: number | null;
+  Leg?: number | null;
+  Stage?: string | null;
+  Type?: string | null;
+}) {
+  if (f.Type === 'friendly') return 'Friendly';
+  const name = f.LeagueCode ?? '';
+  if (f.Round != null) return `${name} · Round ${f.Round}${f.Leg && f.Leg > 1 ? ` leg ${f.Leg}` : ''}`;
+  if (f.StageIndex != null) return `${name} · Stage ${f.StageIndex + 1}`;
+  return name;
+}
+
+/** A forfeit shows as "Forfeit" rather than a score. */
+export const isForfeit = (f: { ChallengeStatus?: string | null }) => f.ChallengeStatus === 'forfeited';

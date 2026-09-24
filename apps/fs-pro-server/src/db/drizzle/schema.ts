@@ -35,19 +35,6 @@ const timestamps = {
   updatedAt: timestamp('updatedAt', { precision: 3 }).notNull(),
 };
 
-/**
- * For "list of ids" fields that have no single FK-able owner column to hang
- * a `relations()` reverse lookup off (see schema notes on Seasons.Promoted/
- * Relegated below) - typed as uuid so the values are at least shaped like
- * the ids they hold, but deliberately not `.references()`'d since Postgres
- * can't enforce a foreign key on individual array elements anyway.
- */
-const uuidArray = (name: string) =>
-  uuid(name)
-    .array()
-    .notNull()
-    .default(sql`ARRAY[]::uuid[]`);
-
 const jsonArray = (name: string) =>
   jsonb(name)
     .$type<Record<string, unknown>[]>()
@@ -117,26 +104,8 @@ export const competitions = pgTable('Competitions', {
   Type: text('Type').notNull(),
   CompetitionCode: text('CompetitionCode').notNull().unique(),
   CompetitionID: text('CompetitionID').notNull().unique(),
-  League: boolean('League').notNull().default(false),
-  Tournament: boolean('Tournament').notNull().default(false),
-  Cup: boolean('Cup').notNull().default(false),
-  Division: integer('Division').notNull().default(0),
-  NumberOfTeams: integer('NumberOfTeams').notNull(),
-  NumberOfWeeks: integer('NumberOfWeeks').notNull(),
-  /** League pyramid position (services/competitions/pyramid-config.ts): Tier
-   * 1 = top flight, higher = lower; Pod = which parallel league within the
-   * tier. Both null for cups/tournaments and for any league not yet placed
-   * in the pyramid (those keep the legacy two-division promotion rules).
-   * Deliberately separate from Division, which is 0 for every cup. */
-  Tier: integer('Tier'),
-  Pod: integer('Pod'),
-  TeamsPromoted: integer('TeamsPromoted'),
-  TeamsRelegated: integer('TeamsRelegated'),
-  CountryId: uuid('CountryId').references(() => places.id),
   /** Open-play definition (docs/OPEN-PLAY-COMPETITIONS-SPEC.md). Shapes and
-   * defaults: services/competitions/definition.ts. Nullable until the data
-   * script has filled every row; the League/Cup/Division/Tier... columns
-   * above are legacy and get dropped after it. */
+   * defaults: services/competitions/definition.ts. */
   Description: text('Description'),
   Prestige: integer('Prestige').notNull().default(2),
   Entry: jsonb('Entry').$type<EntryConditions | null>(),
@@ -147,34 +116,11 @@ export const competitions = pgTable('Competitions', {
   Recurrence: jsonb('Recurrence').$type<Recurrence | null>(),
   Archived: boolean('Archived').notNull().default(false),
   ...timestamps,
-  // Clubs dropped in favor of the competitionClubs join table below (a club
-  // can sit in more than one competition at once - its league AND a cup -
-  // so a single FK column on either side can't express it).
+  // Membership is per edition (Entries); there are no standing members.
   // Seasons dropped - it's the exact inverse of seasons.Competition below.
 });
 
-/**
- * Join table for Competitions<->Clubs. Genuinely many-to-many: a club's
- * `League` FK (below) only ever points at its one primary league, but a
- * Cup/Tournament's member list can and does pull clubs from several
- * different leagues at once, and a club can simultaneously appear in its
- * league's member list and a cup's. Replaces the old `competitions.Clubs`
- * array, which could hold ids but never enforce they existed.
- */
-export const competitionClubs = pgTable(
-  'CompetitionClubs',
-  {
-    id: uuid('_id').primaryKey().defaultRandom(),
-    CompetitionId: uuid('CompetitionId')
-      .notNull()
-      .references(() => competitions.id),
-    ClubId: uuid('ClubId')
-      .notNull()
-      .references(() => clubs.id),
-    ...timestamps,
-  },
-  (t) => [unique().on(t.CompetitionId, t.ClubId)]
-);
+export const CAMPUS_LAYOUTS = ['city', 'coastal', 'hillside'] as const;
 
 export const clubs = pgTable('Clubs', {
   id: uuid('_id').primaryKey().defaultRandom(),
@@ -204,8 +150,6 @@ export const clubs = pgTable('Clubs', {
   Budget: real('Budget'),
   Records: jsonArray('Records'),
   Stadium: jsonb('Stadium').$type<Record<string, unknown> | null>(),
-  LeagueCode: text('LeagueCode'),
-  LeagueId: uuid('LeagueId').references(() => competitions.id),
   UserId: uuid('UserId').references(() => users.id),
   Lineup: jsonb('Lineup').$type<{ startingXI: string[]; bench: string[] } | null>(),
   Tactic: jsonb('Tactic').$type<{ formationName: string; styleName: string } | null>(),
@@ -235,8 +179,13 @@ export const clubs = pgTable('Clubs', {
     unknown
   > | null>(),
   EntryPolicy: jsonb('EntryPolicy').$type<Record<string, unknown> | null>(),
-  /** Campus scene variant: 'city' | 'coastal' | 'hillside'. */
-  CampusLayout: text('CampusLayout'),
+  /** Campus scene variant: 'city' | 'coastal' | 'hillside'
+   * (docs/WORLD-VIEW-UI-PLAN.md). Picked once at creation, then fixed;
+   * the admin can change it. */
+  CampusLayout: text('CampusLayout')
+    .notNull()
+    .default('city')
+    .$defaultFn(() => CAMPUS_LAYOUTS[Math.floor(Math.random() * CAMPUS_LAYOUTS.length)]!),
   ...timestamps,
   // Players dropped - it's the exact inverse of players.Club below.
 });
@@ -329,25 +278,9 @@ export const seasons = pgTable(
     StartDate: timestamp('StartDate', { precision: 3 }).notNull(),
     EndDate: timestamp('EndDate', { precision: 3 }).notNull(),
     WinnerId: uuid('WinnerId').references(() => clubs.id),
-    /** Episodic historical snapshots (which clubs were promoted/relegated at
-     * the end of this season) - there's no natural single "many"-side owner
-     * column on Clubs to hang a relations() reverse lookup off without
-     * inventing new schema concepts, so these stay untyped uuid arrays
-     * (no referential integrity on the elements) rather than a join table.
-     * Deliberate scope cut, not an oversight. */
-    Promoted: uuidArray('Promoted'),
-    Relegated: uuidArray('Relegated'),
-    isFinished: boolean('isFinished').notNull().default(false),
-    isStarted: boolean('isStarted').notNull().default(false),
     Status: text('Status').notNull().default('Pending'),
-    /** The game-world "year cycle" this season belongs to (was
-     * `Calendar`-derived - a singleton Calendar has nothing left to derive it
-     * from, so callers pass it directly - see `calendar.controller.ts`'s
-     * `startNextSeasonCycle`). */
-    Year: text('Year'),
     CompetitionId: uuid('CompetitionId').references(() => competitions.id),
     CompetitionCode: text('CompetitionCode').notNull(),
-    Standings: jsonArray('Standings'),
     Logs: jsonArray('Logs'),
     /** Edition fields (open play). Status moves draft -> registration ->
      * running -> finished | cancelled. Days are Calendar Day.Index values.
@@ -510,7 +443,6 @@ export const fixtures = pgTable(
     FixtureCode: text('FixtureCode'),
     SeasonCode: text('SeasonCode'),
     LeagueCode: text('LeagueCode'),
-    Week: integer('Week'),
     SeasonId: uuid('SeasonId').references(() => seasons.id),
     Stadium: text('Stadium'),
     Played: boolean('Played').notNull().default(false),

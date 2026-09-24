@@ -143,10 +143,9 @@ export const useStore = defineStore('main', () => {
     }
   }
 
-  /** Every currently in-progress Season (across all Competitions) - also
-   * doubles as the "lobby" gate: if nothing has been started yet (a fresh
-   * game world, or between season cycles), the user is sent to the lobby
-   * screen to wait for an admin to start one. */
+  /** Every edition open for entry or running (across all competitions).
+   * Open play never waits for an admin to start a season, so this no longer
+   * sends anyone to the lobby. */
   async function setSeasons() {
     try {
       const response = await client.seasons.getSeasons.query({
@@ -154,7 +153,7 @@ export const useStore = defineStore('main', () => {
       });
       if (response.status === 200) {
         seasons.value = response.body.payload;
-        lobby.value = response.body.payload.length === 0;
+        lobby.value = false;
       }
     } catch (error) {
       console.error('Error fetching seasons:', error);

@@ -1,5 +1,5 @@
 import { initServer } from '@ts-rest/express';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNotNull } from 'drizzle-orm';
 import {
   apiContract as contract,
   type ChallengePolicy,
@@ -25,6 +25,7 @@ import { getStageTable } from '../../services/competitions/ranking.service';
 import { getBracket } from '../../services/competitions/knockout.service';
 import { applyChallengePolicy } from '../../services/competitions/ai-competitions.service';
 import { accessDenied, canManageClub, isAdmin } from '../auth/club-access';
+import { emitOpenPlay } from '../../realtime/open-play-events';
 
 /**
  * HTTP layer for open-play editions and challenges
@@ -111,6 +112,8 @@ function toEntry(e: typeof entries.$inferSelect) {
     group: e.Group,
     feePaid: e.FeePaid,
     eliminatedAtStage: e.EliminatedAtStage,
+    finalPosition: e.FinalPosition,
+    finishScore: e.FinishScore,
   };
 }
 
@@ -248,6 +251,7 @@ export const editionTsRestRoutes = s.router(contract.editions, {
         params.action === 'publish'
           ? await EditionService.publishEdition(params.id)
           : await EditionService.cancelEdition(params.id, body?.reason);
+      emitOpenPlay('edition:updated', { editionIds: [season.id], reason: params.action });
       return ok(
         toEdition(season),
         `Edition ${params.action === 'publish' ? 'published' : 'cancelled'}`
@@ -262,6 +266,7 @@ export const editionTsRestRoutes = s.router(contract.editions, {
       const denied = await requireAdmin(req.session as Session);
       if (denied) return denied;
       const invited = await EditionService.invite(params.id, body.clubIds);
+      emitOpenPlay('edition:updated', { editionIds: [params.id], reason: 'invite' });
       return ok(invited.map(toEntry), `${invited.length} club(s) invited`);
     } catch (err) {
       return fail(err);
@@ -282,10 +287,9 @@ export const editionTsRestRoutes = s.router(contract.editions, {
     try {
       const denied = await requireClub(req.session as Session, params.clubId);
       if (denied) return denied;
-      return ok(
-        toEntry(await EditionService.register(params.id, params.clubId)),
-        'Registered'
-      );
+      const entry = await EditionService.register(params.id, params.clubId);
+      emitOpenPlay('edition:updated', { editionIds: [params.id], reason: 'register' });
+      return ok(toEntry(entry), 'Registered');
     } catch (err) {
       return fail(err);
     }
@@ -307,6 +311,7 @@ export const editionTsRestRoutes = s.router(contract.editions, {
       if (entry?.Status === 'invited')
         await EditionService.declineInvite(params.id, params.clubId);
       else await EditionService.withdraw(params.id, params.clubId);
+      emitOpenPlay('edition:updated', { editionIds: [params.id], reason: 'withdraw' });
       return ok({ ok: true as const }, 'Withdrawn');
     } catch (err) {
       return fail(err);
@@ -453,6 +458,19 @@ export const challengeTsRestRoutes = s.router(contract.challenges, {
         .select()
         .from(fixtures)
         .where(eq(fixtures.id, fixture.id));
+      const sent = answered ?? fixture;
+      if (sent.ChallengeStatus === 'proposed')
+        emitOpenPlay('challenge:received', {
+          fixtureId: sent.id,
+          clubId: body.opponentClubId,
+          editionId: sent.SeasonId,
+        });
+      else
+        emitOpenPlay('challenge:updated', {
+          fixtureId: sent.id,
+          clubIds: [body.challengerClubId, body.opponentClubId],
+          status: sent.ChallengeStatus ?? 'proposed',
+        });
       return {
         status: 201 as const,
         body: {
@@ -494,6 +512,13 @@ export const challengeTsRestRoutes = s.router(contract.challenges, {
         .select()
         .from(fixtures)
         .where(eq(fixtures.id, params.fixtureId));
+      emitOpenPlay('challenge:updated', {
+        fixtureId: params.fixtureId,
+        clubIds: [fixture!.HomeTeamId, fixture!.AwayTeamId].filter((id): id is string => !!id),
+        status: fixture!.ChallengeStatus ?? params.action,
+      });
+      if (forfeited && fixture!.SeasonId)
+        emitOpenPlay('rankings:updated', { editionIds: [fixture!.SeasonId] });
       return ok(
         { challenge: toChallenge(fixture!), forfeited },
         forfeited
@@ -530,6 +555,23 @@ export const challengeTsRestRoutes = s.router(contract.challenges, {
         body.policy,
         body.policy ? 'Auto-accept policy saved' : 'Auto-accept policy cleared'
       );
+    } catch (err) {
+      return fail(err);
+    }
+  },
+
+  forEdition: async ({ params, req }) => {
+    try {
+      const denied = await requireAdmin(req.session as Session);
+      if (denied) return denied;
+      const rows = await db()
+        .select({ fixture: fixtures, competitionName: competitions.Name })
+        .from(fixtures)
+        .leftJoin(competitions, eq(competitions.id, fixtures.CompetitionId))
+        .where(and(eq(fixtures.SeasonId, params.editionId), isNotNull(fixtures.ChallengeStatus)))
+        .orderBy(desc(fixtures.createdAt))
+        .limit(300);
+      return ok(rows.map((r) => toChallenge(r.fixture, { competitionName: r.competitionName })));
     } catch (err) {
       return fail(err);
     }

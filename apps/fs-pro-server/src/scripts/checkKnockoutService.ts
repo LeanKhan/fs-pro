@@ -208,8 +208,6 @@ async function dbChecks() {
         Type: 'Cup',
         CompetitionCode: code,
         CompetitionID: code,
-        NumberOfTeams: 0,
-        NumberOfWeeks: 0,
         updatedAt: now,
         ...def,
       })

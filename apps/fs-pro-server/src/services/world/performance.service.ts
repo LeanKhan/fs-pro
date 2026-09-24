@@ -133,6 +133,40 @@ export async function scoreEdition(
     }
   });
   await refreshPerformance(order.map((o) => o.clubId));
+  await moveBoardConfidence(seasonId);
+}
+
+/**
+ * The board reacts to each finish against the target for the club's Level:
+ * beating it raises BoardConfidence, falling short lowers it, more so in
+ * prestigious competitions (at most 12 points either way per edition).
+ * Match-by-match form still nudges it too (club-standing.service.ts).
+ */
+export async function moveBoardConfidence(seasonId: string) {
+  const calendar = await world();
+  const rows = await db()
+    .select({
+      clubId: entries.ClubId,
+      score: entries.FinishScore,
+      confidence: clubs.BoardConfidence,
+      XP: clubs.XP,
+      definition: seasons.Definition,
+    })
+    .from(entries)
+    .innerJoin(clubs, eq(clubs.id, entries.ClubId))
+    .innerJoin(seasons, eq(seasons.id, entries.SeasonId))
+    .where(and(eq(entries.SeasonId, seasonId), isNotNull(entries.FinishScore)));
+  for (const r of rows) {
+    const level = levelForXp(r.XP, calendar.LevelThresholds ?? undefined);
+    const expected = expectedScore(level, calendar);
+    const prestige = r.definition?.Prestige ?? 2;
+    const delta = Math.round(clamp((r.score! - expected) * 20 * (prestige / 3), -12, 12));
+    if (!delta) continue;
+    await db()
+      .update(clubs)
+      .set({ BoardConfidence: clamp(r.confidence + delta, 5, 95), updatedAt: new Date() })
+      .where(eq(clubs.id, r.clubId));
+  }
 }
 
 // ---------------------------------------------------------------------------

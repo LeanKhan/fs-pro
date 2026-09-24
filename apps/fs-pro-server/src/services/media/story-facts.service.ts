@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import { fixtures, players } from '../../db/drizzle/schema';
-import { compileStandings } from '../../utils/seasons';
+import { editionStandings } from '../competitions/ranking.service';
 
 /** Real, checkable things the media desk can say about one club going into a match. */
 export interface ClubFacts {
@@ -71,10 +71,7 @@ export async function gatherFixtureFacts(
   const homeCode: string = fixture.Home;
   const awayCode: string = fixture.Away;
 
-  const table: any[] =
-    season && Array.isArray(season.Standings) && season.Standings.length
-      ? compileStandings(season.Standings)
-      : [];
+  const table: any[] = season ? await editionStandings(season.id) : [];
 
   // Without a season (the PLAY loop's matchmade friendlies are season-less)
   // fall back to each club's most recent played matches of any kind, so
