@@ -80,11 +80,22 @@ Research (background Explore agents + direct reads) found two integrity problems
 - [ ] NOT covered: an authenticated browser check of `/game/:clubId` (the route redirects to login; no test credentials), a real league matchday through the seam (same code path as PLAY, not exercised separately), the scouted shortlist still ignores Reputation
 - [ ] Note for restores: `pg_dump --clean` from before 0026 can't drop `Clubs` while `ClubMessages` references it - drop `ClubMessages` first, or restore from a post-0026 dump
 
+## AI clubs change on their own (2026-09-23)
+- [x] `services/world/ai-world.service.ts`: a real-time world tick started from `server.ts`, running every `WORLD_TICK_MINUTES` (default 10, scaled by `GAME_TIME_SCALE`, 0 = off; never overlaps itself). Each tick:
+  - **Matches:** 4 AI-vs-AI matches between rested clubs of similar power (60-minute rest). They are season-less friendlies titled "(World)" with `SaveStats: false` (no per-player rows or fatigue), played through `play()`, so the usual `updateFixture` seam moves both clubs' standing and pays home gate income.
+  - **Facilities:** each AI club has a 15% chance to start an upgrade, using only cash above a reserve (half a year's wages, at least 1M) and only when nothing else is building. It picks one of its three weakest affordable assets, which avoids every club building the same thing.
+  - **Market:** `runAiMarket` runs whatever the transfer window says.
+- [x] `runAiMarket` (split out of `runTransferDay` in `transfer-market.service.ts`, which still calls it while the window is open) covers need signings and AI-to-AI deals, plus new **debt sales**. An AI club in debt sells its highest-wage player to a richer AI club at 90% of value, or lists him (one listed player at a time) so humans can buy him. The window still gates all human business and AI bids for human players
+- [x] Bug fix (pre-existing): `settleTransfer` now clears `isTransferListed`/`AskingPrice`, so a sold player is no longer still for sale at his new club
+- [x] Verification (snapshot -> 6 direct ticks -> restored and count-checked: 2,628 fixtures / 0 world / 1 active upgrade / 1,327 ledger rows / 5 listed players, all matching the snapshot). 21 world matches, and every one of the 42 AI clubs played once, so the rest period works. Every AI club's Fans moved; 18 budgets rose from gate income; 15 club ratings changed through transfers. 3 debt sales (Rising Thunders -30M -> -5M, Zander -78M -> -61M) and at most 1 listed player per indebted club. Upgrades spread across assets (staff house 12, scouting 8, medical 8, training 1). No human club was ever pulled into a world match. A tick takes 0.4-1.1s. `tsc` clean
+- [ ] Heads-up: with the dev server running, the tick really changes the dev DB every 10 minutes. Set `WORLD_TICK_MINUTES=0` to freeze the world for a test. An earlier restore in this pass did not apply and nobody noticed until the data looked wrong: after a restore, always check counts, not just the error count
+- [ ] Not done: the deep AI debts (Binatone -143M against a 117M/yr wage bill) will take a long time to clear through one sale per tick; there's no AI wage renegotiation or release. AI clubs' youth/retirement still only happen at a season cycle end. No inbox or press coverage of AI club activity beyond the existing ledger-driven transfer news
+
 ## Next (after MVP)
 - [x] Away summary + notifications inbox
 - [x] Facility effects that change play: Training Ground, Youth Academy, Stadium Grounds and Staff House all now affect real outcomes (see "Core loop integrity fixes" below); new facilities (media/PR, commercial office) still not started
 - [x] **Priority: a world that reacts** ([WORLD-THAT-REACTS.md](./WORLD-THAT-REACTS.md)): persistent fans, reputation, form and morale, with consumers the player can feel (see section above)
-- [ ] **Priority: AI clubs change on their own** (transfers, facility upgrades, youth, retirements) so the world isn't static around the player's club
+- [x] **Priority: AI clubs change on their own** (see section above; youth/retirements still at cycle end only)
 - [x] One global time-scale setting for all real-time timers (`GAME_TIME_SCALE`)
 - [ ] Tournaments (entry fee, 8 clubs), rival battles, event clubs, daily challenges (all against AI clubs, so they pass the zero-humans test)
 - [ ] Proper economy ledger, sponsors; anti-grind tuning (fans and reputation now real, see above)
@@ -143,6 +154,7 @@ Decisions: flexible config-driven tiers (start: 5 tiers, pod 20, fan-out 2, U=2 
 - [ ] Regional pods via `homePlaceId` (later)
 
 ## Log
+- 2026-09-23: AI world tick: AI clubs play each other, invest and trade in real time (section above).
 - 2026-09-23: World that reacts, phases 1-3 implemented and verified (section above), plus `GAME_TIME_SCALE`. Next priority: AI clubs changing on their own.
 - 2026-09-23: Direction settled as single-player first, in a shared world: the AI world stands on its own, humans are just extra clubs in the async matchmaking pool whenever they arrive, and multiplayer-only features are parked. Recorded at the top of GAME-PHILOSOPHY.md.
 - 2026-09-21: Dev-DB hygiene note: an earlier snapshot/restore cycle was not re-verified and the dev DB drifted by one played match (30 XP, a challenge row, ~+335k budget) before the game-screen tests; caught at the end and restored from the last verified-clean snapshot (day 348, 2,089 fixtures, 0 matchmade, XP 0, 0 challenges, 176 asset rows). Always run a count check after each restore.

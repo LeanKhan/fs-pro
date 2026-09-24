@@ -56,6 +56,27 @@ export interface GroupStandingItem {
   GD: number;
 }
 
+/**
+ * Who won a played knockout fixture. updateFixture stores Details.Winner as a
+ * bare club id (older data may hold a { id } object); when it's missing, the
+ * score decides, then the penalty shootout (Details.Penalties.Home/Away).
+ * Reading `Winner.id` off the bare id used to always miss, so a draw
+ * silently sent the home side through even when it lost on penalties.
+ */
+function winnerIdOf(f: Fixture): string | null {
+  const d = (f.Details ?? {}) as any;
+  const stored = typeof d.Winner === 'string' ? d.Winner : d.Winner?.id;
+  if (stored) return stored;
+  const home = Number(d.HomeTeamScore ?? 0);
+  const away = Number(d.AwayTeamScore ?? 0);
+  if (home !== away) return (home > away ? f.HomeTeamId : f.AwayTeamId) ?? null;
+  const pens = d.Penalties;
+  if (pens && Number(pens.Home) !== Number(pens.Away)) {
+    return (Number(pens.Home) > Number(pens.Away) ? f.HomeTeamId : f.AwayTeamId) ?? null;
+  }
+  return null;
+}
+
 export class TournamentEngineService {
   /**
    * Ensures the tournament competitions exist and their member lists are
@@ -540,13 +561,13 @@ export class TournamentEngineService {
     // 1. Final played -> complete
     if (currentSize === 2) {
       if (season.isFinished) return;
-      const winnerId = (currentRound[0].Details as any)?.Winner?.id ?? null;
+      const winnerId = winnerIdOf(currentRound[0]);
       console.log(`[TournamentEngine] ${season.SeasonCode} Final completed! Winner: ${winnerId}`);
       await updateSeasonFields(season._id as string, {
         isFinished: true,
         Status: 'completed',
         EndDate: new Date(),
-        WinnerId: winnerId,
+        WinnerId: winnerId ?? undefined,
       });
       await this.payPrizes(season._id as string);
       return;
@@ -752,13 +773,13 @@ export class TournamentEngineService {
     // 4. Final played -> complete
     if (finalFixtures.length === 1 && finalFixtures[0].Played && !season.isFinished) {
       const finalMatch = finalFixtures[0];
-      const winnerId = (finalMatch.Details as any)?.Winner?.id ?? null;
+      const winnerId = winnerIdOf(finalMatch);
       console.log(`[TournamentEngine] ${season.SeasonCode} Champions League Final completed! Winner: ${winnerId}`);
       await updateSeasonFields(season._id as string, {
         isFinished: true,
         Status: 'completed',
         EndDate: new Date(),
-        WinnerId: winnerId,
+        WinnerId: winnerId ?? undefined,
       });
       await this.payPrizes(season._id as string);
     }
@@ -780,20 +801,10 @@ export class TournamentEngineService {
   private static async extractWinners(fixturesArr: Fixture[]): Promise<ClubInterface[]> {
     const winners: ClubInterface[] = [];
     for (const f of fixturesArr) {
-      const winnerId = (f.Details as any)?.Winner?.id;
-      if (winnerId) {
-        const club = await getClubById(winnerId);
-        if (club) {
-          winners.push(club);
-          continue;
-        }
-      }
-      // Fallback: higher score or home club
-      const homeScore = (f.Details as any)?.HomeTeamScore ?? 0;
-      const awayScore = (f.Details as any)?.AwayTeamScore ?? 0;
-      const fallbackId = homeScore >= awayScore ? f.HomeTeamId : f.AwayTeamId;
-      const fallbackClub = await getClubById(fallbackId);
-      if (fallbackClub) winners.push(fallbackClub);
+      // Last resort only when nothing decided it (shouldn't happen): home side.
+      const winnerId = winnerIdOf(f) ?? f.HomeTeamId;
+      const club = winnerId ? await getClubById(winnerId) : null;
+      if (club) winners.push(club);
     }
     return winners;
   }

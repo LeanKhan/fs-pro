@@ -127,6 +127,9 @@ export async function settleTransfer(params: {
         isSigned: true,
         ClubId: buyingClubId,
         ClubCode: buyingClub.ClubCode,
+        // A sale ends any listing - he isn't for sale at his new club.
+        isTransferListed: false,
+        AskingPrice: null,
         updatedAt: new Date(),
       })
       .where(eq(players.id, playerId));
