@@ -114,9 +114,15 @@ transaction**. A conflict on insert means it was already applied; skip.
 
 ### Global club rating (optional, phase 5)
 
-`Clubs.Elo` real, default 1500. Every competitive result (either mode) updates
-it. Used for matchmaking and AI challenge choice, never for a competition's
-table.
+`Clubs.Elo` real, default 1500. Updated by open-mode results only; legacy
+scheduled fixtures never touch it (legacy is frozen, see "Legacy mode
+guarantees"). Friendlies don't count either. Used for matchmaking and AI
+challenge choice, never for a competition's table.
+
+### `Clubs.ChallengePolicy`
+
+jsonb, nullable. A human club's auto-accept policy (see "Human clubs" below).
+Null = manual: every challenge waits for the user.
 
 ## Competition rules (`Competitions.Rules`)
 
@@ -160,7 +166,7 @@ propose ──► proposed ──accept──► accepted ──(clock plays it)
                │                      └─ cancel (admin / club left comp) ─► cancelled
                └─ RespondBy passes ─► expired  (counts as a decline)
 declines ≥ minDeclinesBeforeForfeit ─► next decline is recorded as forfeited:
-  challenger gets a win (3-0 by default), decliner a loss + Forfeits++
+  challenger gets a 3-0 win, decliner a 0-3 loss + Forfeits++
 ```
 
 ### Validation on propose (all must pass)
@@ -243,8 +249,29 @@ per open competition, for each AI-controlled club (`Clubs.UserId` null):
 - Deterministic heuristics first, per `docs/MANAGER-OWNER-MODE-PLAN.md`'s
   gatekeeper approach; no LLM calls in this loop.
 
+## Human clubs
+
 Human clubs get incoming challenges in the dashboard; if they don't respond
 before `RespondBy` they get the normal expiry/forfeit rules.
+
+A human club can set an auto-accept policy, evaluated on the same day tick as
+the AI pass (and immediately when a challenge arrives):
+
+```ts
+interface ChallengePolicy {
+  autoAccept: boolean;
+  competitionIds?: string[];  // limit to these competitions; omitted = all
+  maxRatingGap?: number;      // only opponents within this Elo gap
+  minSquadFitness?: number;   // skip if average squad fitness is below this (0-100)
+  maxPerWeek?: number;        // stop auto-accepting after N accepted in 7 days
+  declineOutsidePolicy: boolean; // false = leave for the user to decide
+}
+```
+
+A challenge matching the policy is accepted exactly like a manual accept
+(same slot search and caps). Auto-declines count toward the forfeit threshold
+like manual ones. The policy never proposes challenges; only AI clubs do that
+automatically.
 
 ## API (ts-rest, `packages/api-contract`)
 
@@ -257,6 +284,7 @@ before `RespondBy` they get the normal expiry/forfeit rules.
 | GET | `/clubs/:id/challenges?status=` | Incoming and outgoing challenges. |
 | GET | `/competitions/:id/eligible-opponents?clubId=` | Opponents passing validation right now. |
 | GET | `/seasons/:id/rankings` | Ordered table + ranked/unranked split. |
+| PUT | `/clubs/:id/challenge-policy` | Set or clear the auto-accept policy (own club only). |
 | PATCH | `/competitions/:id` | Existing; now accepts `Mode` and `Rules`. |
 
 User-auth checks: a user may act only for their own club (`middleware/club.ts`).
@@ -269,6 +297,7 @@ Changing `Mode` is only allowed when the competition has no active season.
   add Played-min badge and PPG column).
 - Challenge inbox/outbox on the user dashboard, plus "Challenge" action from an
   opponent list backed by `eligible-opponents`.
+- Auto-accept policy settings on the club page.
 - Competition admin form: Mode select + rules editor.
 - Calendar/fixtures views: no change; accepted challenges are ordinary fixtures.
 
@@ -293,7 +322,7 @@ Changing `Mode` is only allowed when the competition has no active season.
 3. Challenge service + endpoints (propose/accept/decline/cancel/list/eligible).
 4. Season start/close for open mode; refactor `prolegate` to take standings.
 5. Clock: one-day advance while open seasons are active; expiry and close hooks.
-6. AI respond/propose pass. Optional `Clubs.Elo`.
+6. AI respond/propose pass, human auto-accept policy (`Clubs.ChallengePolicy`). Optional `Clubs.Elo`.
 7. Client views.
 
 ## Testing
@@ -307,10 +336,10 @@ Changing `Mode` is only allowed when the competition has no active season.
 - Regression: an existing scheduled-league season cycle runs start → finish →
   prolegate with identical results before and after the change.
 
-## Open questions
+## Decisions
 
-1. Should the global `Clubs.Elo` feed legacy fixtures too, or open only?
-2. Forfeit score: fixed 3-0, or no goals (points only)?
-3. Should human clubs be able to set an auto-accept policy?
-4. Can a match count for two open competitions both clubs share? This spec
-   says no: one fixture, one competition.
+1. `Clubs.Elo` is open mode only. Legacy scheduled fixtures are frozen and
+   don't feed it.
+2. A forfeit is recorded as a fixed 3-0 (goals count toward GF/GA/GD).
+3. Human clubs can set an auto-accept policy (`Clubs.ChallengePolicy`).
+4. A match counts for exactly one competition: one fixture, one competition.
