@@ -1,6 +1,7 @@
-import { eq, and, sql as drizzleSql } from 'drizzle-orm';
+import { eq, sql as drizzleSql } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
-import { clubs, players, seasons, transferLedger } from '../../db/drizzle/schema';
+import { clubs, players, transferLedger } from '../../db/drizzle/schema';
+import { getPerformance } from '../world/performance.service';
 import { JevService, ChoiceAnswer } from './jev.service';
 import { formScore } from '../world/club-standing.service';
 
@@ -85,28 +86,22 @@ export async function processBoardBudgetRequest(
   const currentBudget = Number(club.Budget ?? 0);
   const wageToBudgetRatio = currentBudget > 0 ? Number((annualWageBill / currentBudget).toFixed(2)) : 1.0;
 
-  // 4. Standing context
+  // 4. Standing: the board judges general performance across every
+  // competition this year against the target for the club's Level
+  // (services/world/performance.service.ts), not a league position.
   let standingDesc = 'competitive campaign';
-  let leaguePosition = 5;
+  let performanceScore = 0;
+  let performanceTarget = 0;
   try {
-    if (club.LeagueId) {
-      const activeSeasons = await db
-        .select()
-        .from(seasons)
-        .where(and(eq(seasons.CompetitionId, club.LeagueId), eq(seasons.isFinished, false)))
-        .limit(1);
-
-      if (activeSeasons.length > 0 && Array.isArray(activeSeasons[0].Standings)) {
-        const standings = activeSeasons[0].Standings as any[];
-        const myIndex = standings.findIndex((s: any) => String(s.ClubID || s.ClubId || s.clubId) === clubId);
-        if (myIndex !== -1) {
-          leaguePosition = myIndex + 1;
-          standingDesc = `position (${leaguePosition}${myIndex === 0 ? 'st - League Leaders' : ' in table'})`;
-        }
-      }
-    }
+    const perf = await getPerformance(clubId);
+    performanceScore = perf.score;
+    performanceTarget = perf.expected;
+    standingDesc =
+      perf.entries === 0
+        ? 'lack of competitive entries this year'
+        : `performance this year (${Math.round(perf.score * 100)} against a target of ${Math.round(perf.expected * 100)} for Level ${perf.level})`;
   } catch (e) {
-    console.warn('Could not fetch active standings for board review:', e);
+    console.warn('Could not read performance for board review:', e);
   }
 
   // 5. Evaluate financial health category
@@ -131,7 +126,9 @@ export async function processBoardBudgetRequest(
     requestedAmount,
     requestedRatioToBudget: Number(requestedRatioToBudget.toFixed(2)),
     justification,
-    leaguePosition,
+    performanceScore,
+    performanceTarget,
+    performanceVsTarget: Number((performanceScore - performanceTarget).toFixed(3)),
     financialHealth,
     boardConfidence: club.BoardConfidence,
     recentForm: (club.Form?.recent ?? []).slice(0, 5).join(''),

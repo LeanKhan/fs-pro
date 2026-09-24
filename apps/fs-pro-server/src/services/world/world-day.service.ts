@@ -7,6 +7,10 @@ import {
 } from '../../controllers/calendar/calendar.service';
 import { MatchdayRunnerService } from '../calendar/matchday-runner.service';
 import { expireChallenges } from '../competitions/challenge.service';
+import {
+  runCompetitionAi,
+  type AiReport,
+} from '../competitions/ai-competitions.service';
 import { tickEditions, type TickReport } from '../competitions/edition.service';
 import { openTransferWindow } from '../transfers/transfer-window.service';
 import { endYear, yearIsOver, type YearEndSummary } from './year.service';
@@ -20,9 +24,10 @@ import { endYear, yearIsOver, type YearEndSummary } from './year.service';
  *   2. Play anything left over from earlier days.
  *   3. Editions: open registration, start/cancel, end stages, knockout rounds.
  *   4. Expire unanswered challenges (forfeits past the decline limit).
- *   5. Open a transfer window that starts today.
- *   6. Play today's matches.
- *   7. Move the calendar on one day (fitness recovery, transfer market).
+ *   5. AI clubs register, answer and send challenges; human policies.
+ *   6. Open a transfer window that starts today.
+ *   7. Play today's matches.
+ *   8. Move the calendar on one day (fitness recovery, transfer market).
  */
 
 const db = () => DrizzleDatabase.getInstance().database;
@@ -36,6 +41,7 @@ export interface WorldDayReport {
   healed: number;
   editions: TickReport | null;
   challenges: { expired: number; forfeited: number } | null;
+  ai: AiReport | null;
   transferWindowOpened: boolean;
   matches: { total: number; simulated: number; failed: number };
   advancedTo: number | null;
@@ -69,6 +75,7 @@ export async function runWorldDay(): Promise<WorldDayReport> {
     healed: 0,
     editions: null,
     challenges: null,
+    ai: null,
     transferWindowOpened: false,
     matches: { total: 0, simulated: 0, failed: 0 },
     advancedTo: null,
@@ -104,6 +111,7 @@ export async function runWorldDay(): Promise<WorldDayReport> {
   report.challenges = await step('challenge expiry', () =>
     expireChallenges(day)
   );
+  report.ai = await step('competition AI', () => runCompetitionAi());
   report.transferWindowOpened =
     (await step('transfer windows', () => applyTransferWindows(calendar))) ??
     false;

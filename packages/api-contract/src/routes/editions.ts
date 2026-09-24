@@ -12,6 +12,7 @@ import {
   OpponentOptionSchema,
   StageTableSchema,
   BracketSchema,
+  EntryPolicySchema,
 } from '../schemas/open-play';
 
 const c = initContract();
@@ -207,6 +208,37 @@ export const editionsContract = c.router(
         200: successEnvelope(
           z.array(EntrySchema.extend({ edition: EditionListItemSchema }))
         ),
+        400: failEnvelope(),
+        401: failEnvelope(),
+        403: failEnvelope(),
+        404: failEnvelope(),
+        409: failEnvelope(),
+      },
+    },
+
+    /** A club's auto-register policy (null = register by hand). */
+    getEntryPolicy: {
+      method: 'GET',
+      path: '/policy/:clubId',
+      pathParams: z.object({ clubId: z.string() }),
+      responses: {
+        200: successEnvelope(EntryPolicySchema.nullable()),
+        400: failEnvelope(),
+        401: failEnvelope(),
+        403: failEnvelope(),
+        404: failEnvelope(),
+        409: failEnvelope(),
+      },
+    },
+
+    /** Set or clear (null) the policy. Owner only. */
+    setEntryPolicy: {
+      method: 'PUT',
+      path: '/policy/:clubId',
+      pathParams: z.object({ clubId: z.string() }),
+      body: z.object({ policy: EntryPolicySchema.nullable() }),
+      responses: {
+        200: successEnvelope(EntryPolicySchema.nullable()),
         400: failEnvelope(),
         401: failEnvelope(),
         403: failEnvelope(),

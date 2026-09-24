@@ -1,4 +1,4 @@
-import { and, eq, inArray, or } from 'drizzle-orm';
+import { and, between, eq, inArray, or } from 'drizzle-orm';
 import type {
   ClubPerformance,
   ClubPerformanceInsight,
@@ -6,9 +6,10 @@ import type {
   ClubPerformanceAdvisorSummary,
 } from '@repo/api-contract';
 import { DrizzleDatabase } from '../../db/drizzle';
-import { fixtures, playerMatchDetails } from '../../db/drizzle/schema';
+import { calendars, clubs, fixtures, playerMatchDetails } from '../../db/drizzle/schema';
 import { getClubs } from '../../controllers/clubs/club.service';
-import { getSeasons } from '../../controllers/seasons/season.service';
+import { listYears } from '../world/season-report.service';
+import { levelForXp } from '../world/level';
 import { getTransferWindow } from '../transfers/transfer-window.service';
 import { JevService, ChoiceAnswer } from '../ai/jev.service';
 import {
@@ -79,8 +80,6 @@ function summarise(matches: Match[]): RecordSummary {
 
 const ppg = (r: RecordSummary) => (r.played ? r.points / r.played : 0);
 
-const createdAt = (s: unknown) =>
-  new Date((s as { createdAt?: string }).createdAt ?? 0).getTime();
 
 const fullName = (p: PlayerInterface) => `${p.FirstName} ${p.LastName}`.trim();
 
@@ -100,14 +99,21 @@ export async function getClubPerformance(
   const club = allClubs.find((c) => String(c._id) === clubId);
   if (!club) throw new Error('Club not found');
 
-  const peers = allClubs.filter(
-    (c) => c.LeagueId && String(c.LeagueId) === String(club.LeagueId)
+  // Peers: clubs at the same Level (docs/OPEN-PLAY-COMPETITIONS-SPEC.md).
+  const db = DrizzleDatabase.getInstance().database;
+  const [calendar] = await db.select().from(calendars).limit(1);
+  const thresholds = calendar?.LevelThresholds ?? undefined;
+  const xpById = new Map(
+    (await db.select({ id: clubs.id, XP: clubs.XP }).from(clubs)).map((c) => [c.id, c.XP])
   );
-  const seasons = await getSeasons();
-  const yearOfSeason = new Map(seasons.map((s) => [s.SeasonCode, s.Year]));
+  const levelOf = (id: string) => levelForXp(xpById.get(id) ?? 0, thresholds);
+  const level = levelOf(clubId);
+  const peers = allClubs.filter((c) => levelOf(String(c._id)) === level);
+  const years = await listYears();
+  const yearOf = (day: number | null) =>
+    day == null ? undefined : years.find((y) => day >= y.fromDay && day <= y.toDay)?.label;
 
   // Fixtures this club has played, oldest first.
-  const db = DrizzleDatabase.getInstance().database;
   const playedRows = await db
     .select()
     .from(fixtures)
@@ -118,15 +124,13 @@ export async function getClubPerformance(
       )
     );
 
-  const yearsWithMatches = [
-    ...new Set(playedRows.map((f) => yearOfSeason.get(f.SeasonCode ?? '')).filter(Boolean)),
-  ] as string[];
-  const latestSeasonYear = [...seasons]
-    .sort((a, b) => createdAt(b) - createdAt(a))
-    .find((s) => yearsWithMatches.includes(s.Year))?.Year;
-  const year = requestedYear ?? latestSeasonYear ?? yearsWithMatches[0] ?? '';
+  const yearsWithMatches = years
+    .map((y) => y.label)
+    .filter((label) => playedRows.some((f) => yearOf(f.ScheduledDay) === label));
+  const year =
+    requestedYear ?? yearsWithMatches[yearsWithMatches.length - 1] ?? years[years.length - 1]?.label ?? '';
   const inYear = playedRows
-    .filter((f) => yearOfSeason.get(f.SeasonCode ?? '') === year)
+    .filter((f) => yearOf(f.ScheduledDay) === year)
     .sort((a, b) => (a.ScheduledDay ?? 0) - (b.ScheduledDay ?? 0));
 
   // Every club's current unit ratings, for expected goals and league ranking.
@@ -182,15 +186,22 @@ export async function getClubPerformance(
   const vsWeaker = summarise(matches.filter((m) => m.opponentRating <= myRating));
   const form = [...matches].reverse().slice(0, 5).map((m) => m.result);
 
-  // League scoring rate over the same cycle.
-  const leagueCode = club.LeagueCode ?? null;
-  const leagueRows = leagueCode
+  // Scoring rate among same-Level clubs over the same year.
+  const leagueCode = `Level ${level}`;
+  const span = years.find((y) => y.label === year);
+  const peerCodes = new Set(peers.map((p) => p.ClubCode));
+  const leagueRows = span
     ? (
         await db
-          .select({ Details: fixtures.Details, SeasonCode: fixtures.SeasonCode })
+          .select({ Details: fixtures.Details, Home: fixtures.Home, Away: fixtures.Away })
           .from(fixtures)
-          .where(and(eq(fixtures.Played, true), eq(fixtures.LeagueCode, leagueCode)))
-      ).filter((f) => yearOfSeason.get(f.SeasonCode ?? '') === year)
+          .where(
+            and(
+              eq(fixtures.Played, true),
+              between(fixtures.ScheduledDay, span.fromDay, span.toDay)
+            )
+          )
+      ).filter((f) => peerCodes.has(f.Home ?? '') || peerCodes.has(f.Away ?? ''))
     : [];
   const leagueGoals = leagueRows
     .map((f) => f.Details as { HomeTeamScore?: number; AwayTeamScore?: number } | null)

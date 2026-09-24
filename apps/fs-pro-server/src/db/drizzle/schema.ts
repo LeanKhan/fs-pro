@@ -391,6 +391,10 @@ export const entries = pgTable(
     Group: text('Group'),
     FeePaid: real('FeePaid').notNull().default(0),
     EliminatedAtStage: integer('EliminatedAtStage'),
+    /** Set when the edition finishes: final position (1 = winner) and the
+     * 0..1 finish score the board's performance score is built from. */
+    FinalPosition: integer('FinalPosition'),
+    FinishScore: real('FinishScore'),
     ...timestamps,
   },
   (t) => [
@@ -725,6 +729,9 @@ export const seasonReports = pgTable('SeasonReports', {
   id: uuid('_id').primaryKey().defaultRandom(),
   Year: text('Year').notNull().unique(),
   Data: jsonb('Data').$type<Record<string, unknown>>().notNull(),
+  /** Open-play years ("Y3"): the game days the year covered. */
+  FromDay: integer('FromDay'),
+  ToDay: integer('ToDay'),
   ...timestamps,
 });
 

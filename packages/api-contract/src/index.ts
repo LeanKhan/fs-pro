@@ -109,5 +109,14 @@ export type {
   OpponentOption,
   MatchChallenge,
   Bracket,
+  ChallengePolicy,
+  EntryPolicy,
 } from './schemas/open-play';
-export type { WorldSettings, WorldSettingsPatch, YearEndSummary, WorldDayReport } from './schemas/world';
+export type {
+  WorldSettings,
+  WorldSettingsPatch,
+  YearEndSummary,
+  WorldDayReport,
+  PerformanceView,
+} from './schemas/world';
+export { ChallengePolicySchema, EntryPolicySchema } from './schemas/open-play';

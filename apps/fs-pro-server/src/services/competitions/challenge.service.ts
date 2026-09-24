@@ -516,6 +516,11 @@ async function declineCount(tx: Tx, seasonId: string, clubId: string) {
   return n;
 }
 
+/** Declines (including expiries and forfeits) a club has made in an edition. */
+export async function declinesSoFar(seasonId: string, clubId: string) {
+  return db().transaction((tx) => declineCount(tx, seasonId, clubId));
+}
+
 /**
  * Decline (or let expire). Once the club has declined
  * `minDeclinesBeforeForfeit` times in this edition, the next one is a
@@ -677,4 +682,5 @@ export const ChallengeService = {
   cancel,
   expireChallenges,
   clubChallenges,
+  declinesSoFar,
 };

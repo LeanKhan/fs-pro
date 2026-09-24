@@ -87,6 +87,27 @@ export const StageTableSchema = z.object({
   ),
 });
 
+/** A human club's auto-accept policy (Clubs.ChallengePolicy). */
+export const ChallengePolicySchema = z.object({
+  autoAccept: z.boolean(),
+  competitionIds: z.array(z.string()).optional(),
+  maxEloGap: z.number().min(0).optional(),
+  minSquadFitness: z.number().min(0).max(100).optional(),
+  maxPerWeek: z.number().int().min(1).optional(),
+  /** false = challenges outside the policy wait for the user. */
+  declineOutsidePolicy: z.boolean(),
+});
+
+/** A human club's auto-register policy (Clubs.EntryPolicy). */
+export const EntryPolicySchema = z.object({
+  autoRegister: z.boolean(),
+  /** Only competitions with an entry fee up to this. */
+  maxFee: z.number().min(0).optional(),
+  /** Stop auto-registering once the club is in this many editions. */
+  maxEntries: z.number().int().min(1).optional(),
+  competitionIds: z.array(z.string()).optional(),
+});
+
 export const OpponentOptionSchema = z.object({
   clubId: z.string(),
   name: z.string(),
@@ -157,3 +178,5 @@ export type StageTable = z.infer<typeof StageTableSchema>;
 export type OpponentOption = z.infer<typeof OpponentOptionSchema>;
 export type MatchChallenge = z.infer<typeof MatchChallengeSchema>;
 export type Bracket = z.infer<typeof BracketSchema>;
+export type ChallengePolicy = z.infer<typeof ChallengePolicySchema>;
+export type EntryPolicy = z.infer<typeof EntryPolicySchema>;
