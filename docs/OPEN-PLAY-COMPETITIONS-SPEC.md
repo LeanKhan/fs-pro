@@ -482,7 +482,8 @@ Friendlies unchanged.
 
 ## Year
 
-Only a timekeeping period. At `YearStartDay + YearLengthDays`: run the year-end
+Only a timekeeping period. The year covers `YearStartDay` to the day before
+the boundary; year `n`'s player stats, wages and report are keyed `Y<n>`. At `YearStartDay + YearLengthDays`: run the year-end
 steps in today's order (`updateAllPlayerDetailsForYear`, `deductWagesForYear`,
 `retireEligiblePlayersForYear`, `runYouthIntakeForYear`,
 `generateSeasonReport`, re-keyed from the text `Year` to `CurrentYear`), then
@@ -493,18 +494,24 @@ The season report covers editions that **finished** during that year.
 
 ## Calendar clock
 
-Replace the jump-to-next-fixture logic in `advanceDayIfDone`: advance one day
-at a time (match days take `MatchdaySlotMinutes`, empty days
-`OffDaySlotMinutes`). Daily pass, in order:
+The clock runs one game day per tick (`services/world/world-day.service.ts`
+`runWorldDay`); days are never skipped. Match days wait `MatchdaySlotMinutes`
+before the next tick, empty days `OffDaySlotMinutes`. Each day, in order:
 
-1. Edition transitions: open/close registration, start editions (or cancel
-   under `minClubs`), end stages on their last day, open knockout rounds.
-2. Expire challenges past `RespondBy`; play ties at `PlayBy`.
-3. AI pass: register for editions, respond to and propose challenges.
-   Human auto-accept / auto-register policies.
-4. Transfer windows from `TransferWindows`.
-5. Year end at the boundary.
-6. Play the day's fixtures (`MatchdayRunnerService.simulateDay`).
+1. Year end if the year is over (`services/world/year.service.ts`). With
+   `AutoRollover` off, the loop pauses the clock instead and does nothing
+   else until the admin ends the year.
+2. Play anything left unplayed on earlier days.
+3. Editions: open registration, start or cancel, end league/groups stages,
+   settle knockout ties and draw the next round, finish editions.
+4. Expire unanswered challenges (forfeits past the decline limit).
+5. AI pass: register, respond, propose (step 8). Human auto-accept policies.
+6. Open a transfer window whose first day-of-year is today.
+7. Play today's matches (QuickSim).
+8. Move the calendar on one day (fitness recovery, AI transfer market).
+
+A failing step is logged and the day carries on. Admin "advance now"
+(`POST /world/advance-day`) runs the same day loop.
 
 ## AI clubs
 
@@ -574,7 +581,8 @@ Each day, for each AI club (`Clubs.UserId` null):
 | GET / PATCH | `/world/settings` | Admin: year, rollover, transfer windows, default rules, entry cap, Levels (XP thresholds, XP per match, targets, review). |
 | PATCH | `/clubs/:id/level` | Admin: set a club's Level by hand (sets XP to that Level's threshold; logged as `admin`). |
 | GET | `/clubs/:id/performance?year=` | Performance score, finishes, Elo and Level history. |
-| POST | `/world/end-year` | Admin: run year end now. |
+| POST | `/world/end-year` | Admin: end the year now (refused if the year only started today). |
+| POST | `/world/advance-day` | Admin: run one game day now. |
 
 Removed: season-cycle start/end, arrange/setup-days, season create/start/finish
 routes. User-auth checks: a user acts only for their own club

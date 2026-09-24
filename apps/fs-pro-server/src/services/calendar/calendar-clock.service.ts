@@ -1,25 +1,17 @@
-import { and, eq, isNull, lte, max, or } from 'drizzle-orm';
+import { and, eq, isNull, lte, or } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
-import { calendars, fixtures } from '../../db/drizzle/schema';
-import {
-  advanceIdleDay,
-  getCalendar,
-  updateCalendar,
-} from '../../controllers/calendar/calendar.service';
-import {
-  findNextUnplayedDay,
-  getFixturesByDay,
-} from '../../controllers/fixtures/fixture.service';
-import { MatchdayRunnerService } from './matchday-runner.service';
+import { calendars } from '../../db/drizzle/schema';
+import { getCalendar, updateCalendar } from '../../controllers/calendar/calendar.service';
+import { runWorldDay, type WorldDayReport } from '../world/world-day.service';
 
 /**
- * The live game clock. While ClockMode is 'live' the server itself advances
- * the day: at NextTickAt it plays whatever is still unplayed on CurrentDay
- * (QuickSim - nobody has to be online for a match to happen) and moves the
- * calendar to the next match day via advanceDayIfDone, which also runs
- * tournaments, fitness recovery and the AI transfer market. Then it sets the
- * next kickoff: MatchdaySlotMinutes, plus OffDaySlotMinutes for every
- * skipped off-day in the gap. Admin sim-to-date etc. keep working untouched.
+ * The live game clock. While ClockMode is 'live' the server itself moves the
+ * world on one game day per tick (services/world/world-day.service.ts:
+ * year end, editions, challenge expiry, transfer windows, the day's matches
+ * via QuickSim, then the calendar +1 day). The next tick waits
+ * MatchdaySlotMinutes after a day with matches, OffDaySlotMinutes after an
+ * empty one. Days are never skipped. When the year is over and AutoRollover
+ * is off, the day loop pauses the clock for the admin.
  *
  * Multi-instance safe: a tick is claimed with a compare-and-set on
  * NextTickAt (which then acts as a short lease), so only one instance runs it.
@@ -28,13 +20,8 @@ import { MatchdayRunnerService } from './matchday-runner.service';
 const POLL_MS = 15_000;
 /** How long a claimed tick may run before another instance may take over. */
 const LEASE_MS = 10 * 60_000;
-/** Re-check interval while there is no further match day to advance to. */
-const IDLE_RECHECK_MS = 5 * 60_000;
-
-/** How many empty game days the live clock idles through after the last
- * scheduled fixture (the off-season) before waiting for the next cycle to be
- * started. Stateless: measured from the latest fixture day. */
-export const OFFSEASON_DAYS = 30;
+/** Retry delay after a failed tick. */
+const RETRY_MS = 5 * 60_000;
 
 const MIN_SLOT_MINUTES = 1;
 const MAX_SLOT_MINUTES = 60 * 24 * 14;
@@ -53,6 +40,8 @@ export interface ClockState {
 
 export interface TickResult {
   ran: boolean;
+  /** What the game day did (absent on older callers' types). */
+  report?: WorldDayReport;
   fromDay: number;
   toDay: number;
   simulatedFixtures: number;
@@ -74,12 +63,6 @@ export async function getClockState(): Promise<ClockState> {
 
 const clampSlot = (n: number) =>
   Math.min(MAX_SLOT_MINUTES, Math.max(MIN_SLOT_MINUTES, Math.round(n)));
-
-/** Real time until the next kickoff after moving `gapDays` game days forward. */
-function slotMs(gapDays: number, matchdayMin: number, offDayMin: number) {
-  const offDays = Math.max(gapDays - 1, 0);
-  return (matchdayMin + offDays * offDayMin) * 60_000;
-}
 
 export async function setClock(input: {
   mode?: 'live' | 'paused';
@@ -127,49 +110,34 @@ async function claimDueTick(): Promise<boolean> {
   return claimed.length > 0;
 }
 
-/** Live off-season idling: nothing left to play today, nothing scheduled
- * ahead, and fewer than OFFSEASON_DAYS empty days since the last fixture. */
-async function shouldIdle(day: number): Promise<boolean> {
-  if (!(await getFixturesByDay(day)).every((f) => f.Played)) return false;
-  if (await findNextUnplayedDay(day)) return false;
-  const [row] = await db().select({ last: max(fixtures.ScheduledDay) }).from(fixtures);
-  return day - (row?.last ?? day) < OFFSEASON_DAYS;
-}
-
 async function performTick(): Promise<TickResult> {
   const before = await getCalendar();
   const fromDay = before.CurrentDay;
+  const day = await runWorldDay();
+  const after = await getCalendar();
 
-  const run = await MatchdayRunnerService.simulateDay(fromDay);
-  let after = await getCalendar();
-
-  const matchdayMin = before.MatchdaySlotMinutes ?? 180;
-  const offDayMin = before.OffDaySlotMinutes ?? 10;
-  let advanced = after.CurrentDay > fromDay;
-  let idled = false;
-  if (!advanced && before.ClockMode === 'live' && (await shouldIdle(fromDay))) {
-    await advanceIdleDay();
-    after = await getCalendar();
-    advanced = idled = true;
+  if (day.pausedForYearEnd) {
+    await updateCalendar({ LastTickAt: new Date(), NextTickAt: null });
+    console.log(`[calendar-clock] day ${fromDay}: year is over and AutoRollover is off - clock paused`);
+    return { ran: true, report: day, fromDay, toDay: fromDay, simulatedFixtures: 0, nextTickAt: null };
   }
-  const waitMs = idled
-    ? offDayMin * 60_000
-    : advanced
-      ? slotMs(after.CurrentDay - fromDay, matchdayMin, offDayMin)
-      : IDLE_RECHECK_MS;
-  const nextTickAt = new Date(Date.now() + waitMs);
 
+  const minutes =
+    day.matches.total > 0 ? (before.MatchdaySlotMinutes ?? 180) : (before.OffDaySlotMinutes ?? 10);
+  const nextTickAt = new Date(Date.now() + minutes * 60_000);
   await updateCalendar({ LastTickAt: new Date(), NextTickAt: nextTickAt });
 
   console.log(
-    `[calendar-clock] ${idled ? 'off-season idle ' : ''}tick: day ${fromDay} -> ${after.CurrentDay}, ${run.simulatedFixtures} fixture(s) simulated, next kickoff ${nextTickAt.toISOString()}`
+    `[calendar-clock] day ${fromDay} -> ${after.CurrentDay}: ${day.matches.simulated} match(es)` +
+      `${day.yearEnded ? `, ${day.yearEnded.label} ended` : ''}, next tick ${nextTickAt.toISOString()}`
   );
 
   return {
     ran: true,
+    report: day,
     fromDay,
     toDay: after.CurrentDay,
-    simulatedFixtures: run.simulatedFixtures,
+    simulatedFixtures: day.matches.simulated,
     nextTickAt: nextTickAt.toISOString(),
   };
 }
@@ -207,7 +175,7 @@ async function pollOnce() {
     } catch (err) {
       console.error('[calendar-clock] tick failed, retrying next slot check:', err);
       // Release the lease soon so a transient failure doesn't stall a whole slot.
-      await updateCalendar({ NextTickAt: new Date(Date.now() + IDLE_RECHECK_MS) });
+      await updateCalendar({ NextTickAt: new Date(Date.now() + RETRY_MS) });
     }
   } catch (err) {
     console.error('[calendar-clock] poll error:', err);

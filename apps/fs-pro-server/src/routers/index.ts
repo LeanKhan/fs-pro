@@ -14,6 +14,7 @@ import {
   challengeTsRestRoutes,
   editionTsRestRoutes,
 } from '../controllers/open-play/open-play.router';
+import { worldTsRestRoutes } from '../controllers/world/world.router';
 import { calendarTsRestRoutes } from '../controllers/calendar/calendar.router';
 import { fixtureTsRestRoutes } from '../controllers/fixtures/fixture.router';
 import files from '../services/file/file.service';
@@ -47,6 +48,7 @@ export const apiRouter = s.router(apiContract, {
   play: playTsRestRoutes,
   editions: editionTsRestRoutes,
   challenges: challengeTsRestRoutes,
+  world: worldTsRestRoutes,
 });
 
 // export default mainRouter;

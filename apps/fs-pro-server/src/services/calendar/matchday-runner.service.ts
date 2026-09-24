@@ -105,7 +105,13 @@ export class MatchdayRunnerService {
    */
   public static async simulateDay(
     dayNumber?: number,
-    options?: { liveFixtureId?: string; concurrency?: number }
+    options?: {
+      liveFixtureId?: string;
+      concurrency?: number;
+      /** Only play the day; the caller moves the calendar on (the world day
+       * loop in services/world/world-day.service.ts). */
+      skipAdvance?: boolean;
+    }
   ): Promise<MatchdayRunResult> {
     const calendar = await getCalendar();
     const targetDay = dayNumber ?? calendar.CurrentDay;
@@ -114,6 +120,16 @@ export class MatchdayRunnerService {
     const unplayed = dayFixtures.filter((f) => !f.Played && f._id);
 
     if (unplayed.length === 0) {
+      if (options?.skipAdvance) {
+        return {
+          day: targetDay,
+          totalFixtures: dayFixtures.length,
+          simulatedFixtures: 0,
+          failedFixtures: 0,
+          results: [],
+          advancedToDay: null,
+        };
+      }
       // Nothing left to play today - an empty day (off-season idling) counts as done.
       const advanceResult = await advanceDayIfDone(targetDay, { allowEmptyDay: true });
       const updatedCalendar = advanceResult ?? (await getCalendar());
@@ -179,6 +195,17 @@ export class MatchdayRunnerService {
     // Atomically batch-update standings across all affected seasons
     if (legacyResults.length > 0) {
       await batchUpdateStandings(legacyResults);
+    }
+
+    if (options?.skipAdvance) {
+      return {
+        day: targetDay,
+        totalFixtures: dayFixtures.length,
+        simulatedFixtures: fulfilledResults.length,
+        failedFixtures: failedCount,
+        results: fulfilledResults,
+        advancedToDay: null,
+      };
     }
 
     // Advance calendar day once after all fixtures have settled
