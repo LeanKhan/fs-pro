@@ -893,5 +893,30 @@ export const levelHistory = pgTable(
   (t) => [index('level_history_club_day_idx').on(t.ClubId, t.Day)]
 );
 
+/** Qualify/bar outcomes. 'qualified': invited to the target competition's
+ * next edition that hasn't started (Used once invited). 'barred': can't
+ * enter the target's editions numbered up to UntilEditionNumber. */
+export const competitionAccess = pgTable(
+  'CompetitionAccess',
+  {
+    id: uuid('_id').primaryKey().defaultRandom(),
+    ClubId: uuid('ClubId')
+      .notNull()
+      .references(() => clubs.id),
+    CompetitionId: uuid('CompetitionId')
+      .notNull()
+      .references(() => competitions.id),
+    Kind: text('Kind').notNull(),
+    UntilEditionNumber: integer('UntilEditionNumber'),
+    Used: boolean('Used').notNull().default(false),
+    SourceSeasonId: uuid('SourceSeasonId').references(() => seasons.id),
+    createdAt: timestamp('createdAt', { precision: 3 }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('competition_access_target_idx').on(t.CompetitionId, t.Kind, t.Used),
+    index('competition_access_club_idx').on(t.ClubId),
+  ]
+);
+
 export type Place = typeof places.$inferSelect;
 export type NewPlace = typeof places.$inferInsert;

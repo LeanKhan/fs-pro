@@ -4,6 +4,7 @@ import { getFixtureById } from '../fixtures/fixture.service';
 import { Fixture } from '../fixtures/fixture.model';
 import { updateFixture, updateStandings } from './functions';
 import { RankingService } from '../../services/competitions/ranking.service';
+import { EditionService } from '../../services/competitions/edition.service';
 import { advanceDayIfDone } from '../calendar/calendar.service';
 import App from '../app/App';
 import log from '../../helpers/logger';
@@ -195,6 +196,9 @@ export async function play(
     // Competition fixtures (open play) go to Rankings; the calendar clock,
     // not this match, decides when the day moves on.
     const applied = await RankingService.applyResult(String(match._id));
+    if (applied.status === 'applied' && applied.firstToReachedBy) {
+      await EditionService.finish(applied.seasonId, { firstToWinner: applied.firstToReachedBy });
+    }
     if (applied.status !== 'not-competition') {
       return { homeTable: undefined, awayTable: undefined, allMatchesPlayedThatDay: false };
     }
