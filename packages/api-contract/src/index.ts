@@ -17,6 +17,8 @@ import { gameContract } from './routes/game';
 import { transfersContract } from './routes/transfers';
 import { facilitiesContract } from './routes/facilities';
 import { playContract } from './routes/play';
+import { editionsContract } from './routes/editions';
+import { challengesContract } from './routes/challenges';
 
 const c = initContract();
 
@@ -40,6 +42,8 @@ export const apiContract = c.router({
   transfers: transfersContract,
   facilities: facilitiesContract,
   play: playContract,
+  editions: editionsContract,
+  challenges: challengesContract,
 });
 
 export type { Club } from './schemas/club';
@@ -91,3 +95,15 @@ export type {
   RankingMetric,
   Advance,
 } from './schemas/competition-definition';
+export type {
+  Edition,
+  EditionDetail,
+  EditionListItem,
+  EditionStatus,
+  Entry,
+  Eligibility,
+  RankingTableRow,
+  StageTable,
+  OpponentOption,
+  MatchChallenge,
+} from './schemas/open-play';
