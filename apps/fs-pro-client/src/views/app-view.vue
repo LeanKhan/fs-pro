@@ -139,8 +139,9 @@ const adminNavItems = ref<any[]>([
 
 const logout = async (): Promise<void> => {
   try {
-    const response = await client.users.logoutUser.query({
+    const response = await client.users.logoutUser.mutation({
       params: { id: user.value.userID },
+      body: {},
     });
     console.log('Response => ', response.body);
     if (response.status === 200) {

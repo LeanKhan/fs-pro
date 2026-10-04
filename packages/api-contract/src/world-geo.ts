@@ -26,7 +26,7 @@ export const TOWN_MAX_CLUBS = 6;
 export const FOUNDING_LIMITS = { countries: 1, towns: 3, clubs: 2 } as const;
 
 /** Town terrain; it decides the campus scene of every club founded there. */
-export const TOWN_TERRAINS = ['city', 'coastal', 'hillside'] as const;
+export const TOWN_TERRAINS = ['city', 'coastal', 'hillside', 'woodland', 'alpine'] as const;
 export type TownTerrain = (typeof TOWN_TERRAINS)[number];
 
 export interface AtlasPoint {

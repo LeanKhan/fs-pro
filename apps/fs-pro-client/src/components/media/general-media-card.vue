@@ -56,7 +56,7 @@
             <span>{{ currentChannelInfo.label }}</span>
           </v-btn>
         </template>
-        <v-list density="compact" bg-color="#181926" class="border border-opacity-25 rounded-lg py-1" width="280">
+        <v-list density="compact" bg-color="surface" class="border border-opacity-25 rounded-lg py-1" width="280">
           <v-list-item
             v-for="ch in channelOptions"
             :key="ch.value"
@@ -210,7 +210,7 @@
               </v-icon>
               <v-icon v-else size="26" color="cyan-accent-3">mdi-account-arrow-left</v-icon>
             </v-avatar>
-            <div class="text-caption font-weight-bold text-white mt-1 text-truncate">
+            <div class="text-caption font-weight-bold text-high-emphasis mt-1 text-truncate">
               {{ activeItem.transferDetails?.sellerClubCode || (activeItem.hero.homeCode === 'FA' ? 'FREE AGENT' : activeItem.hero.homeCode) }}
             </div>
           </div>
@@ -228,7 +228,7 @@
             <v-avatar size="48" class="crest-avatar elevation-3">
               <v-icon size="40">custom:{{ activeItem.hero.awayCode }}</v-icon>
             </v-avatar>
-            <div class="text-caption font-weight-bold text-white mt-1 text-truncate">
+            <div class="text-caption font-weight-bold text-high-emphasis mt-1 text-truncate">
               {{ activeItem.transferDetails?.buyerClubCode || activeItem.hero.awayCode }}
             </div>
           </div>
@@ -274,7 +274,7 @@
             <v-avatar size="52" class="crest-avatar elevation-4">
               <v-icon size="44">custom:{{ activeItem.hero.homeCode }}</v-icon>
             </v-avatar>
-            <div class="text-caption font-weight-bold text-white mt-1">
+            <div class="text-caption font-weight-bold text-high-emphasis mt-1">
               {{ activeItem.hero.homeCode }}
             </div>
           </div>
@@ -287,7 +287,7 @@
             <v-avatar size="52" class="crest-avatar elevation-4">
               <v-icon size="44">custom:{{ activeItem.hero.awayCode }}</v-icon>
             </v-avatar>
-            <div class="text-caption font-weight-bold text-white mt-1">
+            <div class="text-caption font-weight-bold text-high-emphasis mt-1">
               {{ activeItem.hero.awayCode }}
             </div>
           </div>
@@ -310,7 +310,7 @@
         <v-icon size="56" color="red-accent-3" class="play-btn-glow mb-1">
           {{ isVideoPlaying ? 'mdi-pause-circle' : 'mdi-play-circle' }}
         </v-icon>
-        <span class="text-caption font-weight-bold text-white z-index-1">
+        <span class="text-caption font-weight-bold text-high-emphasis z-index-1">
           {{ isVideoPlaying ? 'NOW PLAYING STREAM' : 'WATCH HIGHLIGHTS REEL' }}
         </span>
         <div class="d-flex align-center gap-2 mt-2 z-index-1 w-75">
@@ -337,7 +337,7 @@
           <v-chip size="x-small" color="teal-accent-4" variant="flat" class="font-weight-bold mb-1 text-black">
             {{ activeItem.badge }}
           </v-chip>
-          <div class="text-subtitle-2 font-weight-bold text-white">
+          <div class="text-subtitle-2 font-weight-bold text-high-emphasis">
             {{ activeItem.hero.stadiumName || activeItem.hero.caption || 'Field of Play' }}
           </div>
         </div>
@@ -353,7 +353,7 @@
           <v-chip size="x-small" :color="activeItem.badgeColor || 'amber'" class="font-weight-bold mb-1">
             {{ activeItem.badge }}
           </v-chip>
-          <div class="text-caption font-weight-bold text-white">
+          <div class="text-caption font-weight-bold text-high-emphasis">
             {{ activeItem.subtitle || 'Broadcast Feed' }}
           </div>
         </div>
@@ -363,7 +363,7 @@
       <!-- 2. STORY HEADLINE & SUMMARY (Clickable to open story details) -->
       <div class="mb-2 cursor-pointer story-summary-area rounded pa-1" @click="openStory(activeItem)">
         <div class="d-flex align-center justify-space-between mb-1">
-          <h3 class="text-subtitle-1 font-weight-black text-white leading-tight hover-accent">
+          <h3 class="text-subtitle-1 font-weight-black text-high-emphasis leading-tight hover-accent">
             {{ activeItem.title }}
           </h3>
           <v-tooltip text="Click to read full dossier & story" location="top">
@@ -469,14 +469,14 @@
                   <div class="text-caption text-uppercase font-weight-bold text-teal-accent-3 tracking-wider">
                     OFFICIAL TRANSFER DOSSIER
                   </div>
-                  <div class="text-h5 font-weight-black text-white mt-1">
+                  <div class="text-h5 font-weight-black text-high-emphasis mt-1">
                     {{ selectedStory.transferDetails.playerName }}
                   </div>
                   <div class="d-flex align-center gap-2 mt-1 flex-wrap">
                     <v-chip size="x-small" color="primary" variant="flat" class="font-weight-black">
                       {{ selectedStory.transferDetails.position || 'PLAYER' }}
                     </v-chip>
-                    <v-chip size="x-small" color="grey-darken-2" variant="flat" class="font-weight-bold text-white">
+                    <v-chip size="x-small" color="grey-darken-2" variant="flat" class="font-weight-bold text-high-emphasis">
                       AGE {{ selectedStory.transferDetails.age }}
                     </v-chip>
                     <v-chip
@@ -523,7 +523,7 @@
                     </v-icon>
                     <v-icon v-else size="32" color="cyan-accent-3">mdi-account-arrow-left</v-icon>
                   </v-avatar>
-                  <div class="text-subtitle-2 font-weight-black text-white line-height-tight">
+                  <div class="text-subtitle-2 font-weight-black text-high-emphasis line-height-tight">
                     {{ selectedStory.transferDetails.fromOrigin }}
                   </div>
                   <div class="text-caption text-disabled mt-1">
@@ -549,7 +549,7 @@
                       custom:{{ selectedStory.transferDetails.buyerClubCode }}
                     </v-icon>
                   </v-avatar>
-                  <div class="text-subtitle-2 font-weight-black text-white line-height-tight">
+                  <div class="text-subtitle-2 font-weight-black text-high-emphasis line-height-tight">
                     {{ selectedStory.transferDetails.toDestination }}
                   </div>
                   <div class="text-caption text-disabled mt-1">
@@ -564,19 +564,19 @@
               <v-row dense>
                 <v-col cols="6">
                   <div class="text-caption text-disabled font-weight-bold">DEAL TYPE</div>
-                  <div class="text-caption font-weight-bold text-white">
+                  <div class="text-caption font-weight-bold text-high-emphasis">
                     {{ selectedStory.transferDetails.dealType || 'Permanent Transfer' }}
                   </div>
                 </v-col>
                 <v-col cols="6">
                   <div class="text-caption text-disabled font-weight-bold">ESTIMATED ANNUAL WAGE</div>
-                  <div class="text-caption font-weight-bold text-white">
+                  <div class="text-caption font-weight-bold text-high-emphasis">
                     {{ selectedStory.transferDetails.wage ? `$${selectedStory.transferDetails.wage.toLocaleString()} / yr` : 'Undisclosed' }}
                   </div>
                 </v-col>
                 <v-col cols="6">
                   <div class="text-caption text-disabled font-weight-bold">REGISTRATION DATE</div>
-                  <div class="text-caption font-weight-bold text-white">
+                  <div class="text-caption font-weight-bold text-high-emphasis">
                     {{ selectedStory.transferDetails.date || selectedStory.timestamp }}
                   </div>
                 </v-col>
@@ -594,7 +594,7 @@
               <div class="d-flex align-start gap-2">
                 <v-icon size="20" color="amber-accent-3" class="mt-1">mdi-format-quote-open</v-icon>
                 <div>
-                  <p class="text-caption text-white font-italic mb-1 leading-snug">
+                  <p class="text-caption text-high-emphasis font-italic mb-1 leading-snug">
                     "{{ selectedStory.transferDetails.managerQuote }}"
                   </p>
                   <div class="text-caption font-weight-bold text-amber-accent-3">
@@ -619,7 +619,7 @@
           <template v-else>
             <!-- Article Headline & Meta -->
             <div class="mb-4">
-              <h2 class="text-h6 font-weight-black text-white leading-tight mb-2">
+              <h2 class="text-h6 font-weight-black text-high-emphasis leading-tight mb-2">
                 {{ selectedStory.title }}
               </h2>
               <div class="text-caption text-medium-emphasis font-weight-medium">
@@ -632,7 +632,7 @@
               <div class="d-flex align-start gap-2">
                 <v-icon size="20" color="amber-accent-3" class="mt-1">mdi-format-quote-open</v-icon>
                 <div>
-                  <p class="text-caption text-white font-italic mb-1 leading-snug">
+                  <p class="text-caption text-high-emphasis font-italic mb-1 leading-snug">
                     "{{ selectedStory.quote.text }}"
                   </p>
                   <div class="text-caption font-weight-bold text-amber-accent-3">
@@ -655,7 +655,7 @@
                 <v-icon size="14" color="amber-accent-3" class="mt-1 flex-shrink-0">
                   mdi-check-circle-outline
                 </v-icon>
-                <span class="text-caption text-white leading-snug">
+                <span class="text-caption text-high-emphasis leading-snug">
                   {{ pt }}
                 </span>
               </div>
@@ -961,12 +961,12 @@ onUnmounted(() => {
 
 <style scoped>
 .general-media-card {
-  background: #181926 !important;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgb(var(--v-theme-surface)) !important;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
 }
 
 .bg-surface-variant-darker {
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(var(--v-theme-on-surface), 0.05);
 }
 
 .live-pulse-dot {
@@ -1018,7 +1018,7 @@ onUnmounted(() => {
 }
 
 .champion-avatar {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--v-theme-on-surface), 0.08);
   border: 2px solid rgba(255, 215, 0, 0.6);
   box-shadow: 0 0 16px rgba(255, 193, 7, 0.4);
 }
@@ -1088,7 +1088,7 @@ onUnmounted(() => {
 }
 
 .story-summary-area:hover {
-  background-color: rgba(255, 255, 255, 0.04);
+  background-color: rgba(var(--v-theme-on-surface), 0.04);
 }
 
 .story-summary-area:hover .hover-accent {
@@ -1124,8 +1124,8 @@ onUnmounted(() => {
 }
 
 .crest-avatar {
-  background: rgba(255, 255, 255, 0.06);
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: rgba(var(--v-theme-on-surface), 0.06);
+  border: 2px solid rgba(var(--v-theme-on-surface), 0.2);
   transition: transform 0.2s ease;
 }
 
@@ -1166,12 +1166,12 @@ onUnmounted(() => {
 }
 
 .bullet-list-box {
-  background: rgba(255, 255, 255, 0.03) !important;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(var(--v-theme-on-surface), 0.03) !important;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.05);
 }
 
 .text-white-50 {
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(var(--v-theme-on-surface), 0.75);
 }
 
 .leading-tight {
@@ -1184,8 +1184,8 @@ onUnmounted(() => {
 
 /* DIALOG STYLING */
 .story-detail-dialog {
-  background: #181926 !important;
-  color: #fff;
+  background: rgb(var(--v-theme-surface)) !important;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .transfer-player-card {
@@ -1198,7 +1198,7 @@ onUnmounted(() => {
 }
 
 .deal-specs-grid {
-  background: rgba(255, 255, 255, 0.02) !important;
+  background: rgba(var(--v-theme-on-surface), 0.02) !important;
 }
 
 .quote-box {
@@ -1209,5 +1209,10 @@ onUnmounted(() => {
 .scouting-box {
   background: rgba(45, 212, 191, 0.06);
   border-left: 3px solid #2dd4bf !important;
+}
+/* The transfer hero stays a dark 'wire' card in every theme. */
+.transfer-wire-hero .text-high-emphasis,
+.transfer-wire-hero .text-medium-emphasis {
+  color: #fff !important;
 }
 </style>

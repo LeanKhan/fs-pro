@@ -37,6 +37,7 @@
         }"
         :facts="facts"
         :challenge="isMyClub ? (playState?.challenge ?? null) : null"
+        :first-steps="firstSteps"
         :briefing="isMyClub ? managerBriefingMessage : ''"
         :headline="tickerHeadline"
         :builders="builders"
@@ -670,6 +671,25 @@ function onAct(action: string) {
     default: return goManager(action);
   }
 }
+
+// --- First steps for a young club ----------------------------------------------------------------
+const seenWorld = ref(false);
+try {
+  seenWorld.value = localStorage.getItem('fspro_seen_world') === '1';
+} catch {
+  // Private mode: the step just stays open.
+}
+const firstSteps = computed(() => {
+  if (!isMyClub.value || (playState.value?.club.level ?? 0) > 2) return null;
+  const assets = game.campus.value?.assets ?? [];
+  const steps = [
+    { key: 'play', label: 'Play your first match', hint: 'Press PLAY: you meet a club of your level', icon: 'ball', done: (playState.value?.recent.length ?? 0) > 0 },
+    { key: 'build', label: 'Build a facility', hint: 'Stands earn gate money; a pitch helps at home', icon: 'hammer', done: assets.some((a) => a.level > 0 || !!a.upgrade) },
+    { key: 'competitions', label: 'Enter a competition', hint: 'Your national league and the Amateur Cup are open', icon: 'trophy', done: openPlay.entriesUsed > 0 },
+    { key: 'world', label: 'Look around the world', hint: 'Rivals, towns and other managers', icon: 'map', done: seenWorld.value },
+  ];
+  return steps.every((s) => s.done) ? null : steps;
+});
 
 // --- Kept from the previous campus screen ---------------------------------------------------
 const FORMATION_LABELS: Record<string, string> = { '433': '4-3-3', '442': '4-4-2', '4231': '4-2-3-1', '352': '3-5-2' };

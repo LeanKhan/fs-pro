@@ -461,4 +461,14 @@
   background: linear-gradient(rgba(253, 244, 223, 0), var(--cream) 30%);
 }
 .flag.big { width: 60px; height: 40px; }
+
+/* --- First steps checklist (campus quests card) ----------------------------------- */
+.q.step { width: 100%; text-align: left; cursor: pointer; padding: 6px 10px; margin-bottom: 4px; }
+.q.step .q-ic .ic { width: 22px; height: 22px; }
+.q.step.done { padding: 3px 10px; }
+.q.step:hover:not(:disabled) { border-color: var(--green); }
+.q.step.done { cursor: default; }
+.q.step.done .q-title { text-decoration: line-through; color: var(--muted); }
+.q.step .q-title, .q.step .q-num { display: block; }
+.q-count { font-size: 13px; color: var(--muted); font-weight: 600; }
 }

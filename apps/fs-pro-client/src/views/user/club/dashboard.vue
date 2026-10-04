@@ -717,7 +717,8 @@ async function onQuickSim(fixtureId: string) {
   try {
     const res = await client.game.kickoffNew.query({
       params: { fixture: fixtureId },
-      query: { quick_sim: true, simulate_rest: true },
+      // Only admins may also simulate the rest of the day (server route-policy).
+      query: { quick_sim: true, simulate_rest: !!store.user?.isAdmin },
     });
     if (res.status === 200) {
       simSnackbarText.value = 'Matchday simulated successfully! Advanced to the next day.';

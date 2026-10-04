@@ -519,6 +519,11 @@ const onResize = () => Object.assign(viewport, { w: window.innerWidth, h: window
 const insets = computed(() => (viewport.w <= 760 ? { top: 80, bottom: Math.round(viewport.h * 0.45) } : { top: 80, right: 470, bottom: 90 }));
 
 onMounted(() => {
+  try {
+    localStorage.setItem('fspro_seen_world', '1');
+  } catch {
+    // Only the campus checklist uses it.
+  }
   openPlay.start();
   void loadAtlas();
   realtime.on('world:founded', onWorldFounded);

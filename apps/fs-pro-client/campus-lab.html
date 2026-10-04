@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Campus Lab</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #6dbb47; font-family: 'Fredoka', system-ui, sans-serif; }
+      #stage { position: fixed; inset: 0; }
+      #bar { position: fixed; top: 8px; left: 8px; display: flex; flex-wrap: wrap; gap: 4px; max-width: calc(100vw - 16px); z-index: 1; }
+      #bar button { font: inherit; font-size: 12px; border: 0; border-radius: 6px; padding: 4px 8px; background: #fff8e6; color: #4a3220; cursor: pointer; }
+      #bar button.on { background: #4a3220; color: #fff8e6; }
+      body.shot #bar { display: none; }
+    </style>
+  </head>
+  <body>
+    <div id="stage"></div>
+    <div id="bar"></div>
+    <!-- Dev-only scene lab for the cozy campus: every terrain and Tier, with
+         QA hooks (window.__THREE_GAME_TEST_HOOKS__). Not part of the build. -->
+    <script type="module" src="/src/dev/campus-lab.ts"></script>
+  </body>
+</html>

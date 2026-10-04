@@ -1,4 +1,4 @@
-import { desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, isNotNull, sql } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
 import {
   fixtures,
@@ -7,6 +7,9 @@ import {
   players,
   transferLedger,
   competitions,
+  clubs,
+  places,
+  users,
 } from '../../db/drizzle/schema';
 import { editionStandings } from '../competitions/ranking.service';
 import type { WorldFeed, WorldFeedHeadline } from '@repo/api-contract';
@@ -160,6 +163,49 @@ export class WorldFeedService {
         });
       }
     }
+
+    // The world growing: countries, towns and clubs founded lately (newest first).
+    const since = new Date(Date.now() - 14 * 24 * 3600_000);
+    const foundedPlaces = await db
+      .select({ id: places.id, name: places.Name, type: places.Type, at: places.createdAt, by: users.FullName, parent: places.ParentId })
+      .from(places)
+      .innerJoin(users, eq(users.id, places.FoundedBy))
+      .where(and(isNotNull(places.FoundedBy), gt(places.createdAt, since)))
+      .orderBy(desc(places.createdAt))
+      .limit(4);
+    const foundedClubs = await db
+      .select({ id: clubs.id, name: clubs.Name, at: clubs.createdAt, owner: users.FullName, town: places.Name })
+      .from(clubs)
+      .innerJoin(users, eq(users.id, clubs.UserId))
+      .leftJoin(places, eq(places.id, clubs.TownId))
+      .where(and(isNotNull(clubs.Crest), gt(clubs.createdAt, since)))
+      .orderBy(desc(clubs.createdAt))
+      .limit(4);
+    const founding = [
+      ...foundedPlaces.map((p) => ({
+        at: p.at,
+        headline: {
+          id: `hl-found-${p.id}`,
+          category: 'milestone' as const,
+          title: p.type === 'country' ? `NEW NATION: ${p.name} appears on the map` : `NEW TOWN: ${p.name} is founded`,
+          summary: `${p.by} founded ${p.name}${p.type === 'country' ? '. Its first towns and clubs are still to come.' : '. There is room for six clubs.'}`,
+          timestamp: 'World Atlas',
+          tag: 'FOUNDED',
+        },
+      })),
+      ...foundedClubs.map((c) => ({
+        at: c.at,
+        headline: {
+          id: `hl-club-${c.id}`,
+          category: 'milestone' as const,
+          title: `NEW CLUB: ${c.name} kick off in ${c.town ?? 'their town'}`,
+          summary: `${c.owner} is the manager. A dirt pitch, sixteen amateurs and big dreams.`,
+          timestamp: 'World Atlas',
+          tag: 'FOUNDED',
+        },
+      })),
+    ].sort((a, b) => b.at.getTime() - a.at.getTime());
+    headlines.unshift(...founding.slice(0, 4).map((f) => f.headline));
 
     // Headline from transfers
     for (const tr of recentTransfers) {

@@ -4,6 +4,8 @@ import {
   type CampusBuilding, type CampusPlacement, type Placed,
 } from '@repo/api-contract';
 import { stageOf } from '../stages';
+import { dressCampus } from './campus-dressing';
+import { mergeByMaterial } from './merge';
 import { CELL, billboard, buildingModel, bus, car, mat, newsstand, plaza } from './models';
 import { buildTerrain, CITY_PLACES, mulberry32, RING, terrainH, type CityVariant, type Terrain } from './terrain';
 
@@ -32,6 +34,29 @@ const HAIRS = ['#2b1d14', '#5a3a22', '#9b6a3c', '#e2c06b', '#c2522d', '#1a1a1a',
 const CAR_COLORS = ['#e0483e', '#3a6fd8', '#f2b632', '#f5f1e6', '#3aa655', '#2b2b3a', '#8e4fd1'];
 const seedOf = (id: string) => [...id].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619), 2166136261) >>> 0;
 const fanCount = (fans: number) => 2 * (fans < 500 ? 3 : fans < 5000 ? 6 : fans < 25000 ? 10 : 15);
+
+/** A vertical sky gradient, drawn behind the scene. */
+function skyGradient(top: string, horizon: string) {
+  const cv = document.createElement('canvas');
+  cv.width = 2;
+  cv.height = 256;
+  const x = cv.getContext('2d')!;
+  const g = x.createLinearGradient(0, 0, 0, 256);
+  g.addColorStop(0, top);
+  g.addColorStop(0.75, horizon);
+  g.addColorStop(1, horizon);
+  x.fillStyle = g;
+  x.fillRect(0, 0, 2, 256);
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/** Removes an object and frees its geometry (materials are shared and cached). */
+function disposeTree(obj: THREE.Object3D) {
+  obj.removeFromParent();
+  obj.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+}
 
 interface Walker {
   obj: THREE.Group;
@@ -65,6 +90,9 @@ export class World {
   private fans: Walker[] = [];
   private cars: Car[] = [];
   private view: CampusView | null = null;
+  /** Lawn trees, flower beds and benches, rebuilt when the layout changes. */
+  private dressing: THREE.Group | null = null;
+  private dressingKey = '';
   private puffs: Puff[] = [];
   private puffTimer = 0;
   private ghost: THREE.Group | null = null;
@@ -74,6 +102,10 @@ export class World {
   private raycaster = new THREE.Raycaster();
   private clock = new THREE.Clock();
   private selectedId: string | null = null;
+  /** Freezes simulation (people, traffic, smoke) while rendering continues. */
+  paused = false;
+  /** Renderer counts from the last frame, for diagnostics. */
+  stats = { calls: 0, triangles: 0, geometries: 0, textures: 0 };
   onTap: (pick: Pick, ground: THREE.Vector3 | null) => void = () => {};
   onHover: (ground: THREE.Vector3 | null) => void = () => {};
 
@@ -87,8 +119,6 @@ export class World {
     container.appendChild(this.renderer.domElement);
 
     this.camera = new THREE.PerspectiveCamera(32, 1, 1, 400);
-    this.scene.background = new THREE.Color('#9fd3f0');
-    this.scene.fog = new THREE.Fog('#a9d8ef', 120, 230);
 
     this.scene.add(new THREE.HemisphereLight('#e4f2ff', '#5d7d3c', 1.6));
     const sun = new THREE.DirectionalLight('#fff0d6', 2.6);
@@ -102,11 +132,14 @@ export class World {
     this.scene.add(sun);
 
     this.terrain = buildTerrain(variant);
-    this.scene.add(this.terrain.group, plaza());
+    const { sky, fog } = this.terrain.biome;
+    this.scene.background = skyGradient(sky[0], sky[1]);
+    this.scene.fog = new THREE.Fog(sky[1], fog[0], fog[1]);
+    this.scene.add(this.terrain.group, mergeByMaterial(plaza()));
 
     // World places in the city (see CITY_PLACES).
     this.board = billboard();
-    for (const [id, obj] of [['newsstand', newsstand()], ['billboard', this.board.group]] as const) {
+    for (const [id, obj] of [['newsstand', mergeByMaterial(newsstand())], ['billboard', this.board.group]] as const) {
       const at = CITY_PLACES[id];
       obj.position.set(at.x, terrainH(at.x, at.z, variant), at.z);
       obj.userData.pick = { kind: 'place', id };
@@ -137,6 +170,7 @@ export class World {
   dispose() {
     window.removeEventListener('resize', this.resize);
     this.renderer.dispose();
+    this.renderer.forceContextLoss();
     this.renderer.domElement.remove();
   }
 
@@ -261,6 +295,10 @@ export class World {
     this.target.set(x, 0, z);
   }
 
+  zoom(dist: number) {
+    this.dist = dist;
+  }
+
   // --- Sync with fs-pro data ----------------------------------------------------------------
   sync(view: CampusView) {
     this.view = view;
@@ -271,8 +309,8 @@ export class World {
       const sig = `${stageOf(key, ctx)}|${ctx.standsTier}|${t.upgrading}|${p.x},${p.z},${p.rot}|${view.colors.join()}`;
       const cur = this.buildingObjs.get(key);
       if (cur?.key === sig) continue;
-      if (cur) this.scene.remove(cur.obj);
-      const obj = buildingModel(key, ctx, t.upgrading, view.colors);
+      if (cur) disposeTree(cur.obj);
+      const obj = buildingModel(key, ctx, t.upgrading, view.colors, this.terrain.biome.campus);
       const c = footprintCenter(key, p);
       obj.position.set(c.x, 0, c.z);
       obj.rotation.y = -p.rot * (Math.PI / 2);
@@ -281,6 +319,14 @@ export class World {
       if (cur) obj.userData.pop = 0.35;
       this.scene.add(obj);
       this.buildingObjs.set(key, { obj, key: sig });
+    }
+    const layout = JSON.stringify(view.placement);
+    if (layout !== this.dressingKey) {
+      this.dressing?.removeFromParent();
+      this.dressing?.traverse((o) => (o as THREE.InstancedMesh).isInstancedMesh && (o as THREE.InstancedMesh).dispose());
+      this.dressing = dressCampus(this.variant, view.placement);
+      this.dressingKey = layout;
+      this.scene.add(this.dressing);
     }
     this.syncPeople(view);
     this.select(this.selectedId);
@@ -363,7 +409,7 @@ export class World {
     const sig = `${key}|${p.rot}`;
     if (sig !== this.ghostKey) {
       if (this.ghost) this.scene.remove(this.ghost);
-      this.ghost = buildingModel(key, this.stageContext(key), false, this.view?.colors ?? ['#fff', '#fff']);
+      this.ghost = buildingModel(key, this.stageContext(key), false, this.view?.colors ?? ['#fff', '#fff'], this.terrain.biome.campus);
       this.ghost.rotation.y = -p.rot * (Math.PI / 2);
       this.ghost.traverse((o) => {
         if ((o as THREE.Mesh).isMesh) {
@@ -404,10 +450,11 @@ export class World {
     const legs: THREE.Object3D[] = [];
     for (const sx of [-1, 1]) {
       const pivot = new THREE.Group();
+      pivot.name = 'leg';
       pivot.position.set(sx * 0.13, 0.5, 0);
       const leg = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.5, 0.16), mat(shorts));
       leg.position.y = -0.25;
-      leg.castShadow = true;
+      leg.castShadow = false;
       pivot.add(leg);
       g.add(pivot);
       legs.push(pivot);
@@ -419,6 +466,7 @@ export class World {
     const cap = part(new THREE.SphereGeometry(0.255, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), hair, 0, 1.4, -0.02);
     cap.rotation.x = -0.25;
     g.scale.setScalar(1.5);
+    mergeByMaterial(g);
     return { g, legs };
   }
 
@@ -527,7 +575,7 @@ export class World {
     }
     loops.forEach((path, i) => {
       for (let k = 0; k < (i < 2 ? 4 : 2); k++) {
-        const obj = car(CAR_COLORS[(i * 3 + k) % CAR_COLORS.length]);
+        const obj = mergeByMaterial(car(CAR_COLORS[(i * 3 + k) % CAR_COLORS.length]!));
         this.scene.add(obj);
         this.cars.push({ obj, path, t: k * 40 + i * 13, speed: 5 + ((i + k) % 3) });
       }
@@ -571,7 +619,7 @@ export class World {
   private runBus(colors: [string, string], path: THREE.Vector3[], keep: boolean) {
     return new Promise<void>((resolve) => {
       if (this.busRun) this.scene.remove(this.busRun.obj);
-      const obj = bus(colors);
+      const obj = mergeByMaterial(bus(colors));
       this.scene.add(obj);
       this.follow = obj;
       this.busRun = {
@@ -597,12 +645,14 @@ export class World {
 
   // --- Frame ----------------------------------------------------------------------------
   render() {
-    const dt = Math.min(0.05, this.clock.getDelta());
+    const delta = Math.min(0.05, this.clock.getDelta());
+    const dt = this.paused ? 0 : delta;
     const t = this.clock.elapsedTime;
     if (this.follow) this.target.lerp(new THREE.Vector3(this.follow.position.x, 0, this.follow.position.z - 4), Math.min(1, dt * 3));
     this.updateCamera();
 
     this.terrain.water.offset.y -= dt * 0.35;
+    for (const s of this.terrain.spinners) s.obj.rotation[s.axis] += s.speed * dt;
 
     for (const { obj } of this.buildingObjs.values()) {
       if (obj.userData.pop > 0) {
@@ -661,6 +711,8 @@ export class World {
     }
 
     this.renderer.render(this.scene, this.camera);
+    const { render, memory } = this.renderer.info;
+    this.stats = { calls: render.calls, triangles: render.triangles, geometries: memory.geometries, textures: memory.textures };
   }
 
   private puffMat = new THREE.MeshStandardMaterial({ color: '#f2f2f2', transparent: true, opacity: 0.8, flatShading: true, depthWrite: false });
