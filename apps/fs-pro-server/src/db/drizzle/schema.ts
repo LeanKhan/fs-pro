@@ -186,6 +186,9 @@ export const clubs = pgTable('Clubs', {
     .notNull()
     .default('city')
     .$defaultFn(() => CAMPUS_LAYOUTS[Math.floor(Math.random() * CAMPUS_LAYOUTS.length)]!),
+  /** Where the owner put each campus building (packages/api-contract
+   * campus-grid.ts); null = the default layout. */
+  CampusPlacement: jsonb('CampusPlacement').$type<Record<string, { x: number; z: number; rot: number }> | null>(),
   ...timestamps,
   // Players dropped - it's the exact inverse of players.Club below.
 });

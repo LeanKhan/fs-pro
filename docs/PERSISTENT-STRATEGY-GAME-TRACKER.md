@@ -91,6 +91,17 @@ Research (background Explore agents + direct reads) found two integrity problems
 - [ ] Heads-up: with the dev server running, the tick really changes the dev DB every 10 minutes. Set `WORLD_TICK_MINUTES=0` to freeze the world for a test. An earlier restore in this pass did not apply and nobody noticed until the data looked wrong: after a restore, always check counts, not just the error count
 - [ ] Not done: the deep AI debts (Binatone -143M against a 117M/yr wage bill) will take a long time to clear through one sale per tick; there's no AI wage renegotiation or release. AI clubs' youth/retirement still only happen at a season cycle end. No inbox or press coverage of AI club activity beyond the existing ledger-driven transfer news
 
+## Cozy campus (2026-10-03)
+The campus (`/game/:clubId`) is now a Three.js city scene with a cozy cream/wood HUD, ported from the `C:\done\cozy-fc` prototype. The image campus is gone.
+- [x] Free placement: `packages/api-contract/src/campus-grid.ts` holds the grid, footprints, `DEFAULT_PLACEMENT` and `validatePlacement`, which client and server share. Migration 0032 adds `Clubs.CampusPlacement` (jsonb, null = default layout). `getCampus` returns `placement`; `PUT /facilities/:clubId/placement` is owner/admin only and validates the whole layout
+- [x] Client: `components/cozy/` (scene: city terrain per `CampusLayout` variant, procedural facility models per Tier, players near the pitch, fans in club colours scaled by `standing.fans`, cars, team bus; HUD, facility panel, build menu, Move mode, matchmaking, 2D match playback from `highlights`, rewards). Kit colours come from each club's crest SVG
+- [x] Visiting another club's grounds shows their layout, read-only. A home PLAY plays the visitors' bus arriving; an away challenge on its day offers "Travel", which plays the departure and then opens the host's grounds with your bus arriving
+- [x] Bug fix (pre-existing): match highlights compared `playerTeamID` (a club code) with the club id, so real goals came back as the opponent's and padding goals were added on top. Now compared with `ClubCode`
+- [x] Removed: `campus-scene`, `campus-plots`, `campus-decor`, `campus-fans`, the dark HUD cards only the campus used, the old matchmaking/battle/rewards modals and `public/world/campus` (4.7 MB). `/world` keeps `world-scene`, `club-top-hud` and `bottom-dock-nav`
+- [x] Verification: contract build, server `tsc`, client `vite build`, `vue-tsc` (no errors in touched files; 36 pre-existing elsewhere). Dev DB snapshotted; placement handler checks (no session 401, non-owner 403, overlap/off-grid 400, owner 200, round trip). Headless Chrome with a temporary test session (deleted afterwards): campus, panel, build menu, Move + save, visit + bus arrival, PLAY → bus → match → rewards, phone width. Restored the snapshot and re-applied 0032, then count-checked (44 clubs / 195 assets / 2,644 fixtures, every placement null)
+- [ ] NOT covered: the away "Travel" button with a real away challenge on its day (no such fixture in dev data; the departure uses the same bus code reversed); touch gestures on a real phone. The Medical Centre's treatment room still opens the old dark `facility-detail-sheet`
+- [ ] Headless browsers render slowly, and the scene's per-frame step is capped, so animations crawl there; real browsers are fine
+
 ## Next (after MVP)
 - [x] Away summary + notifications inbox
 - [x] Facility effects that change play: Training Ground, Youth Academy, Stadium Grounds and Staff House all now affect real outcomes (see "Core loop integrity fixes" below); new facilities (media/PR, commercial office) still not started
@@ -154,6 +165,7 @@ Decisions: flexible config-driven tiers (start: 5 tiers, pod 20, fan-out 2, U=2 
 - [ ] Regional pods via `homePlaceId` (later)
 
 ## Log
+- 2026-10-03: Cozy campus: 3D city campus with free placement, visiting, bus travel animations and the cozy HUD (section above).
 - 2026-09-23: AI world tick: AI clubs play each other, invest and trade in real time (section above).
 - 2026-09-23: World that reacts, phases 1-3 implemented and verified (section above), plus `GAME_TIME_SCALE`. Next priority: AI clubs changing on their own.
 - 2026-09-23: Direction settled as single-player first, in a shared world: the AI world stands on its own, humans are just extra clubs in the async matchmaking pool whenever they arrive, and multiplayer-only features are parked. Recorded at the top of GAME-PHILOSOPHY.md.

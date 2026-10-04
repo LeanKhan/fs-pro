@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { successEnvelope, failEnvelope } from '../schemas/envelope';
 import {
   CampusSchema,
+  PlacementSchema,
   MedicalStatusSchema,
   PlayerTreatmentRequestSchema,
   PlayerTreatmentResponseSchema,
@@ -35,6 +36,22 @@ export const facilitiesContract = c.router(
       path: '/:clubId/upgrade',
       pathParams: z.object({ clubId: z.string() }),
       body: z.object({ assetType: z.string() }),
+      responses: {
+        200: successEnvelope(CampusSchema),
+        400: failEnvelope(),
+        401: failEnvelope(),
+        403: failEnvelope(),
+        404: failEnvelope(),
+      },
+    },
+
+    /** Move campus buildings: the whole layout at once, validated against the
+     * shared grid (campus-grid.ts). Owner or admin only. */
+    savePlacement: {
+      method: 'PUT',
+      path: '/:clubId/placement',
+      pathParams: z.object({ clubId: z.string() }),
+      body: z.object({ placement: PlacementSchema }),
       responses: {
         200: successEnvelope(CampusSchema),
         400: failEnvelope(),
