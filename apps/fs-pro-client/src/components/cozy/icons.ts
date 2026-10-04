@@ -18,6 +18,9 @@ export const ICONS: Record<string, string> = {
   rotate: svg('<path d="M24 12a9 9 0 10.5 7" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M25 5v7h-7" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'),
   move: svg('<path d="M16 4v24M4 16h24M16 4l-4 4M16 4l4 4M16 28l-4-4M16 28l4-4M4 16l4-4M4 16l4 4M28 16l-4-4M28 16l-4 4" stroke="currentColor" stroke-width="2.6" fill="none" stroke-linecap="round"/>'),
   up: svg('<path d="M16 5l9 10h-5v11h-8V15H7z" fill="#5cc23a" stroke="#2f8a1c" stroke-width="2" stroke-linejoin="round"/>'),
+  alert: svg('<circle cx="16" cy="16" r="13" fill="#e5402f" stroke="#9a2216" stroke-width="2"/><path d="M16 8v10" stroke="#fff" stroke-width="4" stroke-linecap="round"/><circle cx="16" cy="23.5" r="2.3" fill="#fff"/>'),
+  cross: svg('<rect x="4" y="4" width="24" height="24" rx="6" fill="#fff" stroke="#e5402f" stroke-width="2.5"/><path d="M16 9v14M9 16h14" stroke="#e5402f" stroke-width="5" stroke-linecap="round"/>'),
+  news: svg('<rect x="4" y="6" width="22" height="20" rx="2" fill="#fffaf0" stroke="#5d6470" stroke-width="2"/><path d="M26 11h2v13a2 2 0 01-4 0" fill="none" stroke="#5d6470" stroke-width="2"/><rect x="8" y="10" width="7" height="6" fill="#3a8ee0"/><path d="M18 11h5M18 15h5M8 20h15M8 23h11" stroke="#5d6470" stroke-width="1.8" stroke-linecap="round"/>'),
   bolt: svg('<path d="M18 3L7 18h8l-2 11 12-16h-8z" fill="#f6d02f" stroke="#b98d0f" stroke-width="2" stroke-linejoin="round"/>'),
 };
 

@@ -450,7 +450,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { useQuery, useQueryClient } from '@tanstack/vue-query';
+import { useQuery } from '@tanstack/vue-query';
+import { useClubRefresh } from '@/composables/use-club-refresh';
 import { useStore } from '@/store';
 
 import {
@@ -478,7 +479,6 @@ defineOptions({
 
 const route = useRoute();
 const store = useStore();
-const queryClient = useQueryClient();
 
 const tab = ref(route.query.tab !== undefined ? Number(route.query.tab) : 0);
 const selectedDayIndex = ref(0);
@@ -669,18 +669,9 @@ function selectDay(index: number) {
   selectedMatchId.value = null;
 }
 
+const refreshClub = useClubRefresh();
 async function refresh() {
-  if (!club.value?._id) {
-    return;
-  }
-
-  await Promise.all([
-    store.setCalendar(),
-    queryClient.invalidateQueries({ queryKey: ['club', clubId.value] }),
-    queryClient.invalidateQueries({ queryKey: ['club-league'] }),
-    queryClient.invalidateQueries({ queryKey: ['club-entries'] }),
-    queryClient.invalidateQueries({ queryKey: ['club-fixtures'] }),
-  ]);
+  if (club.value?._id) await refreshClub(clubId.value);
 }
 
 watch(

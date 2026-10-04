@@ -25,6 +25,26 @@ const vuetify = createVuetify({
           anchor: '#340f78',
         },
       },
+      // The campus palette (components/cozy/cozy.scss), for dashboard screens
+      // opened over the campus.
+      cozy: {
+        dark: false,
+        colors: {
+          background: '#fdf4df',
+          surface: '#fffaf0',
+          'on-surface': '#4a3220',
+          'surface-variant': '#f6e7c4',
+          'on-surface-variant': '#4a3220',
+          'on-background': '#4a3220',
+          primary: '#3fa526',
+          secondary: '#8a5a3b',
+          accent: '#f2b632',
+          error: '#e5402f',
+          warning: '#f2b632',
+          info: '#3a8ee0',
+          success: '#3fa526',
+        },
+      },
     },
   },
   icons: {

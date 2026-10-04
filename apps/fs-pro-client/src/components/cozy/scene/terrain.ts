@@ -13,6 +13,12 @@ const FAR = 100;
 /** The seafront in the coastal variant: sea east of this x. */
 const SEA_X = 54;
 
+/** World places in the city: the newsstand (world news) by the south gate and
+ * the billboard (transfer highlights) on the south avenue. */
+export const CITY_PLACES = { newsstand: { x: 6, z: 31.4 }, billboard: { x: 9, z: 40 } } as const;
+const nearPlace = (x: number, z: number, r: number) =>
+  Object.values(CITY_PLACES).some((p) => Math.hypot(x - p.x, z - p.z) < r);
+
 export const riverX = (z: number) => -48 + 2.5 * Math.sin(z * 0.09 + 1);
 
 export function mulberry32(seed: number) {
@@ -219,6 +225,7 @@ function city(variant: CityVariant, roads: Seg[]) {
     (Math.abs(x) < RING.x + WALK + margin && Math.abs(z) < RING.z + WALK + margin) ||
     minDist(x, z, roads) < WALK + margin ||
     Math.abs(x - riverX(z)) < 3.6 + margin ||
+    nearPlace(x, z, 4 + margin) ||
     (variant === 'coastal' && x > SEA_X - 3 - margin);
 
   // Lots on a loose grid: mostly buildings, some little parks.
@@ -250,7 +257,7 @@ function city(variant: CityVariant, roads: Seg[]) {
         const x = ax + ((bx - ax) * t) / len + nx * side * (WALK + 0.8);
         const z = az + ((bz - az) * t) / len + nz * side * (WALK + 0.8);
         if (Math.abs(x) < RING.x && Math.abs(z) < RING.z) continue; // inside the campus
-        if (minDist(x, z, roads) < WALK || Math.abs(x - riverX(z)) < 4 || (variant === 'coastal' && x > SEA_X - 3)) continue;
+        if (minDist(x, z, roads) < WALK || Math.abs(x - riverX(z)) < 4 || nearPlace(x, z, 4) || (variant === 'coastal' && x > SEA_X - 3)) continue;
         tree(x, z, 0.7 + r() * 0.3);
       }
     }
