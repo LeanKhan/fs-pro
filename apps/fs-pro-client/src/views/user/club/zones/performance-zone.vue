@@ -78,6 +78,7 @@
       <!-- Jev Tactical Advisor Card -->
       <v-card
         v-if="data.advisorSummary"
+        theme="dark"
         class="mb-4 jev-advisor-card rounded-lg elevation-4 border overflow-hidden"
         :class="data.advisorSummary.crisisLevel === 'crisis' ? 'border-error' : 'border-amber'"
       >

@@ -3,18 +3,21 @@ import {
   CAMPUS_BUILDING_KEYS, footprint,
   type CampusBuilding, type CampusPlacement, type Placed,
 } from '@repo/api-contract';
-import { CELL, buildingModel, bus, car, mat, plaza } from './models';
-import { buildTerrain, mulberry32, RING, terrainH, type CityVariant, type Terrain } from './terrain';
+import { stageOf } from '../stages';
+import { CELL, billboard, buildingModel, bus, car, mat, newsstand, plaza } from './models';
+import { buildTerrain, CITY_PLACES, mulberry32, RING, terrainH, type CityVariant, type Terrain } from './terrain';
 
-export type Pick = { kind: 'building' | 'player'; id: string } | null;
+export type Pick = { kind: 'building' | 'player' | 'place'; id: string } | null;
 
 export interface CampusView {
   /** Facility Tiers by asset type, and whether each is upgrading. */
   tiers: Record<string, { tier: number; upgrading: boolean }>;
   placement: CampusPlacement;
-  players: { id: string; name: string }[];
+  players: { id: string; name: string; injured: boolean }[];
   fans: number;
   matchDay: boolean;
+  /** Drives the Office's stage (stages.ts). */
+  clubLevel: number;
   colors: [string, string];
 }
 
@@ -38,6 +41,8 @@ interface Walker {
   speed: number;
   phase: number;
   id: string;
+  /** Injured players wait around the Medical Centre instead of the pitch. */
+  injured?: boolean;
 }
 
 interface Puff { mesh: THREE.Mesh; life: number; vx: number; vz: number }
@@ -49,6 +54,11 @@ export class World {
   camera: THREE.PerspectiveCamera;
   private target = new THREE.Vector3(3, 0, 0);
   private dist = 62;
+  private places = new Map<string, THREE.Group>();
+  private board: ReturnType<typeof billboard>;
+  private boardLines: string[] = [];
+  private boardIndex = -1;
+  private boardTimer = 0;
   private terrain: Terrain;
   private buildingObjs = new Map<string, { obj: THREE.Group; key: string }>();
   private walkers = new Map<string, Walker>();
@@ -93,6 +103,17 @@ export class World {
 
     this.terrain = buildTerrain(variant);
     this.scene.add(this.terrain.group, plaza());
+
+    // World places in the city (see CITY_PLACES).
+    this.board = billboard();
+    for (const [id, obj] of [['newsstand', newsstand()], ['billboard', this.board.group]] as const) {
+      const at = CITY_PLACES[id];
+      obj.position.set(at.x, terrainH(at.x, at.z, variant), at.z);
+      obj.userData.pick = { kind: 'place', id };
+      this.scene.add(obj);
+      this.places.set(id, obj);
+    }
+    this.setBillboard([]);
 
     const plateMat = new THREE.MeshBasicMaterial({ color: '#5ee06a', transparent: true, opacity: 0.45, depthWrite: false });
     this.plate = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), plateMat);
@@ -220,6 +241,7 @@ export class World {
     const objs = [
       ...[...this.walkers.values()].map((w) => w.obj),
       ...[...this.buildingObjs.values()].map((b) => b.obj),
+      ...this.places.values(),
     ];
     for (const hit of this.raycaster.intersectObjects(objs, true)) {
       let o: THREE.Object3D | null = hit.object;
@@ -245,11 +267,12 @@ export class World {
     for (const key of CAMPUS_BUILDING_KEYS) {
       const p = view.placement[key];
       const t = view.tiers[key] ?? { tier: 1, upgrading: false };
-      const sig = `${t.tier}|${t.upgrading}|${p.x},${p.z},${p.rot}|${view.colors.join()}`;
+      const ctx = this.stageContext(key);
+      const sig = `${stageOf(key, ctx)}|${ctx.standsTier}|${t.upgrading}|${p.x},${p.z},${p.rot}|${view.colors.join()}`;
       const cur = this.buildingObjs.get(key);
       if (cur?.key === sig) continue;
       if (cur) this.scene.remove(cur.obj);
-      const obj = buildingModel(key, t.tier, t.upgrading, view.colors);
+      const obj = buildingModel(key, ctx, t.upgrading, view.colors);
       const c = footprintCenter(key, p);
       obj.position.set(c.x, 0, c.z);
       obj.rotation.y = -p.rot * (Math.PI / 2);
@@ -263,12 +286,55 @@ export class World {
     this.select(this.selectedId);
   }
 
+  /** What a building's stage depends on (stages.ts), from the current view. */
+  private stageContext(key: CampusBuilding) {
+    const tier = (k: string) => this.view?.tiers[k]?.tier ?? 0;
+    return { tier: tier(key), clubLevel: this.view?.clubLevel ?? 0, staffTier: tier('staff_house'), standsTier: tier('stands') };
+  }
+
   /** World position above a building, for HTML bubbles. */
   anchor(id: string): THREE.Vector3 | null {
-    const b = this.buildingObjs.get(id);
-    if (!b) return null;
-    const box = new THREE.Box3().setFromObject(b.obj);
-    return new THREE.Vector3(b.obj.position.x, box.max.y + 1.2, b.obj.position.z);
+    const obj = this.buildingObjs.get(id)?.obj ?? this.places.get(id);
+    if (!obj) return null;
+    const box = new THREE.Box3().setFromObject(obj);
+    return new THREE.Vector3(obj.position.x, box.max.y + 1.2, obj.position.z);
+  }
+
+  /** Headlines for the billboard; it shows one at a time and rotates. */
+  setBillboard(lines: string[]) {
+    this.boardLines = lines;
+    this.boardIndex = -1;
+    this.boardTimer = 0;
+  }
+
+  private drawBoard() {
+    const { canvas, texture } = this.board;
+    const x = canvas.getContext('2d')!;
+    const lines = this.boardLines.length ? this.boardLines : ['Transfer window news appears here'];
+    this.boardIndex = (this.boardIndex + 1) % lines.length;
+    x.fillStyle = '#fff8e6';
+    x.fillRect(0, 0, canvas.width, canvas.height);
+    x.fillStyle = '#d9483b';
+    x.fillRect(0, 0, canvas.width, 50);
+    x.fillStyle = '#fff';
+    x.font = 'bold 30px Fredoka, sans-serif';
+    x.fillText('TRANSFER NEWS', 18, 36);
+    x.fillStyle = '#4a3220';
+    x.font = 'bold 34px Fredoka, sans-serif';
+    // Word-wrap the headline into at most four lines.
+    const words = lines[this.boardIndex].split(' ');
+    let row = '', y = 98;
+    for (const w of words) {
+      if (x.measureText(`${row}${w} `).width > canvas.width - 36 && row) {
+        x.fillText(row, 18, y);
+        row = '';
+        y += 42;
+        if (y > 230) break;
+      }
+      row += `${w} `;
+    }
+    if (y <= 230) x.fillText(row, 18, y);
+    texture.needsUpdate = true;
   }
 
   select(key: string | null) {
@@ -297,8 +363,7 @@ export class World {
     const sig = `${key}|${p.rot}`;
     if (sig !== this.ghostKey) {
       if (this.ghost) this.scene.remove(this.ghost);
-      const t = this.view?.tiers[key] ?? { tier: 1, upgrading: false };
-      this.ghost = buildingModel(key, t.tier, false, this.view?.colors ?? ['#fff', '#fff']);
+      this.ghost = buildingModel(key, this.stageContext(key), false, this.view?.colors ?? ['#fff', '#fff']);
       this.ghost.rotation.y = -p.rot * (Math.PI / 2);
       this.ghost.traverse((o) => {
         if ((o as THREE.Mesh).isMesh) {
@@ -362,14 +427,18 @@ export class World {
     const ids = new Set(view.players.map((p) => p.id));
     for (const [id, w] of this.walkers) if (!ids.has(id)) { this.scene.remove(w.obj); this.walkers.delete(id); }
     for (const p of view.players) {
-      if (this.walkers.has(p.id)) continue;
+      const existing = this.walkers.get(p.id);
+      if (existing) {
+        existing.injured = p.injured;
+        continue;
+      }
       const r = mulberry32(seedOf(p.id));
       const { g, legs } = this.person(SKINS[Math.floor(r() * SKINS.length)], HAIRS[Math.floor(r() * HAIRS.length)], view.colors[0], view.colors[1]);
       g.userData.pick = { kind: 'player', id: p.id };
-      const start = this.playerPoint() ?? new THREE.Vector3();
+      const start = this.playerPoint(p.injured) ?? new THREE.Vector3();
       g.position.copy(start);
       this.scene.add(g);
-      this.walkers.set(p.id, { obj: g, legs, target: start.clone(), wait: Math.random() * 3, speed: 1.6 + Math.random() * 0.8, phase: Math.random() * 6, id: p.id });
+      this.walkers.set(p.id, { obj: g, legs, target: start.clone(), wait: Math.random() * 3, speed: 1.6 + Math.random() * 0.8, phase: Math.random() * 6, id: p.id, injured: p.injured });
     }
     // Fans: townsfolk in club colours on the sidewalks and plaza.
     const want = Math.round(fanCount(view.fans) * (view.matchDay ? 1.8 : 1));
@@ -384,10 +453,10 @@ export class World {
     }
   }
 
-  /** Somewhere on or around the pitch, training ground or dugout. */
-  private playerPoint(): THREE.Vector3 | null {
+  /** Around the pitch, training ground or dugout; around the Medical Centre if injured. */
+  private playerPoint(injured = false): THREE.Vector3 | null {
     if (!this.view) return null;
-    const keys: CampusBuilding[] = ['stadium_grounds', 'stadium_grounds', 'training_ground', 'dugout'];
+    const keys: CampusBuilding[] = injured ? ['medical_centre'] : ['stadium_grounds', 'stadium_grounds', 'training_ground', 'dugout'];
     const key = keys[Math.floor(Math.random() * keys.length)];
     const p = this.view.placement[key];
     const [w, d] = footprint(key, p.rot);
@@ -413,7 +482,7 @@ export class World {
     return new THREE.Vector3(-sx, 0, sz - (t - 4 * sx - 2 * sz));
   }
 
-  private stepWalker(w: Walker, dt: number, area: () => THREE.Vector3 | null) {
+  private stepWalker(w: Walker, dt: number, area: () => THREE.Vector3 | null, maxDist = Infinity) {
     const pos = w.obj.position;
     if (w.wait > 0) {
       w.wait -= dt;
@@ -427,7 +496,7 @@ export class World {
       w.wait = 1 + Math.random() * 4;
       for (let i = 0; i < 12; i++) {
         const p = area();
-        if (p && p.distanceTo(pos) < 16) {
+        if (p && p.distanceTo(pos) < maxDist) {
           w.target.copy(p);
           break;
         }
@@ -570,8 +639,14 @@ export class World {
       }
     }
 
-    for (const w of this.walkers.values()) this.stepWalker(w, dt, () => this.playerPoint());
-    for (const f of this.fans) this.stepWalker(f, dt, () => this.fanPoint());
+    for (const w of this.walkers.values()) this.stepWalker(w, dt, () => this.playerPoint(w.injured));
+    this.boardTimer -= dt;
+    if (this.boardTimer <= 0) {
+      this.boardTimer = 6;
+      this.drawBoard();
+    }
+    // Fans stroll: short hops along the sidewalk rather than across the map.
+    for (const f of this.fans) this.stepWalker(f, dt, () => this.fanPoint(), 16);
     for (const c of this.cars) {
       c.t += c.speed * dt;
       this.moveAlong(c.obj, c.path, c.t, true);

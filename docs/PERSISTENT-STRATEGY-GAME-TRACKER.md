@@ -101,6 +101,18 @@ The campus (`/game/:clubId`) is now a Three.js city scene with a cozy cream/wood
 - [x] Verification: contract build, server `tsc`, client `vite build`, `vue-tsc` (no errors in touched files; 36 pre-existing elsewhere). Dev DB snapshotted; placement handler checks (no session 401, non-owner 403, overlap/off-grid 400, owner 200, round trip). Headless Chrome with a temporary test session (deleted afterwards): campus, panel, build menu, Move + save, visit + bus arrival, PLAY → bus → match → rewards, phone width. Restored the snapshot and re-applied 0032, then count-checked (44 clubs / 195 assets / 2,644 fixtures, every placement null)
 - [ ] NOT covered: the away "Travel" button with a real away challenge on its day (no such fixture in dev data; the departure uses the same bus code reversed); touch gestures on a real phone. The Medical Centre's treatment room still opens the old dark `facility-detail-sheet`
 - [ ] Headless browsers render slowly, and the scene's per-frame step is capped, so animations crawl there; real browsers are fine
+- [x] **Building stages (2026-10-04):** every campus building now changes type as it grows, with names in `components/cozy/stages.ts`. They show on the quick card ("Next: Large Stadium") and in the build menu.
+  - Facilities have one stage per Tier: Pitch (Dirt Pitch → Grass → Floodlit → Community → Large → Mega Stadium), Training, Academy, Medical, Scouting and Staff House.
+  - The stadium's seating follows the Stands Tier; the Stands building itself became a ticket office / fan zone (Ticket Booth → … → Fan Plaza).
+  - The Office follows Club Level (Portakabin 0-2, Clubhouse 3-5, Club Offices 6-9, HQ Tower 10+); the Dugout follows the Staff House Tier (Bench, Dugout, Technical Area).
+  - Checked with a render of every stage and on the live campus (read-only)
+- [x] **Campus as hub, dashboard as depth (2026-10-04):**
+  - The dashboard zones open over the campus in a cream drawer (`cozy-drawer.vue`), rendered with a scoped light Vuetify theme `cozy` (`main.ts`). Tapping a building shows its quick card with an "Open …" button: Dugout → Team Sheet, Training Ground → Squad, Scouting → Transfers, Office → Director's Box / Analysis / Manager. Visitors only get the read-only screens. The HUD's Squad and Team Sheet buttons open the drawers instead of leaving the campus.
+  - Alert badges: the Dugout for lineup issues, the Medical Centre for the injured count, Scouting for offers awaiting you (`getOffers`).
+  - The city as the world: a newsstand (world feed) and a billboard (transfer headlines plus window state) as tappable places outside the ring road, and a rotating headline chip in the date strip.
+  - Injured players wait at the Medical Centre.
+  - The zones' refresh now lives in `composables/use-club-refresh.ts`, which `dashboard.vue` also uses. Two dark leftovers were fixed through the theme: `surface-variant` for the Director's Box cards, and the advisor card pinned to `theme="dark"`.
+  - Verified in headless Chrome, read-only (no DB writes apart from a temporary session, since deleted). Not exercised: editing the lineup inside the drawer (to keep the dev DB untouched); the scouting badge with real pending offers (dev data had none awaiting the club)
 
 ## Next (after MVP)
 - [x] Away summary + notifications inbox

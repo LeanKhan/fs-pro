@@ -12,6 +12,16 @@
       <div class="b-prog"><div :style="{ width: `${b.progress}%` }"></div></div>
       <span class="b-time">{{ b.time }}</span>
     </button>
+    <button
+      v-for="a in alertBubbles"
+      :key="`alert-${a.key}`"
+      class="bubble alert"
+      :title="a.label"
+      :style="{ transform: `translate(${a.x}px, ${a.y}px) translate(-50%, -100%)`, display: a.visible ? '' : 'none' }"
+      @click="emit('alert', a.key)"
+    >
+      <span v-html="icon(a.icon)"></span><b v-if="a.count">{{ a.count }}</b>
+    </button>
   </div>
 </template>
 
@@ -31,16 +41,20 @@ const props = defineProps<{
   ghost: { key: CampusBuilding; at: Placed; valid: boolean } | null;
   /** Running upgrades: start and end times (ms) by asset type. */
   timers: Record<string, { start: number; end: number }>;
+  /** Things needing attention, by building key or city place id. */
+  alerts: Record<string, { icon: string; label: string; count?: number }>;
   nowMs: number;
 }>();
 const emit = defineEmits<{
   (e: 'tap', pick: Pick, ground: { x: number; z: number } | null): void;
   (e: 'hover', ground: { x: number; z: number }): void;
+  (e: 'alert', key: string): void;
 }>();
 
 const stageEl = ref<HTMLElement | null>(null);
 const world = shallowRef<World | null>(null);
 const bubbles = ref<{ key: string; x: number; y: number; visible: boolean; progress: number; time: string }[]>([]);
+const alertBubbles = ref<{ key: string; x: number; y: number; visible: boolean; icon: string; label: string; count?: number }[]>([]);
 let raf = 0;
 
 onMounted(() => {
@@ -57,6 +71,13 @@ onMounted(() => {
       const p = w.project(a);
       const progress = Math.min(100, Math.max(0, ((props.nowMs - t.start) / Math.max(t.end - t.start, 1)) * 100));
       return [{ key, x: p.x, y: p.y, visible: p.visible, progress, time: formatClock(Math.max(0, Math.ceil((t.end - props.nowMs) / 1000))) }];
+    });
+    alertBubbles.value = Object.entries(props.alerts).flatMap(([key, a]) => {
+      const at = w.anchor(key);
+      if (!at) return [];
+      const p = w.project(at);
+      // Sit above the timer bubble when the building is also upgrading.
+      return [{ key, ...a, x: p.x, y: p.y - (props.timers[key] ? 46 : 0), visible: p.visible }];
     });
     raf = requestAnimationFrame(loop);
   };
@@ -82,6 +103,7 @@ watch(
 defineExpose({
   focus: (x: number, z: number) => world.value?.focus(x, z),
   playArrival: (colors: [string, string]) => world.value?.playArrival(colors) ?? Promise.resolve(),
+  setBillboard: (lines: string[]) => world.value?.setBillboard(lines),
   playDeparture: (colors: [string, string]) => world.value?.playDeparture(colors) ?? Promise.resolve(),
 });
 </script>

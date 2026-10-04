@@ -36,6 +36,7 @@
         <i v-for="(r, i) in facts.form.slice(0, 5)" :key="i" :class="`res-${r.toLowerCase()}`">{{ r }}</i>
       </span>
       <span v-if="facts.fanApproval !== null" class="chip">Fan approval {{ Math.round(facts.fanApproval) }}%</span>
+      <span v-if="headline" class="chip ticker" title="Around the world" @click="emit('act', 'news')"><span v-html="icon('news')"></span>{{ headline }}</span>
     </div>
 
     <div class="topright">
@@ -131,6 +132,8 @@ const props = defineProps<{
   };
   challenge: { title: string; wins: number; targetWins: number; secondsLeft: number; rewardCash: number; rewardXP: number } | null;
   briefing: string;
+  /** The world headline currently shown in the date strip. */
+  headline: string | null;
   builders: { name: string; secondsLeft: number; active: number; max: number } | null;
   inbox: number;
   isMine: boolean;

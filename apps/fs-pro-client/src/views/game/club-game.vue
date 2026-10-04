@@ -14,9 +14,11 @@
         :selected="moving ? null : selectedKey"
         :ghost="ghost"
         :timers="timers"
+        :alerts="alerts"
         :now-ms="game.now.value"
         @tap="onTap"
         @hover="onHover"
+        @alert="onAlert"
       />
 
       <cozy-hud
@@ -34,6 +36,7 @@
         :facts="facts"
         :challenge="isMyClub ? (playState?.challenge ?? null) : null"
         :briefing="isMyClub ? managerBriefingMessage : ''"
+        :headline="tickerHeadline"
         :builders="builders"
         :inbox="openPlay.incoming.length"
         :is-mine="isMyClub"
@@ -51,6 +54,10 @@
         :budget="treasury"
         :busy="game.upgradingAsset.value !== null"
         :now-ms="game.now.value"
+        :door="doorFor(selectedKey)?.label ?? null"
+        :alert="alerts[selectedKey]?.label ?? null"
+        :club-level="playState?.club.level ?? 0"
+        :staff-tier="tierOf('staff_house')"
         @close="selectedKey = null"
         @upgrade="game.startUpgrade"
         @move="startMove"
@@ -62,9 +69,10 @@
         <p class="sub">{{ game.campus.value.activeUpgrades }}/{{ game.campus.value.maxConcurrentUpgrades }} builders busy</p>
         <div class="cards">
           <button v-for="a in game.campus.value.assets" :key="a.type" class="card" :class="{ off: !!a.next?.blockedReason && !a.upgrade }" @click="pickFromMenu(a.type)">
-            <div class="card-title">{{ a.name }}</div>
+            <div class="card-title">{{ stageName(a.type as CampusBuilding, { tier: a.level, clubLevel: 0, staffTier: 0 }) }}</div>
             <div class="card-art" :class="`art-${a.type}`"></div>
-            <div class="card-desc">Tier {{ a.level }} · {{ a.effectLabel }}</div>
+            <div class="card-desc">{{ a.name }} · Tier {{ a.level }} · {{ a.effectLabel }}</div>
+            <div v-if="a.next" class="card-meta">Next: {{ stageName(a.type as CampusBuilding, { tier: a.next.level, clubLevel: 0, staffTier: 0 }) }}</div>
             <div v-if="a.upgrade" class="card-meta">Building Tier {{ a.upgrade.toLevel }}…</div>
             <div v-else-if="a.next" class="chips"><span class="chip"><span v-html="icon('coins')"></span>{{ currency(a.next.cost) }}</span></div>
             <div v-if="a.next?.blockedReason && !a.upgrade" class="card-why">{{ a.next.blockedReason }}</div>
@@ -97,6 +105,33 @@
           @again="(game.showRewards.value = false), game.findMatch(quickSim)"
         />
       </cozy-modal>
+
+      <!-- Dashboard screens and world news, over the campus -->
+      <cozy-drawer
+        :model-value="!!drawer"
+        :title="drawerTitle"
+        :tabs="drawerDoor?.tabs.map((t) => t.title)"
+        :tab="drawerTab"
+        @update:model-value="(open) => !open && closeDrawer()"
+        @update:tab="(i) => (drawerTab = i)"
+      >
+        <component
+          :is="drawerDoor.tabs[drawerTab].component"
+          v-if="drawerDoor"
+          :key="`${drawer}-${drawerTab}`"
+          :club="club"
+          v-bind="drawerDoor.tabs[drawerTab].readOnly ? { readOnly: !isMyClub } : {}"
+          @update-available="onZoneUpdate"
+          @switch-tab="onZoneSwitchTab"
+        />
+        <cozy-news v-else-if="drawer === 'news'" :feed="worldFeed" />
+        <cozy-news v-else-if="drawer === 'billboard'" :feed="worldFeed" category="transfer">
+          <div v-if="transferWindow" class="warn" :class="{ good: transferWindow.open }">
+            {{ transferWindow.open ? `Transfer window open${transferWindow.daysLeft !== null ? ` · ${transferWindow.daysLeft} days left` : ''}` : 'Transfer window closed' }}
+          </div>
+          <button v-if="isMyClub" class="btn primary" @click="openDoor('scouting')">Open my Transfers</button>
+        </cozy-news>
+      </cozy-drawer>
 
       <cozy-modal v-model="showAwaySummary" size="small">
         <h2><span v-html="icon('mail')"></span> While you were away</h2>
@@ -138,12 +173,12 @@
 
 <script setup lang="ts">
 import '@/components/cozy/cozy.scss';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch, type Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@tanstack/vue-query';
 import {
   CAMPUS_GRID, footprint, validatePlacement,
-  type CampusBuilding, type CampusPlacement, type Placed,
+  type CampusBuilding, type CampusPlacement, type Placed, type TransferWindow, type WorldFeed,
 } from '@repo/api-contract';
 import { client } from '@/services/api';
 import { useStore } from '@/store';
@@ -161,7 +196,17 @@ import CozyPanel from '@/components/cozy/cozy-panel.vue';
 import CozyModal from '@/components/cozy/cozy-modal.vue';
 import CozyMatchmaking from '@/components/cozy/cozy-matchmaking.vue';
 import CozyRewards from '@/components/cozy/cozy-rewards.vue';
+import CozyDrawer from '@/components/cozy/cozy-drawer.vue';
+import CozyNews from '@/components/cozy/cozy-news.vue';
+import TeamSheetZone from '@/views/user/club/zones/team-sheet-zone.vue';
+import SquadZone from '@/views/user/club/zones/squad-zone.vue';
+import TransferZone from '@/views/user/club/zones/transfer-zone.vue';
+import OwnerZone from '@/views/user/club/zones/owner-zone.vue';
+import PerformanceZone from '@/views/user/club/zones/performance-zone.vue';
+import ClubZone from '@/views/user/club/zones/club-zone.vue';
+import { useClubRefresh } from '@/composables/use-club-refresh';
 import { clubColors } from '@/components/cozy/club-colors';
+import { stageName } from '@/components/cozy/stages';
 import { icon } from '@/components/cozy/icons';
 import { showMatch } from '@/components/cozy/match-view';
 import { CELL } from '@/components/cozy/scene/models';
@@ -243,13 +288,18 @@ const view = computed(() => {
   const campus = game.campus.value;
   if (!campus) return null;
   const tiers = Object.fromEntries(campus.assets.map((a) => [a.type, { tier: a.level, upgrading: !!a.upgrade }]));
-  const players = ((club.value as any)?.Players ?? []).map((p: any) => ({ id: String(p._id), name: `${p.FirstName ?? ''} ${p.LastName ?? ''}`.trim() }));
+  const players = ((club.value as any)?.Players ?? []).map((p: any) => ({
+    id: String(p._id),
+    name: `${p.FirstName ?? ''} ${p.LastName ?? ''}`.trim(),
+    injured: Number(p.Injury?.daysRemaining) > 0,
+  }));
   return {
     tiers,
     placement: draft.value ?? (campus.placement as CampusPlacement),
     players,
     fans: playState.value?.standing.fans ?? 0,
     matchDay: !!todaysMatch.value,
+    clubLevel: playState.value?.club.level ?? 0,
     colors: colors.value,
   };
 });
@@ -302,6 +352,7 @@ const facts = computed(() => {
 
 // --- Selection and panels ----------------------------------------------------------------
 const selectedKey = ref<CampusBuilding | null>(null);
+const tierOf = (type: string) => game.campus.value?.assets.find((a) => a.type === type)?.level ?? 0;
 const selectedAsset = computed(() => game.campus.value?.assets.find((a) => a.type === selectedKey.value) ?? null);
 const medicalAsset = computed(() => game.campus.value?.assets.find((a) => a.type === 'medical_centre') ?? null);
 const showBuild = ref(false);
@@ -314,6 +365,7 @@ function onTap(pick: Pick, ground: { x: number; z: number } | null) {
     return;
   }
   if (pick?.kind === 'building') selectedKey.value = pick.id as CampusBuilding;
+  else if (pick?.kind === 'place') openPlace(pick.id);
   else if (pick?.kind === 'player') {
     const p = ((club.value as any)?.Players ?? []).find((x: any) => String(x._id) === pick.id);
     if (p) game.snackbarText.value = `${p.FirstName} ${p.LastName} · ${p.Position ?? ''} · ★${Math.round(p.Rating ?? 0)}`;
@@ -332,9 +384,143 @@ function pickFromMenu(key: string) {
 
 function onOpen(what: string) {
   if (what === 'treatment') showTreatment.value = true;
-  else if (what === 'dugout') goManager('tactics');
-  else if (what === 'office') router.push('/u');
+  else if (what === 'door' && selectedKey.value) openDoor(selectedKey.value);
 }
+
+// --- Doors: buildings open their dashboard screens over the campus ---------------------------
+interface Door { label: string; tabs: { title: string; component: Component; readOnly?: boolean }[] }
+const DOORS: Partial<Record<CampusBuilding, Door>> = {
+  dugout: { label: 'Team Sheet', tabs: [{ title: 'Team Sheet', component: TeamSheetZone, readOnly: true }] },
+  training_ground: { label: 'Squad', tabs: [{ title: 'Squad', component: SquadZone }] },
+  scouting: { label: 'Transfers', tabs: [{ title: 'Transfers', component: TransferZone }] },
+  office: {
+    label: 'Office',
+    tabs: [
+      { title: "Director's Box", component: OwnerZone, readOnly: true },
+      { title: 'Analysis', component: PerformanceZone },
+      { title: 'Manager', component: ClubZone },
+    ],
+  },
+};
+
+/** The door for a building; visitors only get the screens that have a read-only mode. */
+function doorFor(key: CampusBuilding | null): Door | null {
+  const door = key ? DOORS[key] : undefined;
+  if (!door) return null;
+  if (isMyClub.value) return door;
+  const tabs = door.tabs.filter((t) => t.readOnly);
+  return tabs.length ? { ...door, tabs } : null;
+}
+
+const drawer = ref<CampusBuilding | 'news' | 'billboard' | null>(null);
+const drawerTab = ref(0);
+const drawerDoor = computed(() =>
+  drawer.value && drawer.value !== 'news' && drawer.value !== 'billboard' ? doorFor(drawer.value) : null
+);
+const drawerTitle = computed(() =>
+  drawer.value === 'news' ? 'Around the world' : drawer.value === 'billboard' ? 'Transfer highlights' : (drawerDoor.value?.label ?? '')
+);
+
+function openDoor(key: CampusBuilding) {
+  if (!doorFor(key)) return;
+  selectedKey.value = null;
+  drawerTab.value = 0;
+  drawer.value = key;
+}
+
+function closeDrawer() {
+  drawer.value = null;
+  loadOffers();
+}
+
+const refreshClub = useClubRefresh();
+async function onZoneUpdate() {
+  await refreshClub(clubId.value);
+  game.load();
+}
+
+/** The Analysis screen links to other dashboard tabs by index (dashboard.vue). */
+function onZoneSwitchTab(tab: number) {
+  const byTab: Record<number, CampusBuilding> = { 1: 'dugout', 2: 'training_ground', 4: 'office', 5: 'scouting' };
+  if (byTab[tab]) openDoor(byTab[tab]);
+}
+
+// --- Alerts: what needs attention, on the building it concerns ----------------------------------
+const offersAwaiting = ref(0);
+async function loadOffers() {
+  if (!isMyClub.value || !clubId.value) return;
+  const res = await client.transfers.getOffers.query({ query: { clubId: clubId.value } });
+  if (res.status === 200) {
+    offersAwaiting.value = res.body.payload.filter((o) => o.awaiting === 'me' && ['pending', 'countered'].includes(o.status)).length;
+  }
+}
+
+const alerts = computed(() => {
+  const out: Record<string, { icon: string; label: string; count?: number }> = {};
+  if (newsUnseen.value) out.newsstand = { icon: 'news', label: 'New headlines' };
+  if (!isMyClub.value) return out;
+  if (tacticsSummary.value?.issues.length) out.dugout = { icon: 'alert', label: tacticsSummary.value.issues.join(' · ') };
+  const injured = view.value?.players.filter((p: { injured: boolean }) => p.injured).length ?? 0;
+  if (injured) out.medical_centre = { icon: 'cross', count: injured, label: `${injured} player${injured > 1 ? 's' : ''} injured` };
+  if (offersAwaiting.value) {
+    const n = offersAwaiting.value;
+    out.scouting = { icon: 'mail', count: n, label: `${n} transfer offer${n > 1 ? 's' : ''} waiting for your answer` };
+  }
+  return out;
+});
+
+/** Badges: transfer offers go straight to Transfers, the newsstand opens the news, the rest the quick card. */
+function onAlert(key: string) {
+  if (key === 'scouting') openDoor('scouting');
+  else if (key === 'newsstand') openPlace(key);
+  else selectedKey.value = key as CampusBuilding;
+}
+
+// --- The world: newsstand, billboard and the headline ticker --------------------------------------
+const worldFeed = ref<WorldFeed | null>(null);
+const transferWindow = ref<TransferWindow | null>(null);
+const NEWS_SEEN_KEY = 'fspro_news_seen';
+const newsSeen = ref(localStorage.getItem(NEWS_SEEN_KEY));
+const newsUnseen = computed(() => !!worldFeed.value?.headlines[0] && worldFeed.value.headlines[0].id !== newsSeen.value);
+const tickerIndex = ref(0);
+const tickerHeadline = computed(() => {
+  const h = worldFeed.value?.headlines ?? [];
+  return h.length ? h[tickerIndex.value % h.length].title : null;
+});
+
+async function loadWorldFeed() {
+  const res = await client.calendar.getWorldFeed.query({});
+  if (res.status === 200) worldFeed.value = res.body.payload;
+}
+
+watch([() => worldFeed.value?.headlines, campusRef], ([headlines]) =>
+  campusRef.value?.setBillboard((headlines ?? []).filter((h) => h.category === 'transfer').map((h) => h.title))
+);
+
+async function openPlace(id: string) {
+  selectedKey.value = null;
+  if (id === 'newsstand') {
+    drawer.value = 'news';
+    newsSeen.value = worldFeed.value?.headlines[0]?.id ?? null;
+    if (newsSeen.value) localStorage.setItem(NEWS_SEEN_KEY, newsSeen.value);
+  } else if (id === 'billboard') {
+    drawer.value = 'billboard';
+    const res = await client.transfers.getTransferWindow.query();
+    if (res.status === 200) transferWindow.value = res.body.payload;
+  }
+}
+
+loadWorldFeed();
+watch(isMyClub, (mine) => mine && loadOffers(), { immediate: true });
+const worldTimer = setInterval(() => {
+  loadWorldFeed();
+  loadOffers();
+}, 60_000);
+const tickerTimer = setInterval(() => tickerIndex.value++, 8_000);
+onUnmounted(() => {
+  clearInterval(worldTimer);
+  clearInterval(tickerTimer);
+});
 
 // --- Move mode -------------------------------------------------------------------------
 const draft = ref<CampusPlacement | null>(null);
@@ -455,6 +641,9 @@ function onAct(action: string) {
     case 'world': return router.push('/world');
     case 'home': return router.push(openPlay.clubId ? `/game/${openPlay.clubId}` : '/u');
     case 'travel': return travel();
+    case 'squad': return openDoor('training_ground');
+    case 'tactics': return openDoor('dugout');
+    case 'news': return openPlace('newsstand');
     case 'settings':
     case 'club': return goManager('club');
     default: return goManager(action);
@@ -480,7 +669,7 @@ const tacticsSummary = computed(() => {
 
 function onChangeTactics() {
   game.showMatchmaking.value = false;
-  goManager('tactics');
+  openDoor('dugout');
 }
 
 function onMedicalTreated() {
