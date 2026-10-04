@@ -389,7 +389,7 @@
               <!-- Jersey / Number Avatar -->
               <div class="player-profile-avatar text-center">
                 <v-avatar size="50" color="indigo-darken-3" class="elevation-2 border">
-                  <span class="text-h6 font-weight-bold text-white">
+                  <span class="text-h6 font-weight-bold text-high-emphasis">
                     {{ selectedPlayer.ShirtNumber || '—' }}
                   </span>
                 </v-avatar>

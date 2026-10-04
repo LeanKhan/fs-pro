@@ -2,9 +2,9 @@
   <table v-if="matchDetails" class="results-table">
     <tbody>
       <tr class="results-badges">
-        <td><img class="results-badge" :src="`/club-icons/${home}.svg`" /></td>
+        <td><img class="results-badge" :src="crestUrl(home)" /></td>
         <td>-</td>
-        <td><img class="results-badge" :src="`/club-icons/${away}.svg`" /></td>
+        <td><img class="results-badge" :src="crestUrl(away)" /></td>
       </tr>
       <tr v-for="(stat, i) in statLabels" :key="i">
         <td>{{ matchDetails.Home[stat.key] }}</td>
@@ -15,6 +15,7 @@
   </table>
 </template>
 <script setup lang="ts">
+import { crestUrl } from '@/helpers/crest';
 import { ref } from 'vue';
 
 interface Props {

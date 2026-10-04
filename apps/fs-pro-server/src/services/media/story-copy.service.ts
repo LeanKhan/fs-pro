@@ -7,7 +7,7 @@ import { pick, ord } from './story-angles.service';
  * between deals / seasons.
  */
 
-const money = (n: number) => (n > 0 ? `€${Math.round(n).toLocaleString()}` : 'a free transfer');
+const money = (n: number) => (n > 0 ? `$${Math.round(n).toLocaleString()}` : 'a free transfer');
 
 // ---------------------------------------------------------------------------
 // Transfers

@@ -20,6 +20,7 @@ import { editionsContract } from './routes/editions';
 import { challengesContract } from './routes/challenges';
 import { worldContract } from './routes/world';
 import { competitionDefinitionsContract } from './routes/competition-definitions';
+import { atlasContract } from './routes/atlas';
 
 const c = initContract();
 
@@ -46,6 +47,7 @@ export const apiContract = c.router({
   challenges: challengesContract,
   world: worldContract,
   competitionDefinitions: competitionDefinitionsContract,
+  atlas: atlasContract,
 });
 
 export type { Club } from './schemas/club';
@@ -132,3 +134,6 @@ export type CompetitionSummary = import('zod').infer<
 >;
 
 export * from './campus-grid';
+export * from './world-geo';
+export * from './crest';
+export * from './schemas/atlas';

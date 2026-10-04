@@ -10,7 +10,12 @@
     "PROD_MONGO_URL",
     "CURRENT_YEAR",
     "LOGGING",
-    "REMOTE_HOST"
+    "REMOTE_HOST",
+    "REALTIME_SECRET",
+    "REALTIME_PORT",
+    "REALTIME_URL",
+    "REALTIME_PUBLIC_URL",
+    "REALTIME_ORIGINS"
   ],
   "tasks": {
     "build": {

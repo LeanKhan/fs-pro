@@ -1,4 +1,4 @@
-import { and, eq, sql as drizzleSql } from 'drizzle-orm';
+import { and, desc, eq, sql as drizzleSql } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
 import { players, transferLedger } from '../../db/drizzle/schema';
 import { PlayerRepositoryFactory } from '../../repositories/PlayerRepositoryFactory';
@@ -8,7 +8,8 @@ import { pickPlaceholderName } from '../../utils/placeholder-names';
 import { pickRandomFromArray } from '../../helpers/misc';
 import { nationalityIdForCulture } from '../../services/nationality';
 import type { PlayerInterface } from '../../interfaces/Player';
-import { getAssetEffects } from '../../services/facilities/facilities.service';
+import { getAssetEffects, getAssetLevel } from '../../services/facilities/facilities.service';
+import { describeHours, scaled } from '../../services/play/game-time';
 
 let playerRepo: ReturnType<typeof PlayerRepositoryFactory.create> | null = null;
 function getPlayerRepo() {
@@ -386,4 +387,39 @@ export async function recruitYouthPlayersForClub(
   });
 
   return created;
+}
+
+/** Owners can't promote past this many signed players. */
+export const MAX_SQUAD_FOR_PROMOTION = 28;
+
+/**
+ * Why an owner can't promote a youngster from the academy right now, or null.
+ * Needs a Youth Academy; one prospect per 24h at Tier 1, quicker at higher
+ * Tiers (24h / Tier, on the global time scale); never past a full squad.
+ */
+export async function youthPromotionRefusal(clubId: string): Promise<string | null> {
+  const tier = await getAssetLevel(clubId, 'youth_academy');
+  if (tier < 1) return 'Build a Youth Academy to bring through your own players';
+
+  const db = DrizzleDatabase.getInstance().database;
+  const [{ count }] = await db
+    .select({ count: drizzleSql<number>`count(*)::int` })
+    .from(players)
+    .where(and(eq(players.ClubId, clubId), eq(players.isSigned, true), eq(players.isRetired, false)));
+  if (count >= MAX_SQUAD_FOR_PROMOTION) return `Your squad is full (${MAX_SQUAD_FOR_PROMOTION} players)`;
+
+  const cooldownHours = scaled(24 / tier);
+  const [last] = await db
+    .select({ at: transferLedger.createdAt })
+    .from(transferLedger)
+    .where(and(eq(transferLedger.Type, 'youth_scouted'), eq(transferLedger.BuyerClubId, clubId)))
+    .orderBy(desc(transferLedger.createdAt))
+    .limit(1);
+  if (last) {
+    const readyAt = last.at.getTime() + cooldownHours * 3_600_000;
+    if (readyAt > Date.now()) {
+      return `The academy's next prospect is ready in ${describeHours((readyAt - Date.now()) / 3_600_000)}`;
+    }
+  }
+  return null;
 }

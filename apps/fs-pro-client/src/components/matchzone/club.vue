@@ -7,7 +7,7 @@
 
     <div class="club-badge-wrap">
       <span v-if="winner === side" class="trophy" title="Winner">🏆</span>
-      <img class="club-badge" :src="`/club-icons/${clubCode}.svg`" />
+      <img class="club-badge" :src="crestUrl(clubCode)" />
     </div>
 
     <div class="club-rating">★ {{ roundTo(clubRating, 1) }}</div>
@@ -27,6 +27,7 @@
 </template>
 
 <script setup lang="ts">
+import { crestUrl } from '@/helpers/crest';
 import { computed } from 'vue';
 import { ordinal, roundTo } from '@/helpers/misc';
 import ManagerAvatar from '@/components/managers/manager-avatar.vue';

@@ -8,7 +8,7 @@
           <img
             v-if="home"
             class="lobby-kit"
-            :src="`${api}/img/clubs/kits/${home.ClubCode}-kit.png`"
+            :src="kitUrl(home.ClubCode)"
           />
           <div class="lobby-name">{{ home?.Name }}</div>
           <div class="lobby-status">
@@ -28,7 +28,7 @@
           <img
             v-if="away"
             class="lobby-kit"
-            :src="`${api}/img/clubs/kits/${away.ClubCode}-kit.png`"
+            :src="kitUrl(away.ClubCode)"
           />
           <div class="lobby-name">{{ away?.Name }}</div>
           <div class="lobby-status">
@@ -49,6 +49,7 @@
 </template>
 
 <script setup lang="ts">
+import { kitUrl } from '@/helpers/crest';
 import { ref, computed, watch } from 'vue';
 import { apiUrl } from '@/services/api';
 

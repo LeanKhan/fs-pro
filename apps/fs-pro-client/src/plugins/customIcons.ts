@@ -58,13 +58,18 @@ const customIcons: IconSet = {
   component: (props: IconProps) => {
     const iconName = props.icon as string;
     const fileName = iconFileByName[iconName];
+    // Clubs founded in the game have no file here; the API draws their crest.
+    const src = fileName
+      ? `/club-icons/${fileName}.svg`
+      : `${import.meta.env.VITE_APP_API_BASE_URL || ''}/api/crests/${encodeURIComponent(iconName)}.svg`;
 
     return h(props.tag, [
-      fileName &&
+      iconName &&
         h('img', {
           alt: '',
           class: 'v-icon__svg',
-          src: `/club-icons/${fileName}.svg`,
+          src,
+          onError: (e: Event) => ((e.target as HTMLImageElement).style.visibility = 'hidden'),
         }),
     ]);
   },

@@ -49,17 +49,18 @@ function saveSession(req: { session?: any }): Promise<void> {
 }
 
 export const userTsRestRoutes = s.router(contract.users, {
-  /**
-   * The minimum data needed is FullName/Username/Password. Registration
-   * chains into claiming any Clubs the user picked during onboarding
-   * (`Clubs.User` is a reverse FK, set per-club) using the client's own
-   * `Clubs` selection - the old Express chain read `user.Clubs` off the
-   * just-created record instead, which is always empty (Postgres doesn't
-   * even have a `Users.Clubs` column), silently breaking "pick your club at
-   * signup".
-   */
+  /** FullName/Username/Password; the new manager then founds a club
+   * (client /start). */
   joinUser: async ({ body, req }) => {
     if (legacyLoginDisabled()) return LEGACY_LOGIN_OFF as any;
+    const problem = !/^[A-Za-z0-9_.-]{3,24}$/.test(body.Username ?? '')
+      ? 'Usernames are 3-24 letters, numbers, dots, dashes or underscores'
+      : (body.Password ?? '').length < 8
+        ? 'Use a password of at least 8 characters'
+        : !(body.FullName ?? '').trim()
+          ? 'Tell us your name'
+          : null;
+    if (problem) return { status: 400, body: { success: false, message: problem } };
     try {
       const user: any = await createUser({
         FullName: body.FullName,
@@ -67,11 +68,8 @@ export const userTsRestRoutes = s.router(contract.users, {
         Password: body.Password,
       } as Partial<IUser>);
 
-      await Promise.all(
-        (body.Clubs ?? []).map((clubId) =>
-          updateClubFields(clubId, { UserId: user._id })
-        )
-      );
+      // New managers found their own club (POST /atlas/clubs); signing up
+      // never hands over an existing club, so `body.Clubs` is ignored.
 
       (req.session as any).userID = user._id;
       await saveSession(req);
@@ -167,15 +165,25 @@ export const userTsRestRoutes = s.router(contract.users, {
 
   /** Repository hashes `NewPassword` on write, same as every other user
    * update - no manual hashing here. */
-  changePassword: async ({ body }) => {
+  changePassword: async ({ body, req }) => {
     if (legacyLoginDisabled()) return LEGACY_LOGIN_OFF as any;
     try {
+      const sessionUserId = (req.session as { userID?: string } | undefined)?.userID;
+      if (!sessionUserId) {
+        return { status: 401, body: { success: false, message: 'Sign in to change your password' } };
+      }
       const result = await getUserByUsername(body.Username);
       if (!result) {
         return {
           status: 404,
           body: { success: false, message: 'Username does not exist' },
         };
+      }
+      if (String(result._id) !== sessionUserId) {
+        return { status: 403, body: { success: false, message: 'You can only change your own password' } };
+      }
+      if (!(await comparePassword(body.CurrentPassword, result.Password))) {
+        return { status: 400, body: { success: false, message: 'Current password is incorrect' } };
       }
 
       const user = await updateUserFields(result._id as string, {

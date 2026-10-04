@@ -106,6 +106,10 @@ export const ClubSchema = z.object({
   CampusLayout: z.string().nullable().optional(),
   entity_id: z.string().nullable().optional(),
   homePlaceId: z.string().nullable().optional(),
+  /** The town (Places row) the club belongs to; see routes/atlas.ts. */
+  TownId: z.string().nullable().optional(),
+  /** Crest of a club founded in the game (crest.ts); null = a hand-drawn crest. */
+  Crest: z.record(z.unknown()).nullable().optional(),
   stadiumPlaceId: z.string().nullable().optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),

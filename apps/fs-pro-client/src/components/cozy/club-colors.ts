@@ -1,5 +1,7 @@
-/** Kit colours for a club, read from its crest (/club-icons/<code>.svg): the
- * two most-used fills. fs-pro stores no colours of its own. */
+import { crestUrl } from '@/helpers/crest';
+
+/** Kit colours for a club, read from its crest: a founded club's crest says
+ * them outright (data-kit), a hand-drawn one gives its two most-used fills. */
 const cache = new Map<string, Promise<[string, string]>>();
 const FALLBACK: [string, string] = ['#3a6fd8', '#f5f1e6'];
 
@@ -8,9 +10,11 @@ export function clubColors(code: string | null | undefined): Promise<[string, st
   if (!cache.has(code)) {
     cache.set(
       code,
-      fetch(`/club-icons/${code}.svg`)
+      fetch(crestUrl(code))
         .then((r) => (r.ok ? r.text() : ''))
         .then((svg) => {
+          const kit = svg.match(/data-kit="(#[0-9a-f]{6}),(#[0-9a-f]{6})"/i);
+          if (kit) return [kit[1].toLowerCase(), kit[2].toLowerCase()] as [string, string];
           const counts = new Map<string, number>();
           for (const m of svg.matchAll(/fill(?:="|:)\s*(#[0-9a-f]{6})/gi)) {
             const c = m[1].toLowerCase();

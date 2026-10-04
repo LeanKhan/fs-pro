@@ -264,6 +264,12 @@ export function startFacilitiesSweep(intervalMs = 15_000) {
 }
 
 /** Numeric effects of a club's current facility levels (for game systems). */
+/** One asset's current Tier (0 when never built). */
+export async function getAssetLevel(clubId: string, type: AssetType): Promise<number> {
+  await completeDueUpgrades();
+  return levelIn(await levelsFor(clubId), type);
+}
+
 export async function getAssetEffects(clubId: string): Promise<Record<string, number>> {
   await completeDueUpgrades();
   const rows = await levelsFor(clubId);

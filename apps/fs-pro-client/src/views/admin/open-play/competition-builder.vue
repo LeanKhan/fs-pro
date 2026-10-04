@@ -54,7 +54,7 @@
           <v-col cols="6" md="3"><v-text-field v-model.number="form.Entry.maxLevel" type="number" label="Max Level" density="compact" variant="outlined" clearable /></v-col>
           <v-col cols="6" md="3"><v-text-field v-model.number="form.Entry.minElo" type="number" label="Min Elo" density="compact" variant="outlined" clearable /></v-col>
           <v-col cols="6" md="3"><v-text-field v-model.number="form.Entry.maxElo" type="number" label="Max Elo" density="compact" variant="outlined" clearable /></v-col>
-          <v-col cols="6" md="4"><v-text-field v-model.number="form.Entry.entryFee" type="number" label="Entry fee" prefix="€" density="compact" variant="outlined" clearable /></v-col>
+          <v-col cols="6" md="4"><v-text-field v-model.number="form.Entry.entryFee" type="number" label="Entry fee" prefix="$" density="compact" variant="outlined" clearable /></v-col>
           <v-col cols="6" md="4"><v-text-field v-model.number="form.Entry.lateEntryUntilDay" type="number" label="Late entry until day (of edition)" density="compact" variant="outlined" clearable /></v-col>
           <v-col cols="12" md="6">
             <v-autocomplete v-model="form.Entry.requiresWinOf" :items="otherCompetitions" label="Only winners of" multiple chips closable-chips density="compact" variant="outlined" />
@@ -102,13 +102,13 @@
         <v-row dense>
           <v-col cols="12" md="6">
             <div class="text-subtitle-2 mb-1">Prize money by final Rank / round</div>
-            <position-list v-model="form.Rewards.prizeMoney" prefix="€" />
+            <position-list v-model="form.Rewards.prizeMoney" prefix="$" />
           </v-col>
           <v-col cols="12" md="6">
             <div class="text-subtitle-2 mb-1">XP by final Rank / round</div>
             <position-list v-model="form.Rewards.xp" suffix="XP" />
           </v-col>
-          <v-col cols="6" md="3"><v-text-field v-model.number="form.Rewards.participationFee" type="number" label="Paid to every entrant" prefix="€" density="compact" variant="outlined" clearable /></v-col>
+          <v-col cols="6" md="3"><v-text-field v-model.number="form.Rewards.participationFee" type="number" label="Paid to every entrant" prefix="$" density="compact" variant="outlined" clearable /></v-col>
           <v-col cols="6" md="3"><v-text-field v-model.number="form.Rewards.eloBonus" type="number" label="Winner Elo bonus" density="compact" variant="outlined" clearable /></v-col>
           <v-col cols="12" md="6"><v-text-field v-model="form.Rewards.trophy" label="Trophy name" density="compact" variant="outlined" clearable /></v-col>
         </v-row>

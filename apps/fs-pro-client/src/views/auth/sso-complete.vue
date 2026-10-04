@@ -1,18 +1,14 @@
 <template>
-  <v-card>
-    <v-card-text class="text-center">
-      <template v-if="!failed">
-        <v-progress-circular indeterminate color="green" class="mb-3" />
-        <div>Signing you in...</div>
-      </template>
-      <template v-else>
-        <v-alert type="error" variant="tonal" density="compact" class="mb-4">
-          {{ failed }}
-        </v-alert>
-        <v-btn color="green-darken-2" to="/auth/login">Back to login</v-btn>
-      </template>
-    </v-card-text>
-  </v-card>
+  <div class="form done">
+    <template v-if="!failed">
+      <div class="spinner" aria-hidden="true"></div>
+      <p class="sub">Signing you in…</p>
+    </template>
+    <template v-else>
+      <p class="warn">{{ failed }}</p>
+      <router-link class="btn" to="/auth/login">Back to sign in</router-link>
+    </template>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -29,10 +25,8 @@ const store = useStore();
 const failed = ref('');
 
 /** Only paths inside this app - never another site. */
-function safeReturnTo(value: unknown): string {
-  return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//')
-    ? value
-    : '/u';
+function safeReturnTo(value: unknown): string | null {
+  return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//') && value !== '/u' ? value : null;
 }
 
 // The server has already verified the login and created the session cookie;
@@ -46,19 +40,34 @@ onMounted(async () => {
       return;
     }
     const user = body.payload;
+    const clubs: string[] = user.Clubs ?? [];
     store.setUser({
       username: user.Username,
       userID: user._id ?? '',
-      clubs: user.Clubs ?? [],
+      clubs,
       isAdmin: user.isAdmin,
       avatar: user.Avatar ?? '',
       fullname: user.FullName,
     });
-    store.showToast({ message: 'Signed in Successfully!', style: 'success' });
-    router.replace(safeReturnTo(route.query.returnTo));
+    router.replace(safeReturnTo(route.query.returnTo) ?? (clubs.length ? `/game/${clubs[0]}` : '/start'));
   } catch (error) {
     console.error('Error completing login:', error);
     failed.value = 'Could not complete the login. Please try again.';
   }
 });
 </script>
+
+<style scoped>
+.done {
+  justify-items: center;
+  text-align: center;
+}
+.spinner {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 5px solid #eadbb8;
+  border-top-color: var(--green);
+  animation: spin 0.8s linear infinite;
+}
+</style>

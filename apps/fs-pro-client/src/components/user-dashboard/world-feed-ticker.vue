@@ -40,7 +40,7 @@
                 <span class="text-caption text-medium-emphasis">{{ hl.timestamp }}</span>
               </div>
 
-              <div class="text-subtitle-2 font-weight-bold mt-1 text-white">
+              <div class="text-subtitle-2 font-weight-bold mt-1">
                 {{ hl.title }}
               </div>
 
@@ -88,7 +88,7 @@
             >
               <div class="text-caption font-weight-bold">{{ lg.name }}</div>
               <div class="text-caption text-medium-emphasis">
-                1st: <strong class="text-white">{{ lg.leader }}</strong> ({{ lg.leaderPoints }} pts)
+                1st: <strong>{{ lg.leader }}</strong> ({{ lg.leaderPoints }} pts)
               </div>
             </v-card>
 

@@ -43,6 +43,9 @@ export const OpponentSchema = z.object({
   code: z.string(),
   /** Matchmaking power on the game-style scale (rating x 2.5). */
   power: z.number(),
+  /** Run by another person: their saved squad and tactics defend. */
+  human: z.boolean().optional(),
+  manager: z.string().nullable().optional(),
 });
 
 const ResultLetterSchema = z.enum(['W', 'D', 'L']);

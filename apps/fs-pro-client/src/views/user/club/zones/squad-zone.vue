@@ -424,7 +424,7 @@ async function setTrainingFocus(player: any, value: string | null) {
   try {
     await client.players.updatePlayer.mutation({
       params: { id: playerId },
-      body: { TrainingFocus: value },
+      body: { TrainingFocus: value as 'Attacking' | 'Defending' | 'Physical' | 'Technical' | null },
     });
     emit('update-available');
   } catch (error) {

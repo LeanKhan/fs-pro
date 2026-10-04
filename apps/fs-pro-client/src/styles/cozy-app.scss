@@ -1,0 +1,82 @@
+// The manager app (/u) in the campus palette, so the office, competitions,
+// calendar and history read as part of the same game as the campus and the
+// world map. Pairs with the 'cozy' Vuetify theme (main.ts). The admin app
+// keeps the dark theme.
+.cozy-app {
+  --cream: #fdf4df;
+  --cream-2: #f6e7c4;
+  --wood: #8a5a3b;
+  --wood-d: #5e3b22;
+  --ink: #4a3220;
+  --muted: #8b7357;
+  --green: #5cc23a;
+  --green-d: #2f8a1c;
+  --gold: #f5b82e;
+  --shadow: 0 4px 0 rgba(70, 40, 15, 0.35), 0 8px 18px rgba(0, 0, 0, 0.18);
+
+  font-family: 'Fredoka', system-ui, sans-serif;
+  background: var(--cream);
+  color: var(--ink);
+
+  .v-application__wrap {
+    background:
+      radial-gradient(circle at 12% 8%, rgba(255, 255, 255, 0.6), transparent 40%),
+      linear-gradient(180deg, #fdf4df, #f6e7c4);
+  }
+
+  // Headings and Vuetify's Roboto-based typography classes follow the game font.
+  .text-h1, .text-h2, .text-h3, .text-h4, .text-h5, .text-h6,
+  .text-subtitle-1, .text-subtitle-2, .text-body-1, .text-body-2, .text-caption,
+  .text-overline, .text-button, .v-btn, .v-tab, .v-chip, .v-card-title, .v-list-item-title {
+    font-family: 'Fredoka', system-ui, sans-serif !important;
+    letter-spacing: normal;
+  }
+
+  // Top bar: a wooden plank, like the campus drawers.
+  .app-top-bar.v-app-bar {
+    background: linear-gradient(#fff8e6, #f1dfb6) !important;
+    border-bottom: 3px solid #c9a46a;
+    color: var(--ink);
+    box-shadow: 0 3px 0 rgba(70, 40, 15, 0.2) !important;
+  }
+
+  // Side nav: cream with green for the current page.
+  .v-navigation-drawer {
+    background: #fffaf0 !important;
+    border-right: 3px solid #e2cc9c !important;
+    color: var(--ink);
+    .v-list-item {
+      margin: 2px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+    .v-list-item--active {
+      background: var(--green);
+      color: #fff;
+      box-shadow: 0 2px 0 var(--green-d);
+      .v-icon {
+        color: #fff !important;
+      }
+    }
+    .v-list-item--active > .v-list-item__overlay {
+      opacity: 0;
+    }
+  }
+
+  // Cards look like the campus panels: cream, rounded, wood border.
+  .v-card:not(.v-card--flat):not(.bg-transparent) {
+    border-radius: 16px !important;
+    border: 2px solid #e2cc9c;
+    box-shadow: 0 3px 0 rgba(70, 40, 15, 0.18) !important;
+  }
+  .v-btn--variant-flat.bg-primary,
+  .v-btn--variant-elevated.bg-primary {
+    box-shadow: 0 3px 0 var(--green-d) !important;
+  }
+  .v-tabs .v-tab--selected {
+    color: var(--green-d);
+  }
+  .v-table {
+    background: transparent;
+  }
+}

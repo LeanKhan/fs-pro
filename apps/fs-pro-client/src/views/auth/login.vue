@@ -1,127 +1,23 @@
 <template>
   <!-- Imagination login: accounts live in the world service; this just sends
        people there and back (see /api/auth/login on the server). -->
-  <v-card v-if="ssoEnabled">
-    <v-card-text>
-      <v-list-subheader>Login to FSPro</v-list-subheader>
-      <v-alert
-        v-if="ssoError"
-        type="error"
-        variant="tonal"
-        density="compact"
-        class="mb-4"
-      >
-        {{ ssoError }}
-      </v-alert>
-      <p class="mb-2">
-        FSPro sign-in is handled by Imagination, your world account.
-      </p>
-    </v-card-text>
-    <v-card-actions>
-      <v-btn color="green-darken-2" block :href="ssoLoginUrl">
-        Sign in with Imagination
-      </v-btn>
-    </v-card-actions>
-  </v-card>
-
-  <form v-else ref="form" @submit.prevent="login">
-    <v-card>
-      <v-card-text>
-        <template v-if="!showForgotSection">
-          <v-list-subheader>Login to FSPro</v-list-subheader>
-
-          <v-alert
-            v-if="loginError"
-            type="error"
-            variant="tonal"
-            density="compact"
-            class="mb-4"
-          >
-            {{ loginError }}
-          </v-alert>
-
-          <v-text-field
-            required
-            type="text"
-            label="Username"
-            :disabled="loading"
-            :loading="loading"
-            color="green"
-            v-model="Username"
-          />
-
-          <v-text-field
-            :append-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
-            :rules="[rules.required, rules.min]"
-            :type="showPassword ? 'text' : 'password'"
-            class="input-group--focused"
-            required
-            label="Password"
-            :disabled="loading"
-            :loading="loading"
-            color="green"
-            v-model="Password"
-            @click:append="showPassword = !showPassword"
-          />
-        </template>
-        <template v-else>
-          <v-list-subheader>Change Password</v-list-subheader>
-
-          <v-text-field
-            required
-            type="text"
-            label="Username"
-            :disabled="loading"
-            :loading="loading"
-            color="pink"
-            v-model="newForm.Username"
-          ></v-text-field>
-
-          <v-text-field
-            required
-            type="text"
-            label="New Password"
-            :disabled="loading"
-            :loading="loading"
-            color="pink"
-            v-model="newForm.NewPassword"
-          ></v-text-field>
-        </template>
-
-        <!-- Forgot Password -->
-        <div>
-          Forgot your password?
-          <v-btn
-            variant="outlined"
-            @click="showForgotSection = !showForgotSection"
-          >
-            {{ showForgotSection ? 'I remember now' : 'Change Password' }}
-          </v-btn>
-        </div>
-      </v-card-text>
-
-      <v-card-actions>
-        <v-btn
-          v-if="!showForgotSection"
-          color="green-darken-2"
-          @click="login"
-          block
-          :loading="loading"
-        >
-          Login
-        </v-btn>
-
-        <v-btn
-          v-else
-          color="pink-darken-2"
-          @click="submitNewPassword"
-          block
-          :loading="loading"
-        >
-          Change Password
-        </v-btn>
-      </v-card-actions>
-    </v-card>
+  <div v-if="ssoEnabled" class="form">
+    <p v-if="ssoError" class="warn">{{ ssoError }}</p>
+    <p class="sub">Sign-in is handled by Imagination, your world account.</p>
+    <a class="btn primary" :href="ssoLoginUrl">Sign in with Imagination</a>
+  </div>
+  <form v-else class="form" @submit.prevent="login">
+    <p v-if="loginError" class="warn">{{ loginError }}</p>
+    <label>Username<input v-model.trim="Username" autocomplete="username" required :disabled="loading" /></label>
+    <label>
+      Password
+      <span class="pw">
+        <input v-model="Password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" required :disabled="loading" />
+        <button type="button" class="btn tiny" :aria-pressed="showPassword" @click="showPassword = !showPassword">{{ showPassword ? 'Hide' : 'Show' }}</button>
+      </span>
+    </label>
+    <button class="btn primary" type="submit" :disabled="loading || !Username || !Password">{{ loading ? 'Signing in…' : 'Sign in' }}</button>
+    <p class="hint">Forgotten your password? Ask an admin to reset it. Signed in, you can change it in Settings.</p>
   </form>
 </template>
 
@@ -131,9 +27,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useStore } from '@/store';
 import { client, apiUrl } from '@/services/api';
 
-defineOptions({
-  name: 'LoginView',
-});
+defineOptions({ name: 'LoginView' });
 
 const router = useRouter();
 const store = useStore();
@@ -147,41 +41,18 @@ const ssoError = typeof route.query.error === 'string' ? route.query.error : '';
 
 const Username = ref('');
 const Password = ref('');
-
-// New Form Refs
-
-const rules = {
-  required: (value: string) => !!value || 'Required.',
-  min: (v: string) => v.length >= 8 || 'Min 8 characters',
-  // passwordMatch
-};
-
-const showPassword = ref(true);
-
-const newForm = ref({
-  Username: '',
-  NewPassword: '',
-});
-
+const showPassword = ref(false);
 const loading = ref(false);
-const showForgotSection = ref(false);
 const loginError = ref('');
 
 async function login() {
   loading.value = true;
   loginError.value = '';
-
   try {
     const response = await client.users.loginUser.mutation({
       body: { Username: Username.value, Password: Password.value },
     });
-
     if (response.status === 200) {
-      store.showToast({
-        message: 'Signed in Successfully!',
-        style: 'success',
-      });
-
       store.setUser({
         username: response.body.payload.Username,
         userID: response.body.payload._id ?? '',
@@ -190,44 +61,37 @@ async function login() {
         avatar: response.body.payload.Avatar ?? '',
         fullname: response.body.payload.FullName,
       });
-
-      router.push('/u');
+      // Managers without a club go to /start (router guard).
+      router.push(response.body.payload.Clubs?.length ? `/game/${response.body.payload.Clubs[0]}` : '/start');
     } else {
       loginError.value = response.body.message;
     }
   } catch (error) {
-    loginError.value = 'Unable to log in. Please try again.';
+    loginError.value = 'Unable to sign in. Please try again.';
     console.error('Error logging in!', error);
   } finally {
     loading.value = false;
   }
 }
-
-async function submitNewPassword() {
-  loading.value = true;
-  try {
-    const response = await client.users.changePassword.mutation({
-      body: newForm.value,
-    });
-
-    if (response.status === 200) {
-      console.log('User => ', response.body.payload);
-      store.setUser({
-        username: response.body.payload.Username,
-        userID: response.body.payload._id ?? '',
-        clubs: response.body.payload.Clubs ?? [],
-        isAdmin: response.body.payload.isAdmin,
-        avatar: response.body.payload.Avatar ?? '',
-        fullname: response.body.payload.FullName,
-      });
-
-      router.push('/u');
-    }
-  } catch (error) {
-    console.error('Error changing password!', error);
-  } finally {
-    showForgotSection.value = false;
-    loading.value = false;
-  }
-}
 </script>
+
+<style scoped>
+.pw {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.pw input {
+  flex: 1;
+  min-width: 0;
+}
+.hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+.btn.primary {
+  text-decoration: none;
+}
+</style>

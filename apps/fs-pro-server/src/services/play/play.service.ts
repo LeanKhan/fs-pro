@@ -1,6 +1,7 @@
-import { and, desc, eq, inArray, isNull, like, ne } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, isNull, like, ne, or } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
-import { clubs, fixtures } from '../../db/drizzle/schema';
+import { clubMessages, clubs, fixtures, users } from '../../db/drizzle/schema';
+import { publishClubEvent, publishWorldEvent } from '../../realtime/world-events';
 import { createFixture, getFixtureById } from '../../controllers/fixtures/fixture.service';
 import { play } from '../../controllers/game/game.controller';
 import { ensureChallenge, recordMatchForChallenge, type ChallengeState } from './challenge.service';
@@ -11,9 +12,14 @@ import { scaled } from './game-time';
 
 /**
  * PLAY: the match is the club's primary loop. Pressing PLAY matches the club
- * with an opponent of similar power (AI clubs for now), plays the match with
- * QuickSim and pays out rewards. Stadium gate income is credited to the home
- * club (always the player's) inside game/functions.ts's updateFixture.
+ * with an opponent of similar power, plays the match with QuickSim and pays
+ * out rewards. Stadium gate income is credited to the home club (always the
+ * player's) inside game/functions.ts's updateFixture.
+ *
+ * Opponents can be AI clubs or other people's clubs (async multiplayer, the
+ * Clash of Clans way): a human club's saved squad and tactics defend while
+ * its owner is away. Defenders take no fatigue or injuries, get a short
+ * shield after each defence, and hear about it in their inbox and live.
  *
  * Stakes: a cooldown between matches, plus the squad fatigue/injuries every
  * match with SaveStats applies (players/player-fitness.service.ts).
@@ -25,8 +31,10 @@ const db = () => DrizzleDatabase.getInstance().database;
  * (GAME_TIME_SCALE, which also scales upgrades and challenges). Override
  * the base with MATCH_COOLDOWN_SECONDS, e.g. 20 for local testing. */
 export const MATCH_COOLDOWN_SECONDS = scaled(Number(process.env.MATCH_COOLDOWN_SECONDS) || 300);
-/** Opponents are picked at random from this many closest-power AI clubs. */
+/** Opponents are picked at random from this many closest-power clubs. */
 const OPPONENT_POOL = 5;
+/** After defending, a human club can't be matched again for this long. */
+export const DEFENCE_SHIELD_MINUTES = scaled(Number(process.env.DEFENCE_SHIELD_MINUTES) || 30);
 const MATCH_TITLE_MARK = '(Matchmade)';
 
 /** XP reward per outcome stays flat (drives club level, not cash). Cash is now
@@ -172,13 +180,35 @@ export async function getPlayState(clubId: string): Promise<PlayState> {
   return { club: summarise(club), standing, cooldownSeconds: cooldown, challenge, recent };
 }
 
-/** AI clubs closest in power to `club`, best first, as candidate opponents. */
-async function opponentCandidates(club: typeof clubs.$inferSelect) {
-  const pool = await db()
-    .select()
+/** Human clubs that defended a matchmade game within the shield window. */
+async function shieldedClubIds() {
+  const since = new Date(Date.now() - DEFENCE_SHIELD_MINUTES * 60_000);
+  const rows = await db()
+    .select({ id: fixtures.AwayTeamId })
+    .from(fixtures)
+    .where(and(like(fixtures.Title, `%${MATCH_TITLE_MARK}`), eq(fixtures.Played, true), gt(fixtures.updatedAt, since)));
+  return new Set(rows.map((r) => r.id).filter((id): id is string => !!id));
+}
+
+type Candidate = typeof clubs.$inferSelect & { manager: string | null };
+
+/** Clubs closest in power to `club`, best first, as candidate opponents: AI
+ * clubs and other people's clubs (never the caller's own, never shielded). */
+async function opponentCandidates(club: typeof clubs.$inferSelect): Promise<Candidate[]> {
+  const rows = await db()
+    .select({ club: clubs, manager: users.FullName })
     .from(clubs)
-    .where(and(isNull(clubs.UserId), ne(clubs.id, club.id)));
-  return pool
+    .leftJoin(users, eq(users.id, clubs.UserId))
+    .where(
+      and(
+        ne(clubs.id, club.id),
+        club.UserId ? or(isNull(clubs.UserId), ne(clubs.UserId, club.UserId)) : undefined
+      )
+    );
+  const shielded = await shieldedClubIds();
+  return rows
+    .filter((r) => !(r.club.UserId && shielded.has(r.club.id)))
+    .map((r) => ({ ...r.club, manager: r.club.UserId ? (r.manager ?? 'A manager') : null }))
     .sort((a, b) => Math.abs(a.Rating - club.Rating) - Math.abs(b.Rating - club.Rating))
     .slice(0, OPPONENT_POOL);
 }
@@ -188,13 +218,17 @@ export interface OpponentOption {
   name: string;
   code: string;
   power: number;
+  human?: boolean;
+  manager?: string | null;
 }
 
-const toOption = (c: typeof clubs.$inferSelect): OpponentOption => ({
+const toOption = (c: Candidate): OpponentOption => ({
   id: c.id,
   name: c.Name,
   code: c.ClubCode,
   power: power(c.Rating),
+  human: !!c.UserId,
+  manager: c.manager,
 });
 
 /**
@@ -267,6 +301,8 @@ export async function playMatch(clubId: string, opponentId?: string): Promise<Ma
         skipDayAdvance: true,
         skipReplay: true,
         homeRatingBonus,
+        // A person's club defending while they're away keeps its legs.
+        restAway: !!candidate.UserId,
       });
       fixtureId = fixture._id as string;
       break;
@@ -349,6 +385,17 @@ export async function playMatch(clubId: string, opponentId?: string): Promise<Ma
 
   extractedHighlights.sort((a, b) => a.minute - b.minute);
 
+  if (opponent.UserId) await tellDefender(club, opponent, fixtureId, home, away);
+  if (opponent.UserId || club.UserId) {
+    publishWorldEvent('world:result', {
+      fixtureId,
+      homeClubId: club.id,
+      awayClubId: opponent.id,
+      score: `${home}-${away}`,
+      kind: opponent.UserId ? 'pvp' : 'match',
+    });
+  }
+
   // updateFixture already moved the standing; report the difference.
   const state = await getPlayState(clubId);
   const standingChange = {
@@ -373,3 +420,42 @@ export async function playMatch(clubId: string, opponentId?: string): Promise<Ma
   };
 }
 
+
+/** The defending owner hears about a match against their club: an inbox
+ * message now, and a live notification if they're online. */
+async function tellDefender(
+  attacker: typeof clubs.$inferSelect,
+  defender: typeof clubs.$inferSelect,
+  fixtureId: string,
+  attackerGoals: number,
+  defenderGoals: number
+) {
+  const held = defenderGoals > attackerGoals;
+  const drew = defenderGoals === attackerGoals;
+  const score = `${defenderGoals}-${attackerGoals}`;
+  const title = held
+    ? `${defender.Name} held firm ${score}`
+    : drew
+      ? `Honours even with ${attacker.Name}`
+      : `${attacker.Name} won ${attackerGoals}-${defenderGoals} at your ground`;
+  const body = held
+    ? `${attacker.Name} came looking for a scalp and left with nothing. Your saved team sheet did the job.`
+    : drew
+      ? `${attacker.Name} took a ${score} draw. Your players kept their legs: defending never tires the squad.`
+      : `Your saved team sheet couldn't stop them. Tweak the lineup or tactics to defend better next time. You're shielded from matchmaking for ${Math.round(DEFENCE_SHIELD_MINUTES)} minutes.`;
+  try {
+    await db()
+      .insert(clubMessages)
+      .values({ ClubId: defender.id, Kind: 'squad', Tone: held ? 'good' : drew ? 'neutral' : 'bad', Title: title, Body: body, updatedAt: new Date() });
+  } catch (err) {
+    console.warn('[play] could not write the defence message', err);
+  }
+  publishClubEvent(defender.id, 'club:defended', {
+    fixtureId,
+    attackerId: attacker.id,
+    attackerName: attacker.Name,
+    attackerCode: attacker.ClubCode,
+    score,
+    outcome: held ? 'win' : drew ? 'draw' : 'loss',
+  });
+}

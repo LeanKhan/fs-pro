@@ -80,6 +80,14 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Play' },
   },
   {
+    // A manager without a club founds one here (country, town, club, crest).
+    path: '/start',
+    component: () =>
+      import(/* webpackChunkName: "found_club" */ '../views/game/found-club.vue'),
+    name: 'Found Club',
+    meta: { title: 'Found your club' },
+  },
+  {
     // The world map: every club at its home place, competitions as venues.
     path: '/world',
     component: () =>
@@ -263,11 +271,23 @@ const router = createRouter({
   routes,
 });
 
+/** Signed-in managers without a club start by founding one. */
+function needsClub(): boolean {
+  try {
+    const u = JSON.parse(window.localStorage.getItem('fspro-user') || 'null');
+    return !!u && !u.isAdmin && !(u.clubs?.length > 0);
+  } catch {
+    return false;
+  }
+}
+
 router.beforeEach((to, from, next) => {
   const isAuthenticated = Boolean(window.localStorage.getItem('fspro-user'));
 
   if (!RegExp(/\/auth/).test(to.path) && !isAuthenticated) {
     next({ name: 'Auth' });
+  } else if (isAuthenticated && ['/u', '/u/', '/', '/games', '/game'].includes(to.path) && needsClub()) {
+    next('/start');
   } else {
     next();
   }

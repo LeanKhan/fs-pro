@@ -73,12 +73,12 @@
           <!-- Amount Selector -->
           <div class="mb-4">
             <label class="text-body-2 font-weight-bold text-slate-200 d-block mb-1">
-              Requested Transfer Budget Injection (€)
+              Requested Transfer Budget Injection ($)
             </label>
             <v-text-field
               v-model.number="requestedAmount"
               type="number"
-              prefix="€"
+              prefix="$"
               variant="outlined"
               density="comfortable"
               color="cyan-accent-3"
@@ -311,10 +311,10 @@ const totalMatchdayCosts = computed(() => Number(finances.value.totalMatchdayCos
 const netMatchdayProfit = computed(() => Math.max(0, totalMatchdayRevenue.value - totalMatchdayCosts.value));
 
 const presets = [
-  { label: '+€500K', amount: 500_000 },
-  { label: '+€1.0M', amount: 1_000_000 },
-  { label: '+€2.5M', amount: 2_500_000 },
-  { label: '+€5.0M', amount: 5_000_000 },
+  { label: '+$500K', amount: 500_000 },
+  { label: '+$1.0M', amount: 1_000_000 },
+  { label: '+$2.5M', amount: 2_500_000 },
+  { label: '+$5.0M', amount: 5_000_000 },
 ];
 
 function close() {

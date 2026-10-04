@@ -13,18 +13,18 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`--- Testing Board Budget Request for ${club.Name} (Current Budget: €${club.Budget}) ---`);
+  console.log(`--- Testing Board Budget Request for ${club.Name} (Current Budget: $${club.Budget}) ---`);
 
   const requestedAmount = 1_500_000;
-  console.log(`Submitting Request: €${requestedAmount.toLocaleString()} [Justification: TITLE_CHALLENGE]`);
+  console.log(`Submitting Request: $${requestedAmount.toLocaleString()} [Justification: TITLE_CHALLENGE]`);
 
   const result = await processBoardBudgetRequest(club.id, requestedAmount, 'TITLE_CHALLENGE');
 
   console.log('\n--- BOARDROOM VERDICT ---');
   console.log('Decision Status:', result.status);
-  console.log('Requested Amount: €' + result.requestedAmount.toLocaleString());
-  console.log('Granted Amount:   €' + result.grantedAmount.toLocaleString());
-  console.log('New Budget:       €' + result.newBudget.toLocaleString());
+  console.log('Requested Amount: $' + result.requestedAmount.toLocaleString());
+  console.log('Granted Amount:   $' + result.grantedAmount.toLocaleString());
+  console.log('New Budget:       $' + result.newBudget.toLocaleString());
   console.log('Source:           ' + result.source);
   console.log('Board Statement:  ' + result.boardStatement);
   console.log('Financial Context:', result.financialContext);

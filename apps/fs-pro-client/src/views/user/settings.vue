@@ -135,7 +135,7 @@ const closeClubModal = async (event: any) => {
 
 const removeClub = async (clubId: string) => {
   try {
-    const response = await client.users.removeClubFromUser.mutation({
+    const response = await client.users.removeClubFromUser.query({
       params: { id: user.value.userID, club_id: clubId },
     });
 

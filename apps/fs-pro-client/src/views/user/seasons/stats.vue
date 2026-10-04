@@ -33,7 +33,7 @@
 
                   <template v-slot:append>
                     <v-avatar size="40" color="blue">
-                      <span class="text-white font-weight-bold">
+                      <span class="text-high-emphasis font-weight-bold">
                         {{ filter(p[attr]) }}
                       </span>
                     </v-avatar>

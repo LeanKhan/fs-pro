@@ -44,12 +44,21 @@ export class WorldFeedService {
         (homeScore > awayScore && homeRating + 5 < awayRating) ||
         (awayScore > homeScore && awayRating + 5 < homeRating);
 
+      // What kind of match: a competition (its code), a PLAY match between
+      // clubs, or an AI clubs' friendly.
+      const title = f.Title ?? '';
+      const kind = f.LeagueCode
+        ? f.LeagueCode
+        : title.endsWith('(Matchmade)')
+          ? 'a challenge match'
+          : 'a friendly';
       return {
         fixtureId: String(f.id),
-        title: f.Title ?? `${f.Home} vs ${f.Away}`,
-        leagueCode: f.LeagueCode ?? 'LEAGUE',
-        home: f.Home ?? 'HOME',
-        away: f.Away ?? 'AWAY',
+        title: title || `${f.Home} vs ${f.Away}`,
+        leagueCode: kind,
+        competitive: !!f.LeagueCode,
+        home: f.homeTeam?.Name ?? f.Home ?? 'HOME',
+        away: f.awayTeam?.Name ?? f.Away ?? 'AWAY',
         homeScore,
         awayScore,
         motm: details?.MOTM ?? null,
@@ -139,8 +148,12 @@ export class WorldFeedService {
         headlines.push({
           id: `hl-match-${r.fixtureId}`,
           category: 'result',
-          title: `${r.home} ${r.homeScore} - ${r.awayScore} ${r.away}: Key points contested in ${r.leagueCode}`,
-          summary: `Matchday conclusion on Day ${r.day} delivers a decisive outcome at full time.`,
+          title: r.competitive
+            ? `${r.home} ${r.homeScore} - ${r.awayScore} ${r.away}: key points in ${r.leagueCode}`
+            : `${r.home} ${r.homeScore} - ${r.awayScore} ${r.away}`,
+          summary: r.competitive
+            ? `Full time on day ${r.day}.`
+            : `Full time in ${r.leagueCode} at ${r.home}'s ground on day ${r.day}.`,
           timestamp: `Day ${r.day}`,
           tag: 'FULL TIME',
           relatedFixtureId: r.fixtureId,
@@ -156,7 +169,7 @@ export class WorldFeedService {
           id: `hl-tr-${tr.id}`,
           category: 'transfer',
           title: `TRANSFER CONFIRMED: ${p.FirstName} ${p.LastName} completes transfer fee deal!`,
-          summary: `Agreement finalized for a reported fee of €${(tr.Amount).toLocaleString()}. Personal terms agreed.`,
+          summary: `Agreement finalized for a reported fee of $${(tr.Amount).toLocaleString()}. Personal terms agreed.`,
           timestamp: 'Market Wire',
           tag: 'SIGNING',
         });

@@ -32,8 +32,8 @@ function generateBoardStatement(
   financialHealth: string,
   standingDesc: string
 ): string {
-  const grantedStr = `€${grantedAmount.toLocaleString()}`;
-  const requestedStr = `€${requestedAmount.toLocaleString()}`;
+  const grantedStr = `$${grantedAmount.toLocaleString()}`;
+  const requestedStr = `$${requestedAmount.toLocaleString()}`;
 
   if (status === 'ACCEPTED') {
     switch (justification) {
@@ -186,7 +186,7 @@ export async function processBoardBudgetRequest(
   const confidence = Math.round((decisionAnswer?.confidence ?? 0.88) * 100);
 
   const boardStatement = lostFaith
-    ? `The Board has declined your request for €${requestedAmount.toLocaleString()}. Confidence in the current direction is at a low ebb after recent results; there will be no further investment until performances improve.`
+    ? `The Board has declined your request for $${requestedAmount.toLocaleString()}. Confidence in the current direction is at a low ebb after recent results; there will be no further investment until performances improve.`
     : generateBoardStatement(
         club.Name,
         status,

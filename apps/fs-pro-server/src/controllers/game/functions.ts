@@ -35,7 +35,10 @@ export async function updateFixture(
   home: Team,
   away: Team,
   fixture_id: string,
-  saveStats = true
+  saveStats = true,
+  /** restAway: the away side's players take no fatigue or injuries (a human
+   * club defending while its owner is away, see play.service.ts). */
+  opts: { restAway?: boolean } = {}
 ) {
   const matchDetails = {
     ...MatchDetails,
@@ -65,7 +68,7 @@ export async function updateFixture(
   //  { _id: fixture_id, Played: false }, TODO - Change back to this!
   //  Find that particular fixture that has not been played of course...
 
-  const savePlayerAndClubStats = async (club: IMatchSideDetails, teamId?: string) => {
+  const savePlayerAndClubStats = async (club: IMatchSideDetails, teamId?: string, fitness = true) => {
     // ClubMatchDetails is created first (with an empty PlayerStats) so each
     // PlayerMatchDetails row can set its own ClubMatchDetails FK back to it
     // - the reverse FK Postgres uses instead of a PlayerStats array (that
@@ -82,7 +85,7 @@ export async function updateFixture(
 
     if (saveStats) {
       // Apply player fitness loss and in-match injury rolls (modulated by team's Medical Centre)
-      await PlayerFitnessService.applyMatchFatigueAndInjuries(
+      if (fitness) await PlayerFitnessService.applyMatchFatigueAndInjuries(
         club.PlayerStats as PlayerMatchDetailsInterface[],
         teamId
       );
@@ -111,7 +114,7 @@ export async function updateFixture(
 
   const [homeMatchDetailsID, awayMatchDetailsID] = await Promise.all([
     savePlayerAndClubStats(HomeSideDetails, home.id),
-    savePlayerAndClubStats(AwaySideDetails, away.id),
+    savePlayerAndClubStats(AwaySideDetails, away.id, !opts.restAway),
   ]);
 
   // Home team matchday attendance and gate receipts

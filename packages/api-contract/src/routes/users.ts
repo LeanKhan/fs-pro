@@ -59,14 +59,19 @@ export const usersContract = c.router(
     changePassword: {
       method: 'POST',
       path: '/change-password',
+      /** Signed-in users only, and only for themselves: the current
+       * password must match. There is no reset-by-username. */
       body: z.object({
         Username: z.string(),
-        NewPassword: z.string(),
+        CurrentPassword: z.string(),
+        NewPassword: z.string().min(8, 'Use at least 8 characters'),
       }),
       responses: {
         200: successEnvelope(UserSchema),
         404: failEnvelope(),
         400: failEnvelope(),
+        401: failEnvelope(),
+        403: failEnvelope(),
       },
     },
 

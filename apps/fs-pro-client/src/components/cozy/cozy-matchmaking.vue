@@ -14,9 +14,10 @@
   </div>
   <p v-if="searching" class="sub">Looking for opponents near your power…</p>
   <div v-else class="opps">
-    <div v-for="o in opponents" :key="o.id" class="opp" :class="[label(o.power).toLowerCase(), { picked: o.id === selectedId }]" @click="emit('select', o)">
+    <div v-for="o in opponents" :key="o.id" class="opp" :class="[label(o.power).toLowerCase(), { picked: o.id === selectedId, human: o.human }]" @click="emit('select', o)">
       <span class="opp-label">{{ label(o.power) }}</span>
-      <img :src="`/club-icons/${o.code}.svg`" :alt="o.name" width="56" height="56" @error="crestFallback($event, o.name)" />
+      <span v-if="o.human" class="opp-human" :title="`${o.manager}'s saved team sheet will defend`"><span v-html="icon('people')"></span>{{ o.manager }}</span>
+      <img :src="crestUrl(o.code)" :alt="o.name" width="56" height="56" @error="crestFallback($event, o.name)" />
       <div class="opp-name">{{ o.name }}</div>
       <div class="opp-meta">Power {{ o.power }}</div>
       <router-link class="opp-meta" :to="`/game/${o.id}`">Visit grounds</router-link>
@@ -26,7 +27,8 @@
 </template>
 
 <script setup lang="ts">
-type Opponent = { id: string; name: string; power: number; code?: string };
+import { crestUrl } from '@/helpers/crest';
+type Opponent = { id: string; name: string; power: number; code?: string; human?: boolean; manager?: string | null };
 import { crestFallback } from './club-colors';
 import { icon } from './icons';
 
@@ -48,3 +50,26 @@ const emit = defineEmits<{
 /** Same bands as before: more than 5 power either side is lopsided. */
 const label = (power: number) => (power - props.myPower < -5 ? 'Favoured' : power - props.myPower > 5 ? 'Challenger' : 'Even');
 </script>
+
+<style scoped>
+.opp.human {
+  border-color: var(--gold);
+  background: linear-gradient(#fffaf0, #fff1c4);
+}
+.opp-human {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px 1px 2px;
+  border-radius: 10px;
+  background: #fff;
+  border: 2px solid var(--gold);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--wood-d);
+}
+.opp-human :deep(.ic) {
+  width: 18px;
+  height: 18px;
+}
+</style>

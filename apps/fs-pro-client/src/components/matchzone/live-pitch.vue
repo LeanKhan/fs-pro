@@ -94,6 +94,7 @@
 </template>
 
 <script setup lang="ts">
+import { kitUrl as kitImage } from '@/helpers/crest';
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
 import type { IMatchFrame, IMatchFramePlayer } from '@/utils/matchReplaySocket';
 import { apiUrl } from '@/services/api';
@@ -331,7 +332,7 @@ function getPlayerDirection(p: IMatchFramePlayer): PlayerDirection {
 
 function kitUrl(side: 'home' | 'away') {
   const code = side === 'home' ? props.home?.code : props.away?.code;
-  return code ? `${apiUrl}/img/clubs/kits/${encodeURIComponent(code)}-kit.png` : '';
+  return kitImage(code);
 }
 
 for (const side of ['home', 'away'] as const) {
