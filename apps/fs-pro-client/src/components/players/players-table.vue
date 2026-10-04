@@ -67,7 +67,7 @@
       <template v-slot:item.Id="{ item }">
         <v-img
           position="top"
-          :src="`${api}/img/clubs/kits/${item.ClubCode}-kit.png`"
+          :src="kitUrl(item.ClubCode)"
           max-height="50px"
           max-width="120px"
         ></v-img>
@@ -136,6 +136,7 @@
   </v-card>
 </template>
 <script setup lang="ts">
+import { kitUrl } from '@/helpers/crest';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import type { Player } from '@repo/api-contract';

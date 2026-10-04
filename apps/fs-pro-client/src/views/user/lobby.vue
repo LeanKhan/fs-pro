@@ -4,7 +4,7 @@
     <div class="d-flex justify-center align-center my-3">
       <img alt="FsPro Logo" height="200px" src="/logo-new.png" />
     </div>
-    <div class="text-center text-white pa-2">
+    <div class="text-center text-high-emphasis pa-2">
       No new Years available yet. Admin will create :)
 
       <br />

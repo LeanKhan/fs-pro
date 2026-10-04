@@ -1,60 +1,25 @@
 <template>
-  <v-app id="app">
+  <!-- The manager app wears the campus palette; the admin console stays dark. -->
+  <v-app id="app" :theme="userMode ? 'cozy' : 'dark'" :class="{ 'cozy-app': userMode }">
     <v-navigation-drawer
       :modelValue="drawer"
       @update:modelValue="drawer = $event"
     >
-      <v-list-item class="px-2 mt-2">
+      <!-- Who's managing: the first club's crest and the manager's name. -->
+      <v-list-item class="px-2 mt-2 nav-who" :to="homeClub ? `/game/${homeClub._id}` : '/start'">
         <template v-slot:prepend>
-          <v-avatar>
-            <v-img
-              :src="`${
-                userMode
-                  ? 'https://randomuser.me/api/portraits/women/84.jpg'
-                  : 'https://randomuser.me/api/portraits/men/85.jpg'
-              }`"
-            ></v-img>
+          <v-avatar rounded="0" size="44">
+            <img v-if="homeClub" :src="crestUrl(homeClub.ClubCode)" :alt="homeClub.Name" width="40" height="44" />
+            <v-icon v-else>mdi-shield-plus-outline</v-icon>
           </v-avatar>
         </template>
-
-        <v-list-item-title>
-          {{ userMode ? 'Manager' : 'Admin' }}
-        </v-list-item-title>
-
-        <template v-slot:append>
-          <v-btn icon @click="show = !show">
-            <v-icon>{{ show ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
-          </v-btn>
-        </template>
+        <v-list-item-title class="font-weight-bold">{{ user?.fullname || user?.username || 'Manager' }}</v-list-item-title>
+        <v-list-item-subtitle>{{ homeClub ? homeClub.Name : 'No club yet' }}</v-list-item-subtitle>
       </v-list-item>
 
-      <v-expand-transition>
-        <div v-show="show">
-          <v-divider></v-divider>
-
-          <v-list-item
-            class="px-2 grey-darken-4"
-            :to="`${!userMode ? '/u' : '/a'}`"
-            link
-          >
-            <template v-slot:prepend>
-              <v-avatar>
-                <v-img
-                  :src="`${
-                    !userMode
-                      ? 'https://randomuser.me/api/portraits/women/84.jpg'
-                      : 'https://randomuser.me/api/portraits/men/85.jpg'
-                  }`"
-                ></v-img>
-              </v-avatar>
-            </template>
-
-            <v-list-item-title>
-              {{ !userMode ? 'Manager' : 'Admin' }}
-            </v-list-item-title>
-          </v-list-item>
-        </div>
-      </v-expand-transition>
+      <v-list-item v-if="user?.isAdmin" class="px-2" :to="userMode ? '/a' : '/u'" link prepend-icon="mdi-swap-horizontal">
+        <v-list-item-title>{{ userMode ? 'Admin console' : 'Manager view' }}</v-list-item-title>
+      </v-list-item>
 
       <v-divider></v-divider>
       <v-list density="compact">
@@ -77,13 +42,14 @@
       </v-list>
     </v-navigation-drawer>
 
-    <v-app-bar density="compact" elevation="2" v-if="!MatchZone" class="app-top-bar" color="#0c0e15">
+    <v-app-bar density="compact" elevation="2" v-if="!MatchZone" class="app-top-bar" :color="userMode ? undefined : '#0c0e15'">
       <v-app-bar-nav-icon @click.stop="drawer = !drawer" />
       <img class="mr-2 ml-1" width="30px" :src="`/logo-new.png`" />
 
       <!-- Top Bar Ticker Component (Competition, Treasury, Date, World Events, Persona) -->
       <top-bar-ticker
         :socket-connected="socketConnected"
+        :cozy="userMode"
         @logout="logout"
       />
     </v-app-bar>
@@ -131,7 +97,8 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute, onBeforeRouteUpdate } from 'vue-router';
 import { useStore } from '@/store';
 import { client, apiUrl } from '@/services/api';
-import { appSocket } from '@/services/socket';
+import { realtime } from '@/services/realtime';
+import { crestUrl } from '@/helpers/crest';
 import TopBarTicker from '@/components/navigation/top-bar-ticker.vue';
 
 const router = useRouter();
@@ -139,8 +106,7 @@ const route = useRoute();
 const store = useStore();
 
 const drawer = ref(true);
-const show = ref(false);
-const socketIsConnected = ref(appSocket.connected);
+const socketIsConnected = computed(() => realtime.status.value === 'live');
 
 const adminNavItems = ref<any[]>([
   { title: 'Home', icon: 'mdi-soccer', link: '/a', color: 'primary' },
@@ -173,12 +139,12 @@ const adminNavItems = ref<any[]>([
 
 const logout = async (): Promise<void> => {
   try {
-    const response = await client.users.logoutUser.mutation({
+    const response = await client.users.logoutUser.query({
       params: { id: user.value.userID },
     });
     console.log('Response => ', response.body);
     if (response.status === 200) {
-      appSocket.disconnect();
+      realtime.disconnect();
       store.unsetUser();
       if (import.meta.env.VITE_IMAGINATION_LOGIN === 'true') {
         // End the Imagination session too; it sends the browser back to the login page.
@@ -213,9 +179,15 @@ const socketConnected = computed(() => {
   return socketIsConnected.value;
 });
 
+const homeClub = computed<any>(() => {
+  const c = user.value?.clubs?.[0];
+  return c && typeof c === 'object' ? c : null;
+});
+
 const userNavItems = computed((): any[] => {
   let routes = [
-    { title: 'Home', icon: 'mdi-soccer', link: '/u', color: 'primary' },
+    ...(homeClub.value ? [{ title: 'My ground', icon: 'mdi-stadium-variant', link: `/game/${homeClub.value._id}`, color: 'green' }] : [{ title: 'Found a club', icon: 'mdi-shield-plus-outline', link: '/start', color: 'green' }]),
+    { title: 'Office', icon: 'mdi-desk', link: '/u', color: 'brown' },
     {
       title: 'Competitions',
       icon: 'mdi-trophy-outline',
@@ -242,7 +214,6 @@ const userNavItems = computed((): any[] => {
     user.value.clubs &&
     typeof user.value.clubs[0] == 'object'
   ) {
-    console.log('Clubs dey');
     const clubRoutes = user.value.clubs.map((club: any) => {
       return {
         title: club.Name,
@@ -267,8 +238,9 @@ const userNavItems = computed((): any[] => {
   return routes;
 });
 
+/** Everything but the admin console is the manager's app (cozy theme). */
 const userMode = computed((): boolean => {
-  return route.path.split('/')[1] == 'u';
+  return route.path.split('/')[1] !== 'a';
 });
 
 const MatchZone = computed((): boolean => {
@@ -329,21 +301,9 @@ onMounted(() => {
 
   enter();
 
-  appSocket.on('connect', handleSocketConnect);
-  appSocket.on('disconnect', handleSocketDisconnect);
-  appSocket.connect();
+  // Online presence for the whole session (the world topic carries the count).
+  realtime.join('world');
 });
 
-onUnmounted(() => {
-  appSocket.off('connect', handleSocketConnect);
-  appSocket.off('disconnect', handleSocketDisconnect);
-});
-
-function handleSocketConnect() {
-  socketIsConnected.value = true;
-}
-
-function handleSocketDisconnect() {
-  socketIsConnected.value = false;
-}
+onUnmounted(() => realtime.leave('world'));
 </script>

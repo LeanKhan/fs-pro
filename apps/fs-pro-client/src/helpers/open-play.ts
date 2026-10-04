@@ -82,7 +82,7 @@ export function formatSummary(def: {
     return `a ${s.legs === 2 ? 'two-leg' : 'single-leg'} knockout`;
   });
   parts.push(stages.join(', then '));
-  if (e.entryFee) parts.push(`€${e.entryFee.toLocaleString()} to enter`);
+  if (e.entryFee) parts.push(`$${e.entryFee.toLocaleString()} to enter`);
   return parts.join(' · ');
 }
 
@@ -100,7 +100,7 @@ export function roundName(round: number, totalRounds: number) {
 }
 
 export function money(n: number | null | undefined) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n ?? 0);
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n ?? 0);
 }
 
 /** Level from XP with the world's thresholds (same rule as the server). */

@@ -89,7 +89,7 @@
                 <v-icon size="20" color="white">mdi-brain</v-icon>
               </v-avatar>
               <div>
-                <span class="text-subtitle-2 font-weight-black text-uppercase text-white tracking-wide">
+                <span class="text-subtitle-2 font-weight-black text-uppercase text-high-emphasis tracking-wide">
                   JEV TACTICAL ADVISOR
                 </span>
                 <span class="text-caption text-medium-emphasis ml-2">
@@ -111,7 +111,7 @@
           <div class="text-subtitle-1 font-weight-black text-amber-accent-2 mb-1">
             {{ data.advisorSummary.headline }}
           </div>
-          <p class="text-caption text-white-50 mb-3">
+          <p class="text-caption text-medium-emphasis mb-3">
             {{ data.advisorSummary.summary }}
           </p>
 
@@ -144,13 +144,13 @@
                     </span>
                   </div>
 
-                  <div class="text-subtitle-2 font-weight-bold text-white mb-1">
+                  <div class="text-subtitle-2 font-weight-bold text-high-emphasis mb-1">
                     {{ strat.title }}
                   </div>
                   <div class="text-caption text-medium-emphasis mb-2">
                     {{ strat.diagnosis }}
                   </div>
-                  <p class="text-caption text-white-50 mb-3">
+                  <p class="text-caption text-medium-emphasis mb-3">
                     {{ strat.recommendation }}
                   </p>
                 </div>
@@ -508,7 +508,4 @@ function pillarIcon(pillar: string) {
   border-color: rgba(255, 193, 7, 0.4) !important;
 }
 
-.text-white-50 {
-  color: rgba(255, 255, 255, 0.8) !important;
-}
 </style>

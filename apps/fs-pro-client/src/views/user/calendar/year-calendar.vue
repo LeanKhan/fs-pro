@@ -7,7 +7,7 @@
         <div>
           <div class="d-flex align-center gap-2 mb-1 flex-wrap">
             <v-icon color="indigo-lighten-2" size="large">mdi-calendar-multiselect</v-icon>
-            <span class="text-h5 font-weight-bold text-white">Year Calendar</span>
+            <span class="text-h5 font-weight-bold text-high-emphasis">Year Calendar</span>
             <v-chip color="indigo" size="small" variant="tonal" class="font-weight-bold">
               {{ currentYearLabel }}
             </v-chip>
@@ -107,7 +107,7 @@
         <div class="d-flex align-center gap-4 flex-wrap">
           <div>
             <span class="text-medium-emphasis">Total Matches: </span>
-            <span class="font-weight-bold text-white">{{ totalCount }}</span>
+            <span class="font-weight-bold text-high-emphasis">{{ totalCount }}</span>
           </div>
           <div>
             <span class="text-medium-emphasis">Played: </span>
@@ -154,7 +154,7 @@
               :disabled="activeMonthIndex <= 0"
               @click="activeMonthIndex--"
             />
-            <span class="text-h6 font-weight-bold text-white px-2">
+            <span class="text-h6 font-weight-bold text-high-emphasis px-2">
               {{ activeMonthName }}
             </span>
             <v-btn
@@ -263,13 +263,13 @@
                     {{ competitionStyle(fixture).icon }}
                   </v-icon>
                   <span class="match-teams text-truncate">
-                    <span :class="{ 'font-weight-bold text-white': fixture.Home === userClubCode }">
+                    <span :class="{ 'font-weight-bold text-high-emphasis': fixture.Home === userClubCode }">
                       {{ fixture.Home }}
                     </span>
                     <span class="mx-1 text-medium-emphasis">
                       {{ fixture.Played ? (fixture.Details?.FullTimeScore || 'FT') : 'vs' }}
                     </span>
-                    <span :class="{ 'font-weight-bold text-white': fixture.Away === userClubCode }">
+                    <span :class="{ 'font-weight-bold text-high-emphasis': fixture.Away === userClubCode }">
                       {{ fixture.Away }}
                     </span>
                   </span>
@@ -299,7 +299,7 @@
       <!-- 4. VIEW MODE B: Schedule List View -->
       <v-card v-else class="elevation-2 rounded-lg bg-surface border pa-4">
         <div class="d-flex align-center justify-space-between mb-3">
-          <span class="text-subtitle-1 font-weight-bold text-white">
+          <span class="text-subtitle-1 font-weight-bold text-high-emphasis">
             {{ activeMonthName }} Fixtures Schedule
           </span>
           <span class="text-caption text-medium-emphasis">
@@ -398,7 +398,7 @@
         <div class="d-flex align-center justify-space-between mb-2">
           <div>
             <div class="d-flex align-center gap-2">
-              <span class="text-h6 font-weight-bold text-white">
+              <span class="text-h6 font-weight-bold text-high-emphasis">
                 {{ selectedDayCell.formattedDate }}
               </span>
               <v-chip
@@ -459,7 +459,7 @@
               <div class="d-flex align-center gap-3">
                 <span
                   class="font-weight-bold"
-                  :class="{ 'text-amber': fixture.Home === userClubCode, 'text-white': fixture.Home !== userClubCode }"
+                  :class="{ 'text-amber': fixture.Home === userClubCode, 'text-high-emphasis': fixture.Home !== userClubCode }"
                 >
                   {{ fixture.Home }}
                 </span>
@@ -475,7 +475,7 @@
 
                 <span
                   class="font-weight-bold"
-                  :class="{ 'text-amber': fixture.Away === userClubCode, 'text-white': fixture.Away !== userClubCode }"
+                  :class="{ 'text-amber': fixture.Away === userClubCode, 'text-high-emphasis': fixture.Away !== userClubCode }"
                 >
                   {{ fixture.Away }}
                 </span>
@@ -543,7 +543,7 @@
         <div class="d-flex align-center justify-space-between mb-3">
           <div class="d-flex align-center gap-2">
             <v-icon color="purple-accent-3">mdi-fast-forward</v-icon>
-            <span class="text-h6 font-weight-bold text-white">Simulate to Date</span>
+            <span class="text-h6 font-weight-bold text-high-emphasis">Simulate to Date</span>
           </div>
           <v-btn icon="mdi-close" variant="text" size="small" @click="showSimModal = false" />
         </div>
@@ -560,7 +560,7 @@
           </div>
           <div>
             <span class="text-medium-emphasis">Date: </span>
-            <span class="font-weight-bold text-white">{{ formattedTodayDate }}</span>
+            <span class="font-weight-bold text-high-emphasis">{{ formattedTodayDate }}</span>
           </div>
         </div>
 
@@ -1247,7 +1247,7 @@ watch(
   color: #94a3b8;
   text-transform: uppercase;
   padding: 6px;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(var(--v-theme-on-surface), 0.02);
   border-radius: 4px;
 }
 
@@ -1259,8 +1259,8 @@ watch(
 
 .calendar-day-cell {
   min-height: 105px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(var(--v-theme-on-surface), 0.03);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
   border-radius: 6px;
   padding: 6px;
   display: flex;
@@ -1270,7 +1270,7 @@ watch(
 }
 
 .calendar-day-cell:hover:not(.empty-cell) {
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(var(--v-theme-on-surface), 0.07);
   border-color: rgba(129, 140, 248, 0.4);
   transform: translateY(-1px);
 }
@@ -1294,7 +1294,7 @@ watch(
 .day-number {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #e2e8f0;
+  color: rgba(var(--v-theme-on-surface), 0.92);
 }
 
 .cell-matches-container {
@@ -1309,8 +1309,8 @@ watch(
   font-size: 0.68rem;
   padding: 2px 4px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(var(--v-theme-on-surface), 0.06);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1324,9 +1324,9 @@ watch(
 }
 
 .match-mini-pill.match-played {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.18);
-  color: #cbd5e1;
+  background: rgba(var(--v-theme-on-surface), 0.08);
+  border-color: rgba(var(--v-theme-on-surface), 0.18);
+  color: rgba(var(--v-theme-on-surface), 0.8);
 }
 
 .match-mini-pill.match-win {
@@ -1367,6 +1367,6 @@ watch(
 
 .hover-card:hover {
   border-color: rgba(129, 140, 248, 0.5);
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(var(--v-theme-on-surface), 0.06);
 }
 </style>

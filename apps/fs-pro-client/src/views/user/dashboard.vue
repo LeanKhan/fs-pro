@@ -4,18 +4,18 @@
     <v-toolbar density="compact" class="mb-3 rounded-lg">
       <v-toolbar-title
         v-if="calendar"
-        class="text-subtitle-1 font-weight-bold text-indigo d-flex align-center gap-2"
+        class="text-subtitle-1 font-weight-bold text-secondary d-flex align-center gap-2"
       >
         <span>Day {{ calendar.CurrentDay }} - {{ formattedGameDate }}</span>
-        <v-chip size="x-small" color="success" variant="flat" class="ml-2">
-          Living World Active
+        <v-chip size="x-small" :color="worldLive ? 'success' : 'warning'" variant="flat" class="ml-2" :title="worldLive ? 'The world clock is running' : 'An admin has paused the world clock'">
+          {{ worldLive ? 'World running' : 'World paused' }}
         </v-chip>
       </v-toolbar-title>
 
       <v-spacer></v-spacer>
 
       <v-toolbar-items class="align-center">
-        <v-btn variant="text" size="small" color="indigo-lighten-2" to="/u/competitions" prepend-icon="mdi-trophy-outline">
+        <v-btn variant="text" size="small" color="secondary" to="/u/competitions" prepend-icon="mdi-trophy-outline">
           Competitions
         </v-btn>
       </v-toolbar-items>
@@ -27,18 +27,18 @@
     <v-card
       v-if="userClub"
       class="mb-4 pa-4 elevation-3 border"
-      style="background: linear-gradient(135deg, rgba(30, 34, 53, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%); border-color: rgba(99, 102, 241, 0.3) !important;"
+      style="background: linear-gradient(#fff8e6, #f1dfb6); border: 3px solid #c9a46a !important;"
     >
       <v-row align="center" justify="space-between">
         <!-- Club Brand & Actor Persona -->
         <v-col cols="12" md="4" class="d-flex align-center gap-3">
-          <v-avatar size="56" color="indigo-darken-3" class="elevation-2">
+          <v-avatar size="56" color="transparent" class="elevation-2">
             <v-icon size="36">custom:{{ userClub.ClubCode }}</v-icon>
           </v-avatar>
           <div>
             <div class="d-flex align-center gap-2">
-              <span class="text-h6 font-weight-bold text-white">{{ userClub.Name }}</span>
-              <v-chip size="x-small" color="indigo" class="text-uppercase font-weight-bold">
+              <span class="text-h6 font-weight-bold">{{ userClub.Name }}</span>
+              <v-chip size="x-small" color="secondary" class="text-uppercase font-weight-bold">
                 {{ userClub.ClubCode }}
               </v-chip>
             </div>
@@ -71,15 +71,15 @@
 
         <!-- Manager Quick Desk -->
         <v-col cols="12" sm="6" md="4">
-          <v-card variant="tonal" color="indigo-darken-4" class="pa-2 px-3 rounded-lg">
+          <v-card variant="flat" color="surface" class="pa-2 px-3 rounded-lg">
             <div class="d-flex justify-space-between align-center mb-1">
-              <span class="text-caption font-weight-bold text-indigo-lighten-2">
+              <span class="text-caption font-weight-bold text-secondary">
                 <v-icon size="small" class="mr-1">mdi-strategy</v-icon> MANAGER DESK
               </span>
               <v-btn
                 size="x-small"
                 variant="text"
-                color="indigo-lighten-1"
+                color="secondary"
                 :to="`/u/clubs/${userClub._id}/${userClub.ClubCode}?tab=1`"
               >
                 Pitch & Tactics <v-icon size="x-small">mdi-chevron-right</v-icon>
@@ -88,8 +88,8 @@
             <div class="d-flex align-center gap-3 text-caption">
               <div>
                 <span class="text-medium-emphasis">Shape: </span>
-                <strong class="text-white">{{ userClub.Tactic?.formation ?? '4-3-3' }}</strong>
-                <span class="text-medium-emphasis ml-1">({{ userClub.Tactic?.playStyle ?? 'balanced' }})</span>
+                <strong>{{ formationLabel }}</strong>
+                <span class="text-medium-emphasis ml-1">({{ userClub.Tactic?.styleName ?? 'Balanced' }})</span>
               </div>
               <v-divider vertical class="mx-1" />
               <div>
@@ -111,15 +111,15 @@
 
         <!-- Owner Director's Box -->
         <v-col cols="12" sm="6" md="4">
-          <v-card variant="tonal" color="blue-grey-darken-4" class="pa-2 px-3 rounded-lg">
+          <v-card variant="flat" color="surface" class="pa-2 px-3 rounded-lg">
             <div class="d-flex justify-space-between align-center mb-1">
-              <span class="text-caption font-weight-bold text-teal-lighten-3">
+              <span class="text-caption font-weight-bold text-secondary">
                 <v-icon size="small" class="mr-1">mdi-domain</v-icon> DIRECTOR'S BOX
               </span>
               <v-btn
                 size="x-small"
                 variant="text"
-                color="teal-lighten-3"
+                color="secondary"
                 :to="`/u/clubs/${userClub._id}/${userClub.ClubCode}?tab=4`"
               >
                 Finances <v-icon size="x-small">mdi-chevron-right</v-icon>
@@ -132,11 +132,11 @@
               </div>
               <div>
                 <span class="text-medium-emphasis">Wage: </span>
-                <strong class="text-white">{{ clubWageBillFormatted }}/wk</strong>
+                <strong>{{ clubWageBillFormatted }}/yr</strong>
               </div>
               <div>
-                <span class="text-medium-emphasis">Stadium: </span>
-                <strong class="text-white">Lvl {{ userClub.Finances?.stadiumLevel ?? 1 }}</strong>
+                <span class="text-medium-emphasis">Fans: </span>
+                <strong>{{ (userClub.Fans ?? 0).toLocaleString('en-US') }}</strong>
               </div>
             </div>
           </v-card>
@@ -147,13 +147,13 @@
     <v-card
       v-else
       class="mb-4 pa-3 elevation-1 border"
-      color="indigo-darken-4"
+      color="surface-variant"
     >
       <div class="d-flex justify-space-between align-center">
         <div class="d-flex align-center gap-2">
-          <v-icon color="indigo-lighten-3">mdi-shield-account</v-icon>
-          <span class="text-subtitle-2 text-white">
-            Autonomous World Active &bull; Day {{ calendar?.CurrentDay ?? 1 }}
+          <v-icon color="secondary">mdi-shield-account</v-icon>
+          <span class="text-subtitle-2">
+            {{ worldLive ? 'World running' : 'World paused' }} &bull; Day {{ calendar?.CurrentDay ?? 1 }}
           </span>
         </div>
         <v-btn size="small" variant="tonal" color="white" to="/u/lobby">
@@ -170,7 +170,7 @@
       <v-col cols="12" lg="8">
         <!-- Fixtures and next matches -->
         <v-card color="transparent">
-          <v-sheet width="100%" color="indigo" class="rounded-t-lg overflow-hidden">
+          <v-sheet width="100%" color="surface-variant" class="rounded-t-lg overflow-hidden">
             <div class="text-center" v-if="selectedDay">
               <template v-if="!selectedDay.isFree && selectedDay.Matches?.length">
                 <v-row class="px-2 py-2">
@@ -216,7 +216,7 @@
                 <v-btn
                   variant="text"
                   size="small"
-                  color="indigo-lighten-2"
+                  color="secondary"
                   to="/u/friendly"
                 >
                   Play Friendly
@@ -224,7 +224,7 @@
                 <v-btn
                   variant="text"
                   size="small"
-                  color="indigo-lighten-2"
+                  color="secondary"
                   to="/u/fixtures"
                 >
                   View All
@@ -246,7 +246,7 @@
         <v-card class="mt-4">
           <v-card-title class="text-subtitle-1 font-weight-bold d-flex align-center justify-space-between">
             <span>My Competitions</span>
-            <v-btn size="x-small" variant="tonal" color="indigo-lighten-2" to="/u/competitions">
+            <v-btn size="x-small" variant="tonal" color="secondary" to="/u/competitions">
               Find competitions
             </v-btn>
           </v-card-title>
@@ -437,21 +437,28 @@ const injuredCount = computed(() => {
 });
 
 const clubBudgetFormatted = computed(() => {
-  const b = userClub.value?.Finances?.budget ?? 0;
+  const b = userClub.value?.Budget ?? 0;
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'EUR',
+    currency: 'USD',
     maximumFractionDigits: 0,
   }).format(b);
 });
 
+/** Player wages are yearly (utils/players.ts calculatePlayerWage). */
 const clubWageBillFormatted = computed(() => {
-  const w = userClub.value?.Finances?.wageBillWeekly ?? 0;
+  const w = (userClub.value?.Players ?? []).reduce((sum: number, p: any) => sum + (p.isRetired ? 0 : (p.Wage ?? 0)), 0);
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'EUR',
+    currency: 'USD',
     maximumFractionDigits: 0,
   }).format(w);
+});
+
+/** "4231" -> "4-2-3-1". */
+const formationLabel = computed(() => {
+  const f = String(userClub.value?.Tactic?.formationName ?? '433');
+  return /^\d+$/.test(f) ? f.split('').join('-') : f;
 });
 
 const nextClubFixture = computed(() => {
@@ -525,7 +532,19 @@ function selectDay(val: number) {
   selectedMatch.value = null;
 }
 
+/** Whether the world clock is ticking (it can be paused by an admin). */
+const worldLive = ref(false);
+async function loadClock() {
+  try {
+    const res = await client.calendar.getClock.query();
+    if (res.status === 200) worldLive.value = (res.body.payload as { mode?: string }).mode === 'live';
+  } catch {
+    // Leave it as paused.
+  }
+}
+
 onMounted(async () => {
+  void loadClock();
   openPlay.start();
   if (!store.user?.clubs?.[0] || typeof store.user?.clubs?.[0] === 'string') {
     await store.setUserClubs();

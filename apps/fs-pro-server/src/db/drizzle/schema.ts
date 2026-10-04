@@ -57,6 +57,19 @@ export const places = pgTable('Places', {
   WorldSyncedAt: timestamp('WorldSyncedAt', { withTimezone: true }),
   /** The world no longer knows this place (deleted); last known values are kept. */
   WorldStale: boolean('WorldStale').notNull().default(false),
+  /** Atlas (packages/api-contract world-geo.ts): a town's country. Null for
+   * countries. */
+  ParentId: uuid('ParentId').references((): AnyPgColumn => places.id),
+  /** The user who founded this country or town; null for the original world. */
+  FoundedBy: uuid('FoundedBy').references((): AnyPgColumn => users.id),
+  /** Spot on the world atlas, in atlas units (ATLAS_W x ATLAS_H). */
+  MapX: real('MapX'),
+  MapY: real('MapY'),
+  /** Country colours [primary, secondary]. */
+  Colors: jsonb('Colors').$type<[string, string] | null>(),
+  /** Town terrain ('city' | 'coastal' | 'hillside'): the campus scene of its clubs. */
+  Terrain: text('Terrain'),
+  Motto: text('Motto'),
   ...timestamps,
 });
 
@@ -189,6 +202,11 @@ export const clubs = pgTable('Clubs', {
   /** Where the owner put each campus building (packages/api-contract
    * campus-grid.ts); null = the default layout. */
   CampusPlacement: jsonb('CampusPlacement').$type<Record<string, { x: number; z: number; rot: number }> | null>(),
+  /** The club's town (a Places row whose ParentId is its country). */
+  TownId: uuid('TownId').references((): AnyPgColumn => places.id),
+  /** Crest of a club founded in the game (api-contract crest.ts); null for
+   * the original clubs, which have hand-drawn crests. */
+  Crest: jsonb('Crest').$type<Record<string, unknown> | null>(),
   ...timestamps,
   // Players dropped - it's the exact inverse of players.Club below.
 });

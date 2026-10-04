@@ -316,4 +316,149 @@
 .result-row { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1px dashed #eadbb8; }
 .result-row b { min-width: 52px; text-align: center; }
 .ticker { cursor: pointer; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* --- Forms ---------------------------------------------------------------------- */
+.form {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+.form label,
+.form .label {
+  display: grid;
+  gap: 4px;
+  font-weight: 600;
+  font-size: 14px;
+}
+.form small {
+  color: var(--muted);
+  font-weight: 500;
+}
+.form input {
+  font: inherit;
+  font-size: 17px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 3px solid #e2cc9c;
+  background: #fffaf0;
+  color: var(--ink);
+  outline: none;
+}
+.form input:focus {
+  border-color: var(--green);
+}
+.form input { user-select: text; -webkit-user-select: text; width: 100%; min-width: 0; }
+.form label > span { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.form input.code {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 700;
+}
+.two {
+  display: grid;
+  grid-template-columns: 1fr 110px;
+  gap: 10px;
+}
+
+/* --- Atlas forms: flags, terrains, sticky actions ----------------------------------- */
+.flag {
+  display: inline-flex;
+  flex-direction: column;
+  width: 44px;
+  height: 30px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 2px solid #3b2a1a;
+  flex: none;
+}
+.flag.small {
+  width: 30px;
+  height: 20px;
+}
+.flag i {
+  flex: 1;
+}
+.flagpick {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  align-items: center;
+}
+.flagpick .flag {
+  grid-row: span 2;
+  grid-column: 2;
+  grid-row-start: 1;
+  width: 60px;
+  height: 40px;
+}
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.sw {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid #fffaf0;
+  box-shadow: 0 0 0 2px #c9a46a;
+}
+.sw.on {
+  box-shadow: 0 0 0 3px var(--green-d);
+}
+.tdot {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  flex: none;
+  border: 2px solid #5e3b22;
+}
+.tdot.city,
+.terrain.city .t-art {
+  background: linear-gradient(#e5402f 0 40%, #f6e7c4 40%);
+}
+.tdot.coastal,
+.terrain.coastal .t-art {
+  background: linear-gradient(#f6e7c4 0 45%, #e9d6a1 45% 60%, #4b9fd3 60%);
+}
+.tdot.hillside,
+.terrain.hillside .t-art {
+  background: linear-gradient(160deg, #9bd46e 0 50%, #2f8a1c 50%);
+}
+.terrains {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.terrain {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  padding: 8px;
+  border-radius: 14px;
+  background: #fffaf0;
+  border: 3px solid #e2cc9c;
+  text-align: center;
+}
+.terrain.on {
+  border-color: var(--green-d);
+  background: #eaf8e0;
+}
+.t-art {
+  width: 56px;
+  height: 40px;
+  border-radius: 10px;
+  border: 2px solid #5e3b22;
+}
+.terrain small {
+  font-size: 11px;
+}
+.row-btns.sticky {
+  position: sticky;
+  bottom: -16px;
+  margin: 10px -18px -16px;
+  padding: 10px 18px 14px;
+  background: linear-gradient(rgba(253, 244, 223, 0), var(--cream) 30%);
+}
+.flag.big { width: 60px; height: 40px; }
 }

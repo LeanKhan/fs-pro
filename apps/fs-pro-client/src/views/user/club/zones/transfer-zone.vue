@@ -72,7 +72,7 @@
             @click="openScoutedTarget(target)"
           >
             <div class="d-flex flex-column py-1">
-              <span class="font-weight-bold text-white">{{ target.name }}</span>
+              <span class="font-weight-bold text-high-emphasis">{{ target.name }}</span>
               <span class="text-caption text-medium-emphasis">
                 {{ target.position ?? '?' }} · OVR {{ target.rating }} ·
                 {{ currency(target.askingPrice ?? target.value) }}

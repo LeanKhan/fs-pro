@@ -16,7 +16,7 @@
                 v-for="en in runningEntries"
                 :key="en.seasonId"
                 size="small"
-                class="ml-1 text-subtitle-1 font-weight-bold text-white"
+                class="ml-1 text-subtitle-1 font-weight-bold text-high-emphasis"
                 :to="`/u/competitions/${en.seasonId}`"
               >
                 {{ en.edition.title }}
@@ -28,7 +28,7 @@
 
           <div class="d-flex align-center gap-2">
             <v-icon size="x-large">custom:{{ club.ClubCode }}</v-icon>
-            <span class="text-subtitle-1 font-weight-bold text-white">
+            <span class="text-subtitle-1 font-weight-bold text-high-emphasis">
               {{ club.Name }}
             </span>
             <v-chip
@@ -141,7 +141,7 @@
                                   custom:{{ selectedMatch.Home }}
                                 </v-icon>
                               </v-avatar>
-                              <div class="text-subtitle-2 font-weight-bold text-white">
+                              <div class="text-subtitle-2 font-weight-bold text-high-emphasis">
                                 {{ selectedMatch.Home }}
                               </div>
                               <div class="text-caption text-medium-emphasis">HOME</div>
@@ -177,7 +177,7 @@
                                   custom:{{ selectedMatch.Away }}
                                 </v-icon>
                               </v-avatar>
-                              <div class="text-subtitle-2 font-weight-bold text-white">
+                              <div class="text-subtitle-2 font-weight-bold text-high-emphasis">
                                 {{ selectedMatch.Away }}
                               </div>
                               <div class="text-caption text-medium-emphasis">AWAY</div>
@@ -185,7 +185,7 @@
                           </div>
 
                           <div class="pa-0 text-center mt-3">
-                            <p class="mb-1 text-caption text-white font-weight-medium">
+                            <p class="mb-1 text-caption text-high-emphasis font-weight-medium">
                               {{ selectedMatch.Title }}
                             </p>
                             <p class="mb-0 text-caption text-medium-emphasis">
@@ -247,14 +247,14 @@
                                   </v-btn>
                                 </template>
 
-                                <v-card class="pa-2 rounded-lg bg-grey-darken-4" min-width="270">
+                                <v-card class="pa-2 rounded-lg" min-width="270">
                                   <div class="text-caption font-weight-bold text-medium-emphasis px-3 py-1">
                                     MATCH EXECUTION MODE
                                   </div>
                                   <v-list density="compact" class="bg-transparent pa-0">
                                     <v-list-item
                                       class="rounded mb-1 cursor-pointer"
-                                      :class="{ 'bg-grey-darken-3': selectedSimMode === 'play' }"
+                                      :class="{ 'bg-surface-variant': selectedSimMode === 'play' }"
                                       @click="selectedSimMode = 'play'"
                                     >
                                       <template #prepend>
@@ -274,7 +274,7 @@
 
                                     <v-list-item
                                       class="rounded cursor-pointer"
-                                      :class="{ 'bg-grey-darken-3': selectedSimMode === 'quick' }"
+                                      :class="{ 'bg-surface-variant': selectedSimMode === 'quick' }"
                                       @click="selectedSimMode = 'quick'"
                                     >
                                       <template #prepend>
@@ -304,7 +304,7 @@
                 </template>
 
                 <template v-else>
-                  <v-card color="grey" height="190px" class="d-flex align-center justify-center">
+                  <v-card color="surface-variant" height="190px" class="d-flex align-center justify-center">
                     <v-card-text class="text-center">
                       <div class="text-subtitle-1 mb-1">No matches scheduled for Day {{ selectedDay.Day }}</div>
                       <v-icon color="green" size="large">mdi-football</v-icon>
@@ -316,7 +316,7 @@
                   <v-divider class="mx-2" />
                   <!-- Filter bar: All League Fixtures vs My Club Only -->
                   <div class="d-flex justify-space-between align-center px-4 pt-3">
-                    <span class="text-subtitle-2 font-weight-bold text-white">
+                    <span class="text-subtitle-2 font-weight-bold text-high-emphasis">
                       League Fixture Calendar
                     </span>
                     <div class="d-flex align-center gap-2">
@@ -336,7 +336,7 @@
 
                       <v-btn
                         to="/u/calendar"
-                        color="indigo-lighten-2"
+                        color="secondary"
                         variant="tonal"
                         size="x-small"
                         prepend-icon="mdi-calendar-multiselect"
@@ -358,11 +358,11 @@
                 </template>
               </v-card>
 
-              <v-card v-else color="grey-darken-2" min-height="190">
+              <v-card v-else color="surface-variant" min-height="190">
                 <v-card-text>No scheduled fixtures.</v-card-text>
               </v-card>
 
-              <v-card color="deep-purple" class="mt-3">
+              <v-card color="surface-variant" class="mt-3">
                 <v-progress-linear v-if="isSeasonLoading" indeterminate />
 
                 <template v-else-if="runningEntries.length">

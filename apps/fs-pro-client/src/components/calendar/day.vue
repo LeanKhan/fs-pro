@@ -16,7 +16,7 @@
     <!-- Top Bar: Day Number & Status Badges -->
     <div class="d-flex justify-space-between align-center mb-1">
       <div class="d-flex align-center gap-1">
-        <span class="text-subtitle-2 font-weight-bold" :class="isToday ? 'text-green-accent-3' : 'text-white'">
+        <span class="text-subtitle-2 font-weight-bold" :class="isToday ? 'text-green-accent-3' : 'text-high-emphasis'">
           Day {{ day.Day }}
         </span>
         <v-chip

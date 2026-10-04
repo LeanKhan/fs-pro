@@ -1,5 +1,5 @@
 <template>
-  <div class="matchzone">
+  <v-theme-provider theme="cozy" with-background class="matchzone cozy-skin">
     <header class="mz-header">
       <button class="mz-close" @click="router.push('/u')" title="Close">
         ✕
@@ -263,7 +263,7 @@
       :home="{ Name: fixture.HomeTeam.Name, ClubCode: fixture.Home }"
       :away="{ Name: fixture.AwayTeam.Name, ClubCode: fixture.Away }"
     ></game-lobby>
-  </div>
+  </v-theme-provider>
 </template>
 
 <script setup lang="ts">
@@ -1369,5 +1369,136 @@ watch(fixtureId, () => {
 .mz-reopen-review-btn:hover {
   background: #ffeb3b;
   color: #0c1710;
+}
+
+/* --- Cozy match day (2026-10-04) ------------------------------------------------
+ * The match screen in the campus look: pitch-side greens, cream panels with
+ * wood edges and the Fredoka face, like the campus's own match view. These
+ * override the night-stadium palette above. */
+.matchzone.cozy-skin {
+  --cream: #fdf4df;
+  --ink: #4a3220;
+  --muted: #8b7357;
+  --wood: #c9a46a;
+  --mz-shadow: 0 4px 0 rgba(70, 40, 15, 0.35), 0 8px 18px rgba(0, 0, 0, 0.18);
+  background: radial-gradient(circle at 50% 0%, #5b9e45, #2a5a22);
+  color: #fffaf0;
+  font-family: 'Fredoka', system-ui, sans-serif;
+}
+.cozy-skin .mz-header {
+  background: linear-gradient(#fff8e6, #f1dfb6);
+  border-bottom: 3px solid var(--wood);
+  color: var(--ink);
+  box-shadow: 0 3px 0 rgba(70, 40, 15, 0.2);
+}
+.cozy-skin .mz-close,
+.cozy-skin .mz-action-btn {
+  background: linear-gradient(#fffaf0, #ecdcb8);
+  border: 3px solid #c39457;
+  color: #5e3b22;
+  border-radius: 12px;
+  box-shadow: 0 3px 0 rgba(70, 40, 15, 0.35);
+}
+.cozy-skin .mz-close {
+  width: 34px;
+  height: 34px;
+}
+.cozy-skin .mz-action-accent {
+  background: linear-gradient(#7bd655, #3fa526);
+  border-color: #2c7d18;
+  color: #fff;
+}
+.cozy-skin .mz-chip {
+  background: #f6e7c4;
+  color: var(--ink);
+}
+.cozy-skin .mz-chip-accent {
+  background: #f5b82e;
+  color: #5e3b22;
+}
+.cozy-skin .mz-main {
+  border-radius: 18px;
+  background:
+    radial-gradient(ellipse at center, rgba(40, 80, 30, 0) 0%, rgba(30, 60, 24, 0.45) 75%, rgba(20, 45, 18, 0.75) 100%),
+    repeating-radial-gradient(circle at 20% 30%, rgba(255, 250, 240, 0.08) 0px, rgba(255, 250, 240, 0.08) 1px, transparent 1px, transparent 7px),
+    #3d7a32;
+  box-shadow: inset 0 0 0 4px rgba(243, 227, 191, 0.6);
+}
+.cozy-skin .mz-floodlight {
+  opacity: 0.35;
+}
+.cozy-skin .mz-teams-card,
+.cozy-skin .mz-dugout {
+  background: var(--cream);
+  border: 3px solid var(--wood);
+  border-radius: 16px;
+  color: var(--ink);
+  box-shadow: var(--mz-shadow);
+}
+.cozy-skin .mz-fixture-meta {
+  color: #fffaf0;
+  opacity: 0.85;
+}
+.cozy-skin .mz-start-btn {
+  background: linear-gradient(#7bd655, #3fa526);
+  color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 0 #2c7d18;
+}
+.cozy-skin .mz-playback-controls {
+  background: rgba(253, 244, 223, 0.95);
+  border: 3px solid var(--wood);
+  color: var(--ink);
+}
+.cozy-skin .mz-clock-pill {
+  color: #5e3b22;
+  border-right-color: #e2cc9c;
+}
+.cozy-skin .mz-review-overlay {
+  background: rgba(40, 25, 10, 0.45);
+}
+.cozy-skin .mz-review-card {
+  background: var(--cream);
+  border: 4px solid var(--wood);
+  border-radius: 22px;
+  color: var(--ink);
+  box-shadow: var(--mz-shadow);
+}
+.cozy-skin .mz-review-pill {
+  color: #2f8a1c;
+  background: #eaf8e0;
+  border-color: #bfe3a5;
+}
+.cozy-skin .mz-review-toggle-btn {
+  background: #fffaf0;
+  color: var(--ink);
+  border: 2px solid #e2cc9c;
+}
+.cozy-skin .mz-review-score-grid,
+.cozy-skin .mz-review-goals-section,
+.cozy-skin .mz-review-stats-section {
+  background: #fffaf0;
+  border: 2px solid #eadbb8;
+}
+.cozy-skin .mz-review-team-name {
+  color: var(--ink);
+}
+.cozy-skin .mz-review-team-sub,
+.cozy-skin .mz-review-venue,
+.cozy-skin .mz-review-attendance {
+  color: var(--muted);
+}
+.cozy-skin .mz-review-big-score {
+  color: #5e3b22;
+}
+.cozy-skin .mz-review-goals-title {
+  color: #b97f0f;
+}
+.cozy-skin .mz-review-goal-chip {
+  background: #fff1c4;
+  color: var(--ink);
+}
+.cozy-skin .mz-stat-label {
+  color: var(--muted);
 }
 </style>

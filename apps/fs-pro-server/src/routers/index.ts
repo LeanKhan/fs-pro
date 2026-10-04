@@ -24,6 +24,9 @@ import { managerTsRestRoutes } from '../controllers/managers/manager.router';
 import { placeTsRestRoutes } from '../controllers/places/places.router';
 import { awardTsRestRoutes } from '../controllers/awards/awards.router';
 import { metaTsRestRoutes } from '../controllers/meta/meta.router';
+import { atlasTsRestRoutes, crestRouter, kitRouter } from '../controllers/world/atlas.router';
+import { realtimeRouter } from '../controllers/realtime/realtime.router';
+import { routePolicy } from '../middleware/route-policy';
 
 // Contract...
 import { apiContract } from '@repo/api-contract';
@@ -49,15 +52,22 @@ export const apiRouter = s.router(apiContract, {
   challenges: challengeTsRestRoutes,
   world: worldTsRestRoutes,
   competitionDefinitions: competitionDefinitionTsRestRoutes,
+  atlas: atlasTsRestRoutes,
 });
 
 // export default mainRouter;
 
 const router = Router();
 
+// Access rules for every contract route, before any of them run.
+router.use(routePolicy);
+
 router.use('/files', files);
 router.use('/players', playerFace);
 router.use('/managers', managerFace);
+router.use('/crests', crestRouter);
+router.use('/kits', kitRouter);
+router.use('/realtime', realtimeRouter);
 
 router.get('/random-test', (req, res) => {
   res.send({

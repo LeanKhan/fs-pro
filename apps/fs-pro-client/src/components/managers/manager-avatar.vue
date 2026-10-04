@@ -1,11 +1,12 @@
 <template>
   <img
-    v-if="managerId"
+    v-if="managerId && !failed"
     :src="faceUrl"
     :width="size"
     :height="size"
     alt="Manager avatar"
     class="manager-avatar"
+    @error="failed = true"
   />
   <div
     v-else
@@ -17,7 +18,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { apiUrl } from '@/store';
 
 interface Props {
@@ -32,6 +33,9 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const faceUrl = computed(() => `${apiUrl}/api/managers/${props.managerId}/face`);
+// The face service can be offline; fall back to the placeholder.
+const failed = ref(false);
+watch(faceUrl, () => (failed.value = false));
 </script>
 
 <style scoped>

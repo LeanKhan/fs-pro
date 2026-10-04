@@ -21,6 +21,8 @@
         @alert="onAlert"
       />
 
+      <cozy-presence v-if="clubId" :club-id="clubId" :club-name="club.Name" :is-mine="isMyClub" @notify="(t: string) => game.toast(t)" />
+
       <cozy-hud
         v-model:quick-sim="quickSim"
         :club="{ name: club.Name, code: club.ClubCode, location: clubLocation, elo: club.Elo ?? 1500 }"
@@ -134,7 +136,7 @@
       </cozy-drawer>
 
       <cozy-modal v-model="showAwaySummary" size="small">
-        <h2><span v-html="icon('mail')"></span> While you were away</h2>
+        <h2><span v-html="icon('mail')"></span> {{ awayTitle }}</h2>
         <ul class="away">
           <li v-for="(e, i) in awayEvents" :key="i"><span>{{ e.icon }}</span><span><b>{{ e.title }}</b><br />{{ e.description }}</span></li>
         </ul>
@@ -192,6 +194,8 @@ import ChallengeDialog from '@/components/open-play/challenge-dialog.vue';
 import FacilityDetailSheet from '@/components/campus/facility-detail-sheet.vue';
 import CozyCampus from '@/components/cozy/cozy-campus.vue';
 import CozyHud from '@/components/cozy/cozy-hud.vue';
+import CozyPresence from '@/components/cozy/cozy-presence.vue';
+import { realtime } from '@/services/realtime';
 import CozyPanel from '@/components/cozy/cozy-panel.vue';
 import CozyModal from '@/components/cozy/cozy-modal.vue';
 import CozyMatchmaking from '@/components/cozy/cozy-matchmaking.vue';
@@ -221,8 +225,26 @@ const openPlay = useOpenPlayStore();
 const directory = useClubDirectory();
 const showInbox = ref(false);
 const showChallenge = ref(false);
-onMounted(() => openPlay.start());
-onUnmounted(() => openPlay.stop());
+// Another manager's club played ours while we're looking (async PvP).
+function onDefended(p: { attackerName: string; score: string; outcome: 'win' | 'draw' | 'loss' }) {
+  const text =
+    p.outcome === 'win'
+      ? `Your team saw off ${p.attackerName} ${p.score}!`
+      : p.outcome === 'draw'
+        ? `${p.attackerName} drew ${p.score} at your ground`
+        : `${p.attackerName} won at your ground (${p.score})`;
+  game.toast(text, p.outcome === 'loss' ? 'error' : 'success');
+  void game.loadInbox();
+  void game.load();
+}
+onMounted(() => {
+  openPlay.start();
+  realtime.on('club:defended', onDefended);
+});
+onUnmounted(() => {
+  openPlay.stop();
+  realtime.off('club:defended', onDefended);
+});
 
 if (!store.isAuthenticated) store.getUser();
 if (!store.calendar) store.setCalendar();
@@ -258,9 +280,8 @@ const isMyClub = computed(() => {
 const treasury = computed(() => playState.value?.club.budget ?? club.value?.Budget ?? 0);
 
 const clubLocation = computed(() => {
-  const city = (club.value as any)?.City || (club.value as any)?.HomePlace?.Name || 'Abuja';
-  const country = (club.value as any)?.Country || 'Nigeria';
-  return `${city}, ${country}`;
+  const c = club.value as { Address?: { City?: string } | null; AddressCountry?: { Name?: string } | null } | null;
+  return [c?.Address?.City, c?.AddressCountry?.Name].filter(Boolean).join(', ') || 'Unplaced';
 });
 
 // --- The 3D campus ------------------------------------------------------------------
@@ -700,6 +721,7 @@ const managerBriefingMessage = computed(() => {
 
 // While you were away
 const showAwaySummary = ref(false);
+const awayTitle = ref('While you were away');
 const awayEvents = ref<{ icon: string; title: string; description: string }[]>([]);
 const INBOX_ICONS: Record<string, string> = { fans: '📣', board: '🏛️', squad: '👥', press: '📰' };
 
@@ -715,6 +737,9 @@ function checkOfflineProgress() {
     .slice(0, 5)
     .map((m) => ({ icon: INBOX_ICONS[m.kind] ?? '📰', title: m.title, description: m.body }));
   const away = rawLastSeen ? (nowTime - Number(rawLastSeen)) / 1000 : 0;
+  // A club's very first visit (just founded, or a new device) is a welcome.
+  const firstVisit = !rawLastSeen;
+  awayTitle.value = firstVisit ? `Welcome to ${club.value?.Name ?? 'your club'}` : 'While you were away';
   // Inbox news always shows; otherwise only after more than 2 minutes away.
   if (!events.length && away < 120) return;
 
@@ -727,7 +752,7 @@ function checkOfflineProgress() {
       description: done ? 'Construction finished while you were away.' : `Building towards Tier ${a.upgrade.toLevel}.`,
     });
   }
-  if (game.cooldownLeft.value === 0) events.push({ icon: '⚡', title: 'Squad rested', description: 'The players are ready to play.' });
+  if (game.cooldownLeft.value === 0 && !firstVisit) events.push({ icon: '⚡', title: 'Squad rested', description: 'The players are ready to play.' });
   awayEvents.value = events;
   showAwaySummary.value = events.length > 0;
 }

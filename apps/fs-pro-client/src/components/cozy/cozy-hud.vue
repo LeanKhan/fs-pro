@@ -2,7 +2,7 @@
   <div class="hud">
     <!-- Identity: crest, Club Level, XP -->
     <div class="profile" @click="emit('act', 'club')">
-      <div class="avatar"><img :src="`/club-icons/${club.code}.svg`" :alt="club.name" width="56" height="56" @error="crestFallback($event, club.name)" /></div>
+      <div class="avatar"><img :src="crestUrl(club.code)" :alt="club.name" width="56" height="56" @error="crestFallback($event, club.name)" /></div>
       <div class="lvl-badge">{{ level.level }}</div>
       <div class="xpbar"><div :style="{ width: `${xpPct}%` }"></div><span>{{ level.xpInto }}/{{ level.xpNeed }}</span></div>
     </div>
@@ -29,8 +29,8 @@
         Next: {{ facts.next.home ? 'vs' : '@' }} {{ facts.next.opponent }} · {{ facts.next.today ? 'today' : `day ${facts.next.day}` }}
         <button v-if="facts.next.today && !facts.next.home && isMine" class="btn tiny primary" @click="emit('act', 'travel')">Travel</button>
       </span>
-      <span v-if="facts.performance?.expected" class="chip" title="Board performance score against its target">
-        Board {{ facts.performance.score.toFixed(1) }} / {{ facts.performance.expected.toFixed(1) }}
+      <span v-if="facts.performance?.expected && facts.form.length" class="chip" :title="`Board performance score ${facts.performance.score.toFixed(1)} against a target of ${facts.performance.expected.toFixed(1)}`">
+        Board {{ Math.round((facts.performance.score / facts.performance.expected) * 100) }}% of target
       </span>
       <span v-if="facts.form.length" class="chip form">
         <i v-for="(r, i) in facts.form.slice(0, 5)" :key="i" :class="`res-${r.toLowerCase()}`">{{ r }}</i>
@@ -112,6 +112,7 @@
 </template>
 
 <script setup lang="ts">
+import { crestUrl } from '@/helpers/crest';
 import { computed } from 'vue';
 import { formatClock } from '@/composables/use-club-game';
 import { currency } from '@/helpers/misc';

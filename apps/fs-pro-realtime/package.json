@@ -1,0 +1,12 @@
+{
+  "name": "fs-pro-realtime",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Multiplayer gateway (Go): presence, chat and live world events over WebSocket",
+  "scripts": {
+    "dev": "go run .",
+    "build": "go build -o bin/realtime .",
+    "test": "go test ./...",
+    "lint": "go vet ./..."
+  }
+}

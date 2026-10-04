@@ -54,7 +54,7 @@
       </div>
 
       <div class="pa-0 text-center">
-        <p class="mb-1 text-subtitle-2 font-weight-bold text-white">
+        <p class="mb-1 text-subtitle-2 font-weight-bold text-high-emphasis">
           {{ Match.Title }}
         </p>
 

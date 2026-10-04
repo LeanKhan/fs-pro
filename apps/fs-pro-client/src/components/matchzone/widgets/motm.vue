@@ -67,7 +67,7 @@ const getMOTM = () => {
   font-size: 12px;
   font-weight: 700;
   background: transparent;
-  color: #eef3ec;
+  color: rgba(var(--v-theme-on-surface), 0.9);
   border: 1px solid #23392c;
   border-radius: 6px;
   padding: 8px 16px;

@@ -2,9 +2,9 @@
   <div class="result" :class="result.outcome">
     <h2>{{ { win: 'Victory!', draw: 'A hard-fought draw', loss: 'Defeat' }[result.outcome] }}</h2>
     <div class="final">
-      <img :src="`/club-icons/${myCode}.svg`" alt="" width="48" height="48" @error="crestFallback($event, myName)" />
+      <img :src="crestUrl(myCode)" alt="" width="48" height="48" @error="crestFallback($event, myName)" />
       <b>{{ result.score.you }} - {{ result.score.them }}</b>
-      <img :src="`/club-icons/${result.opponent.code}.svg`" alt="" width="48" height="48" @error="crestFallback($event, result.opponent.name)" />
+      <img :src="crestUrl(result.opponent.code)" alt="" width="48" height="48" @error="crestFallback($event, result.opponent.name)" />
     </div>
     <p class="sub">{{ myName }} vs {{ result.opponent.name }}</p>
     <p v-if="result.challengeCompleted" class="warn good">Challenge complete! Reward paid.</p>
@@ -26,6 +26,7 @@
 </template>
 
 <script setup lang="ts">
+import { crestUrl } from '@/helpers/crest';
 import type { MatchResult } from '@repo/api-contract';
 import { currency } from '@/helpers/misc';
 import { crestFallback } from './club-colors';

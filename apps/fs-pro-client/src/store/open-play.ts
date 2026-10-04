@@ -8,14 +8,15 @@ import type {
   WorldSettings,
 } from '@repo/api-contract';
 import { client } from '@/services/api';
-import { appSocket } from '@/services/socket';
+import { realtime } from '@/services/realtime';
 import { useStore } from '@/store';
 
 /**
  * Open-play state shared by the dashboard, the world view and the
  * competitions pages (docs/OPEN-PLAY-COMPETITIONS-SPEC.md, "UI"): the user's
  * club, its entries and challenges, the world settings and its performance.
- * Kept fresh by the server's open-play socket events (spec "Realtime"),
+ * Kept fresh by open-play events from the multiplayer gateway (spec
+ * "Realtime", services/realtime.ts),
  * with a slow poll and a refresh on window focus as the fallback.
  */
 
@@ -155,12 +156,25 @@ export const useOpenPlayStore = defineStore('open-play', () => {
       void refresh();
     },
   };
+  // The private topic of the club being followed (challenges sent to it etc.).
+  let clubTopic: string | null = null;
+  function followClub(on: boolean) {
+    const next = on && clubId.value ? `club:${clubId.value}` : null;
+    if (next === clubTopic) return;
+    if (clubTopic) realtime.leave(clubTopic);
+    if (next) realtime.join(next);
+    clubTopic = next;
+  }
+  watch(clubId, () => users > 0 && followClub(true));
+
   function listen(on: boolean) {
     for (const [event, fn] of Object.entries(handlers)) {
-      if (on) appSocket.on(event, fn);
-      else appSocket.off(event, fn);
+      if (on) realtime.on(event, fn);
+      else realtime.off(event, fn);
     }
-    if (on && !appSocket.connected) appSocket.connect();
+    if (on) realtime.join('world');
+    else realtime.leave('world');
+    followClub(on);
   }
 
   function start() {

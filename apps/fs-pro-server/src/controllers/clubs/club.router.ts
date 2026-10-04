@@ -20,7 +20,8 @@ import {
   toggleSigned,
   signManyPlayersToClub,
 } from '../players/player.service';
-import { recruitYouthPlayersForClub } from '../players/player-lifecycle.service';
+import { recruitYouthPlayersForClub, youthPromotionRefusal } from '../players/player-lifecycle.service';
+import { isAdmin } from '../auth/club-access';
 import { getClubPerformance } from '../../services/analytics/club-performance.service';
 import { worldClient } from '../../services/worldClient';
 import { applyClubAnchors } from '../../services/worldPlaceService';
@@ -43,7 +44,7 @@ export const clubTsRestRoutes = s.router(contract.clubs, {
     try {
       const idList = query.ids?.split(',').filter(Boolean);
       const clubs = idList?.length
-        ? await getClubs({ ids: idList })
+        ? await getClubs({ ids: idList }, { withPlayersAndManager: query.withPlayersAndManager ?? false })
         : query.unclaimed
           ? await getClubs({ unclaimed: true })
           : await getClubs(undefined, {
@@ -379,7 +380,7 @@ export const clubTsRestRoutes = s.router(contract.clubs, {
   /** Admin-only on-demand youth scouting - see
    * player-lifecycle.service.ts's recruitYouthPlayersForClub doc comment
    * for how this differs from the automatic yearly intake. */
-  recruitYouthPlayers: async ({ params, body }) => {
+  recruitYouthPlayers: async ({ params, body, req }) => {
     try {
       const club = await getClubById(params.id);
       if (!club) {
@@ -389,9 +390,18 @@ export const clubTsRestRoutes = s.router(contract.clubs, {
         };
       }
 
+      // Owners promote one youngster at a time from a real Youth Academy,
+      // on a cooldown; admins scout freely (route-policy.ts checks ownership).
+      const asAdmin = (await isAdmin(req.session as { userID?: string } | undefined)) === 'ok';
+      if (!asAdmin) {
+        const refusal = await youthPromotionRefusal(params.id);
+        if (refusal) return { status: 400, body: { success: false, message: refusal, payload: refusal } };
+      }
+
       const recruits = await recruitYouthPlayersForClub(
         { _id: params.id, ClubCode: club.ClubCode },
-        body.count ?? 1
+        asAdmin ? (body.count ?? 1) : 1,
+        asAdmin ? {} : { note: 'Promoted from the youth academy' }
       );
 
       return {

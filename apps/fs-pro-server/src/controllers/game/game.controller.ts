@@ -71,6 +71,8 @@ export interface PlayOptions {
    * used by play.service.ts's playMatch() to apply Stadium Grounds/Staff
    * House facility effects without mutating the club's real Rating. */
   homeRatingBonus?: number;
+  /** The away side takes no fatigue or injuries (see updateFixture). */
+  restAway?: boolean;
 }
 
 export async function play(
@@ -329,7 +331,8 @@ export async function play(
           homeObj,
           awayObj,
           fixture_id,
-          isFriendly ? fixture.SaveStats === true : true
+          isFriendly ? fixture.SaveStats === true : true,
+          { restAway: options?.restAway }
         );
 
         if (!fixture) {

@@ -6,6 +6,7 @@ import { createVuetify } from 'vuetify';
 import { $axios } from '@/services/api';
 import { appSocket } from '@/services/socket';
 import 'vuetify/styles';
+import './styles/cozy-app.scss';
 import { mdi } from 'vuetify/iconsets/mdi';
 import { currency, ordinal, roundTo } from './helpers/misc';
 import { customIcons } from './plugins/customIcons';
@@ -34,6 +35,8 @@ const vuetify = createVuetify({
           surface: '#fffaf0',
           'on-surface': '#4a3220',
           'surface-variant': '#f6e7c4',
+          'surface-light': '#f6e7c4',
+          'surface-bright': '#fffaf0',
           'on-surface-variant': '#4a3220',
           'on-background': '#4a3220',
           primary: '#3fa526',

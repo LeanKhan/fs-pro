@@ -239,7 +239,7 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
     now, cooldownLeft, challengeLeft, coachingLevel,
     showMatchmaking, matchmakingSearching, matchedOpponent, opponentOptions,
     showBattleArena, showRewards, matchResult, isQuickSim, inbox,
-    snackbar, snackbarText, snackbarColor,
+    snackbar, snackbarText, snackbarColor, toast,
     load, loadInbox, markInboxRead, startUpgrade, savePlacement, findMatch, selectOpponent, startBattle, finishBattle,
   };
 }
