@@ -101,6 +101,7 @@ export const usersContract = c.router(
       pathParams: z.object({
         id: z.string(),
       }),
+      body: z.object({}).optional(),
       responses: {
         200: successEnvelope(z.object({})),
         400: failEnvelope(),
@@ -161,6 +162,7 @@ export const usersContract = c.router(
         id: z.string(),
         club_id: z.string(),
       }),
+      body: z.object({}).optional(),
       responses: {
         200: successEnvelope(ClubSchema),
         400: failEnvelope(),

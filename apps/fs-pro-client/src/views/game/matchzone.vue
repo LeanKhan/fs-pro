@@ -16,7 +16,7 @@
       </div>
 
       <div class="mz-header-actions">
-        <label class="mz-checkbox">
+        <label v-if="isAdmin" class="mz-checkbox" title="Also play every other match of the day (admins)">
           <input type="checkbox" v-model="simulateRest" />
           Simulate Rest
         </label>
@@ -226,7 +226,7 @@
             {{ fixture.SeasonCode }} - {{ fixture.Title }}
             <span v-if="fixture.Stadium">- {{ fixture.Stadium }}</span>
           </div>
-          <div v-if="!matchFinished" class="d-flex align-center">
+          <div v-if="!matchFinished && isAdmin" class="d-flex align-center">
             <v-checkbox
               v-model="simulateRest"
               label="Auto-advance day (sim other matches)"
@@ -293,7 +293,15 @@ const kickoffTimer = ref(0);
 const starting = ref(false);
 const lastMatchOfSeason = ref(false);
 const standings = ref<any>(null);
-const simulateRest = ref(true);
+// Playing the rest of the day is an admin action (server route-policy).
+const isAdmin = (() => {
+  try {
+    return !!JSON.parse(localStorage.getItem('fspro-user') || '{}').isAdmin;
+  } catch {
+    return false;
+  }
+})();
+const simulateRest = ref(isAdmin);
 
 const replaySocket = new MatchReplaySocket();
 const liveWatching = ref(false);

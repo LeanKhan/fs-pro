@@ -48,7 +48,22 @@
     </div>
 
     <!-- The active challenge, quest-style, and the manager's word -->
-    <div v-if="challenge" class="quests">
+    <div v-if="challenge || firstSteps?.length" class="quests">
+      <template v-if="firstSteps?.length">
+        <div class="q-head"><span><span v-html="icon('check')"></span> First steps</span><small class="q-count">{{ firstSteps.filter((s) => s.done).length }}/{{ firstSteps.length }}</small></div>
+        <button
+          v-for="s in firstSteps"
+          :key="s.key"
+          class="q step"
+          :class="{ done: s.done }"
+          :disabled="s.done"
+          @click="emit('act', s.key)"
+        >
+          <span class="q-ic" v-html="icon(s.done ? 'check' : s.icon)"></span>
+          <span class="q-body"><span class="q-title">{{ s.label }}</span><span v-if="s.key === nextStep" class="q-num">{{ s.hint }}</span></span>
+        </button>
+      </template>
+      <template v-if="challenge">
       <div class="q-head"><span><span v-html="icon('star')"></span> Next Goal</span></div>
       <div class="q" :class="{ done: challenge.wins >= challenge.targetWins }">
         <span class="q-ic" v-html="icon('ball')"></span>
@@ -58,14 +73,15 @@
           <div class="q-num">{{ challenge.wins }} / {{ challenge.targetWins }} wins · {{ formatClock(challenge.secondsLeft) }} left</div>
         </div>
       </div>
-      <div class="q-reward">
+      <div v-if="!firstSteps?.length" class="q-reward">
         <div class="q-rlabel">Rewards</div>
         <div class="q-rlist">
           <span><span v-html="icon('coins')"></span>{{ currency(challenge.rewardCash) }}</span>
           <span><span v-html="icon('star')"></span>{{ challenge.rewardXP }} XP</span>
         </div>
       </div>
-      <p v-if="briefing" class="briefing">“{{ briefing }}”</p>
+      </template>
+      <p v-if="briefing && !firstSteps?.length" class="briefing">“{{ briefing }}”</p>
     </div>
 
     <div v-if="builders" class="speedup">
@@ -132,6 +148,8 @@ const props = defineProps<{
     fanApproval: number | null;
   };
   challenge: { title: string; wins: number; targetWins: number; secondsLeft: number; rewardCash: number; rewardXP: number } | null;
+  /** A young club's checklist; each undone step is a shortcut (its key is an action). */
+  firstSteps?: { key: string; label: string; hint: string; icon: string; done: boolean }[] | null;
   briefing: string;
   /** The world headline currently shown in the date strip. */
   headline: string | null;
@@ -146,5 +164,7 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: 'act', action: string): void; (e: 'update:quickSim', v: boolean): void }>();
 
 const fmt = (n: number) => Math.floor(n).toLocaleString('en-US');
+/** Only the next open step explains itself, to keep the card short. */
+const nextStep = computed(() => props.firstSteps?.find((s) => !s.done)?.key ?? null);
 const xpPct = computed(() => (props.level.xpNeed ? (props.level.xpInto / props.level.xpNeed) * 100 : 100));
 </script>

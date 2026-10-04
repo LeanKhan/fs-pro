@@ -274,9 +274,12 @@ const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: '2-dig
   color: var(--red);
 }
 @media (max-width: 760px) {
+  /* Under the goal card, clear of the date chips at the bottom. */
   .presence {
     left: 8px;
-    bottom: 132px;
+    top: 214px;
+    bottom: auto;
+    flex-direction: column;
   }
   .pres-pill {
     font-size: 12px;

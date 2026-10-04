@@ -218,13 +218,23 @@ const TERRAIN_HOUSE: Record<TownTerrain, string> = {
   city: 'M-10 6 V-4 H-3 V-9 H10 V6 Z',
   coastal: 'M-9 6 V-3 H9 V6 Z',
   hillside: 'M-9 6 V-2 H9 V6 Z',
+  woodland: 'M-8 6 V-1 H8 V6 Z',
+  alpine: 'M-9 6 V-3 H9 V6 Z',
 };
 const TERRAIN_ROOF: Record<TownTerrain, string> = {
   city: 'M-11 -4 L-6.5 -9 L-2 -4 Z M-4 -9 L3.5 -15 L11 -9 Z',
   coastal: 'M-11 -3 L0 -12 L11 -3 Z',
   hillside: 'M-12 -2 L-3 -13 L3 -7 L7 -11 L12 -2 Z',
+  woodland: 'M-10 -1 L0 -15 L10 -1 Z',
+  alpine: 'M-13 -3 L0 -11 L13 -3 Z',
 };
-const ROOF: Record<TownTerrain, string> = { city: '#e5402f', coastal: '#3a8ee0', hillside: '#2f8a1c' };
+const ROOF: Record<TownTerrain, string> = {
+  city: '#e5402f',
+  coastal: '#3a8ee0',
+  hillside: '#2f8a1c',
+  woodland: '#3f6b3a',
+  alpine: '#7a4a2a',
+};
 
 const townsByCountry = computed(() => {
   const m = new Map<string, Atlas['towns']>();
@@ -666,5 +676,20 @@ defineExpose({ flyTo, fitAll, focusCountry, focusPoint, zoomBy });
 .atlas-zoom .roundbtn :deep(.ic) {
   width: 24px;
   height: 24px;
+}
+@media (max-width: 760px) {
+  /* Phones pinch to zoom; the buttons move out of the panel's way. */
+  .atlas-zoom {
+    left: auto;
+    right: 8px;
+    top: 84px;
+    transform: none;
+    flex-direction: row;
+  }
+  .atlas-zoom .roundbtn {
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+  }
 }
 </style>
