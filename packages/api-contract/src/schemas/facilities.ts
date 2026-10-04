@@ -29,8 +29,13 @@ export const AssetStateSchema = z.object({
     .nullable(),
 });
 
+const PlacedSchema = z.object({ x: z.number().int(), z: z.number().int(), rot: z.number().int() });
+/** Where each campus building stands (see campus-grid.ts). */
+export const PlacementSchema = z.record(z.string(), PlacedSchema);
+
 export const CampusSchema = z.object({
   clubId: z.string(),
+  placement: PlacementSchema,
   budget: z.number(),
   maxConcurrentUpgrades: z.number(),
   activeUpgrades: z.number(),

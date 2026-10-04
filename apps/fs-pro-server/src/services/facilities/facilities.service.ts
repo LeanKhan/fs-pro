@@ -1,4 +1,5 @@
 import { and, eq, isNotNull, lte, sql as drizzleSql } from 'drizzle-orm';
+import { DEFAULT_PLACEMENT, validatePlacement, type CampusPlacement } from '@repo/api-contract';
 import { DrizzleDatabase } from '../../db/drizzle';
 import { clubAssets, clubs, transferLedger } from '../../db/drizzle/schema';
 import {
@@ -46,6 +47,7 @@ export interface AssetState {
 
 export interface CampusState {
   clubId: string;
+  placement: CampusPlacement;
   budget: number;
   maxConcurrentUpgrades: number;
   activeUpgrades: number;
@@ -126,11 +128,31 @@ export async function getCampus(clubId: string): Promise<CampusState> {
 
   return {
     clubId,
+    placement: placementOf(club.CampusPlacement),
     budget,
     maxConcurrentUpgrades: MAX_CONCURRENT_UPGRADES,
     activeUpgrades,
     assets,
   };
+}
+
+/** The stored layout, or the default when there is none or it no longer fits
+ * the grid (e.g. after a footprint change). */
+function placementOf(stored: Record<string, { x: number; z: number; rot: number }> | null): CampusPlacement {
+  const merged = { ...DEFAULT_PLACEMENT, ...stored };
+  return validatePlacement(merged) ? DEFAULT_PLACEMENT : merged;
+}
+
+export async function savePlacement(clubId: string, placement: Record<string, { x: number; z: number; rot: number }>) {
+  const problem = validatePlacement(placement);
+  if (problem) throw new Error(problem);
+  const updated = await db()
+    .update(clubs)
+    .set({ CampusPlacement: placement })
+    .where(eq(clubs.id, clubId))
+    .returning({ id: clubs.id });
+  if (!updated.length) throw new Error('Club not found');
+  return getCampus(clubId);
 }
 
 /**

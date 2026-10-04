@@ -152,6 +152,8 @@ plain flat white background, centred, whole plot visible
 
 ## Campus layout variants
 
+> Superseded for the campus (2026-10-03): the campus is now a 3D city scene (`components/cozy/`, see the "Cozy campus" section of PERSISTENT-STRATEGY-GAME-TRACKER.md). `CampusLayout` still picks the variant (city / coastal / hillside surroundings), and buildings are placed freely instead of on fixed plots.
+
 Three campus layouts, each a scene image plus its own plot coordinates. All
 plates are shared, so a variant costs one painted scene and one plots file.
 

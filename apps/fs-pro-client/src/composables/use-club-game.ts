@@ -1,5 +1,5 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue';
-import type { AssetState, Campus, Inbox, MatchResult, PlayState } from '@repo/api-contract';
+import type { AssetState, Campus, CampusPlacement, Inbox, MatchResult, PlayState } from '@repo/api-contract';
 import { client } from '@/services/api';
 
 /**
@@ -117,6 +117,19 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
     }
   }
 
+  /** Saves the whole campus layout (Move mode). Returns false if the server refused it. */
+  async function savePlacement(placement: CampusPlacement) {
+    if (!clubId.value) return false;
+    const res = await client.facilities.savePlacement.mutation({ params: { clubId: clubId.value }, body: { placement } });
+    if (res.status === 200) {
+      campus.value = res.body.payload;
+      toast('Layout saved');
+      return true;
+    }
+    toast(res.body.message, 'error');
+    return false;
+  }
+
   function selectOpponent(opp: { id: string; name: string; power: number; code?: string }) {
     matchedOpponent.value = opp;
     matchedOpponentId.value = opp.id;
@@ -227,7 +240,7 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
     showMatchmaking, matchmakingSearching, matchedOpponent, opponentOptions,
     showBattleArena, showRewards, matchResult, isQuickSim, inbox,
     snackbar, snackbarText, snackbarColor,
-    load, loadInbox, markInboxRead, startUpgrade, findMatch, selectOpponent, startBattle, finishBattle,
+    load, loadInbox, markInboxRead, startUpgrade, savePlacement, findMatch, selectOpponent, startBattle, finishBattle,
   };
 }
 

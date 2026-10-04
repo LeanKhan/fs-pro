@@ -1,123 +1,130 @@
 <template>
-  <div class="club-game">
-    <div v-if="clubQuery.isLoading.value" class="cg-state">
-      <v-progress-circular indeterminate color="amber" size="48"></v-progress-circular>
-    </div>
-
-    <div v-else-if="clubQuery.isError.value || !club" class="cg-state flex-column">
-      <div class="text-h6 mb-3">Could not load this club.</div>
-      <v-btn variant="tonal" to="/u">Back to dashboard</v-btn>
+  <div ref="rootEl" class="cozy">
+    <div v-if="clubQuery.isLoading.value || !game.campus.value" class="cg-state">Loading the grounds…</div>
+    <div v-else-if="clubQuery.isError.value || !club" class="cg-state">
+      <p>Could not load this club.</p>
+      <router-link class="btn" to="/u">Back to dashboard</router-link>
     </div>
 
     <template v-else>
-      <!-- The map: zoomable/pannable image + interactable hotspots with refined styling -->
-      <campus-scene
-        :assets="game.campus.value?.assets ?? []"
-        :club-id="clubId"
-        :campus-layout="club.CampusLayout ?? null"
-        :club-code="club.ClubCode"
-        :club-name="club.Name"
-        :selected="showSheet ? selectedKey : null"
+      <cozy-campus
+        ref="campusRef"
+        :view="view"
+        :variant="variant"
+        :selected="moving ? null : selectedKey"
+        :ghost="ghost"
+        :timers="timers"
         :now-ms="game.now.value"
-        :debug="debug"
-        :fans-count="fansCount"
-        :match-day="matchDay"
-        @select="onSelectFacility"
+        @tap="onTap"
+        @hover="onHover"
       />
 
-
-      <!-- Top HUD header: crest, level, location, treasury -->
-      <club-top-hud
-        :club-name="club.Name"
-        :club-code="club.ClubCode"
-        :xp="club.XP ?? 0"
-        :thresholds="openPlay.settings?.levelThresholds"
-        :elo="club.Elo ?? 1500"
-        :location="clubLocation"
-        :budget="treasury"
-        :entries-used="isMyClub ? openPlay.entriesUsed : 0"
-        :max-entries="isMyClub ? openPlay.settings?.maxConcurrentEntries : null"
-        :inbox="isMyClub ? openPlay.incoming.length : 0"
-        @open-settings="goManager('club')"
-        @open-inbox="isMyClub ? (showInbox = true) : (showChallenge = true)"
-        @open-competitions="router.push('/u/competitions')"
-      />
-
-      <!-- Left Floating Overlays (Overview, Next Goal, Manager Speech) -->
-      <div class="left-overlay d-flex flex-column gap-3">
-        <club-overview-card
-          :level="playState?.club.level ?? 0"
-          :squad-value="squadValue"
-          :fans="fansCount"
-          :reputation="reputationCount"
-          :power="playState?.club.power ?? 0"
-          :fan-approval="playState?.standing.fanApproval ?? null"
-          :form="playState?.standing.form ?? []"
-        />
-
-        <next-goal-card
-          v-if="playState?.challenge"
-          :title="playState.challenge.title"
-          :target-wins="playState.challenge.targetWins"
-          :current-wins="playState.challenge.wins"
-          :reward-cash="playState.challenge.rewardCash"
-          :reward-fans="0"
-          :seconds-left="game.challengeLeft.value"
-        />
-
-        <manager-briefing-toast
-          :title="managerBriefingTitle"
-          :message="managerBriefingMessage"
-        />
-      </div>
-
-      <!-- Right Floating Overlay (Facilities Quick List) -->
-      <div class="right-overlay">
-        <facilities-quick-list
-          :facility-items="quickFacilityItems"
-          @select-facility="onSelectFacility"
-        />
-      </div>
-
-      <!-- Bottom Dock Navigation & Play Match Action -->
-      <bottom-dock-nav
-        current-tab="hq"
-        :is-cooldown="game.cooldownLeft.value > 0"
-        :cooldown-seconds="game.cooldownLeft.value"
+      <cozy-hud
+        v-model:quick-sim="quickSim"
+        :club="{ name: club.Name, code: club.ClubCode, location: clubLocation, elo: club.Elo ?? 1500 }"
+        :level="{ level: playState?.club.level ?? 0, xpInto: playState?.club.xpIntoLevel ?? 0, xpNeed: playState?.club.xpForNext ?? 0 }"
+        :stats="{
+          budget: treasury,
+          fans: playState?.standing.fans ?? 0,
+          reputation: playState?.standing.reputation ?? 0,
+          power: playState?.club.power ?? 0,
+          entriesUsed: isMyClub ? openPlay.entriesUsed : 0,
+          maxEntries: isMyClub ? (openPlay.settings?.maxConcurrentEntries ?? null) : null,
+        }"
+        :facts="facts"
+        :challenge="isMyClub ? (playState?.challenge ?? null) : null"
+        :briefing="isMyClub ? managerBriefingMessage : ''"
+        :builders="builders"
+        :inbox="openPlay.incoming.length"
+        :is-mine="isMyClub"
+        :moving="!!moving"
+        :cooldown="game.cooldownLeft.value"
         :playing="game.playing.value"
-        @change-tab="onDockTabChange"
-        @play-match="onPlayMatchTrigger"
+        @act="onAct"
       />
 
-      <!-- Challenges: the inbox for your own club; visiting a rival offers a challenge. -->
+      <cozy-panel
+        v-if="selectedKey && !moving"
+        :building-key="selectedKey"
+        :asset="selectedAsset"
+        :is-mine="isMyClub"
+        :budget="treasury"
+        :busy="game.upgradingAsset.value !== null"
+        :now-ms="game.now.value"
+        @close="selectedKey = null"
+        @upgrade="game.startUpgrade"
+        @move="startMove"
+        @open="onOpen"
+      />
+
+      <cozy-modal v-model="showBuild" size="wide">
+        <h2><span v-html="icon('hammer')"></span> Build</h2>
+        <p class="sub">{{ game.campus.value.activeUpgrades }}/{{ game.campus.value.maxConcurrentUpgrades }} builders busy</p>
+        <div class="cards">
+          <button v-for="a in game.campus.value.assets" :key="a.type" class="card" :class="{ off: !!a.next?.blockedReason && !a.upgrade }" @click="pickFromMenu(a.type)">
+            <div class="card-title">{{ a.name }}</div>
+            <div class="card-art" :class="`art-${a.type}`"></div>
+            <div class="card-desc">Tier {{ a.level }} · {{ a.effectLabel }}</div>
+            <div v-if="a.upgrade" class="card-meta">Building Tier {{ a.upgrade.toLevel }}…</div>
+            <div v-else-if="a.next" class="chips"><span class="chip"><span v-html="icon('coins')"></span>{{ currency(a.next.cost) }}</span></div>
+            <div v-if="a.next?.blockedReason && !a.upgrade" class="card-why">{{ a.next.blockedReason }}</div>
+          </button>
+        </div>
+      </cozy-modal>
+
+      <cozy-modal v-model="game.showMatchmaking.value" size="wide">
+        <cozy-matchmaking
+          :my-power="playState?.club.power ?? 0"
+          :opponents="game.opponentOptions.value"
+          :selected-id="game.matchedOpponent.value?.id ?? null"
+          :searching="game.matchmakingSearching.value"
+          :starting="game.playing.value || busArriving"
+          :tactics="tacticsSummary"
+          @select="game.selectOpponent"
+          @play="kickOff"
+          @tactics="onChangeTactics"
+          @medical="onOpenMedicalFromMatchmaking"
+        />
+      </cozy-modal>
+
+      <cozy-modal v-model="game.showRewards.value">
+        <cozy-rewards
+          v-if="game.matchResult.value"
+          :result="game.matchResult.value"
+          :my-name="club.Name"
+          :my-code="club.ClubCode"
+          @close="game.showRewards.value = false"
+          @again="(game.showRewards.value = false), game.findMatch(quickSim)"
+        />
+      </cozy-modal>
+
+      <cozy-modal v-model="showAwaySummary" size="small">
+        <h2><span v-html="icon('mail')"></span> While you were away</h2>
+        <ul class="away">
+          <li v-for="(e, i) in awayEvents" :key="i"><span>{{ e.icon }}</span><span><b>{{ e.title }}</b><br />{{ e.description }}</span></li>
+        </ul>
+        <div class="row-btns"><button class="btn primary" @click="showAwaySummary = false">Let's go!</button></div>
+      </cozy-modal>
+
+      <div class="toasts">
+        <div v-if="game.snackbar.value" class="toast" :class="game.snackbarColor.value === 'error' ? 'bad' : 'good'">{{ game.snackbarText.value }}</div>
+      </div>
+
+      <!-- Challenges keep their existing screens. -->
       <side-sheet v-model="showInbox" :width="400">
         <div class="d-flex align-center pa-3">
           <div class="text-subtitle-1 font-weight-bold">Challenges</div>
           <v-spacer />
-          <v-btn size="small" color="teal" variant="flat" prepend-icon="mdi-sword-cross" @click="showChallenge = true">
-            Challenge
-          </v-btn>
+          <v-btn size="small" color="teal" variant="flat" prepend-icon="mdi-sword-cross" @click="showChallenge = true">Challenge</v-btn>
         </div>
         <div class="px-3"><challenge-inbox /></div>
       </side-sheet>
       <challenge-dialog v-model="showChallenge" :preselect-club-id="isMyClub ? null : clubId" />
-      <v-btn
-        v-if="!isMyClub"
-        class="cg-visit-challenge"
-        color="teal"
-        size="large"
-        prepend-icon="mdi-sword-cross"
-        @click="showChallenge = true"
-      >
-        Challenge {{ club.Name }}
-      </v-btn>
-
-      <!-- Sheets and dialogs -->
       <facility-detail-sheet
-        v-model="showSheet"
+        v-model="showTreatment"
         :club-id="clubId"
-        :asset="selectedAsset"
-        :icon="selectedIcon"
+        :asset="medicalAsset"
+        icon="➕"
         :read-only="!isMyClub"
         :upgrading="game.upgradingAsset.value !== null"
         :now-ms="game.now.value"
@@ -125,97 +132,57 @@
         @upgrade="game.startUpgrade"
         @treated="onMedicalTreated"
       />
-
-      <matchmaking-modal
-        v-model="game.showMatchmaking.value"
-        :searching="game.matchmakingSearching.value"
-        :starting="game.playing.value"
-        :my-club-name="club.Name"
-        :my-power="playState?.club.power ?? 0"
-        :opponent="game.matchedOpponent.value"
-        :opponents="game.opponentOptions.value"
-        :tactics-summary="tacticsSummary"
-        :is-quick-sim="game.isQuickSim.value"
-        @toggle-quick-sim="(val) => (game.isQuickSim.value = val)"
-        @select-opponent="game.selectOpponent"
-        @start-battle="game.startBattle()"
-        @change-tactics="onChangeTactics"
-        @open-medical="onOpenMedicalFromMatchmaking"
-      />
-
-
-      <!-- Battle Arena: Animated football clash presentation -->
-      <battle-arena-modal
-        v-model="game.showBattleArena.value"
-        :result="game.matchResult.value"
-        :my-club-name="club.Name"
-        :my-power="playState?.club.power ?? 0"
-        :coaching-level="game.coachingLevel.value"
-        @finish="game.finishBattle()"
-      />
-
-      <match-rewards-dialog
-        v-model="game.showRewards.value"
-        :result="game.matchResult.value"
-        :my-club-name="club.Name"
-        :my-power="playState?.club.power ?? 0"
-      />
-
-      <!-- Executive Briefing: Offline catchup modal -->
-      <away-summary-modal
-        v-model="showAwaySummary"
-        :events="awayEvents"
-      />
-
-
-      <v-snackbar v-model="game.snackbar.value" :timeout="3500" :color="game.snackbarColor.value">
-        {{ game.snackbarText.value }}
-      </v-snackbar>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
+import '@/components/cozy/cozy.scss';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@tanstack/vue-query';
-import type { AssetState } from '@repo/api-contract';
+import {
+  CAMPUS_GRID, footprint, validatePlacement,
+  type CampusBuilding, type CampusPlacement, type Placed,
+} from '@repo/api-contract';
 import { client } from '@/services/api';
 import { useStore } from '@/store';
+import { useOpenPlayStore } from '@/store/open-play';
 import { useClubGame } from '@/composables/use-club-game';
-
-import CampusScene from '@/components/world/campus-scene.vue';
+import { useClubDirectory } from '@/helpers/open-play';
+import { currency } from '@/helpers/misc';
 import SideSheet from '@/components/world/side-sheet.vue';
-import { CITY_PLOTS } from '@/components/world/campus-plots/city';
 import ChallengeInbox from '@/components/open-play/challenge-inbox.vue';
 import ChallengeDialog from '@/components/open-play/challenge-dialog.vue';
-import { useOpenPlayStore } from '@/store/open-play';
-import ClubTopHud from '@/components/hud/club-top-hud.vue';
-import ClubOverviewCard from '@/components/hud/club-overview-card.vue';
-import NextGoalCard from '@/components/hud/next-goal-card.vue';
-import ManagerBriefingToast from '@/components/hud/manager-briefing-toast.vue';
-import FacilitiesQuickList, { type QuickFacilityItem } from '@/components/hud/facilities-quick-list.vue';
-import BottomDockNav from '@/components/hud/bottom-dock-nav.vue';
 import FacilityDetailSheet from '@/components/campus/facility-detail-sheet.vue';
-import MatchmakingModal from '@/components/play/matchmaking-modal.vue';
-import BattleArenaModal from '@/components/play/battle-arena-modal.vue';
-import MatchRewardsDialog from '@/components/play/match-rewards-dialog.vue';
-import AwaySummaryModal, { type AwayEventItem } from '@/components/hud/away-summary-modal.vue';
-
+import CozyCampus from '@/components/cozy/cozy-campus.vue';
+import CozyHud from '@/components/cozy/cozy-hud.vue';
+import CozyPanel from '@/components/cozy/cozy-panel.vue';
+import CozyModal from '@/components/cozy/cozy-modal.vue';
+import CozyMatchmaking from '@/components/cozy/cozy-matchmaking.vue';
+import CozyRewards from '@/components/cozy/cozy-rewards.vue';
+import { clubColors } from '@/components/cozy/club-colors';
+import { icon } from '@/components/cozy/icons';
+import { showMatch } from '@/components/cozy/match-view';
+import { CELL } from '@/components/cozy/scene/models';
+import { renderThumbs } from '@/components/cozy/scene/thumbs';
+import type { CityVariant } from '@/components/cozy/scene/terrain';
+import type { Pick } from '@/components/cozy/scene/world';
 
 const route = useRoute();
 const router = useRouter();
 const store = useStore();
 const openPlay = useOpenPlayStore();
+const directory = useClubDirectory();
 const showInbox = ref(false);
 const showChallenge = ref(false);
 onMounted(() => openPlay.start());
 onUnmounted(() => openPlay.stop());
 
 if (!store.isAuthenticated) store.getUser();
+if (!store.calendar) store.setCalendar();
 
 const clubId = computed(() => route.params.clubId as string);
-const debug = computed(() => route.query.debug === '1');
 
 const clubQuery = useQuery({
   queryKey: computed(() => ['club', clubId.value]),
@@ -233,6 +200,8 @@ const clubQuery = useQuery({
 const club = computed(() => clubQuery.data.value ?? null);
 const game = useClubGame(clubId, () => clubQuery.refetch());
 const playState = computed(() => game.playState.value);
+const rootEl = ref<HTMLElement | null>(null);
+const campusRef = ref<InstanceType<typeof CozyCampus> | null>(null);
 
 const isMyClub = computed(() => {
   const id = club.value?._id;
@@ -241,7 +210,7 @@ const isMyClub = computed(() => {
   return owned.some((c: any) => (typeof c === 'string' ? c : c._id) === id);
 });
 
-const treasury = computed(() => playState.value?.club.budget ?? club.value?.Budget ?? 10000);
+const treasury = computed(() => playState.value?.club.budget ?? club.value?.Budget ?? 0);
 
 const clubLocation = computed(() => {
   const city = (club.value as any)?.City || (club.value as any)?.HomePlace?.Name || 'Abuja';
@@ -249,51 +218,266 @@ const clubLocation = computed(() => {
   return `${city}, ${country}`;
 });
 
-// Real standing from the server (world/club-standing.service.ts), moved by
-// every result.
-const fansCount = computed(() => playState.value?.standing.fans ?? 0);
-const reputationCount = computed(() => playState.value?.standing.reputation ?? 0);
+// --- The 3D campus ------------------------------------------------------------------
+const colors = ref<[string, string]>(['#3a6fd8', '#f5f1e6']);
+watch(
+  () => club.value?.ClubCode,
+  async (code) => {
+    if (!code) return;
+    colors.value = await clubColors(code);
+    renderThumbs(colors.value);
+  },
+  { immediate: true }
+);
 
-const squadValue = computed(() => {
-  const players = (club.value as any)?.Players;
-  if (!Array.isArray(players) || players.length === 0) return 80000;
-  return players.reduce((sum: number, p: any) => sum + (Number(p.Value) || 10000), 0);
+const variant = computed(() => ((club.value as any)?.CampusLayout ?? 'city') as CityVariant);
+
+// Match day: an accepted challenge for today.
+const todaysMatch = computed(() => {
+  if (!isMyClub.value) return null;
+  const today = openPlay.settings?.currentDay;
+  return openPlay.upcoming.find((c) => c.scheduledDay === today) ?? null;
 });
 
-// Lightweight pre-match tactics readiness check (matchmaking-modal.vue): a
-// glance at the Team Sheet's formation/style/lineup, not a second editor -
-// the Dugout hotspot on the map opens the real editor (Team Sheet zone).
-const FORMATION_LABELS: Record<string, string> = {
-  '433': '4-3-3',
-  '442': '4-4-2',
-  '4231': '4-2-3-1',
-  '352': '3-5-2',
-};
-const STYLE_LABELS: Record<string, string> = {
-  HighPress: 'High Press',
-  LowBlock: 'Low Block',
-};
+const view = computed(() => {
+  const campus = game.campus.value;
+  if (!campus) return null;
+  const tiers = Object.fromEntries(campus.assets.map((a) => [a.type, { tier: a.level, upgrading: !!a.upgrade }]));
+  const players = ((club.value as any)?.Players ?? []).map((p: any) => ({ id: String(p._id), name: `${p.FirstName ?? ''} ${p.LastName ?? ''}`.trim() }));
+  return {
+    tiers,
+    placement: draft.value ?? (campus.placement as CampusPlacement),
+    players,
+    fans: playState.value?.standing.fans ?? 0,
+    matchDay: !!todaysMatch.value,
+    colors: colors.value,
+  };
+});
+
+const timers = computed(() =>
+  Object.fromEntries(
+    (game.campus.value?.assets ?? [])
+      .filter((a) => a.upgrade)
+      .map((a) => [a.type, { start: new Date(a.upgrade!.startAt).getTime(), end: new Date(a.upgrade!.completeAt).getTime() }])
+  )
+);
+
+const builders = computed(() => {
+  const campus = game.campus.value;
+  const next = campus?.assets.filter((a) => a.upgrade).sort((a, b) => a.upgrade!.completeAt.localeCompare(b.upgrade!.completeAt))[0];
+  if (!campus || !next) return null;
+  return {
+    name: next.name,
+    secondsLeft: Math.max(0, Math.ceil((new Date(next.upgrade!.completeAt).getTime() - game.now.value) / 1000)),
+    active: campus.activeUpgrades,
+    max: campus.maxConcurrentUpgrades,
+  };
+});
+
+// --- Date and facts (as on the dashboard) ---------------------------------------------
+const facts = computed(() => {
+  const cal = store.calendar as any;
+  const upcoming = isMyClub.value
+    ? [...openPlay.upcoming].sort((a, b) => (a.scheduledDay ?? 0) - (b.scheduledDay ?? 0))[0]
+    : undefined;
+  const opponentId = upcoming && (upcoming.homeClubId === openPlay.clubId ? upcoming.awayClubId : upcoming.homeClubId);
+  return {
+    day: cal ? `Day ${cal.CurrentDay}${cal.CurrentDate ? ` · ${new Date(cal.CurrentDate).toDateString()}` : ''}` : '…',
+    year: openPlay.settings
+      ? { currentYear: openPlay.settings.currentYear, dayOfYear: openPlay.settings.dayOfYear, yearLengthDays: openPlay.settings.yearLengthDays }
+      : null,
+    next: upcoming
+      ? {
+          opponent: directory.name(opponentId),
+          home: upcoming.homeClubId === openPlay.clubId,
+          day: upcoming.scheduledDay,
+          today: upcoming.scheduledDay === openPlay.settings?.currentDay,
+        }
+      : null,
+    performance: isMyClub.value && openPlay.performance ? { score: openPlay.performance.score, expected: openPlay.performance.expected } : null,
+    form: playState.value?.standing.form ?? [],
+    fanApproval: playState.value?.standing.fanApproval ?? null,
+  };
+});
+
+// --- Selection and panels ----------------------------------------------------------------
+const selectedKey = ref<CampusBuilding | null>(null);
+const selectedAsset = computed(() => game.campus.value?.assets.find((a) => a.type === selectedKey.value) ?? null);
+const medicalAsset = computed(() => game.campus.value?.assets.find((a) => a.type === 'medical_centre') ?? null);
+const showBuild = ref(false);
+const showTreatment = ref(false);
+
+function onTap(pick: Pick, ground: { x: number; z: number } | null) {
+  if (moving.value) {
+    if (pick?.kind === 'building' && pick.id !== moving.value.key) return startMove(pick.id as CampusBuilding);
+    if (ground) placeGhost(ground);
+    return;
+  }
+  if (pick?.kind === 'building') selectedKey.value = pick.id as CampusBuilding;
+  else if (pick?.kind === 'player') {
+    const p = ((club.value as any)?.Players ?? []).find((x: any) => String(x._id) === pick.id);
+    if (p) game.snackbarText.value = `${p.FirstName} ${p.LastName} · ${p.Position ?? ''} · ★${Math.round(p.Rating ?? 0)}`;
+    game.snackbarColor.value = 'success';
+    game.snackbar.value = true;
+  } else selectedKey.value = null;
+}
+
+function pickFromMenu(key: string) {
+  showBuild.value = false;
+  selectedKey.value = key as CampusBuilding;
+  const p = view.value!.placement[key as CampusBuilding];
+  const [w, d] = footprint(key as CampusBuilding, p.rot);
+  campusRef.value?.focus((p.x + w / 2) * CELL, (p.z + d / 2) * CELL);
+}
+
+function onOpen(what: string) {
+  if (what === 'treatment') showTreatment.value = true;
+  else if (what === 'dugout') goManager('tactics');
+  else if (what === 'office') router.push('/u');
+}
+
+// --- Move mode -------------------------------------------------------------------------
+const draft = ref<CampusPlacement | null>(null);
+const moving = ref<{ key: CampusBuilding | null } | null>(null);
+const ghost = computed(() => {
+  const key = moving.value?.key;
+  if (!key || !draft.value) return null;
+  return { key, at: draft.value[key], valid: !validatePlacement(draft.value) };
+});
+
+function startMove(key?: CampusBuilding) {
+  if (!draft.value) draft.value = JSON.parse(JSON.stringify(game.campus.value!.placement)) as CampusPlacement;
+  moving.value = { key: key ?? selectedKey.value };
+  selectedKey.value = null;
+}
+
+function placeGhost(ground: { x: number; z: number }) {
+  const key = moving.value?.key;
+  if (!key || !draft.value) return;
+  const p = draft.value[key];
+  const [w, d] = footprint(key, p.rot);
+  const x = Math.round(ground.x / CELL - w / 2);
+  const z = Math.round(ground.z / CELL - d / 2);
+  if (x < CAMPUS_GRID.minX || z < CAMPUS_GRID.minZ || x + w - 1 > CAMPUS_GRID.maxX || z + d - 1 > CAMPUS_GRID.maxZ) return;
+  draft.value = { ...draft.value, [key]: { ...p, x, z } satisfies Placed };
+}
+
+function onHover(ground: { x: number; z: number }) {
+  if (moving.value?.key) placeGhost(ground);
+}
+
+async function onMoveAct(action: string) {
+  const key = moving.value?.key;
+  if (action === 'move-rotate' && key && draft.value) {
+    const p = draft.value[key];
+    draft.value = { ...draft.value, [key]: { ...p, rot: (p.rot + 1) % 4 } };
+  } else if (action === 'move-cancel') {
+    moving.value = null;
+    draft.value = null;
+  } else if (action === 'move-save' && draft.value) {
+    const problem = validatePlacement(draft.value);
+    if (problem) return toast(problem.replace(/^\w+/, (k) => game.campus.value?.assets.find((a) => a.type === k)?.name ?? k), 'error');
+    if (await game.savePlacement(draft.value)) {
+      moving.value = null;
+      draft.value = null;
+    }
+  }
+}
+
+function toast(text: string, color = 'success') {
+  game.snackbarText.value = text;
+  game.snackbarColor.value = color;
+  game.snackbar.value = true;
+}
+watch(game.snackbar, (on) => on && setTimeout(() => (game.snackbar.value = false), 3000));
+
+// --- Matches and travel --------------------------------------------------------------------
+const quickSim = ref(localStorage.getItem('fspro_play_mode') === 'quick_sim');
+watch(quickSim, (q) => localStorage.setItem('fspro_play_mode', q ? 'quick_sim' : 'battle'));
+const busArriving = ref(false);
+
+/** Home match: the visitors' bus pulls up, then the match is played. */
+async function kickOff() {
+  const opp = game.matchedOpponent.value;
+  if (!opp) return;
+  if (!quickSim.value) {
+    game.showMatchmaking.value = false;
+    busArriving.value = true;
+    await campusRef.value?.playArrival(await clubColors(opp.code));
+    busArriving.value = false;
+  }
+  await game.startBattle(quickSim.value);
+}
+
+watch(game.showBattleArena, async (open) => {
+  const r = game.matchResult.value;
+  if (!open || !r || !club.value || !rootEl.value) return;
+  await showMatch(
+    {
+      home: { name: club.value.Name, colors: colors.value },
+      away: { name: r.opponent.name, colors: await clubColors(r.opponent.code) },
+      highlights: r.highlights ?? [],
+      score: [r.score.you, r.score.them],
+    },
+    rootEl.value
+  );
+  game.finishBattle();
+});
+
+/** Away match today: the bus leaves, and the host's grounds open with it arriving. */
+async function travel() {
+  const m = todaysMatch.value;
+  if (!m?.homeClubId) return;
+  await campusRef.value?.playDeparture(colors.value);
+  router.push({ path: `/game/${m.homeClubId}`, query: { arriving: '1' } });
+}
+
+watch(
+  () => !!game.campus.value && route.query.arriving === '1',
+  async (ready) => {
+    if (!ready || !openPlay.clubId) return;
+    await new Promise((r) => setTimeout(r, 300));
+    await campusRef.value?.playArrival(await clubColors(directory.code(openPlay.clubId)));
+    router.replace({ query: {} });
+  },
+  { immediate: true }
+);
+
+function onAct(action: string) {
+  if (action.startsWith('move-')) return onMoveAct(action);
+  switch (action) {
+    case 'build': return (showBuild.value = true);
+    case 'move': return startMove();
+    case 'play': return game.findMatch(quickSim.value);
+    case 'inbox': return (showInbox.value = true);
+    case 'challenge': return (showChallenge.value = true);
+    case 'competitions': return router.push('/u/competitions');
+    case 'world': return router.push('/world');
+    case 'home': return router.push(openPlay.clubId ? `/game/${openPlay.clubId}` : '/u');
+    case 'travel': return travel();
+    case 'settings':
+    case 'club': return goManager('club');
+    default: return goManager(action);
+  }
+}
+
+// --- Kept from the previous campus screen ---------------------------------------------------
+const FORMATION_LABELS: Record<string, string> = { '433': '4-3-3', '442': '4-4-2', '4231': '4-2-3-1', '352': '3-5-2' };
 const tacticsSummary = computed(() => {
   const c = club.value as any;
   if (!c) return null;
   const formationRaw = c.Tactic?.formationName as string | undefined;
   const formationLabel = formationRaw ? FORMATION_LABELS[formationRaw] ?? formationRaw : 'Not set';
-  const styleRaw = c.Tactic?.styleName as string | undefined;
-  const styleLabel = styleRaw ? STYLE_LABELS[styleRaw] ?? styleRaw : 'Balanced';
-
   const startingIds: string[] = Array.isArray(c.Lineup?.startingXI) ? c.Lineup.startingXI : [];
   const players: any[] = Array.isArray(c.Players) ? c.Players : [];
   const starters = startingIds.map((id) => players.find((p) => String(p._id) === id)).filter(Boolean);
   const injuredCount = starters.filter((p) => p.Injury && Number(p.Injury.daysRemaining) > 0).length;
-
   const issues: string[] = [];
   if (starters.length < 11) issues.push(`${11 - starters.length} lineup slot(s) empty`);
   if (injuredCount > 0) issues.push(`${injuredCount} starter(s) injured`);
-
-  return { formationLabel, styleLabel, filledCount: starters.length, issues, ready: issues.length === 0 };
+  return { formationLabel, filledCount: starters.length, issues, ready: issues.length === 0 };
 });
 
-/** "Change Tactics" from the pre-match screen: close the modal, go edit. */
 function onChangeTactics() {
   game.showMatchmaking.value = false;
   goManager('tactics');
@@ -306,15 +490,8 @@ function onMedicalTreated() {
 
 function onOpenMedicalFromMatchmaking() {
   game.showMatchmaking.value = false;
-  onSelectFacility('medical_centre');
+  showTreatment.value = true;
 }
-
-const managerBriefingTitle = computed(() => {
-  if ((club.value as any)?.Manager) {
-    return `Manager ${(club.value as any).Manager.FirstName} reporting`;
-  }
-  return `Welcome to ${club.value?.Name || 'Segun FC'}!`;
-});
 
 const managerBriefingMessage = computed(() => {
   const standing = playState.value?.standing;
@@ -327,53 +504,15 @@ const managerBriefingMessage = computed(() => {
   if (streak && streak.length >= 3 && streak.type === 'W') {
     return `${streak.length} wins on the bounce! The squad is flying and the supporters are pouring in.`;
   }
-  if (game.cooldownLeft.value > 0) {
-    return 'The squad is currently resting and recovering fitness between matches.';
-  }
-  if (!standing?.form.length) {
-    return 'Your journey starts here. Build your club, train your team and take on your first opponents.';
-  }
+  if (game.cooldownLeft.value > 0) return 'The squad is resting and recovering fitness between matches.';
+  if (!standing?.form.length) return 'Your journey starts here. Build your club, train your team and take on your first opponents.';
   return 'Every result counts: wins bring fans through the gates, defeats send them home.';
 });
 
-const FACILITY_CONFIG: Array<{ key: string; name: string; icon: string }> = [
-  { key: 'stands', name: 'Stadium', icon: '🏟️' },
-  { key: 'stadium_grounds', name: 'Pitch Grounds', icon: '🌱' },
-  { key: 'training_ground', name: 'Training Ground', icon: '🦺' },
-  { key: 'youth_academy', name: 'Academy', icon: '🎓' },
-  { key: 'medical_centre', name: 'Medical Centre', icon: '➕' },
-  { key: 'scouting', name: 'Scouting Dept', icon: '🔭' },
-  { key: 'staff_house', name: 'Staff House', icon: '💼' },
-];
-
-// Quick facilities list for right sidebar
-const quickFacilityItems = computed<QuickFacilityItem[]>(() => {
-  const assets = game.campus.value?.assets ?? [];
-  const getAsset = (type: string) => assets.find((a) => a.type === type);
-
-  function getProgress(asset?: AssetState) {
-    if (!asset?.upgrade) return 0;
-    const start = new Date(asset.upgrade.startAt).getTime();
-    const total = Math.max(new Date(asset.upgrade.completeAt).getTime() - start, 1);
-    return Math.min(100, Math.max(0, Math.round(((game.now.value - start) / total) * 100)));
-  }
-
-  return FACILITY_CONFIG.map((cfg) => {
-    const asset = getAsset(cfg.key);
-    return {
-      key: cfg.key,
-      name: cfg.name,
-      icon: cfg.icon,
-      level: asset?.level ?? 0,
-      progress: getProgress(asset),
-      isUpgrading: !!asset?.upgrade,
-    };
-  });
-});
-
-// While You Were Away Executive Summary
+// While you were away
 const showAwaySummary = ref(false);
-const awayEvents = ref<AwayEventItem[]>([]);
+const awayEvents = ref<{ icon: string; title: string; description: string }[]>([]);
+const INBOX_ICONS: Record<string, string> = { fans: '📣', board: '🏛️', squad: '👥', press: '📰' };
 
 function checkOfflineProgress() {
   if (!clubId.value) return;
@@ -382,229 +521,54 @@ function checkOfflineProgress() {
   const nowTime = Date.now();
   localStorage.setItem(storageKey, String(nowTime));
 
-  const events: AwayEventItem[] = [];
+  const events = (game.inbox.value?.messages ?? [])
+    .filter((m) => !m.read)
+    .slice(0, 5)
+    .map((m) => ({ icon: INBOX_ICONS[m.kind] ?? '📰', title: m.title, description: m.body }));
+  const away = rawLastSeen ? (nowTime - Number(rawLastSeen)) / 1000 : 0;
+  // Inbox news always shows; otherwise only after more than 2 minutes away.
+  if (!events.length && away < 120) return;
 
-  // Unread inbox messages are real world reactions (fans, board, squad) and
-  // always make the briefing, however long you were away.
-  for (const m of (game.inbox.value?.messages ?? []).filter((m) => !m.read).slice(0, 5)) {
+  for (const a of game.campus.value?.assets ?? []) {
+    if (!a.upgrade) continue;
+    const done = new Date(a.upgrade.completeAt).getTime() <= nowTime;
     events.push({
-      icon: INBOX_ICONS[m.kind] ?? '📰',
-      title: m.title,
-      description: m.body,
-      badge: m.kind.toUpperCase(),
-      badgeColor: m.tone === 'good' ? 'success' : m.tone === 'bad' ? 'error' : 'primary',
+      icon: done ? '🏗️' : '🔨',
+      title: done ? `${a.name} upgrade ready` : `Work continues: ${a.name}`,
+      description: done ? 'Construction finished while you were away.' : `Building towards Tier ${a.upgrade.toLevel}.`,
     });
   }
-  const hasInboxNews = events.length > 0;
-
-  const lastSeenMs = rawLastSeen ? Number(rawLastSeen) : nowTime;
-  const diffSec = (nowTime - lastSeenMs) / 1000;
-
-  // Otherwise only show if the player was away for more than 2 minutes.
-  if (!hasInboxNews && (!rawLastSeen || diffSec < 120)) return;
-
-  const assets = game.campus.value?.assets ?? [];
-
-  // 1. Upgrades in progress or completed
-  const upgrading = assets.find((a) => a.upgrade);
-  if (upgrading) {
-    const completeAt = new Date(upgrading.upgrade!.completeAt).getTime();
-    if (completeAt <= nowTime) {
-      events.push({
-        icon: '🏗️',
-        title: `${upgrading.name} Upgrade Ready!`,
-        description: `Construction finished while you were away! Facility upgraded.`,
-        badge: 'COMPLETED',
-        badgeColor: 'success',
-      });
-    } else {
-      events.push({
-        icon: '🔨',
-        title: `Work Continues: ${upgrading.name}`,
-        description: `Contractors are advancing work towards Level ${upgrading.upgrade!.toLevel}.`,
-        badge: 'IN PROGRESS',
-        badgeColor: 'amber-darken-2',
-      });
-    }
-  }
-
-  // 2. Squad resting status
-  if (game.cooldownLeft.value === 0) {
-    events.push({
-      icon: '⚡',
-      title: 'Squad Fully Rested',
-      description: 'Your players have completely recovered stamina and are ready for battle.',
-      badge: 'READY',
-      badgeColor: 'teal',
-    });
-  }
-
-  // 3. Scouting & Matchmaking pool
-  const scouting = assets.find((a) => a.type === 'scouting');
-  if (scouting && scouting.level > 0) {
-    events.push({
-      icon: '🔭',
-      title: 'Scouting Network Active',
-      description: `Scouts surveyed the region and tracked ${1 + Math.min(scouting.level, 4)} rival clubs in your power bracket.`,
-      badge: 'POOL READY',
-      badgeColor: 'primary',
-    });
-  } else {
-    events.push({
-      icon: '🏟️',
-      title: 'Campus Operational',
-      description: 'Stadium maintenance staff kept the grounds in order for upcoming matches.',
-      badge: 'ACTIVE',
-      badgeColor: 'indigo',
-    });
-  }
-
-  if (events.length > 0) {
-    awayEvents.value = events;
-    showAwaySummary.value = true;
-  }
+  if (game.cooldownLeft.value === 0) events.push({ icon: '⚡', title: 'Squad rested', description: 'The players are ready to play.' });
+  awayEvents.value = events;
+  showAwaySummary.value = events.length > 0;
 }
 
-const INBOX_ICONS: Record<string, string> = { fans: '📣', board: '🏛️', squad: '👥', press: '📰' };
-
-// Trigger offline check when campus data (and, for the owner, the inbox)
-// finishes its initial load.
 let checkedOffline = false;
 watch(
   () => game.campus.value,
   async (loaded) => {
-    if (loaded && !checkedOffline) {
-      checkedOffline = true;
-      if (isMyClub.value) await game.loadInbox();
-      checkOfflineProgress();
-    }
+    if (!loaded || checkedOffline || !isMyClub.value) return;
+    checkedOffline = true;
+    await game.loadInbox();
+    checkOfflineProgress();
   }
 );
-
-// Once the briefing is dismissed, its inbox messages count as read.
-watch(showAwaySummary, (open) => {
-  if (!open) game.markInboxRead();
-});
-
-// New reactions can arrive with any match; surface them after the result.
+watch(showAwaySummary, (open) => !open && game.markInboxRead());
 watch(
   () => game.showRewards.value,
   async (open) => {
     if (open || !isMyClub.value) return;
     await game.loadInbox();
-    if (game.inbox.value?.unread) {
-      checkOfflineProgress();
-    }
+    if (game.inbox.value?.unread) checkOfflineProgress();
   }
 );
-
-
-// Facility sheet selection
-const showSheet = ref(false);
-const selectedKey = ref<string | null>(null);
-
-const selectedAsset = computed(() => {
-  if (!selectedKey.value) return null;
-  const match = game.campus.value?.assets.find((a) => a.type === selectedKey.value);
-  if (match) return match;
-
-  const names: Record<string, string> = {
-    main_office: 'Main Office',
-    scouting: 'Scouting Department',
-    medical_centre: 'Medical Centre',
-    staff_house: 'Staff House',
-  };
-  const desc: Record<string, string> = {
-    main_office: 'The central administration building of your club, coordinating commercial deals.',
-    scouting: 'Expands your scouting network to reveal better opponents and transfer targets.',
-    medical_centre: 'Speeds up squad recovery times and reduces injury durations.',
-    staff_house: 'Accommodates specialized coaches, unlocking advanced tactical abilities in matches.',
-  };
-
-  return {
-    type: selectedKey.value,
-    name: names[selectedKey.value] || 'Club Facility',
-    description: desc[selectedKey.value] || 'Club infrastructure asset.',
-    level: 0,
-    maxLevel: 5,
-    effectLabel: 'Foundation established.',
-    effects: {},
-    upgrade: null,
-    next: {
-      level: 1,
-      cost: 25000,
-      minutes: 15,
-      effectLabel: 'Unlocks department operations.',
-      blockedReason: 'Under development in future season updates.',
-    },
-  };
-});
-
-const selectedIcon = computed(() => {
-  const match = CITY_PLOTS.find((h) => h.key === selectedKey.value);
-  if (match) return match.icon;
-  const fallbacks: Record<string, string> = {
-    stands: '🏟️',
-    stadium_grounds: '🌱',
-    training_ground: '🦺',
-    youth_academy: '🎓',
-    main_office: '💼',
-    scouting: '🔭',
-    medical_centre: '➕',
-    staff_house: '👥',
-  };
-  return selectedKey.value ? fallbacks[selectedKey.value] || '🏛️' : '🏛️';
-});
-
-function onSelectFacility(key: string) {
-  // The Dugout isn't a leveled facility (no ClubAssets row/upgrade economy) -
-  // it opens the Team Sheet editor directly instead of the upgrade sheet.
-  if (key === 'dugout') {
-    goManager('tactics');
-    return;
-  }
-  // The Office is the HQ interior: the full dashboard.
-  if (key === 'office') {
-    router.push(isMyClub.value ? '/u' : `/u/clubs/${club.value?._id}/${club.value?.ClubCode}`);
-    return;
-  }
-  selectedKey.value = key;
-  showSheet.value = true;
-}
-
-function onDockTabChange(key: string) {
-  if (key === 'hq') return;
-  if (key === 'world') router.push('/world');
-  else if (key === 'competitions') router.push('/u/competitions');
-  else if (key === 'office') router.push('/u');
-  else goManager(key);
-}
-
-// Match day: an accepted challenge for today.
-const matchDay = computed<boolean | string>(() => {
-  if (!isMyClub.value) return false;
-  const today = openPlay.settings?.currentDay;
-  const m = openPlay.upcoming.find((c) => c.scheduledDay === today);
-  return m ? true : false;
-});
-
-function onPlayMatchTrigger(mode: 'battle' | 'quick_sim') {
-  game.findMatch(mode === 'quick_sim');
-}
-
 
 function goManager(key?: string) {
   const c = club.value;
   if (!c) return;
   // Indices into the manager dashboard's v-tabs (dashboard.vue): Home, Team
   // Sheet, Squad Zone, Club Zone, Director's Box, Transfer Zone, Analysis.
-  // There is no Shop or Matches tab, so the dock only offers what exists here.
-  const tabs: Record<string, number> = {
-    tactics: 1,
-    squad: 2,
-    club: 3,
-    transfers: 5,
-  };
+  const tabs: Record<string, number> = { tactics: 1, squad: 2, club: 3, transfers: 5 };
   router.push({
     path: `/u/clubs/${c._id}/${c.ClubCode}`,
     query: key && key in tabs ? { tab: String(tabs[key]) } : {},
@@ -613,54 +577,13 @@ function goManager(key?: string) {
 </script>
 
 <style scoped>
-.club-game {
-  position: fixed;
-  inset: 0;
-  overflow: hidden;
-  background: #080c14;
-  color: #fff;
-  user-select: none;
-}
-
-.cg-visit-challenge {
-  position: absolute;
-  left: 50%;
-  bottom: 110px;
-  transform: translateX(-50%);
-  z-index: 21;
-}
-
 .cg-state {
   position: absolute;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.left-overlay {
-  position: absolute;
-  top: 90px;
-  left: 20px;
-  z-index: 15;
-  pointer-events: none;
-}
-
-.right-overlay {
-  position: absolute;
-  top: 90px;
-  right: 20px;
-  z-index: 15;
-  pointer-events: none;
-}
-
-@media (max-width: 960px) {
-  .left-overlay {
-    top: 80px;
-    left: 12px;
-  }
-  .right-overlay {
-    display: none;
-  }
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  text-align: center;
+  font-size: 20px;
 }
 </style>

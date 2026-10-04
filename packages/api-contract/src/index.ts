@@ -63,6 +63,7 @@ export type {
   Challenge,
   PlayState,
   MatchResult,
+  MatchHighlight,
   Opponent,
   ClubStanding,
   InboxMessage,
@@ -129,3 +130,5 @@ export type CompetitionDefinitionInput = import('zod').infer<
 export type CompetitionSummary = import('zod').infer<
   typeof import('./routes/competition-definitions').CompetitionSummarySchema
 >;
+
+export * from './campus-grid';

@@ -1,0 +1,598 @@
+import * as THREE from 'three';
+import {
+  CAMPUS_BUILDING_KEYS, footprint,
+  type CampusBuilding, type CampusPlacement, type Placed,
+} from '@repo/api-contract';
+import { CELL, buildingModel, bus, car, mat, plaza } from './models';
+import { buildTerrain, mulberry32, RING, terrainH, type CityVariant, type Terrain } from './terrain';
+
+export type Pick = { kind: 'building' | 'player'; id: string } | null;
+
+export interface CampusView {
+  /** Facility Tiers by asset type, and whether each is upgrading. */
+  tiers: Record<string, { tier: number; upgrading: boolean }>;
+  placement: CampusPlacement;
+  players: { id: string; name: string }[];
+  fans: number;
+  matchDay: boolean;
+  colors: [string, string];
+}
+
+/** World-space centre of a building's footprint. */
+export function footprintCenter(key: CampusBuilding, p: Placed) {
+  const [w, d] = footprint(key, p.rot);
+  return { x: (p.x + w / 2) * CELL, z: (p.z + d / 2) * CELL };
+}
+
+const SKINS = ['#f6d3b3', '#e8b48f', '#c98e64', '#a06a43', '#6e4428', '#4a2e1c'];
+const HAIRS = ['#2b1d14', '#5a3a22', '#9b6a3c', '#e2c06b', '#c2522d', '#1a1a1a', '#dcdcdc'];
+const CAR_COLORS = ['#e0483e', '#3a6fd8', '#f2b632', '#f5f1e6', '#3aa655', '#2b2b3a', '#8e4fd1'];
+const seedOf = (id: string) => [...id].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619), 2166136261) >>> 0;
+const fanCount = (fans: number) => 2 * (fans < 500 ? 3 : fans < 5000 ? 6 : fans < 25000 ? 10 : 15);
+
+interface Walker {
+  obj: THREE.Group;
+  legs: THREE.Object3D[];
+  target: THREE.Vector3;
+  wait: number;
+  speed: number;
+  phase: number;
+  id: string;
+}
+
+interface Puff { mesh: THREE.Mesh; life: number; vx: number; vz: number }
+interface Car { obj: THREE.Group; path: THREE.Vector3[]; t: number; speed: number }
+
+export class World {
+  renderer: THREE.WebGLRenderer;
+  scene = new THREE.Scene();
+  camera: THREE.PerspectiveCamera;
+  private target = new THREE.Vector3(3, 0, 0);
+  private dist = 62;
+  private terrain: Terrain;
+  private buildingObjs = new Map<string, { obj: THREE.Group; key: string }>();
+  private walkers = new Map<string, Walker>();
+  private fans: Walker[] = [];
+  private cars: Car[] = [];
+  private view: CampusView | null = null;
+  private puffs: Puff[] = [];
+  private puffTimer = 0;
+  private ghost: THREE.Group | null = null;
+  private ghostKey = '';
+  private plate: THREE.Mesh;
+  private selectPlate: THREE.Mesh;
+  private raycaster = new THREE.Raycaster();
+  private clock = new THREE.Clock();
+  private selectedId: string | null = null;
+  onTap: (pick: Pick, ground: THREE.Vector3 | null) => void = () => {};
+  onHover: (ground: THREE.Vector3 | null) => void = () => {};
+
+  constructor(private container: HTMLElement, private variant: CityVariant) {
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.05;
+    container.appendChild(this.renderer.domElement);
+
+    this.camera = new THREE.PerspectiveCamera(32, 1, 1, 400);
+    this.scene.background = new THREE.Color('#9fd3f0');
+    this.scene.fog = new THREE.Fog('#a9d8ef', 120, 230);
+
+    this.scene.add(new THREE.HemisphereLight('#e4f2ff', '#5d7d3c', 1.6));
+    const sun = new THREE.DirectionalLight('#fff0d6', 2.6);
+    sun.position.set(-30, 60, 25);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    const sc = sun.shadow.camera;
+    sc.left = -55; sc.right = 55; sc.top = 55; sc.bottom = -55; sc.near = 1; sc.far = 180;
+    sun.shadow.bias = -0.0004;
+    sun.shadow.normalBias = 0.04;
+    this.scene.add(sun);
+
+    this.terrain = buildTerrain(variant);
+    this.scene.add(this.terrain.group, plaza());
+
+    const plateMat = new THREE.MeshBasicMaterial({ color: '#5ee06a', transparent: true, opacity: 0.45, depthWrite: false });
+    this.plate = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), plateMat);
+    this.plate.rotation.x = -Math.PI / 2;
+    this.plate.visible = false;
+    this.scene.add(this.plate);
+    this.selectPlate = new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({ color: '#ffe066', transparent: true, opacity: 0.35, depthWrite: false }),
+    );
+    this.selectPlate.rotation.x = -Math.PI / 2;
+    this.selectPlate.visible = false;
+    this.scene.add(this.selectPlate);
+
+    this.spawnCars();
+    this.bindControls();
+    window.addEventListener('resize', this.resize);
+    this.resize();
+  }
+
+  dispose() {
+    window.removeEventListener('resize', this.resize);
+    this.renderer.dispose();
+    this.renderer.domElement.remove();
+  }
+
+  // --- Camera ------------------------------------------------------------------------
+  private resize = () => {
+    const w = this.container.clientWidth, h = this.container.clientHeight;
+    this.renderer.setSize(w, h);
+    this.camera.aspect = w / h;
+    // Pull back on narrow screens so the village still fits.
+    this.camera.fov = w < h ? 48 : 32;
+    this.camera.updateProjectionMatrix();
+  };
+
+  private updateCamera() {
+    this.target.x = THREE.MathUtils.clamp(this.target.x, -30, 32);
+    this.target.z = THREE.MathUtils.clamp(this.target.z, -24, 26);
+    this.dist = THREE.MathUtils.clamp(this.dist, 28, 110);
+    const pitch = THREE.MathUtils.degToRad(46);
+    this.camera.position.set(
+      this.target.x,
+      this.target.y + Math.sin(pitch) * this.dist,
+      this.target.z + Math.cos(pitch) * this.dist,
+    );
+    this.camera.lookAt(this.target);
+  }
+
+  private bindControls() {
+    const el = this.renderer.domElement;
+    const pointers = new Map<number, { x: number; y: number }>();
+    let downAt: { x: number; y: number; t: number } | null = null;
+    let moved = false;
+    let pinchDist = 0;
+
+    el.addEventListener('pointerdown', (e) => {
+      try {
+        el.setPointerCapture(e.pointerId);
+      } catch {
+        /* synthetic or already-released pointer */
+      }
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 1) {
+        downAt = { x: e.clientX, y: e.clientY, t: performance.now() };
+        moved = false;
+      } else if (pointers.size === 2) {
+        const [a, b] = [...pointers.values()];
+        pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+        moved = true;
+      }
+    });
+    el.addEventListener('pointermove', (e) => {
+      const prev = pointers.get(e.pointerId);
+      if (!prev) {
+        if (e.pointerType === 'mouse') this.onHover(this.groundAt(e.clientX, e.clientY));
+        return;
+      }
+      if (pointers.size === 2) {
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        const [a, b] = [...pointers.values()];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (pinchDist) this.dist *= pinchDist / d;
+        pinchDist = d;
+        return;
+      }
+      const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 6) moved = true;
+      if (moved) {
+        const k = (this.dist * 0.0021 * 32) / this.camera.fov;
+        this.target.x -= dx * k;
+        this.target.z -= dy * k * 1.25;
+      }
+      if (e.pointerType === 'mouse') this.onHover(this.groundAt(e.clientX, e.clientY));
+    });
+    const up = (e: PointerEvent) => {
+      pointers.delete(e.pointerId);
+      if (pointers.size === 0 && downAt && !moved) {
+        this.onTap(this.pickAt(e.clientX, e.clientY), this.groundAt(e.clientX, e.clientY));
+      }
+      if (pointers.size === 0) downAt = null;
+    };
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', (e) => pointers.delete(e.pointerId));
+    el.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      this.dist *= e.deltaY > 0 ? 1.1 : 0.9;
+    }, { passive: false });
+  }
+
+  private ndc(x: number, y: number) {
+    const r = this.renderer.domElement.getBoundingClientRect();
+    return new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1);
+  }
+
+  groundAt(x: number, y: number): THREE.Vector3 | null {
+    this.raycaster.setFromCamera(this.ndc(x, y), this.camera);
+    const hit = new THREE.Vector3();
+    return this.raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit) ? hit : null;
+  }
+
+  pickAt(x: number, y: number): Pick {
+    this.raycaster.setFromCamera(this.ndc(x, y), this.camera);
+    const objs = [
+      ...[...this.walkers.values()].map((w) => w.obj),
+      ...[...this.buildingObjs.values()].map((b) => b.obj),
+    ];
+    for (const hit of this.raycaster.intersectObjects(objs, true)) {
+      let o: THREE.Object3D | null = hit.object;
+      while (o && !o.userData.pick) o = o.parent;
+      if (o) return o.userData.pick as Pick;
+    }
+    return null;
+  }
+
+  project(v: THREE.Vector3) {
+    const p = v.clone().project(this.camera);
+    const r = this.renderer.domElement.getBoundingClientRect();
+    return { x: ((p.x + 1) / 2) * r.width, y: ((1 - p.y) / 2) * r.height, visible: p.z < 1 };
+  }
+
+  focus(x: number, z: number) {
+    this.target.set(x, 0, z);
+  }
+
+  // --- Sync with fs-pro data ----------------------------------------------------------------
+  sync(view: CampusView) {
+    this.view = view;
+    for (const key of CAMPUS_BUILDING_KEYS) {
+      const p = view.placement[key];
+      const t = view.tiers[key] ?? { tier: 1, upgrading: false };
+      const sig = `${t.tier}|${t.upgrading}|${p.x},${p.z},${p.rot}|${view.colors.join()}`;
+      const cur = this.buildingObjs.get(key);
+      if (cur?.key === sig) continue;
+      if (cur) this.scene.remove(cur.obj);
+      const obj = buildingModel(key, t.tier, t.upgrading, view.colors);
+      const c = footprintCenter(key, p);
+      obj.position.set(c.x, 0, c.z);
+      obj.rotation.y = -p.rot * (Math.PI / 2);
+      obj.userData.pick = { kind: 'building', id: key };
+      // A little pop when something changes.
+      if (cur) obj.userData.pop = 0.35;
+      this.scene.add(obj);
+      this.buildingObjs.set(key, { obj, key: sig });
+    }
+    this.syncPeople(view);
+    this.select(this.selectedId);
+  }
+
+  /** World position above a building, for HTML bubbles. */
+  anchor(id: string): THREE.Vector3 | null {
+    const b = this.buildingObjs.get(id);
+    if (!b) return null;
+    const box = new THREE.Box3().setFromObject(b.obj);
+    return new THREE.Vector3(b.obj.position.x, box.max.y + 1.2, b.obj.position.z);
+  }
+
+  select(key: string | null) {
+    this.selectedId = key;
+    const p = key && this.view ? this.view.placement[key as CampusBuilding] : null;
+    if (!p) {
+      this.selectPlate.visible = false;
+      return;
+    }
+    const [w, d] = footprint(key as CampusBuilding, p.rot);
+    const c = footprintCenter(key as CampusBuilding, p);
+    this.selectPlate.scale.set(w * CELL, d * CELL, 1);
+    this.selectPlate.position.set(c.x, 0.08, c.z);
+    this.selectPlate.visible = true;
+  }
+
+  /** The translucent building that follows the pointer in Move mode. */
+  setGhost(key: CampusBuilding | null, p?: Placed, valid = true) {
+    if (!key || !p) {
+      if (this.ghost) this.scene.remove(this.ghost);
+      this.ghost = null;
+      this.ghostKey = '';
+      this.plate.visible = false;
+      return;
+    }
+    const sig = `${key}|${p.rot}`;
+    if (sig !== this.ghostKey) {
+      if (this.ghost) this.scene.remove(this.ghost);
+      const t = this.view?.tiers[key] ?? { tier: 1, upgrading: false };
+      this.ghost = buildingModel(key, t.tier, false, this.view?.colors ?? ['#fff', '#fff']);
+      this.ghost.rotation.y = -p.rot * (Math.PI / 2);
+      this.ghost.traverse((o) => {
+        if ((o as THREE.Mesh).isMesh) {
+          const m = o as THREE.Mesh;
+          m.material = (m.material as THREE.Material).clone();
+          (m.material as THREE.Material).transparent = true;
+          (m.material as THREE.Material).opacity = 0.7;
+          m.castShadow = false;
+        }
+      });
+      this.scene.add(this.ghost);
+      this.ghostKey = sig;
+    }
+    const c = footprintCenter(key, p);
+    const [w, d] = footprint(key, p.rot);
+    this.ghost!.position.set(c.x, 0.15, c.z);
+    this.plate.visible = true;
+    this.plate.scale.set(w * CELL, d * CELL, 1);
+    this.plate.position.set(c.x, 0.1, c.z);
+    (this.plate.material as THREE.MeshBasicMaterial).color.set(valid ? '#5ee06a' : '#ff5a4f');
+  }
+
+  /** Hides a building while it is being moved (the ghost stands in for it). */
+  setHidden(key: string | null) {
+    for (const [k, b] of this.buildingObjs) b.obj.visible = k !== key;
+  }
+
+  // --- People -------------------------------------------------------------------------
+  private person(skin: string, hair: string, shirt: string, shorts: string) {
+    const g = new THREE.Group();
+    const part = (geo: THREE.BufferGeometry, color: string, x: number, y: number, z: number) => {
+      const m = new THREE.Mesh(geo, mat(color));
+      m.position.set(x, y, z);
+      m.castShadow = true;
+      g.add(m);
+      return m;
+    };
+    const legs: THREE.Object3D[] = [];
+    for (const sx of [-1, 1]) {
+      const pivot = new THREE.Group();
+      pivot.position.set(sx * 0.13, 0.5, 0);
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.5, 0.16), mat(shorts));
+      leg.position.y = -0.25;
+      leg.castShadow = true;
+      pivot.add(leg);
+      g.add(pivot);
+      legs.push(pivot);
+    }
+    part(new THREE.BoxGeometry(0.42, 0.22, 0.26), shorts, 0, 0.56, 0);
+    part(new THREE.CylinderGeometry(0.2, 0.25, 0.5, 8), shirt, 0, 0.9, 0);
+    for (const sx of [-1, 1]) part(new THREE.BoxGeometry(0.11, 0.42, 0.11), skin, sx * 0.3, 0.92, 0);
+    part(new THREE.IcosahedronGeometry(0.24, 1), skin, 0, 1.38, 0);
+    const cap = part(new THREE.SphereGeometry(0.255, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), hair, 0, 1.4, -0.02);
+    cap.rotation.x = -0.25;
+    g.scale.setScalar(1.5);
+    return { g, legs };
+  }
+
+  private syncPeople(view: CampusView) {
+    // Players: one per squad member, in kit, around the pitch.
+    const ids = new Set(view.players.map((p) => p.id));
+    for (const [id, w] of this.walkers) if (!ids.has(id)) { this.scene.remove(w.obj); this.walkers.delete(id); }
+    for (const p of view.players) {
+      if (this.walkers.has(p.id)) continue;
+      const r = mulberry32(seedOf(p.id));
+      const { g, legs } = this.person(SKINS[Math.floor(r() * SKINS.length)], HAIRS[Math.floor(r() * HAIRS.length)], view.colors[0], view.colors[1]);
+      g.userData.pick = { kind: 'player', id: p.id };
+      const start = this.playerPoint() ?? new THREE.Vector3();
+      g.position.copy(start);
+      this.scene.add(g);
+      this.walkers.set(p.id, { obj: g, legs, target: start.clone(), wait: Math.random() * 3, speed: 1.6 + Math.random() * 0.8, phase: Math.random() * 6, id: p.id });
+    }
+    // Fans: townsfolk in club colours on the sidewalks and plaza.
+    const want = Math.round(fanCount(view.fans) * (view.matchDay ? 1.8 : 1));
+    while (this.fans.length > want) this.scene.remove(this.fans.pop()!.obj);
+    while (this.fans.length < want) {
+      const i = this.fans.length;
+      const { g, legs } = this.person(SKINS[i % SKINS.length], HAIRS[i % HAIRS.length], i % 3 ? view.colors[0] : '#f5f1e6', ['#3b4a6b', '#5a4632', '#2b2b3a'][i % 3]);
+      const start = this.fanPoint();
+      g.position.copy(start);
+      this.scene.add(g);
+      this.fans.push({ obj: g, legs, target: start.clone(), wait: Math.random() * 4, speed: 1.2 + Math.random() * 0.6, phase: Math.random() * 6, id: `fan${i}` });
+    }
+  }
+
+  /** Somewhere on or around the pitch, training ground or dugout. */
+  private playerPoint(): THREE.Vector3 | null {
+    if (!this.view) return null;
+    const keys: CampusBuilding[] = ['stadium_grounds', 'stadium_grounds', 'training_ground', 'dugout'];
+    const key = keys[Math.floor(Math.random() * keys.length)];
+    const p = this.view.placement[key];
+    const [w, d] = footprint(key, p.rot);
+    return new THREE.Vector3((p.x - 0.5 + Math.random() * (w + 1)) * CELL, 0, (p.z - 0.5 + Math.random() * (d + 1)) * CELL);
+  }
+
+  /** The campus-side sidewalk of the ring road, the plaza, or (match day) by the Stands. */
+  private fanPoint(): THREE.Vector3 {
+    const r = Math.random();
+    if (this.view?.matchDay && r < 0.4) {
+      const c = footprintCenter('stands', this.view.placement.stands);
+      return new THREE.Vector3(c.x + (Math.random() - 0.5) * 8, 0, c.z + (Math.random() - 0.5) * 4);
+    }
+    if (r < 0.25) {
+      const a = Math.random() * Math.PI * 2;
+      return new THREE.Vector3(Math.cos(a) * 3.2, 0, Math.sin(a) * 3.2);
+    }
+    const sx = RING.x - 2.75, sz = RING.z - 2.75;
+    const t = Math.random() * 4 * (sx + sz);
+    if (t < 2 * sx) return new THREE.Vector3(-sx + t, 0, -sz);
+    if (t < 2 * sx + 2 * sz) return new THREE.Vector3(sx, 0, -sz + (t - 2 * sx));
+    if (t < 4 * sx + 2 * sz) return new THREE.Vector3(sx - (t - 2 * sx - 2 * sz), 0, sz);
+    return new THREE.Vector3(-sx, 0, sz - (t - 4 * sx - 2 * sz));
+  }
+
+  private stepWalker(w: Walker, dt: number, area: () => THREE.Vector3 | null) {
+    const pos = w.obj.position;
+    if (w.wait > 0) {
+      w.wait -= dt;
+      w.legs.forEach((l) => (l.rotation.x *= 0.8));
+      return;
+    }
+    const to = w.target.clone().sub(pos);
+    to.y = 0;
+    const d = to.length();
+    if (d < 0.2) {
+      w.wait = 1 + Math.random() * 4;
+      for (let i = 0; i < 12; i++) {
+        const p = area();
+        if (p && p.distanceTo(pos) < 16) {
+          w.target.copy(p);
+          break;
+        }
+      }
+      return;
+    }
+    to.normalize();
+    pos.addScaledVector(to, Math.min(d, w.speed * dt));
+    w.obj.rotation.y = Math.atan2(to.x, to.z);
+    w.phase += dt * w.speed * 5;
+    w.legs.forEach((l, i) => (l.rotation.x = Math.sin(w.phase + i * Math.PI) * 0.6));
+    pos.y = Math.abs(Math.sin(w.phase)) * 0.05;
+  }
+
+  // --- Traffic ------------------------------------------------------------------------
+  private spawnCars() {
+    const { x: rx, z: rz } = RING;
+    const v = (x: number, z: number) => new THREE.Vector3(x, 0, z);
+    const loops: THREE.Vector3[][] = [
+      [v(-rx - 1, -rz - 1), v(rx + 1, -rz - 1), v(rx + 1, rz + 1), v(-rx - 1, rz + 1)],
+      [v(-rx + 1, -rz + 1), v(-rx + 1, rz - 1), v(rx - 1, rz - 1), v(rx - 1, -rz + 1)],
+    ];
+    // Avenues: out on one lane, back on the other.
+    for (const [ax, az, bx, bz] of this.terrain.roads.slice(4)) {
+      const len = Math.hypot(bx - ax, bz - az);
+      const nx = -(bz - az) / len, nz = (bx - ax) / len;
+      loops.push([v(ax + nx, az + nz), v(bx + nx, bz + nz), v(bx - nx, bz - nz), v(ax - nx, az - nz)]);
+    }
+    loops.forEach((path, i) => {
+      for (let k = 0; k < (i < 2 ? 4 : 2); k++) {
+        const obj = car(CAR_COLORS[(i * 3 + k) % CAR_COLORS.length]);
+        this.scene.add(obj);
+        this.cars.push({ obj, path, t: k * 40 + i * 13, speed: 5 + ((i + k) % 3) });
+      }
+    });
+  }
+
+  /** Position and heading at distance t along a polyline (closed when looping). */
+  private along(path: THREE.Vector3[], t: number, loop: boolean) {
+    const segs = loop ? path.length : path.length - 1;
+    const lens = Array.from({ length: segs }, (_, i) => path[i].distanceTo(path[(i + 1) % path.length]));
+    const total = lens.reduce((a, b) => a + b, 0);
+    let rest = loop ? ((t % total) + total) % total : Math.min(t, total);
+    for (let i = 0; i < segs; i++) {
+      if (rest <= lens[i] || i === segs - 1) {
+        const a = path[i], b = path[(i + 1) % path.length];
+        return { pos: a.clone().lerp(b, Math.min(1, rest / lens[i])), dir: b.clone().sub(a).normalize(), done: !loop && t >= total };
+      }
+      rest -= lens[i];
+    }
+    return { pos: path[0].clone(), dir: new THREE.Vector3(0, 0, 1), done: true };
+  }
+
+  private moveAlong(obj: THREE.Object3D, path: THREE.Vector3[], t: number, loop: boolean) {
+    const { pos, dir, done } = this.along(path, t, loop);
+    obj.position.set(pos.x, terrainH(pos.x, pos.z, this.variant), pos.z);
+    obj.rotation.y = Math.atan2(dir.x, dir.z);
+    return done;
+  }
+
+  // --- Team bus ------------------------------------------------------------------------
+  private busRun: { obj: THREE.Group; path: THREE.Vector3[]; t: number; done: () => void } | null = null;
+  private follow: THREE.Object3D | null = null;
+
+  /** Up the south avenue and along the ring to the stop nearest the stadium. */
+  private busRoute() {
+    const pitch = this.view ? footprintCenter('stadium_grounds', this.view.placement.stadium_grounds) : { x: 0, z: 0 };
+    const stopX = THREE.MathUtils.clamp(pitch.x, -RING.x + 3, RING.x - 3);
+    return [new THREE.Vector3(-1, 0, 52), new THREE.Vector3(-1, 0, RING.z + 1), new THREE.Vector3(stopX, 0, RING.z + 1)];
+  }
+
+  private runBus(colors: [string, string], path: THREE.Vector3[], keep: boolean) {
+    return new Promise<void>((resolve) => {
+      if (this.busRun) this.scene.remove(this.busRun.obj);
+      const obj = bus(colors);
+      this.scene.add(obj);
+      this.follow = obj;
+      this.busRun = {
+        obj, path, t: 0,
+        done: () => {
+          this.follow = null;
+          if (!keep) this.scene.remove(obj);
+          resolve();
+        },
+      };
+    });
+  }
+
+  /** A team bus in the given colours pulls up at the stadium. */
+  playArrival(colors: [string, string]) {
+    return this.runBus(colors, this.busRoute(), true);
+  }
+
+  /** The team bus leaves the stadium for an away match. */
+  playDeparture(colors: [string, string]) {
+    return this.runBus(colors, this.busRoute().reverse(), false);
+  }
+
+  // --- Frame ----------------------------------------------------------------------------
+  render() {
+    const dt = Math.min(0.05, this.clock.getDelta());
+    const t = this.clock.elapsedTime;
+    if (this.follow) this.target.lerp(new THREE.Vector3(this.follow.position.x, 0, this.follow.position.z - 4), Math.min(1, dt * 3));
+    this.updateCamera();
+
+    this.terrain.water.offset.y -= dt * 0.35;
+
+    for (const { obj } of this.buildingObjs.values()) {
+      if (obj.userData.pop > 0) {
+        obj.userData.pop = Math.max(0, obj.userData.pop - dt);
+        const k = obj.userData.pop / 0.35;
+        obj.scale.set(1 + Math.sin(k * Math.PI) * 0.12, 1 - Math.sin(k * Math.PI) * 0.08 + Math.sin(k * Math.PI * 2) * 0.06, 1 + Math.sin(k * Math.PI) * 0.12);
+      }
+      obj.traverse((o) => {
+        if (o.name === 'flag') o.rotation.y = Math.sin(t * 2.5 + o.id) * 0.25;
+      });
+    }
+
+    this.puffTimer -= dt;
+    if (this.puffTimer <= 0) {
+      this.puffTimer = 0.45;
+      for (const { obj } of this.buildingObjs.values()) {
+        const ch = obj.getObjectByName('chimney');
+        if (ch) this.spawnPuff(ch.getWorldPosition(new THREE.Vector3()));
+      }
+    }
+    for (let i = this.puffs.length - 1; i >= 0; i--) {
+      const p = this.puffs[i];
+      p.life += dt;
+      p.mesh.position.y += dt * 1.2;
+      p.mesh.position.x += p.vx * dt;
+      p.mesh.position.z += p.vz * dt;
+      p.mesh.scale.setScalar(0.3 + p.life * 0.5);
+      (p.mesh.material as THREE.MeshStandardMaterial).opacity = Math.max(0, 0.8 - p.life * 0.32);
+      if (p.life > 2.5) {
+        this.scene.remove(p.mesh);
+        p.mesh.geometry.dispose();
+        (p.mesh.material as THREE.Material).dispose();
+        this.puffs.splice(i, 1);
+      }
+    }
+
+    for (const w of this.walkers.values()) this.stepWalker(w, dt, () => this.playerPoint());
+    for (const f of this.fans) this.stepWalker(f, dt, () => this.fanPoint());
+    for (const c of this.cars) {
+      c.t += c.speed * dt;
+      this.moveAlong(c.obj, c.path, c.t, true);
+    }
+    if (this.busRun) {
+      this.busRun.t += 9 * dt;
+      if (this.moveAlong(this.busRun.obj, this.busRun.path, this.busRun.t, false)) {
+        const run = this.busRun;
+        this.busRun = null;
+        run.done();
+      }
+    }
+
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  private puffMat = new THREE.MeshStandardMaterial({ color: '#f2f2f2', transparent: true, opacity: 0.8, flatShading: true, depthWrite: false });
+  private spawnPuff(at: THREE.Vector3, scale = 1) {
+    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5 * scale, 0), this.puffMat.clone());
+    m.position.copy(at);
+    this.scene.add(m);
+    this.puffs.push({ mesh: m, life: 0, vx: 0.3 + Math.random() * 0.2, vz: (Math.random() - 0.5) * 0.2 });
+  }
+}

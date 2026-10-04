@@ -1,7 +1,7 @@
 import { initServer } from '@ts-rest/express';
 import { apiContract as contract } from '@repo/api-contract';
 import { accessDenied, canManageClub } from '../auth/club-access';
-import { getCampus, startUpgrade } from '../../services/facilities/facilities.service';
+import { getCampus, savePlacement, startUpgrade } from '../../services/facilities/facilities.service';
 import {
   getMedicalStatus,
   executeSquadRecovery,
@@ -47,6 +47,21 @@ export const facilitiesTsRestRoutes = s.router(contract.facilities, {
       return {
         status: 200 as const,
         body: { success: true as const, message: 'Upgrade started', payload: campus },
+      };
+    } catch (err) {
+      return errorResponse(err) as any;
+    }
+  },
+
+  savePlacement: async ({ params, body, req }) => {
+    try {
+      const access = await canManageClub(req.session as { userID?: string } | undefined, params.clubId);
+      if (access !== 'ok') return accessDenied(access);
+
+      const campus = await savePlacement(params.clubId, body.placement);
+      return {
+        status: 200 as const,
+        body: { success: true as const, message: 'Campus layout saved', payload: campus },
       };
     } catch (err) {
       return errorResponse(err) as any;

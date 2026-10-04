@@ -313,7 +313,8 @@ export async function playMatch(clubId: string, opponentId?: string): Promise<Ma
     let minute = minMatch ? parseInt(minMatch[0], 10) : Math.floor(Math.random() * 85) + 5;
     if (minute < 1 || minute > 90) minute = Math.min(Math.max(minute, 1), 90);
 
-    const isYou = ev.playerTeamID ? ev.playerTeamID === clubId : ev.side === 'home';
+    // playerTeamID is the club code (QuickSimResolver), not its id.
+    const isYou = ev.playerTeamID ? ev.playerTeamID === club.ClubCode : ev.side === 'home';
     extractedHighlights.push({
       minute,
       type: ev.type,
