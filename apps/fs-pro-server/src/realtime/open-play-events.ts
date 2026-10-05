@@ -3,10 +3,11 @@ import { publish } from './world-events';
 /**
  * Open-play events (docs/OPEN-PLAY-COMPETITIONS-SPEC.md, "Realtime"), sent
  * through the multiplayer gateway (world-events.ts). Payloads carry ids
- * only; clients refetch what they show. Every event goes to the `world`
- * topic; events about particular clubs also go to those clubs' private
- * topics, so an owner hears about them even off the world screens. A no-op
- * when the gateway is unreachable (scripts, checks).
+ * only; clients refetch what they show. Scoped so a 10k-player world isn't
+ * told everything (docs/WORLD-PYRAMID-SPEC.md, "Realtime"): edition and
+ * ranking updates go to each `edition:<id>` topic, club events to the
+ * clubs' private topics, and only the day and year turning go to `world`.
+ * A no-op when the gateway is unreachable (scripts, checks).
  */
 
 export interface OpenPlayEvents {
@@ -24,7 +25,15 @@ function clubsOf(payload: Record<string, unknown>): string[] {
   return ids.filter((id): id is string => typeof id === 'string');
 }
 
+const WORLD_EVENTS = new Set<keyof OpenPlayEvents>(['world:day', 'world:year-ended']);
+
 export function emitOpenPlay<K extends keyof OpenPlayEvents>(event: K, payload: OpenPlayEvents[K]) {
-  const topics = ['world', ...clubsOf(payload as Record<string, unknown>).map((id) => `club:${id}`)];
-  publish(topics, event, payload);
+  const p = payload as Record<string, unknown>;
+  const editions = Array.isArray(p.editionIds) ? (p.editionIds as string[]) : [];
+  const topics = [
+    ...(WORLD_EVENTS.has(event) ? ['world'] : []),
+    ...editions.map((id) => `edition:${id}`),
+    ...clubsOf(p).map((id) => `club:${id}`),
+  ];
+  if (topics.length) publish(topics, event, payload);
 }

@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, lt, or } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNull, lt, or } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
 import { clubs, players, seasons, transferOffers } from '../../db/drizzle/schema';
 import { recruitYouthPlayersForClub } from '../../controllers/players/player-lifecycle.service';
@@ -20,6 +20,9 @@ const OFFER_LIFETIME_DAYS = 4;
 const MAX_PENDING_OFFERS_PER_HUMAN_CLUB = 2;
 /** Daily chance an AI club makes a bid for one of a human club's players. */
 const AI_BID_CHANCE_PER_DAY = 0.4;
+/** Human clubs without a listed player the AI looks at per day: a random
+ * sample, so the daily market costs the same in a world of 10 or 10,000. */
+const AI_BID_SAMPLE_PER_DAY = 200;
 const AI_DEALS_PER_DAY = 3;
 const AI_DEAL_CHANCE = 0.6;
 
@@ -57,6 +60,7 @@ interface ClubRow {
 
 const db = () => DrizzleDatabase.getInstance().database;
 
+/** Every club still in the world (released clubs are gone). */
 async function loadClubs(): Promise<ClubRow[]> {
   const rows = await db()
     .select({
@@ -66,15 +70,32 @@ async function loadClubs(): Promise<ClubRow[]> {
       Budget: clubs.Budget,
       UserId: clubs.UserId,
     })
-    .from(clubs);
+    .from(clubs)
+    .where(isNull(clubs.ReleasedAt));
   return rows.map((c) => ({ ...c, Budget: c.Budget ?? 0 }));
 }
 
-/** Every active (non-retired) player: signed ones grouped by club, plus free agents. */
-/** Exported for scouted-shortlist.service.ts (Scouting facility feature) -
- * every active player, listed-for-sale and free agents alike, grouped by
- * club. */
-export async function loadPlayers() {
+export interface PlayerScope {
+  /** Signed players of these clubs (default: every club). */
+  clubIds?: string[];
+  /** Also free agents (default true). */
+  freeAgents?: boolean;
+  /** Also every club's transfer-listed players. */
+  listed?: boolean;
+}
+
+/** Active (non-retired) players: signed ones grouped by club, plus free
+ * agents. With no scope, the whole world; callers on hot paths pass the
+ * clubs they need, so a 10k-club world isn't read whole for one decision.
+ * Exported for scouted-shortlist.service.ts (Scouting facility feature). */
+export async function loadPlayers(scope: PlayerScope = {}) {
+  const wantFree = scope.freeAgents ?? true;
+  const parts = [
+    ...(scope.clubIds === undefined ? [eq(players.isSigned, true)] : scope.clubIds.length ? [inArray(players.ClubId, scope.clubIds)] : []),
+    ...(wantFree ? [eq(players.isSigned, false)] : []),
+    ...(scope.listed ? [eq(players.isTransferListed, true)] : []),
+  ];
+  if (!parts.length) return { byClub: new Map<string, RosterPlayer[]>(), freeAgents: [] as RosterPlayer[] };
   const rows = await db()
     .select({
       id: players.id,
@@ -91,7 +112,7 @@ export async function loadPlayers() {
       isYouth: players.isYouth,
     })
     .from(players)
-    .where(eq(players.isRetired, false));
+    .where(and(eq(players.isRetired, false), or(...parts)));
 
   const byClub = new Map<string, RosterPlayer[]>();
   const freeAgents: RosterPlayer[] = [];
@@ -109,7 +130,9 @@ export async function loadPlayers() {
       isYouth: r.isYouth,
     };
     if (r.isSigned && r.ClubId) {
-      byClub.set(r.ClubId, [...(byClub.get(r.ClubId) ?? []), player]);
+      const roster = byClub.get(r.ClubId);
+      if (roster) roster.push(player);
+      else byClub.set(r.ClubId, [player]);
     } else if (!r.isSigned) {
       freeAgents.push(player);
     }
@@ -237,7 +260,7 @@ export async function placeBid(input: {
   // A human owner answers from their inbox.
   if (owner.UserId) return offer;
 
-  const { byClub } = await loadPlayers();
+  const { byClub } = await loadPlayers({ clubIds: [owner.id], freeAgents: false });
   const roster = byClub.get(owner.id) ?? [];
   const rosterPlayer = roster.find((p) => p.id === playerId);
   const response = aiResponse({
@@ -451,24 +474,41 @@ export async function runTransferDay(day: number): Promise<TransferDaySummary> {
     console.error('[transfer-market] Failed to maintain market stock:', err);
   }
 
-  const [allClubs, { byClub, freeAgents }] = await Promise.all([loadClubs(), loadPlayers()]);
-  const humanClubs = allClubs.filter((c) => c.UserId);
+  const allClubs = await loadClubs();
   const aiClubs = allClubs.filter((c) => !c.UserId);
   const budgets = new Map(allClubs.map((c) => [c.id, c.Budget]));
 
-  // 1. AI clubs bid for human clubs' players.
+  // 1. AI clubs bid for human clubs' players: every club with a player on
+  // the list, plus a random sample of the rest.
+  const listedOwners = new Set(
+    (
+      await db()
+        .selectDistinct({ id: players.ClubId })
+        .from(players)
+        .where(and(eq(players.isTransferListed, true), eq(players.isSigned, true)))
+    ).map((r) => r.id)
+  );
+  const humans = allClubs.filter((c) => c.UserId);
+  const sample = humans
+    .filter((c) => !listedOwners.has(c.id))
+    .sort(() => Math.random() - 0.5)
+    .slice(0, AI_BID_SAMPLE_PER_DAY);
+  const humanClubs = [...humans.filter((c) => listedOwners.has(c.id)), ...sample];
+  const { byClub } = await loadPlayers({ clubIds: [...humanClubs, ...aiClubs].map((c) => c.id), freeAgents: false });
+
   const openOffers = await db()
     .select()
     .from(transferOffers)
     .where(inArray(transferOffers.Status, OPEN_STATUSES));
+  const pendingTo = new Map<string, number>();
+  for (const o of openOffers) if (o.Status === 'pending' && o.ToClubId) pendingTo.set(o.ToClubId, (pendingTo.get(o.ToClubId) ?? 0) + 1);
+  const alreadyBidOn = new Set(openOffers.map((o) => o.PlayerId));
 
   for (const human of humanClubs) {
-    const pendingIncoming = openOffers.filter((o) => o.ToClubId === human.id && o.Status === 'pending');
-    if (pendingIncoming.length >= MAX_PENDING_OFFERS_PER_HUMAN_CLUB) continue;
+    if ((pendingTo.get(human.id) ?? 0) >= MAX_PENDING_OFFERS_PER_HUMAN_CLUB) continue;
 
     const roster = byClub.get(human.id) ?? [];
     if (roster.length <= MIN_SQUAD_SIZE) continue;
-    const alreadyBidOn = new Set(openOffers.map((o) => o.PlayerId));
     const candidates = roster.filter((p) => !alreadyBidOn.has(p.id) && p.Value > 0);
     if (!candidates.length) continue;
 
@@ -512,6 +552,7 @@ export async function runTransferDay(day: number): Promise<TransferDaySummary> {
       ExpiresDay: day + OFFER_LIFETIME_DAYS,
       updatedAt: new Date(),
     });
+    alreadyBidOn.add(target.id);
     summary.aiBids++;
   }
 
@@ -533,15 +574,15 @@ export interface AiMarketSummary {
 
 /**
  * AI clubs managing their own squads: fill positional gaps from free agents,
- * sell to get out of debt, and trade among themselves. Called by
- * runTransferDay while the window is open, and by the real-time world tick
- * (services/world/ai-world.service.ts) regardless of the window - the window
- * gates human business, while the AI world keeps moving.
+ * sell to get out of debt, and trade among themselves. Called once per game
+ * day by runTransferDay while the window is open. Reads only AI rosters and
+ * free agents.
  */
 export async function runAiMarket(): Promise<AiMarketSummary> {
   const summary: AiMarketSummary = { aiNeedSignings: 0, aiDeals: 0, debtSales: 0, debtListings: 0 };
-  const [allClubs, { byClub, freeAgents }] = await Promise.all([loadClubs(), loadPlayers()]);
+  const allClubs = await loadClubs();
   const aiClubs = allClubs.filter((c) => !c.UserId);
+  const { byClub, freeAgents } = await loadPlayers({ clubIds: aiClubs.map((c) => c.id) });
   const budgets = new Map(allClubs.map((c) => [c.id, c.Budget]));
 
   // 1b. Needs first: each AI club short at a position signs a free agent
@@ -801,8 +842,9 @@ export async function listPlayerForSale(input: {
 
   const window = await getTransferWindow();
   if (window.open) {
-    const [allClubs, { byClub }] = await Promise.all([loadClubs(), loadPlayers()]);
+    const allClubs = await loadClubs();
     const aiClubs = allClubs.filter((c) => !c.UserId);
+    const { byClub } = await loadPlayers({ clubIds: aiClubs.map((c) => c.id), freeAgents: false });
     const budgets = new Map(allClubs.map((c) => [c.id, c.Budget]));
 
     const targetPlayer: RosterPlayer = {

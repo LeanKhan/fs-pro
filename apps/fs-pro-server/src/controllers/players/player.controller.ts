@@ -1,8 +1,5 @@
 import {
   getPlayerStats,
-  getPlayerById,
-  getPlayers,
-  updatePlayerFields,
   incrementAllPlayersAge,
   createMany,
   type DayRange,
@@ -18,7 +15,10 @@ import { PlayerInterface, IPlayerAttributes } from '../../interfaces/Player';
 import { runSpawn } from '../../utils/scripts';
 import { titleCase } from '../../helpers/misc';
 import { nationalityIdForCulture } from '../../services/nationality';
-import { getAssetEffects } from '../../services/facilities/facilities.service';
+import { getAssetEffectsForClubs } from '../../services/facilities/facilities.service';
+import { eq, sql } from 'drizzle-orm';
+import { players } from '../../db/drizzle/schema';
+import { DrizzleDatabase } from '../../db/drizzle';
 
 /** Recompute every active signed Player's Attributes/Rating/Value for
  * `year` (appending to RatingsHistory), then age everyone up. Plain
@@ -37,7 +37,7 @@ import { getAssetEffects } from '../../services/facilities/facilities.service';
  * match-stats aggregation as before - a player who never took the pitch
  * still gets their club's training. */
 export async function updateAllPlayerDetailsForYear(year: string, range: DayRange) {
-  const updPlayer = async (data: {
+  type Update = {
     player_id: string;
     attributes: IPlayerAttributes;
     new_rating: number;
@@ -46,33 +46,45 @@ export async function updateAllPlayerDetailsForYear(year: string, range: DayRang
     old_value: number;
     trainingCategory: string;
     breakout: boolean;
-  }) => {
-    const player = await getPlayerById(data.player_id);
-    const ratingsHistory = [
-      ...(player?.RatingsHistory ?? []),
-      {
-        date: new Date().toString(),
-        year,
-        rating: data.new_rating,
-        value: data.new_value,
-        old_rating: data.old_rating,
-        old_value: data.old_value,
-        trainingCategory: data.trainingCategory,
-        breakout: data.breakout,
-      },
-    ];
-
-    return updatePlayerFields(data.player_id, {
-      Attributes: data.attributes,
-      Rating: data.new_rating,
-      Value: data.new_value,
-      RatingsHistory: ratingsHistory,
-    });
+  };
+  /** One UPDATE ... FROM (VALUES ...) per batch: a world's worth of players
+   * (hundreds of thousands at 10k clubs) in a few hundred statements, with
+   * the year's history line appended in the database. */
+  const updateBatch = async (batch: Update[]) => {
+    if (!batch.length) return;
+    const rows = batch.map(
+      (d) =>
+        sql`(${d.player_id}::uuid, ${JSON.stringify(d.attributes)}::jsonb, ${d.new_rating}::real, ${d.new_value}::real, ${JSON.stringify([
+          {
+            date: new Date().toString(),
+            year,
+            rating: d.new_rating,
+            value: d.new_value,
+            old_rating: d.old_rating,
+            old_value: d.old_value,
+            trainingCategory: d.trainingCategory,
+            breakout: d.breakout,
+          },
+        ])}::jsonb)`
+    );
+    await DrizzleDatabase.getInstance().database.execute(sql`
+      UPDATE "Players" p
+      SET "Attributes" = v.a, "Rating" = v.r, "Value" = v.val,
+          "RatingsHistory" = coalesce(p."RatingsHistory", '[]'::jsonb) || v.h, "updatedAt" = now()
+      FROM (VALUES ${sql.join(rows, sql`, `)}) AS v(id, a, r, val, h)
+      WHERE p."_id" = v.id`);
   };
 
   const [agg, activePlayers] = await Promise.all([
     getPlayerStats(range),
-    getPlayers({ isSigned: true }),
+    // A plain select, not the repository: its relational read binds a
+    // parameter per row and fails past ~65k players (a 10k-club world has
+    // 160k).
+    DrizzleDatabase.getInstance()
+      .database.select()
+      .from(players)
+      .where(eq(players.isSigned, true))
+      .then((rows) => rows.map(({ id, ...p }) => ({ ...p, _id: id }))),
   ]);
   console.log('agg', agg.length, 'activePlayers', activePlayers.length);
 
@@ -82,18 +94,14 @@ export async function updateAllPlayerDetailsForYear(year: string, range: DayRang
       .map((p) => [p.player._id, p.points])
   );
 
-  // Training Ground's growth bonus is per-club - fetch each distinct club's
-  // multiplier once up front (getAssetEffects hits the DB) rather than once
-  // per player.
+  // Training Ground's growth bonus is per-club - every club's multiplier in
+  // one bulk read up front, rather than a query per club or per player.
   const distinctClubIds = [
     ...new Set(activePlayers.map((p) => (p as unknown as PlayerInterface).ClubId).filter(Boolean)),
   ] as string[];
+  const effects = await getAssetEffectsForClubs(distinctClubIds);
   const trainingMultiplierByClub = new Map(
-    await Promise.all(
-      distinctClubIds.map(
-        async (id) => [id, (await getAssetEffects(id)).trainingGrowthMultiplier ?? 1] as const
-      )
-    )
+    distinctClubIds.map((id) => [id, effects.get(id)?.trainingGrowthMultiplier ?? 1] as const)
   );
 
   const toDo: any[] = [];
@@ -126,9 +134,9 @@ export async function updateAllPlayerDetailsForYear(year: string, range: DayRang
     });
   });
 
-  // TODO: Mehn, I don't know how we will do this! Sha for now let's do all PromiseAll
-  // Promise.all() has a 2 million limit lol. So we have to do this in batches o
-  const updates = await Promise.all(toDo.map((d) => updPlayer(d)));
+  const BATCH = 500;
+  for (let i = 0; i < toDo.length; i += BATCH) await updateBatch(toDo.slice(i, i + BATCH));
+  const updates = { length: toDo.length };
 
   await Promise.all([incrementAllPlayersAge(), incrementAllManagersAge()]);
 

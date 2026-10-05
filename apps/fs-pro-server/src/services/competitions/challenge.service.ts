@@ -11,7 +11,7 @@ import {
   or,
   sql,
 } from 'drizzle-orm';
-import type { LeagueRules } from '@repo/api-contract';
+import { dayKind, type LeagueRules } from '@repo/api-contract';
 import { DrizzleDatabase } from '../../db/drizzle';
 import {
   calendars,
@@ -80,7 +80,8 @@ function openStage(
 ) {
   const def = season.Definition;
   const stage = def?.Stages[season.CurrentStage];
-  if (season.Status !== 'running' || !stage || stage.type === 'knockout')
+  // Pyramid pools play a fixed schedule: no challenges.
+  if (season.Status !== 'running' || !stage || stage.type === 'knockout' || stage.type === 'pyramid')
     return null;
   const lastDay = (season.StageStartedDay ?? 0) + stage.days - 1;
   if (today > lastDay) return null;
@@ -107,8 +108,9 @@ async function lockClubs(tx: Tx, clubIds: string[]) {
 // ---------------------------------------------------------------------------
 
 /**
- * First day in [fromDay, lastDay] on which none of `clubIds` already has a
- * fixture in any competition, or null.
+ * First cup day (docs/WORLD-PYRAMID-SPEC.md, "Week template") in
+ * [fromDay, lastDay] on which none of `clubIds` already has a fixture in
+ * any competition, or null. League days belong to the pyramid.
  */
 export async function findSlot(
   tx: Tx | Db,
@@ -117,6 +119,7 @@ export async function findSlot(
   lastDay: number
 ): Promise<number | null> {
   if (fromDay > lastDay) return null;
+  const calendar = await world(tx);
   const busy = await tx
     .selectDistinct({ day: fixtures.ScheduledDay })
     .from(fixtures)
@@ -137,7 +140,7 @@ export async function findSlot(
     );
   const taken = new Set(busy.map((b) => b.day));
   for (let day = fromDay; day <= lastDay; day++)
-    if (!taken.has(day)) return day;
+    if (dayKind(calendar, day) === 'C' && !taken.has(day)) return day;
   return null;
 }
 

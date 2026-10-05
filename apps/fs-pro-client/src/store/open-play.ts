@@ -167,6 +167,17 @@ export const useOpenPlayStore = defineStore('open-play', () => {
   }
   watch(clubId, () => users > 0 && followClub(true));
 
+  // Table and draw updates only go to each edition's own topic
+  // (docs/WORLD-PYRAMID-SPEC.md, "Realtime"): follow the club's editions.
+  let editionTopics = new Set<string>();
+  function followEditions(on: boolean) {
+    const next = new Set(on ? activeEntries.value.map((e) => `edition:${e.edition.id}`) : []);
+    for (const t of editionTopics) if (!next.has(t)) realtime.leave(t);
+    for (const t of next) if (!editionTopics.has(t)) realtime.join(t);
+    editionTopics = next;
+  }
+  watch(activeEntries, () => users > 0 && followEditions(true));
+
   function listen(on: boolean) {
     for (const [event, fn] of Object.entries(handlers)) {
       if (on) realtime.on(event, fn);
@@ -175,6 +186,7 @@ export const useOpenPlayStore = defineStore('open-play', () => {
     if (on) realtime.join('world');
     else realtime.leave('world');
     followClub(on);
+    followEditions(on);
   }
 
   function start() {

@@ -6,14 +6,16 @@ import { DrizzleDatabase } from '../../db/drizzle';
 import { clubs } from '../../db/drizzle/schema';
 import { FoundingError, checkName, foundCountry, foundTown, getAtlas } from '../../services/world/atlas.service';
 import { foundClub } from '../../services/world/club-founding.service';
+import { InviteError, createInvite, listInvites, previewPlacement } from '../../services/world/placement.service';
 import { publishWorldEvent } from '../../realtime/world-events';
+import { accessDenied, canManageClub } from '../auth/club-access';
 
 const s = initServer();
 
 type Session = { userID?: string } | undefined;
 
 function failure(err: unknown) {
-  if (err instanceof FoundingError) {
+  if (err instanceof FoundingError || err instanceof InviteError) {
     const status = err.status === 403 && /logged in/i.test(err.message) ? 401 : err.status;
     return { status, body: { success: false as const, message: err.message } } as const;
   }
@@ -22,10 +24,41 @@ function failure(err: unknown) {
 }
 
 export const atlasTsRestRoutes = s.router(contract.atlas, {
-  getAtlas: async ({ req }) => {
+  getAtlas: async ({ req, query }) => {
     try {
-      const atlas = await getAtlas((req.session as Session)?.userID ?? null);
+      const atlas = await getAtlas((req.session as Session)?.userID ?? null, { countryId: query?.countryId });
       return { status: 200, body: { success: true, message: 'Atlas', payload: atlas } };
+    } catch (err) {
+      return failure(err) as any;
+    }
+  },
+
+  getPlacement: async ({ query }) => {
+    try {
+      const placement = await previewPlacement(query?.invite ?? null);
+      return { status: 200, body: { success: true, message: 'Placement', payload: placement } };
+    } catch (err) {
+      return failure(err) as any;
+    }
+  },
+
+  listInvites: async ({ query, req }) => {
+    const access = await canManageClub(req.session as Session, query.clubId);
+    if (access !== 'ok') return accessDenied(access);
+    try {
+      const invites = await listInvites((req.session as Session)?.userID, query.clubId, true);
+      return { status: 200, body: { success: true, message: 'Invites', payload: invites } };
+    } catch (err) {
+      return failure(err) as any;
+    }
+  },
+
+  createInvite: async ({ body, req }) => {
+    const access = await canManageClub(req.session as Session, body.clubId);
+    if (access !== 'ok') return accessDenied(access);
+    try {
+      const invite = await createInvite((req.session as Session)?.userID, body.clubId, true);
+      return { status: 200, body: { success: true, message: 'Invite created', payload: invite } };
     } catch (err) {
       return failure(err) as any;
     }
@@ -62,7 +95,16 @@ export const atlasTsRestRoutes = s.router(contract.atlas, {
   foundClub: async ({ body, req }) => {
     try {
       const founded = await foundClub((req.session as Session)?.userID, body);
-      publishWorldEvent('world:founded', { kind: 'club', id: founded.clubId, name: body.name });
+      // A patch, not a reason to refetch the world: the club and any places
+      // it opened (atlas clients refresh only the country it's in).
+      publishWorldEvent('world:founded', {
+        kind: 'club',
+        id: founded.clubId,
+        name: body.name,
+        townId: founded.town.id,
+        countryId: founded.country.id,
+        opened: founded.opened,
+      });
       return { status: 200, body: { success: true, message: 'Club founded', payload: founded } };
     } catch (err) {
       return failure(err) as any;

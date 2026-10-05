@@ -8,7 +8,9 @@ import log from '../helpers/logger';
  * they show, so a lost event costs at most one poll interval.
  *
  * Topics: `world` (everyone), `club:<id>` (the owner only), `campus:<id>`,
- * `edition:<id>`, `fixture:<id>`. See the gateway's hub.go.
+ * `edition:<id>`, `fixture:<id>`, and the news scopes `town:<id>`,
+ * `region:<id>`, `country:<id>` (docs/WORLD-PYRAMID-SPEC.md). See the
+ * gateway's hub.go.
  */
 
 const DEV_SECRET = 'fs-pro-dev-realtime-secret';
@@ -68,10 +70,18 @@ export function publish(topics: string | string[], event: string, data: unknown)
     });
 }
 
-/** World-level happenings anyone can see (founding, notable results). */
+/** World-level happenings anyone can see. Results reach the world only as
+ * escalated news (services/world/news-scope.service.ts), never one by one. */
 export interface WorldEvents {
-  'world:founded': { kind: 'country' | 'town' | 'club'; id: string; name: string };
-  'world:result': { fixtureId: string; homeClubId: string; awayClubId: string; score: string; kind: string };
+  'world:founded': {
+    kind: 'country' | 'town' | 'club';
+    id: string;
+    name: string;
+    /** For a club: where it went, and the places it opened. */
+    townId?: string;
+    countryId?: string;
+    opened?: ('town' | 'region' | 'country')[];
+  };
 }
 
 export function publishWorldEvent<K extends keyof WorldEvents>(event: K, payload: WorldEvents[K]) {

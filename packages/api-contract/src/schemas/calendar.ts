@@ -16,8 +16,12 @@ export const ClockStateSchema = z.object({
   currentDate: z.string(),
   nextTickAt: z.string().nullable(),
   lastTickAt: z.string().nullable(),
-  matchdaySlotMinutes: z.number(),
-  offDaySlotMinutes: z.number(),
+  /** Hour of the game day (0-23) the clock is on; it ticks hourly. */
+  currentHour: z.number(),
+  /** Real minutes one game day lasts (docs/WORLD-PYRAMID-SPEC.md). */
+  dayLengthMinutes: z.number(),
+  /** Today's kind: 'L' league day or 'C' cup day. */
+  dayKind: z.enum(['L', 'C']),
 });
 export type ClockState = z.infer<typeof ClockStateSchema>;
 
@@ -79,6 +83,18 @@ export const WorldFeedSchema = z.object({
   headlines: z.array(WorldFeedHeadlineSchema),
   otherLeagues: z.array(WorldFeedOtherLeagueSchema),
   activeInjuries: z.array(WorldFeedInjurySchema),
+  /** Which place the reader's "local" news covers (docs/WORLD-PYRAMID-SPEC.md):
+   * their town, widened to region or country when it's quiet. */
+  local: z
+    .object({
+      scope: z.enum(['town', 'region', 'country', 'world']),
+      name: z.string().nullable(),
+      /** The reader's places: their news topics are town:/region:/country:<id>. */
+      townId: z.string().nullable(),
+      regionId: z.string().nullable(),
+      countryId: z.string().nullable(),
+    })
+    .optional(),
 });
 
 export type Calendar = z.infer<typeof CalendarSchema>;

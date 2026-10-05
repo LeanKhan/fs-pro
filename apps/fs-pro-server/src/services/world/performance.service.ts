@@ -1,4 +1,4 @@
-import { and, between, desc, eq, inArray, isNotNull } from 'drizzle-orm';
+import { and, between, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
 import {
   calendars,
@@ -173,12 +173,21 @@ export async function moveBoardConfidence(seasonId: string) {
 // Yearly score
 // ---------------------------------------------------------------------------
 
-/** A row for every club for the current year (Elo and Level at the start). */
+/** A row for every club for the current year (Elo and Level at the start).
+ * Reads only the clubs still missing one, so the usual call (every edition
+ * finish) costs one anti-join, not a write per club. */
 export async function ensureYearRows(calendar?: Calendar) {
   const c = calendar ?? (await world());
-  const all = await db()
+  const missing = await db()
     .select({ id: clubs.id, Elo: clubs.Elo, XP: clubs.XP })
-    .from(clubs);
+    .from(clubs)
+    .where(
+      sql`NOT EXISTS (SELECT 1 FROM ${clubPerformance} p WHERE p."ClubId" = ${clubs.id} AND p."Year" = ${c.CurrentYear})`
+    );
+  for (let i = 0; i < missing.length; i += 1000) await insertYearRows(c, missing.slice(i, i + 1000));
+}
+
+async function insertYearRows(c: Calendar, all: { id: string; Elo: number; XP: number }[]) {
   if (!all.length) return;
   await db()
     .insert(clubPerformance)

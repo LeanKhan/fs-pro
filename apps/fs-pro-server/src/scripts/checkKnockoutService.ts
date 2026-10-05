@@ -181,6 +181,9 @@ async function dbChecks() {
     .insert(calendars)
     .values({
       CurrentDate: now,
+      // Every day a cup day: these checks are about brackets, not the week
+      // template (checkChallengeService covers cup-day scheduling).
+      WeekTemplate: ['C'],
       CurrentDay: 0,
       updatedAt: now,
       MaxConcurrentEntries: 5,

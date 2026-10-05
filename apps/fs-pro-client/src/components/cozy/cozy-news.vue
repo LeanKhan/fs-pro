@@ -4,7 +4,7 @@
     <p v-if="!feed" class="sub">Fetching the papers…</p>
     <template v-else>
       <section>
-        <h4>{{ category === 'transfer' ? 'Latest transfers' : 'Headlines' }} · Day {{ feed.currentDay }}</h4>
+        <h4>{{ category === 'transfer' ? 'Latest transfers' : feed.local?.name ? `News from ${feed.local.name}` : 'Headlines' }} · Day {{ feed.currentDay }}</h4>
         <article v-for="h in headlines" :key="h.id" class="headline">
           <span class="tag" :class="`cat-${h.category}`">{{ h.tag ?? h.category }}</span>
           <b>{{ h.title }}</b>

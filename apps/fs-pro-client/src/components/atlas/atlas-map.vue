@@ -73,9 +73,9 @@
           <path :d="TERRAIN_HOUSE[t.terrain]" fill="#fff6e0" stroke="#5e3b22" stroke-width="2" stroke-linejoin="round" />
           <path :d="TERRAIN_ROOF[t.terrain]" :fill="t.roof" stroke="#5e3b22" stroke-width="2" stroke-linejoin="round" />
           <circle v-if="isSelected('town', t.id)" r="20" class="sel-ring" />
-          <g v-if="t.clubs.length && !showCrests && zoom >= 1.3" transform="translate(12 -14)">
+          <g v-if="t.clubCount && (!showCrests || !t.clubs.length) && zoom >= 1.3" transform="translate(12 -14)">
             <circle r="8" fill="#e5402f" stroke="#fff" stroke-width="2" />
-            <text y="3.6" text-anchor="middle" class="count">{{ t.clubs.length }}</text>
+            <text y="3.6" text-anchor="middle" class="count">{{ t.clubCount }}</text>
           </g>
           <text v-if="showTownNames" class="town-name" y="24" text-anchor="middle">{{ t.name }}</text>
           <template v-if="showCrests">
@@ -94,6 +94,20 @@
             </g>
           </template>
         </g>
+      </g>
+
+      <!-- Regions: their names, once zoomed in a little -->
+      <g v-if="showLabels" class="regions" pointer-events="none">
+        <text
+          v-for="r in atlas.regions"
+          :key="`region-${r.id}`"
+          class="region-name"
+          :class="{ dim: dimCountry(r.countryId) }"
+          :transform="`translate(${r.x} ${r.y - 44}) scale(${labelScale})`"
+          text-anchor="middle"
+        >
+          {{ r.name }}
+        </text>
       </g>
 
       <!-- Countries: flag and name, above the towns -->
@@ -138,6 +152,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import {
+  TOWN_MAX_CLUBS,
   countrySpotProblem,
   townSpotProblem,
   type Atlas,
@@ -241,11 +256,23 @@ const townsByCountry = computed(() => {
   for (const t of props.atlas.towns) m.set(t.countryId, [...(m.get(t.countryId) ?? []), t]);
   return m;
 });
+const regionsByCountry = computed(() => {
+  const m = new Map<string, Atlas['regions']>();
+  for (const r of props.atlas.regions ?? []) m.set(r.countryId, [...(m.get(r.countryId) ?? []), r]);
+  return m;
+});
 
 const islands = computed(() =>
   props.atlas.countries.map((c) => {
     const towns = townsByCountry.value.get(c.id) ?? [];
-    const blobs = [{ x: c.x, y: c.y, r: 46 + Math.min(towns.length, 12) * 2.5 }, ...towns.map((t) => ({ x: t.x, y: t.y, r: 30 }))];
+    // Land joins the capital to each region's heart and every town.
+    const regions = regionsByCountry.value.get(c.id) ?? [];
+    const blobs = [
+      { x: c.x, y: c.y, r: 46 + Math.min(towns.length, 12) * 2.5 },
+      ...regions.map((r) => ({ x: (r.x + c.x) / 2, y: (r.y + c.y) / 2, r: 34 })),
+      ...regions.filter((r) => towns.some((t) => t.regionId === r.id)).map((r) => ({ x: r.x, y: r.y, r: 36 })),
+      ...towns.map((t) => ({ x: t.x, y: t.y, r: 30 })),
+    ];
     const top = Math.min(c.y - blobs[0]!.r, ...towns.map((t) => t.y - 30));
     const greens = ['#9bd46e', '#8fcf63', '#a6d977', '#93cc6a'];
     const h = hash(c.id);
@@ -279,6 +306,8 @@ const showLabels = computed(() => zoom.value >= 1.1);
 
 const townViews = computed(() =>
   props.atlas.towns.map((t) => {
+    // Club lists come only for a small world or the focused country; the
+    // count is always there.
     const n = t.clubs.length;
     // Crests fan out in an arc above their town (symbol units, inside the
     // scaled group), leaving the name below the house clear.
@@ -288,7 +317,7 @@ const townViews = computed(() =>
       const a = -Math.PI / 2 + (n > 1 ? -span / 2 + (i * span) / (n - 1) : 0);
       return { club, x: Math.cos(a) * ring, y: Math.sin(a) * ring - 4 };
     });
-    return { ...t, roof: ROOF[t.terrain], pins, full: n >= 6 };
+    return { ...t, roof: ROOF[t.terrain], pins, full: t.clubCount >= TOWN_MAX_CLUBS };
   })
 );
 
@@ -546,6 +575,21 @@ defineExpose({ flyTo, fitAll, focusCountry, focusPoint, zoomBy });
 }
 .placing .hit {
   cursor: crosshair;
+}
+.region-name {
+  font-size: 13px;
+  font-weight: 700;
+  font-style: italic;
+  fill: #3f5f2a;
+  fill-opacity: 0.75;
+  stroke: #e8f3cf;
+  stroke-width: 3px;
+  paint-order: stroke;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+.region-name.dim {
+  opacity: 0.35;
 }
 .country-name {
   font-size: 22px;

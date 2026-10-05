@@ -8,7 +8,7 @@ import { pickPlaceholderName } from '../../utils/placeholder-names';
 import { pickRandomFromArray } from '../../helpers/misc';
 import { nationalityIdForCulture } from '../../services/nationality';
 import type { PlayerInterface } from '../../interfaces/Player';
-import { getAssetEffects, getAssetLevel } from '../../services/facilities/facilities.service';
+import { getAssetEffects, getAssetEffectsForClubs, getAssetLevel } from '../../services/facilities/facilities.service';
 import { describeHours, scaled } from '../../services/play/game-time';
 
 let playerRepo: ReturnType<typeof PlayerRepositoryFactory.create> | null = null;
@@ -283,6 +283,8 @@ export async function runYouthIntakeForYear(
 
   const allClubs = await getClubs();
   let addedCount = 0;
+  // Every club's youth bonus in one read, not a facilities sweep per club.
+  const effects = await getAssetEffectsForClubs(allClubs.map((c) => c._id as string));
 
   for (const club of allClubs) {
     const clubId = club._id as string;
@@ -301,7 +303,7 @@ export async function runYouthIntakeForYear(
       if (already) return;
 
       const intakeCount = pickRandomFromArray([1, 1, 2]);
-      const qualityBonus = (await getAssetEffects(clubId)).youthQualityBonus ?? 0;
+      const qualityBonus = effects.get(clubId)?.youthQualityBonus ?? 0;
       const youngsters = (await generateYouthPlayers(intakeCount, needsGK, qualityBonus)).map(
         (generated) => ({
           ...generated,

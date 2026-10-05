@@ -1,7 +1,7 @@
-import {
-  getFixturesByDay,
-  getFixtureById,
-} from '../../controllers/fixtures/fixture.service';
+import { and, eq } from 'drizzle-orm';
+import { getFixtureById } from '../../controllers/fixtures/fixture.service';
+import { DrizzleDatabase } from '../../db/drizzle';
+import { calendars, fixtures } from '../../db/drizzle/schema';
 import { play, PlayOptions } from '../../controllers/game/game.controller';
 import { getCalendar } from '../../controllers/calendar/calendar.service';
 import { RankingService } from '../competitions/ranking.service';
@@ -89,7 +89,9 @@ async function runWithConcurrency<T, R>(
 
 export class MatchdayRunnerService {
   /**
-   * Plays every unplayed fixture scheduled on a day, concurrently.
+   * Plays every unplayed fixture scheduled on a day, concurrently - or, with
+   * `upToHour`, only those kicking off by that hour (Fixtures.KickoffHour;
+   * null = the world's CupKickoffHour). docs/WORLD-PYRAMID-SPEC.md.
    * - Controlled worker concurrency (default 4) matching DB pool limits.
    * - Idempotency check and 3 retries with backoff on transient errors.
    * - Competition results go to Rankings once the matches have settled.
@@ -98,13 +100,21 @@ export class MatchdayRunnerService {
    */
   public static async simulateDay(
     dayNumber?: number,
-    options?: { liveFixtureId?: string; concurrency?: number }
+    options?: { liveFixtureId?: string; concurrency?: number; upToHour?: number }
   ): Promise<MatchdayRunResult> {
     const calendar = await getCalendar();
     const targetDay = dayNumber ?? calendar.CurrentDay;
 
-    const dayFixtures = await getFixturesByDay(targetDay);
-    const unplayed = dayFixtures.filter((f) => !f.Played && f._id);
+    const db = DrizzleDatabase.getInstance().database;
+    const [world] = await db.select({ cup: calendars.CupKickoffHour }).from(calendars).limit(1);
+    const cupHour = world?.cup ?? 20;
+    const dayFixtures = await db
+      .select({ _id: fixtures.id, Played: fixtures.Played, KickoffHour: fixtures.KickoffHour })
+      .from(fixtures)
+      .where(and(eq(fixtures.ScheduledDay, targetDay)));
+    const due = (f: { KickoffHour: number | null }) =>
+      options?.upToHour == null || (f.KickoffHour ?? cupHour) <= options.upToHour;
+    const unplayed = dayFixtures.filter((f) => !f.Played && f._id && due(f));
     if (unplayed.length === 0) {
       return {
         day: targetDay,

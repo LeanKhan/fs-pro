@@ -1,5 +1,12 @@
 # Spec: Open-Play Competitions (admin-built competitions, no pre-scheduled games)
 
+> **Superseded in part (2026-10-04)** by `WORLD-PYRAMID-SPEC.md`:
+> - every country now has a scheduled pyramid league, and the Year is its season;
+> - the clock ticks hourly, and challenges and knockout ties play only on cup days;
+> - new clubs are placed, not founded anywhere, and no AI rivals are spawned.
+>
+> Where the two disagree, the pyramid spec wins. Everything else here still holds: admin competitions, editions, Level, Rank, challenges, knockouts and the board.
+
 ## Goal
 
 Competitions are built by the admin whenever they like ("Summer Rumble",

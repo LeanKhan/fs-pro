@@ -104,9 +104,14 @@ export const POLICIES: Record<string, Rule> = {
   'competitionDefinitions.create': 'handler',
   'competitionDefinitions.update': 'handler',
   'competitionDefinitions.archive': 'handler',
-  'atlas.foundCountry': 'signedIn',
-  'atlas.foundTown': 'signedIn',
+  // Places are opened by founding a club (placement); direct founding of
+  // countries and towns is admin work.
+  'atlas.foundCountry': 'admin',
+  'atlas.foundTown': 'admin',
   'atlas.foundClub': 'signedIn',
+  'atlas.getPlacement': 'signedIn',
+  'atlas.listInvites': 'handler',
+  'atlas.createInvite': 'handler',
 
   'fixtures.deleteFixture': 'admin',
   'players.createPlayer': 'admin',

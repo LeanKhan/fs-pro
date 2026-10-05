@@ -101,9 +101,9 @@ export const calendarTsRestRoutes = s.router(contract.calendar, {
     }
   },
 
-  getWorldFeed: async () => {
+  getWorldFeed: async ({ query }) => {
     try {
-      const feed = await WorldFeedService.generateWorldFeed();
+      const feed = await WorldFeedService.generateWorldFeed(query?.clubId ?? null);
       return {
         status: 200,
         body: {

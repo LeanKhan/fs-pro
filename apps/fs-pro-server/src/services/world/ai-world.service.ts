@@ -1,10 +1,10 @@
-import { and, eq, gte, inArray, isNull, like, sum } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, like, lte, or, sum } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
-import { clubs, fixtures, players } from '../../db/drizzle/schema';
+import { calendars, clubs, fixtures, players } from '../../db/drizzle/schema';
 import { createFixture } from '../../controllers/fixtures/fixture.service';
 import { play } from '../../controllers/game/game.controller';
 import { getCampus, startUpgrade } from '../facilities/facilities.service';
-import { runAiMarket, type AiMarketSummary } from '../transfers/transfer-market.service';
+import { type AiMarketSummary } from '../transfers/transfer-market.service';
 import { scaled } from '../play/game-time';
 
 /**
@@ -154,22 +154,33 @@ async function investInFacilities(pool: ClubRow[]): Promise<WorldTickSummary['up
 }
 
 let running = false;
+const LEASE_MS = 10 * 60_000;
 
-/** One pass of the AI world. Never overlaps itself. */
+/** Claim this tick for one process across every API instance: a lease on
+ * Calendars.AiTickLeaseUntil, like the calendar clock's NextTickAt. */
+async function claimLease(): Promise<boolean> {
+  const now = new Date();
+  const rows = await DrizzleDatabase.getInstance()
+    .database.update(calendars)
+    .set({ AiTickLeaseUntil: new Date(now.getTime() + LEASE_MS) })
+    .where(or(isNull(calendars.AiTickLeaseUntil), lte(calendars.AiTickLeaseUntil, now)))
+    .returning({ id: calendars.id });
+  return rows.length > 0;
+}
+
+/** One pass of the AI world. Never overlaps itself, nor another instance's
+ * pass. The AI transfer market runs once per game day from the calendar
+ * (calendar.service.ts runTransferDay), not here. */
 export async function runWorldTick(): Promise<WorldTickSummary | null> {
   if (running) return null;
   running = true;
   try {
+    if (!(await claimLease())) return null;
     const summary: WorldTickSummary = { matches: [], upgrades: [], market: null };
     const pool = await aiClubs();
     summary.matches = await playWorldMatches(pool);
     // Re-read budgets after gate income from the matches.
     summary.upgrades = await investInFacilities(await aiClubs());
-    try {
-      summary.market = await runAiMarket();
-    } catch (err) {
-      console.error('[world] AI market failed:', err);
-    }
     return summary;
   } finally {
     running = false;

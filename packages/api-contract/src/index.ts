@@ -135,5 +135,6 @@ export type CompetitionSummary = import('zod').infer<
 
 export * from './campus-grid';
 export * from './world-geo';
+export * from './world-calendar';
 export * from './crest';
 export * from './schemas/atlas';

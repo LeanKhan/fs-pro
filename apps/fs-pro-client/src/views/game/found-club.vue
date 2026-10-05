@@ -5,14 +5,10 @@
       ref="mapRef"
       :atlas="atlas"
       :selected="mapSelection"
-      :placing="placing"
-      :placing-country-id="countryId"
       :pending="pendingSpot"
-      :focus-country-id="step === 'country' ? null : countryId"
+      :focus-country-id="placement?.country?.id ?? null"
       :my-club-ids="myClubIds"
       :insets="insets"
-      @select="onMapSelect"
-      @place="onPlace"
     />
     <div v-else class="found-loading">{{ loadError || 'Unrolling the map…' }}</div>
 
@@ -32,83 +28,104 @@
       <button v-if="hasClub && !done" class="btn small" type="button" @click="router.push(`/game/${firstClubId}`)">Back to my club</button>
     </header>
 
-    <aside class="found-panel" :class="{ wide: step === 'club' && !placing }">
-      <!-- 1. Country -->
-      <template v-if="step === 'country'">
-        <template v-if="placing === 'country' || pendingSpot">
-          <h2><span v-html="icon('map')"></span>Found a country</h2>
-          <p v-if="!pendingSpot" class="sub">Tap open sea on the map to place your country. It needs room around it to grow.</p>
-          <found-country-form v-else :spot="pendingSpot" @founded="onCountryFounded" @cancel="cancelPlacing" />
-          <div v-if="!pendingSpot" class="row-btns sticky"><button class="btn" type="button" @click="cancelPlacing">Cancel</button></div>
-        </template>
+    <aside class="found-panel" :class="{ wide: step === 'club' }">
+      <!-- 1. Home: where placement puts the club, and names for new places -->
+      <template v-if="step === 'home'">
+        <h2><span v-html="icon('map')"></span>Your home</h2>
+        <p v-if="!placement" class="sub">Finding you a spot…</p>
         <template v-else>
-          <h2><span v-html="icon('map')"></span>Where in the world?</h2>
-          <p class="sub">Every club belongs to a town, and every town to a country. Pick a country, or found your own.</p>
-          <ul class="list">
-            <li v-for="c in countryList" :key="c.id">
-              <button type="button" class="item" :class="{ on: c.id === countryId }" @click="selectCountry(c.id)">
-                <span class="flag small" aria-hidden="true"><i :style="{ background: c.colors[0] }"></i><i :style="{ background: c.colors[1] }"></i></span>
-                <span class="grow"><b>{{ c.name }}</b><small>{{ c.towns }} towns · {{ c.clubs }} clubs{{ c.founder ? ` · founded by ${c.founder.name}` : '' }}</small></span>
-              </button>
-            </li>
-          </ul>
-          <div class="row-btns sticky">
-            <button v-if="canFound('countries')" class="btn" type="button" @click="startPlacing('country')" v-html="`${icon('up')} Found a new country`"></button>
-            <button class="btn primary" type="button" :disabled="!countryId" @click="goTo('town')">Next: pick a town</button>
+          <div v-if="placement.invite" class="warn" :class="{ good: placement.invite.valid && !placement.invite.problem }">
+            <template v-if="placement.invite.valid && !placement.invite.problem">
+              {{ placement.invite.byClubName }} invited you to {{ placement.invite.townName }}.
+            </template>
+            <template v-else>{{ placement.invite.problem }}</template>
           </div>
-          <p v-if="!canFound('countries')" class="note">You have founded your country already.</p>
+
+          <template v-if="placement.kind === 'town' && placement.town">
+            <p class="sub">The world fills up town by town, so you'll have neighbours from day one.</p>
+            <div class="place-card">
+              <span class="tdot" :class="placement.town.terrain" aria-hidden="true"></span>
+              <div class="grow">
+                <b>{{ placement.town.name }}</b>
+                <small>
+                  {{ [placement.region?.name, placement.country?.name].filter(Boolean).join(', ') }} ·
+                  {{ TERRAIN_LABEL[placement.town.terrain] }} · {{ placement.town.clubCount }}/{{ TOWN_MAX_CLUBS }} clubs
+                </small>
+              </div>
+            </div>
+            <p class="sub">You'll join {{ placement.country?.name }}'s league pyramid straight away, against the clubs around you.</p>
+          </template>
+
+          <template v-else>
+            <p class="sub">
+              <template v-if="placement.needs.country">Every country is full. You're the first club of a brand new nation: name it.</template>
+              <template v-else-if="placement.needs.region">{{ placement.country?.name }} is opening a new region, and you're its first club.</template>
+              <template v-else>{{ placement.region?.name }} in {{ placement.country?.name }} needs a new town, and you're its first club.</template>
+            </p>
+            <form class="form" @submit.prevent="goTo('club')">
+              <template v-if="placement.needs.country">
+                <div class="two">
+                  <label>Country<input v-model="newCountry.name" maxlength="30" placeholder="e.g. Verdania" @input="!newCountry.codeTouched && (newCountry.code = suggestCode(newCountry.name))" /></label>
+                  <label>Code<input v-model="newCountry.code" maxlength="4" class="code" @input="newCountry.code = newCountry.code.toUpperCase().replace(/[^A-Z0-9]/g, ''); newCountry.codeTouched = true" /></label>
+                </div>
+                <div class="label">Flag</div>
+                <div class="flagpick">
+                  <div v-for="i in [0, 1]" :key="i" class="swatches">
+                    <button
+                      v-for="c in CREST_PALETTE"
+                      :key="c"
+                      type="button"
+                      class="sw"
+                      :class="{ on: newCountry.colors[i] === c }"
+                      :style="{ background: c }"
+                      :aria-label="`Flag colour ${i + 1}: ${c}`"
+                      @click="newCountry.colors[i] = c"
+                    ></button>
+                  </div>
+                  <div class="flag big" aria-hidden="true"><i :style="{ background: newCountry.colors[0] }"></i><i :style="{ background: newCountry.colors[1] }"></i></div>
+                </div>
+                <label><span>Motto <small>(optional)</small></span><input v-model="newCountry.motto" maxlength="80" placeholder="Unity, Football, Biscuits" /></label>
+              </template>
+              <label v-if="placement.needs.region">Region<input v-model="newRegion.name" maxlength="30" placeholder="e.g. The Northern Reach" /></label>
+              <template v-if="placement.needs.town">
+                <label>Town<input v-model="newTown.name" maxlength="30" placeholder="e.g. Port Ellis" /></label>
+                <div class="label">Setting <small>(sets the look of every club's grounds here)</small></div>
+                <div class="terrains">
+                  <button v-for="t in TERRAINS" :key="t.key" type="button" class="terrain" :class="[t.key, { on: newTown.terrain === t.key }]" @click="newTown.terrain = t.key">
+                    <span class="t-art" aria-hidden="true"></span><b>{{ t.label }}</b><small>{{ t.blurb }}</small>
+                  </button>
+                </div>
+              </template>
+              <p v-if="placeProblem" class="warn">{{ placeProblem }}</p>
+            </form>
+          </template>
+          <p v-if="formError" class="warn">{{ formError }}</p>
+          <div class="row-btns sticky">
+            <button class="btn primary" type="button" :disabled="!homeReady" @click="goTo('club')">Next: your club</button>
+          </div>
         </template>
       </template>
 
-      <!-- 2. Town -->
-      <template v-else-if="step === 'town'">
-        <template v-if="placing === 'town' || pendingSpot">
-          <h2><span v-html="icon('map')"></span>Found a town in {{ country?.name }}</h2>
-          <p v-if="!pendingSpot" class="sub">Tap the map inside {{ country?.name }} (or on the coast) to place your town.</p>
-          <found-town-form v-else-if="countryId" :country-id="countryId" :spot="pendingSpot" @founded="onTownFounded" @cancel="cancelPlacing" />
-          <div v-if="!pendingSpot" class="row-btns sticky"><button class="btn" type="button" @click="cancelPlacing">Cancel</button></div>
-        </template>
-        <template v-else>
-          <h2><span v-html="icon('map')"></span>Pick your home town</h2>
-          <p class="sub">{{ country?.name }} has {{ townList.length }} town{{ townList.length === 1 ? '' : 's' }}. A town holds {{ TOWN_MAX_CLUBS }} clubs; new clubs bring local rivals with them.</p>
-          <ul class="list">
-            <li v-for="t in townList" :key="t.id">
-              <button type="button" class="item" :class="{ on: t.id === townId, off: t.full }" :disabled="t.full" @click="selectTown(t.id)">
-                <span class="tdot" :class="t.terrain" aria-hidden="true"></span>
-                <span class="grow"><b>{{ t.name }}</b><small>{{ TERRAIN_LABEL[t.terrain] }} · {{ t.clubs.length }}/{{ TOWN_MAX_CLUBS }} clubs{{ t.full ? ' · full' : '' }}</small></span>
-                <span class="crests"><img v-for="c in t.clubs.slice(0, 4)" :key="c.id" :src="crestUrl(c.code)" :alt="c.name" :title="c.name" /></span>
-              </button>
-            </li>
-            <li v-if="!townList.length" class="empty">No towns yet. Found the first one!</li>
-          </ul>
-          <div class="row-btns sticky">
-            <button class="btn" type="button" @click="goTo('country')">Back</button>
-            <button v-if="canFound('towns')" class="btn" type="button" @click="startPlacing('town')" v-html="`${icon('up')} Found a town`"></button>
-            <button class="btn primary" type="button" :disabled="!townId" @click="goTo('club')">Next: your club</button>
-          </div>
-        </template>
-      </template>
-
-      <!-- 3. Club -->
+      <!-- 2. Club -->
       <template v-else-if="step === 'club'">
         <h2><span v-html="icon('people')"></span>Your club</h2>
         <form class="form club-form" @submit.prevent="goTo('review')">
           <div class="two">
-            <label>Club name<input v-model="clubForm.name" maxlength="40" :placeholder="`${town?.name ?? 'Town'} United`" @input="onClubName" /></label>
+            <label>Club name<input v-model="clubForm.name" maxlength="40" :placeholder="`${townName} United`" @input="onClubName" /></label>
             <label>Code<input v-model="clubForm.code" maxlength="4" class="code" @input="onClubCode" /></label>
           </div>
-          <label><span>Ground <small>(stadium name)</small></span><input v-model="clubForm.stadium" maxlength="40" :placeholder="`${town?.name ?? 'Town'} Park`" /></label>
+          <label><span>Ground <small>(stadium name)</small></span><input v-model="clubForm.stadium" maxlength="40" :placeholder="`${townName} Park`" /></label>
           <p v-if="nameCheck.problem" class="warn">{{ nameCheck.problem }}</p>
           <p v-else-if="nameCheck.ok && clubForm.name.trim()" class="warn good">{{ clubForm.name.trim() }} is free</p>
           <crest-designer v-model="crest" />
           <div class="row-btns sticky">
-            <button class="btn" type="button" @click="goTo('town')">Back</button>
+            <button class="btn" type="button" @click="goTo('home')">Back</button>
             <button class="btn primary" type="submit" :disabled="!clubReady">Next: kick-off</button>
           </div>
         </form>
       </template>
 
-      <!-- 4. Review / done -->
+      <!-- 3. Review / done -->
       <template v-else-if="step === 'review'">
         <template v-if="!done">
           <h2><span v-html="icon('ball')"></span>Kick-off</h2>
@@ -116,7 +133,7 @@
             <img :src="crestDataUrl(crest, 'review')" alt="" width="110" height="123" />
             <div>
               <h3>{{ clubForm.name.trim() }} <span class="lv">{{ clubForm.code }}</span></h3>
-              <p class="sub">{{ town?.name }}, {{ country?.name }} · {{ clubForm.stadium.trim() || `${town?.name} Park` }}</p>
+              <p class="sub">{{ whereLine }} · {{ clubForm.stadium.trim() || `${townName} Park` }}</p>
             </div>
           </div>
           <div class="stats-row">
@@ -125,7 +142,7 @@
             <div><small>Level</small><b>0</b></div>
             <div><small>Fans</small><b>150</b></div>
           </div>
-          <p class="sub">You start from nothing: a dirt pitch, hopeful amateurs, a few loyal fans. Win matches to earn money and XP, then build your grounds up.</p>
+          <p class="sub">You start from nothing: a dirt pitch, hopeful amateurs, a few loyal fans. Your league fixtures start right away. Win matches to earn money and XP, then build your grounds up.</p>
           <p v-if="formError" class="warn">{{ formError }}</p>
           <div class="row-btns sticky">
             <button class="btn" type="button" @click="goTo('club')">Back</button>
@@ -136,8 +153,13 @@
           <div class="done">
             <img :src="crestDataUrl(crest, 'done')" alt="" width="130" height="146" class="pop" />
             <h2>{{ clubForm.name.trim() }} is born!</h2>
-            <p class="sub">{{ town?.name }} has a new club. The board, sixteen amateurs and {{ 150 }} fans are waiting at the ground.</p>
-            <div v-if="done.rivals.length" class="warn good">Local rivals formed too: {{ done.rivals.map((r) => r.name).join(' and ') }}</div>
+            <p class="sub">
+              {{ done.town.name }}{{ done.region ? `, ${done.region.name}` : '' }}, {{ done.country.name }} has a new club.
+              <template v-if="done.opened.includes('country')"> You founded a nation.</template>
+              <template v-else-if="done.opened.includes('town')"> You put {{ done.town.name }} on the map.</template>
+            </p>
+            <div v-if="done.pool" class="warn good">You start in {{ done.pool.name }}: your fixtures are already on the calendar.</div>
+            <p class="sub">Bring friends: invite links from your town page put them in {{ done.town.name }} with you.</p>
             <div class="row-btns sticky"><button class="btn primary big" type="button" @click="router.push(`/game/${done.clubId}?welcome=1`)">Go to your ground</button></div>
           </div>
         </template>
@@ -152,33 +174,40 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
-  FOUNDING_LIMITS,
+  CREST_PALETTE,
   TOWN_MAX_CLUBS,
+  codeProblem,
   crestDataUrl,
+  nameProblem,
   randomCrest,
   suggestCode,
   type Atlas,
   type CrestDesign,
   type FoundedClub,
+  type Placement,
+  type TownTerrain,
 } from '@repo/api-contract';
 import AtlasMap, { type AtlasPick } from '@/components/atlas/atlas-map.vue';
 import CrestDesigner from '@/components/atlas/crest-designer.vue';
-import FoundCountryForm from '@/components/atlas/found-country-form.vue';
-import FoundTownForm from '@/components/atlas/found-town-form.vue';
-import { TERRAIN_LABEL } from '@/components/atlas/terrains';
+import { TERRAINS, TERRAIN_LABEL } from '@/components/atlas/terrains';
 import { icon } from '@/components/cozy/icons';
 import { client } from '@/services/api';
 import { useStore } from '@/store';
 import { unwrap } from '@/store/open-play';
-import { crestUrl } from '@/helpers/crest';
 import '@/components/cozy/cozy.scss';
 
-type Step = 'country' | 'town' | 'club' | 'review';
-const STEPS: Step[] = ['country', 'town', 'club', 'review'];
-const STEP_LABEL: Record<Step, string> = { country: 'Country', town: 'Town', club: 'Club', review: 'Kick-off' };
+/**
+ * Founding a club (docs/WORLD-PYRAMID-SPEC.md, "Geography and placement").
+ * The world decides where the club goes: the next town with room, or a new
+ * town, region or country that the founder names. An invite link
+ * (/start?invite=TOKEN) puts the club in a friend's town instead.
+ */
+
+type Step = 'home' | 'club' | 'review';
+const STEPS: Step[] = ['home', 'club', 'review'];
+const STEP_LABEL: Record<Step, string> = { home: 'Home', club: 'Club', review: 'Kick-off' };
 const STEP_HINT: Record<Step, string> = {
-  country: 'Choose a country, or found a new one',
-  town: 'Choose your home town',
+  home: 'See where you start, and name any new places',
   club: 'Name it and design the crest',
   review: 'Check everything and found the club',
 };
@@ -189,18 +218,19 @@ const store = useStore();
 store.getUser();
 
 const atlas = ref<Atlas | null>(null);
+const placement = ref<Placement | null>(null);
 const loadError = ref('');
 const mapRef = ref<InstanceType<typeof AtlasMap> | null>(null);
-const step = ref<Step>('country');
-const countryId = ref<string | null>(null);
-const townId = ref<string | null>(null);
-const placing = ref<'country' | 'town' | null>(null);
-const pendingSpot = ref<{ x: number; y: number } | null>(null);
+const step = ref<Step>('home');
 const busy = ref(false);
 const formError = ref('');
 const done = ref<FoundedClub | null>(null);
 const toast = ref<{ text: string; tone: 'good' | 'bad' } | null>(null);
+const invite = typeof route.query.invite === 'string' ? route.query.invite : undefined;
 
+const newCountry = reactive({ name: '', code: '', codeTouched: false, colors: ['#2f8a1c', '#f5b82e'] as [string, string], motto: '' });
+const newRegion = reactive({ name: '' });
+const newTown = reactive({ name: '', terrain: 'city' as TownTerrain });
 const clubForm = reactive({ name: '', code: '', codeTouched: false, stadium: '' });
 const crest = ref<CrestDesign>(randomCrest(store.user.username || 'new club'));
 const nameCheck = reactive({ ok: false, problem: null as string | null, checking: false });
@@ -212,137 +242,85 @@ const firstClubId = computed(() => {
 const hasClub = computed(() => !!firstClubId.value);
 const myClubIds = computed(() => new Set(atlas.value?.me?.clubIds ?? []));
 
-const country = computed(() => atlas.value?.countries.find((c) => c.id === countryId.value) ?? null);
-const town = computed(() => atlas.value?.towns.find((t) => t.id === townId.value) ?? null);
-const countryList = computed(() =>
-  (atlas.value?.countries ?? [])
-    .map((c) => {
-      const towns = atlas.value!.towns.filter((t) => t.countryId === c.id);
-      return { ...c, towns: towns.length, clubs: towns.reduce((n, t) => n + t.clubs.length, 0) };
-    })
-    .sort((a, b) => b.clubs - a.clubs || a.name.localeCompare(b.name))
-);
-const townList = computed(() =>
-  (atlas.value?.towns ?? [])
-    .filter((t) => t.countryId === countryId.value)
-    .map((t) => ({ ...t, full: t.clubs.length >= TOWN_MAX_CLUBS }))
-    .sort((a, b) => Number(a.full) - Number(b.full) || a.name.localeCompare(b.name))
-);
+const townName = computed(() => placement.value?.town?.name ?? (newTown.name.trim() || 'Town'));
+const whereLine = computed(() => {
+  const p = placement.value;
+  if (!p) return '';
+  const region = p.region?.name ?? (p.needs.region ? newRegion.name.trim() : '');
+  const country = p.country?.name ?? newCountry.name.trim();
+  return [townName.value, region, country].filter(Boolean).join(', ');
+});
+const pendingSpot = computed(() => (placement.value && placement.value.kind !== 'town' ? { x: placement.value.x, y: placement.value.y } : null));
 const mapSelection = computed<AtlasPick | null>(() =>
-  townId.value ? { kind: 'town', id: townId.value } : countryId.value ? { kind: 'country', id: countryId.value } : null
+  placement.value?.town ? { kind: 'town', id: placement.value.town.id } : null
 );
+
+/** What's wrong with the new place names, if anything. */
+const placeProblem = computed(() => {
+  const p = placement.value;
+  if (!p) return null;
+  if (p.needs.country) {
+    const c = nameProblem(newCountry.name, 'Country name') ?? codeProblem(newCountry.code, 'Country code');
+    if (c) return newCountry.name ? c : null;
+  }
+  if (p.needs.region && newRegion.name) {
+    const r = nameProblem(newRegion.name, 'Region name');
+    if (r) return r;
+  }
+  if (p.needs.town && newTown.name) {
+    const t = nameProblem(newTown.name, 'Town name');
+    if (t) return t;
+    if (p.needs.region && newRegion.name.trim().toLowerCase() === newTown.name.trim().toLowerCase()) return 'The town and its region need different names';
+  }
+  return null;
+});
+const homeReady = computed(() => {
+  const p = placement.value;
+  if (!p) return false;
+  if (p.needs.country && (nameProblem(newCountry.name, 'x') || codeProblem(newCountry.code, 'x'))) return false;
+  if (p.needs.region && nameProblem(newRegion.name, 'x')) return false;
+  if (p.needs.town && nameProblem(newTown.name, 'x')) return false;
+  return !placeProblem.value;
+});
 
 // Frame the map in the space the panel leaves (right on wide screens,
 // above the bottom sheet on phones).
 const viewport = reactive({ w: window.innerWidth, h: window.innerHeight });
 const onResize = () => Object.assign(viewport, { w: window.innerWidth, h: window.innerHeight });
 const insets = computed(() =>
-  viewport.w <= 760
-    ? { top: 70, bottom: Math.round(viewport.h * 0.56) + 16 }
-    : { top: 90, right: (step.value === 'club' && !placing.value ? 640 : 400) + 90 }
+  viewport.w <= 760 ? { top: 70, bottom: Math.round(viewport.h * 0.56) + 16 } : { top: 90, right: (step.value === 'club' ? 640 : 400) + 90 }
 );
 
 const stepIndex = computed(() => STEPS.indexOf(step.value));
 const clubReady = computed(() => !!clubForm.name.trim() && /^[A-Z][A-Z0-9]{1,3}$/.test(clubForm.code) && !nameCheck.problem && !nameCheck.checking);
-const maxReachable = computed(() => (!countryId.value ? 0 : !townId.value ? 1 : !clubReady.value ? 2 : 3));
-
-function canFound(kind: 'countries' | 'towns') {
-  const me = atlas.value?.me;
-  if (!me) return false;
-  return me.founded[kind] < (me.limits[kind] ?? FOUNDING_LIMITS[kind]);
-}
+const maxReachable = computed(() => (!homeReady.value ? 0 : !clubReady.value ? 1 : 2));
 
 function say(text: string, tone: 'good' | 'bad' = 'good') {
   toast.value = { text, tone };
   setTimeout(() => toast.value?.text === text && (toast.value = null), 3200);
 }
 
+async function loadPlacement() {
+  placement.value = unwrap<Placement>(await client.atlas.getPlacement.query({ query: { invite } }));
+}
+
 async function loadAtlas() {
   try {
-    atlas.value = unwrap<Atlas>(await client.atlas.getAtlas.query());
+    atlas.value = unwrap<Atlas>(await client.atlas.getAtlas.query({ query: { countryId: placement.value?.country?.id } }));
   } catch (err) {
     loadError.value = err instanceof Error ? err.message : String(err);
   }
 }
 
+function focusHome() {
+  const p = placement.value;
+  if (p) setTimeout(() => mapRef.value?.focusPoint(p.x, p.y, 300), 50);
+}
+
 function goTo(s: Step) {
   if (STEPS.indexOf(s) > maxReachable.value) return;
-  cancelPlacing();
   step.value = s;
-  if (s === 'country') mapRef.value?.fitAll();
-  else if (countryId.value && s === 'town') mapRef.value?.focusCountry(countryId.value);
-  else if (town.value) mapRef.value?.focusPoint(town.value.x, town.value.y, 300);
-}
-
-function selectCountry(id: string) {
-  if (countryId.value !== id) townId.value = null;
-  countryId.value = id;
-  mapRef.value?.focusCountry(id);
-}
-
-function selectTown(id: string) {
-  const t = atlas.value?.towns.find((x) => x.id === id);
-  if (!t || t.clubs.length >= TOWN_MAX_CLUBS) return;
-  townId.value = id;
-  countryId.value = t.countryId;
-  mapRef.value?.focusPoint(t.x, t.y, 300);
-  if (!clubForm.name) crest.value = { ...crest.value };
-}
-
-function onMapSelect(p: AtlasPick | null) {
-  if (!p || placing.value) return;
-  if (p.kind === 'country' && step.value === 'country') selectCountry(p.id);
-  else if (p.kind === 'country' && step.value === 'town' && p.id !== countryId.value) {
-    selectCountry(p.id);
-  } else if (p.kind === 'town' && (step.value === 'country' || step.value === 'town')) {
-    selectTown(p.id);
-    if (townId.value === p.id) step.value = 'town';
-  } else if (p.kind === 'club') {
-    const t = atlas.value?.towns.find((x) => x.clubs.some((c) => c.id === p.id));
-    if (t && step.value !== 'club' && step.value !== 'review') selectTown(t.id);
-  }
-}
-
-function startPlacing(kind: 'country' | 'town') {
-  formError.value = '';
-  pendingSpot.value = null;
-  placing.value = kind;
-  if (kind === 'country') mapRef.value?.fitAll();
-}
-
-function cancelPlacing() {
-  placing.value = null;
-  pendingSpot.value = null;
-  formError.value = '';
-}
-
-function onPlace(spot: { x: number; y: number; problem: string | null }) {
-  if (spot.problem) {
-    say(spot.problem, 'bad');
-    return;
-  }
-  pendingSpot.value = { x: spot.x, y: spot.y };
-  placing.value = null;
-}
-
-function autoCode(form: { name: string; code: string; codeTouched: boolean }) {
-  if (!form.codeTouched) form.code = suggestCode(form.name);
-}
-
-async function onCountryFounded(c: { id: string; name: string }) {
-  say(`${c.name} is founded!`);
-  pendingSpot.value = null;
-  await loadAtlas();
-  selectCountry(c.id);
-  step.value = 'town';
-  startPlacing('town');
-}
-
-async function onTownFounded(t: { id: string; name: string }) {
-  say(`${t.name} is on the map!`);
-  pendingSpot.value = null;
-  await loadAtlas();
-  selectTown(t.id);
+  focusHome();
 }
 
 let checkTimer: ReturnType<typeof setTimeout> | undefined;
@@ -364,7 +342,7 @@ function scheduleCheck() {
   }, 350);
 }
 function onClubName() {
-  autoCode(clubForm);
+  if (!clubForm.codeTouched) clubForm.code = suggestCode(clubForm.name);
   scheduleCheck();
 }
 function onClubCode() {
@@ -378,42 +356,57 @@ watch(
 );
 
 async function submitClub() {
-  if (!townId.value) return;
+  const p = placement.value;
+  if (!p) return;
   busy.value = true;
   formError.value = '';
   try {
     const founded = unwrap<FoundedClub>(
       await client.atlas.foundClub.mutation({
-        body: { townId: townId.value, name: clubForm.name, code: clubForm.code, crest: crest.value, stadiumName: clubForm.stadium || undefined },
+        body: {
+          invite,
+          ...(p.needs.country
+            ? { newCountry: { name: newCountry.name, code: newCountry.code, colors: [newCountry.colors[0], newCountry.colors[1]], motto: newCountry.motto || undefined } }
+            : {}),
+          ...(p.needs.region ? { newRegion: { name: newRegion.name } } : {}),
+          ...(p.needs.town ? { newTown: { name: newTown.name, terrain: newTown.terrain } } : {}),
+          name: clubForm.name,
+          code: clubForm.code,
+          crest: crest.value,
+          stadiumName: clubForm.stadium || undefined,
+        },
       })
     );
     done.value = founded;
     const ids = (store.user.clubs ?? []).map((c) => (typeof c === 'string' ? c : (c as { _id: string })._id));
     store.setUser({ ...store.user, clubs: [founded.clubId, ...ids.filter((id) => id !== founded.clubId)] });
     await loadAtlas();
-    if (town.value) mapRef.value?.focusPoint(town.value.x, town.value.y, 220);
+    const town = atlas.value?.towns.find((t) => t.id === founded.town.id);
+    if (town) mapRef.value?.focusPoint(town.x, town.y, 220);
+    say(`${founded.town.name} welcomes ${clubForm.name.trim()}!`);
   } catch (err) {
     formError.value = err instanceof Error ? err.message : String(err);
+    // The world moved on (someone took the spot, or new places need names):
+    // show where the club would go now.
+    const before = placement.value?.kind;
+    await loadPlacement().catch(() => undefined);
+    if (placement.value && (placement.value.kind !== before || placement.value.kind !== 'town')) {
+      step.value = 'home';
+      focusHome();
+    }
   } finally {
     busy.value = false;
   }
 }
 
 onMounted(async () => {
-  await loadAtlas();
-  // Deep links from the world map: /start?town=<id> or ?country=<id>.
-  const town = typeof route.query.town === 'string' ? atlas.value?.towns.find((t) => t.id === route.query.town) : null;
-  const countryQ = typeof route.query.country === 'string' ? route.query.country : null;
-  if (town && town.clubs.length < TOWN_MAX_CLUBS) {
-    countryId.value = town.countryId;
-    townId.value = town.id;
-    step.value = 'club';
-    setTimeout(() => mapRef.value?.focusPoint(town.x, town.y, 300), 50);
-  } else if (countryQ && atlas.value?.countries.some((c) => c.id === countryQ)) {
-    countryId.value = countryQ;
-    step.value = 'town';
-    setTimeout(() => mapRef.value?.focusCountry(countryQ), 50);
+  try {
+    await loadPlacement();
+  } catch (err) {
+    loadError.value = err instanceof Error ? err.message : String(err);
   }
+  await loadAtlas();
+  focusHome();
   window.addEventListener('resize', onResize);
 });
 onBeforeUnmount(() => window.removeEventListener('resize', onResize));
@@ -563,6 +556,28 @@ onBeforeUnmount(() => window.removeEventListener('resize', onResize));
 .item small {
   color: var(--muted);
   font-size: 12px;
+}
+.place-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #eaf8e0;
+  border: 2px solid var(--green-d);
+}
+.place-card .grow {
+  flex: 1;
+  min-width: 0;
+}
+.place-card b {
+  display: block;
+  font-size: 19px;
+}
+.place-card small {
+  color: var(--muted);
+  font-size: 13px;
 }
 .empty {
   padding: 12px;

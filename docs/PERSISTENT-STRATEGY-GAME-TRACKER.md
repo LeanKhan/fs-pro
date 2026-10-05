@@ -138,6 +138,74 @@ Brief from the user: improve visual consistency between game modes, make the gam
 - [x] Verified this round: browser screenshots of every manager page, world map, match screen; password rules over HTTP (wrong current 400, other user 403, anonymous 401, change and back 200); a live `club:defended` toast delivered through the gateway to a signed-in campus; vue-tsc down to 34 errors, all pre-existing
 - [ ] Next: tune new-club economy (about 6k a match against 200k+ upgrades; competitions pay 250-400k); mobile pass on `/start` and `/world`; the dev clock is paused, so nothing advances until an admin goes live
 
+## World pyramid: built for 10,000 players (2026-10-04)
+Brief from the user: how would the game work with 10k players? After an audit, they redirected the design:
+- No automatic AI rivals.
+- The world fills a town, then a region, then a country, before opening a new one, with invite links for friends.
+- News is scoped to localities by player density.
+- Leagues, competitions and the calendar are rethought, with scheduled leagues in pools.
+
+Their choices: Season = Year (about 4 weeks); pools by Level tier, then locality; late joiners take spare bottom-pool slots; the first club in a new place names it.
+
+Spec: `docs/WORLD-PYRAMID-SPEC.md`. It overrides parts of the open-play spec, and CLAUDE.md is updated.
+
+- [x] **Schema** (migration 0035, applied to dev):
+  - regions (`Places.RegionId`, Type `region`);
+  - calendar hour, day length, week template, kickoff hours and placement sizes;
+  - `Pools`, `Entries.Division/PoolSlot/Movement`, `Fixtures.KickoffHour`;
+  - caretaker and release columns plus `ShieldUntil` on Clubs;
+  - `TownInvites`, `NewsItems`;
+  - indexes on fixtures by team and day, and on Clubs.Rating.
+- [x] **Placement** (`services/world/placement.service.ts`):
+  - Fills holes first, then a new town in the filling region, a new region, a new country.
+  - Runs under a Postgres advisory lock, so towns are never overfilled, even with concurrent foundings.
+  - Invites (5 uses, 14 days, at most 5 live per club) go to the inviter's town or its region.
+  - The sea grows right and down (`suggestCountrySpot`, `suggestRegionSpot`, `atlasSize`).
+  - `foundClub` lost `spawnRivals`; direct country and town founding is admin-only.
+- [x] **Pyramid league** (`services/competitions/pyramid.service.ts`, `utils/round-robin.ts`), one per country (`PYR-<code>`):
+  - The draw: last year's movement, then Level/XP; full divisions top-down (2^(d-1) pools of 10); a bottom division filled to 80%; local pools by region and town.
+  - Every fixture is written up front, on league days at the pool's kickoff hour.
+  - Late joiners take a bottom slot and get exactly the remaining rounds; bottom divisions rank by ppg.
+  - Year-end finish: prize money and XP shrink by division; pool trophies; promotion and relegation set Level and Movement.
+  - The national Open Leagues are archived.
+- [x] **Calendar:**
+  - The hourly clock (`runWorldHour`): day start at hour 0, kickoffs every hour, day end after hour 23. Ticks are epoch-aligned and catch up after downtime.
+  - `WeekTemplate` `[L,C,L,L,C,L,L]`. Challenges and knockout ties only on cup days (`findSlot`, `nthCupDay`).
+  - Year = 28 days. Year end: finish pyramids, close the year, ageing/wages/retirement/youth, release inactive clubs, redraw.
+- [x] **Caretakers** (`caretaker.service.ts`): activity middleware (hourly per user), caretaker after 14 game days (answers challenges like the AI), release after 2 caretaker years (frees the town slot; players become free agents).
+- [x] **Scoped news** (`news-scope.service.ts`):
+  - The natural scope plus escalation by `bar = base + 8·log2(active/target)`.
+  - `postResultNews` sits in the updateFixture seam.
+  - The world feed reads the reader's scopes and widens a quiet town to region or country.
+  - Gateway topics `town:/region:/country:` with town chat. Presence lists only in small rooms; the online count is batched every 10 s.
+  - Edition and ranking events go to `edition:<id>`, not `world`. `world:result` is dropped.
+- [x] **Scale fixes:**
+  - PLAY opponent search is one SQL top-5 (no full-club scan), with a `ShieldUntil` column.
+  - The AI world tick has a DB lease and no longer runs the market (once per game day now).
+  - `ROLE=web` skips background ticks.
+  - The market loads only the rosters it needs: listed-player owners plus a 200-club sample per day.
+  - Year end: bulk facility effects, `UPDATE … FROM (VALUES …)` player progression, set-based wages, batched ratings, `ensureYearRows` as an anti-join.
+  - `canManageClub` returns 404 for malformed ids (was a 500).
+- [x] **Client:**
+  - `/start` is a 3-step flow (home placement with naming for new places, club, kick-off) with invite support.
+  - The world map shows regions and club counts, loads clubs per country, and has an invite panel on your own town; the place-founding forms are removed.
+  - The newsstand reads local news live (`news:item`).
+  - Pool tables show names, own metrics and promotion/relegation zones.
+  - The admin clock edits the day length and shows the hour and day kind.
+- [x] **Verified:**
+  - `tsc` (contract and server); vue-tsc (no new errors; the pre-existing set is unchanged); Go vet and tests (plus `scope_test.go`).
+  - Scratch DB `fspro_pyramid_check`, all green: `checkWorldPyramid.ts` (13 checks, including a full simulated season, year end and redraw), edition 24, challenge 21, knockout 16, ranking 16, competition AI 18, world day 17.
+  - Scale numbers are in `docs/SCALE.md`.
+  - Dev DB: backed up to the scratchpad (`fspro-pre-0035.sql`, 191 MB, with counts) before `start-world-pyramid.ts`.
+  - Live HTTP test: placement into a hole, a founding joining a D2 pool, invite create/use/uses-left, 401/403/404 rules, a local feed widened to country. Headless-Chrome screenshots of `/start` and `/world`.
+  - The throwaway users and clubs were then removed (count-checked back to 44 clubs, 965 players, 4 users).
+- **Restore note:** before restoring a pre-0035 dump, drop `Pools`, `TownInvites` and `NewsItems` first; their FKs block `--clean` drops. Count-check afterwards.
+- [ ] **Open:**
+  - The 9 empty seeded countries fill only after Kev and Bellean.
+  - Name generation still picks Kev/Bellean cultures for youth in founded countries.
+  - The newsstand doesn't page older stories yet.
+  - A live clock run at the real day length hasn't been watched end to end (only `runWorldDay` and hour-by-hour in scripts).
+
 ## Next (after MVP)
 - [x] Away summary + notifications inbox
 - [x] Facility effects that change play: Training Ground, Youth Academy, Stadium Grounds and Staff House all now affect real outcomes (see "Core loop integrity fixes" below); new facilities (media/PR, commercial office) still not started

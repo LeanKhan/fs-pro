@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray, isNotNull, or, sql } from 'drizzle-orm';
-import type { StageDefinition } from '@repo/api-contract';
+import { nthCupDay, type StageDefinition } from '@repo/api-contract';
 import { DrizzleDatabase } from '../../db/drizzle';
 import {
   calendars,
@@ -99,7 +99,7 @@ async function clearDay(
       .where(eq(seasons.id, f.SeasonId!));
     const stage = season?.Definition?.Stages[f.StageIndex ?? 0];
     const lastDay =
-      stage && stage.type !== 'knockout'
+      stage && stage.type !== 'knockout' && stage.type !== 'pyramid'
         ? (season!.StageStartedDay ?? 0) + stage.days - 1
         : day;
     // Park it off the day first so the slot search doesn't see it.
@@ -229,8 +229,11 @@ export async function drawRound(
     const calendar = await world(tx);
     const today = calendar.CurrentDay;
     const twoLegs = stage.legs === 2;
-    const playBy =
-      today + (twoLegs ? Math.max(stage.tieDays, 2) : stage.tieDays);
+    // tieDays counts cup days (docs/WORLD-PYRAMID-SPEC.md): ties only play
+    // on 'C' days, and the deadline is one.
+    const tieCupDays = twoLegs ? Math.max(stage.tieDays, 2) : stage.tieDays;
+    const playBy = nthCupDay(calendar, today + 1, tieCupDays);
+    const firstLegBy = nthCupDay(calendar, today + 1, tieCupDays - 1);
     const stageName =
       !twoLegs && stage.drawAtEnd === 'penalties'
         ? ENGINE_SHOOTOUT
@@ -282,8 +285,8 @@ export async function drawRound(
         const id = await insertLeg(pair.high, pair.low, 1, day);
         if (free == null) await clearDay(tx, both, day, [id]);
       } else {
-        const free1 = await findSlot(tx, both, today + 1, playBy - 1);
-        const day1 = free1 ?? playBy - 1;
+        const free1 = await findSlot(tx, both, today + 1, firstLegBy);
+        const day1 = free1 ?? firstLegBy;
         const id1 = await insertLeg(pair.low, pair.high, 1, day1);
         if (free1 == null) await clearDay(tx, both, day1, [id1]);
         const free2 = await findSlot(tx, both, day1 + 1, playBy);

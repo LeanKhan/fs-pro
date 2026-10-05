@@ -3,15 +3,16 @@ import { DrizzleDatabase } from '../../db/drizzle';
 import { calendars, clubs, competitions, places, seasons } from '../../db/drizzle/schema';
 import { buildDefinition, type CompetitionDefinitionInput } from './definition';
 import { createEdition, publishEdition, tickEditions } from './edition.service';
+import { DEFAULT_PYRAMID_STAGE, countriesWithClubs, drawPyramid, joinPyramid, runningPyramid, type DrawSummary, type JoinedPool } from './pyramid.service';
 
 /**
  * The competitions every world needs so a new club always has something to
- * enter (docs/OPEN-PLAY-COMPETITIONS-SPEC.md: competitions are definitions,
- * and Recurrence keeps them coming back):
+ * play (docs/WORLD-PYRAMID-SPEC.md):
  *
- *  - one national Open League per country with clubs, open to that country's
- *    clubs only (created when the country's first club is founded);
- *  - the worldwide Amateur Cup, a knockout for clubs up to Level 2.
+ *  - one pyramid league per country with clubs (pyramid.service.ts), drawn
+ *    each Year and joined mid-season by new clubs;
+ *  - the worldwide Amateur Cup, a knockout for clubs up to Level 2, on cup
+ *    days, kept coming back by its Recurrence.
  *
  * They are ordinary competitions: the admin can edit, archive or replace
  * them like any other. Everything here is idempotent (keyed by
@@ -23,15 +24,17 @@ const db = () => DrizzleDatabase.getInstance().database;
 const REGISTRATION_DAYS = 5;
 
 export const AMATEUR_CUP_CODE = 'AMATEUR-CUP';
-export const nationalLeagueCode = (countryCode: string) => `NAT-${countryCode.toUpperCase()}`;
+/** Code of a country's pyramid league. (The open-play national leagues
+ * used NAT-<code>; the pyramid replaced them.) */
+export const nationalLeagueCode = (countryCode: string) => `PYR-${countryCode.toUpperCase()}`;
 
 function nationalLeague(country: { id: string; Name: string }): CompetitionDefinitionInput {
   return {
-    Name: `${country.Name} Open League`,
-    Description: `The national league of ${country.Name}. Any club from ${country.Name} can enter. Challenge the clubs near you in the table; the best record after the season wins.`,
-    Prestige: 2,
-    Entry: { mode: 'open', minClubs: 3, maxClubs: 20, countryIds: [country.id] },
-    Stages: [{ type: 'league', days: 24, rules: { minGamesToRank: 4, maxGames: 16, challengeRange: 0 } }],
+    Name: `${country.Name} League`,
+    Description: `The football pyramid of ${country.Name}. Every club in ${country.Name} plays here: pools of local rivals, a full fixture list each year, the top two of every pool go up and the bottom two go down.`,
+    Prestige: 3,
+    Entry: { mode: 'invite', minClubs: 2, maxClubs: null, countryIds: [country.id] },
+    Stages: [DEFAULT_PYRAMID_STAGE],
     Rewards: {
       prizeMoney: [
         { position: 1, amount: 400_000 },
@@ -45,7 +48,7 @@ function nationalLeague(country: { id: string; Name: string }): CompetitionDefin
       ],
       trophy: `${country.Name} Shield`,
     },
-    Recurrence: { everyDays: 30, registrationDays: REGISTRATION_DAYS },
+    Recurrence: null,
   } as CompetitionDefinitionInput;
 }
 
@@ -117,13 +120,41 @@ export async function ensureLiveEdition(competitionId: string) {
   return season.id;
 }
 
-/** The national league for `countryId`, with a live edition. */
+/** The pyramid league competition of `countryId` (created once). */
 export async function ensureNationalLeague(countryId: string) {
   const [country] = await db().select().from(places).where(eq(places.id, countryId));
   if (!country || country.Type !== 'country') return null;
-  const { id, created } = await ensureCompetition(nationalLeagueCode(country.Code), nationalLeague({ id: country.id, Name: country.Name }));
-  const edition = await ensureLiveEdition(id);
-  return { competitionId: id, created, edition };
+  return ensureCompetition(nationalLeagueCode(country.Code), nationalLeague({ id: country.id, Name: country.Name }));
+}
+
+/**
+ * Put a newly founded club into its country's pyramid: a spare slot of the
+ * running edition, or a fresh draw (from today to the year's end) when the
+ * country has none yet, which places the club along with everyone else.
+ */
+export async function placeInPyramid(clubId: string, countryId: string): Promise<JoinedPool | DrawSummary | null> {
+  const league = await ensureNationalLeague(countryId);
+  if (!league) return null;
+  if (await runningPyramid(league.id)) return joinPyramid(league.id, clubId);
+  const [cal] = await db().select({ day: calendars.CurrentDay }).from(calendars).limit(1);
+  return (await drawPyramid(league.id, { fromDay: (cal?.day ?? 0) + 1 })) ?? joinPyramid(league.id, clubId);
+}
+
+/** Year end: a fresh draw for every country with clubs. */
+export async function drawAllPyramids() {
+  const out: DrawSummary[] = [];
+  for (const { countryId } of await countriesWithClubs()) {
+    if (!countryId) continue;
+    try {
+      const league = await ensureNationalLeague(countryId);
+      if (!league) continue;
+      const drawn = await drawPyramid(league.id);
+      if (drawn) out.push(drawn);
+    } catch (err) {
+      console.error(`[pyramid] draw for country ${countryId} failed`, err);
+    }
+  }
+  return out;
 }
 
 export async function ensureAmateurCup() {
@@ -132,15 +163,9 @@ export async function ensureAmateurCup() {
   return { competitionId: id, created, edition };
 }
 
-/** Every country with at least `minClubs` clubs gets its league; plus the Amateur Cup. */
-export async function ensureWorldCompetitions(minClubs = 3) {
-  const counts = await db()
-    .select({ country: clubs.AddressCountryId, n: sql<number>`count(*)::int` })
-    .from(clubs)
-    .groupBy(clubs.AddressCountryId);
-  const out = [];
-  for (const { country, n } of counts) {
-    if (country && n >= minClubs) out.push({ country, ...(await ensureNationalLeague(country)) });
-  }
-  return { leagues: out, amateurCup: await ensureAmateurCup() };
+/** Every country with clubs gets its pyramid (drawn if none is running);
+ * plus the Amateur Cup. */
+export async function ensureWorldCompetitions() {
+  const leagues = await drawAllPyramids();
+  return { leagues, amateurCup: await ensureAmateurCup() };
 }

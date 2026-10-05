@@ -9,14 +9,19 @@ import {
   type RetiredPlayerSummary,
 } from '../../controllers/players/player-lifecycle.service';
 import { refreshAllClubsRatings } from '../../controllers/clubs/club.service';
+import { healPastUnplayedFixtures } from '../../controllers/calendar/calendar.service';
 import { generateYearReport } from './season-report.service';
 import { closeYear } from './performance.service';
+import { finishAllPyramids } from '../competitions/pyramid.service';
+import { drawAllPyramids } from '../competitions/world-competitions.service';
+import { releaseInactiveClubs } from './caretaker.service';
 
 /**
- * The open-play year (docs/OPEN-PLAY-COMPETITIONS-SPEC.md, "Year"): a fixed
- * run of `YearLengthDays` game days that only drives ageing, wages,
- * retirement, youth intake and the year report. It never creates or ends
- * competitions; editions run across the boundary.
+ * The Year (docs/WORLD-PYRAMID-SPEC.md, "Year = Season"): a fixed run of
+ * `YearLengthDays` game days. Its end finishes every country's pyramid
+ * league and draws the next one; it also drives ageing, wages, retirement,
+ * youth intake, releasing long-inactive clubs and the year report. Other
+ * editions run across the boundary untouched.
  */
 
 const db = () => DrizzleDatabase.getInstance().database;
@@ -32,6 +37,10 @@ export interface YearEndSummary {
   retired: number;
   /** Clubs moved by the optional year-end Level review. */
   levelReviewMoves: number;
+  /** Pyramid leagues finished and drawn, clubs promoted/relegated. */
+  pyramids: { finished: number; drawn: number; promoted: number; relegated: number };
+  /** Long-inactive clubs released. */
+  released: number;
   errors: string[];
 }
 
@@ -75,6 +84,7 @@ export async function endYear(): Promise<YearEndSummary | null> {
     name: string,
     fn: () => Promise<T>
   ): Promise<T | undefined> => {
+    const started = Date.now();
     try {
       return await fn();
     } catch (err) {
@@ -83,9 +93,15 @@ export async function endYear(): Promise<YearEndSummary | null> {
         `${name}: ${err instanceof Error ? err.message : String(err)}`
       );
       return undefined;
+    } finally {
+      // The year end works over the whole world; say what each step costs.
+      console.log(`[year] ${label}: ${name} ${Date.now() - started} ms`);
     }
   };
 
+  // The year's last league fixtures first, so the pyramid tables are final.
+  await step('last fixtures', () => healPastUnplayedFixtures(today));
+  const finished = await step('pyramid finish', () => finishAllPyramids({ year, ...range }));
   const review = await step('performance and Level review', () =>
     closeYear({ year, fromDay: range.fromDay, toDay: range.toDay })
   );
@@ -99,6 +115,8 @@ export async function endYear(): Promise<YearEndSummary | null> {
   const retired: RetiredPlayerSummary[] = retirement?.retired ?? [];
   await step('youth intake', () => runYouthIntakeForYear(label));
   await step('club ratings', () => refreshAllClubsRatings());
+  const released = await step('release inactive clubs', () => releaseInactiveClubs(calendar));
+  const drawn = await step('pyramid draw', () => drawAllPyramids());
   await step('year report', () =>
     generateYearReport(label, range, { retired })
   );
@@ -113,6 +131,13 @@ export async function endYear(): Promise<YearEndSummary | null> {
     toDay: range.toDay,
     retired: retired.length,
     levelReviewMoves: review?.length ?? 0,
+    pyramids: {
+      finished: finished?.length ?? 0,
+      drawn: drawn?.length ?? 0,
+      promoted: finished?.reduce((n, f) => n + f.promoted.length, 0) ?? 0,
+      relegated: finished?.reduce((n, f) => n + f.relegated.length, 0) ?? 0,
+    },
+    released: released?.length ?? 0,
     errors,
   };
 }

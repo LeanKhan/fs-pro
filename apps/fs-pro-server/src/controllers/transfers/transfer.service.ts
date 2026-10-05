@@ -174,43 +174,33 @@ export async function settleTransfer(params: {
  */
 export async function deductWagesForYear(year: string): Promise<void> {
   const db = DrizzleDatabase.getInstance().database;
-  const allClubs = await db.select({ id: clubs.id }).from(clubs);
-
-  for (const club of allClubs) {
-    await db.transaction(async (tx) => {
-      const alreadyDeducted = await tx.query.transferLedger.findFirst({
-        where: and(
-          eq(transferLedger.Type, 'wage'),
-          eq(transferLedger.BuyerClubId, club.id),
-          eq(transferLedger.Year, year)
-        ),
-      });
-      if (alreadyDeducted) return;
-
-      const [wageRow] = await tx
-        .select({
-          total: drizzleSql<number>`coalesce(sum(${players.Wage}), 0)`,
-        })
-        .from(players)
-        .where(and(eq(players.ClubId, club.id), eq(players.isSigned, true)));
-
-      const wageBill = Number(wageRow?.total ?? 0);
-
-      await tx
-        .update(clubs)
-        .set({
-          Budget: drizzleSql`coalesce(${clubs.Budget}, 0) - ${wageBill}`,
-          updatedAt: new Date(),
-        })
-        .where(eq(clubs.id, club.id));
-
-      await tx.insert(transferLedger).values({
-        Type: 'wage',
-        BuyerClubId: club.id,
-        Amount: wageBill,
-        Year: year,
-        updatedAt: new Date(),
-      });
-    });
-  }
+  // One statement for the whole world (docs/WORLD-PYRAMID-SPEC.md: the year
+  // ends every 4 weeks, over 10k+ clubs): each club not yet charged for
+  // `year` pays its signed players' wages and gets its ledger row. Released
+  // clubs pay nothing. The advisory lock keeps two runs from both charging.
+  await db.transaction(async (tx) => {
+    await tx.execute(drizzleSql`select pg_advisory_xact_lock(hashtext(${`wages:${year}`}))`);
+    await tx.execute(drizzleSql`
+      WITH bills AS (
+        SELECT c."_id" AS club, coalesce(sum(p."Wage") FILTER (WHERE p."isSigned"), 0) AS bill
+        FROM "Clubs" c
+        LEFT JOIN "Players" p ON p."ClubId" = c."_id"
+        WHERE c."ReleasedAt" IS NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM "TransferLedger" t
+            WHERE t."Type" = 'wage' AND t."BuyerClubId" = c."_id" AND t."Year" = ${year}
+          )
+        GROUP BY c."_id"
+      ),
+      charged AS (
+        UPDATE "Clubs" c
+        SET "Budget" = coalesce(c."Budget", 0) - b.bill, "updatedAt" = now()
+        FROM bills b
+        WHERE c."_id" = b.club
+        RETURNING c."_id"
+      )
+      INSERT INTO "TransferLedger" ("_id", "Type", "BuyerClubId", "Amount", "Year", "createdAt", "updatedAt")
+      SELECT gen_random_uuid(), 'wage', b.club, b.bill, ${year}, now(), now() FROM bills b
+    `);
+  });
 }

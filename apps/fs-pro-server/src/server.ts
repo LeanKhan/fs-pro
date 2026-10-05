@@ -40,6 +40,7 @@ import { createExpressEndpoints } from '@ts-rest/express';
 import { apiContract } from '@repo/api-contract';
 import { apiRouter } from './routers';
 import { ssoRouter } from './controllers/auth/sso.router';
+import { activityMiddleware } from './services/world/caretaker.service';
 
 const cors_whitelist = [
   'http://localhost:8080',
@@ -103,6 +104,8 @@ store.on('error', (error) => {
 
 // Use Sessions o
 app.use(Session);
+// Owners' clubs stay "active" while they use the game (caretaker.service.ts).
+app.use(activityMiddleware);
 
 // Share Express session with Socket.IO v4 engine requests.
 io.engine.use(Session);
@@ -175,6 +178,14 @@ http.on('error', (err: NodeJS.ErrnoException) => {
 
 http.listen(port, () => {
   console.log('Game Server running successfully! on port ' + port);
+  // Background work (docs/WORLD-PYRAMID-SPEC.md): ROLE=web serves requests
+  // only, so extra web instances can be added; ROLE=worker (or unset, the
+  // single-process default) also runs the clock and world ticks. Each tick
+  // takes a database lease, so two workers never double-run one.
+  if (process.env.ROLE?.trim() === 'web') {
+    console.log('[server] ROLE=web: background ticks run elsewhere');
+    return;
+  }
   // Live game clock: no-op until an admin sets ClockMode to 'live'.
   startCalendarClock();
   startFacilitiesSweep();

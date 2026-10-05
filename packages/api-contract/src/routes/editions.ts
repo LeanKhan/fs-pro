@@ -159,7 +159,8 @@ export const editionsContract = c.router(
       method: 'GET',
       path: '/:id/rankings',
       pathParams: z.object({ id: z.string() }),
-      query: z.object({ stage: z.coerce.number().int().min(0).optional() }),
+      /** `group`: one group or pyramid pool only. */
+      query: z.object({ stage: z.coerce.number().int().min(0).optional(), group: z.string().optional() }),
       responses: {
         200: successEnvelope(StageTableSchema),
         400: failEnvelope(),

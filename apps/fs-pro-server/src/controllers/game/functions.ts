@@ -15,6 +15,7 @@ import {
   attendanceFill,
   ensureStanding,
 } from '../../services/world/club-standing.service';
+import { postResultNews } from '../../services/world/news-scope.service';
 
 interface Team {
   id: string;
@@ -177,17 +178,20 @@ export async function updateFixture(
   }
 
   // The one seam where results move the world: fans, reputation, board
-  // confidence, form and squad morale for both clubs. League matchdays and
-  // PLAY matches both pass through here - don't call it anywhere else.
+  // confidence, form and squad morale for both clubs, then the local news
+  // (services/world/news-scope.service.ts). League matchdays and PLAY
+  // matches both pass through here - don't call these anywhere else.
+  const homeGoals = Number((MatchDetails as any).HomeTeamScore ?? HomeSideDetails.Goals ?? 0);
+  const awayGoals = Number((MatchDetails as any).AwayTeamScore ?? AwaySideDetails.Goals ?? 0);
   try {
-    await applyMatchResult(
-      home.id,
-      away.id,
-      Number((MatchDetails as any).HomeTeamScore ?? HomeSideDetails.Goals ?? 0),
-      Number((MatchDetails as any).AwayTeamScore ?? AwaySideDetails.Goals ?? 0)
-    );
+    await applyMatchResult(home.id, away.id, homeGoals, awayGoals);
   } catch (e) {
     console.error('Error applying club standing:', e);
+  }
+  try {
+    await postResultNews({ fixtureId: String(fixture_id), homeId: home.id, awayId: away.id, homeGoals, awayGoals });
+  } catch (e) {
+    console.error('Error posting result news:', e);
   }
 
   return {
