@@ -57,9 +57,12 @@ export const places = pgTable('Places', {
   WorldSyncedAt: timestamp('WorldSyncedAt', { withTimezone: true }),
   /** The world no longer knows this place (deleted); last known values are kept. */
   WorldStale: boolean('WorldStale').notNull().default(false),
-  /** Atlas (packages/api-contract world-geo.ts): a town's country. Null for
-   * countries. */
+  /** Atlas (packages/api-contract world-geo.ts): a town's or region's
+   * country. Null for countries. */
   ParentId: uuid('ParentId').references((): AnyPgColumn => places.id),
+  /** A town's region (a Places row with Type 'region' under the same
+   * country); docs/WORLD-PYRAMID-SPEC.md, "Geography and placement". */
+  RegionId: uuid('RegionId').references((): AnyPgColumn => places.id),
   /** The user who founded this country or town; null for the original world. */
   FoundedBy: uuid('FoundedBy').references((): AnyPgColumn => users.id),
   /** Spot on the world atlas, in atlas units (ATLAS_W x ATLAS_H). */
@@ -202,8 +205,18 @@ export const clubs = pgTable('Clubs', {
   /** Where the owner put each campus building (packages/api-contract
    * campus-grid.ts); null = the default layout. */
   CampusPlacement: jsonb('CampusPlacement').$type<Record<string, { x: number; z: number; rot: number }> | null>(),
-  /** The club's town (a Places row whose ParentId is its country). */
+  /** The club's town (a Places row whose ParentId is its country). Null
+   * once the club is released. */
   TownId: uuid('TownId').references((): AnyPgColumn => places.id),
+  /** docs/WORLD-PYRAMID-SPEC.md, "Caretaker and release": the owner's last
+   * authenticated request (written at most hourly), whether the AI is
+   * minding the club while they're away, and when it was released. */
+  LastActiveAt: timestamp('LastActiveAt', { precision: 3 }),
+  Caretaker: boolean('Caretaker').notNull().default(false),
+  ReleasedAt: timestamp('ReleasedAt', { precision: 3 }),
+  /** PLAY: a human club that just defended a matchmade game can't be picked
+   * again until then (services/play/play.service.ts). */
+  ShieldUntil: timestamp('ShieldUntil', { precision: 3 }),
   /** Crest of a club founded in the game (api-contract crest.ts); null for
    * the original clubs, which have hand-drawn crests. */
   Crest: jsonb('Crest').$type<Record<string, unknown> | null>(),
@@ -236,14 +249,39 @@ export const calendars = pgTable('Calendars', {
    * actions move it. NextTickAt doubles as a short lease while a tick runs. */
   ClockMode: text('ClockMode').notNull().default('paused'),
   NextTickAt: timestamp('NextTickAt', { precision: 3 }),
+  /** Lease for the AI world tick (services/world/ai-world.service.ts), so
+   * only one API instance runs it. */
+  AiTickLeaseUntil: timestamp('AiTickLeaseUntil', { precision: 3 }),
   LastTickAt: timestamp('LastTickAt', { precision: 3 }),
-  /** Real minutes a match day lasts, plus per skipped off-day in the gap. */
-  MatchdaySlotMinutes: integer('MatchdaySlotMinutes').notNull().default(180),
-  OffDaySlotMinutes: integer('OffDaySlotMinutes').notNull().default(10),
-  /** World settings (docs/OPEN-PLAY-COMPETITIONS-SPEC.md). The year is a
-   * fixed run of days that only drives ageing, wages, retirement, youth
-   * intake, reports and transfer windows. */
-  YearLengthDays: integer('YearLengthDays').notNull().default(360),
+  /** Hourly clock (docs/WORLD-PYRAMID-SPEC.md, "Calendar"): the hour of
+   * the current game day (0-23), the real minutes one game day lasts, the
+   * week's day kinds ('L' league / 'C' cup), the UTC hours pools kick off
+   * at, and the hour cup ties and challenges kick off. */
+  CurrentHour: integer('CurrentHour').notNull().default(0),
+  DayLengthMinutes: integer('DayLengthMinutes').notNull().default(1440),
+  WeekTemplate: jsonb('WeekTemplate')
+    .$type<('L' | 'C')[]>()
+    .notNull()
+    .default(sql`'["L","C","L","L","C","L","L"]'::jsonb`),
+  KickoffHours: jsonb('KickoffHours')
+    .$type<number[]>()
+    .notNull()
+    .default(sql`'[12,13,14,15,16,17,18,19,20,21,22]'::jsonb`),
+  CupKickoffHour: integer('CupKickoffHour').notNull().default(20),
+  /** Placement capacities: clubs per town, towns per region, regions per
+   * country. */
+  TownSize: integer('TownSize').notNull().default(6),
+  RegionTowns: integer('RegionTowns').notNull().default(8),
+  CountryRegions: integer('CountryRegions').notNull().default(6),
+  /** Days away before a human club gets a caretaker; whole caretaker years
+   * before it is released. */
+  CaretakerAfterDays: integer('CaretakerAfterDays').notNull().default(14),
+  ReleaseAfterSeasons: integer('ReleaseAfterSeasons').notNull().default(2),
+  /** World settings (docs/OPEN-PLAY-COMPETITIONS-SPEC.md). Year = Season
+   * (docs/WORLD-PYRAMID-SPEC.md): a fixed run of days whose end finishes
+   * the pyramid leagues and draws the next ones, then drives ageing, wages,
+   * retirement, youth intake and reports. */
+  YearLengthDays: integer('YearLengthDays').notNull().default(28),
   CurrentYear: integer('CurrentYear').notNull().default(1),
   YearStartDay: integer('YearStartDay').notNull().default(0),
   AutoRollover: boolean('AutoRollover').notNull().default(true),
@@ -252,7 +290,7 @@ export const calendars = pgTable('Calendars', {
     .$type<{ fromDay: number; toDay: number }[]>()
     .notNull()
     .default(
-      sql`'[{"fromDay":1,"toDay":30},{"fromDay":180,"toDay":210}]'::jsonb`
+      sql`'[{"fromDay":1,"toDay":7},{"fromDay":15,"toDay":18}]'::jsonb`
     ),
   DefaultRules: jsonb('DefaultRules').$type<Partial<LeagueRules> | null>(),
   /** XP needed for each Level, ascending (index 0 = Level 1). */
@@ -342,7 +380,15 @@ export const entries = pgTable(
       .references(() => clubs.id),
     Status: text('Status').notNull().default('registered'),
     Seed: integer('Seed'),
+    /** Group letter, or the pool id in a pyramid edition. */
     Group: text('Group'),
+    /** Pyramid editions only: the club's division (1 = top) and its slot in
+     * the pool, which its fixtures were generated over. */
+    Division: integer('Division'),
+    PoolSlot: integer('PoolSlot'),
+    /** Set when a pyramid edition finishes: +1 promoted, -1 relegated, 0
+     * stays. The next draw moves the club by it. */
+    Movement: integer('Movement'),
     FeePaid: real('FeePaid').notNull().default(0),
     EliminatedAtStage: integer('EliminatedAtStage'),
     /** Set when the edition finishes: final position (1 = winner) and the
@@ -502,6 +548,9 @@ export const fixtures = pgTable(
      * not-yet-scheduled fixtures have neither this nor ScheduledDate. */
     ScheduledDay: integer('ScheduledDay'),
     ScheduledDate: timestamp('ScheduledDate', { precision: 3 }),
+    /** UTC hour of ScheduledDay the match kicks off; null = the world's
+     * CupKickoffHour (docs/WORLD-PYRAMID-SPEC.md, "Kickoff hours"). */
+    KickoffHour: integer('KickoffHour'),
     /** Open play. A challenge is a Fixture with ChallengeStatus set
      * (proposed | accepted | declined | expired | forfeited | cancelled |
      * played); a knockout tie has Round/Leg/PlayBy instead. RespondBy and
@@ -519,6 +568,9 @@ export const fixtures = pgTable(
   },
   (t) => [
     index('fixtures_scheduled_day_idx').on(t.ScheduledDay),
+    index('fixtures_day_kickoff_idx').on(t.ScheduledDay, t.KickoffHour),
+    index('fixtures_home_day_idx').on(t.HomeTeamId, t.ScheduledDay),
+    index('fixtures_away_day_idx').on(t.AwayTeamId, t.ScheduledDay),
     index('fixtures_season_scheduled_day_idx').on(t.SeasonId, t.ScheduledDay),
     index('fixtures_competition_challenge_idx').on(
       t.CompetitionId,
@@ -875,6 +927,74 @@ export const competitionAccess = pgTable(
   (t) => [
     index('competition_access_target_idx').on(t.CompetitionId, t.Kind, t.Used),
     index('competition_access_club_idx').on(t.ClubId),
+  ]
+);
+
+/** A pool of a pyramid edition (docs/WORLD-PYRAMID-SPEC.md, "Pyramid
+ * league"): clubs of one division that play a scheduled round-robin. Its
+ * id is the Group of its Entries and Rankings rows. */
+export const pools = pgTable(
+  'Pools',
+  {
+    id: uuid('_id').primaryKey().defaultRandom(),
+    SeasonId: uuid('SeasonId')
+      .notNull()
+      .references(() => seasons.id),
+    Division: integer('Division').notNull(),
+    /** Order within the division (0-based), for stable naming and listing. */
+    Number: integer('Number').notNull(),
+    Name: text('Name').notNull(),
+    RegionId: uuid('RegionId').references(() => places.id),
+    KickoffHour: integer('KickoffHour').notNull(),
+    Size: integer('Size').notNull(),
+    createdAt: timestamp('createdAt', { precision: 3 }).defaultNow().notNull(),
+  },
+  (t) => [index('pools_season_division_idx').on(t.SeasonId, t.Division)]
+);
+
+/** An invite link to found a club in a town (docs/WORLD-PYRAMID-SPEC.md,
+ * "Invites"). */
+export const townInvites = pgTable(
+  'TownInvites',
+  {
+    id: uuid('_id').primaryKey().defaultRandom(),
+    Token: text('Token').notNull().unique(),
+    TownId: uuid('TownId')
+      .notNull()
+      .references(() => places.id),
+    ByClubId: uuid('ByClubId')
+      .notNull()
+      .references(() => clubs.id),
+    ExpiresAt: timestamp('ExpiresAt', { precision: 3 }).notNull(),
+    MaxUses: integer('MaxUses').notNull().default(5),
+    Uses: integer('Uses').notNull().default(0),
+    createdAt: timestamp('createdAt', { precision: 3 }).defaultNow().notNull(),
+  },
+  (t) => [index('town_invites_club_idx').on(t.ByClubId)]
+);
+
+/** Local news (docs/WORLD-PYRAMID-SPEC.md, "News scopes"): one row per
+ * scope an item reached. ScopeId is null for the world scope. */
+export const newsItems = pgTable(
+  'NewsItems',
+  {
+    id: uuid('_id').primaryKey().defaultRandom(),
+    ScopeType: text('ScopeType').notNull(),
+    ScopeId: uuid('ScopeId'),
+    /** Same for every scope row of one story. */
+    StoryId: uuid('StoryId').notNull(),
+    Kind: text('Kind').notNull(),
+    Importance: integer('Importance').notNull(),
+    Title: text('Title').notNull(),
+    Body: text('Body').notNull().default(''),
+    ClubIds: jsonb('ClubIds').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    FixtureId: uuid('FixtureId').references(() => fixtures.id),
+    Day: integer('Day').notNull(),
+    createdAt: timestamp('createdAt', { precision: 3 }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('news_items_scope_idx').on(t.ScopeType, t.ScopeId, t.createdAt),
+    unique('news_items_story_scope_uq').on(t.StoryId, t.ScopeType),
   ]
 );
 

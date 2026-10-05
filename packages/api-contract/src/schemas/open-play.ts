@@ -44,6 +44,8 @@ export const EntrySchema = z.object({
    * board's finish score. */
   finalPosition: z.number().nullable().optional(),
   finishScore: z.number().nullable().optional(),
+  /** Pyramid editions: the club's division (1 = top). Its group is its pool. */
+  division: z.number().nullable().optional(),
 });
 
 export const EditionDetailSchema = EditionSchema.extend({
@@ -87,7 +89,17 @@ export const StageTableSchema = z.object({
   tiebreakers: z.array(z.string()),
   minGamesToRank: z.number(),
   groups: z.array(
-    z.object({ group: z.string().nullable(), rows: z.array(RankingRowSchema) })
+    z.object({
+      group: z.string().nullable(),
+      /** Pyramid pools: name, division, kickoff hour and their own table
+       * order (the bottom division ranks by points per game). */
+      name: z.string().optional(),
+      division: z.number().optional(),
+      kickoffHour: z.number().optional(),
+      metric: z.string().optional(),
+      minGamesToRank: z.number().optional(),
+      rows: z.array(RankingRowSchema),
+    })
   ),
 });
 

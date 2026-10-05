@@ -2,8 +2,9 @@ import { z } from 'zod';
 import { CREST_EMBLEMS, CREST_PATTERNS, CREST_SHAPES } from '../crest';
 import { TOWN_TERRAINS } from '../world-geo';
 
-/** The world atlas: countries, their towns and the clubs in each town
- * (server: services/world/atlas.service.ts, rules: world-geo.ts). */
+/** The world atlas: countries, their regions, towns and the clubs in each
+ * town (server: services/world/atlas.service.ts, rules: world-geo.ts,
+ * placement: docs/WORLD-PYRAMID-SPEC.md). */
 
 const hex = z.string().regex(/^#[0-9a-f]{6}$/i, 'Colours are #rrggbb');
 
@@ -38,13 +39,28 @@ export const AtlasClubSchema = z.object({
 export const AtlasTownSchema = z.object({
   id: z.string(),
   countryId: z.string(),
+  regionId: z.string().nullable(),
   name: z.string(),
   terrain: z.enum(TOWN_TERRAINS),
   x: z.number(),
   y: z.number(),
   founder: FounderSchema,
   foundedAt: z.string().nullable(),
+  /** Clubs in the town. */
+  clubCount: z.number(),
+  /** The clubs themselves, when this payload carries them (a small world,
+   * or the country asked for); otherwise empty with clubCount set. */
   clubs: z.array(AtlasClubSchema),
+});
+
+export const AtlasRegionSchema = z.object({
+  id: z.string(),
+  countryId: z.string(),
+  name: z.string(),
+  x: z.number(),
+  y: z.number(),
+  founder: FounderSchema,
+  foundedAt: z.string().nullable(),
 });
 
 export const AtlasCountrySchema = z.object({
@@ -64,7 +80,10 @@ export const AtlasSchema = z.object({
   width: z.number(),
   height: z.number(),
   countries: z.array(AtlasCountrySchema),
+  regions: z.array(AtlasRegionSchema),
   towns: z.array(AtlasTownSchema),
+  /** Whose towns carry club lists: 'all', one country, or none. */
+  clubsLoaded: z.union([z.literal('all'), z.object({ countryId: z.string() }), z.null()]),
   /** Clubs with no town yet (should be none once the world is backfilled). */
   unplaced: z.array(AtlasClubSchema),
   /** What the signed-in user has founded so far, and may still found. */
@@ -95,8 +114,46 @@ export const FoundTownSchema = z.object({
   y: z.number(),
 });
 
+/** Where placement would put a new club now (docs/WORLD-PYRAMID-SPEC.md,
+ * "Fill order"), and which new places the founder must name. A hint: the
+ * founding itself places again. */
+export const PlacementSchema = z.object({
+  kind: z.enum(['town', 'new-town', 'new-region', 'new-country']),
+  town: z.object({ id: z.string(), name: z.string(), terrain: z.enum(TOWN_TERRAINS), clubCount: z.number() }).nullable(),
+  region: z.object({ id: z.string(), name: z.string() }).nullable(),
+  country: z.object({ id: z.string(), name: z.string(), code: z.string(), colors: z.tuple([hex, hex]) }).nullable(),
+  /** New places this founding opens, which need names. */
+  needs: z.object({ town: z.boolean(), region: z.boolean(), country: z.boolean() }),
+  /** Map spot of the town (or of the new town). */
+  x: z.number(),
+  y: z.number(),
+  /** The invite used, if one was given. */
+  invite: z
+    .object({
+      valid: z.boolean(),
+      problem: z.string().nullable(),
+      townName: z.string().nullable(),
+      byClubName: z.string().nullable(),
+    })
+    .nullable(),
+});
+
+export const NewTownSchema = z.object({ name: z.string(), terrain: z.enum(TOWN_TERRAINS) });
+export const NewRegionSchema = z.object({ name: z.string() });
+export const NewCountrySchema = z.object({
+  name: z.string(),
+  code: z.string(),
+  colors: z.tuple([hex, hex]),
+  motto: z.string().max(80).optional(),
+});
+
 export const FoundClubSchema = z.object({
-  townId: z.string(),
+  /** Invite token from a /start?invite= link. */
+  invite: z.string().optional(),
+  /** Names for the places this founding opens (see PlacementSchema.needs). */
+  newTown: NewTownSchema.optional(),
+  newRegion: NewRegionSchema.optional(),
+  newCountry: NewCountrySchema.optional(),
   name: z.string(),
   code: z.string(),
   crest: CrestDesignSchema,
@@ -106,8 +163,21 @@ export const FoundClubSchema = z.object({
 export const FoundedClubSchema = z.object({
   clubId: z.string(),
   code: z.string(),
-  /** Local AI clubs that sprang up as the club's first rivals. */
-  rivals: z.array(z.object({ id: z.string(), name: z.string() })),
+  town: z.object({ id: z.string(), name: z.string() }),
+  region: z.object({ id: z.string(), name: z.string() }).nullable(),
+  country: z.object({ id: z.string(), name: z.string() }),
+  /** New places this founding opened. */
+  opened: z.array(z.enum(['town', 'region', 'country'])),
+  /** The pyramid pool the club joined, if its country's league is running. */
+  pool: z.object({ id: z.string(), name: z.string(), division: z.number() }).nullable(),
+});
+
+export const TownInviteSchema = z.object({
+  token: z.string(),
+  townId: z.string(),
+  townName: z.string(),
+  expiresAt: z.string(),
+  usesLeft: z.number(),
 });
 
 export const NameCheckSchema = z.object({ ok: z.boolean(), problem: z.string().nullable() });
@@ -120,4 +190,10 @@ export type Atlas = z.infer<typeof AtlasSchema>;
 export type FoundCountry = z.infer<typeof FoundCountrySchema>;
 export type FoundTown = z.infer<typeof FoundTownSchema>;
 export type FoundClub = z.infer<typeof FoundClubSchema>;
+export type AtlasRegion = z.infer<typeof AtlasRegionSchema>;
+export type Placement = z.infer<typeof PlacementSchema>;
+export type NewTown = z.infer<typeof NewTownSchema>;
+export type NewRegion = z.infer<typeof NewRegionSchema>;
+export type NewCountry = z.infer<typeof NewCountrySchema>;
+export type TownInvite = z.infer<typeof TownInviteSchema>;
 export type FoundedClub = z.infer<typeof FoundedClubSchema>;

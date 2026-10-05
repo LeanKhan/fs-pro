@@ -862,6 +862,12 @@ export async function endStage(seasonId: string): Promise<Season> {
       'not-supported'
     );
   }
+  if (stage.type === 'pyramid') {
+    throw new EditionError(
+      'A pyramid league ends with the year (services/competitions/pyramid.service.ts)',
+      'not-supported'
+    );
+  }
   const calendar = await world();
   const rules = rulesFor(stage, calendar.DefaultRules ?? null);
 
@@ -1390,7 +1396,8 @@ export async function tickEditions(day?: number): Promise<TickReport> {
       });
       continue;
     }
-    if (!stage || s.StageStartedDay == null) continue;
+    // Pyramid leagues run on the year (pyramid.service.ts), not on days.
+    if (!stage || stage.type === 'pyramid' || s.StageStartedDay == null) continue;
     if (today < s.StageStartedDay + stage.days) continue;
     await attempt(s.id, async () => {
       const after = await endStage(s.id);

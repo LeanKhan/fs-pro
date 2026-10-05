@@ -46,11 +46,16 @@ export const STATUS_LABELS: Record<string, string> = {
 };
 
 export interface StageLike {
-  type: 'league' | 'groups' | 'knockout';
+  type: 'league' | 'groups' | 'knockout' | 'pyramid';
   days?: number;
   groupSize?: number;
   legs?: number;
   advance?: { top: number; perGroup?: boolean; bestRunnersUp?: number };
+  /** Pyramid leagues (docs/WORLD-PYRAMID-SPEC.md). */
+  poolSize?: number;
+  rounds?: number;
+  promote?: number;
+  relegate?: number;
 }
 
 /** "4 groups of 4 over 20 days, top 2 into a single-leg knockout". */
@@ -74,11 +79,13 @@ export function formatSummary(def: {
   }
   if (e.maxElo != null) who.push(`under ${e.maxElo} Elo`);
   if (e.minElo != null) who.push(`${e.minElo}+ Elo`);
-  if (e.mode === 'invite') who.push('invitation only');
+  if (e.mode === 'invite' && def.Stages[0]?.type !== 'pyramid') who.push('invitation only');
   if (who.length) parts.push(who.join(', '));
   const stages = def.Stages.map((s) => {
     if (s.type === 'league') return `a ${s.days}-day league`;
     if (s.type === 'groups') return `groups of ${s.groupSize} over ${s.days} days`;
+    if (s.type === 'pyramid')
+      return `every club in the country, in pools of ${s.poolSize ?? 10} (${s.rounds === 1 ? 'once' : 'home and away'}), top ${s.promote ?? 2} up and bottom ${s.relegate ?? 2} down each year`;
     return `a ${s.legs === 2 ? 'two-leg' : 'single-leg'} knockout`;
   });
   parts.push(stages.join(', then '));
@@ -88,7 +95,7 @@ export function formatSummary(def: {
 
 export function stageName(stage: StageLike | undefined, index: number) {
   if (!stage) return `Stage ${index + 1}`;
-  return stage.type === 'league' ? 'League' : stage.type === 'groups' ? 'Groups' : 'Knockout';
+  return stage.type === 'league' ? 'League' : stage.type === 'groups' ? 'Groups' : stage.type === 'pyramid' ? 'Pools' : 'Knockout';
 }
 
 export function roundName(round: number, totalRounds: number) {

@@ -49,9 +49,12 @@ export const calendarContract = c.router(
       },
     },
 
+    /** News for a reader: with clubId, that club's town, region, country
+     * and the world's biggest stories; without, the world's. */
     getWorldFeed: {
       method: 'GET',
       path: '/world-feed',
+      query: z.object({ clubId: z.string().optional() }),
       responses: {
         200: successEnvelope(WorldFeedSchema),
         400: failEnvelope(),
@@ -102,8 +105,7 @@ export const calendarContract = c.router(
       path: '/clock',
       body: z.object({
         mode: z.enum(['live', 'paused']).optional(),
-        matchdaySlotMinutes: z.number().int().min(1).optional(),
-        offDaySlotMinutes: z.number().int().min(1).optional(),
+        dayLengthMinutes: z.number().int().min(24).max(60 * 24 * 14).optional(),
       }),
       responses: {
         200: successEnvelope(ClockStateSchema),

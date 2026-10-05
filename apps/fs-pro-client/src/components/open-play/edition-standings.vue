@@ -13,6 +13,7 @@
     <template v-else-if="table">
       <group-tables
         :table="table"
+        :pyramid="pyramid"
         :highlight-club-id="highlightClubId"
         :advance-top="advanceTop"
         :up-zone="compact ? 0 : upZone"
@@ -51,6 +52,10 @@ const stages = computed(() => def.value.Stages ?? []);
 const maxStage = computed(() => (props.status === 'finished' ? stages.value.length - 1 : props.currentStage));
 const stage = ref(props.currentStage);
 const isKnockout = computed(() => stages.value[stage.value]?.type === 'knockout');
+const pyramid = computed(() => {
+  const s = stages.value[stage.value] as (StageLike & { promote?: number; relegate?: number }) | undefined;
+  return s?.type === 'pyramid' ? { promote: s.promote ?? 2, relegate: s.relegate ?? 2 } : null;
+});
 const isLast = computed(() => stage.value === stages.value.length - 1);
 const advanceTop = computed(() => {
   const s = stages.value[stage.value];

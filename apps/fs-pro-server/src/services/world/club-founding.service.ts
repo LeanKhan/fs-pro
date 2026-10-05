@@ -1,32 +1,34 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import {
   FOUNDING_LIMITS,
-  TOWN_MAX_CLUBS,
   codeProblem,
   isCrestDesign,
   nameProblem,
-  randomCrest,
-  suggestCode,
   tidyName,
   type CrestDesign,
   type FoundClub,
   type FoundedClub,
+  type TownTerrain,
 } from '@repo/api-contract';
 import { DrizzleDatabase } from '../../db/drizzle';
-import { clubMessages, clubs, managers, players, users } from '../../db/drizzle/schema';
+import { clubMessages, clubs, entries, managers, places, players, pools, users } from '../../db/drizzle/schema';
 import { generatePlayer } from '../../utils/players';
 import { pickPlaceholderName } from '../../utils/placeholder-names';
 import { getNextCounterId } from '../../utils/counter';
 import { calculateAndUpdateClubRating } from '../../controllers/clubs/club.service';
-import { FoundingError, clubNameTaken, getTown } from './atlas.service';
-import { ensureNationalLeague } from '../competitions/world-competitions.service';
+import { FoundingError, clubNameTaken } from './atlas.service';
+import { lockPlacement, nextSpot, uniquePlaceCode, useInvite, type Spot, type Tx } from './placement.service';
+import { placeInPyramid } from '../competitions/world-competitions.service';
+import { postNews } from './news-scope.service';
 
 /**
- * Founding a club (docs: PERSISTENT-STRATEGY-GAME-TRACKER.md, "World atlas"):
- * a new club starts at Level 0 with no facilities, a raw squad of amateurs, a
- * small budget, a handful of fans and its owner as manager. If the world has
- * too few clubs of a similar standard, local amateur AI clubs spring up in
- * the same town, so a new club always has fair first opponents.
+ * Founding a club (docs/WORLD-PYRAMID-SPEC.md, "Geography and placement"):
+ * placement decides where it goes (the next town with room, or a new town,
+ * region or country, which the founder names), or an invite puts it in a
+ * friend's town. A new club starts at Level 0 with no facilities, a raw
+ * squad of amateurs, a small budget, a handful of fans and its owner as
+ * manager, and joins its country's pyramid league straight away. No AI
+ * clubs are created.
  */
 
 const db = () => DrizzleDatabase.getInstance().database;
@@ -34,31 +36,15 @@ const db = () => DrizzleDatabase.getInstance().database;
 export const STARTING_BUDGET = 1_500_000;
 const STARTING_FANS = 150;
 const STARTING_REPUTATION = 5;
-const AI_RIVAL_BUDGET = 800_000;
 
 /** 16 players: 2 GK, 5 DEF, 5 MID, 4 ATT. */
 const SQUAD_SHAPE = ['GK', 'GK', 'DEF', 'DEF', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'MID', 'MID', 'ATT', 'ATT', 'ATT', 'ATT'];
 
-/** Attribute ranges by squad standard; "starter" squads rate about 57,
- * while the original world's clubs rate 65-78. */
-const STANDARDS = {
-  weak: { attr: [30, 50] as [number, number], pos: [48, 60] as [number, number] },
-  starter: { attr: [35, 55] as [number, number], pos: [52, 64] as [number, number] },
-  strong: { attr: [38, 58] as [number, number], pos: [55, 66] as [number, number] },
-};
+/** Attribute ranges of a starting squad (rates about 57; the original
+ * world's clubs rate 65-78). */
+const STARTER = { attr: [35, 55] as [number, number], pos: [52, 64] as [number, number] };
 
-/** How many clubs within this Rating of a new club count as "peers". */
-const PEER_BAND = 6;
-const MIN_PEERS = 3;
-
-const RIVAL_PATTERNS = ['{t} Athletic', '{t} Rovers', 'AFC {t}', '{t} Wanderers', 'Real {t}', '{t} Town', 'Sporting {t}', '{t} Albion', '{t} Rangers', 'Inter {t}'];
-
-async function createSquad(
-  club: { id: string; code: string },
-  nationalityId: string,
-  standard: keyof typeof STANDARDS
-) {
-  const { attr, pos } = STANDARDS[standard];
+async function createSquad(club: { id: string; code: string }, nationalityId: string) {
   const rows = SQUAD_SHAPE.map((position) => {
     const { firstName, lastName } = pickPlaceholderName();
     const p = generatePlayer({
@@ -68,8 +54,8 @@ async function createSquad(
       nationality: '',
       nationalityId,
       ageRange: [17, 30],
-      attributeRange: attr,
-      positionAttributeRange: pos,
+      attributeRange: STARTER.attr,
+      positionAttributeRange: STARTER.pos,
     });
     return {
       ...p,
@@ -84,65 +70,131 @@ async function createSquad(
   await calculateAndUpdateClubRating(club.id);
 }
 
-async function clubCodeTaken(code: string) {
-  const rows = await db().select({ id: clubs.id }).from(clubs).where(sql`upper(${clubs.ClubCode}) = upper(${code})`).limit(1);
-  return rows.length > 0;
+/** Names the body must carry for the places `spot` opens. */
+function missingNames(spot: Spot, body: FoundClub): string | null {
+  const needTown = spot.kind !== 'town';
+  const needRegion = spot.kind === 'new-region' || spot.kind === 'new-country';
+  const needCountry = spot.kind === 'new-country';
+  if (needCountry && !body.newCountry) return 'Your club opens a new country: name it';
+  if (needRegion && !body.newRegion) return 'Your club opens a new region: name it';
+  if (needTown && !body.newTown) return 'Your club opens a new town: name it';
+  return null;
 }
 
-async function uniqueClubIdentity(townName: string, used: Set<string>) {
-  for (const pattern of RIVAL_PATTERNS) {
-    const name = pattern.replace('{t}', townName);
-    if (used.has(name.toLowerCase()) || nameProblem(name, 'Name', 3, 40)) continue;
-    let code = suggestCode(name).slice(0, 3) || 'AFC';
-    for (let n = 2; await clubCodeTaken(code); n++) code = `${code.slice(0, 2)}${n}`.slice(0, 4);
-    if (await clubNameTaken(name)) continue;
-    used.add(name.toLowerCase());
-    return { name, code };
+/** Validate the place names in the body (only those this spot needs). */
+async function placeNameProblem(tx: Tx, spot: Spot, body: FoundClub): Promise<string | null> {
+  if (spot.kind === 'new-country') {
+    const c = body.newCountry!;
+    const problem = nameProblem(tidyName(c.name), 'Country name') ?? codeProblem(c.code.trim().toUpperCase(), 'Country code');
+    if (problem) return problem;
+    const [taken] = await tx
+      .select({ id: places.id })
+      .from(places)
+      .where(sql`(${places.Type} = 'country' AND lower(${places.Name}) = lower(${tidyName(c.name)})) OR ${places.Code} = ${c.code.trim().toUpperCase()}`)
+      .limit(1);
+    if (taken) return 'That country name or code is taken';
+  }
+  const countryId = spot.kind === 'new-country' ? null : spot.country.id;
+  const sameNameIn = async (name: string) => {
+    if (!countryId) return false;
+    const [row] = await tx
+      .select({ id: places.id })
+      .from(places)
+      .where(sql`${places.ParentId} = ${countryId} AND lower(${places.Name}) = lower(${name})`)
+      .limit(1);
+    return !!row;
+  };
+  if (spot.kind === 'new-region' || spot.kind === 'new-country') {
+    const name = tidyName(body.newRegion!.name);
+    const problem = nameProblem(name, 'Region name');
+    if (problem) return problem;
+    if (await sameNameIn(name)) return 'There is already a place with that name in this country';
+  }
+  if (spot.kind !== 'town') {
+    const name = tidyName(body.newTown!.name);
+    const problem = nameProblem(name, 'Town name');
+    if (problem) return problem;
+    if (spot.kind !== 'new-country' && (await sameNameIn(name))) return 'There is already a place with that name in this country';
+    if (spot.kind === 'new-country' || spot.kind === 'new-region') {
+      if (tidyName(body.newRegion!.name).toLowerCase() === name.toLowerCase()) return 'The town and its region need different names';
+    }
   }
   return null;
 }
 
-/** Local AI clubs for a new club to play: up to two in its town when the
- * world has fewer than MIN_PEERS clubs near its standard. */
-async function spawnRivals(
-  town: { id: string; Name: string; Terrain: string | null },
-  country: { id: string },
-  rating: number,
-  room: number
-) {
-  const [{ peers }] = await db()
-    .select({ peers: sql<number>`count(*)::int` })
-    .from(clubs)
-    .where(sql`abs(${clubs.Rating} - ${rating}) <= ${PEER_BAND}`);
-  // The new club itself is one of the peers.
-  const wanted = Math.min(2, Math.max(0, MIN_PEERS + 1 - peers), room);
-  const out: { id: string; name: string }[] = [];
-  const used = new Set<string>();
-  for (let i = 0; i < wanted; i++) {
-    const identity = await uniqueClubIdentity(town.Name, used);
-    if (!identity) break;
-    const [row] = await db()
-      .insert(clubs)
+/** Create the places `spot` opens and return the town, region and country. */
+async function openPlaces(tx: Tx, spot: Spot, body: FoundClub, userId: string) {
+  const now = new Date();
+  let country: typeof places.$inferSelect;
+  let region: typeof places.$inferSelect | null;
+  if (spot.kind === 'new-country') {
+    const c = body.newCountry!;
+    const name = tidyName(c.name);
+    [country] = (await tx
+      .insert(places)
       .values({
-        Name: identity.name,
-        ClubCode: identity.code,
-        TownId: town.id,
-        AddressCountryId: country.id,
-        Address: { City: town.Name, Section: '' },
-        Budget: AI_RIVAL_BUDGET,
-        CampusLayout: town.Terrain ?? 'city',
-        Crest: randomCrest(identity.name, identity.code) as unknown as Record<string, unknown>,
-        Stadium: { Name: `${town.Name} Recreation Ground`, Capacity: 1000 },
-        Fans: 90 + i * 40,
-        Reputation: 3,
-        XP: i * 60,
-        updatedAt: new Date(),
+        Fullname: `Republic of ${name}`,
+        Name: name,
+        Code: c.code.trim().toUpperCase(),
+        Region: 'world',
+        Type: 'country',
+        FoundedBy: userId,
+        MapX: spot.country.x,
+        MapY: spot.country.y,
+        Colors: c.colors,
+        Motto: c.motto?.trim() || null,
+        updatedAt: now,
       })
-      .returning({ id: clubs.id });
-    await createSquad({ id: row!.id, code: identity.code }, country.id, i === 0 ? 'weak' : 'strong');
-    out.push({ id: row!.id, name: identity.name });
+      .returning()) as [typeof places.$inferSelect];
+  } else {
+    country = spot.country;
   }
-  return out;
+
+  if (spot.kind === 'new-country' || spot.kind === 'new-region') {
+    const name = tidyName(body.newRegion!.name);
+    [region] = (await tx
+      .insert(places)
+      .values({
+        Fullname: `${name}, ${country.Name}`,
+        Name: name,
+        Code: await uniquePlaceCode(`${country.Code}-R-${name.toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 10)}`, tx),
+        Region: country.Region,
+        Type: 'region',
+        ParentId: country.id,
+        FoundedBy: userId,
+        MapX: spot.region.x,
+        MapY: spot.region.y,
+        updatedAt: now,
+      })
+      .returning()) as [typeof places.$inferSelect];
+  } else {
+    region = spot.region;
+  }
+
+  if (spot.kind === 'town') return { town: spot.town, region, country, opened: [] as ('town' | 'region' | 'country')[] };
+
+  const t = body.newTown!;
+  const name = tidyName(t.name);
+  const [town] = await tx
+    .insert(places)
+    .values({
+      Fullname: `${name}, ${country.Name}`,
+      Name: name,
+      Code: await uniquePlaceCode(`${country.Code}-${name.toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 10)}`, tx),
+      Region: country.Region,
+      Type: 'town',
+      ParentId: country.id,
+      RegionId: region!.id,
+      FoundedBy: userId,
+      MapX: spot.town.x,
+      MapY: spot.town.y,
+      Terrain: t.terrain as TownTerrain,
+      updatedAt: now,
+    })
+    .returning();
+  const opened: ('town' | 'region' | 'country')[] =
+    spot.kind === 'new-country' ? ['country', 'region', 'town'] : spot.kind === 'new-region' ? ['region', 'town'] : ['town'];
+  return { town: town!, region, country, opened };
 }
 
 export async function foundClub(userId: string | undefined, body: FoundClub): Promise<FoundedClub> {
@@ -153,18 +205,9 @@ export async function foundClub(userId: string | undefined, body: FoundClub): Pr
   const [{ owned }] = await db()
     .select({ owned: sql<number>`count(*)::int` })
     .from(clubs)
-    .where(eq(clubs.UserId, user.id));
+    .where(sql`${clubs.UserId} = ${user.id} AND ${clubs.ReleasedAt} IS NULL`);
   if (!user.isAdmin && owned >= FOUNDING_LIMITS.clubs) {
     throw new FoundingError(`You can run ${FOUNDING_LIMITS.clubs} clubs at most`, 403);
-  }
-
-  const { town, country } = await getTown(body.townId);
-  const [{ inTown }] = await db()
-    .select({ inTown: sql<number>`count(*)::int` })
-    .from(clubs)
-    .where(eq(clubs.TownId, town.id));
-  if (inTown >= TOWN_MAX_CLUBS) {
-    throw new FoundingError(`${town.Name} already has ${TOWN_MAX_CLUBS} clubs - found a new town nearby`, 409);
   }
 
   const name = tidyName(body.name);
@@ -177,91 +220,128 @@ export async function foundClub(userId: string | undefined, body: FoundClub): Pr
 
   const { id: managerKey } = await getNextCounterId('manager');
   const [first, ...rest] = tidyName(user.FullName || user.Username).split(' ');
-  const [manager] = await db()
-    .insert(managers)
-    .values({
-      Key: managerKey,
-      FirstName: first || user.Username,
-      LastName: rest.join(' ') || 'Manager',
-      Age: user.Age ?? 35,
-      NationalityId: country.id,
-      isEmployed: true,
-      updatedAt: new Date(),
-    })
-    .returning({ id: managers.id });
 
+  let placed: Awaited<ReturnType<typeof openPlaces>>;
   let clubId: string;
   try {
-    const [row] = await db()
-      .insert(clubs)
-      .values({
-        Name: name,
-        ClubCode: code,
-        UserId: user.id,
-        ManagerId: manager!.id,
-        TownId: town.id,
-        AddressCountryId: country.id,
-        Address: { City: town.Name, Section: '' },
-        Budget: STARTING_BUDGET,
-        CampusLayout: town.Terrain ?? 'city',
-        Crest: crest as unknown as Record<string, unknown>,
-        Stadium: { Name: body.stadiumName?.trim() || `${town.Name} Park`, Capacity: 1000 },
-        Fans: STARTING_FANS,
-        Reputation: STARTING_REPUTATION,
-        BoardConfidence: 60,
-        updatedAt: new Date(),
-      })
-      .returning({ id: clubs.id });
-    clubId = row!.id;
+    ({ placed, clubId } = await db().transaction(async (tx) => {
+      await lockPlacement(tx);
+      const { spot, invite } = await nextSpot(tx, { invite: body.invite });
+      const missing = missingNames(spot, body);
+      if (missing) throw new FoundingError(missing, 409);
+      const badName = await placeNameProblem(tx, spot, body);
+      if (badName) throw new FoundingError(badName, 409);
+
+      const where = await openPlaces(tx, spot, body, user.id);
+      // An honoured invite counts one use (a fallback placement doesn't).
+      if (invite?.valid && invite.invite && !invite.problem) await useInvite(tx, invite.invite.id);
+
+      const [manager] = await tx
+        .insert(managers)
+        .values({
+          Key: managerKey,
+          FirstName: first || user.Username,
+          LastName: rest.join(' ') || 'Manager',
+          Age: user.Age ?? 35,
+          NationalityId: where.country.id,
+          isEmployed: true,
+          updatedAt: new Date(),
+        })
+        .returning({ id: managers.id });
+      const [row] = await tx
+        .insert(clubs)
+        .values({
+          Name: name,
+          ClubCode: code,
+          UserId: user.id,
+          ManagerId: manager!.id,
+          TownId: where.town.id,
+          AddressCountryId: where.country.id,
+          Address: { City: where.town.Name, Section: '' },
+          Budget: STARTING_BUDGET,
+          CampusLayout: where.town.Terrain ?? 'city',
+          Crest: crest as unknown as Record<string, unknown>,
+          Stadium: { Name: body.stadiumName?.trim() || `${where.town.Name} Park`, Capacity: 1000 },
+          Fans: STARTING_FANS,
+          Reputation: STARTING_REPUTATION,
+          BoardConfidence: 60,
+          LastActiveAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning({ id: clubs.id });
+      await tx.update(managers).set({ ClubId: row!.id, updatedAt: new Date() }).where(eq(managers.id, manager!.id));
+      return { placed: where, clubId: row!.id };
+    }));
   } catch (err) {
-    await db().delete(managers).where(eq(managers.id, manager!.id));
+    if (err instanceof FoundingError) throw err;
     // Lost a race with someone founding the same name.
-    if ((err as { code?: string; cause?: { code?: string } })?.cause?.code === '23505') {
+    if ((err as { code?: string; cause?: { code?: string } })?.cause?.code === '23505' || (err as { code?: string })?.code === '23505') {
       throw new FoundingError('That name or code is taken', 409);
     }
     throw err;
   }
-  await db().update(managers).set({ ClubId: clubId, updatedAt: new Date() }).where(eq(managers.id, manager!.id));
-  await createSquad({ id: clubId, code }, country.id, 'starter');
 
-  const [{ rating }] = await db().select({ rating: clubs.Rating }).from(clubs).where(eq(clubs.id, clubId));
-  const rivals = await spawnRivals(town, country, rating, TOWN_MAX_CLUBS - inTown - 1);
+  await createSquad({ id: clubId, code }, placed.country.id);
 
-  // A country with enough clubs gets its national league (once).
-  const [{ inCountry }] = await db()
-    .select({ inCountry: sql<number>`count(*)::int` })
-    .from(clubs)
-    .where(eq(clubs.AddressCountryId, country.id));
-  if (inCountry >= 3) {
-    await ensureNationalLeague(country.id).catch((err) => console.warn('[founding] national league', err));
+  let pool: FoundedClub['pool'] = null;
+  try {
+    const joined = await placeInPyramid(clubId, placed.country.id);
+    if (joined && 'poolId' in joined) pool = { id: joined.poolId, name: joined.name, division: joined.division };
+    else if (joined) pool = await poolOf(joined.seasonId, clubId);
+  } catch (err) {
+    console.warn('[founding] pyramid placement failed', err);
   }
 
   await db()
     .insert(clubMessages)
-    .values([
-      {
-        ClubId: clubId,
-        Kind: 'board',
-        Tone: 'good',
-        Title: `Welcome to ${town.Name}`,
-        Body:
-          `${name} is official. You have a dirt pitch, ${SQUAD_SHAPE.length} hopeful amateurs and ` +
-          `${STARTING_BUDGET.toLocaleString('en-US')} in the bank. Play matches to earn money and XP, then build up the grounds.`,
-        updatedAt: new Date(),
-      },
-      ...(rivals.length
-        ? [
-            {
-              ClubId: clubId,
-              Kind: 'press',
-              Tone: 'neutral',
-              Title: 'Local rivals',
-              Body: `${rivals.map((r) => r.name).join(' and ')} ${rivals.length > 1 ? 'have' : 'has'} also formed in ${town.Name}. The town wants a derby.`,
-              updatedAt: new Date(),
-            },
-          ]
-        : []),
-    ]);
+    .values({
+      ClubId: clubId,
+      Kind: 'board',
+      Tone: 'good',
+      Title: `Welcome to ${placed.town.Name}`,
+      Body:
+        `${name} is official. You have a dirt pitch, ${SQUAD_SHAPE.length} hopeful amateurs and ` +
+        `${STARTING_BUDGET.toLocaleString('en-US')} in the bank.` +
+        (pool ? ` You start in ${pool.name}: your fixtures are already on the calendar.` : '') +
+        ' Win matches to earn money and XP, then build up the grounds.',
+      updatedAt: new Date(),
+    });
 
-  return { clubId, code, rivals };
+  const opener = placed.opened[0];
+  await postNews({
+    kind: 'founded',
+    importance: opener === 'country' ? 40 : 20,
+    title:
+      opener === 'country'
+        ? `A new nation: ${placed.country.Name}`
+        : opener === 'region'
+          ? `${placed.region?.Name} is on the map`
+          : opener === 'town'
+            ? `${placed.town.Name} founded`
+            : `${name} join ${placed.town.Name}`,
+    body:
+      opener === 'country'
+        ? `${name} found ${placed.town.Name}, the first town of ${placed.country.Name}.`
+        : `${name} kick off in ${placed.town.Name}${placed.region ? `, ${placed.region.Name}` : ''}.`,
+    clubIds: [clubId],
+  }).catch((err) => console.warn('[founding] news', err));
+
+  return {
+    clubId,
+    code,
+    town: { id: placed.town.id, name: placed.town.Name },
+    region: placed.region ? { id: placed.region.id, name: placed.region.Name } : null,
+    country: { id: placed.country.id, name: placed.country.Name },
+    opened: placed.opened,
+    pool,
+  };
+}
+
+async function poolOf(seasonId: string, clubId: string): Promise<FoundedClub['pool']> {
+  const [row] = await db()
+    .select({ id: pools.id, name: pools.Name, division: pools.Division })
+    .from(entries)
+    .innerJoin(pools, sql`${pools.id}::text = ${entries.Group}`)
+    .where(and(eq(entries.SeasonId, seasonId), eq(entries.ClubId, clubId)));
+  return row ?? null;
 }

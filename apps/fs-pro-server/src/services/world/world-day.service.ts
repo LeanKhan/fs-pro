@@ -15,26 +15,30 @@ import {
 import { tickEditions, type TickReport } from '../competitions/edition.service';
 import { openTransferWindow } from '../transfers/transfer-window.service';
 import { endYear, yearIsOver, type YearEndSummary } from './year.service';
+import { sweepCaretakers } from './caretaker.service';
 
 /**
- * One game day of the open-play world (docs/OPEN-PLAY-COMPETITIONS-SPEC.md,
- * "Calendar clock"). The clock calls this once per tick; admin "advance now"
- * calls it too. Nothing here skips days: every day is visited, in order.
+ * The world's clock work (docs/WORLD-PYRAMID-SPEC.md, "Calendar"). A game
+ * day has 24 hours and the clock ticks once per hour (runWorldHour):
  *
- *   1. Year end, if the year is over (or pause, when AutoRollover is off).
- *   2. Play anything left over from earlier days.
- *   3. Editions: open registration, start/cancel, end stages, knockout rounds.
- *   4. Expire unanswered challenges (forfeits past the decline limit).
- *   5. AI clubs register, answer and send challenges; human policies.
- *   6. Open a transfer window that starts today.
- *   7. Play today's matches.
- *   8. Move the calendar on one day (fitness recovery, transfer market).
+ *   hour 0      day start: year end (or pause when AutoRollover is off),
+ *               leftovers from earlier days, editions, challenge expiry,
+ *               competition AI, transfer windows, caretakers;
+ *   every hour  the matches kicking off this hour (and any earlier kickoff
+ *               of today still unplayed);
+ *   hour 23     day end: the calendar moves on one day (fitness recovery,
+ *               transfer market) and the hour goes back to 0.
+ *
+ * runWorldDay runs the rest of the current day in one go (admin "advance
+ * now", fast-forward, tests). Nothing skips days or hours.
  */
 
 const db = () => DrizzleDatabase.getInstance().database;
 
 export interface WorldDayReport {
   day: number;
+  /** First and last hour of the day this report covers. */
+  hours: [number, number];
   /** True when the year is over but AutoRollover is off: nothing ran, the
    * clock was paused, and the admin has to end the year. */
   pausedForYearEnd: boolean;
@@ -64,35 +68,33 @@ async function applyTransferWindows(calendar: typeof calendars.$inferSelect) {
   return true;
 }
 
-/** Run one game day. Errors in a step are logged and the day carries on,
- * except a failure to move the calendar, which is thrown. */
-export async function runWorldDay(): Promise<WorldDayReport> {
-  let calendar = await world();
-  const day = calendar.CurrentDay;
-  const report: WorldDayReport = {
-    day,
-    pausedForYearEnd: false,
-    yearEnded: null,
-    healed: 0,
-    editions: null,
-    challenges: null,
-    ai: null,
-    transferWindowOpened: false,
-    matches: { total: 0, simulated: 0, failed: 0 },
-    advancedTo: null,
-  };
-  const step = async <T>(
-    name: string,
-    fn: () => Promise<T>
-  ): Promise<T | null> => {
-    try {
-      return await fn();
-    } catch (err) {
-      console.error(`[world-day] day ${day}: ${name} failed`, err);
-      return null;
-    }
-  };
+const newReport = (day: number, hour: number): WorldDayReport => ({
+  day,
+  hours: [hour, hour],
+  pausedForYearEnd: false,
+  yearEnded: null,
+  healed: 0,
+  editions: null,
+  challenges: null,
+  ai: null,
+  transferWindowOpened: false,
+  matches: { total: 0, simulated: 0, failed: 0 },
+  advancedTo: null,
+});
 
+async function step<T>(day: number, name: string, fn: () => Promise<T>): Promise<T | null> {
+  try {
+    return await fn();
+  } catch (err) {
+    console.error(`[world-day] day ${day}: ${name} failed`, err);
+    return null;
+  }
+}
+
+/** Hour 0: everything that happens once a day before the first kickoff. */
+async function dayStart(report: WorldDayReport) {
+  let calendar = await world();
+  const day = report.day;
   if (yearIsOver(calendar)) {
     if (!calendar.AutoRollover) {
       await db()
@@ -100,25 +102,38 @@ export async function runWorldDay(): Promise<WorldDayReport> {
         .set({ ClockMode: 'paused', updatedAt: new Date() })
         .where(eq(calendars.id, calendar.id));
       report.pausedForYearEnd = true;
-      return report;
+      return;
     }
-    report.yearEnded = await step('year end', endYear);
+    report.yearEnded = await step(day, 'year end', endYear);
     calendar = await world();
   }
 
-  report.healed =
-    (await step('heal past days', () => healPastUnplayedFixtures(day))) ?? 0;
-  report.editions = await step('editions', () => tickEditions(day));
-  report.challenges = await step('challenge expiry', () =>
-    expireChallenges(day)
-  );
-  report.ai = await step('competition AI', () => runCompetitionAi());
+  report.healed = (await step(day, 'heal past days', () => healPastUnplayedFixtures(day))) ?? 0;
+  report.editions = await step(day, 'editions', () => tickEditions(day));
+  report.challenges = await step(day, 'challenge expiry', () => expireChallenges(day));
+  report.ai = await step(day, 'competition AI', () => runCompetitionAi());
   report.transferWindowOpened =
-    (await step('transfer windows', () => applyTransferWindows(calendar))) ??
-    false;
+    (await step(day, 'transfer windows', () => applyTransferWindows(calendar))) ?? false;
+  await step(day, 'caretakers', () => sweepCaretakers(calendar));
+}
 
-  const run = await step('matches', () =>
-    MatchdayRunnerService.simulateDay(day)
+/**
+ * One hour of the world: day start at hour 0, the matches kicking off by
+ * this hour, and after hour 23 the day end. Errors in a step are logged and
+ * the hour carries on, except a failure to move the calendar, which is
+ * thrown.
+ */
+export async function runWorldHour(): Promise<WorldDayReport> {
+  const calendar = await world();
+  const hour = Math.min(23, Math.max(0, calendar.CurrentHour ?? 0));
+  const report = newReport(calendar.CurrentDay, hour);
+  if (hour === 0) {
+    await dayStart(report);
+    if (report.pausedForYearEnd) return report;
+  }
+
+  const run = await step(report.day, 'matches', () =>
+    MatchdayRunnerService.simulateDay(report.day, { upToHour: hour })
   );
   if (run) {
     report.matches = {
@@ -128,14 +143,36 @@ export async function runWorldDay(): Promise<WorldDayReport> {
     };
   }
 
-  const advanced = await advanceIdleDay();
-  report.advancedTo = advanced.CurrentDay;
-  await step('realtime', () => announceDay(report));
+  if (hour >= 23) {
+    const advanced = await advanceIdleDay();
+    await db().update(calendars).set({ CurrentHour: 0, updatedAt: new Date() }).where(eq(calendars.id, calendar.id));
+    report.advancedTo = advanced.CurrentDay;
+  } else {
+    await db().update(calendars).set({ CurrentHour: hour + 1, updatedAt: new Date() }).where(eq(calendars.id, calendar.id));
+  }
+  await step(report.day, 'realtime', () => announce(report));
   return report;
 }
 
-/** Tell connected clients what the day changed (they refetch). */
-async function announceDay(report: WorldDayReport) {
+/** The rest of the current game day, hour by hour, in one call. */
+export async function runWorldDay(): Promise<WorldDayReport> {
+  const total = await runWorldHour();
+  while (!total.pausedForYearEnd && total.advancedTo == null) {
+    const r = await runWorldHour();
+    total.hours = [total.hours[0], r.hours[1]];
+    total.matches = {
+      total: total.matches.total + r.matches.total,
+      simulated: total.matches.simulated + r.matches.simulated,
+      failed: total.matches.failed + r.matches.failed,
+    };
+    total.advancedTo = r.advancedTo;
+    total.pausedForYearEnd = r.pausedForYearEnd;
+  }
+  return total;
+}
+
+/** Tell connected clients what the hour changed (they refetch). */
+async function announce(report: WorldDayReport) {
   if (report.yearEnded)
     emitOpenPlay('world:year-ended', { year: report.yearEnded.year, label: report.yearEnded.label });
   const e = report.editions;
@@ -143,19 +180,24 @@ async function announceDay(report: WorldDayReport) {
     ? [...new Set([...e.opened, ...e.started, ...e.cancelled, ...e.stagesEnded, ...e.finished, ...e.roundsDrawn])]
     : [];
   if (changed.length) emitOpenPlay('edition:updated', { editionIds: changed, reason: 'day' });
-  const played = await db()
-    .selectDistinct({ seasonId: fixtures.SeasonId })
-    .from(fixtures)
-    .where(and(eq(fixtures.ScheduledDay, report.day), eq(fixtures.Played, true), isNotNull(fixtures.SeasonId)));
-  const editionIds = played.map((r) => r.seasonId).filter((id): id is string => !!id);
-  if (editionIds.length) emitOpenPlay('rankings:updated', { editionIds });
-  const moves = await db()
-    .select()
-    .from(levelHistory)
-    .where(and(gte(levelHistory.Day, report.day), ne(levelHistory.FromLevel, levelHistory.ToLevel)));
-  for (const m of moves)
-    emitOpenPlay('club:level-changed', { clubId: m.ClubId, from: m.FromLevel, to: m.ToLevel, source: m.Source });
-  emitOpenPlay('world:day', { day: report.day, nextDay: report.advancedTo, matches: report.matches.simulated });
+  if (report.matches.simulated > 0) {
+    const played = await db()
+      .selectDistinct({ seasonId: fixtures.SeasonId })
+      .from(fixtures)
+      .where(and(eq(fixtures.ScheduledDay, report.day), eq(fixtures.Played, true), isNotNull(fixtures.SeasonId)));
+    const editionIds = played.map((r) => r.seasonId).filter((id): id is string => !!id);
+    if (editionIds.length) emitOpenPlay('rankings:updated', { editionIds });
+  }
+  if (report.hours[0] === 0) {
+    const moves = await db()
+      .select()
+      .from(levelHistory)
+      .where(and(gte(levelHistory.Day, report.day - 1), ne(levelHistory.FromLevel, levelHistory.ToLevel)));
+    for (const m of moves)
+      emitOpenPlay('club:level-changed', { clubId: m.ClubId, from: m.FromLevel, to: m.ToLevel, source: m.Source });
+  }
+  if (report.advancedTo != null)
+    emitOpenPlay('world:day', { day: report.day, nextDay: report.advancedTo, matches: report.matches.simulated });
 }
 
 export interface SimulateToDayResult {

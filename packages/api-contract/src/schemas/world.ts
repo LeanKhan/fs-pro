@@ -33,11 +33,20 @@ export const WorldSettingsSchema = z.object({
     })
     .nullable(),
   maxConcurrentEntries: z.number(),
+  /** docs/WORLD-PYRAMID-SPEC.md */
+  weekTemplate: z.array(z.enum(['L', 'C'])),
+  kickoffHours: z.array(z.number()),
+  cupKickoffHour: z.number(),
+  townSize: z.number(),
+  regionTowns: z.number(),
+  countryRegions: z.number(),
+  caretakerAfterDays: z.number(),
+  releaseAfterSeasons: z.number(),
 });
 
 export const WorldSettingsPatchSchema = z
   .object({
-    yearLengthDays: z.number().int().min(30).max(3650),
+    yearLengthDays: z.number().int().min(7).max(3650),
     autoRollover: z.boolean(),
     transferWindows: z.array(TransferWindowRangeSchema),
     defaultRules: LeagueRulesSchema.partial().nullable(),
@@ -66,6 +75,18 @@ export const WorldSettingsPatchSchema = z
       })
       .nullable(),
     maxConcurrentEntries: z.number().int().min(1).max(50),
+    weekTemplate: z
+      .array(z.enum(['L', 'C']))
+      .min(1)
+      .max(14)
+      .refine((t) => t.includes('L') && t.includes('C'), 'A week needs a league day and a cup day'),
+    kickoffHours: z.array(z.number().int().min(0).max(23)).min(1).max(24),
+    cupKickoffHour: z.number().int().min(0).max(23),
+    townSize: z.number().int().min(2).max(50),
+    regionTowns: z.number().int().min(1).max(50),
+    countryRegions: z.number().int().min(1).max(20),
+    caretakerAfterDays: z.number().int().min(1).max(365),
+    releaseAfterSeasons: z.number().int().min(1).max(20),
   })
   .partial();
 
@@ -76,11 +97,15 @@ export const YearEndSummarySchema = z.object({
   toDay: z.number(),
   retired: z.number(),
   levelReviewMoves: z.number(),
+  pyramids: z.object({ finished: z.number(), drawn: z.number(), promoted: z.number(), relegated: z.number() }),
+  released: z.number(),
   errors: z.array(z.string()),
 });
 
 export const WorldDayReportSchema = z.object({
   day: z.number(),
+  /** First and last hour of the day covered (the clock ticks hourly). */
+  hours: z.tuple([z.number(), z.number()]).optional(),
   pausedForYearEnd: z.boolean(),
   yearEnded: YearEndSummarySchema.nullable(),
   healed: z.number(),

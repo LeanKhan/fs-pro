@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, lte, sql as drizzleSql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, lte, sql as drizzleSql } from 'drizzle-orm';
 import { DEFAULT_PLACEMENT, validatePlacement, type CampusPlacement } from '@repo/api-contract';
 import { DrizzleDatabase } from '../../db/drizzle';
 import { clubAssets, clubs, transferLedger } from '../../db/drizzle/schema';
@@ -268,6 +268,30 @@ export function startFacilitiesSweep(intervalMs = 15_000) {
 export async function getAssetLevel(clubId: string, type: AssetType): Promise<number> {
   await completeDueUpgrades();
   return levelIn(await levelsFor(clubId), type);
+}
+
+/** getAssetEffects for many clubs at once: one upgrade sweep and one query
+ * per 1000 clubs, for year-end passes over the whole world. */
+export async function getAssetEffectsForClubs(clubIds: string[]): Promise<Map<string, Record<string, number>>> {
+  await completeDueUpgrades();
+  const out = new Map<string, Record<string, number>>();
+  for (let i = 0; i < clubIds.length; i += 1000) {
+    const chunk = clubIds.slice(i, i + 1000);
+    const rows = await db().select().from(clubAssets).where(inArray(clubAssets.ClubId, chunk));
+    const byClub = new Map<string, Map<string, typeof clubAssets.$inferSelect>>();
+    for (const r of rows) {
+      const m = byClub.get(r.ClubId) ?? new Map();
+      m.set(r.AssetType, r);
+      byClub.set(r.ClubId, m);
+    }
+    for (const id of chunk) {
+      const levels = byClub.get(id) ?? new Map();
+      const effects: Record<string, number> = {};
+      for (const type of ASSET_TYPES) Object.assign(effects, ASSET_CONFIG[type].effects(levelIn(levels, type)));
+      out.set(id, effects);
+    }
+  }
+  return out;
 }
 
 export async function getAssetEffects(clubId: string): Promise<Record<string, number>> {

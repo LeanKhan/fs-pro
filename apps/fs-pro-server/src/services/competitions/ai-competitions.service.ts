@@ -312,7 +312,9 @@ async function responses(
     const me = byId.get(f.HomeTeamId!);
     const opponent = byId.get(f.AwayTeamId!);
     if (!me || !opponent) continue;
-    if (me.UserId) {
+    // Owners answer for their clubs (or their auto-accept policy does);
+    // the AI answers for AI clubs and for clubs with a caretaker.
+    if (me.UserId && !me.Caretaker) {
       const r = await applyChallengePolicy(f.id);
       if (r === 'accepted') report.policyAccepted++;
       if (r === 'declined') report.policyDeclined++;
@@ -354,7 +356,7 @@ async function proposals(
 
   for (const season of shuffle(running, rng)) {
     const stage = season.Definition?.Stages[season.CurrentStage];
-    if (!stage || stage.type === 'knockout' || season.StageStartedDay == null)
+    if (!stage || stage.type === 'knockout' || stage.type === 'pyramid' || season.StageStartedDay == null)
       continue;
     const lastDay = season.StageStartedDay + stage.days - 1;
     if (calendar.CurrentDay >= lastDay) continue; // nothing could be scheduled any more

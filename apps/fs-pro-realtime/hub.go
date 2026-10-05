@@ -16,10 +16,20 @@ import (
 //	               the chat there
 //	edition:<id>   anyone: one competition edition's tables and draws
 //	fixture:<id>   anyone: one match
+//	town:<id>      anyone: a town's news and its chat
+//	region:<id>    anyone: a region's news
+//	country:<id>   anyone: a country's news
+//
+// News is scoped (docs/WORLD-PYRAMID-SPEC.md, "News scopes"): the API posts
+// a story to the smallest place that holds its clubs and to the wider ones
+// it earns, so the world topic only carries the biggest stories. Member
+// lists are only kept for small rooms (campus, town); the world gets an
+// online count at most every onlineEvery.
 const (
 	topicWorld       = "world"
 	historyPerTopic  = 50
 	maxTopicsPerConn = 32
+	onlineEvery      = 10 * time.Second
 )
 
 // Member is how a connection shows up in a topic's presence list.
@@ -47,8 +57,13 @@ type Hub struct {
 	conns   map[*Conn]struct{}
 	topics  map[string]map[*Conn]struct{}
 	history map[string][]ChatMessage
-	nextID  int64
-	now     func() time.Time
+	// Connections per signed-in user, kept as connections come and go so
+	// the online count is O(1).
+	users        map[string]int
+	onlineDirty  bool
+	onlineSentAt int
+	nextID       int64
+	now          func() time.Time
 }
 
 func NewHub() *Hub {
@@ -56,6 +71,7 @@ func NewHub() *Hub {
 		conns:   map[*Conn]struct{}{},
 		topics:  map[string]map[*Conn]struct{}{},
 		history: map[string][]ChatMessage{},
+		users:   map[string]int{},
 		now:     time.Now,
 	}
 }
@@ -68,7 +84,8 @@ func CanJoin(c Claims, topic string) bool {
 		return true
 	case kind == "club":
 		return id != "" && (c.Admin || c.ownsClub(id))
-	case kind == "campus", kind == "edition", kind == "fixture":
+	case kind == "campus", kind == "edition", kind == "fixture",
+		kind == "town", kind == "region", kind == "country":
 		return id != "" && len(id) <= 64
 	}
 	return false
@@ -76,19 +93,30 @@ func CanJoin(c Claims, topic string) bool {
 
 // CanChat reports whether topic has a chat.
 func CanChat(topic string) bool {
-	return topic == topicWorld || strings.HasPrefix(topic, "campus:")
+	return topic == topicWorld || strings.HasPrefix(topic, "campus:") || strings.HasPrefix(topic, "town:")
+}
+
+// hasPresence reports whether topic keeps a member list: only small rooms,
+// so joining a busy topic never costs a message per member.
+func hasPresence(topic string) bool {
+	return strings.HasPrefix(topic, "campus:") || strings.HasPrefix(topic, "town:")
 }
 
 func (h *Hub) Add(c *Conn) {
 	h.mu.Lock()
 	h.conns[c] = struct{}{}
+	h.users[c.claims.UserID]++
+	h.onlineDirty = true
 	h.mu.Unlock()
-	h.broadcastOnline()
 }
 
 func (h *Hub) Remove(c *Conn) {
 	h.mu.Lock()
 	delete(h.conns, c)
+	if h.users[c.claims.UserID]--; h.users[c.claims.UserID] <= 0 {
+		delete(h.users, c.claims.UserID)
+	}
+	h.onlineDirty = true
 	var left []string
 	for topic, members := range h.topics {
 		if _, ok := members[c]; ok {
@@ -103,7 +131,6 @@ func (h *Hub) Remove(c *Conn) {
 	for _, t := range left {
 		h.broadcastPresence(t)
 	}
-	h.broadcastOnline()
 }
 
 // Subscribe adds c to topic and sends it the topic's chat history.
@@ -211,23 +238,46 @@ func (h *Hub) Members(topic string) []Member {
 func (h *Hub) Online() int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	users := map[string]struct{}{}
-	for c := range h.conns {
-		users[c.claims.UserID] = struct{}{}
-	}
-	return len(users)
+	return len(h.users)
 }
 
-// The world topic only gets a count; smaller topics get the member list.
+// Small rooms get the member list on every change; big topics get none.
 func (h *Hub) broadcastPresence(topic string) {
-	if topic == topicWorld {
+	if !hasPresence(topic) {
 		return
 	}
 	h.send(topic, map[string]any{"type": "presence", "topic": topic, "members": h.Members(topic)})
 }
 
-func (h *Hub) broadcastOnline() {
-	h.send(topicWorld, map[string]any{"type": "online", "count": h.Online()})
+// flushOnline sends the online count to the world if it changed since the
+// last send. RunOnline calls it every onlineEvery, so connections coming
+// and going cost nothing per connection.
+func (h *Hub) flushOnline() {
+	h.mu.Lock()
+	n := len(h.users)
+	changed := h.onlineDirty && n != h.onlineSentAt
+	h.onlineDirty = false
+	if changed {
+		h.onlineSentAt = n
+	}
+	h.mu.Unlock()
+	if changed {
+		h.send(topicWorld, map[string]any{"type": "online", "count": n})
+	}
+}
+
+// RunOnline sends the online count every onlineEvery until stop closes.
+func (h *Hub) RunOnline(stop <-chan struct{}) {
+	t := time.NewTicker(onlineEvery)
+	defer t.Stop()
+	for {
+		select {
+		case <-stop:
+			return
+		case <-t.C:
+			h.flushOnline()
+		}
+	}
 }
 
 // Stats is for /stats.

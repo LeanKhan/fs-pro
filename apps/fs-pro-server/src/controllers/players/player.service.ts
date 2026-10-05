@@ -168,16 +168,18 @@ async function attachPlayersAndFixtures(
     ...new Set(rows.map((r) => r.fixtureId).filter((id): id is string => !!id)),
   ];
 
+  // In chunks: a whole world's year of stats (160k players at 10k clubs)
+  // would pass Postgres's 65,534 bound-parameter limit in one IN list.
+  const chunked = async <T,>(ids: string[], load: (chunk: string[]) => Promise<T[]>) => {
+    const out: T[] = [];
+    for (let i = 0; i < ids.length; i += 10_000) out.push(...(await load(ids.slice(i, i + 10_000))));
+    return out;
+  };
   const [playerRows, fixtureRows] = await Promise.all([
-    playerIds.length
-      ? db.query.players.findMany({
-          where: inArray(players.id, playerIds),
-          with: { nationality: true },
-        })
-      : Promise.resolve([]),
-    fixtureIds.length
-      ? db.query.fixtures.findMany({ where: inArray(fixtures.id, fixtureIds) })
-      : Promise.resolve([]),
+    chunked(playerIds, (chunk) =>
+      db.query.players.findMany({ where: inArray(players.id, chunk), with: { nationality: true } })
+    ),
+    chunked(fixtureIds, (chunk) => db.query.fixtures.findMany({ where: inArray(fixtures.id, chunk) })),
   ]);
 
   const playerMap = new Map(playerRows.map((p) => [p.id, remapRowId(p)]));

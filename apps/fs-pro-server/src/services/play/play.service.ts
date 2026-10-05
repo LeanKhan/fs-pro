@@ -1,7 +1,7 @@
-import { and, desc, eq, gt, inArray, isNull, like, ne, or } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, like, lt, ne, or, sql } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
 import { clubMessages, clubs, fixtures, users } from '../../db/drizzle/schema';
-import { publishClubEvent, publishWorldEvent } from '../../realtime/world-events';
+import { publishClubEvent } from '../../realtime/world-events';
 import { createFixture, getFixtureById } from '../../controllers/fixtures/fixture.service';
 import { play } from '../../controllers/game/game.controller';
 import { ensureChallenge, recordMatchForChallenge, type ChallengeState } from './challenge.service';
@@ -180,20 +180,11 @@ export async function getPlayState(clubId: string): Promise<PlayState> {
   return { club: summarise(club), standing, cooldownSeconds: cooldown, challenge, recent };
 }
 
-/** Human clubs that defended a matchmade game within the shield window. */
-async function shieldedClubIds() {
-  const since = new Date(Date.now() - DEFENCE_SHIELD_MINUTES * 60_000);
-  const rows = await db()
-    .select({ id: fixtures.AwayTeamId })
-    .from(fixtures)
-    .where(and(like(fixtures.Title, `%${MATCH_TITLE_MARK}`), eq(fixtures.Played, true), gt(fixtures.updatedAt, since)));
-  return new Set(rows.map((r) => r.id).filter((id): id is string => !!id));
-}
-
 type Candidate = typeof clubs.$inferSelect & { manager: string | null };
 
 /** Clubs closest in power to `club`, best first, as candidate opponents: AI
- * clubs and other people's clubs (never the caller's own, never shielded). */
+ * clubs and other people's clubs (never the caller's own, never shielded or
+ * released). One indexed query (Clubs.Rating), whatever the world's size. */
 async function opponentCandidates(club: typeof clubs.$inferSelect): Promise<Candidate[]> {
   const rows = await db()
     .select({ club: clubs, manager: users.FullName })
@@ -202,15 +193,14 @@ async function opponentCandidates(club: typeof clubs.$inferSelect): Promise<Cand
     .where(
       and(
         ne(clubs.id, club.id),
-        club.UserId ? or(isNull(clubs.UserId), ne(clubs.UserId, club.UserId)) : undefined
+        isNull(clubs.ReleasedAt),
+        club.UserId ? or(isNull(clubs.UserId), ne(clubs.UserId, club.UserId)) : undefined,
+        or(isNull(clubs.UserId), isNull(clubs.ShieldUntil), lt(clubs.ShieldUntil, new Date()))
       )
-    );
-  const shielded = await shieldedClubIds();
-  return rows
-    .filter((r) => !(r.club.UserId && shielded.has(r.club.id)))
-    .map((r) => ({ ...r.club, manager: r.club.UserId ? (r.manager ?? 'A manager') : null }))
-    .sort((a, b) => Math.abs(a.Rating - club.Rating) - Math.abs(b.Rating - club.Rating))
-    .slice(0, OPPONENT_POOL);
+    )
+    .orderBy(sql`abs(${clubs.Rating} - ${club.Rating})`, clubs.id)
+    .limit(OPPONENT_POOL);
+  return rows.map((r) => ({ ...r.club, manager: r.club.UserId ? (r.manager ?? 'A manager') : null }));
 }
 
 export interface OpponentOption {
@@ -385,16 +375,9 @@ export async function playMatch(clubId: string, opponentId?: string): Promise<Ma
 
   extractedHighlights.sort((a, b) => a.minute - b.minute);
 
+  // The result reaches others as local news (news-scope.service.ts, from
+  // updateFixture), not as a world broadcast.
   if (opponent.UserId) await tellDefender(club, opponent, fixtureId, home, away);
-  if (opponent.UserId || club.UserId) {
-    publishWorldEvent('world:result', {
-      fixtureId,
-      homeClubId: club.id,
-      awayClubId: opponent.id,
-      score: `${home}-${away}`,
-      kind: opponent.UserId ? 'pvp' : 'match',
-    });
-  }
 
   // updateFixture already moved the standing; report the difference.
   const state = await getPlayState(clubId);
@@ -444,6 +427,10 @@ async function tellDefender(
       ? `${attacker.Name} took a ${score} draw. Your players kept their legs: defending never tires the squad.`
       : `Your saved team sheet couldn't stop them. Tweak the lineup or tactics to defend better next time. You're shielded from matchmaking for ${Math.round(DEFENCE_SHIELD_MINUTES)} minutes.`;
   try {
+    await db()
+      .update(clubs)
+      .set({ ShieldUntil: new Date(Date.now() + DEFENCE_SHIELD_MINUTES * 60_000) })
+      .where(eq(clubs.id, defender.id));
     await db()
       .insert(clubMessages)
       .values({ ClubId: defender.id, Kind: 'squad', Tone: held ? 'good' : drew ? 'neutral' : 'bad', Title: title, Body: body, updatedAt: new Date() });

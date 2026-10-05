@@ -1,17 +1,21 @@
 import { and, eq, isNull, lte, or } from 'drizzle-orm';
+import { dayKind } from '@repo/api-contract';
 import { DrizzleDatabase } from '../../db/drizzle';
 import { calendars } from '../../db/drizzle/schema';
 import { getCalendar, updateCalendar } from '../../controllers/calendar/calendar.service';
-import { runWorldDay, type WorldDayReport } from '../world/world-day.service';
+import { runWorldDay, runWorldHour, type WorldDayReport } from '../world/world-day.service';
+import { GAME_TIME_SCALE } from '../play/game-time';
 
 /**
- * The live game clock. While ClockMode is 'live' the server itself moves the
- * world on one game day per tick (services/world/world-day.service.ts:
- * year end, editions, challenge expiry, transfer windows, the day's matches
- * via QuickSim, then the calendar +1 day). The next tick waits
- * MatchdaySlotMinutes after a day with matches, OffDaySlotMinutes after an
- * empty one. Days are never skipped. When the year is over and AutoRollover
- * is off, the day loop pauses the clock for the admin.
+ * The live game clock (docs/WORLD-PYRAMID-SPEC.md, "Calendar"). While
+ * ClockMode is 'live' the server moves the world on one game hour per tick
+ * (services/world/world-day.service.ts runWorldHour: day start at hour 0,
+ * the hour's kickoffs, day end after hour 23). A game day lasts
+ * DayLengthMinutes real minutes (24 hours by default), so an hour lasts
+ * DayLengthMinutes / 24, sped up by GAME_TIME_SCALE. Ticks are aligned to
+ * whole hours of real time, so at the default speed game hour h kicks off
+ * on a real hour boundary. Hours are never skipped: after downtime the
+ * clock catches up one hour per poll.
  *
  * Multi-instance safe: a tick is claimed with a compare-and-set on
  * NextTickAt (which then acts as a short lease), so only one instance runs it.
@@ -23,8 +27,8 @@ const LEASE_MS = 10 * 60_000;
 /** Retry delay after a failed tick. */
 const RETRY_MS = 5 * 60_000;
 
-const MIN_SLOT_MINUTES = 1;
-const MAX_SLOT_MINUTES = 60 * 24 * 14;
+const MIN_DAY_MINUTES = 24;
+const MAX_DAY_MINUTES = 60 * 24 * 14;
 
 const db = () => DrizzleDatabase.getInstance().database;
 
@@ -34,13 +38,14 @@ export interface ClockState {
   currentDate: string;
   nextTickAt: string | null;
   lastTickAt: string | null;
-  matchdaySlotMinutes: number;
-  offDaySlotMinutes: number;
+  currentHour: number;
+  dayLengthMinutes: number;
+  dayKind: 'L' | 'C';
 }
 
 export interface TickResult {
   ran: boolean;
-  /** What the game day did (absent on older callers' types). */
+  /** What the game hour (or, for "advance now", the rest of the day) did. */
   report?: WorldDayReport;
   fromDay: number;
   toDay: number;
@@ -48,55 +53,60 @@ export interface TickResult {
   nextTickAt: string | null;
 }
 
+/** Real milliseconds in one game hour. */
+export function hourMs(dayLengthMinutes: number) {
+  return Math.max(1000, (dayLengthMinutes * 60_000) / 24 / GAME_TIME_SCALE);
+}
+
+/** The next whole game hour boundary after `from` (epoch-aligned). */
+function nextBoundary(from: number, dayLengthMinutes: number) {
+  const h = hourMs(dayLengthMinutes);
+  return new Date(Math.floor(from / h) * h + h);
+}
+
 export async function getClockState(): Promise<ClockState> {
   const cal = await getCalendar();
+  const [row] = await db().select().from(calendars).limit(1);
   return {
     mode: cal.ClockMode === 'live' ? 'live' : 'paused',
     currentDay: cal.CurrentDay,
     currentDate: new Date(cal.CurrentDate).toISOString(),
     nextTickAt: cal.NextTickAt ? new Date(cal.NextTickAt).toISOString() : null,
     lastTickAt: cal.LastTickAt ? new Date(cal.LastTickAt).toISOString() : null,
-    matchdaySlotMinutes: cal.MatchdaySlotMinutes ?? 180,
-    offDaySlotMinutes: cal.OffDaySlotMinutes ?? 10,
+    currentHour: row?.CurrentHour ?? 0,
+    dayLengthMinutes: row?.DayLengthMinutes ?? 1440,
+    dayKind: row ? dayKind(row, row.CurrentDay) : 'L',
   };
 }
 
-const clampSlot = (n: number) =>
-  Math.min(MAX_SLOT_MINUTES, Math.max(MIN_SLOT_MINUTES, Math.round(n)));
+export async function setClock(input: { mode?: 'live' | 'paused'; dayLengthMinutes?: number }): Promise<ClockState> {
+  const [cal] = await db().select().from(calendars).limit(1);
+  if (!cal) throw new Error('No calendar row: the game world has not been set up');
+  const patch: Partial<typeof calendars.$inferInsert> = {};
 
-export async function setClock(input: {
-  mode?: 'live' | 'paused';
-  matchdaySlotMinutes?: number;
-  offDaySlotMinutes?: number;
-}): Promise<ClockState> {
-  const cal = await getCalendar();
-  const patch: Record<string, unknown> = {};
-
-  if (input.matchdaySlotMinutes !== undefined) {
-    patch.MatchdaySlotMinutes = clampSlot(input.matchdaySlotMinutes);
-  }
-  if (input.offDaySlotMinutes !== undefined) {
-    patch.OffDaySlotMinutes = clampSlot(input.offDaySlotMinutes);
-  }
+  const dayLength =
+    input.dayLengthMinutes !== undefined
+      ? Math.min(MAX_DAY_MINUTES, Math.max(MIN_DAY_MINUTES, Math.round(input.dayLengthMinutes)))
+      : cal.DayLengthMinutes;
+  if (input.dayLengthMinutes !== undefined) patch.DayLengthMinutes = dayLength;
   if (input.mode) {
     patch.ClockMode = input.mode;
-    if (input.mode === 'live' && cal.ClockMode !== 'live') {
-      // Resuming: a full matchday slot from now, never an instant catch-up.
-      const matchday = (patch.MatchdaySlotMinutes as number) ?? cal.MatchdaySlotMinutes ?? 180;
-      patch.NextTickAt = new Date(Date.now() + matchday * 60_000);
-    }
+    // Resuming: the next whole hour, never an instant catch-up.
+    if (input.mode === 'live' && cal.ClockMode !== 'live') patch.NextTickAt = nextBoundary(Date.now(), dayLength);
     if (input.mode === 'paused') patch.NextTickAt = null;
   }
 
   if (Object.keys(patch).length) {
-    await updateCalendar(patch as Partial<Awaited<ReturnType<typeof getCalendar>>>);
+    await db().update(calendars).set({ ...patch, updatedAt: new Date() }).where(eq(calendars.id, cal.id));
   }
   return getClockState();
 }
 
-/** Claims the tick (CAS on NextTickAt). Returns false if not due / lost the race. */
-async function claimDueTick(): Promise<boolean> {
+/** Claims the tick (CAS on NextTickAt). Returns the hour it was due at, or
+ * null if not due / lost the race. */
+async function claimDueTick(): Promise<Date | null> {
   const now = new Date();
+  const [before] = await db().select({ next: calendars.NextTickAt }).from(calendars).limit(1);
   const claimed = await db()
     .update(calendars)
     .set({ NextTickAt: new Date(now.getTime() + LEASE_MS), updatedAt: now })
@@ -107,42 +117,49 @@ async function claimDueTick(): Promise<boolean> {
       )
     )
     .returning({ id: calendars.id });
-  return claimed.length > 0;
+  return claimed.length ? (before?.next ?? now) : null;
 }
 
-async function performTick(): Promise<TickResult> {
+async function performTick(kind: 'hour' | 'day', dueAt: Date | null): Promise<TickResult> {
   const before = await getCalendar();
   const fromDay = before.CurrentDay;
-  const day = await runWorldDay();
+  const report = kind === 'hour' ? await runWorldHour() : await runWorldDay();
   const after = await getCalendar();
+  const [row] = await db().select({ dayLength: calendars.DayLengthMinutes }).from(calendars).limit(1);
 
-  if (day.pausedForYearEnd) {
+  if (report.pausedForYearEnd) {
     await updateCalendar({ LastTickAt: new Date(), NextTickAt: null });
     console.log(`[calendar-clock] day ${fromDay}: year is over and AutoRollover is off - clock paused`);
-    return { ran: true, report: day, fromDay, toDay: fromDay, simulatedFixtures: 0, nextTickAt: null };
+    return { ran: true, report, fromDay, toDay: fromDay, simulatedFixtures: 0, nextTickAt: null };
   }
 
-  const minutes =
-    day.matches.total > 0 ? (before.MatchdaySlotMinutes ?? 180) : (before.OffDaySlotMinutes ?? 10);
-  const nextTickAt = new Date(Date.now() + minutes * 60_000);
+  // The hour after the one that was due: behind schedule, that is already
+  // past and the next poll catches up; on time, it's the next boundary.
+  const dayLength = row?.dayLength ?? 1440;
+  const nextTickAt =
+    kind === 'hour' && dueAt ? new Date(dueAt.getTime() + hourMs(dayLength)) : nextBoundary(Date.now(), dayLength);
   await updateCalendar({ LastTickAt: new Date(), NextTickAt: nextTickAt });
 
-  console.log(
-    `[calendar-clock] day ${fromDay} -> ${after.CurrentDay}: ${day.matches.simulated} match(es)` +
-      `${day.yearEnded ? `, ${day.yearEnded.label} ended` : ''}, next tick ${nextTickAt.toISOString()}`
-  );
+  if (report.matches.simulated || report.advancedTo != null || report.hours[0] === 0) {
+    console.log(
+      `[calendar-clock] day ${fromDay} h${report.hours[0]}${report.hours[1] !== report.hours[0] ? `-${report.hours[1]}` : ''}: ` +
+        `${report.matches.simulated} match(es)${report.yearEnded ? `, ${report.yearEnded.label} ended` : ''}` +
+        `${report.advancedTo != null ? `, now day ${after.CurrentDay}` : ''}, next tick ${nextTickAt.toISOString()}`
+    );
+  }
 
   return {
     ran: true,
-    report: day,
+    report,
     fromDay,
     toDay: after.CurrentDay,
-    simulatedFixtures: day.matches.simulated,
+    simulatedFixtures: report.matches.simulated,
     nextTickAt: nextTickAt.toISOString(),
   };
 }
 
-/** Admin "advance now": runs one tick immediately, whatever the mode/timer. */
+/** Admin "advance now": plays out the rest of the current day immediately,
+ * whatever the mode/timer. */
 export async function tickNow(): Promise<TickResult> {
   const cal = await getCalendar();
   const wasLive = cal.ClockMode === 'live';
@@ -154,7 +171,7 @@ export async function tickNow(): Promise<TickResult> {
       .where(eq(calendars.ClockMode, 'live'));
   }
   try {
-    const result = await performTick();
+    const result = await performTick('day', null);
     if (!wasLive) await updateCalendar({ NextTickAt: null });
     return result;
   } catch (err) {
@@ -169,12 +186,13 @@ async function pollOnce() {
   if (running) return;
   running = true;
   try {
-    if (!(await claimDueTick())) return;
+    const dueAt = await claimDueTick();
+    if (!dueAt) return;
     try {
-      await performTick();
+      await performTick('hour', dueAt);
     } catch (err) {
       console.error('[calendar-clock] tick failed, retrying next slot check:', err);
-      // Release the lease soon so a transient failure doesn't stall a whole slot.
+      // Release the lease soon so a transient failure doesn't stall an hour.
       await updateCalendar({ NextTickAt: new Date(Date.now() + RETRY_MS) });
     }
   } catch (err) {

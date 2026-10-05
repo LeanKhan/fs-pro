@@ -87,26 +87,25 @@
       </v-card-title>
       <v-card-text>
         <p class="text-caption text-medium-emphasis mb-3">
-          While live, the server runs one world day at each tick: competitions move on, challenges
-          expire, AI clubs act and accepted matches are played. Days with matches last the match-day
-          slot, quiet days the off-day slot. Sim-to-date above works whether the clock is live or
-          paused.
+          While live, the clock ticks once per game hour: at hour 0 competitions move on, challenges
+          expire and AI clubs act; every hour the matches kicking off then are played; after hour 23
+          the day turns. A game day lasts the day length below (1440 = one real day). Sim-to-date
+          above works whether the clock is live or paused.
+          <span v-if="clock">
+            Now: day {{ clock.currentDay }}, hour {{ clock.currentHour }} ({{ clock.dayKind === 'L' ? 'league day' : 'cup day' }}).
+          </span>
           <span v-if="clock?.mode === 'live' && clock.nextTickAt">
-            Next kickoff: {{ new Date(clock.nextTickAt).toLocaleString() }}.
+            Next tick: {{ new Date(clock.nextTickAt).toLocaleString() }}.
           </span>
         </p>
         <v-row dense>
           <v-col cols="6" md="3">
-            <v-text-field v-model.number="matchdayMinutes" type="number" min="1" density="compact"
-              label="Match-day slot (min)" hide-details />
-          </v-col>
-          <v-col cols="6" md="3">
-            <v-text-field v-model.number="offDayMinutes" type="number" min="1" density="compact"
-              label="Off-day slot (min)" hide-details />
+            <v-text-field v-model.number="dayLengthMinutes" type="number" min="24" density="compact"
+              label="Game day length (real min)" hide-details />
           </v-col>
         </v-row>
         <div class="mt-3">
-          <v-btn color="success" class="mr-2" :disabled="clockBusy" @click="updateClock({ mode: 'live', ...slots() })">
+          <v-btn color="success" class="mr-2" :disabled="clockBusy" @click="updateClock({ mode: 'live', dayLengthMinutes })">
             {{ clock?.mode === 'live' ? 'Save pacing' : 'Go live' }}
           </v-btn>
           <v-btn color="warning" variant="tonal" class="mr-2" :disabled="clockBusy || clock?.mode !== 'live'"
@@ -191,36 +190,27 @@ const windowBusy = ref(false);
 const clock = ref<{
   mode: 'live' | 'paused';
   nextTickAt: string | null;
-  matchdaySlotMinutes: number;
-  offDaySlotMinutes: number;
+  currentDay: number;
+  currentHour: number;
+  dayLengthMinutes: number;
+  dayKind: 'L' | 'C';
 } | null>(null);
 const clockBusy = ref(false);
-const matchdayMinutes = ref(180);
-const offDayMinutes = ref(10);
-
-const slots = () => ({
-  matchdaySlotMinutes: matchdayMinutes.value,
-  offDaySlotMinutes: offDayMinutes.value,
-});
+const dayLengthMinutes = ref(1440);
 
 async function loadClock() {
   try {
     const res = await client.calendar.getClock.query();
     if (res.status === 200) {
       clock.value = res.body.payload;
-      matchdayMinutes.value = res.body.payload.matchdaySlotMinutes;
-      offDayMinutes.value = res.body.payload.offDaySlotMinutes;
+      dayLengthMinutes.value = res.body.payload.dayLengthMinutes;
     }
   } catch (error) {
     console.error('Error loading the clock:', error);
   }
 }
 
-async function updateClock(body: {
-  mode?: 'live' | 'paused';
-  matchdaySlotMinutes?: number;
-  offDaySlotMinutes?: number;
-}) {
+async function updateClock(body: { mode?: 'live' | 'paused'; dayLengthMinutes?: number }) {
   clockBusy.value = true;
   try {
     const res = await client.calendar.setClock.mutation({ body });

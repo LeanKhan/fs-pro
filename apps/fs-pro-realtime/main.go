@@ -122,6 +122,7 @@ func writeJSON(w http.ResponseWriter, v any) {
 func main() {
 	cfg := loadConfig()
 	hub := NewHub()
+	go hub.RunOnline(make(chan struct{}))
 	log.Printf("fs-pro realtime gateway on %s", cfg.addr)
 	srv := &http.Server{Addr: cfg.addr, Handler: newServer(cfg, hub), ReadHeaderTimeout: 10 * time.Second}
 	log.Fatal(srv.ListenAndServe())

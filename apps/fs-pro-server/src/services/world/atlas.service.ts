@@ -1,8 +1,8 @@
-import { and, eq, inArray, isNotNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import {
-  ATLAS_H,
   ATLAS_W,
   FOUNDING_LIMITS,
+  atlasSize,
   TOWN_TERRAINS,
   codeProblem,
   countrySpotProblem,
@@ -13,6 +13,7 @@ import {
   type Atlas,
   type AtlasClub,
   type AtlasCountry,
+  type AtlasRegion,
   type AtlasTown,
   type CrestDesign,
   type FoundCountry,
@@ -24,11 +25,16 @@ import { clubs, places, users } from '../../db/drizzle/schema';
 
 /**
  * The world atlas (packages/api-contract world-geo.ts): countries with a spot
- * on the map, towns under them, and clubs in towns. Anyone signed in may
- * found a country, a town or a club (club-founding.service.ts), within
- * FOUNDING_LIMITS. The rules for where things may go are shared with the
- * client; this is where they're enforced.
+ * on the map, their regions, towns, and clubs in towns. Clubs are founded
+ * through placement (club-founding.service.ts, placement.service.ts), which
+ * opens new towns, regions and countries as the world fills; founding a
+ * country or town directly is admin-only. The atlas sends every place with
+ * club counts, and club lists only for a small world or the country asked
+ * for, so its size grows with places, not clubs.
  */
+
+/** Up to this many clubs, the atlas carries every club list. */
+const FULL_ATLAS_CLUBS = 600;
 
 const db = () => DrizzleDatabase.getInstance().database;
 
@@ -62,25 +68,40 @@ function toCountry(p: PlaceRow, founders: Map<string, string>): AtlasCountry {
   };
 }
 
-function toTown(p: PlaceRow, founders: Map<string, string>, clubList: AtlasClub[]): AtlasTown {
+function toTown(p: PlaceRow, founders: Map<string, string>, clubList: AtlasClub[], clubCount = clubList.length): AtlasTown {
   return {
     id: p.id,
     countryId: p.ParentId!,
+    regionId: p.RegionId ?? null,
     name: p.Name,
     terrain: terrainOf(p.Terrain),
     x: p.MapX ?? 0,
     y: p.MapY ?? 0,
     founder: p.FoundedBy ? { userId: p.FoundedBy, name: founders.get(p.FoundedBy) ?? 'A manager' } : null,
     foundedAt: p.FoundedBy ? p.createdAt.toISOString() : null,
+    clubCount,
     clubs: clubList,
   };
 }
 
-/** Countries (with a map spot) and towns, as rows. */
+function toRegion(p: PlaceRow, founders: Map<string, string>): AtlasRegion {
+  return {
+    id: p.id,
+    countryId: p.ParentId!,
+    name: p.Name,
+    x: p.MapX ?? 0,
+    y: p.MapY ?? 0,
+    founder: p.FoundedBy ? { userId: p.FoundedBy, name: founders.get(p.FoundedBy) ?? 'A manager' } : null,
+    foundedAt: p.FoundedBy ? p.createdAt.toISOString() : null,
+  };
+}
+
+/** Countries (with a map spot), regions and towns, as rows. */
 async function loadPlaces() {
   const rows = await db().select().from(places).where(isNotNull(places.MapX));
   return {
     countries: rows.filter((p) => p.Type === 'country'),
+    regions: rows.filter((p) => p.Type === 'region' && p.ParentId),
     towns: rows.filter((p) => p.Type === 'town' && p.ParentId),
   };
 }
@@ -100,9 +121,30 @@ async function foundedCounts(userId: string) {
   return { countries: row?.countries ?? 0, towns: row?.towns ?? 0, clubs: owned?.n ?? 0 };
 }
 
-export async function getAtlas(userId?: string | null): Promise<Atlas> {
-  const { countries, towns } = await loadPlaces();
-  const clubRows = await db()
+export async function getAtlas(userId?: string | null, opts: { countryId?: string } = {}): Promise<Atlas> {
+  const { countries, regions, towns } = await loadPlaces();
+  const counts = await db()
+    .select({ townId: clubs.TownId, n: sql<number>`count(*)::int` })
+    .from(clubs)
+    .where(and(isNotNull(clubs.TownId), isNull(clubs.ReleasedAt)))
+    .groupBy(clubs.TownId);
+  const countOf = new Map(counts.map((c) => [c.townId!, c.n]));
+  const total = counts.reduce((s, c) => s + c.n, 0);
+  const all = total <= FULL_ATLAS_CLUBS;
+  // A big world lists the clubs of the country asked for, else the user's own.
+  let wanted = opts.countryId;
+  if (!all && !wanted && userId) {
+    const [own] = await db()
+      .select({ country: clubs.AddressCountryId })
+      .from(clubs)
+      .where(and(eq(clubs.UserId, userId), isNull(clubs.ReleasedAt)))
+      .limit(1);
+    wanted = own?.country ?? undefined;
+  }
+  const countryId = !all && wanted && countries.some((c) => c.id === wanted) ? wanted : null;
+  const listTownIds = all ? null : countryId ? towns.filter((t) => t.ParentId === countryId).map((t) => t.id) : [];
+
+  const clubRows = listTownIds && !listTownIds.length ? [] : await db()
     .select({
       id: clubs.id,
       name: clubs.Name,
@@ -117,9 +159,10 @@ export async function getAtlas(userId?: string | null): Promise<Atlas> {
       ownerName: users.FullName,
     })
     .from(clubs)
-    .leftJoin(users, eq(users.id, clubs.UserId));
+    .leftJoin(users, eq(users.id, clubs.UserId))
+    .where(and(isNull(clubs.ReleasedAt), listTownIds ? inArray(clubs.TownId, listTownIds) : undefined));
 
-  const founderIds = [...new Set([...countries, ...towns].map((p) => p.FoundedBy).filter((x): x is string => !!x))];
+  const founderIds = [...new Set([...countries, ...regions, ...towns].map((p) => p.FoundedBy).filter((x): x is string => !!x))];
   const founders = new Map(
     founderIds.length
       ? (await db().select({ id: users.id, name: users.FullName }).from(users).where(inArray(users.id, founderIds))).map(
@@ -151,20 +194,27 @@ export async function getAtlas(userId?: string | null): Promise<Atlas> {
 
   let me: Atlas['me'] = null;
   if (userId) {
+    const mine = await db()
+      .select({ id: clubs.id })
+      .from(clubs)
+      .where(and(eq(clubs.UserId, userId), isNull(clubs.ReleasedAt)));
     me = {
       userId,
       founded: await foundedCounts(userId),
       limits: { ...FOUNDING_LIMITS },
-      clubIds: clubRows.filter((c) => c.userId === userId).map((c) => c.id),
+      clubIds: mine.map((c) => c.id),
     };
   }
 
+  const size = atlasSize([...countries, ...regions, ...towns].map((p) => ({ x: p.MapX ?? 0, y: p.MapY ?? 0 })));
   return {
-    width: ATLAS_W,
-    height: ATLAS_H,
+    width: size.width,
+    height: Math.max(size.height, Math.round(size.width * 0.5625)),
     countries: countries.map((p) => toCountry(p, founders)),
-    towns: towns.map((p) => toTown(p, founders, byTown.get(p.id) ?? [])),
-    unplaced,
+    regions: regions.map((p) => toRegion(p, founders)),
+    towns: towns.map((p) => toTown(p, founders, byTown.get(p.id) ?? [], countOf.get(p.id) ?? 0)),
+    clubsLoaded: all ? 'all' : countryId ? { countryId } : null,
+    unplaced: all ? unplaced : [],
     me,
   };
 }
@@ -206,20 +256,21 @@ export async function clubNameTaken(name: string, code?: string) {
   return rows.length > 0;
 }
 
-/** For the founding forms' live checks. */
+/** For the founding forms' live checks. Towns and regions share one name
+ * space per country. */
 export async function checkName(q: {
-  kind: 'country' | 'town' | 'club';
+  kind: 'country' | 'region' | 'town' | 'club';
   name: string;
   code?: string;
   countryId?: string;
 }): Promise<{ ok: boolean; problem: string | null }> {
-  const what = q.kind === 'club' ? 'Club name' : q.kind === 'town' ? 'Town name' : 'Country name';
+  const what = q.kind === 'club' ? 'Club name' : q.kind === 'town' ? 'Town name' : q.kind === 'region' ? 'Region name' : 'Country name';
   const problem =
     nameProblem(q.name, what) ??
     (q.code !== undefined ? codeProblem(q.code, 'Short code') : null) ??
     (q.kind === 'country' && (await countryNameTaken(tidyName(q.name), q.code)) ? 'That name or code is taken' : null) ??
-    (q.kind === 'town' && q.countryId && (await townNameTaken(q.countryId, tidyName(q.name)))
-      ? 'There is already a town with that name there'
+    ((q.kind === 'town' || q.kind === 'region') && q.countryId && (await townNameTaken(q.countryId, tidyName(q.name)))
+      ? 'There is already a place with that name there'
       : null) ??
     (q.kind === 'club' && (await clubNameTaken(tidyName(q.name), q.code)) ? 'That name or code is taken' : null);
   return { ok: !problem, problem };
@@ -308,6 +359,10 @@ export async function foundTown(
   let code = base;
   for (let n = 2; codes.has(code); n++) code = `${base}${n}`;
 
+  // Admin towns join the country's nearest region.
+  const nearest = (await loadPlaces()).regions
+    .filter((r) => r.ParentId === country.id)
+    .sort((a, b) => Math.hypot(a.MapX! - spot.x, a.MapY! - spot.y) - Math.hypot(b.MapX! - spot.x, b.MapY! - spot.y))[0];
   const [row] = await db()
     .insert(places)
     .values({
@@ -317,6 +372,7 @@ export async function foundTown(
       Region: country.Region,
       Type: 'town',
       ParentId: country.id,
+      RegionId: nearest?.id ?? null,
       FoundedBy: user.id,
       MapX: spot.x,
       MapY: spot.y,

@@ -155,7 +155,10 @@ export async function calculateAndUpdateClubRating(clubId: string) {
  * responds. */
 export async function refreshAllClubsRatings() {
   const clubs = await getClubs();
-  return Promise.all(
-    clubs.map((club) => calculateAndUpdateClubRating(club._id as string))
-  );
+  // In batches, so a 10k-club world doesn't queue 20k queries at once.
+  const out: Awaited<ReturnType<typeof calculateAndUpdateClubRating>>[] = [];
+  for (let i = 0; i < clubs.length; i += 25) {
+    out.push(...(await Promise.all(clubs.slice(i, i + 25).map((club) => calculateAndUpdateClubRating(club._id as string)))));
+  }
+  return out;
 }

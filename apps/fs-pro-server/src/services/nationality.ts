@@ -19,5 +19,10 @@ export async function nationalityIdForCulture(culture: string): Promise<string> 
       (c) => c.Code.toLowerCase() === key || c.Name.toLowerCase() === key
     ) ??
     countries.find((c) => c.Fullname.toLowerCase().endsWith(` ${key}`));
-  return match?._id ?? LEGACY_COUNTRY_IDS[key] ?? LEGACY_COUNTRY_IDS.bellean;
+  if (match?._id) return match._id;
+  // The legacy ids only exist in the original world; a world of founded
+  // countries (docs/WORLD-PYRAMID-SPEC.md) falls back on a real country.
+  const legacy = LEGACY_COUNTRY_IDS[key] ?? LEGACY_COUNTRY_IDS.bellean;
+  if (!countries.length || countries.some((c) => c._id === legacy)) return legacy;
+  return countries[0]!._id as string;
 }

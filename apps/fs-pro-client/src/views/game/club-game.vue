@@ -241,10 +241,13 @@ function onDefended(p: { attackerName: string; score: string; outcome: 'win' | '
 onMounted(() => {
   openPlay.start();
   realtime.on('club:defended', onDefended);
+  realtime.on('news:item', onNewsItem);
 });
 onUnmounted(() => {
   openPlay.stop();
   realtime.off('club:defended', onDefended);
+  realtime.off('news:item', onNewsItem);
+  followPlaces(null);
 });
 
 if (!store.isAuthenticated) store.getUser();
@@ -511,8 +514,45 @@ const tickerHeadline = computed(() => {
 });
 
 async function loadWorldFeed() {
-  const res = await client.calendar.getWorldFeed.query({});
-  if (res.status === 200) worldFeed.value = res.body.payload;
+  const res = await client.calendar.getWorldFeed.query({ query: { clubId: clubId.value } });
+  if (res.status === 200) {
+    worldFeed.value = res.body.payload;
+    followPlaces(res.body.payload.local);
+  }
+}
+
+// Local news arrives live on the club's town, region and country topics
+// (docs/WORLD-PYRAMID-SPEC.md, "News scopes"); the world's biggest stories
+// come on the world topic the open-play store already follows.
+let placeTopics: string[] = [];
+function followPlaces(local: WorldFeed['local'] | null | undefined) {
+  const next = local
+    ? [local.townId && `town:${local.townId}`, local.regionId && `region:${local.regionId}`, local.countryId && `country:${local.countryId}`].filter(
+        (t): t is string => !!t
+      )
+    : [];
+  for (const t of placeTopics) if (!next.includes(t)) realtime.leave(t);
+  for (const t of next) if (!placeTopics.includes(t)) realtime.join(t);
+  placeTopics = next;
+}
+function onNewsItem(item: { storyId: string; scope: string; kind: string; title: string; body: string; day: number; fixtureId: string | null }) {
+  const feed = worldFeed.value;
+  if (!feed || feed.headlines.some((h) => h.id === `news-${item.storyId}`)) return;
+  const tag = { town: 'TOWN', region: 'REGION', country: 'NATIONAL', world: 'WORLD' }[item.scope] ?? 'NEWS';
+  const category: WorldFeed['headlines'][number]['category'] =
+    item.kind === 'transfer' ? 'transfer' : ['founded', 'title', 'promotion', 'relegation'].includes(item.kind) ? 'milestone' : 'result';
+  feed.headlines = [
+    {
+      id: `news-${item.storyId}`,
+      category,
+      title: item.title,
+      summary: item.body,
+      timestamp: `Day ${item.day}`,
+      tag,
+      ...(item.fixtureId ? { relatedFixtureId: item.fixtureId } : {}),
+    },
+    ...feed.headlines,
+  ].slice(0, 40);
 }
 
 watch([() => worldFeed.value?.headlines, campusRef], ([headlines]) =>

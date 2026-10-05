@@ -11,6 +11,7 @@ import {
   competitions,
   entries,
   fixtures,
+  pools,
   seasons,
 } from '../../db/drizzle/schema';
 import {
@@ -22,6 +23,7 @@ import {
   EditionService,
 } from '../../services/competitions/edition.service';
 import { getStageTable } from '../../services/competitions/ranking.service';
+import { pyramidGroupRules } from '../../services/competitions/pyramid.service';
 import { getBracket } from '../../services/competitions/knockout.service';
 import { applyChallengePolicy } from '../../services/competitions/ai-competitions.service';
 import { accessDenied, canManageClub, isAdmin } from '../auth/club-access';
@@ -110,6 +112,7 @@ function toEntry(e: typeof entries.$inferSelect) {
     status: e.Status,
     seed: e.Seed,
     group: e.Group,
+    division: e.Division ?? null,
     feePaid: e.FeePaid,
     eliminatedAtStage: e.EliminatedAtStage,
     finalPosition: e.FinalPosition,
@@ -328,16 +331,36 @@ export const editionTsRestRoutes = s.router(contract.editions, {
         return fail(new EditionError('Edition not found', 'not-found'));
       const table = await getStageTable(
         params.id,
-        query.stage ?? season.CurrentStage
+        query.stage ?? season.CurrentStage,
+        query.group
       );
+      const poolRows = await db().select().from(pools).where(eq(pools.SeasonId, params.id));
+      const poolOf = new Map(poolRows.map((p) => [p.id, p]));
+      const groupRules = await pyramidGroupRules(params.id);
+      // Pools in pyramid order: division, then number.
+      const groups = [...table.groups].sort((a, b) => {
+        const pa = a.group ? poolOf.get(a.group) : undefined;
+        const pb = b.group ? poolOf.get(b.group) : undefined;
+        if (!pa || !pb) return 0;
+        return pa.Division - pb.Division || pa.Number - pb.Number;
+      });
       return ok({
         seasonId: table.seasonId,
         stageIndex: table.stageIndex,
         metric: table.rules.metric,
         tiebreakers: table.rules.tiebreakers,
         minGamesToRank: table.rules.minGamesToRank,
-        groups: table.groups.map((g) => ({
+        groups: groups.map((g) => ({
           group: g.group,
+          ...(g.group && poolOf.has(g.group)
+            ? {
+                name: poolOf.get(g.group)!.Name,
+                division: poolOf.get(g.group)!.Division,
+                kickoffHour: poolOf.get(g.group)!.KickoffHour,
+                metric: groupRules?.get(g.group)?.metric,
+                minGamesToRank: groupRules?.get(g.group)?.minGamesToRank,
+              }
+            : {}),
           rows: g.rows.map(({ row, rank, gamesNeeded }) => ({
             clubId: row.ClubId,
             rank,

@@ -10,9 +10,11 @@ import {
   fixtures,
   levelHistory,
   rankingResults,
+  pools,
   rankings,
   seasons,
 } from '../../db/drizzle/schema';
+import { pyramidGroupRules } from './pyramid.service';
 import { levelForXp } from '../world/level';
 import {
   DEFAULT_LEAGUE_RULES,
@@ -360,10 +362,13 @@ export interface StageTable {
   }[];
 }
 
-/** A stage's table(s), ordered into Ranks, one list per group. */
+/** A stage's table(s), ordered into Ranks, one list per group (or only
+ * `group`'s). Pyramid pools are groups too, each ranked by its own rules
+ * (the bottom division by points per game; pyramid.service.ts). */
 export async function getStageTable(
   seasonId: string,
-  stageIndex: number
+  stageIndex: number,
+  group?: string
 ): Promise<StageTable> {
   const [season] = await db()
     .select()
@@ -383,11 +388,16 @@ export async function getStageTable(
     calendar?.DefaultRules ?? null
   );
 
+  const groupRules = await pyramidGroupRules(seasonId, calendar?.DefaultRules ?? null);
   const rows = await db()
     .select()
     .from(rankings)
     .where(
-      and(eq(rankings.SeasonId, seasonId), eq(rankings.StageIndex, stageIndex))
+      and(
+        eq(rankings.SeasonId, seasonId),
+        eq(rankings.StageIndex, stageIndex),
+        group !== undefined ? eq(rankings.Group, group) : undefined
+      )
     );
   const clubIds = rows.map((r) => r.ClubId);
   const elos = clubIds.length
@@ -406,9 +416,9 @@ export async function getStageTable(
   }
   const groups = [...byGroup.entries()]
     .sort(([a], [b]) => (a ?? '').localeCompare(b ?? ''))
-    .map(([group, list]) => ({
-      group,
-      rows: rankRows(list, rules, currentElo),
+    .map(([g, list]) => ({
+      group: g,
+      rows: rankRows(list, (g && groupRules?.get(g)) || rules, currentElo),
     }));
 
   return { seasonId, stageIndex, rules, groups };
@@ -473,13 +483,27 @@ export async function editionStandings(seasonId: string): Promise<StandingLine[]
     .from(seasons)
     .where(eq(seasons.id, seasonId));
   if (!season) return [];
+  // A pyramid's headline table is its top division.
+  if (season.Definition?.Stages?.[0]?.type === 'pyramid') {
+    const [top] = await db()
+      .select({ id: pools.id })
+      .from(pools)
+      .where(and(eq(pools.SeasonId, seasonId), eq(pools.Division, 1)))
+      .orderBy(pools.Number)
+      .limit(1);
+    if (!top) return [];
+    return flatStandings((await getStageTable(seasonId, 0, top.id)).groups);
+  }
   const stages = season.Definition?.Stages ?? [];
   let stageIndex = Math.min(season.CurrentStage, Math.max(0, stages.length - 1));
   while (stageIndex > 0 && stages[stageIndex]?.type === 'knockout') stageIndex--;
   if (!stages[stageIndex] || stages[stageIndex]!.type === 'knockout') return [];
 
-  const table = await getStageTable(seasonId, stageIndex);
-  const flat = table.groups.flatMap((g) => g.rows.map((r) => ({ ...r, group: g.group })));
+  return flatStandings((await getStageTable(seasonId, stageIndex)).groups);
+}
+
+async function flatStandings(groups: StageTable['groups']): Promise<StandingLine[]> {
+  const flat = groups.flatMap((g) => g.rows.map((r) => ({ ...r, group: g.group })));
   flat.sort(
     (a, b) =>
       Number(a.rank == null) - Number(b.rank == null) ||

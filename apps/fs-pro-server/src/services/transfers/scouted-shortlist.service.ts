@@ -40,7 +40,8 @@ export async function getScoutedShortlist(clubId: string): Promise<ScoutedTarget
   if (!club) throw new Error('Club not found');
 
   const reach = (await getAssetEffects(clubId)).scoutingReach ?? 1;
-  const { byClub, freeAgents } = await loadPlayers();
+  // Free agents and listed players only, not the whole world's squads.
+  const { byClub, freeAgents } = await loadPlayers({ clubIds: [], listed: true });
 
   const candidates = [
     ...freeAgents,

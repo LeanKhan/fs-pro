@@ -12,6 +12,8 @@ import {
   FoundedClubSchema,
   FoundTownSchema,
   NameCheckSchema,
+  PlacementSchema,
+  TownInviteSchema,
 } from '../schemas/atlas';
 
 const c = initContract();
@@ -24,14 +26,43 @@ const writeErrors = {
   409: failEnvelope(),
 };
 
-/** The world atlas, and founding countries, towns and clubs in it. Anyone
- * signed in may found, within FOUNDING_LIMITS (world-geo.ts). */
+/** The world atlas, and founding clubs in it (docs/WORLD-PYRAMID-SPEC.md).
+ * Placement decides where a new club goes; its founder names any new town,
+ * region or country it opens. Founding countries and towns directly is for
+ * admins only. */
 export const atlasContract = c.router(
   {
+    /** Countries, regions and towns with club counts. Club lists come for
+     * every town in a small world, else only for countryId's towns. */
     getAtlas: {
       method: 'GET',
       path: '',
+      query: z.object({ countryId: z.string().optional() }),
       responses: { 200: successEnvelope(AtlasSchema), 400: failEnvelope() },
+    },
+
+    /** Where a new club would go now (with an invite, if given). */
+    getPlacement: {
+      method: 'GET',
+      path: '/placement',
+      query: z.object({ invite: z.string().optional() }),
+      responses: { 200: successEnvelope(PlacementSchema), 400: failEnvelope(), 401: failEnvelope() },
+    },
+
+    /** A club's live invite links to its town. */
+    listInvites: {
+      method: 'GET',
+      path: '/invites',
+      query: z.object({ clubId: z.string() }),
+      responses: { 200: successEnvelope(z.array(TownInviteSchema)), ...writeErrors },
+    },
+
+    /** A new invite link for the club's town. */
+    createInvite: {
+      method: 'POST',
+      path: '/invites',
+      body: z.object({ clubId: z.string() }),
+      responses: { 200: successEnvelope(TownInviteSchema), ...writeErrors },
     },
 
     /** Live validation for the founding forms: is this name/code free? */
@@ -39,7 +70,7 @@ export const atlasContract = c.router(
       method: 'GET',
       path: '/check',
       query: z.object({
-        kind: z.enum(['country', 'town', 'club']),
+        kind: z.enum(['country', 'region', 'town', 'club']),
         name: z.string(),
         code: z.string().optional(),
         countryId: z.string().optional(),
@@ -61,8 +92,9 @@ export const atlasContract = c.router(
       responses: { 200: successEnvelope(AtlasTownSchema), ...writeErrors },
     },
 
-    /** Found a club in a town: Level 0, a raw starting squad, a small budget
-     * and the user as its owner. */
+    /** Found a club where placement puts it: Level 0, a raw starting squad,
+     * a small budget and the user as its owner. Answers 409 when new places
+     * need names the body didn't send (fetch getPlacement again). */
     foundClub: {
       method: 'POST',
       path: '/clubs',

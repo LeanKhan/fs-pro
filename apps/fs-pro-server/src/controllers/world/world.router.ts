@@ -36,6 +36,14 @@ async function settings() {
     levelTargets: c.LevelTargets ?? null,
     levelReview: c.LevelReview ?? null,
     maxConcurrentEntries: c.MaxConcurrentEntries,
+    weekTemplate: c.WeekTemplate,
+    kickoffHours: c.KickoffHours,
+    cupKickoffHour: c.CupKickoffHour,
+    townSize: c.TownSize,
+    regionTowns: c.RegionTowns,
+    countryRegions: c.CountryRegions,
+    caretakerAfterDays: c.CaretakerAfterDays,
+    releaseAfterSeasons: c.ReleaseAfterSeasons,
   };
 }
 
@@ -106,6 +114,14 @@ export const worldTsRestRoutes = s.router(contract.world, {
           ...(patch.maxConcurrentEntries !== undefined && {
             MaxConcurrentEntries: patch.maxConcurrentEntries,
           }),
+          ...(patch.weekTemplate !== undefined && { WeekTemplate: patch.weekTemplate }),
+          ...(patch.kickoffHours !== undefined && { KickoffHours: patch.kickoffHours }),
+          ...(patch.cupKickoffHour !== undefined && { CupKickoffHour: patch.cupKickoffHour }),
+          ...(patch.townSize !== undefined && { TownSize: patch.townSize }),
+          ...(patch.regionTowns !== undefined && { RegionTowns: patch.regionTowns }),
+          ...(patch.countryRegions !== undefined && { CountryRegions: patch.countryRegions }),
+          ...(patch.caretakerAfterDays !== undefined && { CaretakerAfterDays: patch.caretakerAfterDays }),
+          ...(patch.releaseAfterSeasons !== undefined && { ReleaseAfterSeasons: patch.releaseAfterSeasons }),
           updatedAt: new Date(),
         })
         .where(eq(calendars.id, c!.id));

@@ -1,67 +1,78 @@
-import { and, desc, eq, gt, isNotNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { DrizzleDatabase } from '../../db/drizzle';
-import {
-  fixtures,
-  calendars,
-  seasons,
-  players,
-  transferLedger,
-  competitions,
-  clubs,
-  places,
-  users,
-} from '../../db/drizzle/schema';
-import { editionStandings } from '../competitions/ranking.service';
+import { calendars, clubs, entries, fixtures, players, pools, seasons, transferLedger } from '../../db/drizzle/schema';
+import { editionStandings, getStageTable } from '../competitions/ranking.service';
+import { readFeed, type NewsItemView, type Scope } from './news-scope.service';
 import type { WorldFeed, WorldFeedHeadline } from '@repo/api-contract';
 
-export class WorldFeedService {
-  public static async generateWorldFeed(): Promise<WorldFeed> {
-    const dz = DrizzleDatabase.getInstance();
-    const db = dz.database;
+/**
+ * The news a reader sees (docs/WORLD-PYRAMID-SPEC.md, "News scopes"):
+ * stories from their club's town, region and country plus the world's
+ * biggest (news-scope.service.ts), recent results and injuries from their
+ * country, and the tables that matter to them (their pool, their country's
+ * top division, the cups). Without a club it's the world's view. Every
+ * query here is bounded by the reader's country or a small limit, so the
+ * feed costs the same in a world of 10 clubs or 10,000.
+ */
 
-    // 1. Current calendar
-    const calendarRow = await db.query.calendars.findFirst();
+const SCOPE_TAG: Record<Scope, string> = { town: 'TOWN', region: 'REGION', country: 'NATIONAL', world: 'WORLD' };
+
+function category(kind: string): WorldFeedHeadline['category'] {
+  if (kind === 'transfer') return 'transfer';
+  if (kind === 'founded' || kind === 'title' || kind === 'promotion' || kind === 'relegation') return 'milestone';
+  return 'result';
+}
+
+function toHeadline(item: NewsItemView): WorldFeedHeadline {
+  return {
+    id: `news-${item.storyId}`,
+    category: category(item.kind),
+    title: item.title,
+    summary: item.body,
+    timestamp: `Day ${item.day}`,
+    tag: SCOPE_TAG[item.scope],
+    ...(item.fixtureId ? { relatedFixtureId: item.fixtureId } : {}),
+  };
+}
+
+export class WorldFeedService {
+  public static async generateWorldFeed(viewerClubId?: string | null): Promise<WorldFeed> {
+    const db = DrizzleDatabase.getInstance().database;
+
+    const [calendarRow] = await db.select().from(calendars).limit(1);
     const currentDay = calendarRow?.CurrentDay ?? 0;
     const currentDate = calendarRow?.CurrentDate?.toISOString() ?? new Date().toISOString();
 
-    // 2. Recent Played Fixtures (last 15)
-    const recentFixtures = await db.query.fixtures.findMany({
-      where: eq(fixtures.Played, true),
-      orderBy: [desc(fixtures.PlayedAt), desc(fixtures.ScheduledDay)],
-      limit: 15,
-      with: {
-        homeTeam: true,
-        awayTeam: true,
-      },
-    });
+    // 1. Local news first.
+    const feed = await readFeed(viewerClubId, { limit: 20 });
+    const headlines = feed.items.map(toHeadline);
+    const countryId = feed.scopes.where.country;
 
-    const recentResults = recentFixtures.map((f) => {
-      const details = f.Details as any;
-      const homeScore = details?.HomeTeamScore ?? details?.homeScore ?? 0;
-      const awayScore = details?.AwayTeamScore ?? details?.awayScore ?? 0;
-      const homeRating = f.homeTeam?.Rating ?? 60;
-      const awayRating = f.awayTeam?.Rating ?? 60;
-
-      // Upset detection: team lower by >= 5 rating won
+    // 2. Recent results in the reader's country (the world's without one).
+    const home = alias(clubs, 'home_club');
+    const away = alias(clubs, 'away_club');
+    const recent = await db
+      .select({ f: fixtures, home: home.Name, away: away.Name, homeRating: home.Rating, awayRating: away.Rating })
+      .from(fixtures)
+      .innerJoin(home, eq(home.id, fixtures.HomeTeamId))
+      .innerJoin(away, eq(away.id, fixtures.AwayTeamId))
+      .where(and(eq(fixtures.Played, true), countryId ? eq(home.AddressCountryId, countryId) : undefined))
+      .orderBy(desc(fixtures.PlayedAt))
+      .limit(15);
+    const recentResults = recent.map(({ f, home: h, away: a, homeRating, awayRating }) => {
+      const details = f.Details as { HomeTeamScore?: number; AwayTeamScore?: number; MOTM?: string } | null;
+      const homeScore = details?.HomeTeamScore ?? 0;
+      const awayScore = details?.AwayTeamScore ?? 0;
       const isUpset =
-        (homeScore > awayScore && homeRating + 5 < awayRating) ||
-        (awayScore > homeScore && awayRating + 5 < homeRating);
-
-      // What kind of match: a competition (its code), a PLAY match between
-      // clubs, or an AI clubs' friendly.
+        (homeScore > awayScore && homeRating + 5 < awayRating) || (awayScore > homeScore && awayRating + 5 < homeRating);
       const title = f.Title ?? '';
-      const kind = f.LeagueCode
-        ? f.LeagueCode
-        : title.endsWith('(Matchmade)')
-          ? 'a challenge match'
-          : 'a friendly';
       return {
-        fixtureId: String(f.id),
-        title: title || `${f.Home} vs ${f.Away}`,
-        leagueCode: kind,
-        competitive: !!f.LeagueCode,
-        home: f.homeTeam?.Name ?? f.Home ?? 'HOME',
-        away: f.awayTeam?.Name ?? f.Away ?? 'AWAY',
+        fixtureId: f.id,
+        title: title || `${h} vs ${a}`,
+        leagueCode: f.LeagueCode ? f.LeagueCode : title.endsWith('(Matchmade)') ? 'a challenge match' : 'a friendly',
+        home: h,
+        away: a,
         homeScore,
         awayScore,
         motm: details?.MOTM ?? null,
@@ -70,38 +81,71 @@ export class WorldFeedService {
       };
     });
 
-    // 3. Current Competitions & Standings Leaders
-    const activeSeasons = await db.query.seasons.findMany({
-      where: eq(seasons.Status, 'running'),
-      limit: 6,
-    });
-
-    const allComps = await db.query.competitions.findMany({ limit: 10 });
-    const otherLeagues = await Promise.all(
-      activeSeasons.map(async (s) => {
-        const comp = allComps.find((c) => c.id === s.CompetitionId);
-        const [leader] = await editionStandings(s.id);
-        return {
-          id: String(s.id),
-          name: s.Title ?? comp?.Name ?? s.SeasonCode,
-          code: s.SeasonCode ?? 'LG',
-          leader: leader?.ClubCode ?? 'TBD',
-          leaderPoints: leader?.Points ?? 0,
-          matchesPlayed: leader?.Played ?? 0,
-        };
+    // 3. Tables that matter: the reader's pool, their country's top
+    // division, then the cups and events running.
+    const otherLeagues: WorldFeed['otherLeagues'] = [];
+    if (viewerClubId) {
+      const [mine] = await db
+        .select({ seasonId: entries.SeasonId, group: entries.Group, name: pools.Name })
+        .from(entries)
+        .innerJoin(seasons, eq(seasons.id, entries.SeasonId))
+        .innerJoin(pools, sql`${pools.id}::text = ${entries.Group}`)
+        .where(and(eq(entries.ClubId, viewerClubId), eq(seasons.Status, 'running')))
+        .limit(1);
+      if (mine?.group) {
+        const table = await getStageTable(mine.seasonId, 0, mine.group);
+        const leader = table.groups[0]?.rows[0];
+        const [club] = leader ? await db.select({ code: clubs.ClubCode }).from(clubs).where(eq(clubs.id, leader.row.ClubId)) : [];
+        otherLeagues.push({
+          id: mine.group,
+          name: mine.name,
+          code: 'POOL',
+          leader: club?.code ?? 'TBD',
+          leaderPoints: leader?.row.Points ?? 0,
+          matchesPlayed: leader?.row.Played ?? 0,
+        });
+      }
+    }
+    const running = await db
+      .select({ id: seasons.id, title: seasons.Title, code: seasons.SeasonCode, definition: seasons.Definition })
+      .from(seasons)
+      .where(eq(seasons.Status, 'running'))
+      .limit(60);
+    const relevant = running
+      .filter((s) => {
+        const ids = s.definition?.Entry?.countryIds;
+        return !ids?.length || !countryId || ids.includes(countryId);
       })
-    );
+      .sort((a, b) => Number(b.definition?.Stages?.[0]?.type === 'pyramid') - Number(a.definition?.Stages?.[0]?.type === 'pyramid'))
+      .slice(0, 6 - otherLeagues.length);
+    for (const s of relevant) {
+      const [leader] = await editionStandings(s.id);
+      otherLeagues.push({
+        id: s.id,
+        name: s.title,
+        code: s.code,
+        leader: leader?.ClubCode ?? 'TBD',
+        leaderPoints: leader?.Points ?? 0,
+        matchesPlayed: leader?.Played ?? 0,
+      });
+    }
 
-    // 4. Active Injuries across the world
-    const injuredPlayers = await db.query.players.findMany({
-      where: sql`"Injury" IS NOT NULL AND ("Injury"->>'daysRemaining')::int > 0`,
-      limit: 10,
-    });
-
-    const activeInjuries = injuredPlayers.map((p) => {
-      const inj = p.Injury as any;
+    // 4. Injuries in the reader's country.
+    const injured = await db
+      .select({ p: players })
+      .from(players)
+      .innerJoin(clubs, eq(clubs.id, players.ClubId))
+      .where(
+        and(
+          sql`${players.Injury} IS NOT NULL AND (${players.Injury}->>'daysRemaining')::int > 0`,
+          countryId ? eq(clubs.AddressCountryId, countryId) : undefined
+        )
+      )
+      .limit(10);
+    const activeInjuries = injured.map(({ p }) => {
+      const inj = p.Injury as { type?: string; daysRemaining?: number } | null;
       return {
-        playerId: String(p.id),
+        playerId: p.id,
         name: `${p.FirstName} ${p.LastName}`,
         club: p.ClubCode ?? 'Unsigned',
         type: inj?.type ?? 'Knock',
@@ -109,141 +153,36 @@ export class WorldFeedService {
       };
     });
 
-    // 5. Recent Transfers from TransferLedger
-    const recentTransfers = await db.query.transferLedger.findMany({
-      where: eq(transferLedger.Type, 'transfer'),
-      orderBy: [desc(transferLedger.createdAt)],
-      limit: 5,
-      with: {
-        player: true,
-      },
-    });
-
-    // 6. Synthesize Dynamic World Headlines
-    const headlines: WorldFeedHeadline[] = [];
-
-    // Headline from major match results / upsets
-    for (const r of recentResults.slice(0, 4)) {
-      const totalGoals = r.homeScore + r.awayScore;
-      if (r.isUpset) {
-        const winner = r.homeScore > r.awayScore ? r.home : r.away;
-        const loser = r.homeScore > r.awayScore ? r.away : r.home;
+    // 5. Transfers in the reader's country, when the news is quiet.
+    if (headlines.length < 8) {
+      const transfers = await db
+        .select({ t: transferLedger, first: players.FirstName, last: players.LastName })
+        .from(transferLedger)
+        .innerJoin(players, eq(players.id, transferLedger.PlayerId))
+        .innerJoin(clubs, eq(clubs.id, transferLedger.BuyerClubId))
+        .where(and(eq(transferLedger.Type, 'transfer'), isNotNull(transferLedger.PlayerId), countryId ? eq(clubs.AddressCountryId, countryId) : undefined))
+        .orderBy(desc(transferLedger.createdAt))
+        .limit(3);
+      for (const { t, first, last } of transfers) {
         headlines.push({
-          id: `hl-upset-${r.fixtureId}`,
-          category: 'result',
-          title: `SHOCK DEFEAT: ${winner} stun ${loser} in ${r.leagueCode}!`,
-          summary: `${winner} defied the pre-match odds to claim a famous victory with a ${r.homeScore}-${r.awayScore} scoreline on Day ${r.day}.`,
-          timestamp: `Day ${r.day}`,
-          tag: 'UPSET',
-          relatedFixtureId: r.fixtureId,
-        });
-      } else if (totalGoals >= 4) {
-        headlines.push({
-          id: `hl-thriller-${r.fixtureId}`,
-          category: 'result',
-          title: `THRILLER: ${r.home} and ${r.away} share ${totalGoals} goals in sensational spectacle!`,
-          summary: `Fans were treated to end-to-end football as the tie ended ${r.homeScore}-${r.awayScore}.`,
-          timestamp: `Day ${r.day}`,
-          tag: 'GOAL FEST',
-          relatedFixtureId: r.fixtureId,
-        });
-      } else {
-        headlines.push({
-          id: `hl-match-${r.fixtureId}`,
-          category: 'result',
-          title: r.competitive
-            ? `${r.home} ${r.homeScore} - ${r.awayScore} ${r.away}: key points in ${r.leagueCode}`
-            : `${r.home} ${r.homeScore} - ${r.awayScore} ${r.away}`,
-          summary: r.competitive
-            ? `Full time on day ${r.day}.`
-            : `Full time in ${r.leagueCode} at ${r.home}'s ground on day ${r.day}.`,
-          timestamp: `Day ${r.day}`,
-          tag: 'FULL TIME',
-          relatedFixtureId: r.fixtureId,
-        });
-      }
-    }
-
-    // The world growing: countries, towns and clubs founded lately (newest first).
-    const since = new Date(Date.now() - 14 * 24 * 3600_000);
-    const foundedPlaces = await db
-      .select({ id: places.id, name: places.Name, type: places.Type, at: places.createdAt, by: users.FullName, parent: places.ParentId })
-      .from(places)
-      .innerJoin(users, eq(users.id, places.FoundedBy))
-      .where(and(isNotNull(places.FoundedBy), gt(places.createdAt, since)))
-      .orderBy(desc(places.createdAt))
-      .limit(4);
-    const foundedClubs = await db
-      .select({ id: clubs.id, name: clubs.Name, at: clubs.createdAt, owner: users.FullName, town: places.Name })
-      .from(clubs)
-      .innerJoin(users, eq(users.id, clubs.UserId))
-      .leftJoin(places, eq(places.id, clubs.TownId))
-      .where(and(isNotNull(clubs.Crest), gt(clubs.createdAt, since)))
-      .orderBy(desc(clubs.createdAt))
-      .limit(4);
-    const founding = [
-      ...foundedPlaces.map((p) => ({
-        at: p.at,
-        headline: {
-          id: `hl-found-${p.id}`,
-          category: 'milestone' as const,
-          title: p.type === 'country' ? `NEW NATION: ${p.name} appears on the map` : `NEW TOWN: ${p.name} is founded`,
-          summary: `${p.by} founded ${p.name}${p.type === 'country' ? '. Its first towns and clubs are still to come.' : '. There is room for six clubs.'}`,
-          timestamp: 'World Atlas',
-          tag: 'FOUNDED',
-        },
-      })),
-      ...foundedClubs.map((c) => ({
-        at: c.at,
-        headline: {
-          id: `hl-club-${c.id}`,
-          category: 'milestone' as const,
-          title: `NEW CLUB: ${c.name} kick off in ${c.town ?? 'their town'}`,
-          summary: `${c.owner} is the manager. A dirt pitch, sixteen amateurs and big dreams.`,
-          timestamp: 'World Atlas',
-          tag: 'FOUNDED',
-        },
-      })),
-    ].sort((a, b) => b.at.getTime() - a.at.getTime());
-    headlines.unshift(...founding.slice(0, 4).map((f) => f.headline));
-
-    // Headline from transfers
-    for (const tr of recentTransfers) {
-      const p = tr.player;
-      if (p) {
-        headlines.push({
-          id: `hl-tr-${tr.id}`,
+          id: `hl-tr-${t.id}`,
           category: 'transfer',
-          title: `TRANSFER CONFIRMED: ${p.FirstName} ${p.LastName} completes transfer fee deal!`,
-          summary: `Agreement finalized for a reported fee of $${(tr.Amount).toLocaleString()}. Personal terms agreed.`,
-          timestamp: 'Market Wire',
+          title: `Signed: ${first} ${last}`,
+          summary: `A deal worth ${Math.round(t.Amount).toLocaleString('en-US')} is done.`,
+          timestamp: 'Market wire',
           tag: 'SIGNING',
         });
       }
     }
 
-    // Headline from injuries
-    if (activeInjuries.length > 0) {
-      const star = activeInjuries[0];
-      headlines.push({
-        id: `hl-inj-${star.playerId}`,
-        category: 'injury',
-        title: `INJURY BLOW: ${star.name} (${star.club}) ruled out with ${star.type}`,
-        summary: `Medical staff confirm the player will miss approximately ${star.daysRemaining} days of action following an in-match injury.`,
-        timestamp: `Day ${currentDay}`,
-        tag: 'MEDICAL',
-      });
-    }
-
-    // If few headlines, add world milestone
-    if (headlines.length < 3) {
+    if (!headlines.length) {
       headlines.push({
         id: 'hl-world-running',
         category: 'milestone',
-        title: `GLOBAL LEAGUES IN MOTION: Matchday Calendar advances to Day ${currentDay}`,
-        summary: `Clubs across all active divisions prepare for their scheduled fixtures as tournament races intensify.`,
+        title: `Day ${currentDay}: the season rolls on`,
+        summary: 'No news from your area yet. Results, derbies and new clubs nearby will show up here.',
         timestamp: `Day ${currentDay}`,
-        tag: 'WORLD',
+        tag: SCOPE_TAG[feed.scopes.local],
       });
     }
 
@@ -254,6 +193,24 @@ export class WorldFeedService {
       headlines,
       otherLeagues,
       activeInjuries,
+      local: {
+        scope: feed.scopes.local,
+        name: feed.scopes.localName,
+        townId: feed.scopes.where.town,
+        regionId: feed.scopes.where.region,
+        countryId: feed.scopes.where.country,
+      },
     };
   }
+}
+
+/** Ids of the running editions a club is entered in (for its realtime
+ * subscriptions). */
+export async function runningEditionsOf(clubId: string) {
+  const rows = await DrizzleDatabase.getInstance()
+    .database.select({ id: entries.SeasonId })
+    .from(entries)
+    .innerJoin(seasons, eq(seasons.id, entries.SeasonId))
+    .where(and(eq(entries.ClubId, clubId), inArray(seasons.Status, ['registration', 'running'])));
+  return rows.map((r) => r.id);
 }

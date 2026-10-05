@@ -213,8 +213,10 @@ async function main() {
   });
   const second = await propose(E, club[3]!, club[1]!);
   const a2 = await accept(second.id, club[1]!);
-  await check('a club busy on day 1 gets day 2', () =>
-    assert.strictEqual(a2.ScheduledDay, 2)
+  // Challenges only play on cup days (docs/WORLD-PYRAMID-SPEC.md, the
+  // default week L C L L C L L: days 1, 4, 8...).
+  await check('a club busy on cup day 1 gets the next cup day, 4', () =>
+    assert.strictEqual(a2.ScheduledDay, 4)
   );
   await check('the scheduler ignores cancelled challenges', async () => {
     const third = await propose(E, club[4]!, club[3]!);

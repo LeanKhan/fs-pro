@@ -5,15 +5,11 @@
       ref="mapRef"
       :atlas="visibleAtlas"
       :selected="selected"
-      :placing="placing"
-      :placing-country-id="placingCountryId"
-      :pending="pendingSpot"
       :venues="venues"
       :my-club-ids="myClubIds"
       :highlight-club-ids="rivalIds"
       :insets="insets"
       @select="onSelect"
-      @place="onPlace"
     />
     <div v-else class="world-loading">{{ loadError || 'Unrolling the map…' }}</div>
 
@@ -24,7 +20,9 @@
       </button>
       <div class="world-title">
         <b>The World</b>
-        <small v-if="atlas">{{ atlas.countries.length }} countries · {{ atlas.towns.length }} towns · {{ clubCount }} clubs · {{ humanCount }} managed</small>
+        <small v-if="atlas">
+          {{ atlas.countries.length }} countries · {{ atlas.regions.length }} regions · {{ atlas.towns.length }} towns · {{ clubCount }} clubs<template v-if="atlas.clubsLoaded === 'all'"> · {{ humanCount }} managed</template>
+        </small>
       </div>
       <nav class="filters" aria-label="Show">
         <button v-for="f in FILTERS" :key="f.key" :class="{ on: filter === f.key }" @click="filter = f.key">{{ f.label }}</button>
@@ -33,19 +31,8 @@
 
     <!-- Right: whatever is selected, or the world overview -->
     <aside class="world-panel">
-      <!-- Founding: place, then fill in the form -->
-      <template v-if="placing || pendingSpot">
-        <h2><span v-html="icon('map')"></span>{{ placingKind === 'country' ? 'Found a country' : `Found a town in ${placingCountry?.name}` }}</h2>
-        <p v-if="!pendingSpot" class="sub">
-          {{ placingKind === 'country' ? 'Tap open sea with room around it.' : `Tap the map inside ${placingCountry?.name} or on its coast.` }}
-        </p>
-        <found-country-form v-else-if="placingKind === 'country'" :spot="pendingSpot" @founded="onFounded('country', $event)" @cancel="cancelPlacing" />
-        <found-town-form v-else-if="placingCountryId" :country-id="placingCountryId" :spot="pendingSpot" @founded="onFounded('town', $event)" @cancel="cancelPlacing" />
-        <div v-if="!pendingSpot" class="row-btns"><button class="btn" @click="cancelPlacing">Cancel</button></div>
-      </template>
-
       <!-- A club -->
-      <template v-else-if="selectedClub">
+      <template v-if="selectedClub">
         <div class="card-head">
           <img :src="crestUrl(selectedClub.club.code)" :alt="selectedClub.club.name" width="64" height="70" />
           <div>
@@ -86,8 +73,9 @@
       <template v-else-if="selectedTown">
         <h2><span class="tdot" :class="selectedTown.terrain" aria-hidden="true"></span>{{ selectedTown.name }}</h2>
         <p class="sub">
-          {{ TERRAIN_LABEL[selectedTown.terrain] }} town in {{ countryById(selectedTown.countryId)?.name }}
+          {{ TERRAIN_LABEL[selectedTown.terrain] }} town in {{ [regionById(selectedTown.regionId)?.name, countryById(selectedTown.countryId)?.name].filter(Boolean).join(', ') }}
           <template v-if="selectedTown.founder"> · founded by {{ selectedTown.founder.name }}</template>
+          · {{ selectedTown.clubCount }}/{{ TOWN_MAX_CLUBS }} clubs
         </p>
         <ul class="list">
           <li v-for="c in selectedTown.clubs" :key="c.id">
@@ -96,14 +84,26 @@
               <span class="grow"><b>{{ c.name }}</b><small>Level {{ levelOf(c.xp) }} · Power {{ Math.round(c.rating * 2.5) }}{{ c.human ? ` · ${c.ownerName}` : '' }}</small></span>
             </button>
           </li>
-          <li v-if="!selectedTown.clubs.length" class="empty">No clubs yet.</li>
+          <li v-if="!selectedTown.clubs.length" class="empty">{{ selectedTown.clubCount ? 'Loading clubs…' : 'No clubs yet.' }}</li>
         </ul>
-        <div class="row-btns">
-          <button v-if="canFoundClub && selectedTown.clubs.length < TOWN_MAX_CLUBS" class="btn primary" @click="router.push(`/start?town=${selectedTown.id}`)">
-            Found a club here
-          </button>
-          <span v-else-if="selectedTown.clubs.length >= TOWN_MAX_CLUBS" class="note">{{ selectedTown.name }} is full ({{ TOWN_MAX_CLUBS }} clubs).</span>
-        </div>
+        <!-- Friends join your town through an invite link (docs/WORLD-PYRAMID-SPEC.md, "Invites"). -->
+        <template v-if="myTownClubId === null || myTownId !== selectedTown.id">
+          <p class="note">New clubs are placed where the world has room. Friends of a club here can be invited in.</p>
+        </template>
+        <template v-else>
+          <h4>Invite friends to {{ selectedTown.name }}</h4>
+          <p class="sub">
+            Anyone who signs up with your link starts their club here (or next door, if {{ selectedTown.name }} is full).
+          </p>
+          <div v-for="inv in invites" :key="inv.token" class="invite-row">
+            <input :value="inviteUrl(inv.token)" readonly @focus="($event.target as HTMLInputElement).select()" />
+            <button class="btn small" @click="copyInvite(inv.token)">Copy</button>
+            <small>{{ inv.usesLeft }} use{{ inv.usesLeft === 1 ? '' : 's' }} left</small>
+          </div>
+          <div class="row-btns">
+            <button class="btn primary" :disabled="inviting" @click="makeInvite">{{ inviting ? 'Making a link…' : 'New invite link' }}</button>
+          </div>
+        </template>
       </template>
 
       <!-- A country -->
@@ -120,9 +120,10 @@
           </div>
         </div>
         <div class="stats-row">
+          <div><small>Regions</small><b>{{ regionsOf(selectedCountry.id).length }}</b></div>
           <div><small>Towns</small><b>{{ townsOf(selectedCountry.id).length }}</b></div>
-          <div><small>Clubs</small><b>{{ clubsIn(selectedCountry.id).length }}</b></div>
-          <div><small>Managed</small><b>{{ clubsIn(selectedCountry.id).filter((c) => c.human).length }}</b></div>
+          <div><small>Clubs</small><b>{{ clubTotal(selectedCountry.id) }}</b></div>
+          <div v-if="clubsLoadedFor(selectedCountry.id)"><small>Managed</small><b>{{ clubsIn(selectedCountry.id).filter((c) => c.human).length }}</b></div>
         </div>
         <h4 v-if="nationalVenues(selectedCountry.id).length">Competitions</h4>
         <ul class="list">
@@ -138,13 +139,10 @@
           <li v-for="t in townsOf(selectedCountry.id)" :key="t.id">
             <button class="item" @click="onSelect({ kind: 'town', id: t.id })">
               <span class="tdot" :class="t.terrain" aria-hidden="true"></span>
-              <span class="grow"><b>{{ t.name }}</b><small>{{ t.clubs.length }}/{{ TOWN_MAX_CLUBS }} clubs</small></span>
+              <span class="grow"><b>{{ t.name }}</b><small>{{ regionById(t.regionId)?.name ?? '' }} · {{ t.clubCount }}/{{ TOWN_MAX_CLUBS }} clubs</small></span>
             </button>
           </li>
         </ul>
-        <div class="row-btns sticky">
-          <button v-if="canFound('towns')" class="btn primary" @click="startPlacing('town', selectedCountry.id)" v-html="`${icon('up')} Found a town here`"></button>
-        </div>
       </template>
 
       <!-- A competition -->
@@ -179,7 +177,7 @@
       <!-- Nothing selected: the world at a glance -->
       <template v-else-if="atlas">
         <h2><span v-html="icon('map')"></span>The world</h2>
-        <p class="sub">Tap a country, town, club or trophy. Countries grow as their towns are founded.</p>
+        <p class="sub">Tap a country, town, club or trophy. The world fills town by town: when a country is full, the next club founds a new one.</p>
         <h4 v-if="openVenues.length">Open for entry</h4>
         <ul class="list">
           <li v-for="v in openVenues" :key="v.id">
@@ -199,7 +197,6 @@
           </li>
         </ul>
         <div class="row-btns sticky">
-          <button v-if="canFound('countries')" class="btn" @click="startPlacing('country')" v-html="`${icon('up')} Found a country`"></button>
           <button v-if="canFoundClub" class="btn primary" @click="router.push('/start')">Found {{ myClubIds.size ? 'another' : 'a' }} club</button>
         </div>
       </template>
@@ -229,10 +226,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { FOUNDING_LIMITS, TOWN_MAX_CLUBS, type Atlas, type AtlasClub, type EditionListItem } from '@repo/api-contract';
+import { TOWN_MAX_CLUBS, type Atlas, type AtlasClub, type EditionListItem, type TownInvite } from '@repo/api-contract';
 import AtlasMap, { type AtlasPick, type AtlasVenue } from '@/components/atlas/atlas-map.vue';
-import FoundCountryForm from '@/components/atlas/found-country-form.vue';
-import FoundTownForm from '@/components/atlas/found-town-form.vue';
 import { TERRAIN_LABEL } from '@/components/atlas/terrains';
 import CozyPresence from '@/components/cozy/cozy-presence.vue';
 import SideSheet from '@/components/world/side-sheet.vue';
@@ -269,10 +264,6 @@ const editions = ref<EditionListItem[]>([]);
 const mapRef = ref<InstanceType<typeof AtlasMap> | null>(null);
 const selected = ref<AtlasPick | null>(null);
 const filter = ref<Filter>('all');
-const placing = ref<'country' | 'town' | null>(null);
-const placingKind = ref<'country' | 'town'>('country');
-const placingCountryId = ref<string | null>(null);
-const pendingSpot = ref<{ x: number; y: number } | null>(null);
 const showInbox = ref(false);
 const showChallenge = ref(false);
 const entering = ref(false);
@@ -280,8 +271,10 @@ const toast = ref<{ text: string; tone: 'good' | 'bad' } | null>(null);
 
 // --- What's on the map ---------------------------------------------------------------
 
+// In a big world the atlas carries club lists for one country at a time
+// (the one you look at, your own by default); counts are always there.
 const allClubs = computed(() => (atlas.value ? atlas.value.towns.flatMap((t) => t.clubs.map((club) => ({ club, town: t }))) : []));
-const clubCount = computed(() => allClubs.value.length);
+const clubCount = computed(() => (atlas.value?.towns ?? []).reduce((n, t) => n + t.clubCount, 0));
 const humanCount = computed(() => allClubs.value.filter((c) => c.club.human).length);
 const myClubIds = computed(() => new Set(atlas.value?.me?.clubIds ?? []));
 const myClub = computed(() => {
@@ -305,11 +298,18 @@ const visibleAtlas = computed<Atlas>(() => {
 });
 
 const countryById = (id: string) => atlas.value?.countries.find((c) => c.id === id);
-const townsOf = (countryId: string) => (atlas.value?.towns ?? []).filter((t) => t.countryId === countryId).sort((a, b) => b.clubs.length - a.clubs.length || a.name.localeCompare(b.name));
+const regionById = (id: string | null) => (id ? atlas.value?.regions.find((r) => r.id === id) : undefined);
+const regionsOf = (countryId: string) => (atlas.value?.regions ?? []).filter((r) => r.countryId === countryId);
+const townsOf = (countryId: string) => (atlas.value?.towns ?? []).filter((t) => t.countryId === countryId).sort((a, b) => b.clubCount - a.clubCount || a.name.localeCompare(b.name));
 const clubsIn = (countryId: string) => townsOf(countryId).flatMap((t) => t.clubs);
+const clubTotal = (countryId: string) => townsOf(countryId).reduce((n, t) => n + t.clubCount, 0);
+const clubsLoadedFor = (countryId: string) => {
+  const loaded = atlas.value?.clubsLoaded;
+  return loaded === 'all' || (!!loaded && loaded.countryId === countryId);
+};
 const countryList = computed(() =>
   (atlas.value?.countries ?? [])
-    .map((c) => ({ ...c, towns: townsOf(c.id).length, clubs: clubsIn(c.id).length }))
+    .map((c) => ({ ...c, towns: townsOf(c.id).length, clubs: clubTotal(c.id) }))
     .sort((a, b) => b.clubs - a.clubs || a.name.localeCompare(b.name))
 );
 
@@ -334,7 +334,7 @@ const FORMAT: Record<Format, { icon: string; tint: string }> = {
 const stagesOf = (e: EditionListItem) => ((e.definition as { Stages?: { type: string }[] } | null)?.Stages ?? []).map((s) => s.type);
 function formatOf(e: EditionListItem): Format {
   const types = stagesOf(e);
-  if (types.length === 1 && types[0] === 'league') return 'league';
+  if (types.length === 1 && (types[0] === 'league' || types[0] === 'pyramid')) return 'league';
   if (types.length && types.every((t) => t === 'knockout')) return 'cup';
   if (types.includes('groups')) return 'groups';
   return 'event';
@@ -343,7 +343,7 @@ function venueStatus(e: EditionListItem) {
   const today = openPlay.settings?.currentDay ?? 0;
   if (e.status === 'registration') return `Open for entry · ${Math.max(0, (e.registrationClosesDay ?? today) - today)} days left`;
   const s = stagesOf(e)[e.currentStage];
-  return s === 'knockout' ? 'Knockout' : s === 'groups' ? 'Groups' : 'League running';
+  return s === 'knockout' ? 'Knockout' : s === 'groups' ? 'Groups' : s === 'pyramid' ? 'Season running' : 'League running';
 }
 const countryOfEdition = (e: EditionListItem) => {
   const ids = (e.definition as { Entry?: { countryIds?: string[] } } | null)?.Entry?.countryIds;
@@ -403,7 +403,9 @@ const openVenues = computed(() => venues.value.filter((v) => editions.value.find
 const nationalVenues = (countryId: string) => venues.value.filter((v) => countryOfEdition(editions.value.find((e) => e.id === v.id)!) === countryId);
 
 const canChallengeAnyone = computed(() =>
-  openPlay.activeEntries.some((e) => e.edition.status === 'running' && e.status === 'active' && stagesOf(e.edition as never)[e.edition.currentStage] !== 'knockout')
+  openPlay.activeEntries.some(
+    (e) => e.edition.status === 'running' && e.status === 'active' && !['knockout', 'pyramid'].includes(stagesOf(e.edition as never)[e.edition.currentStage] ?? '')
+  )
 );
 
 // --- Selection --------------------------------------------------------------------------
@@ -416,16 +418,17 @@ const selectedClub = computed(() => {
 const selectedTown = computed(() => (selected.value?.kind === 'town' ? (atlas.value?.towns.find((t) => t.id === selected.value!.id) ?? null) : null));
 const selectedCountry = computed(() => (selected.value?.kind === 'country' ? (countryById(selected.value.id) ?? null) : null));
 const selectedVenue = computed(() => (selected.value?.kind === 'venue' ? (editions.value.find((e) => e.id === selected.value!.id) ?? null) : null));
-const placingCountry = computed(() => (placingCountryId.value ? countryById(placingCountryId.value) : null));
-
 function onSelect(p: AtlasPick | null) {
-  if (placing.value || pendingSpot.value) return;
   selected.value = p;
   if (!p) return;
-  if (p.kind === 'country') mapRef.value?.focusCountry(p.id);
-  else if (p.kind === 'town') {
+  if (p.kind === 'country') {
+    mapRef.value?.focusCountry(p.id);
+    if (!clubsLoadedFor(p.id)) void loadAtlas(p.id);
+  } else if (p.kind === 'town') {
     const t = atlas.value?.towns.find((x) => x.id === p.id);
     if (t) mapRef.value?.focusPoint(t.x, t.y, 260);
+    if (t && !clubsLoadedFor(t.countryId)) void loadAtlas(t.countryId);
+    if (t && t.id === myTownId.value) void loadInvites();
   } else if (p.kind === 'club') {
     const c = allClubs.value.find((x) => x.club.id === p.id);
     if (c) mapRef.value?.focusPoint(c.town.x, c.town.y, 220);
@@ -435,38 +438,49 @@ function onSelect(p: AtlasPick | null) {
   }
 }
 
-// --- Founding ------------------------------------------------------------------------------
+// --- Founding and invites ---------------------------------------------------------------------
 
-const canFound = (kind: 'countries' | 'towns') => {
-  const me = atlas.value?.me;
-  return !!me && me.founded[kind] < (me.limits[kind] ?? FOUNDING_LIMITS[kind]);
-};
 const canFoundClub = computed(() => {
   const me = atlas.value?.me;
   return !!me && me.founded.clubs < me.limits.clubs;
 });
 
-function startPlacing(kind: 'country' | 'town', countryId?: string) {
-  placingKind.value = kind;
-  placingCountryId.value = countryId ?? null;
-  pendingSpot.value = null;
-  placing.value = kind;
-  if (kind === 'country') mapRef.value?.fitAll();
+/** The town of the user's club, once its country's clubs are loaded. */
+const myTown = computed(() => allClubs.value.find((c) => myClubIds.value.has(c.club.id)) ?? null);
+const myTownId = computed(() => myTown.value?.town.id ?? null);
+const myTownClubId = computed(() => myTown.value?.club.id ?? null);
+const invites = ref<TownInvite[]>([]);
+const inviting = ref(false);
+const inviteUrl = (token: string) => `${window.location.origin}/start?invite=${encodeURIComponent(token)}`;
+
+async function loadInvites() {
+  if (!myTownClubId.value) return;
+  try {
+    invites.value = unwrap<TownInvite[]>(await client.atlas.listInvites.query({ query: { clubId: myTownClubId.value } }));
+  } catch {
+    invites.value = [];
+  }
 }
-function cancelPlacing() {
-  placing.value = null;
-  pendingSpot.value = null;
+async function makeInvite() {
+  if (!myTownClubId.value) return;
+  inviting.value = true;
+  try {
+    const inv = unwrap<TownInvite>(await client.atlas.createInvite.mutation({ body: { clubId: myTownClubId.value } }));
+    invites.value = [inv, ...invites.value];
+    await copyInvite(inv.token);
+  } catch (err) {
+    say(err instanceof Error ? err.message : String(err), 'bad');
+  } finally {
+    inviting.value = false;
+  }
 }
-function onPlace(spot: { x: number; y: number; problem: string | null }) {
-  if (spot.problem) return say(spot.problem, 'bad');
-  pendingSpot.value = { x: spot.x, y: spot.y };
-  placing.value = null;
-}
-async function onFounded(kind: 'country' | 'town', place: { id: string; name: string }) {
-  say(`${place.name} is on the map!`);
-  cancelPlacing();
-  await loadAtlas();
-  onSelect({ kind, id: place.id });
+async function copyInvite(token: string) {
+  try {
+    await navigator.clipboard.writeText(inviteUrl(token));
+    say('Invite link copied');
+  } catch {
+    say('Select the link to copy it');
+  }
 }
 
 // --- Data ------------------------------------------------------------------------------
@@ -476,9 +490,13 @@ function say(text: string, tone: 'good' | 'bad' = 'good') {
   setTimeout(() => toast.value?.text === text && (toast.value = null), 3200);
 }
 
-async function loadAtlas() {
+/** The atlas, with club lists for `countryId` (else the server's default:
+ * every club in a small world, the user's own country in a big one). */
+async function loadAtlas(countryId?: string) {
   try {
-    atlas.value = unwrap<Atlas>(await client.atlas.getAtlas.query());
+    const loaded = atlas.value?.clubsLoaded;
+    const keep = countryId ?? (loaded && loaded !== 'all' ? loaded.countryId : undefined);
+    atlas.value = unwrap<Atlas>(await client.atlas.getAtlas.query({ query: { countryId: keep } }));
   } catch (err) {
     loadError.value = err instanceof Error ? err.message : String(err);
   }
@@ -505,12 +523,17 @@ async function enter(id: string) {
   }
 }
 
-// The world grows live: someone else founding a country, town or club.
+// The world grows live: someone else founding a club, maybe opening a town,
+// region or country with it. Batched, so a busy world reloads at most every
+// few seconds.
 let reloadTimer: ReturnType<typeof setTimeout> | undefined;
-function onWorldFounded(p: { kind: string; name: string }) {
-  say(`New ${p.kind} on the map: ${p.name}`);
-  clearTimeout(reloadTimer);
-  reloadTimer = setTimeout(() => void loadAtlas(), 400);
+function onWorldFounded(p: { kind: string; name: string; opened?: string[] }) {
+  if (p.opened?.includes('country')) say(`A new nation is on the map, founded by ${p.name}`);
+  if (reloadTimer) return;
+  reloadTimer = setTimeout(() => {
+    reloadTimer = undefined;
+    void loadAtlas();
+  }, 3000);
 }
 
 // Keep the selection clear of the panel (right on wide screens, bottom on phones).
@@ -727,6 +750,25 @@ onBeforeUnmount(() => {
 .item small {
   color: var(--muted);
   font-size: 12px;
+}
+.invite-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0;
+}
+.invite-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 2px solid #eadbb8;
+  background: #fffaf0;
+  font-size: 12px;
+}
+.invite-row small {
+  color: var(--muted);
+  white-space: nowrap;
 }
 .empty {
   padding: 10px;

@@ -69,6 +69,19 @@ export const StageDefinitionSchema = z.discriminatedUnion('type', [
     seeding: z.enum(['elo', 'random', 'previous-stage']),
     drawAtEnd: z.enum(['penalties', 'higher-seed', 'away-goals']),
   }),
+  /** A country's pyramid league (docs/WORLD-PYRAMID-SPEC.md): divisions of
+   * pools that play a scheduled round-robin over the Year. */
+  z.object({
+    type: z.literal('pyramid'),
+    poolSize: z.number().int().min(2).max(24),
+    rounds: z.union([z.literal(1), z.literal(2)]),
+    /** Top N of each pool go up a division, bottom N go down. */
+    promote: count,
+    relegate: count,
+    /** Share of the bottom division's slots filled at the draw. */
+    bottomFill: z.number().min(0.3).max(1),
+    rules: LeagueRulesSchema.partial().optional(),
+  }),
 ]);
 
 export const EntryConditionsSchema = z.object({
@@ -162,6 +175,7 @@ function clubsAdvancing(
   clubsIn: number | null
 ): number | null {
   if (stage.type === 'knockout') return 1;
+  if (stage.type === 'pyramid') return clubsIn;
   if (!stage.advance) return clubsIn;
   if (stage.type === 'groups' && stage.advance.perGroup) {
     if (clubsIn == null) return null;
@@ -206,9 +220,18 @@ export const CompetitionDefinitionSchema = DefinitionShape.superRefine(
       });
     }
 
+    if (Stages.some((s) => s.type === 'pyramid') && Stages.length !== 1) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['Stages'],
+        message: 'A pyramid stage must be the only stage',
+      });
+    }
+
     let clubsIn: number | null = Entry.maxClubs;
     Stages.forEach((stage, i) => {
       const isLast = i === Stages.length - 1;
+      if (stage.type === 'pyramid') return;
 
       if (stage.type === 'knockout' && !isLast) {
         ctx.addIssue({

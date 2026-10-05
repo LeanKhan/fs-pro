@@ -4,6 +4,8 @@ import { clubs, users } from '../../db/drizzle/schema';
 
 export type ClubAccess = 'ok' | 'unauthenticated' | 'forbidden' | 'not_found';
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** Only the club's owner, or an admin, may act for the club (spend its money,
  * play its matches). `session` is the express session (`req.session`). */
 export async function canManageClub(
@@ -12,6 +14,8 @@ export async function canManageClub(
 ): Promise<ClubAccess> {
   const userId = session?.userID;
   if (!userId) return 'unauthenticated';
+  // A malformed id is a missing club, not a database error.
+  if (!UUID.test(clubId ?? '')) return 'not_found';
 
   const db = DrizzleDatabase.getInstance().database;
   const club = await db.query.clubs.findFirst({ where: eq(clubs.id, clubId) });
