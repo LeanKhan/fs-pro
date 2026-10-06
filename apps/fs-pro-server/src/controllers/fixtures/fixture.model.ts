@@ -2,9 +2,9 @@ import {
   IMatchDetails,
   IMatchEvent,
   IMatchSideDetails,
-} from '../../simulation/classes/Match';
+} from '../../match/types';
 import { ClubInterface } from '../clubs/club.model';
-import { ITactic } from '../../simulation/state/PersistentState/Formations';
+import { ITactic } from '../../match/tactics';
 
 export interface Fixture {
   _id: string;

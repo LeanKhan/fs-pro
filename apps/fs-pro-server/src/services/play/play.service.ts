@@ -239,7 +239,13 @@ export async function findOpponents(clubId: string): Promise<OpponentOption[]> {
   return [closest, ...extras].map(toOption);
 }
 
-export async function playMatch(clubId: string, opponentId?: string): Promise<MatchResult> {
+/** `watch`: the manager will watch it in the Matchzone - record and keep
+ * the replay. Otherwise it's played headless, straight to the result. */
+export async function playMatch(
+  clubId: string,
+  opponentId?: string,
+  options: { watch?: boolean } = {}
+): Promise<MatchResult> {
   const [club] = await db().select().from(clubs).where(eq(clubs.id, clubId));
   if (!club) throw new Error('Club not found');
 
@@ -286,10 +292,10 @@ export async function playMatch(clubId: string, opponentId?: string): Promise<Ma
     } as any);
     try {
       await play(fixture._id as string, {
-        quickSim: true,
+        headless: !options.watch,
         skipStandings: true,
         skipDayAdvance: true,
-        skipReplay: true,
+        skipReplay: !options.watch,
         homeRatingBonus,
         // A person's club defending while they're away keeps its legs.
         restAway: !!candidate.UserId,
@@ -339,7 +345,7 @@ export async function playMatch(clubId: string, opponentId?: string): Promise<Ma
     let minute = minMatch ? parseInt(minMatch[0], 10) : Math.floor(Math.random() * 85) + 5;
     if (minute < 1 || minute > 90) minute = Math.min(Math.max(minute, 1), 90);
 
-    // playerTeamID is the club code (QuickSimResolver), not its id.
+    // playerTeamID is the club code, not its id.
     const isYou = ev.playerTeamID ? ev.playerTeamID === club.ClubCode : ev.side === 'home';
     extractedHighlights.push({
       minute,

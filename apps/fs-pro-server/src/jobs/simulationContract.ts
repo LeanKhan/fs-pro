@@ -1,20 +1,13 @@
 import { IClub } from '../interfaces/Club';
-import { ITactic } from '../simulation/state/PersistentState/Formations';
-import { IMatchDetails, IMatchEvent } from '../simulation/classes/Match';
+import { ITactic } from '../match/tactics';
+import { IMatchDetails, IMatchEvent } from '../match/types';
 import { MatchFrames } from '../realtime/packedFrames';
 import { IReplayableMatch } from '../realtime/matchBroadcaster';
 
 /**
- * Milestone 9 (Engine Contract And Resource Controls) - the "one stable
- * internal interface" the tracker asks for. Finalizes, rather than
- * invents, the shape `matchSimWorker.ts`/`matchQueue.ts` already implied
- * with their ad hoc `IMatchSimWorkerData`/`{ok,result}` types - this is
- * that same shape, named and shared, plus lightweight metrics.
- *
- * `clubs` is already plain JSON (Mongoose/BSON stripped) by the time a
- * request is built - see buildSimulateMatchRequest.ts - since this
- * crosses a worker_thread boundary (structured clone, not every
- * Mongoose-lean() field survives that).
+ * The request/result of one match on the sim service (crates/sim-core
+ * contract.rs - keep in step). `clubs` is plain JSON (whole squads; the
+ * engine picks the XI), see buildSimulateMatchRequest.ts.
  */
 export interface SimulateMatchRequest {
   fixtureId: string;
@@ -24,11 +17,14 @@ export interface SimulateMatchRequest {
   fixtureType?: string;
   stage?: string;
   isKnockout?: boolean;
-  /** Seeds every random draw of this run (engine, QuickSim, penalty
+  /** Seeds every random draw of this run (the engine and the penalty
    * shootout). buildSimulateMatchRequest() makes a fresh one per run, so
    * playing the same fixture again is a new match; passing a recorded seed
    * reproduces that exact run (tests, bug reports). */
   seed: string;
+  /** Record replay frames (default true). False for matches nobody will
+   * watch - the engine runs the same, the response is ~25 KB not ~165 KB. */
+  includeFrames?: boolean;
 }
 
 /** The seed a match actually runs with - see `SimulateMatchRequest.seed`. */

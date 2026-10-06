@@ -91,7 +91,7 @@ async function playWorldMatches(pool: ClubRow[]): Promise<WorldTickSummary['matc
     } as any);
     try {
       await play(fixture._id as string, {
-        quickSim: true,
+        headless: true,
         skipStandings: true,
         skipDayAdvance: true,
         skipReplay: true,

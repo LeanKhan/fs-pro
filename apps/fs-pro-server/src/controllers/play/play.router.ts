@@ -48,7 +48,7 @@ export const playTsRestRoutes = s.router(contract.play, {
 
       return {
         status: 200 as const,
-        body: { success: true as const, message: 'Match played', payload: await playMatch(params.clubId, body?.opponentId) },
+        body: { success: true as const, message: 'Match played', payload: await playMatch(params.clubId, body?.opponentId, { watch: body?.watch === true }) },
       };
     } catch (err) {
       return errorResponse(err) as any;

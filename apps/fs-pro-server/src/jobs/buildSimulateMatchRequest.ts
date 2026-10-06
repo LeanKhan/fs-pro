@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { getClubs } from '../controllers/clubs/club.service';
 import { resolveManagerTactic } from '../controllers/managers/manager.service';
-import { ITactic } from '../simulation/state/PersistentState/Formations';
+import { ITactic } from '../match/tactics';
 import { SimulateMatchRequest } from './simulationContract';
 import { moodRatingBonus } from '../services/world/club-standing.service';
 

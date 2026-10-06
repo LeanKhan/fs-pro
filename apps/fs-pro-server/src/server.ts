@@ -34,7 +34,6 @@ const port = process.env.PORT || 3000;
 
 import { Server as SocketIOServer, Socket } from 'socket.io';
 
-import App from './controllers/app/App';
 import { registerIO } from './realtime/io';
 import { createExpressEndpoints } from '@ts-rest/express';
 import { apiContract } from '@repo/api-contract';
@@ -145,7 +144,6 @@ app.use((req, res, next) => {
 });
 
 //  ==== THE GAME CLASS GAN GAN! EVERYTHING ABOUT THE GAME STARTS HERE! == //
-App.create();
 //  ==== THE GAME CLASS GAN GAN! EVERYTHING ABOUT THE GAME STARTS HERE! == //
 
 /**

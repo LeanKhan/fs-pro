@@ -1,8 +1,4 @@
-import { IBlock } from '../simulation/state/ImmutableState/FieldGrid';
-import Ball from '../simulation/classes/Ball';
 import { Role } from '../controllers/players/player.model';
-import type { IPlayerCondition } from '../simulation/player/PlayerCondition';
-import type { IPlayerMemory } from '../simulation/player/PlayerMemory';
 
 /**
  * A player's current standing in the match. Deliberately a string union,
@@ -10,37 +6,6 @@ import type { IPlayerMemory } from '../simulation/player/PlayerMemory';
  * injury, say) extend this with a new value instead of needing a redesign.
  */
 export type PlayerMatchStatus = 'active' | 'sent-off' | 'substituted';
-
-export interface IFieldPlayer extends PlayerInterface {
-  Points: number;
-  Substitute: boolean;
-  BlockPosition: IBlock;
-  /** Where the player starts the match */
-  StartingPosition: IBlock;
-  WithBall: boolean;
-  Ball: Ball;
-  MatchStatus: PlayerMatchStatus;
-  /** Milestone 20 (Fatigue, Confidence, And Player Memory) - see
-   * `simulation/player/PlayerCondition.ts`. */
-  Condition: IPlayerCondition;
-  /** Milestone 20 - see `simulation/player/PlayerMemory.ts`. */
-  Memory: IPlayerMemory;
-  // Team: MatchSide;
-  move(pos: any): void;
-  changePosition(pos: IBlock): void;
-  changeStartingPosition(block: IBlock): void;
-  /** Milestone 17 (Independent Ball Model) - `holderId` is the id of
-   * whoever's actually receiving this pass (the target teammate on a
-   * clean pass, the interceptor on a failed one) - the caller always
-   * already knows which, so it's explicit rather than re-derived from
-   * position matching afterward (see `Ball.ts`'s own doc comment). */
-  pass(pos: any, holderId: string): void;
-  shoot(pos: any): void;
-  getBlocksAround(radius: number): any[];
-  increaseGoalTally(): void;
-  increasePoints(pnts: number): void;
-  checkNextBlocks(): IPositions;
-}
 
 export interface PlayerInterface {
   _id?: string;
@@ -83,14 +48,6 @@ export interface PlayerInterface {
 }
 
 // It's not all players that will have club :)
-
-export interface IPositions {
-  top?: IBlock;
-  left?: IBlock;
-  right?: IBlock;
-  bottom?: IBlock;
-  [key: string]: IBlock | undefined;
-}
 
 export interface IPlayerAttributes {
   Speed: number;

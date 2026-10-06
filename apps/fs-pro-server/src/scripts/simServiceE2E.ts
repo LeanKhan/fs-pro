@@ -12,7 +12,7 @@
  */
 import * as dotenv from 'dotenv'; dotenv.config();
 import * as fs from 'fs';
-import { POOL_PATH, IRosterPool } from './simRealismCheck';
+import { POOL_PATH, IRosterPool } from './rosterPool';
 import { simulateMatch } from '../jobs/matchQueue';
 import { unpackFrames } from '../realtime/packedFrames';
 (async () => {

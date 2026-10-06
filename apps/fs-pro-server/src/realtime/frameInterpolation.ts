@@ -1,4 +1,4 @@
-import { IMatchFrame, IMatchFramePlayer } from '../simulation/classes/Match';
+import { IMatchFrame, IMatchFramePlayer } from '../match/types';
 
 /**
  * `Game.gameLoop` resolves exactly one decision per tick - a whole

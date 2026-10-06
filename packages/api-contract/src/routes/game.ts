@@ -73,6 +73,31 @@ export const gameContract = c.router(
       },
     },
 
+    /** A played match's saved replay, for the Matchzone to play back
+     * client-side: identities, final Details, and the frames in their
+     * packed form (see replay.ts - ~165 KB; unpackFrames() on the client). */
+    getReplay: {
+      method: 'GET',
+      path: '/replay/:fixture/data',
+      pathParams: z.object({
+        fixture: z.string(),
+      }),
+      responses: {
+        200: successEnvelope(
+          z.object({
+            Home: z.object({ id: z.string(), name: z.string(), code: z.string() }),
+            Away: z.object({ id: z.string(), name: z.string(), code: z.string() }),
+            Details: z.any(),
+            Frames: z.any(),
+            /** Player id -> display name, for everyone in the roster. */
+            Names: z.record(z.string()).optional(),
+          })
+        ),
+        400: failEnvelope(),
+        404: failEnvelope(),
+      },
+    },
+
     /** The formation/style names a client can offer in a tactic picker. */
     tacticOptions: {
       method: 'GET',
