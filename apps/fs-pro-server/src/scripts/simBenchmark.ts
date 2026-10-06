@@ -31,6 +31,7 @@ import { Match } from '../simulation/classes/Match';
 import { POOL_PATH, IRosterPool } from './simRealismCheck';
 import { simulateMatch } from '../jobs/matchQueue';
 import { SimulateMatchRequest } from '../jobs/simulationContract';
+import { unpackFrames } from '../realtime/packedFrames';
 
 const WARMUP_MATCHES = 20;
 
@@ -204,7 +205,9 @@ async function benchmarkWorkers(pairs: IFixturePair[], tactics: IRosterPool['tac
     failed,
   });
 
-  return results.map((r) => (r.ok ? fingerprint(r.match) : 'failed'));
+  // Worker results arrive packed - unpacking them here also proves the
+  // packed format is lossless (fingerprints must match in-process ones).
+  return results.map((r) => (r.ok ? fingerprint({ ...r.match, Frames: unpackFrames(r.match.Frames) }) : 'failed'));
 }
 
 function compareFingerprints(fileA: string, fileB: string) {

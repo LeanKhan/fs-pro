@@ -9,6 +9,7 @@ import {
   SimulationMetrics,
 } from './simulationContract';
 import { startMatchReplay } from '../realtime/matchBroadcaster';
+import { frameCount } from '../realtime/packedFrames';
 import type { IMatchSimJob, IMatchSimWorkerMessage } from './matchSimWorker';
 
 /**
@@ -294,7 +295,7 @@ async function runDebugJob(fixtureId: string): Promise<void> {
   }
 
   console.log(
-    `[queue] ${fixtureId} simulated: ${result.match.Frames.length} frames`
+    `[queue] ${fixtureId} simulated: ${frameCount(result.match.Frames)} frames`
   );
   startMatchReplay(result.match, fixtureId);
 }

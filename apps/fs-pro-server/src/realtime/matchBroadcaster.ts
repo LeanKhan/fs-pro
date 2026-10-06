@@ -1,6 +1,7 @@
-import { IMatchDetails, IMatchFrame } from '../simulation/classes/Match';
+import { IMatchDetails } from '../simulation/classes/Match';
 import { getMatchReplayNamespace } from './io';
 import { expandFrames } from './frameInterpolation';
+import { MatchFrames, unpackFrames } from './packedFrames';
 
 const DEFAULT_TICK_MS = 300;
 
@@ -14,7 +15,8 @@ const DEFAULT_TICK_MS = 300;
 export interface IReplayableMatch {
   Home: { _id: string; Name: string; ClubCode: string };
   Away: { _id: string; Name: string; ClubCode: string };
-  Frames: IMatchFrame[];
+  /** Packed (sim service, new replays) or a plain array (old replays). */
+  Frames: MatchFrames;
   Details: IMatchDetails;
 }
 
@@ -41,10 +43,11 @@ export function replayMatch(
 ): Promise<void> {
   return new Promise((resolve) => {
     const room = getMatchReplayNamespace().to(fixtureId);
-    const steps = expandFrames(match.Frames);
+    const frames = unpackFrames(match.Frames);
+    const steps = expandFrames(frames);
 
     console.log(
-      `[replay] starting ${fixtureId}: ${match.Frames.length} ticks -> ${steps.length} playback frames`
+      `[replay] starting ${fixtureId}: ${frames.length} ticks -> ${steps.length} playback frames`
     );
 
     room.emit('match-replay-start', {

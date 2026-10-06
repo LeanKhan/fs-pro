@@ -615,7 +615,12 @@ export const matchReplays = pgTable('MatchReplays', {
     .references(() => fixtures.id),
   Home: jsonb('Home').$type<Record<string, unknown> | null>(),
   Away: jsonb('Away').$type<Record<string, unknown> | null>(),
-  Frames: jsonArray('Frames'),
+  // Packed frames object (realtime/packedFrames.ts), or a legacy array of
+  // IMatchFrame for replays saved before packing.
+  Frames: jsonb('Frames')
+    .$type<Record<string, unknown> | Record<string, unknown>[]>()
+    .notNull()
+    .default(sql`'[]'::jsonb`),
   Details: jsonb('Details').$type<Record<string, unknown> | null>(),
   TickMs: integer('TickMs'),
   ...timestamps,

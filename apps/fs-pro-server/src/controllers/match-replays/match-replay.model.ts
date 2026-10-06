@@ -1,4 +1,5 @@
-import { IMatchDetails, IMatchFrame } from '../../simulation/classes/Match';
+import { IMatchDetails } from '../../simulation/classes/Match';
+import { MatchFrames } from '../../realtime/packedFrames';
 
 interface ISideRef {
   id: string;
@@ -20,7 +21,8 @@ export interface MatchReplayRecord {
   FixtureId: string;
   Home: ISideRef;
   Away: ISideRef;
-  Frames: IMatchFrame[];
+  /** Packed for replays saved since packing; a plain array for older ones. */
+  Frames: MatchFrames;
   Details: IMatchDetails;
   TickMs: number;
 }

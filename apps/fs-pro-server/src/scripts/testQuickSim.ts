@@ -57,6 +57,7 @@ function runTest(matchCount = 1000) {
 
     const request: SimulateMatchRequest = {
       fixtureId: `test-fixture-${i}`,
+      seed: `quick-sim-check:${i}`,
       clubs: [homeClub, awayClub],
       sides: {
         home: homeClub._id as string,

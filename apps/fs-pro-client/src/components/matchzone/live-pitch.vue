@@ -12,6 +12,79 @@
         <rect x="94" y="40" width="5" height="20" />
       </svg>
 
+      <!-- SVG Action Trajectory Vectors Layer -->
+      <svg class="action-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <defs>
+          <marker
+            id="arrow-pass-home"
+            viewBox="0 0 10 10"
+            refX="7"
+            refY="5"
+            markerWidth="4"
+            markerHeight="4"
+            orient="auto"
+          >
+            <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#38bdf8" />
+          </marker>
+          <marker
+            id="arrow-pass-away"
+            viewBox="0 0 10 10"
+            refX="7"
+            refY="5"
+            markerWidth="4"
+            markerHeight="4"
+            orient="auto"
+          >
+            <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#fbbf24" />
+          </marker>
+          <marker
+            id="arrow-shot"
+            viewBox="0 0 10 10"
+            refX="7"
+            refY="5"
+            markerWidth="5"
+            markerHeight="5"
+            orient="auto"
+          >
+            <path d="M 0 1 L 9 5 L 0 9 z" fill="#f97316" />
+          </marker>
+          <marker
+            id="arrow-turnover"
+            viewBox="0 0 10 10"
+            refX="7"
+            refY="5"
+            markerWidth="4"
+            markerHeight="4"
+            orient="auto"
+          >
+            <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#ef4444" />
+          </marker>
+        </defs>
+
+        <g
+          v-for="v in activeVectors"
+          :key="v.id"
+          :style="{ opacity: vectorOpacity(v) }"
+        >
+          <line
+            :x1="v.fromX"
+            :y1="v.fromY"
+            :x2="v.toX"
+            :y2="v.toY"
+            class="action-vector-line"
+            :class="[v.type, v.side]"
+            :marker-end="getMarkerEnd(v)"
+          />
+          <circle
+            :cx="v.toX"
+            :cy="v.toY"
+            class="action-target-ping"
+            :class="[v.type, v.side]"
+            r="1.6"
+          />
+        </g>
+      </svg>
+
       <div
         v-for="p in visiblePlayers"
         :key="p.id"
@@ -51,6 +124,18 @@
           backgroundImage: `url(${ballSprite})`,
         }"
       ></div>
+
+      <!-- Floating Player Action Badges Layer -->
+      <div
+        v-for="action in activeActions"
+        :key="action.id"
+        class="action-badge"
+        :class="[action.side, action.type]"
+        :style="actionBadgeStyle(action)"
+      >
+        <span class="badge-icon">{{ action.icon }}</span>
+        <span class="badge-text">{{ action.text }}</span>
+      </div>
 
       <div
         v-if="hoveredPlayer"

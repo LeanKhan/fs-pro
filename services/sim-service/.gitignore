@@ -1,0 +1,6 @@
+# Build outputs - built from source (`go build`, `cargo build --release`),
+# never committed. Stale copies here used to shadow fresh engine builds.
+*.exe
+*.dll
+*.so
+*.dylib
