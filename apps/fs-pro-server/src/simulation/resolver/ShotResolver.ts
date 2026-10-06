@@ -1,108 +1,42 @@
 import { IFieldPlayer } from '../../interfaces/Player';
 import { MatchSide } from '../classes/MatchSide';
-import CO from '../utils/coordinates';
-import { getResult } from '../utils/probability';
 import { RandomSource } from '../randomness';
-import { getSimulationConfig } from '../config';
-import { getFatigueMultiplier } from '../player/PlayerCondition';
+import { shotModel, ShotKind } from './outcomeModel';
+
+export interface ShotResolution {
+  onTarget: boolean;
+  goal: boolean;
+  /** Chance quality of the attempt (see outcomeModel.shotModel) - recorded
+   * on the shot event so match stats and analysis can show it. */
+  xG: number;
+  /** Metres from goal. */
+  distance: number;
+}
 
 /**
- * Milestone 8 (Resolver Layer) - moved verbatim out of `Decider.ts`'s
- * `getShotResult`/`getShotTarget` (see the simulation-engine-isolation
- * plan). Takes the SAME `RandomSource` instance `Decider` itself uses
- * (via its now-public `random` field), not a freshly forked one - a
- * fresh fork would draw from a differently-ordered stream than before
- * (the shot-target roll used to interleave, in call order, with every
- * other roll `Decider.gimmeAChance()` makes) - same class of risk
- * Milestone 7 avoided by wrapping the existing `Decider` instance
- * instead of constructing a second one.
- *
- * `isNearScoringPost` is a small, deliberate duplicate of `Decider`'s
- * private `isNearPost()` (which stays in `Decider.ts` - it's also used
- * by the decision-making side, `whatKindaPass()`) rather than an
- * "extract to a shared location" refactor for one short, pure geometric
- * helper - same tradeoff already made for helpers/logger.ts/misc.ts back
- * in Milestone 2.
+ * Resolves a shot with ONE draw against the shot model: goal, saved or
+ * missed. Chance quality (distance, angle, blockers, pressure, clean
+ * through) sets the odds, the shooter-vs-keeper skill gap shifts them - so
+ * a team that creates better chances scores more, rather than every shot
+ * in range being equally dangerous.
  */
 export class ShotResolver {
-  constructor(
-    private teams: MatchSide[],
-    private random: RandomSource
-  ) {}
+  constructor(private random: RandomSource) {}
 
   public resolve(
     shooter: IFieldPlayer,
-    keeper: IFieldPlayer
-  ): { onTarget: boolean; goal: boolean } {
-    const onTarget = this.getShotTarget(shooter);
-
-    if (!keeper && onTarget) {
-      return { onTarget, goal: true };
-    } else {
-      if (onTarget) {
-        const { shooterPower, keeperPower } = getSimulationConfig().shooting.duel;
-        // Milestone 20 - "fatigue affects... shot precision" - both the
-        // shooter's finishing and the keeper's own handling degrade with
-        // their own fatigue.
-        const shooterFatigue = getFatigueMultiplier(shooter);
-        const keeperFatigue = getFatigueMultiplier(keeper);
-        const result = getResult(
-          [
-            shooter.Attributes.Shooting * shooterFatigue,
-            shooter.Attributes.Mental * shooterFatigue,
-          ],
-          [
-            keeper.Attributes.Keeping * keeperFatigue,
-            keeper.Attributes.Control * keeperFatigue,
-          ],
-          shooterPower,
-          keeperPower
-        );
-
-        return { onTarget, goal: result };
-      } else {
-        return { onTarget, goal: false };
-      }
-    }
-  }
-
-  private gimmeAChance(): number {
-    return Math.round(this.random.next() * 100);
-  }
-
-  private getShotTarget(shooter: IFieldPlayer): boolean {
-    const chance = this.gimmeAChance();
-
-    const teamIndex = this.teams.findIndex(
-      (t) => t.ClubCode === shooter.ClubCode
-    );
-
-    const shooterFatigue = getFatigueMultiplier(shooter);
-
-    if (
-      this.isNearScoringPost(
-        shooter,
-        this.teams[teamIndex],
-        getSimulationConfig().shooting.nearPostDistance
-      )
-    ) {
-      return chance <= shooter.Attributes.Shooting * shooterFatigue;
-    } else {
-      return (
-        chance <=
-        ((shooter.Attributes.SetPiece + shooter.Attributes.Shooting) / 2) * shooterFatigue
-      );
-    }
-  }
-
-  private isNearScoringPost(
-    player: IFieldPlayer,
+    keeper: IFieldPlayer | undefined,
     attackingSide: MatchSide,
-    distance: number
-  ): boolean {
-    return (
-      CO.co.calculateDistance(player.BlockPosition, attackingSide.ScoringSide) <=
-      CO.co.scaleDistance(distance)
-    );
+    defendingSide: MatchSide,
+    kind: ShotKind = 'open-play'
+  ): ShotResolution {
+    const model = shotModel(shooter, keeper, attackingSide, defendingSide, kind);
+    const roll = this.random.next();
+
+    if (roll < model.pGoal) {
+      return { onTarget: true, goal: true, xG: model.xG, distance: model.distance };
+    }
+    const onTarget = roll < model.pGoal + (1 - model.pGoal) * model.pOnTargetIfNoGoal;
+    return { onTarget, goal: false, xG: model.xG, distance: model.distance };
   }
 }

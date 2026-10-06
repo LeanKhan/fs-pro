@@ -52,12 +52,10 @@ export interface ShootingConfig {
   /** Milestone 15's per-player shooting-tendency swing on top of a
    * profile's threshold - `Decider.shootUtility()`. */
   confidenceSwing: number;
-  /** `ShotResolver.resolve()`'s shooter-vs-keeper duel skill weights
-   * (the two `getResult()` power args, 0-100 each). */
-  duel: { shooterPower: number; keeperPower: number };
-  /** `ShotResolver.isNearScoringPost()`'s "close enough to just aim at
-   * goal" distance, in `scaleDistance()` units. */
-  nearPostDistance: number;
+  /** How a player values a shooting chance (`Decider.shootUtility()`):
+   * chance value = 1 - exp(-xG * xgSensitivity), blended with the
+   * player's temperament (composure/tendency/tempo) by `chanceWeight`. */
+  selection: { xgSensitivity: number; chanceWeight: number };
 }
 
 export interface PassingConfig {
@@ -97,20 +95,12 @@ export interface DribblingConfig {
     abilityWeight: number;
     abilityFloor: number;
     abilityCeiling: number;
+    /** Dribble score is multiplied by P(beat the marker) * successWeight. */
+    successWeight: number;
+    /** Multiplier on Decider.scoreHold(). */
+    holdScale: number;
   };
-  /** `TackleResolver.resolveDribble()`'s EXECUTION-layer duel - whether
-   * the attempt actually beats the marker. */
-  contest: {
-    dribblerDribblingWeight: number;
-    dribblerSpeedWeight: number;
-    dribblerPower: number;
-    opponentPower: number;
-  };
-}
-
-export interface TacklingConfig {
-  /** `TackleResolver.resolveTackle()`'s duel skill weights. */
-  contest: { tacklerPower: number; ballHolderPower: number };
+  // Whether an attempt SUCCEEDS is OutcomesConfig.duel, not this.
 }
 
 export interface FoulsConfig {
@@ -159,12 +149,11 @@ export interface MovementConfig {
 }
 
 export interface FatigueConfig {
-  /** `PlayerCondition.updatePlayerConditionTick()`'s flat per-tick stamina
-   * drain, before pressing/ability adjustments - applied to every active
-   * player, every tick, regardless of whether they're currently on the
-   * ball. */
-  baseDrainPerTick: number;
-  /** Extra per-tick drain, scaled by the DEFENDING side's own
+  /** `PlayerCondition.updatePlayerConditionTick()`'s flat stamina drain
+   * per match minute, before pressing/ability adjustments - applied to
+   * every active player regardless of whether they're on the ball. */
+  baseDrainPerMinute: number;
+  /** Extra drain per match minute, scaled by the DEFENDING side's own
    * `Tactic.style.pressingIntensity` and applied only to that side (the
    * one actually out of possession and doing the pressing) - the literal
    * mechanism behind "high pressing has a visible cost" (this milestone's
@@ -211,7 +200,7 @@ export interface FatigueConfig {
     initial: number;
     /** Fraction of the gap to `initial` closed per tick - a recent hot/
      * cold streak fades over time rather than permanently sticking. */
-    driftPerTick: number;
+    driftPerMinute: number;
     /** Applied by `PlayerCondition.nudgeConfidence()` on a successful
      * shot/pass/dribble/tackle. */
     successDelta: number;
@@ -237,11 +226,128 @@ export interface FatigueConfig {
   opponentBeatenBonus: number;
 }
 
+/**
+ * Outcome models (resolver/outcomeModel.ts) - how likely an attempted
+ * action is to succeed, from the SITUATION (geometry, pressure, tactics)
+ * and the players' attributes. Every model works in log-odds: a situation
+ * gives a base probability, and each skill gap / modifier shifts its
+ * log-odds. A `*Scale` is "attribute points per +1 log-odds" - larger
+ * means individual quality matters less per action; that is the main dial
+ * between "the better squad always wins" and "anything can happen".
+ */
+export interface OutcomesConfig {
+  pitch: {
+    /** Real pitch the grid represents - converts blocks to metres so the
+     * shot/pass models can use real-football calibration points. */
+    lengthMetres: number;
+    widthMetres: number;
+    goalWidthMetres: number;
+  };
+  shot: {
+    /** Open-play xG log-odds = intercept + angleCoeff * angle(rad) +
+     * distanceCoeff * metres (angle = how much goal mouth the shooter
+     * sees). Calibrated to ~0.5 from 6m, ~0.25 from the penalty spot,
+     * ~0.07 from 20m, central. */
+    intercept: number;
+    angleCoeff: number;
+    distanceCoeff: number;
+    /** Per defending outfielder standing in the shooter-to-goal lane. */
+    blockerLogit: number;
+    /** Per defending outfielder tight on the shooter (max 2 counted). */
+    pressureLogit: number;
+    /** No defending outfielder between shooter and goal - clean through. */
+    oneOnOneLogit: number;
+    /** Base conversion of a penalty / direct free kick before skill. */
+    penaltyXg: number;
+    freeKickXg: number;
+    /** Attribute value at which a shooter/keeper is neither better nor
+     * worse than the base model. */
+    skillPivot: number;
+    shooterScale: number;
+    keeperScale: number;
+    /** Hard ceiling so no skill combination makes a shot a certainty. */
+    maxGoalProbability: number;
+    /** P(on target | not a goal) = base +/- accuracy/pressure/distance. */
+    onTarget: {
+      base: number;
+      skillScale: number;
+      pressurePenalty: number;
+      distancePenaltyPerMetre: number;
+    };
+  };
+  pass: {
+    /** Completion probability for an unpressured pass of this type by an
+     * average passer over a typical distance. */
+    base: Record<'short' | 'backward' | 'wide' | 'long' | 'through' | 'default', number>;
+    /** Log-odds lost per metre beyond `comfortableMetres`. */
+    comfortableMetres: number;
+    distanceLogitPerMetre: number;
+    /** Per opponent pressing the passer / the receiver (max 3 each). */
+    passerPressureLogit: number;
+    receiverPressureLogit: number;
+    /** Per opponent standing in the passing lane. */
+    blockerLogit: number;
+    passerScale: number;
+    /** Lane interceptor's reading of the game vs the passer. */
+    interceptorScale: number;
+    /** A through ball against a high defensive line has space to land in;
+     * against a deep block it doesn't. Log-odds per unit of
+     * (opponent defensiveLineHeight - 0.5). */
+    throughBallLineLogit: number;
+  };
+  duel: {
+    /** P(tackler wins) / P(dribbler beats his man) between equal players. */
+    tackleBase: number;
+    dribbleBase: number;
+    skillScale: number;
+    /** P(defender commits to a challenge on an adjacent carrier) =
+     * engageBase + (Aggression - 50) / engageAggressionScale +
+     * (team pressingIntensity - 2) * engagePressingStep. */
+    engageBase: number;
+    engageAggressionScale: number;
+    engagePressingStep: number;
+  };
+}
+
+/**
+ * How a ball carrier chooses among scored candidates (Decider.makeDecision,
+ * decision/CandidateAction.chooseCandidate).
+ */
+export interface DecisionsConfig {
+  /** Softmax temperature: a player whose decision-making (Mental/Vision
+   * average) is at `qualityCeiling` chooses at `temperatureMin` (nearly
+   * always the best option); at `qualityFloor`, `temperatureMax`. */
+  temperatureMax: number;
+  temperatureMin: number;
+  qualityFloor: number;
+  qualityCeiling: number;
+  /** Pass candidate score = P(complete) * (passValueBase + passThreatWeight
+   * * expectedThreat), expectedThreat being the forward progress as a
+   * fraction of the pitch (negative for a backward ball). */
+  passValueBase: number;
+  passThreatWeight: number;
+  /** The manager's instructions, as score biases per unit of
+   * (style value - 0.5) - e.g. tempo 0.8 adds 0.3 * tempoCarry to carry. */
+  style: {
+    tempoHold: number;
+    tempoSupport: number;
+    tempoCarry: number;
+    tempoShoot: number;
+    /** through / long passes */
+    directnessForward: number;
+    /** short / backward passes and recycling (support) */
+    directnessSafe: number;
+    /** wide passes */
+    widthWide: number;
+  };
+}
+
 export interface SimulationConfig {
+  outcomes: OutcomesConfig;
+  decisions: DecisionsConfig;
   shooting: ShootingConfig;
   passing: PassingConfig;
   dribbling: DribblingConfig;
-  tackling: TacklingConfig;
   fouls: FoulsConfig;
   pressing: PressingConfig;
   movement: MovementConfig;

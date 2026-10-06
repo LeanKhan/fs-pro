@@ -19,7 +19,7 @@
  * deferred) for the field grid's own resolution. Two ticks per minute
  * stays the real, load-bearing granularity; this just gives it a name.
  */
-export const TICKS_PER_MINUTE = 2;
+export const TICKS_PER_MINUTE = 8;
 export const HALF_DURATION_MINUTES = 45;
 export const MATCH_DURATION_MINUTES = HALF_DURATION_MINUTES * 2;
 export const HALF_TIME_TICK = HALF_DURATION_MINUTES * TICKS_PER_MINUTE;

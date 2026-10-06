@@ -17,5 +17,6 @@ export type {
   ShootingConfig,
   ShootProfileBand,
   SimulationConfig,
-  TacklingConfig,
+  OutcomesConfig,
+  DecisionsConfig,
 } from './SimulationConfig';

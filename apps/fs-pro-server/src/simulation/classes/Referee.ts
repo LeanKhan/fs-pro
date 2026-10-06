@@ -263,7 +263,8 @@ export default class Referee {
       const teamIndex = this.Teams!.findIndex(
         (t) => t.ClubCode === foulData.object.ClubCode
       );
-      const taker = playerFunc.getRandomATTMID(this.Teams![teamIndex]);
+      const taker = playerFunc.getBestSetPieceTaker(this.Teams![teamIndex], 'penalty');
+      this.Match!.pendingSetPiece = { takerId: taker._id!, kind: 'penalty' };
 
       // Move the tackler away from the penalty spot
       const b2 = playerFunc.findRandomFreeBlock(foulData.subject);
@@ -297,7 +298,8 @@ export default class Referee {
       const teamIndex = this.Teams!.findIndex(
         (t) => t.ClubCode === foulData.object.ClubCode
       );
-      const taker = playerFunc.getRandomATTMID(this.Teams![teamIndex]);
+      const taker = playerFunc.getBestSetPieceTaker(this.Teams![teamIndex], 'free-kick');
+      this.Match!.pendingSetPiece = { takerId: taker._id!, kind: 'free-kick' };
 
       const takerPath = CO.co.calculateDifference(
         foulData.where,
@@ -337,7 +339,7 @@ export default class Referee {
       const teamIndex = this.Teams!.findIndex(
         (t) => t.ClubCode === foulData.object.ClubCode
       );
-      const taker = playerFunc.getRandomATTMID(this.Teams![teamIndex]);
+      const taker = playerFunc.getBestSetPieceTaker(this.Teams![teamIndex], 'delivery');
 
       const takerPath = CO.co.calculateDifference(
         foulData.where,
@@ -409,7 +411,8 @@ export default class Referee {
           `${data.shooter.FirstName} ${data.shooter.LastName} [${data.shooter.ClubCode}] scored`,
           'goal',
           data.shooter._id,
-          data.shooter.ClubCode
+          data.shooter.ClubCode,
+          { xG: data.xG, distance: data.distance, reason: data.reason }
         );
 
         matchEvents.emit(`${this.Match!.id}-reset-formations`);
@@ -438,7 +441,8 @@ export default class Referee {
           `${data.shooter.FirstName} ${data.shooter.LastName} [${data.shooter.ClubCode}] missed a shot`,
           'miss',
           data.shooter._id,
-          data.shooter.ClubCode
+          data.shooter.ClubCode,
+          { xG: data.xG, distance: data.distance, reason: data.reason }
         );
         // console.log('Player shot -> ', data.shooter);
         // console.log('Keeper when ball out -> ', keeper);
@@ -470,7 +474,8 @@ export default class Referee {
           `${data.keeper.FirstName} ${data.keeper.LastName} [${data.keeper.ClubCode}] saved a shot from ${data.shooter.FirstName} ${data.shooter.LastName}`,
           'save',
           data.keeper._id,
-          data.keeper.ClubCode
+          data.keeper.ClubCode,
+          { xG: data.xG, distance: data.distance, reason: data.reason }
         );
         matchEvents.emit(`${this.Match!.id}-saved-shot`, data);
         // reset formations here also...
@@ -588,6 +593,10 @@ export interface IShot {
   keeper: IFieldPlayer;
   where: IBlock;
   interruption: boolean;
+  /** Chance quality of the attempt (resolver/outcomeModel.ts). */
+  xG?: number;
+  /** Metres from goal. */
+  distance?: number;
 }
 
 export interface IPass {

@@ -76,6 +76,10 @@ export class Match implements IMatch, MatchClass {
    * currently in possession, this tick - read by the `-event` listener
    * below to stamp every event with the phase active when it fired. */
   private currentPhase: MatchPhase = 'restart';
+  /** A penalty / direct free kick just awarded: the taker's next action is
+   * resolved as that set piece (see Actions.takeAction). Cleared as soon
+   * as anyone acts. */
+  public pendingSetPiece?: { takerId: string; kind: 'penalty' | 'free-kick' };
   private lastFrameEventIndex = 0;
   private CurrentTime = 0;
   private Teams: MatchSide[];
@@ -122,6 +126,7 @@ export class Match implements IMatch, MatchClass {
         YellowCards: 0,
         RedCards: 0,
         Passes: 0,
+        XG: 0,
       },
       AwayTeamDetails: {
         ClubId: this.Away._id,
@@ -135,6 +140,7 @@ export class Match implements IMatch, MatchClass {
         YellowCards: 0,
         RedCards: 0,
         Passes: 0,
+        XG: 0,
       },
     } as IMatchDetails;
 
@@ -142,6 +148,12 @@ export class Match implements IMatch, MatchClass {
       // const teamIndex = this.Teams!.findIndex(
       //   (t) => t.ClubCode === data.shooter.ClubCode
       // );
+      const shooterSide =
+        this.Home.ClubCode === data.shooter.ClubCode
+          ? this.Details.HomeTeamDetails
+          : this.Details.AwayTeamDetails;
+      shooterSide.XG = Math.round(((shooterSide.XG ?? 0) + (data.xG ?? 0)) * 100) / 100;
+
       if (this.Home.ClubCode === data.shooter.ClubCode) {
         this.Details.HomeTeamDetails.TotalShots++;
         switch (data.result) {
@@ -215,6 +227,11 @@ export class Match implements IMatch, MatchClass {
 
     matchEvents.on(`${this.id}-pass-made`, (data: IPass) => {
       this.Details.TotalPasses++;
+      if (this.Home.ClubCode === data.passer.ClubCode) {
+        this.Details.HomeTeamDetails.Passes++;
+      } else {
+        this.Details.AwayTeamDetails.Passes++;
+      }
       data.passer.GameStats.Passes++;
       data.passer.increasePoints(GamePoints.Pass);
 
@@ -792,6 +809,8 @@ export interface IMatchSideDetails {
   YellowCards: number;
   RedCards: number;
   Passes: number;
+  /** Sum of the side's shot xG (resolver/outcomeModel.ts). */
+  XG?: number;
   Events: IMatchEvent[];
   PlayerStats: PlayerMatchDetailsInterface[] | string[];
   Won: boolean;

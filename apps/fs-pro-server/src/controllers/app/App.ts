@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Game, Coordinates, matchEvents, ITactic } from '../../simulation';
+import { RandomInput } from '../../simulation/randomness';
 import { getClubs } from '../clubs/club.service';
 import { IClub } from '../../interfaces/Club';
 import { resolveManagerTactic } from '../managers/manager.service';
@@ -34,12 +35,15 @@ export default class App {
    * @param prefetchedTactics same idea, for each side's starting tactic -
    * when provided, skips the manager lookup entirely (a worker_thread has
    * no DB connection to do that lookup with).
+   * @param random seed (or source) for every random draw in the match -
+   * omitted means unseeded system randomness (not reproducible).
    */
   public async setupGame(
     clubs: string[],
     sides: { home: string; away: string },
     prefetchedClubs?: IClub[],
-    prefetchedTactics?: { home: ITactic; away: ITactic }
+    prefetchedTactics?: { home: ITactic; away: ITactic },
+    random?: RandomInput
   ) {
     try {
       this.Coordinates = new Coordinates();
@@ -64,7 +68,8 @@ export default class App {
         { fname: 'Anjus', lname: 'Banjus', level: 'normal' },
         centerBlock,
         this.Coordinates.Field,
-        this.Coordinates
+        this.Coordinates,
+        random
       );
 
       this.Game.refAssignMatch();
