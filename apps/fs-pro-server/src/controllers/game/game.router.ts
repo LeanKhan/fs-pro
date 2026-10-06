@@ -11,12 +11,12 @@ import { createFixture } from '../fixtures/fixture.service';
 import { getClubById } from '../clubs/club.service';
 import { startMatchReplay } from '../../realtime/matchBroadcaster';
 import { enqueueMatchPlay } from '../../jobs/matchQueue';
-import { fetchReplay } from '../match-replays/match-replay.service';
+import { fetchReplay, replayPlayerNames } from '../match-replays/match-replay.service';
 import {
   DEFAULT_TACTIC,
-  formationShapes,
+  FORMATIONS,
   PLAYING_STYLES,
-} from '../../simulation/state/PersistentState/Formations';
+} from '../../match/tactics';
 
 const s = initServer();
 
@@ -35,7 +35,7 @@ export const gameTsRestRoutes = s.router(contract.game, {
 
     try {
       const isQuickSim = query.quick_sim === true;
-      const main = await play(fixture_id, { quickSim: isQuickSim });
+      const main = await play(fixture_id, { headless: isQuickSim });
       const results: ContractGameResults = {
         main: main as ContractPlayResult,
         others: [],
@@ -58,7 +58,7 @@ export const gameTsRestRoutes = s.router(contract.game, {
 
         for (const otherId of fixturesNotPlayed) {
           try {
-            const other = await play(otherId, { quickSim: true });
+            const other = await play(otherId, { headless: true });
             results.others.push(other as ContractPlayResult);
           } catch (matchErr) {
             console.error(`[simulate_rest] Error simulating match ${otherId}:`, matchErr);
@@ -123,6 +123,38 @@ export const gameTsRestRoutes = s.router(contract.game, {
    * from the MatchReplay record `play()` wrote instead of re-simulating
    * anything. The client is expected to have already joined the fixture's
    * room before calling this. */
+  getReplay: async ({ params }) => {
+    try {
+      const replay = await fetchReplay(params.fixture);
+      if (!replay) {
+        return {
+          status: 404 as const,
+          body: { success: false, message: 'No replay saved for this match' },
+        };
+      }
+      return {
+        status: 200 as const,
+        body: {
+          success: true as const,
+          message: 'Match replay',
+          payload: {
+            Home: replay.Home,
+            Away: replay.Away,
+            Details: replay.Details,
+            Frames: replay.Frames,
+            Names: await replayPlayerNames(replay.Frames),
+          },
+        },
+      };
+    } catch (err) {
+      console.error('Error fetching match replay =>', err);
+      return {
+        status: 400 as const,
+        body: { success: false, message: 'Error fetching match replay', payload: fail(err) },
+      };
+    }
+  },
+
   rewatchMatch: async ({ params }) => {
     const fixture_id = params.fixture;
 
@@ -187,7 +219,7 @@ export const gameTsRestRoutes = s.router(contract.game, {
         success: true,
         message: 'Tactic options fetched successfully',
         payload: {
-          formations: Object.keys(formationShapes),
+          formations: [...FORMATIONS],
           styles: Object.keys(PLAYING_STYLES),
         },
       },

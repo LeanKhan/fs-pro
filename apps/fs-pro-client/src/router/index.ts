@@ -266,6 +266,16 @@ const routes: RouteRecordRaw[] = [
   },
 ];
 
+// Dev only: the Matchzone with a bundled demo match, for visual QA.
+if (import.meta.env.DEV) {
+  routes.unshift({
+    path: '/dev/matchzone',
+    component: () => import('../views/game/matchzone.vue'),
+    name: 'MatchZoneDemo',
+    props: { demo: true },
+  } as RouteRecordRaw);
+}
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
@@ -284,7 +294,9 @@ function needsClub(): boolean {
 router.beforeEach((to, from, next) => {
   const isAuthenticated = Boolean(window.localStorage.getItem('fspro-user'));
 
-  if (!RegExp(/\/auth/).test(to.path) && !isAuthenticated) {
+  if (import.meta.env.DEV && to.path.startsWith('/dev/')) {
+    next();
+  } else if (!RegExp(/\/auth/).test(to.path) && !isAuthenticated) {
     next({ name: 'Auth' });
   } else if (isAuthenticated && ['/u', '/u/', '/', '/games', '/game'].includes(to.path) && needsClub()) {
     next('/start');

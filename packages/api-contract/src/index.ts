@@ -50,6 +50,7 @@ export const apiContract = c.router({
   atlas: atlasContract,
 });
 
+export * from './replay';
 export type { Club } from './schemas/club';
 export type { DbStatus } from './schemas/meta';
 export type { Fixture } from './schemas/fixture';

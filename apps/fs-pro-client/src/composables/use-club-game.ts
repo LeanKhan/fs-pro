@@ -181,7 +181,8 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
     try {
       const res = await client.play.playMatch.mutation({
         params: { clubId: clubId.value },
-        body: matchedOpponentId.value ? { opponentId: matchedOpponentId.value } : {},
+        // Watching records the replay the Matchzone plays; quick sim doesn't.
+        body: { ...(matchedOpponentId.value ? { opponentId: matchedOpponentId.value } : {}), watch: !quick },
       });
       showMatchmaking.value = false;
       if (res.status === 200) {
@@ -192,7 +193,7 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
           // Instant simulation skips battle arena directly to spoils
           showRewards.value = true;
         } else {
-          // Launch the dramatic Clash-of-Clans style Battle Arena
+          // Watch it in the Matchzone, then the spoils.
           showBattleArena.value = true;
         }
         onChanged?.();

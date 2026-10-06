@@ -47,7 +47,7 @@ export async function healPastUnplayedFixtures(
   for (const f of pastUnplayed) {
     if (!f._id) continue;
     try {
-      await play(f._id, { quickSim: true });
+      await play(f._id, { headless: true });
       healedCount++;
     } catch (err) {
       console.error(`[healPastUnplayedFixtures] Error auto-resolving past fixture ${f._id}:`, err);

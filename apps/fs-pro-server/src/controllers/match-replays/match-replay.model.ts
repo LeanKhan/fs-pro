@@ -1,4 +1,4 @@
-import { IMatchDetails } from '../../simulation/classes/Match';
+import { IMatchDetails } from '../../match/types';
 import { MatchFrames } from '../../realtime/packedFrames';
 
 interface ISideRef {

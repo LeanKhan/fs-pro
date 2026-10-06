@@ -1,17 +1,12 @@
-import { IMatchDetails } from '../simulation/classes/Match';
+import { IMatchDetails } from '../match/types';
 import { getMatchReplayNamespace } from './io';
 import { expandFrames } from './frameInterpolation';
 import { MatchFrames, unpackFrames } from './packedFrames';
 
 const DEFAULT_TICK_MS = 300;
 
-/**
- * Everything replayMatch actually reads off a finished match. A real
- * `Match` instance satisfies this structurally, but so does the plain
- * result object a worker_thread posts back (see src/jobs/matchSimWorker.ts)
- * - the simulation itself may now run somewhere that never held a real
- * `Match` class instance.
- */
+/** Everything replayMatch reads off a finished match (the sim service's
+ * result, or a saved replay). */
 export interface IReplayableMatch {
   Home: { _id: string; Name: string; ClubCode: string };
   Away: { _id: string; Name: string; ClubCode: string };
