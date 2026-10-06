@@ -13,6 +13,17 @@ import {
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
+import type {
+  CompetitionDefinition,
+  EntryConditions,
+  LeagueRules,
+  Outcome,
+  Recurrence,
+  Rewards,
+  StageDefinition,
+  WinCondition,
+} from '@repo/api-contract';
+
 /** Clubs.Form: recent results, most recent first. */
 export interface ClubForm {
   recent: ('W' | 'D' | 'L')[];
@@ -23,19 +34,6 @@ const timestamps = {
   createdAt: timestamp('createdAt', { precision: 3 }).defaultNow().notNull(),
   updatedAt: timestamp('updatedAt', { precision: 3 }).notNull(),
 };
-
-/**
- * For "list of ids" fields that have no single FK-able owner column to hang
- * a `relations()` reverse lookup off (see schema notes on Seasons.Promoted/
- * Relegated below) - typed as uuid so the values are at least shaped like
- * the ids they hold, but deliberately not `.references()`'d since Postgres
- * can't enforce a foreign key on individual array elements anyway.
- */
-const uuidArray = (name: string) =>
-  uuid(name)
-    .array()
-    .notNull()
-    .default(sql`ARRAY[]::uuid[]`);
 
 const jsonArray = (name: string) =>
   jsonb(name)
@@ -106,51 +104,23 @@ export const competitions = pgTable('Competitions', {
   Type: text('Type').notNull(),
   CompetitionCode: text('CompetitionCode').notNull().unique(),
   CompetitionID: text('CompetitionID').notNull().unique(),
-  League: boolean('League').notNull().default(false),
-  Tournament: boolean('Tournament').notNull().default(false),
-  Cup: boolean('Cup').notNull().default(false),
-  Division: integer('Division').notNull().default(0),
-  NumberOfTeams: integer('NumberOfTeams').notNull(),
-  NumberOfWeeks: integer('NumberOfWeeks').notNull(),
-  /** League pyramid position (services/competitions/pyramid-config.ts): Tier
-   * 1 = top flight, higher = lower; Pod = which parallel league within the
-   * tier. Both null for cups/tournaments and for any league not yet placed
-   * in the pyramid (those keep the legacy two-division promotion rules).
-   * Deliberately separate from Division, which is 0 for every cup. */
-  Tier: integer('Tier'),
-  Pod: integer('Pod'),
-  TeamsPromoted: integer('TeamsPromoted'),
-  TeamsRelegated: integer('TeamsRelegated'),
-  CountryId: uuid('CountryId').references(() => places.id),
+  /** Open-play definition (docs/OPEN-PLAY-COMPETITIONS-SPEC.md). Shapes and
+   * defaults: services/competitions/definition.ts. */
+  Description: text('Description'),
+  Prestige: integer('Prestige').notNull().default(2),
+  Entry: jsonb('Entry').$type<EntryConditions | null>(),
+  Stages: jsonb('Stages').$type<StageDefinition[] | null>(),
+  WinCondition: jsonb('WinCondition').$type<WinCondition | null>(),
+  Rewards: jsonb('Rewards').$type<Rewards | null>(),
+  Outcomes: jsonb('Outcomes').$type<Outcome[] | null>(),
+  Recurrence: jsonb('Recurrence').$type<Recurrence | null>(),
+  Archived: boolean('Archived').notNull().default(false),
   ...timestamps,
-  // Clubs dropped in favor of the competitionClubs join table below (a club
-  // can sit in more than one competition at once - its league AND a cup -
-  // so a single FK column on either side can't express it).
+  // Membership is per edition (Entries); there are no standing members.
   // Seasons dropped - it's the exact inverse of seasons.Competition below.
 });
 
-/**
- * Join table for Competitions<->Clubs. Genuinely many-to-many: a club's
- * `League` FK (below) only ever points at its one primary league, but a
- * Cup/Tournament's member list can and does pull clubs from several
- * different leagues at once, and a club can simultaneously appear in its
- * league's member list and a cup's. Replaces the old `competitions.Clubs`
- * array, which could hold ids but never enforce they existed.
- */
-export const competitionClubs = pgTable(
-  'CompetitionClubs',
-  {
-    id: uuid('_id').primaryKey().defaultRandom(),
-    CompetitionId: uuid('CompetitionId')
-      .notNull()
-      .references(() => competitions.id),
-    ClubId: uuid('ClubId')
-      .notNull()
-      .references(() => clubs.id),
-    ...timestamps,
-  },
-  (t) => [unique().on(t.CompetitionId, t.ClubId)]
-);
+export const CAMPUS_LAYOUTS = ['city', 'coastal', 'hillside'] as const;
 
 export const clubs = pgTable('Clubs', {
   id: uuid('_id').primaryKey().defaultRandom(),
@@ -180,8 +150,6 @@ export const clubs = pgTable('Clubs', {
   Budget: real('Budget'),
   Records: jsonArray('Records'),
   Stadium: jsonb('Stadium').$type<Record<string, unknown> | null>(),
-  LeagueCode: text('LeagueCode'),
-  LeagueId: uuid('LeagueId').references(() => competitions.id),
   UserId: uuid('UserId').references(() => users.id),
   Lineup: jsonb('Lineup').$type<{ startingXI: string[]; bench: string[] } | null>(),
   Tactic: jsonb('Tactic').$type<{ formationName: string; styleName: string } | null>(),
@@ -203,6 +171,21 @@ export const clubs = pgTable('Clubs', {
   Reputation: integer('Reputation').notNull().default(0),
   BoardConfidence: integer('BoardConfidence').notNull().default(60),
   Form: jsonb('Form').$type<ClubForm | null>(),
+  /** Competitive Elo: every competition result moves it, friendlies don't. */
+  Elo: real('Elo').notNull().default(1500),
+  /** Human clubs' auto-accept / auto-register policies (null = manual). */
+  ChallengePolicy: jsonb('ChallengePolicy').$type<Record<
+    string,
+    unknown
+  > | null>(),
+  EntryPolicy: jsonb('EntryPolicy').$type<Record<string, unknown> | null>(),
+  /** Campus scene variant: 'city' | 'coastal' | 'hillside'
+   * (docs/WORLD-VIEW-UI-PLAN.md). Picked once at creation, then fixed;
+   * the admin can change it. */
+  CampusLayout: text('CampusLayout')
+    .notNull()
+    .default('city')
+    .$defaultFn(() => CAMPUS_LAYOUTS[Math.floor(Math.random() * CAMPUS_LAYOUTS.length)]!),
   ...timestamps,
   // Players dropped - it's the exact inverse of players.Club below.
 });
@@ -236,6 +219,36 @@ export const calendars = pgTable('Calendars', {
   /** Real minutes a match day lasts, plus per skipped off-day in the gap. */
   MatchdaySlotMinutes: integer('MatchdaySlotMinutes').notNull().default(180),
   OffDaySlotMinutes: integer('OffDaySlotMinutes').notNull().default(10),
+  /** World settings (docs/OPEN-PLAY-COMPETITIONS-SPEC.md). The year is a
+   * fixed run of days that only drives ageing, wages, retirement, youth
+   * intake, reports and transfer windows. */
+  YearLengthDays: integer('YearLengthDays').notNull().default(360),
+  CurrentYear: integer('CurrentYear').notNull().default(1),
+  YearStartDay: integer('YearStartDay').notNull().default(0),
+  AutoRollover: boolean('AutoRollover').notNull().default(true),
+  /** Day-of-year ranges the transfer window is open. */
+  TransferWindows: jsonb('TransferWindows')
+    .$type<{ fromDay: number; toDay: number }[]>()
+    .notNull()
+    .default(
+      sql`'[{"fromDay":1,"toDay":30},{"fromDay":180,"toDay":210}]'::jsonb`
+    ),
+  DefaultRules: jsonb('DefaultRules').$type<Partial<LeagueRules> | null>(),
+  /** XP needed for each Level, ascending (index 0 = Level 1). */
+  LevelThresholds: jsonb('LevelThresholds').$type<number[] | null>(),
+  XPPerMatch: jsonb('XPPerMatch').$type<{
+    win: number;
+    draw: number;
+    loss: number;
+  } | null>(),
+  /** Board's expected performance score per Level (index 0 = Level 1). */
+  LevelTargets: jsonb('LevelTargets').$type<number[] | null>(),
+  LevelReview: jsonb('LevelReview').$type<{
+    enabled: boolean;
+    promoteCount: number;
+    relegateCount: number;
+  } | null>(),
+  MaxConcurrentEntries: integer('MaxConcurrentEntries').notNull().default(3),
   ...timestamps,
 });
 
@@ -256,37 +269,111 @@ export const days = pgTable('Days', {
   ...timestamps,
 });
 
-export const seasons = pgTable('Seasons', {
-  id: uuid('_id').primaryKey().defaultRandom(),
-  SeasonCode: text('SeasonCode').notNull().unique(),
-  Title: text('Title').notNull(),
-  StartDate: timestamp('StartDate', { precision: 3 }).notNull(),
-  EndDate: timestamp('EndDate', { precision: 3 }).notNull(),
-  WinnerId: uuid('WinnerId').references(() => clubs.id),
-  /** Episodic historical snapshots (which clubs were promoted/relegated at
-   * the end of this season) - there's no natural single "many"-side owner
-   * column on Clubs to hang a relations() reverse lookup off without
-   * inventing new schema concepts, so these stay untyped uuid arrays
-   * (no referential integrity on the elements) rather than a join table.
-   * Deliberate scope cut, not an oversight. */
-  Promoted: uuidArray('Promoted'),
-  Relegated: uuidArray('Relegated'),
-  isFinished: boolean('isFinished').notNull().default(false),
-  isStarted: boolean('isStarted').notNull().default(false),
-  Status: text('Status').notNull().default('Pending'),
-  /** The game-world "year cycle" this season belongs to (was
-   * `Calendar`-derived - a singleton Calendar has nothing left to derive it
-   * from, so callers pass it directly - see `calendar.controller.ts`'s
-   * `startNextSeasonCycle`). */
-  Year: text('Year'),
-  CompetitionId: uuid('CompetitionId').references(() => competitions.id),
-  CompetitionCode: text('CompetitionCode').notNull(),
-  Standings: jsonArray('Standings'),
-  Logs: jsonArray('Logs'),
-  ...timestamps,
-  // Fixtures dropped - it's the exact inverse of fixtures.Season below.
-  // Calendar dropped - redundant once Calendar is a singleton.
-});
+export const seasons = pgTable(
+  'Seasons',
+  {
+    id: uuid('_id').primaryKey().defaultRandom(),
+    SeasonCode: text('SeasonCode').notNull().unique(),
+    Title: text('Title').notNull(),
+    StartDate: timestamp('StartDate', { precision: 3 }).notNull(),
+    EndDate: timestamp('EndDate', { precision: 3 }).notNull(),
+    WinnerId: uuid('WinnerId').references(() => clubs.id),
+    Status: text('Status').notNull().default('Pending'),
+    CompetitionId: uuid('CompetitionId').references(() => competitions.id),
+    CompetitionCode: text('CompetitionCode').notNull(),
+    Logs: jsonArray('Logs'),
+    /** Edition fields (open play). Status moves draft -> registration ->
+     * running -> finished | cancelled. Days are Calendar Day.Index values.
+     * Definition is the competition's definition snapshotted at publish, so
+     * editing a competition never changes a running edition. */
+    EditionNumber: integer('EditionNumber'),
+    RegistrationOpensDay: integer('RegistrationOpensDay'),
+    RegistrationClosesDay: integer('RegistrationClosesDay'),
+    StartDay: integer('StartDay'),
+    EndDay: integer('EndDay'),
+    CurrentStage: integer('CurrentStage').notNull().default(0),
+    StageStartedDay: integer('StageStartedDay'),
+    Definition: jsonb('Definition').$type<CompetitionDefinition | null>(),
+    ...timestamps,
+    // Fixtures dropped - it's the exact inverse of fixtures.Season below.
+    // Calendar dropped - redundant once Calendar is a singleton.
+  },
+  (t) => [
+    unique('seasons_competition_edition_uq').on(
+      t.CompetitionId,
+      t.EditionNumber
+    ),
+    index('seasons_status_idx').on(t.Status),
+  ]
+);
+
+/** A club registered in an edition. Replaces CompetitionClubs. Status:
+ * invited | registered | active | eliminated | withdrawn. */
+export const entries = pgTable(
+  'Entries',
+  {
+    id: uuid('_id').primaryKey().defaultRandom(),
+    SeasonId: uuid('SeasonId')
+      .notNull()
+      .references(() => seasons.id),
+    ClubId: uuid('ClubId')
+      .notNull()
+      .references(() => clubs.id),
+    Status: text('Status').notNull().default('registered'),
+    Seed: integer('Seed'),
+    Group: text('Group'),
+    FeePaid: real('FeePaid').notNull().default(0),
+    EliminatedAtStage: integer('EliminatedAtStage'),
+    /** Set when the edition finishes: final position (1 = winner) and the
+     * 0..1 finish score the board's performance score is built from. */
+    FinalPosition: integer('FinalPosition'),
+    FinishScore: real('FinishScore'),
+    ...timestamps,
+  },
+  (t) => [
+    unique('entries_season_club_uq').on(t.SeasonId, t.ClubId),
+    index('entries_club_status_idx').on(t.ClubId, t.Status),
+  ]
+);
+
+/** One club's record in one stage of an edition. Its position in the
+ * stage's table is the club's Rank. */
+export const rankings = pgTable(
+  'Rankings',
+  {
+    id: uuid('_id').primaryKey().defaultRandom(),
+    SeasonId: uuid('SeasonId')
+      .notNull()
+      .references(() => seasons.id),
+    ClubId: uuid('ClubId')
+      .notNull()
+      .references(() => clubs.id),
+    StageIndex: integer('StageIndex').notNull().default(0),
+    Group: text('Group'),
+    Played: integer('Played').notNull().default(0),
+    Wins: integer('Wins').notNull().default(0),
+    Draws: integer('Draws').notNull().default(0),
+    Losses: integer('Losses').notNull().default(0),
+    GF: integer('GF').notNull().default(0),
+    GA: integer('GA').notNull().default(0),
+    GD: integer('GD').notNull().default(0),
+    Points: integer('Points').notNull().default(0),
+    CleanSheets: integer('CleanSheets').notNull().default(0),
+    Forfeits: integer('Forfeits').notNull().default(0),
+    UnbeatenRun: integer('UnbeatenRun').notNull().default(0),
+    BestUnbeatenRun: integer('BestUnbeatenRun').notNull().default(0),
+    EloStart: real('EloStart').notNull().default(1500),
+    LastPlayedDay: integer('LastPlayedDay'),
+    ...timestamps,
+  },
+  (t) => [
+    unique('rankings_season_stage_club_uq').on(
+      t.SeasonId,
+      t.StageIndex,
+      t.ClubId
+    ),
+  ]
+);
 
 export const players = pgTable('Players', {
   id: uuid('_id').primaryKey().defaultRandom(),
@@ -356,7 +443,6 @@ export const fixtures = pgTable(
     FixtureCode: text('FixtureCode'),
     SeasonCode: text('SeasonCode'),
     LeagueCode: text('LeagueCode'),
-    Week: integer('Week'),
     SeasonId: uuid('SeasonId').references(() => seasons.id),
     Stadium: text('Stadium'),
     Played: boolean('Played').notNull().default(false),
@@ -395,13 +481,47 @@ export const fixtures = pgTable(
      * not-yet-scheduled fixtures have neither this nor ScheduledDate. */
     ScheduledDay: integer('ScheduledDay'),
     ScheduledDate: timestamp('ScheduledDate', { precision: 3 }),
+    /** Open play. A challenge is a Fixture with ChallengeStatus set
+     * (proposed | accepted | declined | expired | forfeited | cancelled |
+     * played); a knockout tie has Round/Leg/PlayBy instead. RespondBy and
+     * PlayBy are Calendar Day.Index values. */
+    CompetitionId: uuid('CompetitionId').references(() => competitions.id),
+    StageIndex: integer('StageIndex'),
+    Round: integer('Round'),
+    Leg: integer('Leg'),
+    ChallengeStatus: text('ChallengeStatus'),
+    ChallengerClubId: uuid('ChallengerClubId').references(() => clubs.id),
+    ProposedAt: timestamp('ProposedAt', { precision: 3 }),
+    RespondBy: integer('RespondBy'),
+    PlayBy: integer('PlayBy'),
     ...timestamps,
   },
   (t) => [
     index('fixtures_scheduled_day_idx').on(t.ScheduledDay),
     index('fixtures_season_scheduled_day_idx').on(t.SeasonId, t.ScheduledDay),
+    index('fixtures_competition_challenge_idx').on(
+      t.CompetitionId,
+      t.ChallengeStatus
+    ),
+    index('fixtures_season_stage_round_idx').on(
+      t.SeasonId,
+      t.StageIndex,
+      t.Round
+    ),
   ]
 );
+
+/** Idempotency ledger: a fixture's result is applied to Rankings/Elo only
+ * if inserting its row here succeeds (same transaction). */
+export const rankingResults = pgTable('RankingResults', {
+  FixtureId: uuid('FixtureId')
+    .primaryKey()
+    .references(() => fixtures.id),
+  SeasonId: uuid('SeasonId')
+    .notNull()
+    .references(() => seasons.id),
+  AppliedAt: timestamp('AppliedAt', { precision: 3 }).defaultNow().notNull(),
+});
 
 /**
  * One record per Fixture (see match-replays/match-replay.model.ts), holding
@@ -541,6 +661,9 @@ export const seasonReports = pgTable('SeasonReports', {
   id: uuid('_id').primaryKey().defaultRandom(),
   Year: text('Year').notNull().unique(),
   Data: jsonb('Data').$type<Record<string, unknown>>().notNull(),
+  /** Open-play years ("Y3"): the game days the year covered. */
+  FromDay: integer('FromDay'),
+  ToDay: integer('ToDay'),
   ...timestamps,
 });
 
@@ -663,6 +786,75 @@ export const clubChallenges = pgTable(
     ...timestamps,
   },
   (t) => [index('club_challenges_club_status_idx').on(t.ClubId, t.Status)]
+);
+
+/** The board's yearly view of a club: Prestige-weighted finish scores
+ * across every edition finished that year. Frozen at year end. */
+export const clubPerformance = pgTable(
+  'ClubPerformance',
+  {
+    id: uuid('_id').primaryKey().defaultRandom(),
+    ClubId: uuid('ClubId')
+      .notNull()
+      .references(() => clubs.id),
+    Year: integer('Year').notNull(),
+    Score: real('Score').notNull().default(0),
+    Entries: integer('Entries').notNull().default(0),
+    Trophies: integer('Trophies').notNull().default(0),
+    EloStart: real('EloStart').notNull().default(1500),
+    EloEnd: real('EloEnd').notNull().default(1500),
+    LevelStart: integer('LevelStart').notNull().default(0),
+    LevelEnd: integer('LevelEnd').notNull().default(0),
+    Frozen: boolean('Frozen').notNull().default(false),
+    ...timestamps,
+  },
+  (t) => [unique('club_performance_club_year_uq').on(t.ClubId, t.Year)]
+);
+
+/** Every Level change. Level itself is derived from Clubs.XP and never
+ * stored; Source: xp | promotion | relegation | review | admin. */
+export const levelHistory = pgTable(
+  'LevelHistory',
+  {
+    id: uuid('_id').primaryKey().defaultRandom(),
+    ClubId: uuid('ClubId')
+      .notNull()
+      .references(() => clubs.id),
+    Day: integer('Day').notNull(),
+    FromLevel: integer('FromLevel').notNull(),
+    ToLevel: integer('ToLevel').notNull(),
+    XPBefore: integer('XPBefore').notNull(),
+    XPAfter: integer('XPAfter').notNull(),
+    Source: text('Source').notNull(),
+    SeasonId: uuid('SeasonId').references(() => seasons.id),
+    createdAt: timestamp('createdAt', { precision: 3 }).defaultNow().notNull(),
+  },
+  (t) => [index('level_history_club_day_idx').on(t.ClubId, t.Day)]
+);
+
+/** Qualify/bar outcomes. 'qualified': invited to the target competition's
+ * next edition that hasn't started (Used once invited). 'barred': can't
+ * enter the target's editions numbered up to UntilEditionNumber. */
+export const competitionAccess = pgTable(
+  'CompetitionAccess',
+  {
+    id: uuid('_id').primaryKey().defaultRandom(),
+    ClubId: uuid('ClubId')
+      .notNull()
+      .references(() => clubs.id),
+    CompetitionId: uuid('CompetitionId')
+      .notNull()
+      .references(() => competitions.id),
+    Kind: text('Kind').notNull(),
+    UntilEditionNumber: integer('UntilEditionNumber'),
+    Used: boolean('Used').notNull().default(false),
+    SourceSeasonId: uuid('SourceSeasonId').references(() => seasons.id),
+    createdAt: timestamp('createdAt', { precision: 3 }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('competition_access_target_idx').on(t.CompetitionId, t.Kind, t.Used),
+    index('competition_access_club_idx').on(t.ClubId),
+  ]
 );
 
 export type Place = typeof places.$inferSelect;

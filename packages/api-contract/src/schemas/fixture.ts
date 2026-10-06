@@ -128,7 +128,6 @@ export const FixtureSchema = z.object({
   FixtureCode: z.string(),
   SeasonCode: z.string(),
   LeagueCode: z.string(),
-  Week: z.number(),
   SeasonId: z.string(),
   Stadium: z.string(),
   Played: z.boolean(),
@@ -164,6 +163,15 @@ export const FixtureSchema = z.object({
   isFinalMatch: z.boolean().optional(),
   ScheduledDay: z.number().nullable().optional(),
   ScheduledDate: z.string().nullable().optional(),
+  // Open play (docs/OPEN-PLAY-COMPETITIONS-SPEC.md): a challenge carries
+  // ChallengeStatus; a knockout tie carries Round/Leg/PlayBy.
+  CompetitionId: z.string().nullable().optional(),
+  StageIndex: z.number().nullable().optional(),
+  Round: z.number().nullable().optional(),
+  Leg: z.number().nullable().optional(),
+  ChallengeStatus: z.string().nullable().optional(),
+  RespondBy: z.number().nullable().optional(),
+  PlayBy: z.number().nullable().optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
 });

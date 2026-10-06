@@ -3,13 +3,18 @@ import { initServer } from '@ts-rest/express';
 
 import { clubTsRestRoutes } from '../controllers/clubs/club.router';
 import { playerTsRestRoutes } from '../controllers/players/player.router';
-import { competitionTsRestRoutes } from '../controllers/competitions/competition.router';
 import { seasonTsRestRoutes } from '../controllers/seasons/season.router';
 import { userTsRestRoutes } from '../controllers/user/user.router';
 import { gameTsRestRoutes } from '../controllers/game/game.router';
 import { transferTsRestRoutes } from '../controllers/transfers/transfer.router';
 import { facilitiesTsRestRoutes } from '../controllers/facilities/facilities.router';
 import { playTsRestRoutes } from '../controllers/play/play.router';
+import {
+  challengeTsRestRoutes,
+  editionTsRestRoutes,
+} from '../controllers/open-play/open-play.router';
+import { worldTsRestRoutes } from '../controllers/world/world.router';
+import { competitionDefinitionTsRestRoutes } from '../controllers/open-play/competition-definitions.router';
 import { calendarTsRestRoutes } from '../controllers/calendar/calendar.router';
 import { fixtureTsRestRoutes } from '../controllers/fixtures/fixture.router';
 import files from '../services/file/file.service';
@@ -30,7 +35,6 @@ export const apiRouter = s.router(apiContract, {
   meta: metaTsRestRoutes,
   fixtures: fixtureTsRestRoutes,
   players: playerTsRestRoutes,
-  competitions: competitionTsRestRoutes,
   managers: managerTsRestRoutes,
   calendar: calendarTsRestRoutes,
   places: placeTsRestRoutes,
@@ -41,6 +45,10 @@ export const apiRouter = s.router(apiContract, {
   transfers: transferTsRestRoutes,
   facilities: facilitiesTsRestRoutes,
   play: playTsRestRoutes,
+  editions: editionTsRestRoutes,
+  challenges: challengeTsRestRoutes,
+  world: worldTsRestRoutes,
+  competitionDefinitions: competitionDefinitionTsRestRoutes,
 });
 
 // export default mainRouter;

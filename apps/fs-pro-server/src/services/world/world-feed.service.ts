@@ -8,6 +8,7 @@ import {
   transferLedger,
   competitions,
 } from '../../db/drizzle/schema';
+import { editionStandings } from '../competitions/ranking.service';
 import type { WorldFeed, WorldFeedHeadline } from '@repo/api-contract';
 
 export class WorldFeedService {
@@ -59,24 +60,25 @@ export class WorldFeedService {
 
     // 3. Current Competitions & Standings Leaders
     const activeSeasons = await db.query.seasons.findMany({
-      where: eq(seasons.isStarted, true),
+      where: eq(seasons.Status, 'running'),
       limit: 6,
     });
 
     const allComps = await db.query.competitions.findMany({ limit: 10 });
-    const otherLeagues = activeSeasons.map((s) => {
-      const comp = allComps.find((c) => c.id === s.CompetitionId);
-      const standings = Array.isArray(s.Standings) ? s.Standings : [];
-      const leader = standings[0];
-      return {
-        id: String(s.id),
-        name: s.Title ?? comp?.Name ?? s.SeasonCode,
-        code: s.SeasonCode ?? 'LG',
-        leader: leader?.ClubCode ?? (leader as any)?.clubCode ?? 'TBD',
-        leaderPoints: Number(leader?.Points ?? (leader as any)?.points ?? 0),
-        matchesPlayed: Number(leader?.Played ?? (leader as any)?.played ?? 0),
-      };
-    });
+    const otherLeagues = await Promise.all(
+      activeSeasons.map(async (s) => {
+        const comp = allComps.find((c) => c.id === s.CompetitionId);
+        const [leader] = await editionStandings(s.id);
+        return {
+          id: String(s.id),
+          name: s.Title ?? comp?.Name ?? s.SeasonCode,
+          code: s.SeasonCode ?? 'LG',
+          leader: leader?.ClubCode ?? 'TBD',
+          leaderPoints: leader?.Points ?? 0,
+          matchesPlayed: leader?.Played ?? 0,
+        };
+      })
+    );
 
     // 4. Active Injuries across the world
     const injuredPlayers = await db.query.players.findMany({

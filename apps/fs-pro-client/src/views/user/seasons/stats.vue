@@ -3,7 +3,7 @@
     <v-container v-if="season" fluid class="pa-0">
       <v-toolbar density="compact" color="dark">
         <v-toolbar-title class="mx-auto">
-          {{ season.Year }} {{ season.CompetitionCode }} Season Statistics
+          {{ season.Title ?? season.CompetitionCode }} Statistics
         </v-toolbar-title>
 
         <v-spacer></v-spacer>
@@ -67,7 +67,6 @@
 import { ref, computed, onMounted, getCurrentInstance } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { client } from '@/services/api';
-import Standings from '@/components/seasons/standings-component.vue';
 import {
   usePlayerStats,
   STAT_ATTRIBUTES,

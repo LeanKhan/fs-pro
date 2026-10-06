@@ -1,7 +1,7 @@
 import { and, eq, desc, inArray } from 'drizzle-orm';
 import type { MediaItem } from '@repo/api-contract';
 import { fixtures, players } from '../../db/drizzle/schema';
-import { compileStandings } from '../../utils/seasons';
+import { editionStandings } from '../competitions/ranking.service';
 import { pick, ord } from './story-angles.service';
 
 /**
@@ -15,7 +15,7 @@ interface PlayedFixture {
   id: string;
   Home: string | null;
   Away: string | null;
-  Week: number | null;
+  ScheduledDay: number | null;
   Stadium: string | null;
   PlayedAt: Date | null;
   Details: any;
@@ -45,7 +45,7 @@ export async function generateResultsNews(params: {
       id: fixtures.id,
       Home: fixtures.Home,
       Away: fixtures.Away,
-      Week: fixtures.Week,
+      ScheduledDay: fixtures.ScheduledDay,
       Stadium: fixtures.Stadium,
       PlayedAt: fixtures.PlayedAt,
       Details: fixtures.Details,
@@ -58,10 +58,7 @@ export async function generateResultsNews(params: {
     .orderBy(desc(fixtures.PlayedAt));
   if (!played.length) return [];
 
-  const table: any[] =
-    Array.isArray(season.Standings) && season.Standings.length
-      ? compileStandings(season.Standings)
-      : [];
+  const table = await editionStandings(season.id);
   const nameRows: any[] = await db.query.clubs.findMany({
     where: (c: any, { inArray: inA }: any) =>
       inA(
@@ -140,7 +137,7 @@ export async function generateResultsNews(params: {
       badge: result === 'win' ? '✅ MATCH REPORT' : result === 'draw' ? '➖ MATCH REPORT' : '❌ MATCH REPORT',
       badgeColor: result === 'win' ? 'success' : result === 'draw' ? 'amber-darken-1' : 'error',
       title: headline,
-      subtitle: `${scoreLine} • ${mine.Stadium ?? 'League Arena'} • ${compName}${mine.Week ? ` • Week ${mine.Week}` : ''}`,
+      subtitle: `${scoreLine} • ${mine.Stadium ?? 'League Arena'} • ${compName}${mine.ScheduledDay != null ? ` • Day ${mine.ScheduledDay}` : ''}`,
       summary: `${scoreLine}. ${
         ourScorers.length ? `${club.Name} scorers: ${ourScorers.join('; ')}. ` : gf === 0 ? `${club.Name} could not find a goal. ` : ''
       }${theirScorers.length ? `${opp}: ${theirScorers.join('; ')}. ` : ''}${tableLine}`,
@@ -167,8 +164,9 @@ export async function generateResultsNews(params: {
   }
 
   // 2. Latest matchweek round-up (whole competition).
-  const latestWeek = Math.max(...played.map((f) => f.Week ?? 0));
-  const weekGames = played.filter((f) => (f.Week ?? 0) === latestWeek);
+  // Round-up of the latest match day.
+  const latestWeek = Math.max(...played.map((f) => f.ScheduledDay ?? 0));
+  const weekGames = played.filter((f) => (f.ScheduledDay ?? 0) === latestWeek);
   if (latestWeek > 0 && weekGames.length) {
     const biggest = [...weekGames].sort((x, y) => Math.abs(scoreOf(y).h - scoreOf(y).a) - Math.abs(scoreOf(x).h - scoreOf(x).a))[0];
     const bs = scoreOf(biggest);
@@ -181,7 +179,7 @@ export async function generateResultsNews(params: {
       category: 'matchday',
       badge: '📋 MATCHWEEK ROUND-UP',
       badgeColor: 'primary',
-      title: `${compName} Week ${latestWeek}: ${goals} Goals in ${weekGames.length} Matches`,
+      title: `${compName} Day ${latestWeek}: ${goals} Goals in ${weekGames.length} Matches`,
       subtitle: leader ? `${nameOf(leader.ClubCode)} lead the table on ${leader.Points} points` : undefined,
       summary: `${weekGames.length} match${weekGames.length === 1 ? '' : 'es'} produced ${goals} goals. ${
         Math.abs(bs.h - bs.a) >= 2 ? `The biggest result: ${nameOf(biggest.Home)} ${bs.h}-${bs.a} ${nameOf(biggest.Away)}. ` : ''
@@ -190,7 +188,7 @@ export async function generateResultsNews(params: {
         const s = scoreOf(f);
         return `${nameOf(f.Home)} ${s.h}-${s.a} ${nameOf(f.Away)}`;
       }),
-      hero: { format: 'poster', bannerTheme: 'press_dark', caption: `${compName} • Week ${latestWeek} results` },
+      hero: { format: 'poster', bannerTheme: 'press_dark', caption: `${compName} • Day ${latestWeek} results` },
       timestamp: formattedDate,
       hypeScore: 3,
     });

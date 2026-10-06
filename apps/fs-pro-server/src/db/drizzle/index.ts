@@ -1,7 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { DrizzlePlaceRepository } from '../../repositories/drizzle/PlaceRepository';
-import { DrizzleCompetitionRepository } from '../../repositories/drizzle/CompetitionRepository';
 import { DrizzlePlayerRepository } from '../../repositories/drizzle/PlayerRepository';
 import { DrizzleSeasonRepository } from '../../repositories/drizzle/SeasonRepository';
 import { DrizzleClubRepository } from '../../repositories/drizzle/ClubRepository';
@@ -56,7 +55,6 @@ export class DrizzleDatabase implements IDatabase {
     }
 
     this._models = {
-      Competition: new DrizzleCompetitionRepository(this.drizzleDb),
       Player: new DrizzlePlayerRepository(this.drizzleDb),
       Season: new DrizzleSeasonRepository(this.drizzleDb),
       Club: new DrizzleClubRepository(this.drizzleDb),

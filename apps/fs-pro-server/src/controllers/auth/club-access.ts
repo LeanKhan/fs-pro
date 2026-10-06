@@ -35,3 +35,12 @@ export function accessDenied(access: Exclude<ClubAccess, 'ok'>) {
   }
   return { status: 404 as const, body: { success: false as const, message: 'Club not found' } };
 }
+
+/** Whether the session's user is an admin. */
+export async function isAdmin(session: { userID?: string } | undefined): Promise<ClubAccess> {
+  const userId = session?.userID;
+  if (!userId) return 'unauthenticated';
+  const db = DrizzleDatabase.getInstance().database;
+  const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
+  return user?.isAdmin ? 'ok' : 'forbidden';
+}

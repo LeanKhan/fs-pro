@@ -81,8 +81,6 @@ export class DrizzleClubRepository implements IClubRepository {
     if (filter.UserId !== undefined)
       conditions.push(eq(clubs.UserId, filter.UserId));
     if (filter.unclaimed) conditions.push(isNull(clubs.UserId));
-    if (filter.LeagueId !== undefined)
-      conditions.push(eq(clubs.LeagueId, filter.LeagueId));
     if (filter.ids !== undefined)
       conditions.push(inArray(clubs.id, filter.ids));
 
