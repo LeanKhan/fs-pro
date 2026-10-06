@@ -9,7 +9,8 @@
     "lint": "oxlint src",
     "lint:fix": "oxlint --fix",
     "format": "oxfmt",
-    "format:check": "oxfmt --check"
+    "format:check": "oxfmt --check",
+    "world:manifest": "node scripts/world/build-manifest.mjs"
   },
   "dependencies": {
     "@repo/api-contract": "*",

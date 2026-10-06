@@ -5,8 +5,6 @@ export interface ClubInterface {
   _id?: string;
   Name: string;
   ClubCode: string;
-  LeagueCode?: string;
-  LeagueId?: string;
   AttackingClass: number;
   DefensiveClass: number;
   Players: PlayerInterface[];

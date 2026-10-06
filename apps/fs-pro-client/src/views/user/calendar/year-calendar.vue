@@ -7,7 +7,7 @@
         <div>
           <div class="d-flex align-center gap-2 mb-1 flex-wrap">
             <v-icon color="indigo-lighten-2" size="large">mdi-calendar-multiselect</v-icon>
-            <span class="text-h5 font-weight-bold text-white">Season Calendar</span>
+            <span class="text-h5 font-weight-bold text-white">Year Calendar</span>
             <v-chip color="indigo" size="small" variant="tonal" class="font-weight-bold">
               {{ currentYearLabel }}
             </v-chip>
@@ -22,7 +22,7 @@
             </v-chip>
           </div>
           <div class="text-caption text-medium-emphasis">
-            Explore fixtures, review historical match outcomes, track milestones, and inspect all matchdays across the world.
+            Accepted challenges and knockout ties, tie deadlines, registration closing days and transfer windows.
           </div>
         </div>
 
@@ -281,9 +281,14 @@
                 </div>
 
                 <!-- Non-match events indicator -->
-                <div v-if="cell.events.length > 0" class="event-mini-pill">
-                  <v-icon size="x-small" color="purple-lighten-3" class="mr-1">mdi-bell-outline</v-icon>
-                  <span class="text-truncate">{{ cell.events[0].title || 'Event' }}</span>
+                <div
+                  v-for="(ev, eIdx) in cell.events.slice(0, 2)"
+                  :key="`ev${eIdx}`"
+                  class="event-mini-pill"
+                  :title="ev.title"
+                >
+                  <v-icon size="x-small" :color="ev.color" class="mr-1">{{ ev.icon }}</v-icon>
+                  <span class="text-truncate">{{ ev.title }}</span>
                 </div>
               </div>
             </template>
@@ -425,10 +430,22 @@
 
         <v-divider class="mb-3" />
 
+        <div v-if="selectedDayCell.events.length" class="mb-3">
+          <div
+            v-for="(ev, i) in selectedDayCell.events"
+            :key="i"
+            class="d-flex align-center text-body-2 mb-1"
+          >
+            <v-icon size="16" :color="ev.color" class="mr-2">{{ ev.icon }}</v-icon>
+            <router-link v-if="ev.link" :to="ev.link" class="text-decoration-none">{{ ev.title }}</router-link>
+            <span v-else>{{ ev.title }}</span>
+          </div>
+        </div>
+
         <!-- Fixtures List -->
         <div v-if="selectedDayCell.matches.length === 0" class="text-center pa-6 text-medium-emphasis">
           <v-icon size="large" class="mb-2">mdi-coffee-outline</v-icon>
-          <div>No matches scheduled on this day. (Rest / Training Day)</div>
+          <div>No matches. Open challenges: {{ openChallenges }}</div>
         </div>
 
         <v-list v-else density="compact" class="bg-transparent pa-0">
@@ -626,12 +643,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useStore } from '@/store';
 import { client } from '@/services/api';
 import type { Fixture } from '@repo/api-contract';
 import CompetitionBadge from '@/components/calendar/competition-badge.vue';
 import { competitionStyle } from '@/utils/competitionStyle';
+import type { EditionListItem } from '@repo/api-contract';
+import { unwrap, useOpenPlayStore } from '@/store/open-play';
 
 /** Filter/heading text for a competition code: leagues keep their code,
  * cups and the continental competition get a readable name plus the code. */
@@ -642,6 +661,46 @@ function competitionFilterLabel(code: string): string {
 }
 
 const store = useStore();
+const openPlay = useOpenPlayStore();
+const openEditions = ref<EditionListItem[]>([]);
+const openChallenges = computed(() => openPlay.incoming.length + openPlay.outgoing.length);
+
+interface DayEvent {
+  title: string;
+  icon: string;
+  color: string;
+  link?: string;
+}
+
+/** Non-match things on a game day (spec "UI → year calendar"): transfer
+ * windows, registration closing for competitions the club may enter, the
+ * club's knockout tie deadlines and challenges to answer. */
+const eventsByDay = computed(() => {
+  const map = new Map<number, DayEvent[]>();
+  const add = (day: number | null | undefined, ev: DayEvent) => {
+    if (day == null) return;
+    map.set(day, [...(map.get(day) ?? []), ev]);
+  };
+  const settings = openPlay.settings;
+  if (settings) {
+    for (const w of settings.transferWindows) {
+      add(settings.yearStartDay + w.fromDay - 1, { title: 'Transfer window opens', icon: 'mdi-swap-horizontal', color: 'green-lighten-2' });
+      add(settings.yearStartDay + w.toDay - 1, { title: 'Transfer window closes', icon: 'mdi-swap-horizontal', color: 'orange-lighten-2' });
+    }
+    add(settings.yearStartDay + settings.yearLengthDays, { title: `Year ${settings.currentYear} ends`, icon: 'mdi-calendar-check', color: 'amber' });
+  }
+  for (const e of openEditions.value) {
+    if (e.eligibility && !e.eligibility.eligible) continue;
+    add(e.registrationClosesDay, { title: `Entries close: ${e.title}`, icon: 'mdi-flag', color: 'teal-lighten-2', link: `/u/competitions/${e.id}` });
+  }
+  for (const f of allFixtures.value) {
+    if (!f.Played && f.PlayBy != null && f.Round != null && isClubInFixture(f))
+      add(f.PlayBy, { title: `Tie deadline: ${f.Home} vs ${f.Away}`, icon: 'mdi-timer-sand', color: 'red-lighten-2' });
+  }
+  for (const c of openPlay.incoming)
+    add(c.respondBy, { title: `Answer challenge (${c.competitionName ?? 'competition'})`, icon: 'mdi-sword-cross', color: 'amber-lighten-2', link: '/u/competitions' });
+  return map;
+});
 
 const loading = ref(true);
 const simulating = ref(false);
@@ -693,14 +752,8 @@ const userClub = computed<any>(() => {
 const userClubCode = computed(() => userClub.value?.ClubCode || '');
 
 const currentYearLabel = computed(() => {
-  const season = store.seasons?.[0] as any;
-  if (season?.Year) return season.Year;
-  const curDate = calendar.value?.CurrentDate;
-  if (curDate) {
-    const y = new Date(curDate).getFullYear();
-    return `${y}/${(y + 1).toString().slice(-2)}`;
-  }
-  return '2026/27';
+  const s = openPlay.settings;
+  return s ? `Year ${s.currentYear} · day ${s.dayOfYear} of ${s.yearLengthDays}` : 'Year';
 });
 
 const formattedTodayDate = computed(() => {
@@ -721,7 +774,7 @@ const activeCompetitionName = computed(() => {
   if (selectedCompetition.value !== 'all') {
     return competitionFilterLabel(selectedCompetition.value);
   }
-  return userClub.value?.LeagueCode || 'Premier Division';
+  return 'All competitions';
 });
 
 function isClubInFixture(fixture: Fixture): boolean {
@@ -811,6 +864,28 @@ const availableMonths = computed<MonthMeta[]>(() => {
     hasToday: true,
   });
 
+  // Every month of the current world year (built from YearLengthDays).
+  const s = openPlay.settings;
+  const addRange = (fromDay: number, toDay: number) => {
+    const cursor = dateForDay(fromDay);
+    cursor.setDate(1);
+    const end = dateForDay(toDay);
+    while (cursor <= end) {
+      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+      if (!map.has(key))
+        map.set(key, {
+          key,
+          year: cursor.getFullYear(),
+          month: cursor.getMonth(),
+          label: cursor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+          shortLabel: cursor.toLocaleDateString('en-US', { month: 'short' }),
+          hasToday: key === curKey,
+        });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+  };
+  if (s) addRange(s.yearStartDay, s.yearStartDay + s.yearLengthDays - 1);
+
   // Every month between the first and last scheduled day - known from the
   // schedule summary, so months can be listed without loading their fixtures.
   const summary = scheduleSummary.value;
@@ -893,7 +968,7 @@ const currentMonthCells = computed(() => {
       return new Date(f.ScheduledDate).toDateString() === cellDateStr;
     });
 
-    const gameDay = dayMatches.length > 0 ? dayMatches[0].ScheduledDay : null;
+    const gameDay = dayMatches.length > 0 ? dayMatches[0].ScheduledDay ?? null : dayForDate(cellDate);
     const isPast = gameDay != null ? gameDay < curCalendarDay : cellDate < new Date(curDateStr);
     const isFuture = gameDay != null ? gameDay > curCalendarDay : cellDate > new Date(curDateStr);
     const hasUserClub = dayMatches.some((f) => isClubInFixture(f));
@@ -908,7 +983,7 @@ const currentMonthCells = computed(() => {
         year: 'numeric',
       }),
       matches: dayMatches,
-      events: [],
+      events: gameDay != null ? (eventsByDay.value.get(gameDay) ?? []) : [],
       isToday,
       isPast,
       isFuture,
@@ -1131,10 +1206,24 @@ watch(activeMonth, (m) => {
 });
 
 onMounted(async () => {
+  openPlay.start();
   await store.setCalendar();
-  await store.setSeasons();
   await fetchFixtures();
 });
+onUnmounted(() => openPlay.stop());
+watch(
+  () => openPlay.clubId,
+  async (clubId) => {
+    try {
+      openEditions.value = unwrap<EditionListItem[]>(
+        await client.editions.list.query({ query: { status: 'registration', eligibleFor: clubId ?? undefined } })
+      );
+    } catch {
+      openEditions.value = [];
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <style scoped>

@@ -11,13 +11,17 @@
 
     <template v-else>
       <!-- The map: zoomable/pannable image + interactable hotspots with refined styling -->
-      <campus-map
+      <campus-scene
         :assets="game.campus.value?.assets ?? []"
+        :club-id="clubId"
+        :campus-layout="club.CampusLayout ?? null"
+        :club-code="club.ClubCode"
+        :club-name="club.Name"
         :selected="showSheet ? selectedKey : null"
         :now-ms="game.now.value"
         :debug="debug"
         :fans-count="fansCount"
-        :club-code="club.ClubCode"
+        :match-day="matchDay"
         @select="onSelectFacility"
       />
 
@@ -25,10 +29,18 @@
       <!-- Top HUD header: crest, level, location, treasury -->
       <club-top-hud
         :club-name="club.Name"
-        :club-level="playState?.club.level ?? 0"
+        :club-code="club.ClubCode"
+        :xp="club.XP ?? 0"
+        :thresholds="openPlay.settings?.levelThresholds"
+        :elo="club.Elo ?? 1500"
         :location="clubLocation"
         :budget="treasury"
+        :entries-used="isMyClub ? openPlay.entriesUsed : 0"
+        :max-entries="isMyClub ? openPlay.settings?.maxConcurrentEntries : null"
+        :inbox="isMyClub ? openPlay.incoming.length : 0"
         @open-settings="goManager('club')"
+        @open-inbox="isMyClub ? (showInbox = true) : (showChallenge = true)"
+        @open-competitions="router.push('/u/competitions')"
       />
 
       <!-- Left Floating Overlays (Overview, Next Goal, Manager Speech) -->
@@ -76,6 +88,29 @@
         @change-tab="onDockTabChange"
         @play-match="onPlayMatchTrigger"
       />
+
+      <!-- Challenges: the inbox for your own club; visiting a rival offers a challenge. -->
+      <side-sheet v-model="showInbox" :width="400">
+        <div class="d-flex align-center pa-3">
+          <div class="text-subtitle-1 font-weight-bold">Challenges</div>
+          <v-spacer />
+          <v-btn size="small" color="teal" variant="flat" prepend-icon="mdi-sword-cross" @click="showChallenge = true">
+            Challenge
+          </v-btn>
+        </div>
+        <div class="px-3"><challenge-inbox /></div>
+      </side-sheet>
+      <challenge-dialog v-model="showChallenge" :preselect-club-id="isMyClub ? null : clubId" />
+      <v-btn
+        v-if="!isMyClub"
+        class="cg-visit-challenge"
+        color="teal"
+        size="large"
+        prepend-icon="mdi-sword-cross"
+        @click="showChallenge = true"
+      >
+        Challenge {{ club.Name }}
+      </v-btn>
 
       <!-- Sheets and dialogs -->
       <facility-detail-sheet
@@ -141,7 +176,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@tanstack/vue-query';
 import type { AssetState } from '@repo/api-contract';
@@ -149,14 +184,18 @@ import { client } from '@/services/api';
 import { useStore } from '@/store';
 import { useClubGame } from '@/composables/use-club-game';
 
-import CampusMap from '@/components/game/campus-map.vue';
+import CampusScene from '@/components/world/campus-scene.vue';
+import SideSheet from '@/components/world/side-sheet.vue';
+import { CITY_PLOTS } from '@/components/world/campus-plots/city';
+import ChallengeInbox from '@/components/open-play/challenge-inbox.vue';
+import ChallengeDialog from '@/components/open-play/challenge-dialog.vue';
+import { useOpenPlayStore } from '@/store/open-play';
 import ClubTopHud from '@/components/hud/club-top-hud.vue';
 import ClubOverviewCard from '@/components/hud/club-overview-card.vue';
 import NextGoalCard from '@/components/hud/next-goal-card.vue';
 import ManagerBriefingToast from '@/components/hud/manager-briefing-toast.vue';
 import FacilitiesQuickList, { type QuickFacilityItem } from '@/components/hud/facilities-quick-list.vue';
 import BottomDockNav from '@/components/hud/bottom-dock-nav.vue';
-import { HOTSPOTS } from '@/components/game/map-config';
 import FacilityDetailSheet from '@/components/campus/facility-detail-sheet.vue';
 import MatchmakingModal from '@/components/play/matchmaking-modal.vue';
 import BattleArenaModal from '@/components/play/battle-arena-modal.vue';
@@ -167,6 +206,11 @@ import AwaySummaryModal, { type AwayEventItem } from '@/components/hud/away-summ
 const route = useRoute();
 const router = useRouter();
 const store = useStore();
+const openPlay = useOpenPlayStore();
+const showInbox = ref(false);
+const showChallenge = ref(false);
+onMounted(() => openPlay.start());
+onUnmounted(() => openPlay.stop());
 
 if (!store.isAuthenticated) store.getUser();
 
@@ -497,7 +541,7 @@ const selectedAsset = computed(() => {
 });
 
 const selectedIcon = computed(() => {
-  const match = HOTSPOTS.find((h) => h.key === selectedKey.value);
+  const match = CITY_PLOTS.find((h) => h.key === selectedKey.value);
   if (match) return match.icon;
   const fallbacks: Record<string, string> = {
     stands: '🏟️',
@@ -519,14 +563,30 @@ function onSelectFacility(key: string) {
     goManager('tactics');
     return;
   }
+  // The Office is the HQ interior: the full dashboard.
+  if (key === 'office') {
+    router.push(isMyClub.value ? '/u' : `/u/clubs/${club.value?._id}/${club.value?.ClubCode}`);
+    return;
+  }
   selectedKey.value = key;
   showSheet.value = true;
 }
 
 function onDockTabChange(key: string) {
   if (key === 'hq') return;
-  goManager(key);
+  if (key === 'world') router.push('/world');
+  else if (key === 'competitions') router.push('/u/competitions');
+  else if (key === 'office') router.push('/u');
+  else goManager(key);
 }
+
+// Match day: an accepted challenge for today.
+const matchDay = computed<boolean | string>(() => {
+  if (!isMyClub.value) return false;
+  const today = openPlay.settings?.currentDay;
+  const m = openPlay.upcoming.find((c) => c.scheduledDay === today);
+  return m ? true : false;
+});
 
 function onPlayMatchTrigger(mode: 'battle' | 'quick_sim') {
   game.findMatch(mode === 'quick_sim');
@@ -560,6 +620,14 @@ function goManager(key?: string) {
   background: #080c14;
   color: #fff;
   user-select: none;
+}
+
+.cg-visit-challenge {
+  position: absolute;
+  left: 50%;
+  bottom: 110px;
+  transform: translateX(-50%);
+  z-index: 21;
 }
 
 .cg-state {

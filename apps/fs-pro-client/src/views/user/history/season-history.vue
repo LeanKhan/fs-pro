@@ -3,13 +3,13 @@
     <v-card class="mb-4" :loading="loading">
       <v-card-title class="d-flex align-center flex-wrap gap-2">
         <v-icon color="amber">mdi-history</v-icon>
-        <span>Season History</span>
+        <span>Year History</span>
         <v-spacer />
         <v-select
           v-if="reports.length"
           v-model="selectedYear"
           :items="reports.map((r) => r.year)"
-          label="Season cycle"
+          label="Year"
           density="compact"
           variant="outlined"
           hide-details
@@ -25,9 +25,38 @@
     </v-card>
 
     <v-alert v-if="!loading && !reports.length" type="info" variant="tonal">
-      No season cycle has been ended yet. A summary appears here after an admin
-      ends a cycle.
+      No year has ended yet. A summary appears here when the world's year rolls
+      over.
     </v-alert>
+
+    <!-- Every competition the user's club has played, across years. -->
+    <v-card v-if="pastEntries.length" class="mb-4">
+      <v-card-title class="d-flex align-center gap-2">
+        <v-icon color="indigo-lighten-2">mdi-flag-checkered</v-icon>
+        Your competitions
+      </v-card-title>
+      <v-table density="compact" class="bg-transparent">
+        <thead>
+          <tr>
+            <th>Competition</th>
+            <th>Result</th>
+            <th class="text-right">Ended</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="en in pastEntries" :key="en.seasonId">
+            <td>
+              <router-link :to="`/finish/edition/${en.seasonId}`" class="text-decoration-none">{{ en.edition.title }}</router-link>
+            </td>
+            <td>
+              <v-icon v-if="en.edition.winnerId === openPlay.clubId" size="16" color="amber">mdi-trophy</v-icon>
+              {{ resultOf(en) }}
+            </td>
+            <td class="text-right">{{ en.edition.endDay != null ? `Day ${en.edition.endDay}` : '—' }}</td>
+          </tr>
+        </tbody>
+      </v-table>
+    </v-card>
 
     <template v-if="report">
       <!-- Highlights -->
@@ -162,6 +191,24 @@ import { useRoute } from 'vue-router';
 import { client } from '@/services/api';
 import type { SeasonReport } from '@repo/api-contract';
 import CompetitionBadge from '@/components/calendar/competition-badge.vue';
+import { useOpenPlayStore, type ClubEntry } from '@/store/open-play';
+
+const openPlay = useOpenPlayStore();
+const pastEntries = computed(() =>
+  openPlay.entries
+    .filter((e) => ['finished', 'cancelled'].includes(e.edition.status) || ['eliminated', 'withdrawn'].includes(e.status))
+    .sort((a, b) => (b.edition.endDay ?? 0) - (a.edition.endDay ?? 0))
+);
+const ordinal = (n: number) => `${n}${['th', 'st', 'nd', 'rd'][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10 < 4 ? n % 10 : 0]}`;
+/** Finishing Rank, or the stage/round a knockout exit came in. */
+function resultOf(en: ClubEntry) {
+  if (en.edition.status === 'cancelled') return 'Cancelled';
+  if (en.status === 'withdrawn') return 'Withdrew';
+  if (en.edition.winnerId && en.edition.winnerId === en.clubId) return 'Winner';
+  if (en.finalPosition != null) return ordinal(en.finalPosition);
+  if (en.eliminatedAtStage != null) return `Out in stage ${en.eliminatedAtStage + 1}`;
+  return en.status;
+}
 
 const route = useRoute();
 
@@ -208,6 +255,7 @@ watch(selectedYear, () => {
 });
 
 onMounted(async () => {
+  void openPlay.refresh();
   try {
     const res = await client.calendar.getSeasonReports.query();
     if (res.status === 200) {

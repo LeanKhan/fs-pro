@@ -146,8 +146,8 @@ const adminNavItems = ref<any[]>([
   { title: 'Home', icon: 'mdi-soccer', link: '/a', color: 'primary' },
   { title: 'Clubs', icon: 'mdi-security', link: '/a/clubs', color: 'amber' },
   {
-    title: 'Calendar',
-    icon: 'mdi-calendar',
+    title: 'World & Calendar',
+    icon: 'mdi-earth',
     link: '/a/calendar',
     color: 'indigo',
   },
@@ -217,13 +217,20 @@ const userNavItems = computed((): any[] => {
   let routes = [
     { title: 'Home', icon: 'mdi-soccer', link: '/u', color: 'primary' },
     {
+      title: 'Competitions',
+      icon: 'mdi-trophy-outline',
+      link: '/u/competitions',
+      color: 'amber',
+    },
+    { title: 'World Map', icon: 'mdi-earth', link: '/world', color: 'teal' },
+    {
       title: 'Year Calendar',
       icon: 'mdi-calendar-month',
       link: '/u/calendar',
       color: 'indigo',
     },
     {
-      title: 'Season History',
+      title: 'Year History',
       icon: 'mdi-history',
       link: '/u/history',
       color: 'amber',

@@ -4,9 +4,8 @@ import { client } from '@/services/api';
 export const STAT_ATTRIBUTES = ['points', 'goals', 'assists', 'saves'] as const;
 export type StatAttribute = (typeof STAT_ATTRIBUTES)[number];
 
-/** Top-5-by-stat player leaderboard, shared by the season-stats and
- * end-of-season screens (previously two near-identical copies of this
- * fetch). The server only supports scoping by Competition (`competitionCode`),
+/** Top-5-by-stat player leaderboard for the season-stats screen
+ * (previously two near-identical copies of this fetch). The server only supports scoping by Competition (`competitionCode`),
  * not by a specific Season, so `competitionCode` is the closest honest
  * filter available - pass the season's own CompetitionCode. The old
  * `match_k`/`match_v`/`sort_k`/`sort_v` query params these two screens sent

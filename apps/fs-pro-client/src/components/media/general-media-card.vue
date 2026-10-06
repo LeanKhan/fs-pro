@@ -711,14 +711,13 @@
 <script setup lang="ts">
 import { computed, ref, watch, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import type { Club, Season, MediaItem } from '@repo/api-contract';
+import type { Club, MediaItem } from '@repo/api-contract';
 import { client } from '@/services/api';
 
 const props = defineProps<{
   club: Club | null;
   selectedMatch?: any | null;
   selectedDay?: any | null;
-  season?: Season | null;
   isMyClub?: boolean;
 }>();
 

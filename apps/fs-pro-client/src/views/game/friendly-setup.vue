@@ -65,6 +65,14 @@
       </v-col>
     </v-row>
 
+    <v-alert v-if="sharedEditions.length" type="info" variant="tonal" density="compact" class="mb-3">
+      Both clubs play in {{ sharedEditions.map((e) => e.edition.title).join(', ') }}. Friendlies don't count there:
+      send a challenge instead to play for points.
+      <template #append>
+        <v-btn size="small" variant="tonal" :to="`/u/competitions/${sharedEditions[0]!.seasonId}`">Challenge</v-btn>
+      </template>
+    </v-alert>
+
     <v-row>
       <v-col cols="12">
         <v-card>
@@ -92,9 +100,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { client } from '@/services/api';
+import { unwrap, type ClubEntry } from '@/store/open-play';
 
 const router = useRouter();
 
@@ -111,6 +120,28 @@ const awayStyle = ref('');
 const saveStats = ref(false);
 const creating = ref(false);
 const error = ref('');
+
+// Hint to challenge instead when both clubs share a running league/groups
+// stage (docs/OPEN-PLAY-COMPETITIONS-SPEC.md, "UI → User").
+const sharedEditions = ref<ClubEntry[]>([]);
+async function activeLeagueEntries(clubId: string) {
+  const list = unwrap<ClubEntry[]>(await client.editions.clubEntries.query({ params: { clubId } }));
+  return list.filter((e) => {
+    const stages = (e.edition.definition as { Stages?: { type: string }[] } | null)?.Stages ?? [];
+    return e.status === 'active' && e.edition.status === 'running' && stages[e.edition.currentStage]?.type !== 'knockout';
+  });
+}
+watch([homeClubId, awayClubId], async ([home, away]) => {
+  sharedEditions.value = [];
+  if (!home || !away || home === away) return;
+  try {
+    const [a, b] = await Promise.all([activeLeagueEntries(home), activeLeagueEntries(away)]);
+    const other = new Set(b.map((e) => e.seasonId));
+    sharedEditions.value = a.filter((e) => other.has(e.seasonId));
+  } catch {
+    sharedEditions.value = [];
+  }
+});
 
 const canSubmit = computed(
   () =>

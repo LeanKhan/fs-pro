@@ -15,8 +15,6 @@ export interface IClub {
   Manager?: import('../controllers/managers/manager.model').ManagerInterface;
   Stadium: Record<string, unknown>;
   Stats: Record<string, unknown>;
-  LeagueId?: string;
-  LeagueCode?: string;
   Lineup?: {
     startingXI: string[];
     bench: string[];

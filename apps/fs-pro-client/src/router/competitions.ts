@@ -1,118 +1,54 @@
-import type { RouteLocationNormalizedLoaded, RouteRecordRaw } from 'vue-router';
-import CompetitionsHome from '@/views/admin/competitions/dashboard.vue';
-import CompetitionSeasonsHome from '@/views/admin/seasons/dashboard.vue';
-import ViewCompetition from '@/views/admin/competitions/view-competition.vue';
-import CompetitionForm from '@/views/admin/competitions/competition-form.vue';
-import CompetitionHome from '@/views/admin/competitions/competition-home.vue';
-import SeasonForm from '@/views/admin/seasons/season-form.vue';
-import SeasonHome from '@/views/admin/seasons/view-season.vue';
-import { replaceParams } from './index';
+import type { RouteRecordRaw } from 'vue-router';
 
-type Route = RouteLocationNormalizedLoaded;
-
+/** Admin: open-play competitions (docs/OPEN-PLAY-COMPETITIONS-SPEC.md). A
+ * competition's editions are managed on its own page. */
 const routes = {
   path: 'competitions',
   component: () =>
     import(
-      /* webpackChunkName: "competitions" */ '../views/admin/competitions/Competitions.vue'
+      /* webpackChunkName: "competitions" */ '../views/admin/competitions/competition-home.vue'
     ),
   children: [
     {
       path: '',
       name: 'Competition Home',
-      component: CompetitionsHome,
-      meta: () => ({
-        title: 'Home',
-      }),
-    },
-    {
-      path: ':id/:code',
-      component: CompetitionHome,
-      children: [
-        {
-          path: '',
-          name: 'View Competition',
-          component: ViewCompetition,
-          meta: (route: Route) => ({
-            title: route.params.code.toUpperCase(),
-            to: () => {
-              return replaceParams(route.path, [
-                { search: ':id', replace: String(route.params.id) },
-                { search: ':code', replace: String(route.params.code) },
-              ]);
-            },
-          }),
-        },
-        {
-          path: 'update',
-          name: 'Update Competition',
-          component: CompetitionForm,
-          meta: (route: Route) => ({
-            title: 'Update',
-            to: () => {
-              return replaceParams(route.path, [
-                { search: ':id', replace: String(route.params.id) },
-                { search: ':code', replace: String(route.params.code) },
-              ]);
-            },
-          }),
-          props: { isUpdate: true },
-        },
-        {
-          path: 'seasons',
-          component: () =>
-            import(
-              /* webpackChunkName: "seasons" */ '../views/admin/seasons/seasons-home.vue'
-            ),
-          children: [
-            {
-              path: '',
-              component: CompetitionSeasonsHome,
-              name: 'Seasons Home',
-            },
-            {
-              path: ':seasonId/:seasonCode',
-              component: SeasonHome,
-              name: 'View Season',
-            },
-            {
-              path: 'new',
-              name: 'New Season',
-              component: SeasonForm,
-              meta: (route: Route) => ({
-                title: 'New Season',
-                to: () => {
-                  return replaceParams(route.path, [
-                    { search: ':id', replace: String(route.params.id) },
-                    { search: ':code', replace: String(route.params.code) },
-                  ]);
-                },
-              }),
-            },
-          ],
-          meta: { title: 'Seasons' },
-        },
-      ],
-      meta: (route: Route) => ({
-        title: route.params.code.toUpperCase(),
-        to: () => {
-          return replaceParams(route.path, [
-            { search: ':id', replace: String(route.params.id) },
-            { search: ':code', replace: String(route.params.code) },
-          ]);
-        },
-      }),
+      component: () =>
+        import(
+          /* webpackChunkName: "competitions_list" */ '../views/admin/open-play/competitions-list.vue'
+        ),
+      meta: { title: 'Competitions' },
     },
     {
       path: 'new',
       name: 'New Competition',
-      component: CompetitionForm,
-      meta: { title: 'New Competition' },
+      component: () =>
+        import(
+          /* webpackChunkName: "competition_builder" */ '../views/admin/open-play/competition-builder.vue'
+        ),
       props: { isUpdate: false },
+      meta: { title: 'New Competition' },
+    },
+    {
+      path: ':id/:code',
+      name: 'View Competition',
+      component: () =>
+        import(
+          /* webpackChunkName: "competition_view" */ '../views/admin/open-play/competition-view.vue'
+        ),
+      meta: { title: 'Competition' },
+    },
+    {
+      path: ':id/:code/update',
+      name: 'Update Competition',
+      component: () =>
+        import(
+          /* webpackChunkName: "competition_builder" */ '../views/admin/open-play/competition-builder.vue'
+        ),
+      props: { isUpdate: true },
+      meta: { title: 'Update' },
     },
   ],
-  meta: () => ({
-    title: 'Competitions Home',
-  }),
+  meta: { title: 'Competitions' },
 } as RouteRecordRaw;
+
 export default routes;

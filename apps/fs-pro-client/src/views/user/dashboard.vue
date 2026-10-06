@@ -15,25 +15,13 @@
       <v-spacer></v-spacer>
 
       <v-toolbar-items class="align-center">
-        <!-- select league -->
-        <select
-          class="text-indigo indigo-text pa-1 rounded border"
-          style="background: rgba(30, 34, 53, 0.8);"
-          name="select_league"
-          v-model="selectedLeagueId"
-          @change="changeSelectedLeague(selectedLeagueId)"
-        >
-          <option value="">All Leagues</option>
-          <option
-            v-for="(league, i) in leagues"
-            :value="league._id"
-            :key="i"
-          >
-            {{ league.Name }}
-          </option>
-        </select>
+        <v-btn variant="text" size="small" color="indigo-lighten-2" to="/u/competitions" prepend-icon="mdi-trophy-outline">
+          Competitions
+        </v-btn>
       </v-toolbar-items>
     </v-toolbar>
+
+    <year-progress v-if="openPlay.settings" :settings="openPlay.settings" class="mb-3" />
 
     <!-- Actor Identity Bar (Manager & Owner Command Center) -->
     <v-card
@@ -54,8 +42,17 @@
                 {{ userClub.ClubCode }}
               </v-chip>
             </div>
-            <div class="text-caption text-medium-emphasis">
-              Club Manager & Owner &bull; World Actor
+            <div class="text-caption text-medium-emphasis d-flex align-center flex-wrap ga-2">
+              <level-badge
+                :xp="clubInfo?.XP ?? 0"
+                :thresholds="openPlay.settings?.levelThresholds"
+                :size="22"
+                show-label
+              />
+              <span>Elo {{ Math.round(clubInfo?.Elo ?? 1500) }}</span>
+              <span>
+                &bull; Entries {{ openPlay.entriesUsed }}/{{ openPlay.settings?.maxConcurrentEntries ?? '—' }}
+              </span>
             </div>
             <div class="mt-2">
               <v-btn
@@ -245,32 +242,45 @@
           </v-sheet>
         </v-card>
 
-        <!-- Standings and other stuff -->
+        <!-- My competitions: one tab per active entry -->
         <v-card class="mt-4">
           <v-card-title class="text-subtitle-1 font-weight-bold d-flex align-center justify-space-between">
-            <span>League Standings</span>
-            <v-chip size="x-small" color="primary">Autonomous Competitions</v-chip>
+            <span>My Competitions</span>
+            <v-btn size="x-small" variant="tonal" color="indigo-lighten-2" to="/u/competitions">
+              Find competitions
+            </v-btn>
           </v-card-title>
           <v-divider />
-          <div class="text-center">
-            <template v-if="seasons && seasons.length">
-              <v-tabs v-model="seasonTab" bg-color="surface">
-                <v-tab v-for="(season, i) in seasons" :key="i">
-                  {{ season.CompetitionCode }}
-                </v-tab>
-              </v-tabs>
-
-              <v-window v-model="seasonTab">
-                <v-window-item v-for="(season, i) in seasons" :key="i">
-                  <standings-scroller
-                    :standings="season.Standings"
-                  ></standings-scroller>
-                </v-window-item>
-              </v-window>
+          <template v-if="runningEntries.length">
+            <v-tabs v-model="seasonTab" bg-color="surface" show-arrows>
+              <v-tab v-for="en in runningEntries" :key="en.seasonId" :value="en.seasonId">
+                {{ en.edition.title }}
+              </v-tab>
+            </v-tabs>
+            <v-window v-model="seasonTab">
+              <v-window-item v-for="en in runningEntries" :key="en.seasonId" :value="en.seasonId" class="pa-3">
+                <edition-standings
+                  :edition-id="en.seasonId"
+                  :definition="en.edition.definition"
+                  :current-stage="en.edition.currentStage"
+                  :status="en.edition.status"
+                  :highlight-club-id="openPlay.clubId"
+                  compact
+                />
+                <div class="text-right mt-2">
+                  <v-btn size="small" variant="text" :to="`/u/competitions/${en.seasonId}`">Open</v-btn>
+                </div>
+              </v-window-item>
+            </v-window>
+          </template>
+          <div v-else class="pa-4 text-medium-emphasis text-caption text-center">
+            <template v-if="openPlay.activeEntries.length">
+              Your competitions haven't started yet.
             </template>
-            <div v-else class="pa-4 text-medium-emphasis text-caption">
-              Loading competition standings...
-            </div>
+            <template v-else>
+              You're not in any competition.
+              <router-link to="/u/competitions">See what's open for entry</router-link>.
+            </template>
           </div>
         </v-card>
       </v-col>
@@ -278,34 +288,27 @@
       <!-- Right Column: Season Stats & Quick Navigation -->
       <v-col cols="12" lg="4">
         <v-card class="mb-4">
-          <v-card-title class="text-subtitle-1 font-weight-bold">
-            Season Analytics
+          <v-card-title class="text-subtitle-1 font-weight-bold d-flex align-center">
+            Challenges
+            <v-spacer />
+            <v-btn
+              size="small"
+              color="teal"
+              variant="flat"
+              prepend-icon="mdi-sword-cross"
+              :disabled="!openPlay.clubId"
+              @click="challengeDialog = true"
+            >
+              Challenge
+            </v-btn>
           </v-card-title>
           <v-divider />
-          <v-list density="compact">
-            <v-list-item v-for="(s, i) in seasons" :key="i" class="py-2">
-              <template v-slot:prepend>
-                <v-icon color="amber">mdi-trophy-outline</v-icon>
-              </template>
-              <v-list-item-title class="font-weight-bold">
-                {{ s.CompetitionCode }}
-              </v-list-item-title>
-              <template v-slot:append>
-                <v-btn
-                  size="small"
-                  variant="tonal"
-                  color="indigo-lighten-2"
-                  :to="`/u/stats/season/${s._id}`"
-                >
-                  View Stats
-                  <v-icon class="ml-1" size="small">
-                    mdi-chart-areaspline
-                  </v-icon>
-                </v-btn>
-              </template>
-            </v-list-item>
-          </v-list>
+          <v-card-text class="pa-2">
+            <challenge-inbox max-height="360px" />
+          </v-card-text>
         </v-card>
+
+        <performance-card :performance="openPlay.performance" class="mb-4" />
 
         <!-- World Quick Shortcuts -->
         <v-card>
@@ -336,10 +339,16 @@
               subtitle="Scout and sign players in the world"
             />
             <v-list-item
+              to="/u/competitions"
+              prepend-icon="mdi-trophy-outline"
+              title="Competitions"
+              subtitle="Enter competitions that fit your Level"
+            />
+            <v-list-item
               to="/u/calendar"
               prepend-icon="mdi-calendar-multiselect"
               title="Year Calendar"
-              subtitle="Interactive monthly fixture grid & season schedule"
+              subtitle="Monthly grid of played and accepted matches"
             />
             <v-list-item
               to="/u/fixtures"
@@ -351,15 +360,23 @@
         </v-card>
       </v-col>
     </v-row>
+    <challenge-dialog v-model="challengeDialog" />
   </v-card>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from '@/store';
 import DayScroll from '@/components/calendar/day-scroll.vue';
-import StandingsScroller from '@/components/seasons/standings-scroller.vue';
+import EditionStandings from '@/components/open-play/edition-standings.vue';
+import ChallengeInbox from '@/components/open-play/challenge-inbox.vue';
+import ChallengeDialog from '@/components/open-play/challenge-dialog.vue';
+import PerformanceCard from '@/components/open-play/performance-card.vue';
+import LevelBadge from '@/components/open-play/level-badge.vue';
+import YearProgress from '@/components/open-play/year-progress.vue';
+import { useOpenPlayStore } from '@/store/open-play';
+import { useClubDirectory } from '@/helpers/open-play';
 import FixtureCard from '@/components/user-dashboard/fixture-card.vue';
 import DayFixturesList from '@/components/user-dashboard/day-fixtures-list.vue';
 import WorldFeedTicker from '@/components/user-dashboard/world-feed-ticker.vue';
@@ -369,19 +386,23 @@ import type { Fixture } from '@repo/api-contract';
 
 const router = useRouter();
 const store = useStore();
+const openPlay = useOpenPlayStore();
+const directory = useClubDirectory();
+const challengeDialog = ref(false);
 
 defineOptions({
   name: 'UserDashboard',
 });
 
 const selectedDayIndex = ref(0);
-const seasonTab = ref<any>(0);
-const leagues = ref<any>([]);
-const selectedLeagueId = ref('');
-const selectedLeague = ref<any>({});
+const seasonTab = ref<string | null>(null);
 const selectedMatch = ref<Fixture | null>(null);
 const days = ref<any>([]);
-const seasons = ref<any>([]);
+
+const runningEntries = computed(() =>
+  openPlay.activeEntries.filter((e) => ['running', 'finished'].includes(e.edition.status))
+);
+const clubInfo = computed(() => directory.get(openPlay.clubId));
 
 const calendar = computed(() => store.calendar);
 const currentDay = computed(() => store.calendar?.CurrentDay);
@@ -471,26 +492,7 @@ watch(lobby, (toLobby) => {
   }
 });
 
-function changeSelectedLeague(league_id: string) {
-  if (league_id) {
-    const league = leagues.value.find((l: any) => l._id === league_id);
-    store.setSelectedLeague(league?.CompetitionCode ?? '');
-    getLeagues(league_id);
-    fetchCurrentSeason();
-  } else {
-    store.unsetSelectedLeague();
-    fetchCurrentSeason();
-  }
-}
-
 function matchSelected(match: Fixture) {
-  const league = leagues.value.find(
-    (l: any) => l.CompetitionCode === match.LeagueCode
-  );
-  if (league) {
-    selectedLeagueId.value = league._id;
-    changeSelectedLeague(league._id);
-  }
   selectedMatch.value = match;
 }
 
@@ -518,53 +520,16 @@ async function getDays() {
   }
 }
 
-async function getLeagues(league_id?: string) {
-  try {
-    if (league_id) {
-      const response = await client.competitions.getCompetitions.query({
-        query: { id: league_id },
-      });
-      if (response.status === 200) {
-        selectedLeague.value = response.body.payload[0];
-      }
-    } else {
-      const response = await client.competitions.getCompetitions.query({
-        query: { type: 'league' },
-      });
-      if (response.status === 200) {
-        leagues.value = response.body.payload;
-      }
-    }
-  } catch (error) {
-    console.error('Error getting leagues:', error);
-  }
-}
-
-async function fetchCurrentSeason() {
-  try {
-    const query: any = { current: true };
-    if (selectedLeagueId.value) {
-      query.competition = selectedLeagueId.value;
-    }
-    const response = await client.seasons.getSeasons.query({ query });
-    if (response.status === 200) {
-      seasons.value = response.body.payload;
-    }
-  } catch (error) {
-    console.error('Error fetching current Seasons:', error);
-  }
-}
-
 function selectDay(val: number) {
   selectedDayIndex.value = val;
   selectedMatch.value = null;
 }
 
 onMounted(async () => {
-  await getLeagues();
+  openPlay.start();
   if (!store.user?.clubs?.[0] || typeof store.user?.clubs?.[0] === 'string') {
     await store.setUserClubs();
   }
-  await fetchCurrentSeason();
 });
+onUnmounted(() => openPlay.stop());
 </script>

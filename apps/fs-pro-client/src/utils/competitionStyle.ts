@@ -17,7 +17,8 @@ interface FixtureLike {
   LeagueCode?: string | null;
   Type?: string | null;
   Stage?: string | null;
-  Week?: number | null;
+  Round?: number | null;
+  ScheduledDay?: number | null;
 }
 
 /** Colour and icon per competition kind - gold cups, cyan continental,
@@ -50,9 +51,10 @@ export function competitionStyle(fixture: FixtureLike): CompetitionStyle {
   return { kind, code: code || '—', label, ...KIND_STYLE[kind] };
 }
 
-/** Round / group for knockout and group fixtures, matchweek for leagues. */
+/** Round / group for knockout and group fixtures, match day for leagues. */
 export function fixtureRound(fixture: FixtureLike): string {
   const style = competitionStyle(fixture);
   if (style.kind !== 'league' && fixture.Stage) return fixture.Stage;
-  return fixture.Week != null ? `Week ${fixture.Week}` : '';
+  if (fixture.Round != null) return `Round ${fixture.Round}`;
+  return fixture.ScheduledDay != null ? `Day ${fixture.ScheduledDay}` : '';
 }

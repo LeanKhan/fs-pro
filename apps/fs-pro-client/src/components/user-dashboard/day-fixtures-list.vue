@@ -40,14 +40,16 @@
         </v-list-item-title>
 
         <v-list-item-subtitle class="text-caption">
-          {{ match.LeagueCode }}
-          <span v-if="match.Played && match.Details" class="font-weight-bold text-amber ml-2">
+          {{ fixtureStageLabel(match) }}
+          <span v-if="isForfeit(match)" class="font-weight-bold text-red-lighten-2 ml-2">Forfeit</span>
+          <span v-else-if="match.Played && match.Details" class="font-weight-bold text-amber ml-2">
             ({{ match.Details.HomeTeamScore }} - {{ match.Details.AwayTeamScore }})
           </span>
         </v-list-item-subtitle>
       </div>
 
-      <div v-if="Detail == 'results' && match.Details" class="text-body-2 font-weight-bold text-amber ml-2">
+      <div v-if="Detail == 'results' && isForfeit(match)" class="text-body-2 font-weight-bold text-red-lighten-2 ml-2">Forfeit</div>
+      <div v-else-if="Detail == 'results' && match.Details" class="text-body-2 font-weight-bold text-amber ml-2">
         {{ match.Details.HomeTeamScore }} : {{ match.Details.AwayTeamScore }}
       </div>
 
@@ -71,6 +73,7 @@
 </template>
 
 <script setup lang="ts">
+import { fixtureStageLabel, isForfeit } from '@/helpers/open-play';
 import { ref } from 'vue';
 import type { Fixture } from '@repo/api-contract';
 

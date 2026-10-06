@@ -6,7 +6,6 @@ import { clubsContract } from './routes/clubs';
 import { metaContract } from './routes/meta';
 import { fixturesContract } from './routes/fixtures';
 import { playersContract } from './routes/players';
-import { competitionsContract } from './routes/competitions';
 import { managersContract } from './routes/managers';
 import { calendarContract } from './routes/calendar';
 import { placesContract } from './routes/places';
@@ -17,6 +16,10 @@ import { gameContract } from './routes/game';
 import { transfersContract } from './routes/transfers';
 import { facilitiesContract } from './routes/facilities';
 import { playContract } from './routes/play';
+import { editionsContract } from './routes/editions';
+import { challengesContract } from './routes/challenges';
+import { worldContract } from './routes/world';
+import { competitionDefinitionsContract } from './routes/competition-definitions';
 
 const c = initContract();
 
@@ -29,7 +32,6 @@ export const apiContract = c.router({
   meta: metaContract,
   fixtures: fixturesContract,
   players: playersContract,
-  competitions: competitionsContract,
   managers: managersContract,
   calendar: calendarContract,
   places: placesContract,
@@ -40,14 +42,17 @@ export const apiContract = c.router({
   transfers: transfersContract,
   facilities: facilitiesContract,
   play: playContract,
+  editions: editionsContract,
+  challenges: challengesContract,
+  world: worldContract,
+  competitionDefinitions: competitionDefinitionsContract,
 });
 
 export type { Club } from './schemas/club';
 export type { DbStatus } from './schemas/meta';
 export type { Fixture } from './schemas/fixture';
 export type { Player, PlayerAttributes } from './schemas/player';
-export type { Competition } from './schemas/competition';
-export type { Season, ClubStandings, WeekStandings } from './schemas/season';
+export type { Season, ClubStandings, StandingLine } from './schemas/season';
 export type { Manager, ManagerClubRef } from './schemas/manager';
 export type { Calendar, Day, WorldFeed, WorldFeedHeadline } from './schemas/calendar';
 export type { Place } from './schemas/place';
@@ -68,3 +73,59 @@ export type { Award } from './schemas/award';
 export type { User } from './schemas/user';
 export type { Tactic, PlayResult, GameResults } from './schemas/game';
 export type { MediaItem } from './schemas/media';
+export {
+  CompetitionDefinitionSchema,
+  LeagueRulesSchema,
+  StageDefinitionSchema,
+  EntryConditionsSchema,
+  WinConditionSchema,
+  RewardsSchema,
+  OutcomeSchema,
+  RecurrenceSchema,
+  RankingMetricSchema,
+} from './schemas/competition-definition';
+export type {
+  CompetitionDefinition,
+  LeagueRules,
+  StageDefinition,
+  EntryConditions,
+  WinCondition,
+  Rewards,
+  Outcome,
+  Recurrence,
+  RankingMetric,
+  Advance,
+} from './schemas/competition-definition';
+export type {
+  Edition,
+  EditionDetail,
+  EditionListItem,
+  EditionStatus,
+  Entry,
+  Eligibility,
+  RankingTableRow,
+  StageTable,
+  OpponentOption,
+  MatchChallenge,
+  Bracket,
+  ChallengePolicy,
+  EntryPolicy,
+} from './schemas/open-play';
+export type {
+  WorldSettings,
+  WorldSettingsPatch,
+  YearEndSummary,
+  WorldDayReport,
+  PerformanceView,
+} from './schemas/world';
+export { ChallengePolicySchema, EntryPolicySchema } from './schemas/open-play';
+export {
+  CompetitionDefinitionInputSchema,
+  CompetitionSummarySchema,
+} from './routes/competition-definitions';
+export type CompetitionDefinitionInput = import('zod').infer<
+  typeof import('./routes/competition-definitions').CompetitionDefinitionInputSchema
+>;
+export type CompetitionSummary = import('zod').infer<
+  typeof import('./routes/competition-definitions').CompetitionSummarySchema
+>;
