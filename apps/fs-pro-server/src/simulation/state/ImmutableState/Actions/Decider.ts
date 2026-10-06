@@ -1,7 +1,6 @@
 import { IFieldPlayer } from '../../../../interfaces/Player';
 import { MatchSide } from '../../../classes/MatchSide';
 import CO from '../../../utils/coordinates';
-import { getResult } from '../../../utils/probability';
 import {
   createRandomSource,
   RandomInput,
@@ -27,6 +26,8 @@ import {
   ShootProfileBand,
 } from '../../../config';
 import { recordAction, recordPressure } from '../../../player/PlayerMemory';
+import { dribbleProbability, passModel, shotModel } from '../../../resolver/outcomeModel';
+import { getGK } from '../../../utils/players';
 
 function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
@@ -68,7 +69,7 @@ const PHASE_BIAS: Partial<
 > = {
   counter: { carry: 0.15, dribble: 0.1, shoot: 0.05 },
   'attacking-transition': { carry: 0.1, pass: 0.05 },
-  'final-third': { shoot: 0.3, dribble: 0.05 },
+  'final-third': { shoot: 0.1, dribble: 0.05 },
   'build-up': { support: 0.1, hold: 0.05 },
   restart: { pass: 0.1 },
 };
@@ -163,7 +164,11 @@ export class Decider {
       player.Position as 'ATT' | 'MID' | 'DEF',
       phase
     );
-    const chosen = chooseCandidate(candidates, this.random.next());
+    const chosen = chooseCandidate(
+      candidates,
+      this.random.next(),
+      this.decisionTemperature(player)
+    );
 
     this.lastCandidates = candidates;
     this.strategy = this.candidateToStrategy(chosen);
@@ -213,7 +218,60 @@ export class Decider {
       candidates.push(passToPost);
     }
 
-    return candidates;
+    const style = attackingSide.Tactic.style;
+    return candidates.map((c) => ({ ...c, score: clamp01(c.score + this.instructionBias(c, style)) }));
+  }
+
+  /**
+   * The manager's instructions as a score bias on each candidate, so the
+   * same player in the same spot plays differently under a high-tempo
+   * direct plan than under a patient possession one. Each term is
+   * proportional to how far the style value sits from neutral (0.5).
+   */
+  private instructionBias(
+    candidate: CandidateAction,
+    style: MatchSide['Tactic']['style']
+  ): number {
+    const b = getSimulationConfig().decisions.style;
+    const tempo = style.tempo - 0.5;
+    const directness = style.directness - 0.5;
+    const width = style.width - 0.5;
+
+    switch (candidate.type) {
+      case 'hold':
+        return b.tempoHold * tempo;
+      case 'support':
+        return b.tempoSupport * tempo + b.directnessSafe * directness;
+      case 'carry':
+        return b.tempoCarry * tempo;
+      case 'shoot':
+        return b.tempoShoot * tempo;
+      case 'pass':
+        if (candidate.detail === 'through' || candidate.detail === 'long') {
+          return b.directnessForward * directness;
+        }
+        if (candidate.detail === 'short' || candidate.detail === 'backward') {
+          return b.directnessSafe * directness;
+        }
+        if (candidate.detail === 'wide') {
+          return b.widthWide * width;
+        }
+        return 0;
+      default:
+        return 0;
+    }
+  }
+
+  /**
+   * Softmax temperature for this player's choice (see chooseCandidate): a
+   * good decision-maker (Mental/Vision) reliably takes the best option, a
+   * poor one is more erratic.
+   */
+  private decisionTemperature(player: IFieldPlayer): number {
+    const c = getSimulationConfig().decisions;
+    const quality = (player.Attributes.Mental + player.Attributes.Vision) / 2;
+    const t = clamp01((quality - c.qualityFloor) / (c.qualityCeiling - c.qualityFloor));
+    return c.temperatureMax - t * (c.temperatureMax - c.temperatureMin);
   }
 
   private applyPhaseBias(
@@ -334,12 +392,24 @@ export class Decider {
       this.confidenceThreshold(player, attackingSide, defendingSide, profile.threshold) +
       shootingBias;
 
+    // How good is the chance? A player weighs the xG they can see, so a
+    // speculative 30-yarder rarely beats working the ball into the box -
+    // and a side that creates better chances shoots more.
+    const { xgSensitivity, chanceWeight } = getSimulationConfig().shooting.selection;
+    const keeper = getGK(defendingSide.ActivePlayers) as IFieldPlayer | undefined;
+    const { xG } = shotModel(player, keeper, attackingSide, defendingSide, 'open-play');
+    const chanceValue = 1 - Math.exp(-xG * xgSensitivity);
+
     // Milestone 20 - on-pitch match confidence (Condition.confidence,
     // nudged by recent outcomes) is a separate signal from the Mental
     // ATTRIBUTE `confidenceThreshold()` already reads - a mentally strong
     // player having a genuinely bad game still shoots a little more
     // tentatively than their own attribute alone would suggest.
-    return clamp01(confidence / 100 + this.conditionConfidenceBoost(player));
+    return clamp01(
+      chanceValue * chanceWeight +
+        (confidence / 100) * (1 - chanceWeight) +
+        this.conditionConfidenceBoost(player)
+    );
   }
 
   /**
@@ -358,27 +428,35 @@ export class Decider {
     phase?: MatchPhase
   ): CandidateAction[] {
     const options = generatePassingOptions(player, attackingSide, defendingSide);
-    const best = selectBestPass(options, this.blendedPassingStyle(player, attackingSide));
+    const style = this.blendedPassingStyle(player, attackingSide);
 
-    if (!best) {
-      return [];
+    // The best pass of EACH shape (short/backward/wide/long/through) is
+    // its own candidate, so the team's instructions can favour a shape
+    // (see instructionBias) rather than only ever seeing one winner.
+    const byType = new Map<string, typeof options>();
+    for (const option of options) {
+      byType.set(option.passType, [...(byType.get(option.passType) ?? []), option]);
     }
 
-    // scorePassingOption's own raw scale runs roughly [-1.3, 1.9]
-    // (retention/threat/risk weights, see PassingOption.ts) - rescaled
-    // onto the same 0-1 scale every other candidate type uses so they're
-    // directly comparable in `chooseCandidate`, not because that raw
-    // scale means anything different.
-    const normalized = clamp01(best.score / 2 + 0.5);
-
-    return [
-      {
+    const candidates: CandidateAction[] = [];
+    for (const typeOptions of byType.values()) {
+      // selectBestPass picks the receiver (style-weighted); the candidate's
+      // score is P(the pass arrives) - from the same model that resolves
+      // it - times what reaching that teammate is worth.
+      const best = selectBestPass(typeOptions, style);
+      const receiver = best && attackingSide.ActivePlayers.find((p) => p._id === best.playerId);
+      if (!best || !receiver) continue;
+      const { passValueBase, passThreatWeight } = getSimulationConfig().decisions;
+      const { pComplete } = passModel(player, receiver, best.passType, attackingSide, defendingSide);
+      const normalized = clamp01(pComplete * (passValueBase + passThreatWeight * best.expectedThreat));
+      candidates.push({
         type: 'pass',
         detail: best.passType,
         targetId: best.playerId,
         score: this.applyPhaseBias('pass', normalized, phase),
-      },
-    ];
+      });
+    }
+    return candidates;
   }
 
   /** Milestone 18 - the pre-M13 "pinned near your own goal, lay it back
@@ -485,6 +563,14 @@ export class Decider {
       defendingSide,
       config.pressing.tightRadius
     )[0];
+
+    // Weigh the attempt by the real odds of beating THIS marker (the same
+    // model that resolves the duel) - a gifted dribbler takes players on,
+    // an average one mostly moves the ball on instead.
+    if (marker) {
+      score = clamp01(score * dribbleProbability(player, marker) * config.dribbling.decision.successWeight);
+    }
+
     if (marker?._id) {
       recordPressure(player.Memory, marker._id);
       if (marker._id === player.Memory.opponentBeatenRecently) {
@@ -547,7 +633,8 @@ export class Decider {
     // across a sample, well ahead of 'pass', which isn't remotely
     // realistic.
     const score = clamp01(
-      clamp01(pressure / 6) * 0.7 + composure * 0.15 + patience * 0.1
+      (clamp01(pressure / 6) * 0.7 + composure * 0.15 + patience * 0.1) *
+        getSimulationConfig().dribbling.decision.holdScale
     );
 
     return { type: 'hold', score: this.applyPhaseBias('hold', score, phase) };

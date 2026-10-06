@@ -45,37 +45,33 @@ export interface CandidateAction {
   score: number;
 }
 
-/** A zero-score candidate still gets a small floor weight rather than
- * becoming literally unreachable - matches this milestone's own
- * "probabilistically... not pure randomness" framing: even a bad option is
- * possible, just rare, never impossible. */
-const MIN_WEIGHT = 0.02;
-
 /**
- * Milestone 18's "choose probabilistically from scored actions rather than
- * always picking the top score" - a single weighted draw against `roll`
- * (the caller's own RNG draw, so this stays reproducible under a seeded
- * match exactly like every other roll in the engine; see
- * `Decider.makeDecision()`'s `this.random.next()` call). A higher-scored
- * candidate is more likely to be chosen, not guaranteed to be.
+ * Choose among scored candidates with ONE draw against `roll` (the
+ * caller's seeded RNG), weighting each by a softmax: weight = e^(score/T).
  *
- * Weights are the score SQUARED, not the raw score - a flat linear weight
- * (tried first, verified against `simRealismCheck.ts`) spreads probability
- * mass almost evenly across every candidate whenever their scores land in
- * the same rough neighborhood (which they usually do - see the individual
- * scoreX() methods), which under-selects the genuinely best option far
- * more than the old sequential-threshold chain ever did (that always
- * locked in the FIRST check to pass, with no competition at all). Squaring
- * concentrates the draw toward the better-scored candidates while keeping
- * every option reachable (never zero, thanks to `MIN_WEIGHT`) - measured
- * live via `simRealismCheck.ts --compare` against the pre-Milestone-18
- * baseline, not asserted from theory alone.
+ * `temperature` is how much the chooser deviates from the best option: a
+ * low T almost always takes the top-scored action, a high T spreads
+ * choices across anything competitive. The Decider derives it from the
+ * player's decision-making (Mental/Vision), so a composed playmaker picks
+ * the right pass far more reliably than a rash one - decision quality is
+ * a real attribute, not flavour text.
+ *
+ * Replaces Milestone 18's score-squared draw: squaring sharpened a flat
+ * linear draw, but with six or seven candidates in play it still handed
+ * most of the probability to whichever options were NOT the best (measured
+ * with scripts/agencyCheck.ts: carriers dribbled or held ~60% of the time
+ * and passed ~22%, and a team's tactical instructions could not move that
+ * mix). A softmax gives a score gap the same meaning however many
+ * candidates there are.
  */
 export function chooseCandidate(
   candidates: CandidateAction[],
-  roll: number
+  roll: number,
+  temperature: number
 ): CandidateAction {
-  const weights = candidates.map((c) => Math.max(c.score, MIN_WEIGHT) ** 2);
+  const top = Math.max(...candidates.map((c) => c.score));
+  // Subtract the top score before exponentiating - same result, no overflow.
+  const weights = candidates.map((c) => Math.exp((c.score - top) / temperature));
   const total = weights.reduce((sum, w) => sum + w, 0);
   let remaining = roll * total;
 

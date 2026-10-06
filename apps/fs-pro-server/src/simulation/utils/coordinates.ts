@@ -356,8 +356,9 @@ export default class Coordinates {
     let t = ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared;
     t = Math.max(0, Math.min(1, t));
 
-    const projection = { x: a.x + t * dx, y: a.y + t * dy };
-    return Math.hypot(point.x - projection.x, point.y - projection.y);
+    // Hot path (passing lanes, interceptions, space ahead) - no
+    // intermediate projection object.
+    return Math.hypot(point.x - (a.x + t * dx), point.y - (a.y + t * dy));
   }
 
   /**
@@ -372,22 +373,25 @@ export default class Coordinates {
     players: IFieldPlayer[],
     limit?: number
   ): IFieldPlayer | undefined {
-    let plyrs = players.filter((p) => p.Position !== 'GK');
+    // Single linear scan; keeping the FIRST player at the minimum distance
+    // matches the stable sort this replaced, so ties resolve identically.
+    let closest: IFieldPlayer | undefined;
+    let closestDistance = Infinity;
 
-    plyrs = plyrs.sort((x, y) => {
-      return (
-        this.distanceToSegment(x.BlockPosition, a, b) -
-        this.distanceToSegment(y.BlockPosition, a, b)
-      );
-    });
-
-    if (limit !== undefined) {
-      plyrs = plyrs.filter(
-        (p) => this.distanceToSegment(p.BlockPosition, a, b) <= limit
-      );
+    for (const p of players) {
+      if (p.Position === 'GK') continue;
+      const distance = this.distanceToSegment(p.BlockPosition, a, b);
+      if (distance < closestDistance) {
+        closest = p;
+        closestDistance = distance;
+      }
     }
 
-    return plyrs[0];
+    if (limit !== undefined && closestDistance > limit) {
+      return undefined;
+    }
+
+    return closest;
   }
 
   /**

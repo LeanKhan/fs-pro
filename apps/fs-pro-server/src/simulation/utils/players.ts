@@ -126,6 +126,28 @@ function getRandomATTMID(team: MatchSide): IFieldPlayer {
   return list[randomIndex];
 }
 
+/** What makes a good taker for each kind of set piece. */
+const SET_PIECE_WEIGHTS: Record<'penalty' | 'free-kick' | 'delivery', Partial<Record<string, number>>> = {
+  penalty: { SetPiece: 0.4, Shooting: 0.3, Mental: 0.3 },
+  'free-kick': { SetPiece: 0.5, LongShot: 0.3, ShotPower: 0.2 },
+  delivery: { SetPiece: 0.4, LongPass: 0.3, Crossing: 0.3 },
+};
+
+/**
+ * The attacker/midfielder best suited to take this set piece - a squad's
+ * specialist steps up, rather than whoever a dice roll picks, so having one
+ * is worth something.
+ */
+function getBestSetPieceTaker(
+  team: MatchSide,
+  kind: 'penalty' | 'free-kick' | 'delivery'
+): IFieldPlayer {
+  const weights = SET_PIECE_WEIGHTS[kind];
+  const score = (p: IFieldPlayer) =>
+    Object.entries(weights).reduce((sum, [attr, w]) => sum + (Number(p.Attributes[attr]) || 0) * (w ?? 0), 0);
+  return getATTMIDNoFilter(team).reduce((best, p) => (score(p) > score(best) ? p : best));
+}
+
 /**
  * Get the goalkeeper from the given list of players
  */
@@ -198,6 +220,7 @@ export {
   findRandomFreeBlock,
   findFarthestFreeBlock,
   getRandomATTMID,
+  getBestSetPieceTaker,
   getGK,
   getRandomDEF,
   findFreeBlock,

@@ -1,4 +1,5 @@
 import type { IFieldPlayer } from '../../interfaces/Player';
+import { TICKS_PER_MINUTE } from '../utils/matchClock';
 import { MatchSide } from '../classes/MatchSide';
 import { getSimulationConfig } from '../config';
 
@@ -106,15 +107,17 @@ export function updatePlayerConditionTick(
 
   const abilityFactor =
     1 - (player.Attributes.Stamina / 100) * config.abilityMitigation;
+  const minutesPerTick = 1 / TICKS_PER_MINUTE;
   const drain =
-    (config.baseDrainPerTick + pressingIntensity * config.pressingDrainScale) *
-    abilityFactor;
+    (config.baseDrainPerMinute + pressingIntensity * config.pressingDrainScale) *
+    abilityFactor *
+    minutesPerTick;
   condition.stamina = clamp100(condition.stamina - drain);
 
   const driftTarget = config.confidence.initial;
   condition.confidence = clamp100(
     condition.confidence +
-      (driftTarget - condition.confidence) * config.confidence.driftPerTick
+      (driftTarget - condition.confidence) * config.confidence.driftPerMinute * minutesPerTick
   );
 
   recomputeDerived(condition, player.Age);

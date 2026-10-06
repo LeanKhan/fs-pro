@@ -21,6 +21,70 @@ import {
  * from, that script is still the JUDGE of whether a change helped.
  */
 export const defaultSimulationConfig: SimulationConfig = {
+  // Outcome models - see OutcomesConfig and resolver/outcomeModel.ts.
+  // Calibrated with scripts/agencyCheck.ts (does quality/tactics move
+  // results?) and scripts/simRealismCheck.ts (does it look like football?).
+  outcomes: {
+    pitch: { lengthMetres: 105, widthMetres: 68, goalWidthMetres: 7.32 },
+    shot: {
+      // Solved from ~0.50 xG at 6m and ~0.07 at 20m (central, angle
+      // coefficient fixed at 1) - lands ~0.25 at the penalty spot.
+      intercept: -0.7,
+      angleCoeff: 1,
+      distanceCoeff: -0.132,
+      blockerLogit: -0.6,
+      pressureLogit: -0.35,
+      oneOnOneLogit: 0.5,
+      penaltyXg: 0.76,
+      freeKickXg: 0.07,
+      skillPivot: 60,
+      shooterScale: 25,
+      keeperScale: 30,
+      maxGoalProbability: 0.9,
+      onTarget: {
+        base: 0.3,
+        skillScale: 200,
+        pressurePenalty: 0.05,
+        distancePenaltyPerMetre: 0.004,
+      },
+    },
+    pass: {
+      base: { short: 0.95, backward: 0.97, wide: 0.88, long: 0.78, through: 0.62, default: 0.9 },
+      comfortableMetres: 15,
+      distanceLogitPerMetre: -0.02,
+      passerPressureLogit: -0.25,
+      receiverPressureLogit: -0.2,
+      blockerLogit: -0.6,
+      passerScale: 25,
+      interceptorScale: 30,
+      throughBallLineLogit: 1.2,
+    },
+    duel: {
+      tackleBase: 0.5,
+      dribbleBase: 0.38,
+      skillScale: 20,
+      engageBase: 0.45,
+      engageAggressionScale: 200,
+      engagePressingStep: 0.08,
+    },
+  },
+  decisions: {
+    temperatureMax: 0.16,
+    temperatureMin: 0.06,
+    qualityFloor: 35,
+    qualityCeiling: 85,
+    passValueBase: 0.6,
+    passThreatWeight: 0.8,
+    style: {
+      tempoHold: -0.3,
+      tempoSupport: -0.2,
+      tempoCarry: 0.15,
+      tempoShoot: 0.1,
+      directnessForward: 0.4,
+      directnessSafe: -0.2,
+      widthWide: 0.3,
+    },
+  },
   shooting: {
     // Decider.ts's SHOOT_PROFILES, as of Milestone 18's re-tuning (the
     // values a shoot candidate now competes on, not the pre-M18
@@ -76,10 +140,9 @@ export const defaultSimulationConfig: SimulationConfig = {
     },
     // Decider.ts's SHOOTING_CONFIDENCE_SWING.
     confidenceSwing: 30,
-    // ShotResolver.ts's shooter-vs-keeper getResult() call.
-    duel: { shooterPower: 80, keeperPower: 70 },
-    // ShotResolver.ts's isNearScoringPost() distance.
-    nearPostDistance: 2,
+    // ~0.15 for a 0.02 xG speculative effort, ~0.8 for a 0.2 xG chance in
+    // the box - players work the ball closer instead of shooting on sight.
+    selection: { xgSensitivity: 7, chanceWeight: 0.75 },
   },
 
   passing: {
@@ -121,26 +184,23 @@ export const defaultSimulationConfig: SimulationConfig = {
       abilityWeight: 0.25,
       abilityFloor: 30,
       abilityCeiling: 70,
-    },
-    // TackleResolver.resolveDribble()'s execution-layer duel.
-    contest: {
-      dribblerDribblingWeight: 60,
-      dribblerSpeedWeight: 40,
-      dribblerPower: 65,
-      opponentPower: 80,
+      // Dribble desire x P(beat this marker) x successWeight: ~0.37 for an
+      // average dribbler, ~0.8 for a gifted one, ~0.18 for a poor one.
+      successWeight: 1,
+      // 'hold' is a last resort under heavy pressure, not a default.
+      holdScale: 0.6,
     },
   },
 
-  tackling: {
-    // TackleResolver.resolveTackle()'s duel.
-    contest: { tacklerPower: 80, ballHolderPower: 70 },
-  },
 
   fouls: {
     // Actions.tackle()'s foulChance roll.
-    chance: { base: 30, aggressionCoefficient: 0.3 },
+    // Per tackle ATTEMPT; lowered from 30 when the match clock went from
+    // 2 to 8 ticks/minute (more, smaller contests).
+    chance: { base: 20, aggressionCoefficient: 0.3 },
     // Referee.foul()'s card-severity split.
-    cardThresholds: { red: 3, yellow: 25 },
+    // ~0.6% of fouls a straight red, ~14% a yellow (real-world rates).
+    cardThresholds: { red: 0.6, yellow: 15 },
   },
 
   pressing: {
@@ -177,8 +237,10 @@ export const defaultSimulationConfig: SimulationConfig = {
   // whole point of `pressingDrainScale` existing as its own separate term
   // from `baseDrainPerTick`.
   fatigue: {
-    baseDrainPerTick: 0.2,
-    pressingDrainScale: 0.07,
+    // Per match MINUTE (were per 30-second tick: 0.2 / 0.07 / 0.01) so the
+    // match clock's resolution can change without retuning fatigue.
+    baseDrainPerMinute: 0.4,
+    pressingDrainScale: 0.14,
     abilityMitigation: 0.3,
     halfTimeRecoveryFraction: 0.3,
     sharpnessStaminaWeight: 0.6,
@@ -191,7 +253,7 @@ export const defaultSimulationConfig: SimulationConfig = {
     },
     confidence: {
       initial: 50,
-      driftPerTick: 0.01,
+      driftPerMinute: 0.02,
       successDelta: 4,
       failureDelta: -5,
     },

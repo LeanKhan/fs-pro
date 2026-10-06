@@ -9,6 +9,7 @@ import {
   SimulationMetrics,
 } from './simulationContract';
 import { startMatchReplay } from '../realtime/matchBroadcaster';
+import type { IMatchSimJob, IMatchSimWorkerMessage } from './matchSimWorker';
 
 /**
  * Milestone 9: bumped from the debug path's original conservative `1`.
@@ -125,21 +126,12 @@ async function runQueuedJob(job: QueuedJob): Promise<void> {
   }
 }
 
-interface IWorkerMessage {
-  ok: boolean;
-  result?: SimulatedMatchData;
-  error?: string;
-  /** The original error's stack, sent separately - postMessage's structured
-   * clone doesn't reliably preserve a plain Error's .stack. */
-  stack?: string;
-}
-
 /** Builds an Error whose .stack is the ORIGINAL failure's stack (from
  * inside the worker) rather than this call site, so `console.error`ing it
  * upstream actually shows where in the simulation things broke. */
 function workerFailure(
   fixtureId: string,
-  msg: IWorkerMessage | undefined,
+  msg: IMatchSimWorkerMessage | undefined,
   fallback: string
 ): Error {
   const message = msg?.error || fallback;
@@ -150,6 +142,32 @@ function workerFailure(
   return error;
 }
 
+/**
+ * Idle, reusable simulation workers. A worker used to be spawned per match,
+ * which cost ~1s of module loading against ~11ms of simulation (see
+ * scripts/simBenchmark.ts). pump() caps how many jobs run at once, so this
+ * never grows past MAX_CONCURRENT_MATCHES. A worker that failed or timed
+ * out is terminated rather than returned here - its module state can't be
+ * trusted for the next match.
+ */
+const idleWorkers: Worker[] = [];
+let nextJobId = 1;
+
+function spawnWorker(): Worker {
+  const isTs = __filename.endsWith('.ts');
+  const workerPath = path.join(
+    __dirname,
+    `matchSimWorker.${isTs ? 'ts' : 'js'}`
+  );
+  const worker = new Worker(workerPath, {
+    execArgv: isTs ? ['-r', 'ts-node/register/transpile-only'] : [],
+  });
+  // An idle pooled worker must not keep the process alive on its own; a
+  // running job's timeout timer does that while it matters.
+  worker.unref();
+  return worker;
+}
+
 function runInWorker(
   fixtureId: string,
   request: SimulateMatchRequest
@@ -158,41 +176,40 @@ function runInWorker(
   timedOut: boolean;
 }> {
   return new Promise((resolve, reject) => {
-    const isTs = __filename.endsWith('.ts');
-    const workerPath = path.join(
-      __dirname,
-      `matchSimWorker.${isTs ? 'ts' : 'js'}`
-    );
-
-    const worker = new Worker(workerPath, {
-      workerData: {
-        clubs: request.clubs,
-        sides: request.sides,
-        tactics: request.tactics,
-      },
-      execArgv: isTs ? ['-r', 'ts-node/register/transpile-only'] : [],
-    });
-
+    const worker = idleWorkers.pop() ?? spawnWorker();
+    const jobId = nextJobId++;
     let settled = false;
+
+    const finish = (reusable: boolean) => {
+      settled = true;
+      clearTimeout(timer);
+      worker.off('message', onMessage);
+      worker.off('error', onError);
+      worker.off('exit', onExit);
+      if (reusable) {
+        idleWorkers.push(worker);
+      } else {
+        worker.terminate();
+      }
+    };
 
     const timer = setTimeout(() => {
       if (settled) return;
-      settled = true;
       console.error(
         `[queue] worker for ${fixtureId} timed out after ${MATCH_TIMEOUT_MS}ms - terminating`
       );
-      worker.terminate();
+      finish(false);
       resolve({ match: undefined as any, timedOut: true });
     }, MATCH_TIMEOUT_MS);
 
-    worker.on('message', (msg: IWorkerMessage) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
+    const onMessage = (msg: IMatchSimWorkerMessage) => {
+      if (settled || msg.jobId !== jobId) return;
 
       if (msg.ok && msg.result) {
+        finish(true);
         resolve({ match: msg.result, timedOut: false });
       } else {
+        finish(false);
         reject(
           workerFailure(
             fixtureId,
@@ -201,29 +218,29 @@ function runInWorker(
           )
         );
       }
-      worker.terminate();
-    });
+    };
 
-    worker.on('error', (err) => {
+    const onError = (err: Error) => {
       if (settled) return;
-      settled = true;
-      clearTimeout(timer);
       console.error(`[queue] worker error for ${fixtureId}:`, err);
+      finish(false);
       reject(err);
-    });
+    };
 
-    worker.on('exit', (code) => {
+    const onExit = (code: number) => {
       if (settled) return;
-      if (code !== 0) {
-        settled = true;
-        clearTimeout(timer);
-        const error = new Error(
-          `matchSimWorker for ${fixtureId} exited with code ${code}`
-        );
-        console.error(`[queue] ${error.message}`);
-        reject(error);
-      }
-    });
+      finish(false);
+      const error = new Error(
+        `matchSimWorker for ${fixtureId} exited with code ${code} mid-job`
+      );
+      console.error(`[queue] ${error.message}`);
+      reject(error);
+    };
+
+    worker.on('message', onMessage);
+    worker.on('error', onError);
+    worker.on('exit', onExit);
+    worker.postMessage({ jobId, request } as IMatchSimJob);
   });
 }
 

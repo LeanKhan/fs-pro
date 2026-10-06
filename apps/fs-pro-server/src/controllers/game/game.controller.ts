@@ -14,7 +14,8 @@ import { ITactic } from '../../simulation/state/PersistentState/Formations';
 import { simulateMatch } from '../../jobs/matchQueue';
 import { buildSimulateMatchRequest } from '../../jobs/buildSimulateMatchRequest';
 import { QuickSimResolver } from '../../simulation/quick-sim/QuickSimResolver';
-import { SimulatedMatchData } from '../../jobs/simulationContract';
+import { SimulatedMatchData, matchSeedFor } from '../../jobs/simulationContract';
+import { createRandomSource } from '../../simulation/randomness';
 
 interface TeamObject {
   id: string;
@@ -242,6 +243,7 @@ export async function play(
     .then(async (m) => {
       // If knockout match ended in draw, ensure winner is decided via penalties
       if (isKnockout && m.Details.Draw) {
+        const shootout = createRandomSource(`${matchSeedFor(simulateRequest)}:shootout`);
         let hPens = 0;
         let aPens = 0;
         let hKicks = 0;
@@ -249,18 +251,18 @@ export async function play(
         while (hKicks < 5 || aKicks < 5) {
           if (hKicks <= aKicks) {
             hKicks++;
-            if (Math.random() < 0.75) hPens++;
+            if (shootout.next() < 0.75) hPens++;
           } else {
             aKicks++;
-            if (Math.random() < 0.75) aPens++;
+            if (shootout.next() < 0.75) aPens++;
           }
           const hRem = 5 - hKicks;
           const aRem = 5 - aKicks;
           if (hPens > aPens + aRem || aPens > hPens + hRem) break;
         }
         while (hPens === aPens) {
-          if (Math.random() < 0.75) hPens++;
-          if (Math.random() < 0.75) aPens++;
+          if (shootout.next() < 0.75) hPens++;
+          if (shootout.next() < 0.75) aPens++;
         }
         const homeWon = hPens > aPens;
         m.Details.Draw = false;

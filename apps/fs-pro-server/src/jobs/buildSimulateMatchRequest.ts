@@ -49,7 +49,7 @@ export async function buildSimulateMatchRequest(
     } as { home: ITactic; away: ITactic });
 
   // Strip Mongoose/BSON ObjectId instances etc. down to plain data before
-  // this crosses the worker_thread boundary (workerData is structured
+  // this crosses the worker_thread boundary (postMessage is structured
   // clone, not every Mongoose-lean() field survives that cleanly).
   const plainClubs = JSON.parse(JSON.stringify(clubs));
 

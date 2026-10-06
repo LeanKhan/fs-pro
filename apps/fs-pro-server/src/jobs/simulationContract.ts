@@ -23,7 +23,15 @@ export interface SimulateMatchRequest {
   fixtureType?: string;
   stage?: string;
   isKnockout?: boolean;
+  /** Seeds every random draw of this match (engine, QuickSim, penalty
+   * shootout). Omitted means `matchSeedFor`'s fixture-derived default, so
+   * re-simulating the same fixture reproduces the same match. */
+  seed?: string;
 }
+
+/** The seed a match actually runs with - see `SimulateMatchRequest.seed`. */
+export const matchSeedFor = (request: Pick<SimulateMatchRequest, 'fixtureId' | 'seed'>): string =>
+  request.seed ?? `fixture:${request.fixtureId}`;
 
 /**
  * Everything `simulateMatch()` reads or produces off a finished match,

@@ -145,11 +145,9 @@ export class Actions {
 
     this.decider = new Decider(this.teams, this.random.fork('decider'), this.match.id);
     this.playerPolicy = new RuleBasedPlayerPolicy(this.decider);
-    this.passResolver = new PassResolver();
-    this.tackleResolver = new TackleResolver();
-    // Shares Decider's OWN random instance (not a fresh fork) - see
-    // ShotResolver's doc comment for why that matters.
-    this.shotResolver = new ShotResolver(this.teams, this.decider.random);
+    this.passResolver = new PassResolver(this.random.fork('pass'));
+    this.tackleResolver = new TackleResolver(this.random.fork('duel'));
+    this.shotResolver = new ShotResolver(this.random.fork('shot'));
 
     matchEvents.on(`${this.match.id}-game-halt`, (data: IFoul) => {
       this.interruption = data.interruption;
@@ -248,7 +246,17 @@ export class Actions {
       attackingSide,
       defendingSide
     );
-    const strategy = toStrategy(intent);
+    let strategy = toStrategy(intent);
+
+    // A just-awarded penalty is always struck; a direct free kick is the
+    // taker's choice, but if they go for goal it's resolved as a free kick.
+    const setPiece = this.match.pendingSetPiece;
+    this.match.pendingSetPiece = undefined;
+    const setPieceKind =
+      setPiece && setPiece.takerId === attackingPlayer._id ? setPiece.kind : undefined;
+    if (setPieceKind === 'penalty') {
+      strategy = { type: 'shoot', detail: 'penalty' };
+    }
 
     this.interruption = false;
 
@@ -286,7 +294,11 @@ export class Actions {
         break;
       case 'shoot':
         log('SHOOOOOOT!!!!!');
-        this.shoot(attackingPlayer, attackingSide.ScoringSide, 'shot');
+        this.shoot(
+          attackingPlayer,
+          attackingSide.ScoringSide,
+          setPieceKind === 'penalty' ? 'penalty' : setPieceKind === 'free-kick' ? 'freekick' : 'shot'
+        );
         break;
 
       case 'move':
@@ -383,6 +395,16 @@ export class Actions {
       }
     }
 
+    // The type-based lookups above can come back empty (e.g. a 'long' pass
+    // with nobody far enough away, or no keeper left for 'pass to post') -
+    // play the simple ball instead of crashing the match on undefined.
+    if (!teammate) {
+      teammate = CO.co.findClosestPlayer(player.BlockPosition, squad.ActivePlayers, player);
+    }
+    if (!teammate) {
+      return;
+    }
+
     /**
      * Find the opponent best placed to intercept - i.e. standing closest to
      * the actual passing lane between player and teammate, not merely
@@ -403,8 +425,25 @@ export class Actions {
       interceptorDistance
     );
 
-    if (!interceptor) {
-      // This player can't intercept the ball hohoho, let it pass.
+    // Every pass can fail (see PassResolver) - a lane interceptor only
+    // makes failure likelier and decides who collects it.
+    const passSucceeds = this.passResolver.resolve(
+      player,
+      teammate,
+      type,
+      squad,
+      defendingSide,
+      interceptor
+    );
+
+    // A failed pass with nobody in the lane is a misplaced ball - the
+    // defender nearest the intended receiver picks it up.
+    const winner = passSucceeds
+      ? undefined
+      : interceptor ??
+        CO.co.findClosestFieldPlayer(teammate.BlockPosition, defendingSide.ActivePlayers);
+
+    if (!winner) {
       player.pass(
         CO.co.calculateDifference(teammate.BlockPosition, player.BlockPosition),
         teammate._id!
@@ -415,65 +454,21 @@ export class Actions {
         intercepted: false,
         passType: type,
       } as IPass);
+      nudgeConfidence(player, true);
+      situation = { status: true, reason: 'Player pass successful' };
     } else {
-      // This player is close enough to intercept
-
-      // Actually from now on it is the Decider class that will handle all this success rate...
-
-      // Decider class, handle!
-      /**
-       * pass the player, the reciever and the nearest interceptor if possible...
-       */
-
-      // PassResolver.resolve() returns true when the PASSER wins the duel
-      // (per getResult(passerStats, interceptorStats, ...) => $a > $b).
-      // This was previously named `fail` and checked as `if (!fail)`,
-      // which inverted the outcome - a pass only "succeeded" when the
-      // formula said the INTERCEPTOR won. Every threshold tuned to favor
-      // the passer was therefore making interceptions MORE likely, not
-      // less - this is the actual reason completion rate never responded
-      // to that tuning.
-      const passSucceeds = this.passResolver.resolve(
-        player,
-        teammate,
-        type,
-        interceptor
+      player.pass(
+        CO.co.calculateDifference(winner.BlockPosition, player.BlockPosition),
+        winner._id!
       );
-
-      if (passSucceeds) {
-        player.pass(
-          CO.co.calculateDifference(
-            teammate.BlockPosition,
-            player.BlockPosition
-          ),
-          teammate._id!
-        );
-        matchEvents.emit(`${this.match.id}-pass-made`, {
-          passer: player,
-          receiver: teammate,
-          intercepted: false,
-          passType: type,
-        } as IPass);
-        nudgeConfidence(player, true);
-        situation = { status: true, reason: 'Player pass successful' };
-      } else {
-        player.pass(
-          CO.co.calculateDifference(
-            interceptor.BlockPosition,
-            player.BlockPosition
-          ),
-          interceptor._id!
-        );
-        matchEvents.emit(`${this.match.id}-pass-intercepted`, {
-          passer: player,
-          interceptor: interceptor,
-          intercepted: true,
-          passType: type,
-        } as IPass);
-        nudgeConfidence(player, false);
-
-        situation = { status: true, reason: 'pass intercepted' };
-      }
+      matchEvents.emit(`${this.match.id}-pass-intercepted`, {
+        passer: player,
+        interceptor: winner,
+        intercepted: true,
+        passType: type,
+      } as IPass);
+      nudgeConfidence(player, false);
+      situation = { status: true, reason: 'pass intercepted' };
     }
   }
 
@@ -603,8 +598,9 @@ export class Actions {
         } else {
           situation.status = false;
         }
-        // If the player is with the ball and there is a bad guy around
-      } else if (player.WithBall && opponentBlock) {
+        // If the player is with the ball and the defender commits to a
+        // challenge (otherwise he jockeys and the carrier moves on below).
+      } else if (player.WithBall && opponentBlock && this.defenderEngages(opponentBlock)) {
         // Tackle about to happen :0
         log(`Ball x,y => ${player.Ball.Position.x} ${player.Ball.Position.y}`);
         const success = this.tackleResolver.resolveDribble(player, opponentBlock);
@@ -765,6 +761,24 @@ export class Actions {
     }
     // console.log('situation -> ', situation);
     return situation;
+  }
+
+  /**
+   * Does this defender commit to a challenge on the ball carrier next to
+   * him, or jockey and hold his position? Aggressive players and pressing
+   * tactics engage more - more turnovers won, but also more fouls and more
+   * chances to be beaten.
+   */
+  private defenderEngages(defender: IFieldPlayer): boolean {
+    const { engageBase, engageAggressionScale, engagePressingStep } =
+      getSimulationConfig().outcomes.duel;
+    const team = this.teams.find((t) => t.ClubCode === defender.ClubCode);
+    const pressing = team?.Tactic.style.pressingIntensity ?? 2;
+    const p =
+      engageBase +
+      (defender.Attributes.Aggression - 50) / engageAggressionScale +
+      (pressing - 2) * engagePressingStep;
+    return this.decider.random.next() < clamp(p, 0.05, 0.95);
   }
 
   public movePlayersForward(player: IFieldPlayer, team: MatchSide) {
@@ -1227,7 +1241,14 @@ export class Actions {
       defendingTeam.StartingSquad
     ) as IFieldPlayer;
 
-    const result = this.shotResolver.resolve(player, keeper as IFieldPlayer);
+    const kind = reason === 'penalty' ? 'penalty' : reason === 'freekick' ? 'free-kick' : 'open-play';
+    const result = this.shotResolver.resolve(
+      player,
+      keeper,
+      this.teams[teamIndex],
+      defendingTeam,
+      kind
+    );
 
     // Milestone 20 - a goal is the only outcome that counts as a
     // confidence-boosting "success" here; an on-target-but-saved shot
@@ -1246,6 +1267,8 @@ export class Actions {
         interruption: true,
         result: 'goal',
         reason,
+        xG: result.xG,
+        distance: result.distance,
       } as IShot);
     } else if (result.onTarget && !result.goal) {
       // Shot is a miss
@@ -1257,6 +1280,8 @@ export class Actions {
         interruption: true,
         result: 'save',
         reason,
+        xG: result.xG,
+        distance: result.distance,
       } as IShot);
     } else if (!result.onTarget) {
       // Here put the ball at a random block hehehe
@@ -1301,6 +1326,8 @@ export class Actions {
         interruption: true,
         result: 'miss',
         reason,
+        xG: result.xG,
+        distance: result.distance,
       } as IShot);
     }
   }

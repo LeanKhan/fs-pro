@@ -10,19 +10,21 @@ import { PlayerMatchDetailsInterface } from '../../controllers/player-match/play
 import {
   SimulateMatchRequest,
   SimulatedMatchData,
+  matchSeedFor,
 } from '../../jobs/simulationContract';
+import { createRandomSource } from '../randomness';
 
 /**
  * Samples a Poisson distribution using Knuth's algorithm.
  * Standard statistical model for football goal distribution (Dixon-Coles).
  */
-function samplePoisson(lambda: number): number {
+function samplePoisson(rand: () => number, lambda: number): number {
   const L = Math.exp(-lambda);
   let k = 0;
   let p = 1;
   do {
     k++;
-    p *= Math.random();
+    p *= rand();
   } while (p > L);
   return Math.max(0, k - 1);
 }
@@ -31,8 +33,8 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-function randomInt(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+function randomInt(rand: () => number, min: number, max: number): number {
+  return Math.floor(rand() * (max - min + 1)) + min;
 }
 
 interface PickedSquad {
@@ -195,6 +197,8 @@ export function computeExpectedGoals(
 export class QuickSimResolver {
   public static resolve(request: SimulateMatchRequest): SimulatedMatchData {
     const { fixtureId, clubs, sides, tactics } = request;
+    const random = createRandomSource(`${matchSeedFor(request)}:quick-sim`);
+    const rand = () => random.next();
 
     const homeClub = clubs.find((c) => String(c._id) === String(sides.home));
     const awayClub = clubs.find((c) => String(c._id) === String(sides.away));
@@ -218,30 +222,30 @@ export class QuickSimResolver {
       tactics.away?.styleName
     );
 
-    const homeGoals = samplePoisson(lambdaHome);
-    const awayGoals = samplePoisson(lambdaAway);
+    const homeGoals = samplePoisson(rand, lambdaHome);
+    const awayGoals = samplePoisson(rand, lambdaAway);
 
     // Possession % based on midfield comparison
     const midTotal = homeMid + awayMid;
     const baseHomePossession = midTotal > 0 ? (homeMid / midTotal) * 100 : 50;
-    const homePossession = Math.round(clamp(baseHomePossession + randomInt(-4, 4), 32, 68));
+    const homePossession = Math.round(clamp(baseHomePossession + randomInt(rand, -4, 4), 32, 68));
     const awayPossession = 100 - homePossession;
 
     // Shots and Passes
-    const homeShotsOnTarget = Math.max(homeGoals, Math.round(lambdaHome * 2 + randomInt(0, 3)));
-    const homeShotsTotal = homeShotsOnTarget + randomInt(3, 8);
-    const awayShotsOnTarget = Math.max(awayGoals, Math.round(lambdaAway * 2 + randomInt(0, 3)));
-    const awayShotsTotal = awayShotsOnTarget + randomInt(3, 8);
+    const homeShotsOnTarget = Math.max(homeGoals, Math.round(lambdaHome * 2 + randomInt(rand, 0, 3)));
+    const homeShotsTotal = homeShotsOnTarget + randomInt(rand, 3, 8);
+    const awayShotsOnTarget = Math.max(awayGoals, Math.round(lambdaAway * 2 + randomInt(rand, 0, 3)));
+    const awayShotsTotal = awayShotsOnTarget + randomInt(rand, 3, 8);
 
-    const homePasses = Math.round((homePossession / 100) * randomInt(750, 950));
-    const awayPasses = Math.round((awayPossession / 100) * randomInt(750, 950));
+    const homePasses = Math.round((homePossession / 100) * randomInt(rand, 750, 950));
+    const awayPasses = Math.round((awayPossession / 100) * randomInt(rand, 750, 950));
 
-    const homeFouls = randomInt(7, 15);
-    const awayFouls = randomInt(7, 15);
-    const homeYellows = Math.min(randomInt(1, 3), homeFouls);
-    const awayYellows = Math.min(randomInt(1, 3), awayFouls);
-    const homeReds = Math.random() < 0.04 ? 1 : 0;
-    const awayReds = Math.random() < 0.04 ? 1 : 0;
+    const homeFouls = randomInt(rand, 7, 15);
+    const awayFouls = randomInt(rand, 7, 15);
+    const homeYellows = Math.min(randomInt(rand, 1, 3), homeFouls);
+    const awayYellows = Math.min(randomInt(rand, 1, 3), awayFouls);
+    const homeReds = rand() < 0.04 ? 1 : 0;
+    const awayReds = rand() < 0.04 ? 1 : 0;
 
     // Assign Events and Player Stats
     const events: IMatchEvent[] = [];
@@ -258,13 +262,13 @@ export class QuickSimResolver {
         YellowCards: 0,
         Fouls: 0,
         RedCards: 0,
-        Passes: randomInt(15, 55),
-        Tackles: randomInt(1, 5),
+        Passes: randomInt(rand, 15, 55),
+        Tackles: randomInt(rand, 1, 5),
         Assists: 0,
         CleanSheets: 0,
         Points: 6.0,
-        Dribbles: randomInt(0, 4),
-        Interceptions: randomInt(1, 4),
+        Dribbles: randomInt(rand, 0, 4),
+        Interceptions: randomInt(rand, 1, 4),
         Form: 6.0,
       };
     }
@@ -278,30 +282,30 @@ export class QuickSimResolver {
 
     // Helper to pick a goalscorer weighted by position
     function pickScorer(squad: PickedSquad): PlayerInterface {
-      const roll = Math.random();
+      const roll = rand();
       if (roll < 0.60 && squad.attackers.length) {
-        return squad.attackers[randomInt(0, squad.attackers.length - 1)];
+        return squad.attackers[randomInt(rand, 0, squad.attackers.length - 1)];
       }
       if (roll < 0.90 && squad.midfielders.length) {
-        return squad.midfielders[randomInt(0, squad.midfielders.length - 1)];
+        return squad.midfielders[randomInt(rand, 0, squad.midfielders.length - 1)];
       }
       if (squad.defenders.length) {
-        return squad.defenders[randomInt(0, squad.defenders.length - 1)];
+        return squad.defenders[randomInt(rand, 0, squad.defenders.length - 1)];
       }
-      return squad.startingXI[randomInt(0, squad.startingXI.length - 1)];
+      return squad.startingXI[randomInt(rand, 0, squad.startingXI.length - 1)];
     }
 
     // Helper to pick assist provider
     function pickAssister(squad: PickedSquad, scorerId?: string): PlayerInterface | null {
-      if (Math.random() < 0.25) return null; // Unassisted goal
+      if (rand() < 0.25) return null; // Unassisted goal
       const candidates = squad.startingXI.filter((p) => p._id !== scorerId && p.Position !== 'GK');
       if (!candidates.length) return null;
-      return candidates[randomInt(0, candidates.length - 1)];
+      return candidates[randomInt(rand, 0, candidates.length - 1)];
     }
 
     // Generate Home Goals
     for (let i = 0; i < homeGoals; i++) {
-      const minute = randomInt(1, 90);
+      const minute = randomInt(rand, 1, 90);
       const scorer = pickScorer(homeSquad);
       const assister = pickAssister(homeSquad, scorer._id);
 
@@ -328,7 +332,7 @@ export class QuickSimResolver {
 
     // Generate Away Goals
     for (let i = 0; i < awayGoals; i++) {
-      const minute = randomInt(1, 90);
+      const minute = randomInt(rand, 1, 90);
       const scorer = pickScorer(awaySquad);
       const assister = pickAssister(awaySquad, scorer._id);
 
@@ -363,7 +367,7 @@ export class QuickSimResolver {
     ) {
       const outfield = squad.startingXI.filter((p) => p.Position !== 'GK');
       for (let y = 0; y < yellowCount; y++) {
-        const p = outfield[randomInt(0, outfield.length - 1)];
+        const p = outfield[randomInt(rand, 0, outfield.length - 1)];
         if (!p?._id) continue;
         const stats = statsMap.get(p._id);
         if (stats) {
@@ -371,7 +375,7 @@ export class QuickSimResolver {
           stats.Points -= 1;
           events.push({
             type: 'yellow-card',
-            minute: randomInt(10, 88),
+            minute: randomInt(rand, 10, 88),
             playerID: p._id,
             playerTeamID: club.ClubCode,
             message: `Yellow card shown to ${p.FirstName} ${p.LastName} (${club.Name}).`,
@@ -379,7 +383,7 @@ export class QuickSimResolver {
         }
       }
       for (let r = 0; r < redCount; r++) {
-        const p = outfield[randomInt(0, outfield.length - 1)];
+        const p = outfield[randomInt(rand, 0, outfield.length - 1)];
         if (!p?._id) continue;
         const stats = statsMap.get(p._id);
         if (stats) {
@@ -387,7 +391,7 @@ export class QuickSimResolver {
           stats.Points -= 3;
           events.push({
             type: 'red-card',
-            minute: randomInt(25, 85),
+            minute: randomInt(rand, 25, 85),
             playerID: p._id,
             playerTeamID: club.ClubCode,
             message: `RED CARD! ${p.FirstName} ${p.LastName} is sent off for ${club.Name}!`,
@@ -469,10 +473,10 @@ export class QuickSimResolver {
       while (hKicks < 5 || aKicks < 5) {
         if (hKicks <= aKicks) {
           hKicks++;
-          if (Math.random() < 0.76) hPens++;
+          if (rand() < 0.76) hPens++;
         } else {
           aKicks++;
-          if (Math.random() < 0.74) aPens++;
+          if (rand() < 0.74) aPens++;
         }
         const hRemaining = 5 - hKicks;
         const aRemaining = 5 - aKicks;
@@ -483,8 +487,8 @@ export class QuickSimResolver {
 
       // Sudden death
       while (hPens === aPens) {
-        const hScore = Math.random() < 0.75;
-        const aScore = Math.random() < 0.72;
+        const hScore = rand() < 0.75;
+        const aScore = rand() < 0.72;
         if (hScore) hPens++;
         if (aScore) aPens++;
       }
@@ -546,8 +550,8 @@ export class QuickSimResolver {
       Drew: isDraw,
     };
 
-    const halfTimeHomeGoals = Math.min(homeGoals, randomInt(0, homeGoals));
-    const halfTimeAwayGoals = Math.min(awayGoals, randomInt(0, awayGoals));
+    const halfTimeHomeGoals = Math.min(homeGoals, randomInt(rand, 0, homeGoals));
+    const halfTimeAwayGoals = Math.min(awayGoals, randomInt(rand, 0, awayGoals));
 
     const fullTimeScore = penalties
       ? `${homeGoals} - ${awayGoals} (${penalties.Home} - ${penalties.Away} pens)`
