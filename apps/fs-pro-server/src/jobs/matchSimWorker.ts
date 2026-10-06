@@ -21,6 +21,7 @@
  */
 import { parentPort } from 'worker_threads';
 import App from '../controllers/app/App';
+import { packFrames } from '../realtime/packedFrames';
 import { ballMove, matchEvents } from '../simulation/utils/events';
 import { decisionEvents } from '../simulation/decision/decisionLog';
 import {
@@ -48,7 +49,60 @@ export interface IMatchSimWorkerMessage {
  * against the right job. */
 let currentJobId: number | null = null;
 
+/** Logged once per worker: a dev box without the sim service running
+ * shouldn't print it for every match. */
+let warnedServiceUnreachable = false;
+
+/**
+ * The Rust engine, via the Go sim service. Returns undefined - and says
+ * why - whenever the caller has to fall back to the in-process engine, so
+ * a broken service never silently turns into "every match ran on the old
+ * engine".
+ */
+async function simulateViaService(
+  request: SimulateMatchRequest
+): Promise<SimulatedMatchData | undefined> {
+  const url = process.env.SIM_SERVICE_URL ?? 'http://127.0.0.1:5050';
+
+  let res: Response;
+  try {
+    res = await fetch(`${url}/sim/match`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+      signal: AbortSignal.timeout(6000),
+    });
+  } catch (err) {
+    if (!warnedServiceUnreachable) {
+      warnedServiceUnreachable = true;
+      console.warn(
+        `[worker] sim service unreachable at ${url} (${(err as Error).message}) - using the in-process engine`
+      );
+    }
+    return undefined;
+  }
+
+  const body = (await res.json().catch(() => undefined)) as
+    | { ok: boolean; match?: SimulatedMatchData; error?: string }
+    | undefined;
+  if (res.ok && body?.ok && body.match) {
+    return body.match;
+  }
+
+  console.error(
+    `[worker] sim service failed for fixture ${request.fixtureId} ` +
+      `(HTTP ${res.status}: ${body?.error ?? 'no match in response'}) - falling back to the in-process engine`
+  );
+  return undefined;
+}
+
 async function simulate(request: SimulateMatchRequest): Promise<SimulatedMatchData> {
+  const viaService = await simulateViaService(request);
+  if (viaService) {
+    return viaService;
+  }
+
+  // Fallback: Local Node.js engine
   const { clubs, sides, tactics } = request;
 
   ballMove.removeAllListeners();
@@ -85,7 +139,7 @@ async function simulate(request: SimulateMatchRequest): Promise<SimulatedMatchDa
       ManagerId: match.Away.ManagerId,
     },
     Details: match.Details,
-    Frames: match.Frames,
+    Frames: packFrames(match.Frames),
     Events: match.Events,
   } as SimulatedMatchData;
 }

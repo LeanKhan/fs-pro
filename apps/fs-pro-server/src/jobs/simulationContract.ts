@@ -1,6 +1,7 @@
 import { IClub } from '../interfaces/Club';
 import { ITactic } from '../simulation/state/PersistentState/Formations';
-import { IMatchDetails, IMatchEvent, IMatchFrame } from '../simulation/classes/Match';
+import { IMatchDetails, IMatchEvent } from '../simulation/classes/Match';
+import { MatchFrames } from '../realtime/packedFrames';
 import { IReplayableMatch } from '../realtime/matchBroadcaster';
 
 /**
@@ -23,15 +24,15 @@ export interface SimulateMatchRequest {
   fixtureType?: string;
   stage?: string;
   isKnockout?: boolean;
-  /** Seeds every random draw of this match (engine, QuickSim, penalty
-   * shootout). Omitted means `matchSeedFor`'s fixture-derived default, so
-   * re-simulating the same fixture reproduces the same match. */
-  seed?: string;
+  /** Seeds every random draw of this run (engine, QuickSim, penalty
+   * shootout). buildSimulateMatchRequest() makes a fresh one per run, so
+   * playing the same fixture again is a new match; passing a recorded seed
+   * reproduces that exact run (tests, bug reports). */
+  seed: string;
 }
 
 /** The seed a match actually runs with - see `SimulateMatchRequest.seed`. */
-export const matchSeedFor = (request: Pick<SimulateMatchRequest, 'fixtureId' | 'seed'>): string =>
-  request.seed ?? `fixture:${request.fixtureId}`;
+export const matchSeedFor = (request: Pick<SimulateMatchRequest, 'seed'>): string => request.seed;
 
 /**
  * Everything `simulateMatch()` reads or produces off a finished match,
@@ -43,7 +44,8 @@ export const matchSeedFor = (request: Pick<SimulateMatchRequest, 'fixtureId' | '
 export interface SimulatedMatchData extends IReplayableMatch {
   Home: IReplayableMatch['Home'] & { ManagerId: string };
   Away: IReplayableMatch['Away'] & { ManagerId: string };
-  Frames: IMatchFrame[];
+  /** Packed for transport/storage - see realtime/packedFrames.ts. */
+  Frames: MatchFrames;
   Details: IMatchDetails;
   Events: IMatchEvent[];
 }
