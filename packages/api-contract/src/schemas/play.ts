@@ -83,6 +83,56 @@ export const InboxSchema = z.object({
   messages: z.array(InboxMessageSchema),
 });
 
+/** The club shop's till: takings build up hourly, tap to collect. */
+export const ShopStateSchema = z.object({
+  pending: z.number(),
+  cap: z.number(),
+  perHour: z.number(),
+  secondsToFull: z.number(),
+});
+
+export const LeagueRowSchema = z.object({
+  clubId: z.string(),
+  name: z.string(),
+  code: z.string(),
+  rank: z.number().nullable(),
+  played: z.number(),
+  wins: z.number(),
+  draws: z.number(),
+  losses: z.number(),
+  gd: z.number(),
+  points: z.number(),
+});
+
+/** The club's place in its country's pyramid (the HUD's league badge). */
+export const ClubLeagueSchema = z.object({
+  editionId: z.string(),
+  competitionName: z.string(),
+  division: z.number(),
+  poolName: z.string(),
+  promote: z.number(),
+  relegate: z.number(),
+  rank: z.number().nullable(),
+  clubsInPool: z.number(),
+  table: z.array(LeagueRowSchema),
+  next: z
+    .object({
+      fixtureId: z.string(),
+      opponentId: z.string(),
+      opponentName: z.string(),
+      opponentCode: z.string(),
+      home: z.boolean(),
+      day: z.number(),
+      kickoffHour: z.number(),
+      /** Real seconds to kickoff; null while the world clock is paused. */
+      startsInSeconds: z.number().nullable(),
+    })
+    .nullable(),
+  last: z
+    .object({ fixtureId: z.string(), outcome: ResultLetterSchema, score: z.string(), opponentCode: z.string() })
+    .nullable(),
+});
+
 export const PlayStateSchema = z.object({
   club: ClubSummarySchema,
   standing: ClubStandingSchema,
@@ -90,6 +140,14 @@ export const PlayStateSchema = z.object({
   cooldownSeconds: z.number(),
   challenge: ChallengeSchema,
   recent: z.array(RecentMatchSchema),
+  shop: ShopStateSchema,
+  league: ClubLeagueSchema.nullable(),
+});
+
+export const ShopCollectSchema = z.object({
+  collected: z.number(),
+  shop: ShopStateSchema,
+  budget: z.number(),
 });
 
 export const MatchHighlightSchema = z.object({
@@ -135,4 +193,7 @@ export type MatchResult = z.infer<typeof MatchResultSchema>;
 export type ClubStanding = z.infer<typeof ClubStandingSchema>;
 export type InboxMessage = z.infer<typeof InboxMessageSchema>;
 export type Inbox = z.infer<typeof InboxSchema>;
+export type ShopState = z.infer<typeof ShopStateSchema>;
+export type ClubLeague = z.infer<typeof ClubLeagueSchema>;
+export type ShopCollect = z.infer<typeof ShopCollectSchema>;
 

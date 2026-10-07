@@ -832,7 +832,8 @@
     }
   }
 }
-.card {
+// Scoped: a bare .card leaked into the campus Build menu and squashed its cards.
+.mz .card {
   display: inline-block;
   width: 10px;
   height: 14px;

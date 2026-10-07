@@ -161,6 +161,19 @@ pub struct RawTactic {
     pub positional_discipline: Option<f32>,
     #[serde(alias = "slots", alias = "customSlots")]
     pub slots: Option<Vec<RawFormationSlot>>,
+    /// Conditional orders for the second half (see engine::HalfTimeOrders).
+    #[serde(alias = "halfTime", default)]
+    pub half_time: Option<RawHalfTime>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct RawHalfTime {
+    #[serde(default)]
+    pub losing: Option<String>,
+    #[serde(default)]
+    pub drawing: Option<String>,
+    #[serde(default)]
+    pub winning: Option<String>,
 }
 
 impl RawTactic {
@@ -693,7 +706,11 @@ fn build_squad(club: &RawClub, slots: &[FormationSlot; 11], team_idx: usize) -> 
                     pos: Vec2::ZERO,
                     target_pos: Vec2::ZERO,
                     anchor_pos: Vec2::ZERO,
-                    stamina: p.stamina.unwrap_or(100.0),
+                    // A tired player starts the match short of breath: half of
+                    // their missing fitness carries into starting stamina.
+                    stamina: p.stamina.unwrap_or_else(|| {
+                        100.0 - (100.0 - p.fitness.unwrap_or(100.0).clamp(0.0, 100.0)) * crate::config::CFG.fitness_carry
+                    }),
                     condition: p.fitness.unwrap_or(100.0),
                     cards: CardState::None,
                     is_sent_off: false,
@@ -733,7 +750,14 @@ pub fn build_engine(home: &RawClub, away: &RawClub, tactics: Option<&RawTactics>
     let away_tactics = build_tactics(tactics.and_then(|t| t.away.as_ref()));
     let home_squad = build_squad(home, &home_tactics.slots, 0);
     let away_squad = build_squad(away, &away_tactics.slots, 1);
-    MatchEngine::new(home_squad, away_squad, home_tactics, away_tactics, seed_from_str(seed))
+    let mut engine = MatchEngine::new(home_squad, away_squad, home_tactics, away_tactics, seed_from_str(seed));
+    let orders = |raw: Option<&RawTactic>| {
+        raw.and_then(|t| t.half_time.as_ref())
+            .map(|h| crate::engine::HalfTimeOrders { losing: h.losing.clone(), drawing: h.drawing.clone(), winning: h.winning.clone() })
+            .unwrap_or_default()
+    };
+    engine.half_time_orders = [orders(tactics.and_then(|t| t.home.as_ref())), orders(tactics.and_then(|t| t.away.as_ref()))];
+    engine
 }
 
 pub fn run_simulation(req: SimulateMatchRequest) -> SimulateMatchResponse {

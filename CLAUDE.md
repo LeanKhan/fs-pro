@@ -33,6 +33,11 @@ Key concepts:
   draw. Other league and group matches come from accepted challenges, and
   knockout ties are drawn when their round opens. Both play only on cup days
   (`WeekTemplate` 'C').
+- **Booked match**: a friendly a manager books from matchmaking. It plays on
+  the next free cup day (`Stage` 'booked', `ChallengeStatus` accepted →
+  played once settled), and both sides get a prep window. A fixture's
+  match plan lives in its `HomeTactic`/`AwayTactic` JSON. See
+  `docs/CORE-LOOP.md`.
 - **Board** judges a club's performance score across all competitions,
   compared with the target for its Level.
 - **Year = Season** (28 game days by default). Year end finishes the pyramid

@@ -149,6 +149,22 @@ pub struct SimConfig {
     /// Execution penalty at 0 stamina (skills x (1 - impact)).
     pub fatigue_impact: f32,
     pub halftime_recovery: f32,
+    /// Extra stamina a presser burns per tick, on top of distance: a high
+    /// press wins the ball early and pays for it late.
+    pub press_drain: f32,
+    /// A long ball or through ball goes over the press: the passer-pressure
+    /// penalty is scaled by this for those passes.
+    pub lofted_pressure_factor: f32,
+    /// Shots into a crowd: log-odds per defender (max 4) within `crowd_m`
+    /// of the shooter - a compact low block protects its box.
+    pub shot_crowd: f32,
+    pub crowd_m: f32,
+    /// Skill edge for the side whose style counters the other's
+    /// (tactics::style_matchup); the countered side loses the same.
+    pub counter_edge: f32,
+    /// Share of a player's missing fitness (0-100, between matches) that
+    /// carries into his starting stamina.
+    pub fitness_carry: f32,
 
     // --- Home advantage --------------------------------------------------------
     /// Home players' skills x (1 + this).
@@ -248,6 +264,12 @@ pub const CFG: SimConfig = SimConfig {
     stamina_mitigation: 0.5,
     fatigue_impact: 0.45,
     halftime_recovery: 0.35,
+    fitness_carry: 0.5,
+    counter_edge: 0.05,
+    press_drain: 0.25,
+    lofted_pressure_factor: 0.0,
+    shot_crowd: -0.3,
+    crowd_m: 10.0,
 
-    home_advantage: 0.02,
+    home_advantage: 0.04,
 };

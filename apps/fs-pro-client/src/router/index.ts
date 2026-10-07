@@ -10,6 +10,7 @@ import competitions from './competitions';
 
 /** USER ROUTES */
 import userClubRoutes from './user/club';
+import { myGround } from './redirects';
 // import AllFixtures from '@/views/user/seasons/fixtures.vue';
 /** USER ROUTES */
 
@@ -32,6 +33,7 @@ export function replaceParams(
   return path;
 }
 
+/** The signed-in manager's own ground, or null (admin, no club, signed out). */
 const routes: RouteRecordRaw[] = [
   {
     path: '/auth',
@@ -113,24 +115,14 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/games',
     alias: ['/game'],
-    redirect: () => {
-      try {
-        const stored = window.localStorage.getItem('fspro-user');
-        if (stored) {
-          const u = JSON.parse(stored);
-          const firstClub = u.clubs?.[0];
-          const clubId = typeof firstClub === 'string' ? firstClub : firstClub?._id;
-          if (clubId) return `/game/${clubId}`;
-        }
-      } catch (_) {}
-      return '/u';
-    },
+    redirect: () => myGround() ?? '/u',
   },
   {
     path: '/',
     component: AppView,
     name: 'AppView',
-    redirect: 'u',
+    // The campus is home (docs/CORE-LOOP.md); admins and club-less managers get the office.
+    redirect: () => myGround() ?? '/u',
     children: [
       {
         path: 'a',
@@ -172,6 +164,8 @@ const routes: RouteRecordRaw[] = [
                 /* webpackChunkName: "admin" */ '../views/user/dashboard.vue'
               ),
             name: 'User Home',
+            // Managers live on their campus; the old home is for admins.
+            beforeEnter: () => myGround() ?? true,
           },
           {
             path: 'calendar',

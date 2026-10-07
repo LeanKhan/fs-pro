@@ -206,9 +206,9 @@
 
     <nav class="dock" aria-label="Go to">
       <button v-if="myClub" @click="router.push(`/game/${myClub.id}`)"><span v-html="icon('ball')"></span>Ground</button>
-      <button @click="router.push('/u/competitions')"><span v-html="icon('trophy')"></span>Competitions</button>
+      <button @click="router.push(myClub ? `/game/${myClub.id}?open=league` : '/u/competitions')"><span v-html="icon('trophy')"></span>League</button>
       <button v-if="myClub" @click="showInbox = true"><span v-html="icon('mail')"></span>Challenges<i v-if="openPlay.incoming.length" class="dot count">{{ openPlay.incoming.length }}</i></button>
-      <button @click="router.push('/u')"><span v-html="icon('news')"></span>Office</button>
+      <button @click="router.push(myClub ? `/game/${myClub.id}?open=office` : '/u')"><span v-html="icon('news')"></span>Office</button>
     </nav>
 
     <side-sheet v-model="showInbox" :width="400">

@@ -1,5 +1,6 @@
 // Sockets...
 
+import { parseSideTactic } from '../../services/play/plan-effects';
 import { getFixtureById } from '../fixtures/fixture.service';
 import { Fixture } from '../fixtures/fixture.model';
 import { updateFixture } from './functions';
@@ -120,13 +121,12 @@ export async function play(
   // (see game.router.ts's createFriendly - the column isn't `jsonb`), so
   // they come back as strings here, not the ITactic objects the model type
   // claims - parse before use.
-  const prefetchedTactics: { home: ITactic; away: ITactic } | undefined =
-    fixture.HomeTactic && fixture.AwayTactic
-      ? {
-          home: JSON.parse(fixture.HomeTactic as unknown as string),
-          away: JSON.parse(fixture.AwayTactic as unknown as string),
-        }
-      : undefined;
+  // Each side independently: a stored tactic or match plan (Match Prep,
+  // services/play/match-plan.service.ts) wins over the club's saved tactic.
+  const homeStored = parseSideTactic(fixture.HomeTactic);
+  const awayStored = parseSideTactic(fixture.AwayTactic);
+  const prefetchedTactics =
+    homeStored || awayStored ? { home: homeStored as ITactic | undefined, away: awayStored as ITactic | undefined } : undefined;
 
   const { HomeTeamId: home, AwayTeamId: away } = fixture;
 

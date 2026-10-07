@@ -230,6 +230,7 @@
 </template>
 
 <script setup lang="ts">
+import { sfx } from '@/services/sfx';
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { unpackFrames, type MatchFrame } from '@repo/api-contract';
 import { client } from '@/services/api';
@@ -267,6 +268,8 @@ const props = defineProps<{
   autoplay?: boolean;
   /** Admins may play the rest of the day's fixtures with this one. */
   canSimulateRest?: boolean;
+  /** Watching live: real ms since kick-off. Joins at that point, at 1x. */
+  liveFromMs?: number | null;
 }>();
 const emit = defineEmits<{ (e: 'close'): void; (e: 'played'): void }>();
 
@@ -302,7 +305,17 @@ const needsSimulation = ref(false);
 const simulateRest = ref(false);
 const phase = ref<'pre' | 'live' | 'full'>('pre');
 const playing = ref(false);
-const speed = ref(1);
+// Remembered per device; 2x keeps a match to a CoC-sized couple of minutes.
+const SPEED_KEY = 'fspro_match_speed';
+const speed = ref(readSpeed());
+function readSpeed() {
+  try {
+    const v = Number(localStorage.getItem(SPEED_KEY));
+    return [1, 2, 4, 8].includes(v) ? v : 2;
+  } catch {
+    return 2;
+  }
+}
 const camera = ref<CameraMode>('intro');
 const drawer = ref(false);
 const tab = ref<(typeof tabs)[number]>('Stats');
@@ -601,8 +614,14 @@ function startStage(frames?: MatchFrame[]) {
   stage.setCamera(phase.value === 'pre' ? 'intro' : camera.value === 'intro' ? 'broadcast' : camera.value);
   stage.start();
   status.value = 'ready';
+  if (props.liveFromMs) {
+    // Live: the match runs at real pace from kick-off; join where it is now.
+    speed.value = 1;
+    playback.speed = 1;
+    playback.seek(Math.min(playback.lastFrame - 1, props.liveFromMs / 1000 / playback.secondsPerTick));
+  }
   moment.value = playback.moment();
-  if (props.autoplay) begin();
+  if (props.autoplay || props.liveFromMs) begin();
 }
 
 function begin() {
@@ -647,6 +666,11 @@ function cycleSpeed() {
   const steps = [1, 2, 4, 8];
   speed.value = steps[(steps.indexOf(speed.value) + 1) % steps.length]!;
   if (playback) playback.speed = speed.value;
+  try {
+    localStorage.setItem(SPEED_KEY, String(speed.value));
+  } catch {
+    // Private mode: the speed lasts this match.
+  }
 }
 
 function setCamera(mode: CameraMode) {
@@ -724,6 +748,8 @@ function close() {
 }
 
 function announce(e: TimelineEvent) {
+  if (e.kind === 'kickoff' || e.kind === 'half' || e.kind === 'full') sfx.play('whistle');
+  else if (e.kind === 'goal' || e.kind === 'penalty-goal') sfx.play(e.side === 'away' ? 'concede' : 'goal');
   const color = sideColor(e.side);
   const text = commentary(e);
   if (e.kind !== 'foul') {

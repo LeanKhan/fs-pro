@@ -1,6 +1,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue';
-import type { AssetState, Campus, CampusPlacement, Inbox, MatchResult, PlayState } from '@repo/api-contract';
+import type { AssetState, Campus, CampusPlacement, Inbox, MatchResult, MatchdayFixture, PlayState } from '@repo/api-contract';
 import { client } from '@/services/api';
+import { sfx } from '@/services/sfx';
 
 /**
  * State and actions for the club game screen (views/game/club-game.vue):
@@ -47,6 +48,17 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
   let timer: ReturnType<typeof setInterval> | undefined;
   const elapsed = computed(() => Math.max(Math.floor((now.value - loadedAt.value) / 1000), 0));
   const cooldownLeft = computed(() => Math.max((playState.value?.cooldownSeconds ?? 0) - elapsed.value, 0));
+  /** The shop till, ticking up between fetches (services/play/shop.ts). */
+  const shopPending = computed(() => {
+    const shop = playState.value?.shop;
+    if (!shop) return 0;
+    return Math.min(shop.cap, Math.floor(shop.pending + (shop.perHour * elapsed.value) / 3600));
+  });
+  const shopFull = computed(() => !!playState.value?.shop && shopPending.value >= playState.value.shop.cap);
+  /** Facilities that just finished building, and a Level just reached - the
+   * screen celebrates them (set on load, cleared by the screen). */
+  const justBuilt = ref<string[]>([]);
+  const levelReached = ref<number | null>(null);
   const challengeLeft = computed(() =>
     Math.max((playState.value?.challenge.secondsLeft ?? 0) - elapsed.value, 0)
   );
@@ -60,10 +72,19 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
         client.facilities.getCampus.query({ params: { clubId: clubId.value } }),
       ]);
       if (playRes.status === 200) {
+        const before = playState.value?.club.level;
         playState.value = playRes.body.payload;
         loadedAt.value = Date.now();
+        if (before !== undefined && playRes.body.payload.club.level > before) levelReached.value = playRes.body.payload.club.level;
       }
-      if (campusRes.status === 200) campus.value = campusRes.body.payload;
+      if (campusRes.status === 200) {
+        const was = new Map((campus.value?.assets ?? []).map((a) => [a.type, a.level]));
+        campus.value = campusRes.body.payload;
+        if (was.size) {
+          const built = campusRes.body.payload.assets.filter((a) => a.level > (was.get(a.type) ?? a.level)).map((a) => a.type);
+          if (built.length) justBuilt.value = built;
+        }
+      }
     } catch (err) {
       console.error('Failed to load the club game:', err);
       toast('Could not load your club.', 'error');
@@ -103,10 +124,12 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
       });
       if (res.status === 200) {
         campus.value = res.body.payload;
+        sfx.play('build');
         toast('Construction started!');
         onChanged?.();
         await load();
       } else {
+        sfx.play('error');
         toast(res.body.message, 'error');
       }
     } catch (err) {
@@ -130,16 +153,48 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
     return false;
   }
 
+  /** Bank the shop takings. Resolves to the amount collected (0 if none). */
+  const collecting = ref(false);
+  async function collectShop(): Promise<number> {
+    if (!clubId.value || collecting.value || shopPending.value < 1) return 0;
+    collecting.value = true;
+    try {
+      const res = await client.play.collectShop.mutation({ params: { clubId: clubId.value }, body: {} });
+      if (res.status !== 200) {
+        toast(res.body.message, 'error');
+        return 0;
+      }
+      const { collected, shop, budget } = res.body.payload;
+      if (playState.value) {
+        // Rebase the ticking till on the fresh numbers.
+        playState.value = { ...playState.value, shop, club: { ...playState.value.club, budget } };
+        loadedAt.value = Date.now();
+      }
+      if (campus.value) campus.value = { ...campus.value, budget };
+      return collected;
+    } catch (err) {
+      console.error('Failed to collect the shop takings:', err);
+      toast('Could not collect the takings.', 'error');
+      return 0;
+    } finally {
+      collecting.value = false;
+    }
+  }
+
   function selectOpponent(opp: { id: string; name: string; power: number; code?: string }) {
     matchedOpponent.value = opp;
     matchedOpponentId.value = opp.id;
   }
 
   const isQuickSim = ref(false);
+  /** Matchmaking opened to book a match (no rest needed) rather than play now. */
+  const bookingMode = ref(false);
 
-  /** PLAY pressed: ask the server for real opponents, then wait for "battle". */
-  async function findMatch(quickSim = false) {
-    if (!clubId.value || cooldownLeft.value > 0 || playing.value) return;
+  /** PLAY pressed: ask the server for real opponents, then wait for "battle".
+   * `booking`: pick an opponent to book a match with instead. */
+  async function findMatch(quickSim = false, booking = false) {
+    if (!clubId.value || playing.value || (!booking && cooldownLeft.value > 0)) return;
+    bookingMode.value = booking;
     isQuickSim.value = quickSim;
     matchmakingSearching.value = true;
     matchedOpponent.value = null;
@@ -187,7 +242,9 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
       showMatchmaking.value = false;
       if (res.status === 200) {
         matchResult.value = res.body.payload;
+        const before = playState.value?.club.level;
         playState.value = res.body.payload.state;
+        if (before !== undefined && res.body.payload.state.club.level > before) levelReached.value = res.body.payload.state.club.level;
         loadedAt.value = Date.now();
         if (quick) {
           // Instant simulation skips battle arena directly to spoils
@@ -208,6 +265,28 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
       toast('Could not play the match.', 'error');
     } finally {
       playing.value = false;
+    }
+  }
+
+  /** Book a match with `opponentId`: it kicks off on a later cup day. */
+  async function bookMatch(opponentId: string): Promise<MatchdayFixture | null> {
+    if (!clubId.value) return null;
+    try {
+      const res = await client.play.bookMatch.mutation({ params: { clubId: clubId.value }, body: { opponentId } });
+      if (res.status !== 200) {
+        sfx.play('error');
+        toast(res.body.message, 'error');
+        return null;
+      }
+      showMatchmaking.value = false;
+      sfx.play('whistle');
+      const f = res.body.payload;
+      toast(`Booked: ${f.opponent.name} come to your ground on day ${f.day}. Time to prepare!`);
+      return f;
+    } catch (err) {
+      console.error('Failed to book a match:', err);
+      toast('Could not book the match.', 'error');
+      return null;
     }
   }
 
@@ -237,11 +316,11 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
 
   return {
     playState, campus, loading, playing, upgradingAsset,
-    now, cooldownLeft, challengeLeft, coachingLevel,
+    now, cooldownLeft, challengeLeft, coachingLevel, shopPending, shopFull, collecting, justBuilt, levelReached,
     showMatchmaking, matchmakingSearching, matchedOpponent, opponentOptions,
-    showBattleArena, showRewards, matchResult, isQuickSim, inbox,
+    showBattleArena, showRewards, matchResult, isQuickSim, bookingMode, inbox,
     snackbar, snackbarText, snackbarColor, toast,
-    load, loadInbox, markInboxRead, startUpgrade, savePlacement, findMatch, selectOpponent, startBattle, finishBattle,
+    load, loadInbox, markInboxRead, startUpgrade, collectShop, savePlacement, findMatch, selectOpponent, startBattle, finishBattle, bookMatch,
   };
 }
 

@@ -1,4 +1,5 @@
 import { and, eq, sql } from 'drizzle-orm';
+import { ensureDefaultLineup } from '../play/default-lineup';
 import {
   FOUNDING_LIMITS,
   codeProblem,
@@ -287,6 +288,7 @@ export async function foundClub(userId: string | undefined, body: FoundClub): Pr
   }
 
   await createSquad({ id: clubId, code }, placed.country.id);
+  await ensureDefaultLineup(clubId).catch((err) => console.warn('[founding] default lineup failed', err));
 
   let pool: FoundedClub['pool'] = null;
   try {
