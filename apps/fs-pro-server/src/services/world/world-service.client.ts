@@ -23,6 +23,7 @@ import {
   ProminenceSchema,
   PyramidDrawSchema,
   PyramidJoinSchema,
+  TileSchema,
   WorldServiceHealthSchema,
 } from '@repo/api-contract';
 import type {
@@ -35,6 +36,7 @@ import type {
   PyramidDraw,
   PyramidJoin,
   PyramidJoinRequest,
+  Tile,
   WorldServiceHealth,
 } from '@repo/api-contract';
 
@@ -128,6 +130,11 @@ export function drawPyramid(competitionId: string): Promise<PyramidDraw> {
 /** POST /pyramid/join - the bottom-division slot for a mid-season joiner. */
 export function joinPyramid(request: PyramidJoinRequest): Promise<PyramidJoin> {
   return call('POST /pyramid/join', '/pyramid/join', PyramidJoinSchema, postJson(request));
+}
+
+/** GET /tiles/{z}/{x}/{y} - one bounded map tile (zoom 0..5). */
+export function getTile(z: number, x: number, y: number): Promise<Tile> {
+  return call('GET /tiles/:z/:x/:y', `/tiles/${z}/${x}/${y}`, TileSchema);
 }
 
 /** GET /health - the service's typed health payload. */
