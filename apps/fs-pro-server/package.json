@@ -20,7 +20,8 @@
     "lint:fix": "oxlint --fix",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "drizzle:generate": "drizzle-kit generate",
     "drizzle:migrate": "drizzle-kit migrate",
     "drizzle:push": "drizzle-kit push",
@@ -71,7 +72,8 @@
     "drizzle-kit": "^0.31.10",
     "oxlint": "^1.81.0",
     "ts-node-dev": "^1.0.0-pre.39",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.3"
   },
   "engines": {
     "node": ">=8.10.0"
