@@ -1,8 +1,8 @@
 # Production stack. Copy .env.production.example to .env.production, fill it
 # in, then:
 #   docker compose -f compose.prod.yaml --env-file .env.production up -d --build
-# Only `web` is published; put TLS in front of it. The database, sim and
-# worldgen services and the gateway stay on the internal network.
+# Only `web` is published; put TLS in front of it. The database, sim, worldgen
+# and world services and the gateway stay on the internal network.
 services:
   db:
     image: postgres:17
@@ -30,6 +30,17 @@ services:
       context: .
       dockerfile: deploy/worldgen.Dockerfile
     restart: unless-stopped
+
+  world:
+    build:
+      context: .
+      dockerfile: deploy/world-service.Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        condition: service_healthy
 
   realtime:
     build:
@@ -90,12 +101,15 @@ services:
       IMAGINATION_CLIENT_SECRET: ${IMAGINATION_CLIENT_SECRET:-}
       IMAGINATION_WORLD_ID: ${IMAGINATION_WORLD_ID:-}
       WORLDGEN_SERVICE_URL: ${WORLDGEN_SERVICE_URL:-http://worldgen:3004}
+      WORLD_SERVICE_URL: ${WORLD_SERVICE_URL:-http://world:3006}
     depends_on:
       migrate:
         condition: service_completed_successfully
       sim:
         condition: service_started
       worldgen:
+        condition: service_started
+      world:
         condition: service_started
       realtime:
         condition: service_started
