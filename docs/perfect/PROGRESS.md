@@ -9,9 +9,9 @@ Program of record: `FOR-AGENTS.md` (R1–R11, D1–D5, Batches 0–6).
 | --- | --- | --- | --- | --- |
 | B0 | 0A baseline | `core/launch` @ `a480c86` (read-only) | **PARTIAL** — commands run & green; commit step blocked (Q1/Q2) | `BASELINE.md` §1, §3 |
 | B0 | 0B audit (facts) | `core/launch` (read-only) | **PARTIAL** — facts confirmed; 10k measurement not run | `BASELINE.md` §2, §4 |
-| B1 | 1A hierarchy spec | — | not started (owner gate after) | — |
-| B1 | 1B world-service skeleton | — | not started | — |
-| B1 | 1C test infra | — | not started | — |
+| B1 | 1A hierarchy spec | `perfect/b1-1a` @ `.claude/worktrees/b1a` (ses_eeb050ef6ffeon8YKy1vpBJh0c) | **running** | `WORLD-HIERARCHY-SPEC.md` (when done) |
+| B1 | 1B world-service skeleton | `perfect/b1-1b` @ `.claude/worktrees/b1b` (ses_eeb050ef3ffeZ4KCsy9Z2KLOAr) | **running** | `B1-1B-REPORT.md` (when done) |
+| B1 | 1C test infra | `perfect/b1-1c` @ `.claude/worktrees/b1c` (ses_eeb050ef0ffebWP1d2I85Yrtle) | **running** | `B1-1C-REPORT.md` (when done) |
 | B2–B6 | — | — | not started | — |
 
 Nothing is merged; `perfect/integration` is not created yet (Q6).
