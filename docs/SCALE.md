@@ -1,5 +1,52 @@
 # Scale baselines (world pyramid)
 
+## B2E — founding rate: per-player log, O(N) scans, and a 100k run (2026-10-07)
+
+Batch-2 integration on the district hierarchy, same harness and scratch-DB
+recipe as B2D. This pass profiled the founding path, removed an unconditional
+per-player log and three O(N) table scans, and added a bounded-concurrency
+harness (`SCALE_CONCURRENCY`). Base `perfect/integration` @ `2f1c04c`.
+
+Rates are for `SCALE_CLUBS=N SCALE_SKIP_MATCHES=1`, one Linux Node v24 process
+unless noted, world-service on `localhost:3006`, Postgres 17 in Docker.
+
+| Run | Clubs | Clients | Founding | ms/club | Integrity |
+| --- | --- | --- | --- | --- | --- |
+| before (B2-2D-equivalent) | 1,000 | 1 | 58 s | 58 | — |
+| after | 1,000 | 1 | 38 s | 38 | 1 country / 4 regions / 100 cities |
+| after | 10,000 | 1 | 462 s | 46 | 8 countries / 44 regions / 1,000 cities; 160k players / 90k fixtures |
+| after | 2,000 | 4 | 45 s | 23 | 0 warnings, 0 unpooled clubs |
+| after | 10,000 | 4 | 276 s | 28 | 8 countries / 44 regions / 1,000 cities; 160k players / 90k fixtures |
+| after | 100,000 | 8 | 3,066 s | 31 | 75 countries / 447 regions / 3,575 cities / 10,000 districts; 100k clubs / 1.6M players / 900k fixtures; 0 unpooled; DB 2.1 GB |
+
+What changed (see `docs/perfect/B2-2E-REPORT.md` §2–§4):
+
+- `utils/players.ts:530` logged every generated player (16/club, ~11 KB/club);
+  now gated behind `DEBUG_PLAYER_PAYLOAD=true`.
+- The founding identity check seq-scanned Clubs (`lower(Name)=? OR
+  upper(ClubCode)=?`); it now BitmapOrs the two unique indexes.
+- `calculateAndUpdateClubRating` + `ensureDefaultLineup` read Players by
+  `ClubId` (no index) twice; both are now computed from the just-inserted rows
+  and written in one Club update.
+- The spot's places are resolved once (in parallel) instead of twice
+  sequentially.
+- The post-commit squad / pyramid-join / news / inbox work now overlaps.
+- `SCALE_CONCURRENCY=N` founds N at a time (the placement transaction is still
+  serialised by `PLACEMENT_LOCK`); `SCALE_SKIP_YEAR_END=1` times founding on
+  its own.
+
+Two costs remain in code outside this pass's ownership and are reported as
+blockers: no index on `Clubs.UserId` (the club-limit count) and no
+`(SeasonId, Group)` index for `pyramid.service.ts`'s `joinPyramid` members
+query. Both would need migration 0039.
+
+The year end is a separate bottleneck: at 10k it is 420,948 ms (from B2D and
+reproduced here), dominated by club ratings and youth intake, so a full 100k
+end-to-end year end is projected well past the 45-minute founding budget and is
+not claimed.
+
+
+
 ## B2D — district hierarchy at 10,000 clubs, 100k attempted (2026-10-07)
 
 Batch-2 integration on the **new district hierarchy**: Node founding calls the
