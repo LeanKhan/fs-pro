@@ -155,3 +155,39 @@ export * from './world-geo';
 export * from './world-calendar';
 export * from './crest';
 export * from './schemas/atlas';
+
+// World-service (Go) endpoint shapes - see docs/perfect/WORLD-SERVICE-CONTRACT.md.
+// Node does not serve these; it calls them via
+// apps/fs-pro-server/src/services/world/world-service.client.ts.
+export {
+  PlacementSpotKindSchema,
+  PlacementSpotRequestSchema,
+  PlacementInviteSchema,
+  PlacementSpotSchema,
+  PlaceChildSchema,
+  PlaceChildrenSchema,
+  ProminenceSchema,
+  ProminenceRecomputeSchema,
+  ProminenceRecomputeResultSchema,
+  PyramidPoolSchema,
+  PyramidDrawSchema,
+  PyramidJoinRequestSchema,
+  PyramidJoinSchema,
+  WorldServiceHealthSchema,
+} from './schemas/world-service';
+export type {
+  PlacementSpotKind,
+  PlacementSpotRequest,
+  PlacementInvite,
+  PlacementSpot,
+  PlaceChild,
+  PlaceChildren,
+  Prominence,
+  ProminenceRecompute,
+  ProminenceRecomputeResult,
+  PyramidPool,
+  PyramidDraw,
+  PyramidJoinRequest,
+  PyramidJoin,
+  WorldServiceHealth,
+} from './schemas/world-service';
