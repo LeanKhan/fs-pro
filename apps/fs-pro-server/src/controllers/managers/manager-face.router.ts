@@ -4,7 +4,7 @@ import { getFaceSvg } from '../../services/worldgen/client';
 import log from '../../helpers/logger';
 
 // Same reasoning as players/player-face.router.ts (which this mirrors) -
-// worldgen-service's face generator is a pure function of any stable
+// worldgen's face generator is a pure function of any stable
 // identity string, not player-specific, so a Manager's own `_id` works as
 // the seed just as well.
 const router = Router();

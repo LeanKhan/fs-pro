@@ -7,6 +7,7 @@ One host, Docker Compose. Five long-running containers plus a migration job:
 | `web` | nginx: the built client, and a proxy for `/api`, `/socket.io` and `/realtime` | the internet (the only published port) |
 | `server` | API, calendar clock, world tick | `web` |
 | `sim` | Go service + Rust `sim-cli`; **every match needs it** | `server` |
+| `worldgen` | Go service: names, faces and other generated content | `server` |
 | `realtime` | WebSocket gateway (presence, chat, world events) | `web` |
 | `db` | Postgres 17 | `server`, `migrate` |
 | `migrate` | one-shot: applies migrations, then exits | — |
@@ -71,8 +72,9 @@ docker compose -f compose.prod.yaml --env-file .env.production run --rm \
   you rely on uploads.
 - With more than one `server` instance, run the extras with `ROLE=web` so only
   one runs the clock and world tick.
-- Single sign-on (Imaginations) and player faces (worldgen) are optional; leave
-  their variables empty to run without them.
+- Single sign-on (Imaginations) is optional; leave its variables empty to run
+  without it. Names, faces and other generated content come from the bundled
+  `worldgen` service, so there is no external dependency for them.
 
 ## Email (Resend)
 

@@ -22,7 +22,7 @@ import { computed } from 'vue';
 import { apiUrl } from '@/store';
 
 interface Props {
-  /** A saved player's real _id - the seed worldgen-service generates a
+  /** A saved player's real _id - the seed worldgen generates a
    * deterministic face SVG from (see player-face.router.ts server-side).
    * No id yet (e.g. a not-yet-created player) renders a placeholder
    * instead, since there's nothing stable to seed a face with until the

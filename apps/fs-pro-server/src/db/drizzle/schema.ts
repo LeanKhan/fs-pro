@@ -485,7 +485,7 @@ export const players = pgTable('Players', {
   Wage: real('Wage'),
   Form: real('Form').notNull().default(6),
   isReserve: boolean('isReserve').notNull().default(false),
-  /** Avatars are now generated on demand from worldgen-service, keyed by
+  /** Avatars are now generated on demand from worldgen, keyed by
    * this row's own _id (see controllers/players/player-face.router.ts) -
    * deterministic and cacheable, nothing to store here anymore. This used
    * to be a dead `Appearance` jsonb column (one PNG-layer-composite asset

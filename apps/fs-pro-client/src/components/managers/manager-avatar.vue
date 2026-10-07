@@ -22,7 +22,7 @@ import { computed, ref, watch } from 'vue';
 import { apiUrl } from '@/store';
 
 interface Props {
-  /** A saved manager's real _id - worldgen-service generates a
+  /** A saved manager's real _id - worldgen generates a
    * deterministic face SVG from it, same pattern as player-avatar.vue. */
   managerId?: string | null;
   size?: number;
