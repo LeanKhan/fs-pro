@@ -21,6 +21,15 @@ services:
       dockerfile: deploy/worldgen.Dockerfile
     restart: unless-stopped
 
+  fspro-world:
+    build:
+      context: .
+      dockerfile: deploy/world-service.Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+    networks: [default, dokploy-network]
+
   fspro-realtime:
     build:
       context: .
@@ -78,6 +87,7 @@ services:
       IMAGINATION_CLIENT_SECRET: ${IMAGINATION_CLIENT_SECRET:-}
       IMAGINATION_WORLD_ID: ${IMAGINATION_WORLD_ID:-}
       WORLDGEN_SERVICE_URL: ${WORLDGEN_SERVICE_URL:-http://fspro-worldgen:3004}
+      WORLD_SERVICE_URL: ${WORLD_SERVICE_URL:-http://fspro-world:3006}
     volumes:
       # Uploaded images survive redeploys (seeded from the image on first use).
       - server_assets:/repo/apps/fs-pro-server/assets
@@ -88,6 +98,8 @@ services:
       fspro-sim:
         condition: service_started
       fspro-worldgen:
+        condition: service_started
+      fspro-world:
         condition: service_started
       fspro-realtime:
         condition: service_started
