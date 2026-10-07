@@ -50,3 +50,21 @@ a batch edit one file). Batch 2 is split **by layer**:
 
 The HTTP boundary is frozen in `docs/perfect/WORLD-SERVICE-CONTRACT.md`; both
 implement it verbatim.
+
+## E. Batch 2A open questions (Q-A–Q-D)
+
+| Q | Decision |
+| --- | --- |
+| **Q-A** prominence worked example | **Implement the §5.1 formula**, not the worked "new club ≈ 11.9" (the formula gives ≈16.2). The worked number is a spec typo. 2A's implementation stands. |
+| **Q-B** frontier city | **One "capital" per frontier country**: the oldest city of the newest non-full country may grow to `MetropolisDistricts`. Accept 2A's implementation; the spec's "most recently created city" wording is the error. |
+| **Q-C** `PlacementSpot` x/y for multi-level creation | Accept 2A's semantics: `districtId` is the leaf; when `kind` is `city`/`region`/`country`, Node creates the levels in `needsNames` and uses the returned `x,y` as the anchor. 2C implements this. |
+| **Q-D** frontier pointer | The `spot` call is pure-read; **Node advances `Calendars.Frontier*` after a successful founding** (2C). `spot` validates/recomputes the hint. |
+
+## F. Scale-harness finding (Batch 0/2C)
+
+`seedScaleWorld.ts` plays every fixture through the sim service unless
+`SCALE_SKIP_MATCHES=1` (`src/scripts/seedScaleWorld.ts:100`). Run without it
+and without the sim service up, each of ~90k fixtures retries 3× against
+127.0.0.1:5050 → the run appears to hang (measured: >1h16m before kill). Batch 0's
+10k numbers must be produced with `SCALE_SKIP_MATCHES=1` (founding/draw/year-end
+timings) and, separately, with the sim service up if match throughput is wanted.

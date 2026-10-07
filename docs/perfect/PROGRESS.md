@@ -13,9 +13,11 @@ Program of record: `FOR-AGENTS.md` (R1–R11, D1–D5, Batches 0–6).
 | B1 | 1B world-service skeleton | `perfect/b1-1b` (`522a1b0`) | **verified + merged** | `B1-1B-REPORT.md`, `services/world-service/**` |
 | B1 | 1C test infra | `perfect/b1-1c` (`3ed2606`) | **verified + merged** (1 item UNVERIFIED: Playwright re-run, rate limit) | `B1-1C-REPORT.md`, `tests/e2e/**` |
 | B1 | verify | `perfect/b1-verify` (`9f14cc3`) | **PASS** (1 MEDIUM fixed in `24af869`) | `VERIFY-B1.md` |
-| B2 | 2A Go service + schema | `perfect/b2-2a` | **running** | — |
+| B2 | 2A Go service + schema | `perfect/b2-2a` (`ce1c228`) | **done; pending verify** | `B2-2A-REPORT.md` |
 | B2 | 2B contract + client + schemas | `perfect/b2-2b` (`5d61443`) | **done; pending verify** | `B2-2B-REPORT.md` |
-| B2 | 2C checks + 100k scale | staged | blocked on 2A/2B | — |
+| B2 | integration branch | `perfect/b2i` (`bfee583`) | 2A+2B merged | — |
+| B2 | 2C Node integration | `perfect/b2-2c` | **running** | — |
+| B2 | 2D checks + 100k scale | staged | after 2C | — |
 | B3–B6 | — | — | not started | — |
 
 Nothing is merged; `perfect/integration` is not created yet (Q6).
