@@ -90,9 +90,12 @@ correct; club lists respect the z0 cap of 3/place.
    public. Server `tsc --noEmit` = 0 errors. `vitest` cannot start through the
    worktree's WSL symlinks (known worktree limitation), so the TS additions are
    type-checked, not unit-tested, here.
-3. **`BumpRevisions` not yet called** by founding/release/prominence writes
-   (Node or Go); until then `rev` stays 0 and tiles always revalidate with a
-   200. Wiring is Batch 3C.
+3. **Tile invalidation — done in migration `0039`.** `TileRevisions` is now
+   maintained by a trigger on `Clubs` (insert/delete/`DistrictId` change),
+   mirroring the `PlaceStats` trigger, plus a backfill. Verified on
+   `fspro_b2c`: a district change bumped the `(z=0,x=3,y=1)` cell `42 → 43`
+   and the tile ETag became `"0/3/1:43"`. The Go `BumpRevisions` helper stays
+   for callers that want to bump without a club write.
 4. **Overflow semantics** return the bounded subset with `overflow/zoomHint`;
    the "return the parent summary" refinement is not implemented.
 
