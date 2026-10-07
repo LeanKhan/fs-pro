@@ -31,26 +31,35 @@ func TestQuerySurvivesTimeout(t *testing.T) {
 
 	ctx := context.Background()
 
-	t.Run("Query rows are consumable after return", func(t *testing.T) {
-		rows, err := pool.Query(ctx, `SELECT generate_series(1, 5)`)
+	// The regression is data-size dependent. pgx streams a result set, and it
+	// buffers whatever fits in the first socket read before Query returns: a
+	// result small enough to arrive in one read is consumed even when the
+	// per-call context was cancelled on return. The pre-fix code (`defer
+	// cancel()` in Query) only breaks once iteration has to wait for more
+	// bytes than that first read. On the pre-fix code this 500,000-row result
+	// fails with "context canceled" at row ~1089; the fix keeps the context
+	// alive until the rows are exhausted, so the whole set is consumable.
+	t.Run("large Query result is fully consumable after return", func(t *testing.T) {
+		const want = 500000
+		rows, err := pool.Query(ctx, `SELECT generate_series(1, $1)`, want)
 		if err != nil {
 			t.Fatalf("Query: %v", err)
 		}
 		defer rows.Close()
 
-		var got []int
+		got := 0
 		for rows.Next() {
 			var v int
 			if err := rows.Scan(&v); err != nil {
-				t.Fatalf("Scan after Query returned: %v", err)
+				t.Fatalf("Scan at row %d: %v", got+1, err)
 			}
-			got = append(got, v)
+			got++
 		}
 		if err := rows.Err(); err != nil {
-			t.Fatalf("rows.Err after iteration: %v", err)
+			t.Fatalf("rows.Err after %d rows (want %d): %v", got, want, err)
 		}
-		if len(got) != 5 {
-			t.Fatalf("got %d rows, want 5 (%v)", len(got), got)
+		if got != want {
+			t.Fatalf("got %d rows, want %d", got, want)
 		}
 	})
 
