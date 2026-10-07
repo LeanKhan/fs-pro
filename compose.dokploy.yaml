@@ -39,6 +39,12 @@ services:
   fspro-server:
     image: fs-pro-server
     restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
     environment:
       NODE_ENV: production
       PORT: '3000'
@@ -51,7 +57,7 @@ services:
       REALTIME_SECRET: ${REALTIME_SECRET:?set REALTIME_SECRET}
       REMOTE_HOST: ${PUBLIC_HOST:?set PUBLIC_HOST}
       CORS_ORIGINS: https://${PUBLIC_HOST}
-      TRUST_PROXY: '1'
+      TRUST_PROXY: ${TRUST_PROXY:-2}
       COOKIE_SECURE: 'true'
       GAME_TIME_SCALE: ${GAME_TIME_SCALE:-1}
       WORLD_TICK_MINUTES: ${WORLD_TICK_MINUTES:-10}

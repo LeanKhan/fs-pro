@@ -73,3 +73,21 @@ docker compose -f compose.prod.yaml --env-file .env.production run --rm \
   one runs the clock and world tick.
 - Single sign-on (Imaginations) and player faces (worldgen) are optional; leave
   their variables empty to run without them.
+
+## Hardening that ships with the server
+
+- **Rate limits** (`apps/fs-pro-server/src/middleware/hardening.ts`): login 20 per
+  15 min per address and 8 per account, sign-up 5 per hour per address, club
+  founding 10 per hour, and 600 requests a minute for everything else. They
+  are counted per process, in memory.
+- **`TRUST_PROXY` must equal the number of proxies in front of the server**
+  (nginx counts as one). If it is too low, every player shares one address and
+  the limits lock everyone out together; if too high, clients can fake theirs.
+  The compose files default to 2 (nginx plus Traefik or another TLS proxy).
+- **API docs are off in production.** `ENABLE_API_DOCS=true` turns them on.
+- **`GET /healthz`** checks the process and the database; the compose files use
+  it as the server's container health check.
+- **Still to do:** email and password reset, chat moderation, a
+  Content-Security-Policy for the client, error tracking and backups.
+- **CI** (`.github/workflows/ci.yml`) typechecks the server, builds the client,
+  runs the Rust and Go tests and builds the production images on every push.
