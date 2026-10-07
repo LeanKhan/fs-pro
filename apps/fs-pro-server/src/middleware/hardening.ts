@@ -48,6 +48,9 @@ function limiter(opts: {
 /** Per-username key, so a botnet can't guess one account's password from many IPs. */
 const usernameKey = (req: Request) => `u:${String((req.body as { Username?: unknown } | undefined)?.Username ?? '').toLowerCase().slice(0, 64)}`;
 
+/** Per-address key for the reset form: one inbox must not be flooded from many IPs. */
+const emailKey = (req: Request) => `e:${String((req.body as { Email?: unknown } | undefined)?.Email ?? '').trim().toLowerCase().slice(0, 254)}`;
+
 /** Health check: the process is up and the database answers. No session, no auth. */
 export function registerHealthCheck(app: Application) {
   app.disable('x-powered-by');
@@ -78,6 +81,12 @@ export function registerRateLimits(app: Application) {
   app.use('/api/users/login', limiter({ windowMs: 15 * MINUTE, limit: 20, what: 'login attempts' }));
   app.use('/api/users/login', limiter({ windowMs: 15 * MINUTE, limit: 8, what: 'login attempts for this account', key: usernameKey }));
   app.use('/api/users/join', limiter({ windowMs: 60 * MINUTE, limit: 5, what: 'sign-ups from this address' }));
+  app.use('/api/users/forgot-password', limiter({ windowMs: 60 * MINUTE, limit: 5, what: 'password reset requests' }));
+  app.use('/api/users/forgot-password', limiter({ windowMs: 60 * MINUTE, limit: 3, what: 'reset requests for this address', key: emailKey }));
+  app.use('/api/users/reset-password', limiter({ windowMs: 15 * MINUTE, limit: 10, what: 'password reset attempts' }));
+  app.use('/api/users/verify-email', limiter({ windowMs: 15 * MINUTE, limit: 20, what: 'confirmation attempts' }));
+  app.use('/api/users/resend-verification', limiter({ windowMs: 60 * MINUTE, limit: 3, what: 'confirmation emails' }));
+  app.use('/api/users/email', limiter({ windowMs: 60 * MINUTE, limit: 5, what: 'email changes' }));
   app.use('/api/users/change-password', limiter({ windowMs: 15 * MINUTE, limit: 10, what: 'password changes' }));
   app.use('/api/auth', limiter({ windowMs: 15 * MINUTE, limit: 60, what: 'sign-in requests' }));
   // Founding a club creates players and rows in several tables.

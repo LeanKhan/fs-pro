@@ -55,6 +55,21 @@ const routes: RouteRecordRaw[] = [
         name: 'Login',
       },
       {
+        path: 'forgot',
+        component: () => import(/* webpackChunkName: "forgot" */ '../views/auth/forgot.vue'),
+        name: 'ForgotPassword',
+      },
+      {
+        path: 'reset',
+        component: () => import(/* webpackChunkName: "reset" */ '../views/auth/reset.vue'),
+        name: 'ResetPassword',
+      },
+      {
+        path: 'verify',
+        component: () => import(/* webpackChunkName: "verify" */ '../views/auth/verify.vue'),
+        name: 'VerifyEmail',
+      },
+      {
         path: 'join',
         component: () =>
           import(

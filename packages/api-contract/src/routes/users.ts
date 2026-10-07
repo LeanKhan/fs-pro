@@ -34,6 +34,8 @@ export const usersContract = c.router(
         FullName: z.string(),
         Username: z.string(),
         Password: z.string(),
+        /** Where the verification link and password resets go. */
+        Email: z.string().trim().email('Enter a valid email address').max(254),
         Clubs: z.array(z.string()).optional(),
       }),
       responses: {
@@ -53,6 +55,56 @@ export const usersContract = c.router(
         200: successEnvelope(UserSchema),
         400: failEnvelope(),
         404: failEnvelope(),
+      },
+    },
+
+    /** Always answers 200, so it can't be used to learn which emails have
+     * accounts. If one does, a reset link is emailed. */
+    requestPasswordReset: {
+      method: 'POST',
+      path: '/forgot-password',
+      body: z.object({ Email: z.string().trim().max(254) }),
+      responses: { 200: successEnvelope(z.null().optional()), 400: failEnvelope() },
+    },
+
+    /** The emailed token plus the new password; ends every session of the account. */
+    resetPassword: {
+      method: 'POST',
+      path: '/reset-password',
+      body: z.object({ Token: z.string().max(200), NewPassword: z.string().min(8, 'Use at least 8 characters').max(200) }),
+      responses: { 200: successEnvelope(z.null().optional()), 400: failEnvelope() },
+    },
+
+    verifyEmail: {
+      method: 'POST',
+      path: '/verify-email',
+      body: z.object({ Token: z.string().max(200) }),
+      responses: { 200: successEnvelope(z.null().optional()), 400: failEnvelope() },
+    },
+
+    /** Signed in: send the verification link again to the address on file. */
+    resendVerification: {
+      method: 'POST',
+      path: '/resend-verification',
+      body: z.object({}).optional(),
+      responses: {
+        200: successEnvelope(z.null().optional()),
+        400: failEnvelope(),
+        401: failEnvelope(),
+      },
+    },
+
+    /** Signed in: add or change the account's email (password required);
+     * a verification link goes to the new address. */
+    setEmail: {
+      method: 'POST',
+      path: '/email',
+      body: z.object({ Email: z.string().trim().email('Enter a valid email address').max(254), Password: z.string() }),
+      responses: {
+        200: successEnvelope(UserSchema),
+        400: failEnvelope(),
+        401: failEnvelope(),
+        409: failEnvelope(),
       },
     },
 

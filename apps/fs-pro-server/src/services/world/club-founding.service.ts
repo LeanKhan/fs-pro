@@ -201,6 +201,11 @@ export async function foundClub(userId: string | undefined, body: FoundClub): Pr
   if (!userId) throw new FoundingError('Not logged in', 403);
   const [user] = await db().select().from(users).where(eq(users.id, userId));
   if (!user) throw new FoundingError('Not logged in', 403);
+  // Bots fill the world for free without this. Admins and imagination-login
+  // accounts (verified there) are exempt. Set REQUIRE_VERIFIED_EMAIL=true.
+  if (process.env.REQUIRE_VERIFIED_EMAIL?.trim() === 'true' && !user.isAdmin && !user.accountId && !user.EmailVerifiedAt) {
+    throw new FoundingError('Confirm your email first - check your inbox for the link we sent.', 403);
+  }
 
   const [{ owned }] = await db()
     .select({ owned: sql<number>`count(*)::int` })

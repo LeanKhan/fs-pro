@@ -90,10 +90,32 @@ export const users = pgTable('Users', {
   /** The imagination account this user signs in as (its accounts.id). Null for
    * users who have not moved to imagination login yet. */
   accountId: text('accountId').unique(),
+  /** Sign-in recovery and anti-abuse (migration 0036). Unique case-insensitively
+   * through the "Users_Email_lower_uq" index, which Drizzle doesn't model. */
+  Email: text('Email'),
+  EmailVerifiedAt: timestamp('EmailVerifiedAt', { precision: 3 }),
   ...timestamps,
   // Clubs (array of owned club ids) dropped - it's the exact inverse of
   // clubs.User below. See clubsRelations.user / usersRelations.clubs.
 });
+
+/** One-time links emailed to a user: Kind 'verify' or 'reset'. Only the
+ * SHA-256 of the token is stored. */
+export const authTokens = pgTable(
+  'AuthTokens',
+  {
+    id: uuid('_id').primaryKey().defaultRandom(),
+    UserId: uuid('UserId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    Kind: text('Kind').notNull(),
+    TokenHash: text('TokenHash').notNull().unique(),
+    ExpiresAt: timestamp('ExpiresAt', { precision: 3 }).notNull(),
+    UsedAt: timestamp('UsedAt', { precision: 3 }),
+    createdAt: timestamp('createdAt', { precision: 3 }).defaultNow().notNull(),
+  },
+  (t) => [index('AuthTokens_UserId_Kind_idx').on(t.UserId, t.Kind)]
+);
 
 export const managers = pgTable('Managers', {
   id: uuid('_id').primaryKey().defaultRandom(),

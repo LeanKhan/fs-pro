@@ -60,6 +60,24 @@
       </v-col>
 
       <v-col cols="12" md="6">
+        <v-card class="pa-2 mb-4">
+          <v-card-title class="text-h5 d-flex align-center ga-2"><v-icon color="secondary">mdi-email-outline</v-icon> Email</v-card-title>
+          <v-card-text>
+            <p v-if="account.email" class="mb-3">
+              {{ account.email }}
+              <v-chip :color="account.verified ? 'success' : 'warning'" size="small" class="ml-2">{{ account.verified ? 'Confirmed' : 'Not confirmed' }}</v-chip>
+            </p>
+            <p v-else class="mb-3">No email on this account yet. Add one to recover your password and found clubs.</p>
+            <v-form @submit.prevent="saveEmail">
+              <v-text-field v-model="em.email" type="email" label="Email address" autocomplete="email" density="compact" variant="outlined" />
+              <v-text-field v-model="em.password" type="password" label="Your password" hint="To make sure it's you" autocomplete="current-password" density="compact" variant="outlined" />
+              <v-alert v-if="em.message" :type="em.ok ? 'success' : 'error'" variant="tonal" density="compact" class="mb-3">{{ em.message }}</v-alert>
+              <v-btn type="submit" color="primary" variant="flat" :loading="em.busy" :disabled="!em.email || !em.password">{{ account.email ? 'Change email' : 'Add email' }}</v-btn>
+              <v-btn v-if="account.email && !account.verified" variant="text" class="ml-2" :loading="em.resending" @click="resend">Send the link again</v-btn>
+            </v-form>
+          </v-card-text>
+        </v-card>
+
         <v-card class="pa-2">
           <v-card-title class="text-h5 d-flex align-center ga-2"><v-icon color="secondary">mdi-shield-half-full</v-icon> My clubs</v-card-title>
           <v-list v-if="userClubs.length" bg-color="transparent">
@@ -102,6 +120,57 @@ const store = useStore();
 const user = computed(() => store.user);
 const live = realtime.status;
 const online = realtime.online;
+
+const account = reactive<{ email: string; verified: boolean }>({ email: '', verified: false });
+const em = reactive({ email: '', password: '', busy: false, resending: false, ok: false, message: '' });
+
+async function loadAccount() {
+  if (!user.value?.userID) return;
+  try {
+    const res = await client.users.getUser.query({ params: { id: user.value.userID }, query: {} });
+    if (res.status === 200) {
+      const u = res.body.payload as { Email?: string | null; EmailVerified?: boolean };
+      account.email = u.Email ?? '';
+      account.verified = !!u.EmailVerified;
+    }
+  } catch (error) {
+    console.error('Error loading the account:', error);
+  }
+}
+
+async function saveEmail() {
+  em.busy = true;
+  em.message = '';
+  try {
+    const res = await client.users.setEmail.mutation({ body: { Email: em.email, Password: em.password } });
+    em.ok = res.status === 200;
+    em.message = (res.body as { message?: string }).message ?? (em.ok ? 'Saved' : 'Could not save the email');
+    if (em.ok) {
+      Object.assign(em, { email: '', password: '' });
+      await loadAccount();
+    }
+  } catch {
+    em.ok = false;
+    em.message = 'Could not save the email. Try again.';
+  } finally {
+    em.busy = false;
+  }
+}
+
+async function resend() {
+  em.resending = true;
+  em.message = '';
+  try {
+    const res = await client.users.resendVerification.mutation({ body: {} });
+    em.ok = res.status === 200;
+    em.message = (res.body as { message?: string }).message ?? 'Sent';
+  } catch {
+    em.ok = false;
+    em.message = 'Could not send the link. Try again.';
+  } finally {
+    em.resending = false;
+  }
+}
 
 const openClubModal = ref(false);
 const userClubs = ref<any[]>([]);
@@ -172,6 +241,9 @@ function closeClubModal() {
   void store.setUserClubs();
 }
 
-onMounted(loadUserClubs);
+onMounted(() => {
+  void loadUserClubs();
+  void loadAccount();
+});
 watch(() => user.value?.userID, loadUserClubs);
 </script>
