@@ -147,6 +147,26 @@ parallel on this repo? If not, `perfect/b3-3a` should be treated as untrusted.
 
 ---
 
+## D5 STATUS — 100k not achievable at the current founding rate (Batch 2D)
+
+- 10k: COMPLETE — founding 1051 s (105 ms/club), 10k clubs / 160k players / 90k
+  fixtures, year-end 427 s. Recorded in `docs/SCALE.md`.
+- 100k: **NOT COMPLETE**. Measured 20,686 clubs in 2,730 s (**132 ms/club**,
+  rising ~2 ms per 1k); projected ≈4–6 h for 100k, ~5× the 45-min budget.
+  D5's "100k end-to-end with timings in SCALE.md" is therefore **partially met**
+  (10k real + 100k projection). A founding-throughput batch (2E) is in flight to
+  close it; if it cannot reach the target, this stays an owner-visible risk.
+- `checkWorldPyramid.ts` season step is UNVERIFIED (Rust sim service not up).
+
+## DEFECT — club code generator wraps at 26³ = 17,576 (Batch 2D)
+
+`seedScaleWorld.ts`'s own `code()` wrapped at 17,576 (`code(17576) === code(0)`),
+crashing the first 100k run with a 409. 2D fixed the harness copy; the
+**production** club-code generator must be checked for the same collision
+(assigned to Batch 2E).
+
+---
+
 ## INCIDENT-1 — two uncommitted lines in `FOR-AGENTS.md` were discarded
 
 At ~01:42 the lead ran `git checkout -- FOR-AGENTS.md` on the integration
