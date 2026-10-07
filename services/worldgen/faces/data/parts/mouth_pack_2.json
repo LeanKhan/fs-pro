@@ -1,0 +1,6 @@
+[
+  { "id": "smirk-confident", "svg": "<path d=\"M41 68 Q50 67 61 63\" fill=\"none\" stroke=\"#2b2b2b\" stroke-width=\"2.5\" stroke-linecap=\"round\"/>" },
+  { "id": "teeth-grin", "svg": "<path d=\"M38 64 Q50 74 62 64 Z\" fill=\"#ffffff\" stroke=\"#2b2b2b\" stroke-width=\"2\"/><line x1=\"39\" y1=\"65\" x2=\"61\" y2=\"65\" stroke=\"#2b2b2b\" stroke-width=\"1\"/>" },
+  { "id": "lipstick-pout", "svg": "<path d=\"M42 66 Q46 63 50 65 Q54 63 58 66 Q50 73 42 66 Z\" fill=\"#b91c1c\" stroke=\"#7f1d1d\" stroke-width=\"1\"/>" },
+  { "id": "surprised-o", "svg": "<circle cx=\"50\" cy=\"67\" r=\"5\" fill=\"#5b2323\" stroke=\"#2b2b2b\" stroke-width=\"1.8\"/>" }
+]

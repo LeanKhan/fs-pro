@@ -1,0 +1,48 @@
+{
+	"title": [
+		"El", "Hal", "Al", "Il", "Kha", "Ak", "Mo", "Moo", "Ul", "Um", "Eth", "Ichy", "Ki",
+		"Ra", "Ka", "Vi"
+	],
+	"prefix": [
+		"d", "k", "kh", "m", "n", "j", "r", "tol", "mam", "mon"
+	],
+	"preposition":
+	[
+		"lo", "ju", "jin", "ji", "ka", "ki", "cho", "jin", "shin", "do", "len", "ben", "bin","min"
+		, "da", "fa", "ma", "mon"
+	],
+	"firstname": [
+		"dolo","koso", "kala", "imdi", "bolo", "diji", "jan", "jims", "phranq", "grad",
+		"mad", "yad", "bottom", "top", "lector", "vector", "jack", "bander", "polo", "ricewater",
+		"water", "river", "yak", "kalabu", "danlabu", "rectoria", "hinder", "leeder", "marsh",
+		"sam", "pam", "lunkas", "mykels", "venry", "gran", "pish", "posh", "generator", "dinar",
+		"cook", "pook", "spat", "doormat", "best", "mahn", "kasper", "ghunk", "hunk", "dusty", "calvin",
+		"crest", "busht", "dock", "bulk", "bullet", "ram", "stone", "rock", "arrow", "fish", "cave",
+		"wood", "iron", "ship", "boat", "castle", "rag", "wash", "dung", "dagger",
+		"genk", "john", "james", "ben", "casper", "bolobo", "loose", "cannon", "master",
+		"yam", "dark", "shenk", "foun", "ali", "bridge", "lake", "hill", "farm", "woods",
+		"mud", "town", "flower", "tree", "goat", "shark", "bird", "cake", "bread",
+		 "aquire", "ivan", "bell", "bob", "gutter"
+	],
+	"lastname": [
+		"dolo","-undatop", "koso", "kala", "imdi", "bolo", "diji", "jan", "jims", "phranq", "grad",
+		"mad", "yad", "bottom", "top", "lector", "vector", "jack", "bander", "polo", "ricewater",
+		"water", "river", "yak", "kalabu","-undatop", "danlabu", "rectoria", "hinder", "leeder", "marsh",
+		"sam", "pam", "lunkas", "mykels", "venry", "gran", "pish", "posh", "generator", "-undatop", "dinar",
+		"cook","-undatop", "pook", "spat", "doormat", "best", "mahn", "kasper", "ghunk", "hunk", "dusty", "calvin",
+		"crest", "busht", "dock", "bulk", "bullet", "ram", "stone", "rock", "arrow", "fish", "cave",
+		"wood", "iron", "ship", "boat", "castle", "rag", "wash", "dung", "dagger",
+		"genk", "john", "james", "ben", "casper", "bolobo", "loose", "cannon", "master",
+		"yam", "dark", "shenk", "foun", "ali", "bridge", "lake", "hill", "farm", "woods",
+		"mud", "town", "flower", "tree", "goat", "shark", "bird", "cake", "bread", "-undatop",
+		"-indabottomov", "aquire", "ivan", "bell", "bob", "gutter"
+	],
+	"modifier": [
+		"black", "red", "green", "yellow", "white", "calm", "shallow", "quick", "heavy", "light",
+		"hope", "house", "pot", "happy", "joy", "good", "mighty", "loud", "fire",
+		"grand", "old", "new", "long", "golden", "up", "dirt"
+	],
+	"suffix": [
+		"oose", "oosh", "ash", "ish", "il", "al", "eese", "aat", "oon", "ood", "-raka", "-kazaron", "-kinsa"
+	]
+}

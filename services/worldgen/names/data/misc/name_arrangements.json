@@ -1,0 +1,26 @@
+{
+    "bellean": {
+        "firstnames": [
+            "firstname",
+            "title__preposition_firstname"
+        ],
+        "lastnames": [
+            "lastname",
+            "modifier_lastname",
+            "preposition_prefix_suffix",
+            "preposition_suffix",
+            "prefix_suffix"
+        ]
+    },
+    "kev": {
+        "firstnames": [
+            "firstname",
+            "f-prefix_f-suffix"
+        ],
+        "lastnames": [
+            "lastname",
+            "prefix_suffix",
+            "f-prefix_prefix_suffix"
+        ]
+    }
+}

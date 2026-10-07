@@ -1,0 +1,10 @@
+[
+  { "id": "mouth-01", "svg": "<path d=\"M36 73 Q50 82 64 73\" fill=\"none\" stroke=\"var(--lip, #7b3f3f)\" stroke-width=\"3\" stroke-linecap=\"round\"/>" },
+  { "id": "mouth-02", "svg": "<path d=\"M36 75 Q50 68 64 75 Q50 82 36 75Z\" fill=\"var(--lip, #7b3f3f)\"/>" },
+  { "id": "mouth-03", "svg": "<path d=\"M38 76 Q50 73 62 76\" fill=\"none\" stroke=\"var(--lip, #7b3f3f)\" stroke-width=\"2.5\" stroke-linecap=\"round\"/>" },
+  { "id": "mouth-04", "svg": "<path d=\"M36 74 Q50 70 64 74 Q50 78 36 74Z\" fill=\"var(--lip, #7b3f3f)\"/>" },
+  { "id": "mouth-05", "svg": "<path d=\"M37 74 Q50 86 63 74\" fill=\"none\" stroke=\"var(--lip, #7b3f3f)\" stroke-width=\"3.3\" stroke-linecap=\"round\"/>" },
+  { "id": "mouth-06", "svg": "<path d=\"M38 76 Q50 70 62 76\" fill=\"none\" stroke=\"var(--lip, #7b3f3f)\" stroke-width=\"3\" stroke-linecap=\"round\"/>" },
+  { "id": "mouth-07", "svg": "<path d=\"M39 74 Q50 78 61 74\" fill=\"none\" stroke=\"var(--lip, #7b3f3f)\" stroke-width=\"2.4\" stroke-linecap=\"round\"/>" },
+  { "id": "mouth-08", "svg": "<path d=\"M36 74 Q50 70 64 74 Q50 84 36 74Z\" fill=\"var(--lip, #7b3f3f)\"/><path d=\"M40 75 Q50 77 60 75\" stroke=\"var(--teeth, #fff)\" stroke-width=\"2\" stroke-linecap=\"round\"/>" }
+]

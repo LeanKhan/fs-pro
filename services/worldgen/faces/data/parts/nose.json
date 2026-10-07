@@ -1,0 +1,5 @@
+[
+  { "id": "line", "svg": "<line x1=\"50\" y1=\"48\" x2=\"48\" y2=\"58\" stroke=\"#2b2b2b\" stroke-width=\"2\" stroke-linecap=\"round\"/>" },
+  { "id": "triangle", "svg": "<path d=\"M50 46 L46 58 L54 58 Z\" fill=\"none\" stroke=\"#2b2b2b\" stroke-width=\"2\"/>" },
+  { "id": "button", "svg": "<circle cx=\"50\" cy=\"55\" r=\"3\" fill=\"#c98a5e\"/>" }
+]

@@ -1,0 +1,6 @@
+[
+  { "id": "straight", "svg": "<line x1=\"33\" y1=\"39\" x2=\"43\" y2=\"39\" stroke=\"#2b2b2b\" stroke-width=\"2\" stroke-linecap=\"round\"/><line x1=\"57\" y1=\"39\" x2=\"67\" y2=\"39\" stroke=\"#2b2b2b\" stroke-width=\"2\" stroke-linecap=\"round\"/>" },
+  { "id": "arched", "svg": "<path d=\"M33 40 Q38 35 44 39\" fill=\"none\" stroke=\"#2b2b2b\" stroke-width=\"2\" stroke-linecap=\"round\"/><path d=\"M56 39 Q62 35 67 40\" fill=\"none\" stroke=\"#2b2b2b\" stroke-width=\"2\" stroke-linecap=\"round\"/>" },
+  { "id": "thick", "svg": "<rect x=\"33\" y=\"37\" width=\"10\" height=\"3\" rx=\"1.5\" fill=\"#2b2b2b\"/><rect x=\"57\" y=\"37\" width=\"10\" height=\"3\" rx=\"1.5\" fill=\"#2b2b2b\"/>" },
+  { "id": "furrowed", "svg": "<path d=\"M33 41 Q38 36 44 41\" fill=\"none\" stroke=\"#2b2b2b\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><path d=\"M56 41 Q62 36 67 41\" fill=\"none\" stroke=\"#2b2b2b\" stroke-width=\"2.5\" stroke-linecap=\"round\"/>" }
+]

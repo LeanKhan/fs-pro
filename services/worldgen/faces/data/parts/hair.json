@@ -1,0 +1,7 @@
+[
+  { "id": "bald", "svg": "" },
+  { "id": "short-brown", "svg": "<path d=\"M14 30 Q50 4 86 30 L86 18 Q50 -6 14 18 Z\" fill=\"#4a2f1a\"/>" },
+  { "id": "short-black", "svg": "<path d=\"M14 30 Q50 4 86 30 L86 18 Q50 -6 14 18 Z\" fill=\"#1a1a1a\"/>" },
+  { "id": "spiky-blonde", "svg": "<path d=\"M16 26 L22 8 L30 24 L38 6 L46 24 L54 6 L62 24 L70 8 L78 26 Q50 8 16 26 Z\" fill=\"#e0c068\"/>" },
+  { "id": "buzz-gray", "svg": "<path d=\"M16 24 Q50 8 84 24 L84 20 Q50 4 16 20 Z\" fill=\"#9a9a9a\"/>" }
+]

@@ -1,0 +1,7 @@
+[
+  { "id": "brows-01", "svg": "<path d=\"M22 34 Q32 29 42 34 M58 34 Q68 29 78 34\" fill=\"none\" stroke=\"var(--hair, #2b1b14)\" stroke-width=\"4\" stroke-linecap=\"round\"/>" },
+  { "id": "brows-02", "svg": "<path d=\"M22 35 L42 31 M58 31 L78 35\" fill=\"none\" stroke=\"var(--hair, #2b1b14)\" stroke-width=\"3\" stroke-linecap=\"round\"/>" },
+  { "id": "brows-03", "svg": "<path d=\"M22 33 Q33 36 42 32 M58 32 Q67 36 78 33\" fill=\"none\" stroke=\"var(--hair, #2b1b14)\" stroke-width=\"3.5\" stroke-linecap=\"round\"/>" },
+  { "id": "brows-04", "svg": "<path d=\"M23 35 Q32 28 42 33 M58 33 Q68 28 77 35\" fill=\"none\" stroke=\"var(--hair, #2b1b14)\" stroke-width=\"5\" stroke-linecap=\"round\"/>" },
+  { "id": "brows-05", "svg": "<path d=\"M22 35 Q31 33 41 34 M59 34 Q69 33 78 35\" fill=\"none\" stroke=\"var(--hair, #2b1b14)\" stroke-width=\"2.2\" stroke-linecap=\"round\"/>" }
+]

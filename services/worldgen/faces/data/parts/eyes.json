@@ -1,0 +1,6 @@
+[
+  { "id": "round-dark", "svg": "<circle cx=\"38\" cy=\"46\" r=\"4\" fill=\"#2b2b2b\"/><circle cx=\"62\" cy=\"46\" r=\"4\" fill=\"#2b2b2b\"/>" },
+  { "id": "oval-blue", "svg": "<ellipse cx=\"38\" cy=\"46\" rx=\"5\" ry=\"3.5\" fill=\"#3b6ea5\"/><ellipse cx=\"62\" cy=\"46\" rx=\"5\" ry=\"3.5\" fill=\"#3b6ea5\"/>" },
+  { "id": "sleepy", "svg": "<line x1=\"33\" y1=\"46\" x2=\"43\" y2=\"46\" stroke=\"#2b2b2b\" stroke-width=\"2\"/><line x1=\"57\" y1=\"46\" x2=\"67\" y2=\"46\" stroke=\"#2b2b2b\" stroke-width=\"2\"/>" },
+  { "id": "wide-green", "svg": "<circle cx=\"38\" cy=\"46\" r=\"5.5\" fill=\"#fff\" stroke=\"#2b2b2b\" stroke-width=\"1\"/><circle cx=\"38\" cy=\"46\" r=\"2.5\" fill=\"#4a8f4a\"/><circle cx=\"62\" cy=\"46\" r=\"5.5\" fill=\"#fff\" stroke=\"#2b2b2b\" stroke-width=\"1\"/><circle cx=\"62\" cy=\"46\" r=\"2.5\" fill=\"#4a8f4a\"/>" }
+]
