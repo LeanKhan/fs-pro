@@ -135,6 +135,42 @@ export const WorldServiceHealthSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// 6. GET /tiles/{z}/{x}/{y}  (zoomable world map, WORLD-HIERARCHY-SPEC §7)
+// ---------------------------------------------------------------------------
+
+/** One place marker: a country/region/city/district cell with its club count. */
+export const TilePlaceSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  type: z.string(),
+  x: z.number(),
+  y: z.number(),
+  clubs: z.number().int(),
+});
+
+/** One club marker (top-K by prominence for the zoom). */
+export const TileClubSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  code: z.string(),
+  x: z.number(),
+  y: z.number(),
+  prominence: z.number(),
+  human: z.boolean(),
+});
+
+/** A bounded map tile. `rev` is the TileRevisions counter (ETag token). */
+export const TileSchema = z.object({
+  key: z.object({ z: z.number().int(), x: z.number().int(), y: z.number().int() }),
+  places: z.array(TilePlaceSchema),
+  clubs: z.array(TileClubSchema),
+  clubCount: z.number().int(),
+  overflow: z.boolean(),
+  zoomHint: z.boolean(),
+  rev: z.number(),
+});
+
+// ---------------------------------------------------------------------------
 // Inferred types
 // ---------------------------------------------------------------------------
 
@@ -152,3 +188,6 @@ export type PyramidDraw = z.infer<typeof PyramidDrawSchema>;
 export type PyramidJoinRequest = z.infer<typeof PyramidJoinRequestSchema>;
 export type PyramidJoin = z.infer<typeof PyramidJoinSchema>;
 export type WorldServiceHealth = z.infer<typeof WorldServiceHealthSchema>;
+export type TilePlace = z.infer<typeof TilePlaceSchema>;
+export type TileClub = z.infer<typeof TileClubSchema>;
+export type Tile = z.infer<typeof TileSchema>;

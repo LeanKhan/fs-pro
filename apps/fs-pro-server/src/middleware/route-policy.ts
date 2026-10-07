@@ -124,6 +124,9 @@ export const POLICIES: Record<string, Rule> = {
   'atlas.listInvites': 'handler',
   'atlas.createInvite': 'handler',
 
+  // Map tiles are public, per-viewport, bounded payloads (D2).
+  'tiles.getTile': 'public',
+
   'fixtures.deleteFixture': 'admin',
   'players.createPlayer': 'admin',
   'players.deletePlayer': 'admin',

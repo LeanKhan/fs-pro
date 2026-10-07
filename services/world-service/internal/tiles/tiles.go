@@ -38,9 +38,9 @@ const (
 // Key is one tile in the zoom scheme. Z is the zoom level; X and Y are the
 // tile coordinates within it.
 type Key struct {
-	Z int
-	X int
-	Y int
+	Z int `json:"z"`
+	X int `json:"x"`
+	Y int `json:"y"`
 }
 
 // Valid reports whether the key is inside the scheme.
