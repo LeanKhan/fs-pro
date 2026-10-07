@@ -20,8 +20,9 @@ Program of record: `FOR-AGENTS.md` (R1–R11, D1–D5, Batches 0–6).
 | B2 | verify | `perfect/b2-verify` (`f7a4d35`) | **PASS** (0 critical/high; 2 MEDIUM test gaps) | `VERIFY-B2.md` |
 | B2 | fix (D1/D2/D5) | `perfect/b2-fix` (`78d5909`) | **merged** | `B2-FIX-REPORT.md` |
 | B2 | merge | `perfect/integration` (`e732c11`) | **Batch 2 merged** | — |
-| B2 | 2D checks + 10k/100k scale | `perfect/b2-2d` | **running** | — |
-| B3 | 3A world-service tiles | `perfect/b3-3a` | **running** | — |
+| B2 | 2D checks + 10k/100k scale | `perfect/b2-2d` (`686447a`) | **merged** (10k done; 100k infeasible) | `B2-2D-REPORT.md`, `SCALE.md` |
+| B2 | 2E founding throughput | `perfect/b2-2e` | **running** | — |
+| B3 | 3A world-service tiles | `perfect/b3-3a` (external?) | **held** — ANOMALY-1 | `B3-3A-REPORT.md` (on branch) |
 | B3–B6 | — | — | not started | — |
 
 Nothing is merged; `perfect/integration` is not created yet (Q6).
