@@ -35,6 +35,17 @@ pre-existing **metric** faults are recorded for Batch 5A (goals 3.21 vs
 Docker (Q7, owner-approved). Still to run: 10k scale (`fspro_pyramid_check`
 must be rebuilt first).
 
+## Scratch databases (Batch 0 prep)
+
+Both rebuilt to the exact live v17 schema via a `postgres:17-alpine` Docker
+`pg_dump -s fspro` (client pg_dump 16 cannot read a v17 server; Docker used
+instead — no change to the running dev DB `fspro`):
+
+- `fspro_pyramid_check` — 32 tables, 0 clubs (rebuilt).
+- `fspro_scale_100k` — 32 tables, empty (pre-created for D5/Batch 2C).
+
+`seedScaleWorld.ts` runs against `fspro_pyramid_check` (10k) — **in progress**.
+
 ## Environment corrections (apply to every agent)
 
 - Client build/tests must use **Windows Node** (`cmd.exe /c "npm ..."`); the
