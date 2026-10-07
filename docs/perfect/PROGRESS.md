@@ -18,8 +18,10 @@ Program of record: `FOR-AGENTS.md` (R1–R11, D1–D5, Batches 0–6).
 | B2 | integration branch | `perfect/b2i` (`bfee583`) | 2A+2B merged | — |
 | B2 | 2C Node integration | `perfect/b2-2c` (`c3555e9`) + Go fix (`4c83f08`) | **done; verifying** | `B2-2C-REPORT.md` |
 | B2 | verify | `perfect/b2-verify` (`f7a4d35`) | **PASS** (0 critical/high; 2 MEDIUM test gaps) | `VERIFY-B2.md` |
-| B2 | fix (D1 test guard, D2 backfill check, D5 types) | `perfect/b2-fix` | **running** | `B2-FIX-REPORT.md` |
-| B2 | 2D checks + 100k scale | staged | after fix | — |
+| B2 | fix (D1/D2/D5) | `perfect/b2-fix` (`78d5909`) | **merged** | `B2-FIX-REPORT.md` |
+| B2 | merge | `perfect/integration` (`e732c11`) | **Batch 2 merged** | — |
+| B2 | 2D checks + 10k/100k scale | `perfect/b2-2d` | **running** | — |
+| B3 | 3A world-service tiles | `perfect/b3-3a` | **running** | — |
 | B3–B6 | — | — | not started | — |
 
 Nothing is merged; `perfect/integration` is not created yet (Q6).
@@ -69,6 +71,12 @@ instead — no change to the running dev DB `fspro`):
   Node/vitest/Playwright run in a worktree, `npm ci` (Windows Node) or symlink
   the main checkout's `node_modules`. Vitest/Playwright are new devDependencies
   (lockfile updated by 1C) and are not yet materialized in the main checkout.
+- **Scratch DBs need migration 0038** before the new code runs on them
+  (`apply .../0038_world_districts.sql`); old clones lack `DistrictClubs`.
+- **The scale harness now needs the world-service up**: founding calls
+  `POST /placement/spot` on `WORLD_SERVICE_URL` (default localhost:3006). Run
+  the service in Docker with `--network host` (Linux Node can reach it) or run
+  both under Windows. `SCALE_SKIP_MATCHES=1` still skips the *sim* service.
 
 ## Evidence index
 
