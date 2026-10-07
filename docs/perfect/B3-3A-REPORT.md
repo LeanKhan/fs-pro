@@ -16,6 +16,11 @@ Goal: implement the zoomable-map tile API per
 | `services/world-service/internal/http/server.go` | `Deps.Tiles`, `GET /tiles/{z}/{x}/{y}` handler: key validation, `ETag "<z/x/y>:<rev>"`, `If-None-Match` → 304, `Cache-Control: public, max-age=15, stale-while-revalidate=30`, 400/503/500 mapping. |
 | `services/world-service/cmd/world-service/main.go` | Wires `tiles.New(pool)`. |
 | `internal/tiles/tiles_test.go`, `internal/http/server_test.go` | New coverage (see §3). |
+| `packages/api-contract/src/schemas/world-service.ts` | `TilePlaceSchema`/`TileClubSchema`/`TileSchema` + types (R6). |
+| `packages/api-contract/src/routes/tiles.ts`, `index.ts` | `tiles` ts-rest route (`GET /tiles/:z/:x/:y`), registered in the contract router. |
+| `apps/fs-pro-server/src/services/world/world-service.client.ts` | `getTile(z,x,y)` calling the Go endpoint. |
+| `apps/fs-pro-server/src/controllers/world/tiles.router.ts`, `routers/index.ts` | Node proxy `GET /api/tiles/{z}/{x}/{y}`. |
+| `apps/fs-pro-server/src/middleware/route-policy.ts` | `tiles.getTile: 'public'`. |
 
 **Place club counts follow the repository's canonical traversal**, not a
 `ParentId`-only walk: a city's `ParentId` is its **country** and it links to its
@@ -76,17 +81,20 @@ correct; club lists respect the z0 cap of 3/place.
 | `TileRevisions` read + `BumpRevisions` | `service.go` | PASS |
 
 ## 5. Known gaps / next
-
 1. **No 1M-latency benchmark yet.** `p95 ≤ 50 ms` on the synthetic 1M set and
    `wrk`/`k6` on `fspro_scale_100k` are the Batch 3A acceptance numbers; they
    need the 1M synthetic DB and a load tool. Not run here.
-2. **Node proxy + zod + route-policy (R6).** The client-facing
-   `GET /api/tiles/{z}/{x}/{y}` proxy and the `packages/api-contract` zod
-   schema are Batch 3C, not added here (3A is the Go surface).
+2. **Node proxy + zod + route-policy (R6) — added after the first pass.**
+   `packages/api-contract` now has `TileSchema` + the `tiles` ts-rest route,
+   the server proxies `GET /api/tiles/{z}/{x}/{y}`, and route-policy marks it
+   public. Server `tsc --noEmit` = 0 errors. `vitest` cannot start through the
+   worktree's WSL symlinks (known worktree limitation), so the TS additions are
+   type-checked, not unit-tested, here.
 3. **`BumpRevisions` not yet called** by founding/release/prominence writes
    (Node or Go); until then `rev` stays 0 and tiles always revalidate with a
    200. Wiring is Batch 3C.
 4. **Overflow semantics** return the bounded subset with `overflow/zoomHint`;
    the "return the parent summary" refinement is not implemented.
 
-Commit `43436a3` on `perfect/b3-3a`.
+Commits on `perfect/b3-3a`: `43436a3` (Go tiles), `8568f90` (report),
+`7216d90` (contract/proxy/route-policy).
