@@ -28,7 +28,7 @@ Batch 1 build agents run.
 
 All backend suites **green**: server `tsc` PASS; Go `test` PASS in all 3
 modules; Rust `cargo test --release` PASS; sim-lab runs (9.4 s); client
-**build** PASS (Windows Node, 15.4 s). **Client typecheck FAILS with 34
+**build** PASS (Windows Node, 15.4 s). **Client typecheck FAILS with 31
 pre-existing errors** (`docs/perfect/vue-tsc-baseline.log`). Three
 pre-existing **metric** faults are recorded for Batch 5A (goals 3.21 vs
 2.5-2.9; 3-5-2 dominates; quality 47% vs 30-45%). `go test -race` runs via
