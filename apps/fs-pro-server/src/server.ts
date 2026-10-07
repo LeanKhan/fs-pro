@@ -41,13 +41,22 @@ import { apiRouter } from './routers';
 import { ssoRouter } from './controllers/auth/sso.router';
 import { activityMiddleware } from './services/world/caretaker.service';
 
+// Browser origins allowed to call the API with credentials. In production the
+// client is normally served from the same origin as /api (deploy/nginx.conf),
+// so this only matters for a client hosted elsewhere: list its origins in
+// CORS_ORIGINS (comma-separated, scheme included, e.g. https://play.example.com).
+const remoteHost = process.env.REMOTE_HOST?.trim() || 'localhost';
 const cors_whitelist = [
   'http://localhost:8080',
   'http://localhost:5173',
   'http://127.0.0.1:8080',
   'http://127.0.0.1:5173',
-  'http://' + (process.env.REMOTE_HOST!.trim() || 'localhost') + ':8080',
-  'http://' + (process.env.REMOTE_HOST!.trim() || 'localhost') + ':5173',
+  'http://' + remoteHost + ':8080',
+  'http://' + remoteHost + ':5173',
+  ...(process.env.CORS_ORIGINS ?? '')
+    .split(',')
+    .map((o) => o.trim().replace(/\/$/, ''))
+    .filter(Boolean),
 ];
 
 const io = new SocketIOServer(http, {
@@ -80,12 +89,21 @@ if (!process.env.SESSION_SECRET?.trim() && process.env.NODE_ENV?.trim() !== 'dev
   console.warn('[server] SESSION_SECRET is not set - using the insecure development secret.');
 }
 
+// Behind a reverse proxy (nginx, a load balancer) that terminates HTTPS: set
+// TRUST_PROXY=1 so req.secure and client IPs come from X-Forwarded-*, and
+// COOKIE_SECURE=true so the session cookie is only sent over HTTPS.
+if (process.env.TRUST_PROXY?.trim()) {
+  const v = process.env.TRUST_PROXY.trim();
+  app.set('trust proxy', /^\d+$/.test(v) ? Number(v) : v === 'true' ? true : v);
+}
+
 const Session = session({
   name: 'fspro.sid',
   secret: sessionSecret,
   cookie: {
     maxAge: 60000 * 60 * 24 * 30,
     httpOnly: true,
+    secure: process.env.COOKIE_SECURE?.trim() === 'true',
     // The login round-trip through imagination returns as a top-level GET, which
     // Lax cookies accompany.
     sameSite: 'lax',

@@ -3,7 +3,7 @@ import vue from '@vitejs/plugin-vue';
 import { resolve } from 'path';
 import vuetify from 'vite-plugin-vuetify';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
@@ -28,7 +28,8 @@ export default defineConfig({
     },
   },
   define: {
-    'process.env.NODE_ENV': '"development"',
+    // Follow the build mode: a hard-coded "development" here shipped Vue's dev build in production.
+    'process.env.NODE_ENV': JSON.stringify(mode === 'production' ? 'production' : 'development'),
     'process.env.SITE_NAME': '"FSPro"',
   },
-});
+}));
