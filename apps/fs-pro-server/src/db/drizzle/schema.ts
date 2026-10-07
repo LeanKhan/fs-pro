@@ -258,7 +258,7 @@ export const clubs = pgTable('Clubs', {
   ...timestamps,
   // Players dropped - it's the exact inverse of players.Club below.
   },
-  (t) => [index('Clubs_Prominence_idx').on(t.Prominence)]
+  (t) => [index('Clubs_Prominence_idx').on(t.Prominence), index('Clubs_UserId_idx').on(t.UserId)]
 );
 
 /**
@@ -445,6 +445,7 @@ export const entries = pgTable(
   (t) => [
     unique('entries_season_club_uq').on(t.SeasonId, t.ClubId),
     index('entries_club_status_idx').on(t.ClubId, t.Status),
+    index('Entries_SeasonId_Group_idx').on(t.SeasonId, t.Group),
   ]
 );
 
