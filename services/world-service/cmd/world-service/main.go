@@ -21,6 +21,9 @@ import (
 	"fs-pro-world-service/internal/config"
 	"fs-pro-world-service/internal/db"
 	worldhttp "fs-pro-world-service/internal/http"
+	"fs-pro-world-service/internal/placement"
+	"fs-pro-world-service/internal/pyramid"
+	"fs-pro-world-service/internal/ranking"
 )
 
 func main() {
@@ -44,7 +47,12 @@ func main() {
 	}
 	defer pool.Close()
 
-	srv := worldhttp.New(logger, pool)
+	srv := worldhttp.New(logger, pool, worldhttp.Deps{
+		Placement:  placement.New(pool),
+		Hierarchy:  placement.New(pool),
+		Prominence: ranking.New(pool),
+		Pyramid:    pyramid.New(pool),
+	})
 	httpServer := &nethttp.Server{
 		Addr:         cfg.Addr(),
 		Handler:      srv,
