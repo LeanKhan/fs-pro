@@ -1,5 +1,4 @@
 import { and, eq, sql } from 'drizzle-orm';
-import { ensureDefaultLineup } from '../play/default-lineup';
 import {
   FOUNDING_LIMITS,
   codeProblem,
@@ -14,18 +13,18 @@ import {
 } from '@repo/api-contract';
 import { DrizzleDatabase } from '../../db/drizzle';
 import { clubMessages, clubs, entries, managers, places, players, pools, users } from '../../db/drizzle/schema';
+import { type ClubInterface } from '../../controllers/clubs/club.model';
 import { generatePlayer } from '../../utils/players';
 import { pickPlaceholderName } from '../../utils/placeholder-names';
 import { getNextCounterId } from '../../utils/counter';
-import { calculateAndUpdateClubRating } from '../../controllers/clubs/club.service';
-import { FoundingError, clubNameTaken } from './atlas.service';
+import { updateClubFields } from '../../controllers/clubs/club.service';
+import { FoundingError } from './atlas.service';
 import {
   advanceFrontier,
   inviteByToken,
   lockPlacement,
   nextSpot,
   regionName,
-  resolvePlaces,
   uniquePlaceCode,
   useInvite,
   type Tx,
@@ -63,6 +62,140 @@ const SQUAD_SHAPE = ['GK', 'GK', 'DEF', 'DEF', 'DEF', 'DEF', 'DEF', 'MID', 'MID'
  * world's clubs rate 65-78). */
 const STARTER = { attr: [35, 55] as [number, number], pos: [52, 64] as [number, number] };
 
+/** The existing rows a contract spot resolves to (see `resolveSpotPlaces`). */
+type ResolvedPlaces = {
+  district: typeof places.$inferSelect | null;
+  city: typeof places.$inferSelect | null;
+  region: typeof places.$inferSelect | null;
+  country: typeof places.$inferSelect | null;
+};
+
+async function placeRow(id: string | null): Promise<typeof places.$inferSelect | null> {
+  if (!id) return null;
+  const [p] = await db().select().from(places).where(eq(places.id, id)).limit(1);
+  return p ?? null;
+}
+
+/**
+ * `resolvePlaces` (placement.service.ts:194) but the four point reads run
+ * together when the Go spot carries the ids (it always does for a filled spot);
+ * the sequential fallbacks only fire for a level the spot opens. Saves ~2 ms
+ * per founding of serialised round trips.
+ */
+async function resolveSpotPlaces(spot: PlacementSpot): Promise<ResolvedPlaces> {
+  const [district, cityGiven, regionGiven, countryGiven] = await Promise.all([
+    placeRow(spot.districtId),
+    placeRow(spot.cityId),
+    placeRow(spot.regionId),
+    placeRow(spot.countryId),
+  ]);
+  const city = cityGiven ?? (district ? await placeRow(district.ParentId) : null);
+  const region =
+    regionGiven ?? (city ? await placeRow(city.RegionId) : null) ?? (district ? await placeRow(district.RegionId) : null);
+  const country =
+    countryGiven ?? (city ? await placeRow(city.ParentId) : null) ?? (region ? await placeRow(region.ParentId) : null);
+  return { district, city, region, country };
+}
+
+/**
+ * Indexed equivalent of `clubNameTaken` (atlas.service.ts:253) for the founding
+ * hot path. That helper compares `lower(Name) = lower(?) OR upper(ClubCode) =
+ * upper(?)`, which cannot use either unique index and seq-scans the whole
+ * Clubs table on every founding - the dominant cost as the world grows (B2-2E
+ * measured ~1.4 ms per 1,000 clubs, i.e. O(N)). Both indexes exist:
+ * `Clubs_name_ci_unique` on `lower(Name)` and `Clubs_ClubCode_unique` on
+ * `ClubCode`, and this OR form makes Postgres BitmapOr them (~0.1 ms).
+ * `codeProblem` forces codes to [A-Z][A-Z0-9]{1,3} and `foundClub` uppercases
+ * before insert, so every code this path stores is uppercase; an exact-match
+ * code probe is therefore the same set (the live `fspro` Clubs table has 0
+ * non-uppercase codes). The transaction still catches the 23505 race.
+ */
+async function clubIdentityTaken(name: string, code: string): Promise<boolean> {
+  const rows = await db()
+    .select({ id: clubs.id })
+    .from(clubs)
+    .where(sql`lower(${clubs.Name}) = lower(${name}) OR ${clubs.ClubCode} = ${code}`)
+    .limit(1);
+  return rows.length > 0;
+}
+
+/** The default team sheet's slots, matching services/play/default-lineup.ts
+ * (SLOTS_433/BENCH_SIZE are module-private there, so kept in step here). */
+const SLOTS_433 = ['GK', 'DEF', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'ATT', 'ATT', 'ATT'] as const;
+const BENCH_SIZE = 7;
+
+/**
+ * The same best-fit XI `ensureDefaultLineup` (default-lineup.ts:18) picks, but
+ * from the rows just inserted instead of two more reads: every starter is a
+ * healthy player if 11 are available, otherwise the best overall. Folding it
+ * into createSquad's single Club update removes that function's two selects
+ * and its update per founding.
+ */
+function defaultLineup(squad: { id: string; pos: string | null; rating: number | null; injury: unknown }[]) {
+  const injured = (x: unknown) => Number((x as { daysRemaining?: number } | null)?.daysRemaining) > 0;
+  const byRating = (a: { rating: number | null }, b: { rating: number | null }) => (b.rating ?? 0) - (a.rating ?? 0);
+  const fit = squad.filter((p) => !injured(p.injury)).sort(byRating);
+  const pool = fit.length >= 11 ? fit : [...squad].sort(byRating);
+  const used = new Set<string>();
+  const take = (pos?: string) => {
+    const p = pool.find((x) => !used.has(x.id) && (!pos || x.pos === pos));
+    if (p) used.add(p.id);
+    return p?.id;
+  };
+  const startingXI = SLOTS_433.map((pos) => take(pos) ?? take()).filter((id): id is string => !!id);
+  const bench: string[] = [];
+  while (bench.length < BENCH_SIZE) {
+    const id = take();
+    if (!id) break;
+    bench.push(id);
+  }
+  return { startingXI, bench };
+}
+
+/** The Rating/AttackingClass/DefensiveClass/`<POS>_Rating` fields for a set of
+ * per-position averages - the exact arithmetic of calculateAndUpdateClubRating
+ * (club.service.ts:121) so the stored numbers are unchanged. */
+function clubRatingFields(ratings: { position: string | null; avg_rating: number }[]) {
+  const total = ratings.reduce((sum, r) => sum + r.avg_rating, 0);
+  const att =
+    (ratings.find((r) => r.position === 'ATT')?.avg_rating ?? 0) +
+    (ratings.find((r) => r.position === 'MID')?.avg_rating ?? 0) / 2;
+  const def =
+    (ratings.find((r) => r.position === 'GK')?.avg_rating ?? 0) +
+    (ratings.find((r) => r.position === 'DEF')?.avg_rating ?? 0) / 2;
+  const data: Partial<ClubInterface> & Record<string, unknown> = {
+    Rating: ratings.length ? total / ratings.length : 0,
+    AttackingClass: att,
+    DefensiveClass: def,
+  };
+  for (const r of ratings) data[`${r.position}_Rating`] = r.avg_rating;
+  return data;
+}
+
+/** The position averages of a freshly generated squad, in the same shape
+ * `calculateClubsTotalRatings` returns: a `WHERE ClubId = ? GROUP BY Position`
+ * read of Players. Players has no ClubId index, so that read seq-scans the
+ * whole (1.6M-row at 100k-club) table on every founding; the rows were just
+ * inserted, so computing the averages from them removes the scan. */
+function positionAverages(rows: { Position: string | null; Rating: number | null }[]) {
+  const groups = new Map<string, { sum: number; count: number }>();
+  for (const p of rows) {
+    if (!p.Position) continue;
+    const g = groups.get(p.Position) ?? { sum: 0, count: 0 };
+    g.sum += p.Rating ?? 0;
+    g.count++;
+    groups.set(p.Position, g);
+  }
+  return [...groups.entries()].map(([position, g]) => ({ position, avg_rating: g.sum / g.count }));
+}
+
+/**
+ * The raw squad (16 players, bulk-inserted in one statement) plus the Club's
+ * Rating fields and its default 4-3-3 team sheet, written in a single Club
+ * update. Previously this was the insert + calculateAndUpdateClubRating
+ * (select+update) + ensureDefaultLineup (2 selects + update): four fewer
+ * round trips per founded club (B2-2E measured ~7 ms/club).
+ */
 async function createSquad(club: { id: string; code: string }, nationalityId: string) {
   const rows = SQUAD_SHAPE.map((position) => {
     const { firstName, lastName } = pickPlaceholderName();
@@ -85,8 +218,16 @@ async function createSquad(club: { id: string; code: string }, nationalityId: st
       updatedAt: new Date(),
     };
   });
-  await db().insert(players).values(rows as (typeof players.$inferInsert)[]);
-  await calculateAndUpdateClubRating(club.id);
+  const inserted = await db()
+    .insert(players)
+    .values(rows as (typeof players.$inferInsert)[])
+    .returning({ id: players.id, Position: players.Position, Rating: players.Rating, Injury: players.Injury });
+  const lineup = defaultLineup(inserted.map((p) => ({ id: p.id, pos: p.Position, rating: p.Rating, injury: p.Injury })));
+  await updateClubFields(club.id, {
+    ...clubRatingFields(positionAverages(inserted)),
+    Lineup: lineup,
+    Tactic: { formationName: '433', styleName: 'Balanced' },
+  });
 }
 
 /** Names the body must carry for the levels `spot.needsNames` opens. */
@@ -98,10 +239,16 @@ function missingNames(spot: PlacementSpot, body: FoundClub): string | null {
   return null;
 }
 
-/** Validate the place names in the body (only those this spot needs). */
-async function placeNameProblem(tx: Tx, spot: PlacementSpot, body: FoundClub): Promise<string | null> {
+/** Validate the place names in the body (only those this spot needs). The
+ * caller passes the spot's already-resolved places so founding resolves the
+ * (up to four) place rows once, not once here and again in openPlaces. */
+async function placeNameProblem(
+  tx: Tx,
+  spot: PlacementSpot,
+  body: FoundClub,
+  existing: ResolvedPlaces
+): Promise<string | null> {
   const needs = new Set(spot.needsNames);
-  const existing = await resolvePlaces(spot);
   const countryId = existing.country?.id ?? null;
   const sameNameIn = async (name: string) => {
     if (!countryId) return false;
@@ -154,10 +301,15 @@ interface OpenedPlaces {
  * the district the club goes in. The legacy `opened` labels keep their old
  * values (the client reads them): a new city counts as `town`.
  */
-async function openPlaces(tx: Tx, spot: PlacementSpot, body: FoundClub, userId: string): Promise<OpenedPlaces> {
+async function openPlaces(
+  tx: Tx,
+  spot: PlacementSpot,
+  body: FoundClub,
+  userId: string,
+  existing: ResolvedPlaces
+): Promise<OpenedPlaces> {
   const now = new Date();
   const needs = new Set(spot.needsNames);
-  const existing = await resolvePlaces(spot);
   const opened: ('town' | 'region' | 'country')[] = [];
 
   let country = existing.country;
@@ -284,7 +436,7 @@ export async function foundClub(userId: string | undefined, body: FoundClub): Pr
   const problem = nameProblem(name, 'Club name', 3, 40) ?? codeProblem(code, 'Short code');
   if (problem) throw new FoundingError(problem);
   if (!isCrestDesign(body.crest)) throw new FoundingError('That crest is not valid');
-  if (await clubNameTaken(name, code)) throw new FoundingError('That name or code is taken', 409);
+  if (await clubIdentityTaken(name, code)) throw new FoundingError('That name or code is taken', 409);
   const crest: CrestDesign = { ...body.crest, initials: body.crest.initials || code };
 
   const { id: managerKey } = await getNextCounterId('manager');
@@ -300,10 +452,13 @@ export async function foundClub(userId: string | undefined, body: FoundClub): Pr
       const spot = await nextSpot({ invite: body.invite });
       const missing = missingNames(spot, body);
       if (missing) throw new FoundingError(missing, 409);
-      const badName = await placeNameProblem(tx, spot, body);
+      // Resolve the spot's existing places once and share them with both the
+      // name validation and openPlaces (they each used to re-resolve them).
+      const existing = await resolveSpotPlaces(spot);
+      const badName = await placeNameProblem(tx, spot, body, existing);
       if (badName) throw new FoundingError(badName, 409);
 
-      const where = await openPlaces(tx, spot, body, user.id);
+      const where = await openPlaces(tx, spot, body, user.id, existing);
       // An honoured invite counts one use (a fallback placement doesn't): the
       // Go service only sets `invite` when it actually honoured it.
       if (spot.invite && body.invite) {
@@ -357,39 +512,8 @@ export async function foundClub(userId: string | undefined, body: FoundClub): Pr
     throw err;
   }
 
-  // Keep the frontier pointer moving for the Go service's O(1) fast path
-  // (B2-2A Q-D); it is a validated hint, so a failure here is not fatal.
-  await advanceFrontier().catch((err) => console.warn('[founding] frontier', err));
-
-  await createSquad({ id: clubId, code }, placed.country.id);
-  await ensureDefaultLineup(clubId).catch((err) => console.warn('[founding] default lineup failed', err));
-
-  let pool: FoundedClub['pool'] = null;
-  try {
-    const joined = await placeInPyramid(clubId, placed.country.id);
-    if (joined && 'poolId' in joined) pool = { id: joined.poolId, name: joined.name, division: joined.division };
-    else if (joined) pool = await poolOf(joined.seasonId, clubId);
-  } catch (err) {
-    console.warn('[founding] pyramid placement failed', err);
-  }
-
-  await db()
-    .insert(clubMessages)
-    .values({
-      ClubId: clubId,
-      Kind: 'board',
-      Tone: 'good',
-      Title: `Welcome to ${placed.district.Name}`,
-      Body:
-        `${name} is official. You have a dirt pitch, ${SQUAD_SHAPE.length} hopeful amateurs and ` +
-        `${STARTING_BUDGET.toLocaleString('en-US')} in the bank.` +
-        (pool ? ` You start in ${pool.name}: your fixtures are already on the calendar.` : '') +
-        ' Win matches to earn money and XP, then build up the grounds.',
-      updatedAt: new Date(),
-    });
-
   const opener = placed.opened[0];
-  await postNews({
+  const news = postNews({
     kind: 'founded',
     importance: opener === 'country' ? 40 : 20,
     title:
@@ -405,7 +529,52 @@ export async function foundClub(userId: string | undefined, body: FoundClub): Pr
         ? `${name} found ${placed.city.Name}, the first city of ${placed.country.Name}.`
         : `${name} kick off in ${placed.district.Name}${placed.region ? `, ${placed.region.Name}` : ''}.`,
     clubIds: [clubId],
-  }).catch((err) => console.warn('[founding] news', err));
+  }).catch((err) => {
+    console.warn('[founding] news', err);
+    return null;
+  });
+
+  // These steps touch different tables and are independent of each other, so
+  // run them together: the Go round-trip inside placeInPyramid overlaps the
+  // squad insert, the Club rating/lineup update, the frontier update and the
+  // news write instead of serialising (B2-2E measured 42 ms sequential vs
+  // 37 ms overlapped per club at 1,000).
+  const [, joined] = await Promise.all([
+    createSquad({ id: clubId, code }, placed.country.id),
+    placeInPyramid(clubId, placed.country.id).catch((err) => {
+      console.warn('[founding] pyramid placement failed', err);
+      return null;
+    }),
+    news,
+    // Keep the frontier pointer moving for the Go service's O(1) fast path
+    // (B2-2A Q-D); it is a validated hint, so a failure here is not fatal. It
+    // records the newest country/region/capital, which can only change when a
+    // founding opens places - so skip the three full-Places scans on the common
+    // join-an-existing-district path. The Go service recomputes from counts
+    // when the hint is stale, so skipping is not a correctness risk.
+    placed.opened.length > 0
+      ? advanceFrontier().catch((err) => console.warn('[founding] frontier', err))
+      : Promise.resolve(),
+  ]);
+
+  let pool: FoundedClub['pool'] = null;
+  if (joined && 'poolId' in joined) pool = { id: joined.poolId, name: joined.name, division: joined.division };
+  else if (joined) pool = await poolOf(joined.seasonId, clubId);
+
+  await db()
+    .insert(clubMessages)
+    .values({
+      ClubId: clubId,
+      Kind: 'board',
+      Tone: 'good',
+      Title: `Welcome to ${placed.district.Name}`,
+      Body:
+        `${name} is official. You have a dirt pitch, ${SQUAD_SHAPE.length} hopeful amateurs and ` +
+        `${STARTING_BUDGET.toLocaleString('en-US')} in the bank.` +
+        (pool ? ` You start in ${pool.name}: your fixtures are already on the calendar.` : '') +
+        ' Win matches to earn money and XP, then build up the grounds.',
+      updatedAt: new Date(),
+    });
 
   return {
     clubId,
