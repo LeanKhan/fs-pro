@@ -34,3 +34,19 @@ option; none contradicts D1–D5 or WORLD-PYRAMID-SPEC.
   Linux Node.
 - Scratch DBs (`fspro_pyramid_check`, `fspro_scale_100k`) are the only
   destructive targets; the dev DB `fspro` is off-limits.
+
+## D. Batch 2 restructure (R11)
+
+The owner's 2A (placement+hierarchy) and 2B (ranking+pyramid) both edit
+`services/world-service/**` and Node files, which breaks R11 (no two agents in
+a batch edit one file). Batch 2 is split **by layer**:
+
+- **2A — Go service + schema**: `services/world-service/**`, migration
+  `0038_world_districts.sql`, `schema.ts`.
+- **2B — Node integration + contracts**: Node world/pyramid services, a new
+  world-service HTTP client, `packages/api-contract/**`, `route-policy.ts`.
+- **2C — checks + 100k scale** (staged after 2A/2B): `checkWorldPyramid.ts`,
+  `seedScaleWorld.ts`, `SCALE.md`.
+
+The HTTP boundary is frozen in `docs/perfect/WORLD-SERVICE-CONTRACT.md`; both
+implement it verbatim.
