@@ -99,5 +99,22 @@ correct; club lists respect the z0 cap of 3/place.
 4. **Overflow semantics** return the bounded subset with `overflow/zoomHint`;
    the "return the parent summary" refinement is not implemented.
 
-Commits on `perfect/b3-3a`: `43436a3` (Go tiles), `8568f90` (report),
-`7216d90` (contract/proxy/route-policy).
+Commits on `perfect/b3-3a` (rebased onto `perfect/integration` @ `27fb399`):
+`d3d5d68` (Go tiles), `e878b40` (report), `790ed09`
+(contract/proxy/route-policy), `714cea2` (report update), `72b13a8` (migration
+`0040`), `17138b6` (renumber 0039→0040).
+
+## 6. ANOMALY-1 reconciliation
+
+The orchestrator flagged `perfect/b3-3a` as **ANOMALY-1** (an unexpected
+branch). This branch is **owner-approved parallel Batch 3A work** (the owner
+answered "are you running batches in parallel? → proceed"). Reconciled:
+
+- **Rebased onto current `perfect/integration` (`27fb399`)**, so the diff no
+  longer reverts the B2 fix (`78d5909`) or the 2D/2E work.
+- **Migration renumbered `0039 → 0040`** (collision with
+  `0039_perf_indexes.sql` from 2E). `0039_perf_indexes.sql` is untouched.
+- Go `build`/`test ./...` and server + contract `tsc --noEmit` green after the
+  rebase.
+
+It is safe to verify and merge `perfect/b3-3a` on top of `27fb399`.
