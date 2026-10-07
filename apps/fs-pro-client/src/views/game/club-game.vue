@@ -16,29 +16,30 @@
         :timers="timers"
         :alerts="alerts"
         :now-ms="game.now.value"
-        :suspended="matchOpen"
+        :suspended="matchOpen || !!watching"
+        :collector="collector"
         @tap="onTap"
         @hover="onHover"
         @alert="onAlert"
+        @collect="collect"
       />
 
       <cozy-presence v-if="clubId" :club-id="clubId" :club-name="club.Name" :is-mine="isMyClub" @notify="(t: string) => game.toast(t)" />
 
       <cozy-hud
-        v-model:quick-sim="quickSim"
-        :club="{ name: club.Name, code: club.ClubCode, location: clubLocation, elo: club.Elo ?? 1500 }"
+        :club="{ name: club.Name, code: club.ClubCode }"
         :level="{ level: playState?.club.level ?? 0, xpInto: playState?.club.xpIntoLevel ?? 0, xpNeed: playState?.club.xpForNext ?? 0 }"
         :stats="{
           budget: treasury,
           fans: playState?.standing.fans ?? 0,
           reputation: playState?.standing.reputation ?? 0,
           power: playState?.club.power ?? 0,
-          entriesUsed: isMyClub ? openPlay.entriesUsed : 0,
-          maxEntries: isMyClub ? (openPlay.settings?.maxConcurrentEntries ?? null) : null,
         }"
+        :league="leagueBadge"
         :facts="facts"
         :challenge="isMyClub ? (playState?.challenge ?? null) : null"
         :first-steps="firstSteps"
+        :coach="coach"
         :briefing="isMyClub ? managerBriefingMessage : ''"
         :headline="tickerHeadline"
         :builders="builders"
@@ -47,6 +48,8 @@
         :moving="!!moving"
         :cooldown="game.cooldownLeft.value"
         :playing="game.playing.value"
+        :quick-sim="quickSim"
+        :live="liveMatch ? { opponent: liveMatch.opponent.name, home: liveMatch.home } : null"
         @act="onAct"
       />
 
@@ -92,8 +95,11 @@
           :searching="game.matchmakingSearching.value"
           :starting="game.playing.value || busArriving"
           :tactics="tacticsSummary"
+          :booking="game.bookingMode.value"
+          :cooldown="game.cooldownLeft.value"
           @select="game.selectOpponent"
           @play="kickOff"
+          @book="onBook"
           @tactics="onChangeTactics"
           @medical="onOpenMedicalFromMatchmaking"
         />
@@ -106,36 +112,88 @@
         autoplay
         @close="game.finishBattle()"
       />
+      <matchzone-view
+        v-if="watching"
+        :key="watching.fixtureId"
+        :fixture-id="watching.fixtureId"
+        overlay
+        autoplay
+        :live-from-ms="watching.liveFromMs"
+        @close="closeWatching"
+      />
 
       <cozy-modal v-model="game.showRewards.value">
         <cozy-rewards
-          v-if="game.matchResult.value"
+          v-if="game.matchResult.value && game.showRewards.value"
           :result="game.matchResult.value"
           :my-name="club.Name"
           :my-code="club.ClubCode"
+          :cooldown="game.cooldownLeft.value"
+          :level-reached="rewardLevel"
           @close="game.showRewards.value = false"
           @again="(game.showRewards.value = false), game.findMatch(quickSim)"
         />
+      </cozy-modal>
+
+      <cozy-modal v-model="showSettings" size="small">
+        <cozy-settings v-model:quick-sim="quickSim" :user-name="store.user?.fullname ?? store.user?.username" @act="onSettingsAct" />
       </cozy-modal>
 
       <!-- Dashboard screens and world news, over the campus -->
       <cozy-drawer
         :model-value="!!drawer"
         :title="drawerTitle"
-        :tabs="drawerDoor?.tabs.map((t) => t.title)"
+        :tabs="drawer === 'league' ? ['My league', 'Competitions'] : drawer === 'hub' ? hubTabs.map((t) => t.title) : undefined"
         :tab="drawerTab"
         @update:model-value="(open) => !open && closeDrawer()"
         @update:tab="(i) => (drawerTab = i)"
       >
-        <component
-          :is="drawerDoor.tabs[drawerTab].component"
-          v-if="drawerDoor"
-          :key="`${drawer}-${drawerTab}`"
-          :club="club"
-          v-bind="drawerDoor.tabs[drawerTab].readOnly ? { readOnly: !isMyClub } : {}"
-          @update-available="onZoneUpdate"
-          @switch-tab="onZoneSwitchTab"
-        />
+        <template v-if="drawer === 'hub' && hubTab">
+          <cozy-matchday
+            v-if="hubTab.key === 'matchday'"
+            :club-id="clubId"
+            :now-ms="game.now.value"
+            :refresh-key="matchdayKey"
+            @prep="openPrep"
+            @watch="watchFixture"
+            @book="startBooking"
+          />
+          <component
+            :is="hubTab.component"
+            v-else
+            :key="`hub-${hubTab.key}`"
+            :club="club"
+            v-bind="{ ...(hubTab.readOnly ? { readOnly: !isMyClub } : {}), ...(hubTab.key === 'club' ? { inGame: true } : {}) }"
+            @update-available="onZoneUpdate"
+            @switch-tab="onZoneSwitchTab"
+          />
+        </template>
+        <template v-else-if="drawer === 'prep' && prepFixtureId">
+          <button class="btn small backbtn" @click="openHub('matchday')">‹ Matchday</button>
+          <cozy-match-prep
+            :club-id="clubId"
+            :fixture-id="prepFixtureId"
+            :my-name="club.Name"
+            :my-code="club.ClubCode"
+            :now-ms="game.now.value"
+            @saved="onPlanSaved"
+            @toast="toast"
+          />
+        </template>
+        <template v-else-if="drawer === 'league'">
+          <cozy-league
+            v-if="drawerTab === 0"
+            :league="playState?.league ?? null"
+            :club-id="clubId"
+            :my-name="club.Name"
+            :my-code="club.ClubCode"
+            :elapsed="leagueElapsed"
+            @visit="(id: string) => router.push(`/game/${id}`)"
+            @tactics="playState?.league?.next ? openPrep(playState.league.next.fixtureId) : openHub('team')"
+            @competitions="drawerTab = 1"
+          />
+          <user-competitions v-else />
+        </template>
         <cozy-news v-else-if="drawer === 'news'" :feed="worldFeed" />
         <cozy-news v-else-if="drawer === 'billboard'" :feed="worldFeed" category="transfer">
           <div v-if="transferWindow" class="warn" :class="{ good: transferWindow.open }">
@@ -190,9 +248,10 @@ import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@tanstack/vue-query';
 import {
   CAMPUS_GRID, footprint, validatePlacement,
-  type CampusBuilding, type CampusPlacement, type Placed, type TransferWindow, type WorldFeed,
+  type CampusBuilding, type CampusPlacement, type Matchday, type MatchdayFixture, type Placed, type TransferWindow, type WorldFeed,
 } from '@repo/api-contract';
-import { client } from '@/services/api';
+import { client, apiUrl } from '@/services/api';
+import { sfx } from '@/services/sfx';
 import { useStore } from '@/store';
 import { useOpenPlayStore } from '@/store/open-play';
 import { useClubGame } from '@/composables/use-club-game';
@@ -212,12 +271,16 @@ import CozyMatchmaking from '@/components/cozy/cozy-matchmaking.vue';
 import CozyRewards from '@/components/cozy/cozy-rewards.vue';
 import CozyDrawer from '@/components/cozy/cozy-drawer.vue';
 import CozyNews from '@/components/cozy/cozy-news.vue';
+import CozyLeague from '@/components/cozy/cozy-league.vue';
+import CozySettings from '@/components/cozy/cozy-settings.vue';
+import CozyMatchday from '@/components/cozy/cozy-matchday.vue';
+import CozyMatchPrep from '@/components/cozy/cozy-match-prep.vue';
+import UserCompetitions from '@/views/user/competitions/competitions.vue';
 import TeamSheetZone from '@/views/user/club/zones/team-sheet-zone.vue';
 import SquadZone from '@/views/user/club/zones/squad-zone.vue';
 import TransferZone from '@/views/user/club/zones/transfer-zone.vue';
 import OwnerZone from '@/views/user/club/zones/owner-zone.vue';
 import PerformanceZone from '@/views/user/club/zones/performance-zone.vue';
-import ClubZone from '@/views/user/club/zones/club-zone.vue';
 import { useClubRefresh } from '@/composables/use-club-refresh';
 import { clubColors } from '@/components/cozy/club-colors';
 import { stageName } from '@/components/cozy/stages';
@@ -292,11 +355,6 @@ const isMyClub = computed(() => {
 
 const treasury = computed(() => playState.value?.club.budget ?? club.value?.Budget ?? 0);
 
-const clubLocation = computed(() => {
-  const c = club.value as { Address?: { City?: string } | null; AddressCountry?: { Name?: string } | null } | null;
-  return [c?.Address?.City, c?.AddressCountry?.Name].filter(Boolean).join(', ') || 'Unplaced';
-});
-
 // --- The 3D campus ------------------------------------------------------------------
 const colors = ref<[string, string]>(['#3a6fd8', '#f5f1e6']);
 watch(
@@ -365,24 +423,133 @@ const facts = computed(() => {
     ? [...openPlay.upcoming].sort((a, b) => (a.scheduledDay ?? 0) - (b.scheduledDay ?? 0))[0]
     : undefined;
   const opponentId = upcoming && (upcoming.homeClubId === openPlay.clubId ? upcoming.awayClubId : upcoming.homeClubId);
+  const today = !!upcoming && upcoming.scheduledDay === openPlay.settings?.currentDay;
+  const lg = playState.value?.league?.next;
+  // A challenge due today beats a league match further out; otherwise the league leads.
+  let next: { opponent: string; home: boolean; day: number | null; inSeconds: number | null; soon: boolean; league: boolean; travel: boolean; planSet?: boolean | null } | null = null;
+  const up = nextUp.value;
+  if (up && !(upcoming && today)) {
+    const inSeconds = up.startsInSeconds === null ? null : Math.max(0, up.startsInSeconds - matchdayElapsed.value);
+    next = { opponent: up.opponent.name, home: up.home, day: up.day, inSeconds, soon: inSeconds !== null && inSeconds < 3600, league: false, travel: false, planSet: up.planSet };
+  } else if (upcoming && (today || !lg)) {
+    const home = upcoming.homeClubId === openPlay.clubId;
+    next = { opponent: directory.name(opponentId), home, day: upcoming.scheduledDay ?? null, inSeconds: null, soon: today, league: false, travel: today && !home };
+  } else if (lg) {
+    const inSeconds = lg.startsInSeconds === null ? null : Math.max(0, lg.startsInSeconds - leagueElapsed.value);
+    next = { opponent: lg.opponentName, home: lg.home, day: lg.day, inSeconds, soon: inSeconds !== null && inSeconds < 3600, league: true, travel: false };
+  }
   return {
     day: cal ? `Day ${cal.CurrentDay}${cal.CurrentDate ? ` · ${new Date(cal.CurrentDate).toDateString()}` : ''}` : '…',
     year: openPlay.settings
       ? { currentYear: openPlay.settings.currentYear, dayOfYear: openPlay.settings.dayOfYear, yearLengthDays: openPlay.settings.yearLengthDays }
       : null,
-    next: upcoming
-      ? {
-          opponent: directory.name(opponentId),
-          home: upcoming.homeClubId === openPlay.clubId,
-          day: upcoming.scheduledDay,
-          today: upcoming.scheduledDay === openPlay.settings?.currentDay,
-        }
-      : null,
+    next,
     performance: isMyClub.value && openPlay.performance ? { score: openPlay.performance.score, expected: openPlay.performance.expected } : null,
     form: playState.value?.standing.form ?? [],
-    fanApproval: playState.value?.standing.fanApproval ?? null,
   };
 });
+
+// --- The league badge and drawer ---------------------------------------------------------
+const leagueLoadedAt = ref(Date.now());
+watch(playState, () => (leagueLoadedAt.value = Date.now()));
+const leagueElapsed = computed(() => Math.max(0, Math.floor((game.now.value - leagueLoadedAt.value) / 1000)));
+const leagueBadge = computed(() => {
+  const l = playState.value?.league;
+  if (!l) return null;
+  const i = l.table.findIndex((r) => r.clubId === clubId.value);
+  return { division: l.division, position: i >= 0 ? i + 1 : null, total: l.clubsInPool, poolName: l.poolName };
+});
+function openLeague(tab = 0) {
+  selectedKey.value = null;
+  drawerTab.value = tab;
+  drawer.value = 'league';
+  markStep('league');
+}
+
+// --- The club shop: the campus's gold mine (docs/CORE-LOOP.md) ----------------------------
+const collector = computed(() =>
+  // Shown once there's something worth a tap (a tenth of the till), like CoC's collectors.
+  isMyClub.value && playState.value?.shop && game.shopPending.value >= playState.value.shop.cap * 0.1
+    ? { key: 'stands', amount: game.shopPending.value, full: game.shopFull.value, coach: coach.value === 'collect' }
+    : null
+);
+
+async function collect() {
+  const from = campusRef.value?.screenOf('stands');
+  const amount = await game.collectShop();
+  if (!amount) return;
+  sfx.play('collect');
+  campusRef.value?.burst('stands', 'coins');
+  flyCoins(from, amount);
+  markStep('collect');
+}
+
+/** Coins arc from the Stands into the treasury chip, with a floating "+amount". */
+function flyCoins(from: { x: number; y: number } | null | undefined, amount: number) {
+  const root = rootEl.value;
+  const target = root?.querySelector('[data-res="cash"]')?.getBoundingClientRect();
+  if (!root || !target) return;
+  const sx = from?.x ?? window.innerWidth / 2;
+  const sy = (from?.y ?? window.innerHeight / 2) - 30;
+  const tx = target.left + 18;
+  const ty = target.top + target.height / 2;
+  const n = Math.min(12, 4 + Math.floor(Math.log10(Math.max(amount, 10)) * 2));
+  for (let i = 0; i < n; i++) {
+    const el = document.createElement('div');
+    el.className = 'coinfly';
+    el.innerHTML = icon('coins');
+    el.style.left = `${sx - 17}px`;
+    el.style.top = `${sy - 17}px`;
+    root.appendChild(el);
+    const dx = (Math.random() - 0.5) * 140;
+    const dy = -40 - Math.random() * 70;
+    const anim = el.animate(
+      [
+        { transform: 'translate(0, 0) scale(.5)', opacity: 0 },
+        { transform: `translate(${dx}px, ${dy}px) scale(1.1)`, opacity: 1, offset: 0.3 },
+        { transform: `translate(${tx - sx}px, ${ty - sy}px) scale(.6)`, opacity: 0.9 },
+      ],
+      { duration: 850 + i * 35, delay: i * 45, easing: 'cubic-bezier(.5, 0, .6, 1)', fill: 'forwards' }
+    );
+    anim.onfinish = () => {
+      el.remove();
+      if (i % 3 === 0) sfx.play('coin');
+    };
+  }
+  const t = document.createElement('div');
+  t.className = 'floattext';
+  t.textContent = `+${currency(amount)}`;
+  t.style.left = `${sx}px`;
+  t.style.top = `${sy - 24}px`;
+  t.style.transform = 'translate(-50%, -100%)';
+  root.appendChild(t);
+  setTimeout(() => t.remove(), 1500);
+}
+
+// --- Celebrations: finished builds and new Levels -----------------------------------------
+watch(game.justBuilt, (keys) => {
+  if (!keys.length) return;
+  for (const k of keys) {
+    campusRef.value?.burst(k, 'confetti');
+    const a = game.campus.value?.assets.find((x) => x.type === k);
+    toast(`${a?.name ?? 'Construction'} reached Tier ${a?.level ?? ''}!`);
+  }
+  sfx.play('complete');
+  game.justBuilt.value = [];
+});
+/** A Level reached during a match is shown on the result screen instead. */
+const rewardLevel = ref<number | null>(null);
+watch(game.levelReached, (lv) => {
+  if (lv === null) return;
+  if (game.playing.value || game.showBattleArena.value || game.showRewards.value) rewardLevel.value = lv;
+  else {
+    sfx.play('levelup');
+    campusRef.value?.burst('office', 'confetti');
+    toast(`Level ${lv}! Your club is growing.`);
+  }
+  game.levelReached.value = null;
+});
+watch(game.showRewards, (open) => !open && (rewardLevel.value = null));
 
 // --- Selection and panels ----------------------------------------------------------------
 const selectedKey = ref<CampusBuilding | null>(null);
@@ -391,6 +558,10 @@ const selectedAsset = computed(() => game.campus.value?.assets.find((a) => a.typ
 const medicalAsset = computed(() => game.campus.value?.assets.find((a) => a.type === 'medical_centre') ?? null);
 const showBuild = ref(false);
 const showTreatment = ref(false);
+const showSettings = ref(false);
+watch([showBuild, showSettings, game.showMatchmaking], (now, before) => {
+  if (now.some((on, i) => on && !before?.[i])) sfx.play('open');
+});
 
 function onTap(pick: Pick, ground: { x: number; z: number } | null) {
   if (moving.value) {
@@ -398,7 +569,10 @@ function onTap(pick: Pick, ground: { x: number; z: number } | null) {
     if (ground) placeGhost(ground);
     return;
   }
-  if (pick?.kind === 'building') selectedKey.value = pick.id as CampusBuilding;
+  if (pick?.kind === 'building') {
+    selectedKey.value = pick.id as CampusBuilding;
+    sfx.play('tap');
+  }
   else if (pick?.kind === 'place') openPlace(pick.id);
   else if (pick?.kind === 'player') {
     const p = ((club.value as any)?.Players ?? []).find((x: any) => String(x._id) === pick.id);
@@ -421,50 +595,141 @@ function onOpen(what: string) {
   else if (what === 'door' && selectedKey.value) openDoor(selectedKey.value);
 }
 
-// --- Doors: buildings open their dashboard screens over the campus ---------------------------
-interface Door { label: string; tabs: { title: string; component: Component; readOnly?: boolean }[] }
-const DOORS: Partial<Record<CampusBuilding, Door>> = {
-  dugout: { label: 'Team Sheet', tabs: [{ title: 'Team Sheet', component: TeamSheetZone, readOnly: true }] },
-  training_ground: { label: 'Squad', tabs: [{ title: 'Squad', component: SquadZone }] },
-  scouting: { label: 'Transfers', tabs: [{ title: 'Transfers', component: TransferZone }] },
-  office: {
-    label: 'Office',
-    tabs: [
-      { title: "Director's Box", component: OwnerZone, readOnly: true },
-      { title: 'Analysis', component: PerformanceZone },
-      { title: 'Manager', component: ClubZone },
-    ],
-  },
+// --- The Manager hub: every management screen in one drawer over the campus ------------------
+// Buildings are shortcuts into it (docs/CORE-LOOP.md, "One shell").
+type HubKey = 'matchday' | 'team' | 'squad' | 'transfers' | 'club' | 'analysis';
+interface HubTab { key: HubKey; title: string; component?: Component; readOnly?: boolean }
+const HUB_TABS: HubTab[] = [
+  { key: 'matchday', title: 'Matchday' },
+  { key: 'team', title: 'Team sheet', component: TeamSheetZone, readOnly: true },
+  { key: 'squad', title: 'Squad', component: SquadZone },
+  { key: 'transfers', title: 'Transfers', component: TransferZone },
+  { key: 'club', title: 'Club', component: OwnerZone, readOnly: true },
+  { key: 'analysis', title: 'Analysis', component: PerformanceZone },
+];
+const BUILDING_TAB: Partial<Record<CampusBuilding, HubKey>> = {
+  dugout: 'matchday',
+  training_ground: 'squad',
+  scouting: 'transfers',
+  office: 'club',
+};
+/** Visitors only see the screens that have a read-only mode. */
+const hubTabs = computed(() => (isMyClub.value ? HUB_TABS : HUB_TABS.filter((t) => t.readOnly)));
+const tabFor = (key: CampusBuilding | null): HubKey | null => {
+  const tab = key ? BUILDING_TAB[key] : undefined;
+  if (!tab) return null;
+  if (!isMyClub.value && tab === 'matchday') return 'team';
+  return hubTabs.value.some((t) => t.key === tab) ? tab : null;
 };
 
-/** The door for a building; visitors only get the screens that have a read-only mode. */
-function doorFor(key: CampusBuilding | null): Door | null {
-  const door = key ? DOORS[key] : undefined;
-  if (!door) return null;
-  if (isMyClub.value) return door;
-  const tabs = door.tabs.filter((t) => t.readOnly);
-  return tabs.length ? { ...door, tabs } : null;
+/** The building panel's door button. */
+function doorFor(key: CampusBuilding | null): { label: string } | null {
+  const tab = tabFor(key);
+  if (!tab) return null;
+  return { label: tab === 'matchday' ? 'Match day' : (HUB_TABS.find((t) => t.key === tab)?.title ?? '') };
 }
 
-const drawer = ref<CampusBuilding | 'news' | 'billboard' | null>(null);
+const drawer = ref<'hub' | 'prep' | 'news' | 'billboard' | 'league' | null>(null);
 const drawerTab = ref(0);
-const drawerDoor = computed(() =>
-  drawer.value && drawer.value !== 'news' && drawer.value !== 'billboard' ? doorFor(drawer.value) : null
-);
+const hubTab = computed(() => (drawer.value === 'hub' ? (hubTabs.value[drawerTab.value] ?? null) : null));
 const drawerTitle = computed(() =>
-  drawer.value === 'news' ? 'Around the world' : drawer.value === 'billboard' ? 'Transfer highlights' : (drawerDoor.value?.label ?? '')
+  drawer.value === 'news'
+    ? 'Around the world'
+    : drawer.value === 'billboard'
+      ? 'Transfer highlights'
+      : drawer.value === 'league'
+        ? 'League'
+        : drawer.value === 'prep'
+          ? 'Match prep'
+          : isMyClub.value
+            ? 'Manager'
+            : (club.value?.Name ?? '')
 );
+// Sounds for panels opening and closing.
+watch(drawer, (now, before) => (now && !before ? sfx.play('open') : !now && before ? sfx.play('close') : undefined));
+
+function openHub(key: HubKey) {
+  const i = hubTabs.value.findIndex((t) => t.key === key);
+  if (i < 0) return;
+  selectedKey.value = null;
+  drawerTab.value = i;
+  drawer.value = 'hub';
+}
 
 function openDoor(key: CampusBuilding) {
-  if (!doorFor(key)) return;
-  selectedKey.value = null;
-  drawerTab.value = 0;
-  drawer.value = key;
+  const tab = tabFor(key);
+  if (tab) openHub(tab);
 }
 
 function closeDrawer() {
   drawer.value = null;
   loadOffers();
+}
+
+// --- Match day: booking, prep and watching (docs/CORE-LOOP.md, "Match day") ------------------
+const matchday = ref<Matchday | null>(null);
+const matchdayLoadedAt = ref(Date.now());
+const matchdayKey = ref(0);
+const matchdayElapsed = computed(() => Math.max(0, Math.floor((game.now.value - matchdayLoadedAt.value) / 1000)));
+async function loadMatchday() {
+  if (!isMyClub.value || !clubId.value) return;
+  const res = await client.play.getMatchday.query({ params: { clubId: clubId.value } });
+  if (res.status === 200) {
+    matchday.value = res.body.payload;
+    matchdayLoadedAt.value = Date.now();
+  }
+}
+watch([isMyClub, matchdayKey], () => loadMatchday(), { immediate: true });
+const nextUp = computed<MatchdayFixture | null>(() => matchday.value?.upcoming[0] ?? null);
+
+/** A scheduled match counts as live while its broadcast would still be running at 1x. */
+const LIVE_WINDOW_MS = 5 * 60_000;
+const liveMatch = computed(
+  () =>
+    matchday.value?.recent.find((f) => f.hasReplay && f.playedAt && game.now.value - Date.parse(f.playedAt) < LIVE_WINDOW_MS) ?? null
+);
+// Kick-off on campus: the visitors' bus pulls in, the whistle goes.
+const announcedLive = new Set<string>();
+watch(liveMatch, async (m) => {
+  if (!m || announcedLive.has(m.fixtureId)) return;
+  announcedLive.add(m.fixtureId);
+  sfx.play('whistle');
+  toast(`Kick-off! ${m.home ? `${m.opponent.name} are at your ground` : `You're at ${m.opponent.name}`}. Watch it live.`);
+  if (m.home && !watching.value && !matchOpen.value) await campusRef.value?.playArrival(await clubColors(m.opponent.code));
+});
+
+const prepFixtureId = ref<string | null>(null);
+function openPrep(fixtureId: string) {
+  prepFixtureId.value = fixtureId;
+  selectedKey.value = null;
+  drawer.value = 'prep';
+}
+function onPlanSaved() {
+  matchdayKey.value++;
+  markStep('prep');
+}
+
+function startBooking() {
+  drawer.value = null;
+  game.findMatch(false, true);
+}
+async function onBook(o: { id: string }) {
+  const f = await game.bookMatch(o.id);
+  if (!f) return;
+  matchdayKey.value++;
+  openPrep(f.fixtureId);
+}
+
+const watching = ref<{ fixtureId: string; liveFromMs: number | null } | null>(null);
+function watchFixture(fixtureId: string, playedAt: string | null) {
+  const since = playedAt ? Date.now() - Date.parse(playedAt) : Infinity;
+  drawer.value = null;
+  watching.value = { fixtureId, liveFromMs: since < LIVE_WINDOW_MS ? since : null };
+}
+function closeWatching() {
+  watching.value = null;
+  matchdayKey.value++;
+  game.load();
 }
 
 const refreshClub = useClubRefresh();
@@ -473,10 +738,10 @@ async function onZoneUpdate() {
   game.load();
 }
 
-/** The Analysis screen links to other dashboard tabs by index (dashboard.vue). */
+/** The Analysis screen links to the old dashboard's tabs by index (dashboard.vue). */
 function onZoneSwitchTab(tab: number) {
-  const byTab: Record<number, CampusBuilding> = { 1: 'dugout', 2: 'training_ground', 4: 'office', 5: 'scouting' };
-  if (byTab[tab]) openDoor(byTab[tab]);
+  const byTab: Record<number, HubKey> = { 1: 'team', 2: 'squad', 4: 'club', 5: 'transfers' };
+  if (byTab[tab]) openHub(byTab[tab]);
 }
 
 // --- Alerts: what needs attention, on the building it concerns ----------------------------------
@@ -586,6 +851,8 @@ watch(isMyClub, (mine) => mine && loadOffers(), { immediate: true });
 const worldTimer = setInterval(() => {
   loadWorldFeed();
   loadOffers();
+  if (!matchOpen.value && !game.playing.value) game.load();
+  loadMatchday();
 }, 60_000);
 const tickerTimer = setInterval(() => tickerIndex.value++, 8_000);
 onUnmounted(() => {
@@ -698,39 +965,120 @@ function onAct(action: string) {
     case 'build': return (showBuild.value = true);
     case 'move': return startMove();
     case 'play': return game.findMatch(quickSim.value);
+    case 'collect':
+      if (game.shopPending.value >= 1) return collect();
+      return focusOn('stands');
     case 'inbox': return (showInbox.value = true);
     case 'challenge': return (showChallenge.value = true);
-    case 'competitions': return router.push('/u/competitions');
+    case 'league': return openLeague(0);
+    case 'competitions': return openLeague(1);
     case 'world': return router.push('/world');
     case 'home': return router.push(openPlay.clubId ? `/game/${openPlay.clubId}` : '/u');
     case 'travel': return travel();
-    case 'squad': return openDoor('training_ground');
-    case 'tactics': return openDoor('dugout');
+    case 'squad': return openHub('squad');
+    case 'tactics': return openHub('team');
+    case 'transfers': return openHub('transfers');
+    case 'analysis': return openHub('analysis');
+    case 'manager':
+    case 'matchday': return openHub('matchday');
+    case 'office':
+    case 'club': return openHub('club');
+    case 'prep':
+    case 'next': return nextUp.value ? openPrep(nextUp.value.fixtureId) : openHub('matchday');
+    case 'watch-live': return liveMatch.value && watchFixture(liveMatch.value.fixtureId, liveMatch.value.playedAt);
+    case 'book': return startBooking();
     case 'news': return openPlace('newsstand');
-    case 'settings':
-    case 'club': return goManager('club');
+    case 'settings': return (showSettings.value = true);
     default: return goManager(action);
   }
 }
 
-// --- First steps for a young club ----------------------------------------------------------------
-const seenWorld = ref(false);
-try {
-  seenWorld.value = localStorage.getItem('fspro_seen_world') === '1';
-} catch {
-  // Private mode: the step just stays open.
+function focusOn(key: CampusBuilding) {
+  const p = view.value?.placement[key];
+  if (!p) return;
+  const [w, d] = footprint(key, p.rot);
+  campusRef.value?.focus((p.x + w / 2) * CELL, (p.z + d / 2) * CELL);
 }
+
+function onSettingsAct(action: string) {
+  showSettings.value = false;
+  if (action === 'office') openHub('matchday');
+  else if (action === 'calendar') router.push('/u/calendar');
+  else if (action === 'account') router.push('/u/settings');
+  else if (action === 'logout') logout();
+}
+
+async function logout() {
+  try {
+    await client.users.logoutUser.mutation({ params: { id: (store.user as { userID?: string })?.userID ?? '' }, body: {} });
+  } catch (err) {
+    console.warn('Logout request failed', err);
+  }
+  realtime.disconnect();
+  store.unsetUser();
+  if (import.meta.env.VITE_IMAGINATION_LOGIN === 'true') {
+    window.location.assign(`${apiUrl}/api/auth/logout`);
+    return;
+  }
+  router.push('/auth');
+}
+
+// Deep links from other screens: /game/:id?open=league|office|squad|tactics|transfers|settings|build
+watch(
+  () => !!game.campus.value && !!club.value && !!route.query.open,
+  (ready) => {
+    if (!ready) return;
+    const what = String(route.query.open);
+    router.replace({ query: { ...route.query, open: undefined } });
+    onAct(what);
+  },
+  { immediate: true }
+);
+
+// --- First steps for a young club ----------------------------------------------------------------
+/** One-off onboarding steps done on this device, per club. */
+const stepFlags = ref<Record<string, boolean>>({});
+watch(
+  clubId,
+  (id) => {
+    try {
+      stepFlags.value = JSON.parse(localStorage.getItem(`fspro_steps_${id}`) || '{}');
+    } catch {
+      stepFlags.value = {};
+    }
+  },
+  { immediate: true }
+);
+function markStep(key: string) {
+  if (stepFlags.value[key]) return;
+  stepFlags.value = { ...stepFlags.value, [key]: true };
+  try {
+    localStorage.setItem(`fspro_steps_${clubId.value}`, JSON.stringify(stepFlags.value));
+  } catch {
+    // Private mode: the step just stays open.
+  }
+}
+
 const firstSteps = computed(() => {
   if (!isMyClub.value || (playState.value?.club.level ?? 0) > 2) return null;
   const assets = game.campus.value?.assets ?? [];
   const steps = [
+    { key: 'collect', label: 'Collect your shop takings', hint: 'Tap the coins over your Stands', icon: 'coins', done: !!stepFlags.value.collect },
     { key: 'play', label: 'Play your first match', hint: 'Press PLAY: you meet a club of your level', icon: 'ball', done: (playState.value?.recent.length ?? 0) > 0 },
+    {
+      key: 'prep',
+      label: 'Plan your next match',
+      hint: 'Tap your next match: pick the XI, the style and half-time orders',
+      icon: 'bag',
+      done: !!stepFlags.value.prep || !!matchday.value?.upcoming.some((f) => f.planSet) || (!!matchday.value && !nextUp.value),
+    },
     { key: 'build', label: 'Build a facility', hint: 'Stands earn gate money; a pitch helps at home', icon: 'hammer', done: assets.some((a) => a.level > 0 || !!a.upgrade) },
-    { key: 'competitions', label: 'Enter a competition', hint: 'Your national league and the Amateur Cup are open', icon: 'trophy', done: openPlay.entriesUsed > 0 },
-    { key: 'world', label: 'Look around the world', hint: 'Rivals, towns and other managers', icon: 'map', done: seenWorld.value },
+    { key: 'league', label: 'Check your league', hint: 'Your division, the table and your next fixture', icon: 'trophy', done: !!stepFlags.value.league || !playState.value?.league },
   ];
   return steps.every((s) => s.done) ? null : steps;
 });
+/** Where the onboarding pointer sits: the first step not done yet. */
+const coach = computed(() => firstSteps.value?.find((s) => !s.done)?.key ?? null);
 
 // --- Kept from the previous campus screen ---------------------------------------------------
 const FORMATION_LABELS: Record<string, string> = { '433': '4-3-3', '442': '4-4-2', '4231': '4-2-3-1', '352': '3-5-2' };
@@ -751,7 +1099,7 @@ const tacticsSummary = computed(() => {
 
 function onChangeTactics() {
   game.showMatchmaking.value = false;
-  openDoor('dugout');
+  openHub('team');
 }
 
 function onMedicalTreated() {
@@ -797,6 +1145,17 @@ function checkOfflineProgress() {
     .filter((m) => !m.read)
     .slice(0, 5)
     .map((m) => ({ icon: INBOX_ICONS[m.kind] ?? '📰', title: m.title, description: m.body }));
+  // Scheduled matches that played while we were gone, with their scores.
+  const since = rawLastSeen ? Number(rawLastSeen) : nowTime;
+  for (const f of matchday.value?.recent ?? []) {
+    if (!f.playedAt || Date.parse(f.playedAt) <= since || !f.score) continue;
+    const res = f.score.you > f.score.them ? 'Won' : f.score.you < f.score.them ? 'Lost' : 'Drew';
+    events.unshift({
+      icon: f.score.you > f.score.them ? '🏆' : '🏟️',
+      title: `${res} ${f.score.you}-${f.score.them} ${f.home ? 'vs' : 'at'} ${f.opponent.name}`,
+      description: `${{ league: 'League', booked: 'Booked match', challenge: 'Challenge', cup: 'Cup', friendly: 'Friendly' }[f.kind]}, day ${f.day}.${f.hasReplay ? ' Watch it in Manager › Matchday.' : ''}`,
+    });
+  }
   const away = rawLastSeen ? (nowTime - Number(rawLastSeen)) / 1000 : 0;
   // A club's very first visit (just founded, or a new device) is a welcome.
   const firstVisit = !rawLastSeen;
@@ -824,7 +1183,7 @@ watch(
   async (loaded) => {
     if (!loaded || checkedOffline || !isMyClub.value) return;
     checkedOffline = true;
-    await game.loadInbox();
+    await Promise.all([game.loadInbox(), loadMatchday()]);
     checkOfflineProgress();
   }
 );

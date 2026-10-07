@@ -71,7 +71,23 @@ export type {
   ClubStanding,
   InboxMessage,
   Inbox,
+  ShopState,
+  ClubLeague,
+  ShopCollect,
 } from './schemas/play';
+export type {
+  MatchPlan,
+  HalfTimeOrders,
+  MatchdayFixture,
+  Matchday,
+  MatchPrep,
+  PrepPlayer,
+  ScoutReport,
+  PlanPreview,
+  PlanFactor,
+  StyleKey,
+} from './schemas/match-plan';
+export { STYLE_KEYS, PLAN_FORMATIONS, TRAINING_KEYS, TEAM_TALK_KEYS } from './schemas/match-plan';
 export type { ClubPerformance, ClubPerformanceInsight, ClubPerformanceStrategy, ClubPerformanceAdvisorSummary } from './schemas/club-performance';
 export type { Award } from './schemas/award';
 export type { User } from './schemas/user';

@@ -345,7 +345,7 @@ const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: '2-dig
   /* Under the goal card, clear of the date chips at the bottom. */
   .presence {
     left: 8px;
-    top: 214px;
+    top: 252px;
     bottom: auto;
     flex-direction: column;
   }

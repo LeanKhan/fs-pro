@@ -95,6 +95,8 @@ export class World {
   private dressingKey = '';
   private puffs: Puff[] = [];
   private puffTimer = 0;
+  /** Coin / confetti pieces from burst(): ballistic, spinning, then gone. */
+  private sparks: { mesh: THREE.Mesh; v: THREE.Vector3; spin: THREE.Vector3; life: number; ttl: number }[] = [];
   private ghost: THREE.Group | null = null;
   private ghostKey = '';
   private plate: THREE.Mesh;
@@ -169,6 +171,10 @@ export class World {
 
   dispose() {
     window.removeEventListener('resize', this.resize);
+    this.coinGeo.dispose();
+    this.coinMat.dispose();
+    this.confettiGeo.dispose();
+    for (const m of this.confettiMats.values()) m.dispose();
     this.renderer.dispose();
     this.renderer.forceContextLoss();
     this.renderer.domElement.remove();
@@ -710,9 +716,64 @@ export class World {
       }
     }
 
+    for (let i = this.sparks.length - 1; i >= 0; i--) {
+      const s = this.sparks[i];
+      s.life += dt;
+      s.v.y -= 22 * dt;
+      s.mesh.position.addScaledVector(s.v, dt);
+      if (s.mesh.position.y < 0.15) {
+        // Bounce once, then settle and shrink away.
+        s.mesh.position.y = 0.15;
+        s.v.multiplyScalar(0.35);
+        s.v.y = Math.abs(s.v.y);
+      }
+      s.mesh.rotation.x += s.spin.x * dt;
+      s.mesh.rotation.y += s.spin.y * dt;
+      s.mesh.rotation.z += s.spin.z * dt;
+      const fade = s.life > s.ttl - 0.4 ? Math.max(0, (s.ttl - s.life) / 0.4) : 1;
+      s.mesh.scale.setScalar(fade);
+      if (s.life >= s.ttl) {
+        s.mesh.removeFromParent();
+        this.sparks.splice(i, 1);
+      }
+    }
+
     this.renderer.render(this.scene, this.camera);
     const { render, memory } = this.renderer.info;
     this.stats = { calls: render.calls, triangles: render.triangles, geometries: memory.geometries, textures: memory.textures };
+  }
+
+  private coinGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.09, 12);
+  private coinMat = new THREE.MeshStandardMaterial({ color: '#f5c542', emissive: '#7a5200', emissiveIntensity: 0.35, metalness: 0.6, roughness: 0.3, flatShading: true });
+  private confettiGeo = new THREE.PlaneGeometry(0.28, 0.16);
+  private confettiMats = new Map<string, THREE.MeshStandardMaterial>();
+
+  /** A celebratory burst from a building: coins (shop takings) or confetti
+   * in the club's colours (a finished upgrade, a level-up). */
+  burst(key: string, kind: 'coins' | 'confetti', count = kind === 'coins' ? 18 : 40) {
+    const at = this.anchor(key);
+    if (!at) return;
+    at.y -= 0.8;
+    const colors = [...(this.view?.colors ?? ['#3a6fd8', '#f5f1e6']), '#f2b632', '#3aa655'];
+    for (let i = 0; i < count; i++) {
+      let mesh: THREE.Mesh;
+      if (kind === 'coins') mesh = new THREE.Mesh(this.coinGeo, this.coinMat);
+      else {
+        const c = colors[i % colors.length];
+        let m = this.confettiMats.get(c);
+        if (!m) this.confettiMats.set(c, (m = new THREE.MeshStandardMaterial({ color: c, side: THREE.DoubleSide, flatShading: true })));
+        mesh = new THREE.Mesh(this.confettiGeo, m);
+      }
+      mesh.position.copy(at);
+      const a = Math.random() * Math.PI * 2;
+      const out = kind === 'coins' ? 2 + Math.random() * 3 : 3 + Math.random() * 5;
+      const v = new THREE.Vector3(Math.cos(a) * out, 9 + Math.random() * 6, Math.sin(a) * out);
+      const spin = new THREE.Vector3(Math.random() * 12, Math.random() * 12, Math.random() * 12);
+      this.scene.add(mesh);
+      this.sparks.push({ mesh, v, spin, life: 0, ttl: kind === 'coins' ? 1.6 : 2.4 });
+    }
+    const obj = this.buildingObjs.get(key)?.obj;
+    if (obj) obj.userData.pop = 0.35;
   }
 
   private puffMat = new THREE.MeshStandardMaterial({ color: '#f2f2f2', transparent: true, opacity: 0.8, flatShading: true, depthWrite: false });

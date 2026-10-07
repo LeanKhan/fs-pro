@@ -22,6 +22,17 @@
     >
       <span v-html="icon(a.icon)"></span><b v-if="a.count">{{ a.count }}</b>
     </button>
+    <button
+      v-if="collectBubble"
+      class="bubble collect"
+      :class="{ full: collectBubble.full, coach: collectBubble.coach }"
+      :title="collectBubble.full ? 'The till is full: collect your takings' : 'Collect the club shop takings'"
+      data-coach="collect"
+      :style="{ transform: `translate(${collectBubble.x}px, ${collectBubble.y}px) translate(-50%, -100%)`, display: collectBubble.visible ? '' : 'none' }"
+      @click="emit('collect')"
+    >
+      <span v-html="icon('coins')"></span><b>+{{ collectBubble.amount }}</b>
+    </button>
   </div>
 </template>
 
@@ -44,6 +55,8 @@ const props = defineProps<{
   /** Things needing attention, by building key or city place id. */
   alerts: Record<string, { icon: string; label: string; count?: number }>;
   nowMs: number;
+  /** The shop's coin bubble: over which building, how much, and whether the till is full. */
+  collector?: { key: string; amount: number; full: boolean; coach?: boolean } | null;
   /** Stop drawing (e.g. while the Matchzone covers the campus). */
   suspended?: boolean;
 }>();
@@ -51,13 +64,16 @@ const emit = defineEmits<{
   (e: 'tap', pick: Pick, ground: { x: number; z: number } | null): void;
   (e: 'hover', ground: { x: number; z: number }): void;
   (e: 'alert', key: string): void;
+  (e: 'collect'): void;
 }>();
 
 const stageEl = ref<HTMLElement | null>(null);
 const world = shallowRef<World | null>(null);
 const bubbles = ref<{ key: string; x: number; y: number; visible: boolean; progress: number; time: string }[]>([]);
 const alertBubbles = ref<{ key: string; x: number; y: number; visible: boolean; icon: string; label: string; count?: number }[]>([]);
+const collectBubble = ref<{ x: number; y: number; visible: boolean; amount: string; full: boolean; coach: boolean } | null>(null);
 let raf = 0;
+const short = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e4 ? `${Math.floor(n / 1e3)}k` : Math.floor(n).toLocaleString('en-US'));
 
 onMounted(() => {
   const w = new World(stageEl.value!, props.variant);
@@ -83,6 +99,13 @@ onMounted(() => {
       // Sit above the timer bubble when the building is also upgrading.
       return [{ key, ...a, x: p.x, y: p.y - (props.timers[key] ? 46 : 0), visible: p.visible }];
     });
+    const c = props.collector;
+    const at = c && c.amount >= 1 ? w.anchor(c.key) : null;
+    if (c && at) {
+      const p = w.project(at);
+      const stacked = (props.timers[c.key] ? 46 : 0) + (props.alerts[c.key] ? 46 : 0);
+      collectBubble.value = { x: p.x, y: p.y - stacked, visible: p.visible, amount: short(c.amount), full: c.full, coach: !!c.coach };
+    } else collectBubble.value = null;
   };
   raf = requestAnimationFrame(loop);
 });
@@ -108,5 +131,12 @@ defineExpose({
   playArrival: (colors: [string, string]) => world.value?.playArrival(colors) ?? Promise.resolve(),
   setBillboard: (lines: string[]) => world.value?.setBillboard(lines),
   playDeparture: (colors: [string, string]) => world.value?.playDeparture(colors) ?? Promise.resolve(),
+  burst: (key: string, kind: 'coins' | 'confetti') => world.value?.burst(key, kind),
+  /** Where a building sits on screen (CSS px within the stage), for HUD effects. */
+  screenOf: (key: string) => {
+    const w = world.value;
+    const a = w?.anchor(key);
+    return w && a ? w.project(a) : null;
+  },
 });
 </script>

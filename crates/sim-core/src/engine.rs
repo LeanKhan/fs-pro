@@ -9,7 +9,7 @@ use crate::config::CFG;
 use crate::decider::{self, ActionChoice};
 use crate::geom::{Vec2, PITCH_LENGTH_METERS};
 use crate::model::{self, PassKind, ShotKind};
-use crate::tactics::{compute_dynamic_anchor, TeamTactics};
+use crate::tactics::{compute_dynamic_anchor, style_matchup, TeamTactics};
 use crate::types::*;
 use rand::Rng;
 use rand::SeedableRng;
@@ -50,6 +50,15 @@ pub struct Diagnostics {
     pub challenges: u32,
 }
 
+/// Conditional half-time orders: the style to switch to, by the score at
+/// the break. `None` keeps the current plan.
+#[derive(Debug, Clone, Default)]
+pub struct HalfTimeOrders {
+    pub losing: Option<String>,
+    pub drawing: Option<String>,
+    pub winning: Option<String>,
+}
+
 pub struct MatchEngine {
     pub players: [SimPlayer; 22],
     pub ball: SimBall,
@@ -61,6 +70,11 @@ pub struct MatchEngine {
     pub events: Vec<EngineEvent>,
     /// Score at the half-time whistle (home, away).
     pub half_time_score: (u8, u8),
+    /// The manager's half-time orders per side (home, away): a style to
+    /// switch to when losing / drawing / winning at the break.
+    pub half_time_orders: [HalfTimeOrders; 2],
+    /// The style each side switched to at half time, if any (for reports).
+    pub half_time_switch: [Option<String>; 2],
     /// Replay frames, recorded compactly (see `PackedFrames`).
     pub replay: ReplayBuffer,
     /// Capture a replay frame every tick (off for headless runs).
@@ -122,6 +136,8 @@ impl MatchEngine {
             player_stats: std::array::from_fn(|_| PlayerMatchStats::default()),
             events: Vec::new(),
             half_time_score: (0, 0),
+            half_time_orders: [HalfTimeOrders::default(), HalfTimeOrders::default()],
+            half_time_switch: [None, None],
             replay: ReplayBuffer::default(),
             record_frames: true,
             last_status: [(false, 0, 0); 22],
@@ -133,6 +149,7 @@ impl MatchEngine {
             trace: None,
         };
         engine.kick_off(0);
+        engine.apply_style_edge();
         engine
     }
 
@@ -171,6 +188,7 @@ impl MatchEngine {
             for p in &mut self.players {
                 p.stamina += (100.0 - p.stamina) * CFG.halftime_recovery;
             }
+            self.apply_half_time_orders();
             self.kick_off(1);
         }
 
@@ -321,6 +339,46 @@ impl MatchEngine {
     /// side) while the rest keep shape; the attacking side keeps shape with
     /// its forwards on the shoulder of the last defender. Distance covered
     /// drains stamina, so pressing has a cost.
+    /// Skill boost from the style matchup, on top of home advantage. Re-run
+    /// whenever a side changes style (half-time orders).
+    fn apply_style_edge(&mut self) {
+        let edge = style_matchup(&self.home_tactics.style_name, &self.away_tactics.style_name) * CFG.counter_edge;
+        for i in 0..22 {
+            let home = i < 11;
+            let base = if home { 1.0 + CFG.home_advantage } else { 1.0 };
+            self.players[i].boost = base * (1.0 + if home { edge } else { -edge });
+        }
+    }
+
+    fn apply_half_time_orders(&mut self) {
+        let (h, a) = self.half_time_score;
+        for team in 0..2 {
+            let (own, opp) = if team == 0 { (h, a) } else { (a, h) };
+            let orders = &self.half_time_orders[team];
+            let style = if own < opp {
+                orders.losing.clone()
+            } else if own == opp {
+                orders.drawing.clone()
+            } else {
+                orders.winning.clone()
+            };
+            let Some(style) = style else { continue };
+            let current = if team == 0 { &self.home_tactics } else { &self.away_tactics };
+            if current.style_name == style {
+                continue;
+            }
+            let mut next = TeamTactics::new(&current.formation_name, Some(&style), None, None, None, None, None, None, None);
+            next.slots = current.slots.clone();
+            if team == 0 {
+                self.home_tactics = next;
+            } else {
+                self.away_tactics = next;
+            }
+            self.half_time_switch[team] = Some(style);
+        }
+        self.apply_style_edge();
+    }
+
     fn move_players(&mut self) {
         let ball_pos = self.ball.pos;
         let holder = self.ball.holder_idx;
@@ -473,6 +531,11 @@ impl MatchEngine {
             }
             self.players[i].target_pos = target;
             self.drain(i, moved);
+            if pressers.contains(&i) {
+                let p = &mut self.players[i];
+                let mitigation = 1.0 - CFG.stamina_mitigation * p.attributes.stamina / 100.0;
+                p.stamina = (p.stamina - CFG.press_drain * mitigation).max(0.0);
+            }
         }
         if let Some(h) = holder {
             self.drain(h, CFG.carry_step_m * 0.5);

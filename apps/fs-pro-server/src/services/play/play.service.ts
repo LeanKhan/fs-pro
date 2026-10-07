@@ -9,6 +9,9 @@ import { getAssetEffects } from '../facilities/facilities.service';
 import { levelForXp, payClub, xpForLevel } from './rewards';
 import { getStanding, type StandingView } from '../world/club-standing.service';
 import { scaled } from './game-time';
+import { getShop, type ShopState } from './shop';
+import { getClubLeague, type ClubLeague } from './club-league';
+import { ensureDefaultLineup } from './default-lineup';
 
 /**
  * PLAY: the match is the club's primary loop. Pressing PLAY matches the club
@@ -76,6 +79,10 @@ export interface PlayState {
   cooldownSeconds: number;
   challenge: ChallengeState;
   recent: RecentMatch[];
+  /** The club shop's till (services/play/shop.ts). */
+  shop: ShopState;
+  /** The club's pyramid league place, or null when it isn't in one. */
+  league: ClubLeague | null;
 }
 
 export interface MatchResult {
@@ -171,13 +178,20 @@ async function recentMatches(clubId: string): Promise<RecentMatch[]> {
 export async function getPlayState(clubId: string): Promise<PlayState> {
   const [club] = await db().select().from(clubs).where(eq(clubs.id, clubId));
   if (!club) throw new Error('Club not found');
-  const [challenge, cooldown, recent, standing] = await Promise.all([
+  // A manager's club never meets PLAY with an empty team sheet.
+  if (club.UserId && !club.Lineup?.startingXI?.length) await ensureDefaultLineup(clubId).catch(() => false);
+  const [challenge, cooldown, recent, standing, shop, league] = await Promise.all([
     ensureChallenge(clubId),
     cooldownSeconds(clubId),
     recentMatches(clubId),
     getStanding(clubId),
+    getShop(club),
+    getClubLeague(clubId).catch((err) => {
+      console.warn('[play] league summary failed', err);
+      return null;
+    }),
   ]);
-  return { club: summarise(club), standing, cooldownSeconds: cooldown, challenge, recent };
+  return { club: summarise(club), standing, cooldownSeconds: cooldown, challenge, recent, shop, league };
 }
 
 type Candidate = typeof clubs.$inferSelect & { manager: string | null };

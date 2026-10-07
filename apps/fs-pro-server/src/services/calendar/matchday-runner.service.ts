@@ -1,7 +1,8 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull } from 'drizzle-orm';
 import { getFixtureById } from '../../controllers/fixtures/fixture.service';
 import { DrizzleDatabase } from '../../db/drizzle';
-import { calendars, fixtures } from '../../db/drizzle/schema';
+import { calendars, clubs, fixtures } from '../../db/drizzle/schema';
+import { settleBookedMatch } from '../play/match-plan.service';
 import { play, PlayOptions } from '../../controllers/game/game.controller';
 import { getCalendar } from '../../controllers/calendar/calendar.service';
 import { RankingService } from '../competitions/ranking.service';
@@ -109,9 +110,17 @@ export class MatchdayRunnerService {
     const [world] = await db.select({ cup: calendars.CupKickoffHour }).from(calendars).limit(1);
     const cupHour = world?.cup ?? 20;
     const dayFixtures = await db
-      .select({ _id: fixtures.id, Played: fixtures.Played, KickoffHour: fixtures.KickoffHour })
+      .select({ _id: fixtures.id, Played: fixtures.Played, KickoffHour: fixtures.KickoffHour, Stage: fixtures.Stage, Home: fixtures.HomeTeamId, Away: fixtures.AwayTeamId })
       .from(fixtures)
       .where(and(eq(fixtures.ScheduledDay, targetDay)));
+    // A manager's match is recorded so they can watch it (live or later,
+    // docs/CORE-LOOP.md "Match day"); AI-only matches stay headless.
+    const clubIds = [...new Set(dayFixtures.flatMap((f) => [f.Home, f.Away]).filter((x): x is string => !!x))];
+    const managed = new Set(
+      clubIds.length
+        ? (await db.select({ id: clubs.id }).from(clubs).where(and(inArray(clubs.id, clubIds), isNotNull(clubs.UserId)))).map((c) => c.id)
+        : []
+    );
     const due = (f: { KickoffHour: number | null }) =>
       options?.upToHour == null || (f.KickoffHour ?? cupHour) <= options.upToHour;
     const unplayed = dayFixtures.filter((f) => !f.Played && f._id && due(f));
@@ -129,9 +138,10 @@ export class MatchdayRunnerService {
 
     // Run unplayed fixtures concurrently with retries
     const settled = await runWithConcurrency(unplayed, concurrency, async (fixture) => {
-      const isLive = Boolean(
-        options?.liveFixtureId && String(fixture._id) === String(options.liveFixtureId)
-      );
+      const isLive =
+        Boolean(options?.liveFixtureId && String(fixture._id) === String(options.liveFixtureId)) ||
+        managed.has(fixture.Home ?? '') ||
+        managed.has(fixture.Away ?? '');
       return simulateFixtureWithRetry(
         fixture._id as string,
         {
@@ -158,6 +168,12 @@ export class MatchdayRunnerService {
           outcome.reason
         );
       }
+    }
+
+    // Booked matches pay out once played (idempotent per fixture).
+    for (const f of unplayed) {
+      if (f.Stage !== 'booked') continue;
+      await settleBookedMatch(String(f._id)).catch((err) => console.error('[simulateDay] settle booked', f._id, err));
     }
 
     // Competition fixtures go to Rankings (idempotent per fixture).

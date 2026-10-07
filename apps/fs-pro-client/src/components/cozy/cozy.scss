@@ -18,7 +18,7 @@
 }
 
 * { box-sizing: border-box; }
-& { position: fixed; inset: 0; overflow: hidden; background: #6dbb47; font-family: 'Fredoka', system-ui, sans-serif; color: var(--ink); user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+& { position: fixed; inset: 0; overflow: hidden; overflow: clip; background: #6dbb47; font-family: 'Fredoka', system-ui, sans-serif; color: var(--ink); user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
 :where(button:not(.v-btn)) { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; padding: 0; }
 :where(button:disabled) { cursor: not-allowed; }
 .ic { width: 1.4em; height: 1.4em; flex: none; display: inline-block; vertical-align: middle; }
@@ -248,7 +248,7 @@
 .yearchip { gap: 6px; }
 .yearbar { display: inline-block; width: 70px; height: 7px; border-radius: 4px; background: #eadbb8; overflow: hidden; }
 .yearbar i { display: block; height: 100%; background: linear-gradient(#8be15c, #46ad2a); }
-.form i { display: inline-block; width: 18px; text-align: center; border-radius: 5px; color: #fff; font-style: normal; font-size: 11px; margin-left: 2px; }
+.formchip i { display: inline-block; width: 18px; text-align: center; border-radius: 5px; color: #fff; font-style: normal; font-size: 11px; margin-left: 2px; }
 .quests { top: 150px; }
 .briefing { margin: 8px 2px 0; font-size: 13px; color: var(--muted); font-style: italic; }
 .dot.count { display: grid; place-items: center; width: 20px; height: 20px; font-size: 11px; font-style: normal; color: #fff; font-weight: 700; }
@@ -458,4 +458,75 @@
 .q.step.done .q-title { text-decoration: line-through; color: var(--muted); }
 .q.step .q-title, .q.step .q-num { display: block; }
 .q-count { font-size: 13px; color: var(--muted); font-weight: 600; }
+
+/* --- Core loop (docs/CORE-LOOP.md) ----------------------------------------------- */
+/* League badge in the resource bar */
+.res.league-res { cursor: pointer; min-width: 0; padding-right: 12px; }
+.res.league-res b small { font-size: 12px; color: var(--muted); margin-left: 1px; }
+.div-shield { width: 34px; height: 38px; margin-left: -10px; display: grid; place-items: center; font-weight: 700; font-size: 17px; color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,.4); clip-path: polygon(50% 0, 100% 18%, 100% 70%, 50% 100%, 0 70%, 0 18%); background: linear-gradient(#b7c3cf, #7d8b99); filter: drop-shadow(0 2px 0 rgba(0,0,0,.25)); }
+.league-res.d1 .div-shield { background: linear-gradient(#ffe28a, #e9a91c); }
+.league-res.d2 .div-shield { background: linear-gradient(#e3e9ef, #9fb0c2); }
+.league-res.d3 .div-shield { background: linear-gradient(#f2b98a, #b8692c); }
+.league-res.d4 .div-shield, .league-res.d5 .div-shield { background: linear-gradient(#a7d98c, #4d9a2e); }
+.res.bump { animation: bump .45s ease-out; }
+.datebar { align-items: flex-start; }
+.datebar .chip { flex: 0 0 auto; white-space: nowrap; }
+.datebar .chip.ticker { flex: 0 1 auto; min-width: 140px; }
+.datebar .nextchip { white-space: nowrap; cursor: pointer; gap: 4px; font: inherit; font-weight: 600; font-size: 13px; }
+.datebar .nextchip .ic { width: 18px; height: 18px; }
+.datebar .chip.warnchip { border-color: #f2b5ab; color: #9a2216; }
+
+/* Onboarding pointer: a pulsing ring on the control the next first step needs */
+.coach { z-index: 2; animation: coachpulse 1.4s ease-out infinite; }
+.dock button.coach, .playwrap .playbtn.coach, .datebar .coach { position: relative; }
+.coach::before { content: '👆'; position: absolute; left: 50%; bottom: -34px; transform: translateX(-50%); font-size: 30px; filter: drop-shadow(0 2px 0 rgba(0,0,0,.3)); animation: coachpoke 1s ease-in-out infinite; pointer-events: none; }
+.topright .coach::before, .resbar .coach::before, .sidebtns .coach::before { bottom: auto; top: calc(100% + 2px); }
+.dock .coach::before, .playbtn.coach::before { bottom: auto; top: -36px; transform: translateX(-50%) rotate(180deg); }
+.dock button.coach { background: rgba(255, 233, 150, .7); }
+@keyframes coachpulse { 0% { box-shadow: 0 0 0 0 rgba(255, 207, 74, .9), var(--shadow); } 70% { box-shadow: 0 0 0 16px rgba(255, 207, 74, 0), var(--shadow); } 100% { box-shadow: 0 0 0 0 rgba(255, 207, 74, 0), var(--shadow); } }
+@keyframes coachpoke { 50% { margin-top: 6px; margin-bottom: -6px; } }
+.q.step.next { border-color: var(--gold); background: #fff7dc; }
+.quests.folded { width: auto; padding: 4px 8px; }
+.quests.folded .q-head { padding: 2px 4px; gap: 10px; }
+
+/* Shop takings bubble over the Stands */
+.bubble.collect { flex-direction: row; gap: 4px; padding: 6px 12px 6px 6px; border-radius: 18px; border-color: #ffcf4a; background: linear-gradient(#fffdf2, #fff0bf); animation: bob 1.6s ease-in-out infinite; }
+.bubble.collect::after { border-top-color: #fff0bf; }
+.bubble.collect .ic { width: 30px; height: 30px; }
+.bubble.collect b { font-size: 17px; color: var(--wood-d); font-variant-numeric: tabular-nums; }
+.bubble.collect.full { box-shadow: 0 0 0 4px rgba(255, 207, 74, .55), 0 3px 0 rgba(0,0,0,.2); }
+.bubble.collect.full > .ic { animation: wiggle 1s ease-in-out infinite; }
+.bubble.collect.coach { animation: bob 1.6s ease-in-out infinite, coachpulse 1.4s ease-out infinite; }
+
+/* Coins flying to the treasury */
+.coinfly { position: fixed; z-index: 45; width: 34px; height: 34px; pointer-events: none; will-change: transform, opacity; filter: drop-shadow(0 2px 0 rgba(0,0,0,.25)); }
+.coinfly .ic { width: 100%; height: 100%; }
+.floattext { position: fixed; z-index: 45; pointer-events: none; font-weight: 700; font-size: 26px; color: #fff; text-shadow: 0 2px 0 #8a5a00, 0 0 8px rgba(0,0,0,.25); animation: floatup 1.4s ease-out forwards; }
+
+@media (max-width: 760px) {
+  .res.league-res { padding-right: 8px; }
+  .div-shield { width: 24px; height: 28px; font-size: 13px; margin-left: -6px; }
+  .coach::before { font-size: 24px; }
+}
+
+/* Match day: live button, plan flag on the next-match chip, drawer back link */
+.livebtn { position: absolute; top: 108px; left: 50%; transform: translateX(-50%); z-index: 3; display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; border-radius: 18px; background: linear-gradient(#ff6b55, #d8321f); border: 3px solid #fff0e8; color: #fff; font-weight: 600; font-size: 16px; box-shadow: var(--shadow); text-shadow: 0 1px 0 rgba(0,0,0,.3); animation: bob 1.6s ease-in-out infinite; }
+.livebtn b { letter-spacing: 1px; }
+.livedot { width: 12px; height: 12px; border-radius: 50%; background: #fff; animation: livepulse 1s ease-in-out infinite; }
+@keyframes livepulse { 50% { transform: scale(1.5); opacity: .5; } }
+.planflag { margin-left: 4px; padding: 0 6px; border-radius: 7px; font-style: normal; font-size: 11px; font-weight: 700; color: #fff; background: var(--red); }
+.planflag.ok { background: var(--green-d); }
+.drawer-body .backbtn { margin-bottom: 8px; }
+@media (max-width: 760px) {
+  .livebtn { top: auto; bottom: 150px; font-size: 14px; padding: 6px 14px; }
+}
+
+/* Phones: scrollable hub tabs, and only the current first step */
+.drawer-tabs { overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+.drawer-tabs button { white-space: nowrap; flex: none; }
+@media (max-width: 760px) {
+  .drawer-head { flex-wrap: nowrap; flex-direction: column; align-items: stretch; gap: 8px; }
+  .quests .q.step:not(.next) { display: none; }
+  .quests .q-head { display: flex; }
+}
 }
