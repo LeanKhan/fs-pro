@@ -127,6 +127,26 @@ specifically needs a 200-parallel-founding concurrency test.
 
 ---
 
+## ANOMALY-1 — unexpected `perfect/b3-3a` branch + worktree
+
+At 2026-10-07 ~11:5x a branch `perfect/b3-3a` and worktree
+`.claude/worktrees/b3a` appeared that this lead did not create. It contains a
+Batch 3A attempt (Go quadtree tiles, Node tile proxy + contract, migration 0039
+tile trigger) on top of `4c83f08`, plus `B3-3A-REPORT.md`, and scratch files
+`ws-b3a.exe`/`build-ws.bat`/`run-ws.bat` (same pattern as the 2C worktree).
+A root `data/` → `real-world-data-samples/` rename also appeared uncommitted
+(committed in `17d7f08`; `scripts/scrape-matches.mjs:15` still points at `data/`).
+
+The lead did not author these. They are left in place (possible owner/parallel
+work). Batches must NOT re-run 3A until this is reconciled; `perfect/b3-3a`
+needs rebasing onto current `perfect/integration` (it predates the B2 fix
+`78d5909` and deletes B2 artifacts in its diff) before any merge.
+
+**Question for the owner:** are you (or another agent) running batches in
+parallel on this repo? If not, `perfect/b3-3a` should be treated as untrusted.
+
+---
+
 ## INCIDENT-1 — two uncommitted lines in `FOR-AGENTS.md` were discarded
 
 At ~01:42 the lead ran `git checkout -- FOR-AGENTS.md` on the integration
