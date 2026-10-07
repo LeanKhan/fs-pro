@@ -11,16 +11,19 @@ import { poolTables } from '../services/competitions/pyramid.service';
 import { runWorldDay, runWorldHour } from '../services/world/world-day.service';
 
 /**
- * Scale harness (docs/WORLD-PYRAMID-SPEC.md, "Testing"): founds N clubs
- * through the real placement and founding code, then times the paths that
- * grow with the world: founding, the atlas, placement, the news feed, a
+ * Scale harness (docs/WORLD-PYRAMID-SPEC.md, "Testing"; docs/perfect/
+ * WORLD-HIERARCHY-SPEC.md): founds N clubs through the real placement and
+ * founding code (now delegated to the Go world-service), then times the paths
+ * that grow with the world: founding, the atlas, placement, the news feed, a
  * pyramid table, one league kickoff hour, and the year end (finish, ageing,
  * wages, redraw). Prints a table for docs/SCALE.md.
  *
- * Needs a scratch database with the current schema; refuses a database
- * whose Clubs table isn't empty (SCALE_APPEND=1 adds to an earlier run).
+ * Needs a scratch database with the current schema and the Go world-service
+ * running against it (WORLD_SERVICE_URL, default http://localhost:3006);
+ * refuses a database whose Clubs table isn't empty (SCALE_APPEND=1 adds to an
+ * earlier run). SCALE_SKIP_MATCHES=1 skips section 3 (the sim service).
  *
- *   SCALE_CLUBS=1000 REALTIME_URL=off WORLD_TICK_MINUTES=0 \
+ *   SCALE_CLUBS=1000 SCALE_SKIP_MATCHES=1 REALTIME_URL=off WORLD_TICK_MINUTES=0 \
  *     DATABASE_URL=postgres://.../scratch npx ts-node --transpile-only src/scripts/seedScaleWorld.ts
  */
 
@@ -59,6 +62,8 @@ async function main() {
 
   // 1. Found N clubs, as N people would.
   const start = Date.now();
+  // The `town` counter is the legacy label for a new city/district (migration
+  // 0038 renamed the level; the founded-club `opened` shape is unchanged).
   let opened = { town: 0, region: 0, country: 0 };
   for (let i = existing; i < N; i++) {
     const [u] = await db()
@@ -81,12 +86,12 @@ async function main() {
     }
   }
   results.push(['founding', `${N - existing} clubs in ${((Date.now() - start) / 1000).toFixed(0)} s (${((Date.now() - start) / Math.max(1, N - existing)).toFixed(0)} ms each)`]);
-  results.push(['places opened', `${opened.country} countries, ${opened.region} regions, ${opened.town} towns`]);
+  results.push(['places opened', `${opened.country} countries, ${opened.region} regions, ${opened.town} cities/districts`]);
   results.push(['rows', `${await count(clubs)} clubs, ${await count(players)} players, ${await count(fixtures)} fixtures`]);
 
   // 2. Reads that grow with the world.
   const [any] = await db().select({ id: clubs.id, user: clubs.UserId, country: clubs.AddressCountryId }).from(clubs).limit(1);
-  await timed('atlas (no club lists)', () => getAtlas(null), (a) => `${(JSON.stringify(a).length / 1024).toFixed(0)} KB, ${a.towns.length} towns`);
+  await timed('atlas (no club lists)', () => getAtlas(null), (a) => `${(JSON.stringify(a).length / 1024).toFixed(0)} KB, ${a.towns.length} cities`);
   await timed('atlas (one country\'s clubs)', () => getAtlas(any!.user, {}), (a) => `${(JSON.stringify(a).length / 1024).toFixed(0)} KB`);
   await timed('placement preview', () => previewPlacement(), (p) => p.kind);
   await timed('local news feed', () => readFeed(any!.id), (f) => `${f.items.length} items, local = ${f.scopes.local}`);
