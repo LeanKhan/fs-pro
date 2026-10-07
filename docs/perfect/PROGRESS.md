@@ -16,8 +16,9 @@ Program of record: `FOR-AGENTS.md` (R1–R11, D1–D5, Batches 0–6).
 | B2 | 2A Go service + schema | `perfect/b2-2a` (`ce1c228`) | **done; pending verify** | `B2-2A-REPORT.md` |
 | B2 | 2B contract + client + schemas | `perfect/b2-2b` (`5d61443`) | **done; pending verify** | `B2-2B-REPORT.md` |
 | B2 | integration branch | `perfect/b2i` (`bfee583`) | 2A+2B merged | — |
-| B2 | 2C Node integration | `perfect/b2-2c` | **running** | — |
-| B2 | 2D checks + 100k scale | staged | after 2C | — |
+| B2 | 2C Node integration | `perfect/b2-2c` (`c3555e9`) + Go fix (`4c83f08`) | **done; verifying** | `B2-2C-REPORT.md` |
+| B2 | verify | `perfect/b2-verify` @ `4c83f08` | **running** | `VERIFY-B2.md` (when done) |
+| B2 | 2D checks + 100k scale | staged | after verify | — |
 | B3–B6 | — | — | not started | — |
 
 Nothing is merged; `perfect/integration` is not created yet (Q6).
