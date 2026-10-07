@@ -44,6 +44,8 @@ const props = defineProps<{
   /** Things needing attention, by building key or city place id. */
   alerts: Record<string, { icon: string; label: string; count?: number }>;
   nowMs: number;
+  /** Stop drawing (e.g. while the Matchzone covers the campus). */
+  suspended?: boolean;
 }>();
 const emit = defineEmits<{
   (e: 'tap', pick: Pick, ground: { x: number; z: number } | null): void;
@@ -64,6 +66,8 @@ onMounted(() => {
   world.value = w;
   if (props.view) w.sync(props.view);
   const loop = () => {
+    raf = requestAnimationFrame(loop);
+    if (props.suspended) return;
     w.render();
     bubbles.value = Object.entries(props.timers).flatMap(([key, t]) => {
       const a = w.anchor(key);
@@ -79,7 +83,6 @@ onMounted(() => {
       // Sit above the timer bubble when the building is also upgrading.
       return [{ key, ...a, x: p.x, y: p.y - (props.timers[key] ? 46 : 0), visible: p.visible }];
     });
-    raf = requestAnimationFrame(loop);
   };
   raf = requestAnimationFrame(loop);
 });

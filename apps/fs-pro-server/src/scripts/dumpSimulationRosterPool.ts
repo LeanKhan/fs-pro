@@ -1,20 +1,9 @@
 /**
- * One-time (rerun-when-you-want-fresher-data) DB-touching script that
- * dumps a pool of real Clubs (with Players + resolved Manager tactic) to
- * a checked-in JSON fixture, so `simRealismCheck.ts` can run entirely
- * DB-free - see SIMULATION-IMPLEMENTATION-TRACKER.md's Milestone 1
- * acceptance criteria ("baseline output... repeatable... from the command
- * line", implicitly without depending on whatever happens to be in the
- * dev DB that day).
- *
- * This is deliberately the ONLY script in the simulation-baseline flow
- * that imports DB/club/manager services - keeping the DB touch physically
- * separate from simRealismCheck.ts makes "fully DB-free" a property of
- * the file split itself, not just a conditional branch that could bit-rot.
- *
- * Same prefetch shape App.setupGame()/matchSimWorker.ts already use for
- * DB-free simulation (clubs + a resolved tactic per club) - just captured
- * once to disk instead of per-run.
+ * Dumps a pool of real Clubs (with Players + resolved Manager tactic) from
+ * the dev DB to a checked-in JSON fixture (scripts/rosterPool.ts), so the
+ * Rust engine's tests and sim-lab (crates/sim-core) and simServiceE2E.ts
+ * run on real squads without touching a database. Rerun when you want
+ * fresher data; it's the only one of those that needs the DB.
  *
  * Usage: DEV_TEST=true npx ts-node src/scripts/dumpSimulationRosterPool.ts
  */
@@ -27,7 +16,7 @@ import DB from '../db';
 import { getClubs } from '../controllers/clubs/club.service';
 import { resolveManagerTactic } from '../controllers/managers/manager.service';
 import { ClubInterface } from '../controllers/clubs/club.model';
-import { ITactic } from '../simulation/state/PersistentState/Formations';
+import { ITactic } from '../match/tactics';
 
 const OUTPUT_PATH = path.join(
   __dirname,

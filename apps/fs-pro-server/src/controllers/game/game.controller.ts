@@ -5,17 +5,15 @@ import { Fixture } from '../fixtures/fixture.model';
 import { updateFixture } from './functions';
 import { RankingService } from '../../services/competitions/ranking.service';
 import { EditionService } from '../../services/competitions/edition.service';
-import App from '../app/App';
 import log from '../../helpers/logger';
 import { ClubStandings } from '../seasons/season.model';
-import { startMatchReplay } from '../../realtime/matchBroadcaster';
 import { saveReplay } from '../match-replays/match-replay.service';
-import { ITactic } from '../../simulation/state/PersistentState/Formations';
+import { ITactic } from '../../match/tactics';
 import { simulateMatch } from '../../jobs/matchQueue';
 import { buildSimulateMatchRequest } from '../../jobs/buildSimulateMatchRequest';
-import { QuickSimResolver } from '../../simulation/quick-sim/QuickSimResolver';
-import { SimulatedMatchData, matchSeedFor } from '../../jobs/simulationContract';
-import { createRandomSource } from '../../simulation/randomness';
+import { matchSeedFor } from '../../jobs/simulationContract';
+import { seededRandom } from '../../match/random';
+import { frameCount } from '../../realtime/packedFrames';
 
 interface TeamObject {
   id: string;
@@ -26,7 +24,6 @@ interface TeamObject {
 
 interface CurrentMatch {
   SeasonCode?: string;
-  App?: App;
   match?: Fixture;
   home?: TeamObject;
   away?: TeamObject;
@@ -63,7 +60,9 @@ export interface PlayResult {
 }
 
 export interface PlayOptions {
-  quickSim?: boolean;
+  /** Nobody will watch this match: the engine plays it the same, but
+   * records no replay frames (and none are streamed or saved). */
+  headless?: boolean;
   skipStandings?: boolean;
   /** Skip the post-match wrap-up (the caller ends the game itself). */
   skipDayAdvance?: boolean;
@@ -110,7 +109,6 @@ export async function play(
 
   // [3]
   CurrentMatch.SeasonCode = fixture.SeasonCode;
-  CurrentMatch.App = new App();
   const SeasonCode = fixture.SeasonCode;
 
   // Friendlies (created via POST /api/game/friendly) are season-less
@@ -160,6 +158,7 @@ export async function play(
       },
       options?.homeRatingBonus
     );
+    simulateRequest.includeFrames = !options?.headless;
   } catch (error) {
     log(`Error setting up game! (in Rest) => ${error}`);
     throw error;
@@ -196,8 +195,6 @@ export async function play(
   };
 
   const afterMatch = async ({ homeTable, awayTable }: AfterMatchParams) => {
-    CurrentMatch.App!.endGame();
-    log('GAME ENDED from App');
     return {
       homeTable,
       awayTable,
@@ -208,42 +205,19 @@ export async function play(
     };
   };
 
-  // [4] Play Match
-  log('Here in startGame!');
-  // Milestone 9: the simulation itself now runs in a worker_thread,
-  // queued/timed/metriced by simulateMatch() (see jobs/matchQueue.ts) -
-  // this is the same shared entry point the debug enqueueMatch route
-  // uses. `m` below is a plain SimulatedMatchData, not a live Match
-  // instance, but every field the rest of this chain reads off it
-  // (Home/Away identity incl. ManagerId, Details, Events, Frames) is
-  // plain data either way.
-  const runSimulation = async (): Promise<SimulatedMatchData> => {
-    if (options?.quickSim) {
-      return QuickSimResolver.resolve(simulateRequest);
-    }
-    try {
-      const result = await simulateMatch(simulateRequest);
+  // [4] Play the match - on the sim service, the one match engine. A
+  // failure rejects here (no substitute engine); callers retry.
+  return simulateMatch(simulateRequest)
+    .then((result) => {
       if (!result.ok) {
-        console.warn(
-          `[runSimulation] High-fidelity simulation failed for fixture ${fixture_id} (${result.error}); falling back to QuickSim.`
-        );
-        return QuickSimResolver.resolve(simulateRequest);
+        throw new Error(`Match ${fixture_id} could not be played: ${result.error}`);
       }
       return result.match;
-    } catch (err) {
-      console.warn(
-        `[runSimulation] High-fidelity simulation threw for fixture ${fixture_id}; falling back to QuickSim:`,
-        err
-      );
-      return QuickSimResolver.resolve(simulateRequest);
-    }
-  };
-
-  return runSimulation()
+    })
     .then(async (m) => {
       // If knockout match ended in draw, ensure winner is decided via penalties
       if (isKnockout && m.Details.Draw) {
-        const shootout = createRandomSource(`${matchSeedFor(simulateRequest)}:shootout`);
+        const shootout = { next: seededRandom(`${matchSeedFor(simulateRequest)}:shootout`) };
         let hPens = 0;
         let aPens = 0;
         let hKicks = 0;
@@ -288,16 +262,12 @@ export async function play(
         }
       }
 
-      // Stream live replay over sockets if high-fidelity simulation
-      if (!options?.quickSim) {
-        startMatchReplay(m, fixture_id);
-      }
-
-      // Also persist the same Frames so this match can be re-streamed later
-      // on demand (see restRewatchMatch) without re-simulating it. Gated by
-      // the same SaveStats flag used for permanent stats below - a friendly
-      // played with SaveStats off is meant to leave nothing behind.
-      if (!options?.skipReplay && (isFriendly ? fixture.SaveStats === true : true)) {
+      // Persist the replay so the Matchzone can play it (GET
+      // /game/replay/:fixture/data) without re-simulating. Headless matches
+      // have no frames. Saving is gated by SaveStats like permanent stats -
+      // a friendly played with SaveStats off leaves nothing behind.
+      const hasFrames = frameCount(m.Frames) > 0;
+      if (hasFrames && !options?.skipReplay && (isFriendly ? fixture.SaveStats === true : true)) {
         saveReplay(fixture_id, m).catch((err: any) => {
           console.error(`[replay] error saving replay for ${fixture_id}:`, err);
         });
@@ -357,8 +327,6 @@ export async function play(
           // No Season/Day exists for a friendly - skip updateStandings and
           // afterMatch entirely (they'd throw looking for a Day/Season that
           // was never created) and end the game here.
-          CurrentMatch.App!.endGame();
-          log('GAME ENDED from App (friendly)');
 
           return {
             homeTable: undefined,
