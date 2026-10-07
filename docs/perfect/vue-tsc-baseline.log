@@ -1,0 +1,46 @@
+src/components/campus/facility-detail-sheet.vue(315,27): error TS2305: Module '"@repo/api-contract"' has no exported member 'MedicalStatus'.
+src/components/clubs/allclubs-table.vue(64,49): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/clubs/allclubs-table.vue(69,51): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/clubs/clubs-table.vue(114,7): error TS2322: Type 'string | undefined' is not assignable to type 'string | string[]'.
+  Type 'undefined' is not assignable to type 'string | string[]'.
+src/components/clubzone/manager-firer.vue(87,6): error TS2339: Property 'mutation' does not exist on type 'Without<UseQueryArgs<{ strictStatusCodes: true; pathParams: ZodObject<{ id: ZodString; }, "strip", ZodTypeAny, { id: string; }, { id: string; }>; query: ZodObject<{ reason: ZodOptional<ZodString>; }, "strip", ZodTypeAny, { ...; }, { ...; }>; method: "DELETE"; path: "/clubs/:id/manager"; responses: { ...; }; }, { ......'.
+src/components/matchzone/live-pitch.vue(639,3): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(next: IMatchFrame | null, previous: IMatchFrame | null) => void' is not assignable to parameter of type 'WatchCallback<() => IMatchFrame | null, (() => IMatchFrame | null) | undefined>'.
+      Types of parameters 'next' and 'value' are incompatible.
+        Type '() => IMatchFrame | null' is not assignable to type 'IMatchFrame'.
+src/components/players/allplayers-table.vue(33,32): error TS2322: Type 'boolean | null' is not assignable to type 'boolean'.
+  Type 'null' is not assignable to type 'boolean'.
+src/components/players/players-table.vue(82,17): error TS2551: Property 'Nationality' does not exist on type '{ FirstName: string; LastName: string; Age: number; Position: string; Role: string; Attributes: { Speed?: number | undefined; Mental?: number | undefined; Vision?: number | undefined; Agility?: number | undefined; ... 19 more ...; DefensiveMindset?: string | ... 2 more ... | undefined; } & { ...; }; ... 23 more ...;...'. Did you mean 'NationalityId'?
+src/components/players/players-table.vue(82,36): error TS2551: Property 'Nationality' does not exist on type '{ FirstName: string; LastName: string; Age: number; Position: string; Role: string; Attributes: { Speed?: number | undefined; Mental?: number | undefined; Vision?: number | undefined; Agility?: number | undefined; ... 19 more ...; DefensiveMindset?: string | ... 2 more ... | undefined; } & { ...; }; ... 23 more ...;...'. Did you mean 'NationalityId'?
+src/components/players/players-table.vue(101,30): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/players/players-table.vue(110,32): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/players/players-table.vue(128,32): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/players/transfer-scout-dialog.vue(426,33): error TS2339: Property 'id' does not exist on type 'MarketPlayer'.
+src/components/user-dashboard/world-feed-ticker.vue(135,3): error TS2305: Module '"@repo/api-contract"' has no exported member 'WorldFeedOtherLeague'.
+src/components/user-dashboard/world-feed-ticker.vue(136,3): error TS2305: Module '"@repo/api-contract"' has no exported member 'WorldFeedInjury'.
+src/views/admin/clubs/club-form.vue(22,18): error TS2739: Type '{ title: string; class: string; height: string; }' is missing the following properties from type 'Card': width, style
+src/views/admin/clubs/club-form.vue(27,18): error TS2739: Type '{ height: string; }' is missing the following properties from type 'CardSheet': width, class, style
+src/views/admin/clubs/club-form.vue(28,18): error TS2739: Type '{ src: string; contain: true; }' is missing the following properties from type 'PreviewImage': height, width, style
+src/views/admin/clubs/club-form.vue(38,52): error TS2322: Type 'number' is not assignable to type 'string'.
+src/views/admin/clubs/club-form.vue(39,31): error TS2322: Type 'number' is not assignable to type 'string'.
+src/views/admin/clubs/club-form.vue(40,18): error TS2739: Type '{ src: string; contain: true; }' is missing the following properties from type 'PreviewImage': height, width, style
+src/views/admin/clubs/club-form.vue(78,32): error TS18049: '__VLS_ctx.form.Stadium' is possibly 'null' or 'undefined'.
+src/views/admin/clubs/club-form.vue(84,32): error TS18049: '__VLS_ctx.form.Stadium' is possibly 'null' or 'undefined'.
+src/views/admin/clubs/club-form.vue(90,32): error TS18049: '__VLS_ctx.form.Stadium' is possibly 'null' or 'undefined'.
+src/views/admin/clubs/club-form.vue(114,32): error TS18049: '__VLS_ctx.form.Address' is possibly 'null' or 'undefined'.
+src/views/admin/clubs/club-form.vue(120,32): error TS18049: '__VLS_ctx.form.Address' is possibly 'null' or 'undefined'.
+src/views/admin/clubs/club-form.vue(339,37): error TS2339: Property 'mutation' does not exist on type 'Without<UseQueryArgs<{ strictStatusCodes: true; pathParams: ZodObject<{ id: ZodString; }, "strip", ZodTypeAny, { id: string; }, { id: string; }>; method: "DELETE"; path: "/clubs/:id"; responses: { ...; }; }, { ...; }>, never>'.
+src/views/admin/clubs/view-club.vue(4,27): error TS2322: Type '(playerIds: string[]) => void' is not assignable to type '(playerIds?: string[] | undefined) => void'.
+  Types of parameters 'playerIds' and 'playerIds' are incompatible.
+    Type 'string[] | undefined' is not assignable to type 'string[]'.
+      Type 'undefined' is not assignable to type 'string[]'.
+src/views/admin/managers/manager-form.vue(155,43): error TS2339: Property 'mutation' does not exist on type 'Without<UseQueryArgs<{ strictStatusCodes: true; pathParams: ZodObject<{ id: ZodString; }, "strip", ZodTypeAny, { id: string; }, { id: string; }>; method: "DELETE"; path: "/managers/:id"; responses: { ...; }; }, { ...; }>, never>'.
+src/views/admin/players/players-form.vue(304,41): error TS2339: Property 'mutation' does not exist on type 'Without<UseQueryArgs<{ strictStatusCodes: true; pathParams: ZodObject<{ id: ZodString; }, "strip", ZodTypeAny, { id: string; }, { id: string; }>; method: "DELETE"; path: "/players/:id"; responses: { ...; }; }, { ...; }>, never>'.
+src/views/user/club/dashboard.vue(230,82): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.

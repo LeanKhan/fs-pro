@@ -14,6 +14,7 @@ Working tree audited: `/mnt/c/done/fs-pro` (Windows `C:\done\fs-pro` via WSL).
 | psql | `psql (PostgreSQL) 16.15)` (client) |
 | docker | `Docker version 29.7.2` — **no images, nothing running** (`docker images`, `docker ps` empty) |
 | git | `2.43.0` |
+| node (Windows) | `/mnt/c/Program Files/nodejs/node.exe` → `v26.10.0`; repo `node_modules` is win32-native, so **client** build/tests run through this |
 | go (Linux) | **not on PATH** (`command -v go` fails) |
 | go (Windows) | `/mnt/c/Program Files/Go/bin/go.exe` → `go version go1.24.5 windows/amd64` (runs via WSL interop) |
 | cargo/rustc (Linux) | **not on PATH**; no `~/.cargo` |
@@ -113,12 +114,28 @@ Formations (home pts/match): 352 = 2.00/2.05/1.88/1.57 beats all others (~1.3-1.
    — evidence above; Batch 5A's "3-5-2 must not beat every formation".
 3. **Quality explains 47% of goal diff** (aim 30-45%) — slightly over.
 
-### Still not run
+### Client and scale (run this session)
 
-- Client typecheck (`vue-tsc@2.0.29` + `typescript@5.4.5` scratch, per R4) —
-  **NOT RUN**.
-- Client build (`npm run build --workspace fs-pro-client`) — **NOT RUN**.
-- 10k-club scale measurement on `fspro_pyramid_check` (0B) — **NOT RUN**.
+| Command | Result | Output |
+| --- | --- | --- |
+| client build `cmd.exe /c "npm run build --workspace fs-pro-client"` (Windows Node) | **PASS** | `✓ built in 15.44s` |
+| client typecheck `/tmp/opencode/vuecheck/node_modules/.bin/vue-tsc --noEmit -p tsconfig.json` (vue-tsc@2.0.29 + typescript@5.4.5) | **FAIL (pre-existing)** | `VUETSC_EXIT=2`, 34 errors in 10 files — full log `docs/perfect/vue-tsc-baseline.log` |
+| 10k scale on `fspro_pyramid_check` | **NOT RUN** | DB is stale: 10 clubs, 30 tables, no `SqlMigrations` table → must be rebuilt to current schema first |
+
+Environment fact discovered: the repo `node_modules` is **Windows-native**
+(`node_modules/@esbuild/win32-x64`, `rollup-win32-*`), so the client
+build/typecheck must run under Windows Node (`v26.10.0`,
+`C:\Program Files\nodejs\node.exe`) via `cmd.exe /c`. Linux `node` fails with
+`MODULE_NOT_FOUND` on rollup's native binding.
+
+### Pre-existing client type errors (do NOT fix in Batch 0)
+
+34 errors, 10 files; top offenders: `src/views/admin/clubs/club-form.vue`
+(12), `src/components/players/players-table.vue` (5). Categories:
+missing api-contract exports (`MedicalStatus`, `WorldFeedOtherLeague`,
+`WorldFeedInjury`), ts-rest `.mutation` not on query args, `undefined` into
+`string`, missing Vuetify prop types, `Nationality` vs `NationalityId`.
+Full list: `docs/perfect/vue-tsc-baseline.log`.
 
 ## 4. Blockers (detailed in OPEN-QUESTIONS.md)
 
