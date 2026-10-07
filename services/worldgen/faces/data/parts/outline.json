@@ -1,0 +1,6 @@
+[
+  { "id": "round-fair", "svg": "<circle cx=\"50\" cy=\"52\" r=\"38\" fill=\"#f2c9a0\" stroke=\"#2b2b2b\" stroke-width=\"2\"/>" },
+  { "id": "round-tan", "svg": "<circle cx=\"50\" cy=\"52\" r=\"38\" fill=\"#d9a066\" stroke=\"#2b2b2b\" stroke-width=\"2\"/>" },
+  { "id": "oval-deep", "svg": "<ellipse cx=\"50\" cy=\"52\" rx=\"34\" ry=\"40\" fill=\"#8d5524\" stroke=\"#2b2b2b\" stroke-width=\"2\"/>" },
+  { "id": "square-fair", "svg": "<rect x=\"14\" y=\"16\" width=\"72\" height=\"72\" rx=\"18\" fill=\"#f2c9a0\" stroke=\"#2b2b2b\" stroke-width=\"2\"/>" }
+]

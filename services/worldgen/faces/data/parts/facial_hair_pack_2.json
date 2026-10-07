@@ -1,0 +1,6 @@
+[
+  { "id": "pencil-thin", "svg": "<path d=\"M43 62 Q50 63 57 62\" fill=\"none\" stroke=\"#241911\" stroke-width=\"1.5\" stroke-linecap=\"round\"/>" },
+  { "id": "handlebar-mustache", "svg": "<path d=\"M36 60 Q44 65 50 62 Q56 65 64 60 C66 58 64 64 60 65 Q50 66 40 65 C36 64 34 58 36 60 Z\" fill=\"#3d2817\"/>" },
+  { "id": "stubble-shadow", "svg": "<path d=\"M22 56 C24 76 44 82 50 82 C56 82 76 76 78 56 C74 62 66 66 50 66 C34 66 26 62 22 56 Z\" fill=\"#2a1a10\" fill-opacity=\"0.18\"/>" },
+  { "id": "chin-strap", "svg": "<path d=\"M18 54 Q20 78 50 82 Q80 78 82 54 L82 58 Q80 84 50 88 Q20 84 18 58 Z\" fill=\"#1a130e\"/>" }
+]

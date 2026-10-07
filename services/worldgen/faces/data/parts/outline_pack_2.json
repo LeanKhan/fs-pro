@@ -1,0 +1,6 @@
+[
+  { "id": "oval-warm", "svg": "<ellipse cx=\"50\" cy=\"52\" rx=\"35\" ry=\"41\" fill=\"#eec590\" stroke=\"#2b2b2b\" stroke-width=\"2\"/>" },
+  { "id": "heart-pale", "svg": "<path d=\"M50 88 C26 78 18 64 18 46 C18 28 32 18 50 24 C68 18 82 28 82 46 C82 64 74 78 50 88 Z\" fill=\"#fce5d8\" stroke=\"#2b2b2b\" stroke-width=\"2\"/>" },
+  { "id": "chiseled-espresso", "svg": "<polygon points=\"50,14 78,22 84,52 74,80 50,90 26,80 16,52 22,22\" fill=\"#4b2812\" stroke=\"#2b2b2b\" stroke-width=\"2\" stroke-linejoin=\"round\"/>" },
+  { "id": "round-olive", "svg": "<circle cx=\"50\" cy=\"52\" r=\"38\" fill=\"#c69c6d\" stroke=\"#2b2b2b\" stroke-width=\"2\"/>" }
+]
