@@ -21,7 +21,8 @@ import { runWorldDay, runWorldHour } from '../services/world/world-day.service';
  * Needs a scratch database with the current schema and the Go world-service
  * running against it (WORLD_SERVICE_URL, default http://localhost:3006);
  * refuses a database whose Clubs table isn't empty (SCALE_APPEND=1 adds to an
- * earlier run). SCALE_SKIP_MATCHES=1 skips section 3 (the sim service).
+ * earlier run). SCALE_SKIP_MATCHES=1 skips section 3 and the next-day kickoffs
+ * in section 4 (both need the sim service); the year end still runs.
  *
  *   SCALE_CLUBS=1000 SCALE_SKIP_MATCHES=1 REALTIME_URL=off WORLD_TICK_MINUTES=0 \
  *     DATABASE_URL=postgres://.../scratch npx ts-node --transpile-only src/scripts/seedScaleWorld.ts
@@ -44,10 +45,20 @@ async function timed<T>(label: string, fn: () => Promise<T>, note?: (r: T) => st
 const count = async (table: typeof clubs | typeof players | typeof fixtures) =>
   (await db().select({ n: sql<number>`count(*)::int` }).from(table))[0]!.n;
 
+// 4-character short codes accepted by codeProblem (^[A-Z][A-Z0-9]{1,3}$):
+// a letter then three base-36 chars, i.e. 26 * 36^3 = 1,213,056 unique codes,
+// so the 100,000-club target cannot collide. The old letters-only scheme
+// (`Z` + three base-26 chars) wrapped at 26^3 = 17,576, where code(17576)
+// collided with code(0) and founding failed with a 409.
+const CODE_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 const code = (n: number) => {
-  let s = '';
-  for (let k = n; s.length < 3; k = Math.floor(k / 26)) s = String.fromCharCode(65 + (k % 26)) + s;
-  return `Z${s}`;
+  let suffix = '';
+  let k = n;
+  for (let i = 0; i < 3; i++) {
+    suffix = CODE_ALPHABET[k % 36] + suffix;
+    k = Math.floor(k / 36);
+  }
+  return CODE_ALPHABET[k % 26] + suffix;
 };
 
 async function main() {
@@ -124,10 +135,14 @@ async function main() {
     }
   }
 
-  // 4. Year end: claim the year as over and run the next day.
+  // 4. Year end: claim the year as over and run the next day. With
+  // SCALE_SKIP_MATCHES=1 the sim service is deliberately absent, so run only
+  // the year-end hour: a full runWorldDay would otherwise retry the
+  // unavailable sim 3x for every one of the ~5,000 kickoffs on the next day.
   const [cal] = await db().select().from(calendars).limit(1);
   await db().update(calendars).set({ YearStartDay: cal!.CurrentDay - cal!.YearLengthDays, CurrentHour: 0 });
-  await timed('year end + next day', () => runWorldDay(), (r) =>
+  const skipMatches = process.env.SCALE_SKIP_MATCHES === '1';
+  await timed(skipMatches ? 'year end (hour 0)' : 'year end + next day', () => (skipMatches ? runWorldHour() : runWorldDay()), (r) =>
     r.yearEnded
       ? `${r.yearEnded.pyramids.finished} pyramids finished, ${r.yearEnded.pyramids.drawn} drawn, ${r.yearEnded.pyramids.promoted} up / ${r.yearEnded.pyramids.relegated} down; errors: ${r.yearEnded.errors.length}`
       : 'no year end'

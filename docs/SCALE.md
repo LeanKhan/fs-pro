@@ -1,5 +1,85 @@
 # Scale baselines (world pyramid)
 
+## B2D — district hierarchy at 10,000 clubs, 100k attempted (2026-10-07)
+
+Batch-2 integration on the **new district hierarchy**: Node founding calls the
+Go world-service `POST /placement/spot` inside the `PLACEMENT_LOCK` transaction,
+and the pyramid draw/join delegate to `POST /pyramid/draw|join`. Scratch DB
+`fspro_scale_100k` (schema cloned from the live `fspro`, migration
+`0038_world_districts.sql` applied), Postgres 17 in Docker (host port 5434), Go
+world-service (go1.24.13, `golang:1.24-bookworm`) on `localhost:3006`, one Linux
+Node v24.21.0 process. Machine: Intel i7-11800H (16 vCPU), 15 GiB RAM, WSL2.
+
+Two harness fixes were needed first (`seedScaleWorld.ts`, both in this file):
+`SCALE_SKIP_MATCHES=1` now also skips the next-day kickoffs in §4 (it ran only
+the year-end hour), and the short-code generator now emits 26·36³ unique codes
+(the old letters-only scheme wrapped at 26³ = 17,576, where `code(17576)`
+collided with `code(0)` and founding failed with a 409).
+
+### 10,000 clubs (2026-10-07, completed)
+
+```
+SCALE_CLUBS=10000 SCALE_SKIP_MATCHES=1 REALTIME_URL=off WORLD_TICK_MINUTES=0 \
+  DATABASE_URL=…/fspro_scale_100k npx ts-node --transpile-only src/scripts/seedScaleWorld.ts
+```
+
+| Step | 10,000 clubs |
+| --- | --- |
+| Founding | 10,000 clubs in 1,051 s (105 ms each) |
+| Places opened | 8 countries, 44 regions, 1,000 cities/districts |
+| Rows | 10,000 clubs, 160,000 players, 90,000 fixtures |
+| Atlas (no club lists) | 22 ms · 132 KB, 348 cities |
+| Atlas (one country's clubs) | 56 ms · 546 KB |
+| Placement preview (Go) | 6 ms · `new-town` |
+| Local news feed | 4 ms · 10 items, local = country |
+| One pool table / a country's pools | 5 ms / 11 ms (134 pools) |
+| Year end (hour 0) | 427,005 ms · 8 pyramids finished, **8 drawn**, 0 up / 16 down; errors: 0 |
+| Editions running after redraw | 8 |
+
+Year-end step breakdown (`[year]` logs): last fixtures 6 ms; pyramid finish
+6.6 s; performance/Level review 0.9 s; player progression 13.6 s; wages 0.9 s;
+retirement 0.4 s; youth intake 52 s; **club ratings 334 s**; release 0.01 s;
+pyramid draw 17.8 s; year report 0.6 s. The `8 drawn` (vs B2-2C's `0 drawn`)
+is the `internal/db` timeout fix landed since Batch 2.
+
+### 100,000 clubs (2026-10-07, attempted — STOPPED at the 45-minute budget)
+
+```
+SCALE_CLUBS=100000 SCALE_SKIP_MATCHES=1 REALTIME_URL=off WORLD_TICK_MINUTES=0 \
+  DATABASE_URL=…/fspro_scale_100k npx ts-node --transpile-only src/scripts/seedScaleWorld.ts
+```
+
+The run was stopped after **45 minutes** (the founding step was still running),
+per the D5 hard budget. It had founded **20,686 clubs in 2,730 s
+(≈132 ms/club average; the script's own cumulative rate was 126 ms/club at
+20,500 clubs, rising ~2 ms per 1,000 clubs over the 10k–20k band)**:
+16 countries, 2,069 cities/districts, 330,976 players at the cut. **100,000
+clubs did not complete** and is not claimed.
+
+Projection: fitting the measured cumulative-rate curve (48 ms at 250 clubs →
+105 ms at 10k → 126 ms at 20.5k) gives a 100k founding time of **≈4–6 hours**
+(≈15,000 s with a concave/log fit, ≈19,000 s with a linear fit of the last
+12 samples). The degradation is driven by per-founding row counts / indexes,
+not the placement algorithm (2A: O(1) amortised). Even the optimistic fit is
+~5× the 45-minute budget, so the earlier B0 audit's "10k/100k" D5 target is
+confirmed as out of reach for an end-to-end single-process run on this machine;
+a 100k world needs a bulk/parallel founding path.
+
+| Step | 10,000 clubs | 100,000 clubs (attempted, 20,686 / 45 min) |
+| --- | --- | --- |
+| Founding | 1,051 s (105 ms each) | stopped at 20,686 clubs in 2,730 s (132 ms each), still running |
+| Places opened | 8 countries, 44 regions, 1,000 cities/districts | 16 countries, 2,069 cities/districts at the cut |
+| Rows | 10,000 clubs, 160,000 players, 90,000 fixtures | 20,686 clubs, 330,976 players at the cut |
+| Atlas (no club lists) | 22 ms · 132 KB | not reached |
+| Atlas (one country's clubs) | 56 ms · 546 KB | not reached |
+| Placement preview (Go) | 6 ms | not reached |
+| Local news feed | 4 ms | not reached |
+| One pool table / a country's pools | 5 ms / 11 ms | not reached |
+| Year end (hour 0) | 427,005 ms · 8 drawn | not reached |
+| Editions running after redraw | 8 | not reached |
+
+---
+
 ## B2 — district hierarchy + Go world-service (2026-10-07, 1,000 clubs)
 
 First run of the Batch 2 integration: Node founding calls the Go world-service
