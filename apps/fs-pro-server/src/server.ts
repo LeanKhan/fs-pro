@@ -40,6 +40,7 @@ import { apiContract } from '@repo/api-contract';
 import { apiRouter } from './routers';
 import { ssoRouter } from './controllers/auth/sso.router';
 import { activityMiddleware } from './services/world/caretaker.service';
+import { registerHealthCheck, registerRateLimits, securityHeaders } from './middleware/hardening';
 
 // Browser origins allowed to call the API with credentials. In production the
 // client is normally served from the same origin as /api (deploy/nginx.conf),
@@ -66,6 +67,10 @@ const io = new SocketIOServer(http, {
   },
 });
 registerIO(io);
+
+// Health check first: no session, no auth, no CORS (the orchestrator calls it).
+registerHealthCheck(app);
+app.use(securityHeaders());
 
 app.use(
   cors({
@@ -131,6 +136,7 @@ DB.start();
 
 app.use(bodyparser.json());
 app.use(bodyparser.urlencoded({ extended: true }));
+registerRateLimits(app);
 
 app.use(express.static(path.join(__dirname, '../assets')));
 
@@ -143,8 +149,12 @@ app.get('/', (req, res) => {
 // REST API docs + tester - see src/docs/swagger.ts. Includes a runtime
 // database-backend switch (POST /api/meta/db/backend) for comparing Mongo
 // vs Postgres/Drizzle behavior without restarting the process.
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-app.get('/api-docs.json', (req, res) => res.json(swaggerSpec));
+// The tester can change settings and call every route: dev only, or opt in with
+// ENABLE_API_DOCS=true behind your own access control.
+if (process.env.NODE_ENV?.trim() === 'dev' || process.env.ENABLE_API_DOCS?.trim() === 'true') {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  app.get('/api-docs.json', (req, res) => res.json(swaggerSpec));
+}
 
 // Import routers after DB is started to avoid circular dependency issues
 const routerModule = require('./routers');

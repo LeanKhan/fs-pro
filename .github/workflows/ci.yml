@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  web:
+    name: Server and client build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build --workspace @repo/api-contract
+      - name: Typecheck the server
+        run: npx tsc --noEmit
+        working-directory: apps/fs-pro-server
+      - name: Build the client
+        run: npm run build --workspace fs-pro-client
+
+  engine:
+    name: Rust engine and Go services
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.24.x
+      - name: Rust tests
+        run: cargo test --release
+        working-directory: crates/sim-core
+      - name: Build the engine CLI the sim service runs
+        run: cargo build --release --bin sim-cli
+        working-directory: crates/sim-core
+      - name: Sim service tests
+        run: go test -count=1 ./...
+        working-directory: services/sim-service
+        env:
+          SIM_CORE_CLI_PATH: ${{ github.workspace }}/crates/sim-core/target/release/sim-cli
+      - name: Realtime gateway tests
+        run: go test -count=1 ./...
+        working-directory: apps/fs-pro-realtime
+
+  images:
+    name: Production images build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compose file is valid
+        run: |
+          printf 'PUBLIC_HOST=x.example\nPOSTGRES_USER=u\nPOSTGRES_PASSWORD=p\nPOSTGRES_DB=d\nSESSION_SECRET=s\nREALTIME_SECRET=r\nDATABASE_URL=postgresql://u:p@h/d\n' > ci.env
+          docker compose -f compose.prod.yaml --env-file ci.env config -q
+          docker compose -f compose.dokploy.yaml --env-file ci.env config -q
+      - name: Build the images
+        run: docker compose -f compose.prod.yaml --env-file ci.env build

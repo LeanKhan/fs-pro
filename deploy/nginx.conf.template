@@ -21,6 +21,14 @@ server {
   root /usr/share/nginx/html;
   index index.html;
 
+  # Baseline headers. No Content-Security-Policy yet: the client uses inline
+  # styles (Vuetify) and WebGL; add one after testing it against a staging copy.
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header X-Frame-Options "SAMEORIGIN" always;
+  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+  add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+  server_tokens off;
+
   client_max_body_size 10m;
   gzip on;
   gzip_types text/css application/javascript application/json image/svg+xml;
