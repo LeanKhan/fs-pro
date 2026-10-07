@@ -15,6 +15,12 @@ services:
       dockerfile: deploy/sim.Dockerfile
     restart: unless-stopped
 
+  fspro-worldgen:
+    build:
+      context: .
+      dockerfile: deploy/worldgen.Dockerfile
+    restart: unless-stopped
+
   fspro-realtime:
     build:
       context: .
@@ -71,7 +77,7 @@ services:
       IMAGINATION_CLIENT_ID: ${IMAGINATION_CLIENT_ID:-}
       IMAGINATION_CLIENT_SECRET: ${IMAGINATION_CLIENT_SECRET:-}
       IMAGINATION_WORLD_ID: ${IMAGINATION_WORLD_ID:-}
-      WORLDGEN_SERVICE_URL: ${WORLDGEN_SERVICE_URL:-}
+      WORLDGEN_SERVICE_URL: ${WORLDGEN_SERVICE_URL:-http://fspro-worldgen:3004}
     volumes:
       # Uploaded images survive redeploys (seeded from the image on first use).
       - server_assets:/repo/apps/fs-pro-server/assets
@@ -80,6 +86,8 @@ services:
       migrate:
         condition: service_completed_successfully
       fspro-sim:
+        condition: service_started
+      fspro-worldgen:
         condition: service_started
       fspro-realtime:
         condition: service_started

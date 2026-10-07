@@ -1,12 +1,13 @@
 /**
- * Small static first/last-name pool - an explicit stand-in for
- * worldgen-service's deferred `/names/generate` integration (see the
- * `worldgen_service_integration` memory for that later piece of work).
- * Every name below is a placeholder; this whole module is meant to be
- * deleted once that integration lands. Used only by youth-intake
- * generation for now (player-lifecycle.service.ts's runYouthIntakeForYear)
- * - NOT wired into the existing (broken) GET /players/generate-players dev
- * route, which stays on its own separate (currently non-functional) path.
+ * Small static first/last-name pool - a stand-in for worldgen's
+ * `/names/generate` endpoint. worldgen and its services API
+ * (`POST /api/services/worldgen/names`, see services/worldgen/client.ts)
+ * now exist; this module is the remaining wiring: youth intake and founding
+ * could call the service (with this pool as the offline fallback), after
+ * which it can be deleted. Used only by youth-intake generation for now
+ * (player-lifecycle.service.ts's runYouthIntakeForYear) - NOT wired into
+ * the existing (broken) GET /players/generate-players dev route, which
+ * stays on its own separate (currently non-functional) path.
  */
 import { pickRandomFromArray } from '../helpers/misc';
 
