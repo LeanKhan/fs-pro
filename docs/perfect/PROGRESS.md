@@ -14,7 +14,7 @@ Program of record: `FOR-AGENTS.md` (R1–R11, D1–D5, Batches 0–6).
 | B1 | 1C test infra | `perfect/b1-1c` (`3ed2606`) | **verified + merged** (1 item UNVERIFIED: Playwright re-run, rate limit) | `B1-1C-REPORT.md`, `tests/e2e/**` |
 | B1 | verify | `perfect/b1-verify` (`9f14cc3`) | **PASS** (1 MEDIUM fixed in `24af869`) | `VERIFY-B1.md` |
 | B2 | 2A Go service + schema | `perfect/b2-2a` | **running** | — |
-| B2 | 2B Node integration + contracts | `perfect/b2-2b` | **running** | — |
+| B2 | 2B contract + client + schemas | `perfect/b2-2b` (`5d61443`) | **done; pending verify** | `B2-2B-REPORT.md` |
 | B2 | 2C checks + 100k scale | staged | blocked on 2A/2B | — |
 | B3–B6 | — | — | not started | — |
 
@@ -61,6 +61,10 @@ instead — no change to the running dev DB `fspro`):
 - Git identity for this run is repo-local `OpenCode Agent
   <opencode-agent@localhost>` (no identity existed; no attribution lines were
   supplied by the environment).
+- **Worktrees have no `node_modules`** (gitignored, not copied). Before any
+  Node/vitest/Playwright run in a worktree, `npm ci` (Windows Node) or symlink
+  the main checkout's `node_modules`. Vitest/Playwright are new devDependencies
+  (lockfile updated by 1C) and are not yet materialized in the main checkout.
 
 ## Evidence index
 
