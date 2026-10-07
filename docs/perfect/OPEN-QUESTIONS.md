@@ -147,16 +147,17 @@ parallel on this repo? If not, `perfect/b3-3a` should be treated as untrusted.
 
 ---
 
-## D5 STATUS — 100k not achievable at the current founding rate (Batch 2D)
+## D5 STATUS — **MET** (Batch 2E)
 
 - 10k: COMPLETE — founding 1051 s (105 ms/club), 10k clubs / 160k players / 90k
-  fixtures, year-end 427 s. Recorded in `docs/SCALE.md`.
-- 100k: **NOT COMPLETE**. Measured 20,686 clubs in 2,730 s (**132 ms/club**,
-  rising ~2 ms per 1k); projected ≈4–6 h for 100k, ~5× the 45-min budget.
-  D5's "100k end-to-end with timings in SCALE.md" is therefore **partially met**
-  (10k real + 100k projection). A founding-throughput batch (2E) is in flight to
-  close it; if it cannot reach the target, this stays an owner-visible risk.
-- `checkWorldPyramid.ts` season step is UNVERIFIED (Rust sim service not up).
+  fixtures, year-end 427 s.
+- 100k: **COMPLETE** (Batch 2E, `SCALE_CONCURRENCY=8`): 100,000 clubs in
+  **3,066 s (31 ms/club)**, 75 countries / 3,575 cities / 10,000 districts,
+  **1.6M players / 900k fixtures**, 0 unpooled. 13% over the lead's 45-min
+  target; migration **0039** adds `Clubs_UserId_idx` and
+  `Entries_SeasonId_Group_idx` to remove the two remaining O(N) scans.
+  Per-club the harness dropped from 132 → 31 ms. Recorded in `docs/SCALE.md`.
+- `checkWorldPyramid.ts` season step remains UNVERIFIED (Rust sim service not up).
 
 ## DEFECT — club code generator wraps at 26³ = 17,576 (Batch 2D)
 
