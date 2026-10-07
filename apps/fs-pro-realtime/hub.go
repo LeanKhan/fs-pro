@@ -64,6 +64,7 @@ type Hub struct {
 	onlineSentAt int
 	nextID       int64
 	now          func() time.Time
+	mod          *Moderator
 }
 
 func NewHub() *Hub {
@@ -73,6 +74,7 @@ func NewHub() *Hub {
 		history: map[string][]ChatMessage{},
 		users:   map[string]int{},
 		now:     time.Now,
+		mod:     newModerator(modConfig{ReportsToMute: 3, AutoMute: 10 * time.Minute}),
 	}
 }
 

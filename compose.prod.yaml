@@ -33,6 +33,8 @@ services:
     environment:
       REALTIME_SECRET: ${REALTIME_SECRET:?set REALTIME_SECRET}
       REALTIME_ORIGINS: ${PUBLIC_HOST:?set PUBLIC_HOST}
+      CHAT_REQUIRE_VERIFIED: ${REQUIRE_VERIFIED_EMAIL:-true}
+      CHAT_BLOCKLIST: ${CHAT_BLOCKLIST:-}
 
   # One-shot: applies migrations, then exits. `server` waits for it.
   migrate:

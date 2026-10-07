@@ -111,7 +111,10 @@ Resend's failures (a rejected key, an unverified domain) are logged as
 - **API docs are off in production.** `ENABLE_API_DOCS=true` turns them on.
 - **`GET /healthz`** checks the process and the database; the compose files use
   it as the server's container health check.
-- **Still to do:** email and password reset, chat moderation, a
-  Content-Security-Policy for the client, error tracking and backups.
+- **Chat moderation** is in the realtime gateway (see its README): word, link and
+  duplicate screening, reports with auto-mute, moderator endpoints, and
+  confirmed-email-only writing. Put your own word list in `CHAT_BLOCKLIST`.
+- **Still to do:** a Content-Security-Policy for the client, error tracking and
+  backups.
 - **CI** (`.github/workflows/ci.yml`) typechecks the server, builds the client,
   runs the Rust and Go tests and builds the production images on every push.

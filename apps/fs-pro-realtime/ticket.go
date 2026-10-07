@@ -19,9 +19,11 @@ type Claims struct {
 	Name   string   `json:"name"`
 	Clubs  []string `json:"clubs"`
 	// Code is the short code of the user's first club, shown next to their name.
-	Code    string `json:"code,omitempty"`
-	Admin   bool   `json:"admin,omitempty"`
-	Expires int64  `json:"exp"`
+	Code  string `json:"code,omitempty"`
+	Admin bool   `json:"admin,omitempty"`
+	// Verified: the account's email is confirmed (or the API doesn't require it).
+	Verified bool  `json:"ver,omitempty"`
+	Expires  int64 `json:"exp"`
 }
 
 func (c Claims) ownsClub(id string) bool {
