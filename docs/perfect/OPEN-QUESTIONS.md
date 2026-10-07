@@ -145,6 +145,20 @@ needs rebasing onto current `perfect/integration` (it predates the B2 fix
 **Question for the owner:** are you (or another agent) running batches in
 parallel on this repo? If not, `perfect/b3-3a` should be treated as untrusted.
 
+**RESOLVED (owner-confirmed).** The owner confirmed parallel Batch 3 work and
+directed it to continue. Reconciled by that agent:
+
+- `perfect/b3-3a` was **rebased onto `perfect/integration` @ `27fb399`**; it no
+  longer reverts the B2 fix `78d5909` or the 2D/2E work.
+- Its migration was **renumbered `0039 → 0040`** (collision with
+  `0039_perf_indexes.sql`); `0039_perf_indexes.sql` is untouched.
+- After the rebase: Go `build`/`test ./...` green; server + `@repo/api-contract`
+  `tsc --noEmit` green; live tile 200/304/400 and the `0040` trigger verified.
+- It is safe to run **VERIFY-B3** on `perfect/b3-3a` and merge it.
+
+Note: the branch does not yet include the 3B client renderer or the 3C atlas
+retirement; those remain after 3A.
+
 ---
 
 ## D5 STATUS — **MET** (Batch 2E)
