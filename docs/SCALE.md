@@ -1,5 +1,50 @@
 # Scale baselines (world pyramid)
 
+## B2 — district hierarchy + Go world-service (2026-10-07, 1,000 clubs)
+
+First run of the Batch 2 integration: Node founding calls the Go world-service
+`POST /placement/spot` inside the `PLACEMENT_LOCK` transaction, and the pyramid
+draw/join delegate to `POST /pyramid/draw|join`. Scratch DB `fspro_b2c`
+(schema cloned from `fspro`, migration `0038_world_districts.sql` applied),
+Postgres 17 (Docker), Go world-service on `localhost:3006`, one Node process.
+Command (B2-2C report §Commands):
+
+```
+SCALE_CLUBS=1000 SCALE_SKIP_MATCHES=1 REALTIME_URL=off WORLD_TICK_MINUTES=0 \
+  DATABASE_URL=postgres://…/fspro_b2c npx ts-node --transpile-only src/scripts/seedScaleWorld.ts
+```
+
+| Step | Result |
+| --- | --- |
+| Founding | 1,000 clubs in 168 s (168 ms each, including the Go HTTP round-trip and 16 players/club) |
+| Places opened | 1 country, 4 regions, 100 cities/districts |
+| Rows | 1,000 clubs, 16,000 players, 3,746 fixtures |
+| Atlas (no club lists) | 7 ms · 12 KB, 31 cities |
+| Atlas (one country's clubs) | 28 ms · 320 KB |
+| Placement preview (Go) | 40 ms · `new-town` |
+| Local news feed | 8 ms · 10 items, local = country |
+| One pool table / a country's pools | 7 ms / 11 ms (42 pools) |
+| Year end + next day | 35,308 ms · 1 pyramid finished |
+| Editions running after redraw | 0 (see caveat) |
+
+**Founding is now HTTP-bound, not world-size-bound.** 168 ms/club at 1,000
+clubs vs the 75 ms/club pre-B2 baseline (below) is the Go round-trip plus
+per-call DB queries; the placement algorithm itself is O(1) amortised (2A:
+~8 ns/founding). The 10k/100k end-to-end runs (D5, `fspro_scale_100k`) were
+not captured here — the environment lost its Docker/Postgres after the 1k run
+(see the B2-2C report's Open Questions).
+
+**Caveat (2A defect, outside 2C's ownership).** The year-end redraw reported
+`0 drawn` because the Go `pyramid/draw` and `pyramid/join` handlers fail on the
+row-iterating queries. Cause (read-only inspection):
+`services/world-service/internal/db/db.go:84-88` cancels the per-call timeout
+context via `defer cancel()` when `Query` returns `pgx.Rows`, before the caller
+consumes `rows.Next()` — a known pgx pitfall. The failure is deterministic
+(`POST /pyramid/draw` returned 500 on 20/20 direct calls), so a client retry
+cannot help; the Go helper is the real fix and is filed in the B2-2C report §5.
+
+---
+
 Measured on 2026-10-04 with `apps/fs-pro-server/src/scripts/seedScaleWorld.ts`, on a scratch database (`fspro_pyramid_check`). The setup: local Postgres 17 in Docker on the dev machine, one Node process, and QuickSim matches run 4 at a time. Clubs were founded through the real placement and founding code: 16 players per club, default sizes (6 clubs per town, 8 towns per region, 6 regions per country).
 
 How to reproduce:

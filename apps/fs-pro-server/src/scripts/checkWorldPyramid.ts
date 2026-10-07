@@ -13,17 +13,21 @@ import { releaseInactiveClubs, sweepCaretakers } from '../services/world/caretak
 import { runWorldDay } from '../services/world/world-day.service';
 
 /**
- * End-to-end checks for the world pyramid (docs/WORLD-PYRAMID-SPEC.md):
- * placement and fill order, invites, the town cap under concurrent
- * foundings, the pyramid draw, joining mid-season, a full simulated season,
- * the year-end finish with promotion and relegation, the next draw, local
- * news scopes, caretakers and release.
+ * End-to-end checks for the world pyramid (docs/perfect/WORLD-HIERARCHY-SPEC.md
+ * §3-§4; docs/WORLD-PYRAMID-SPEC.md): placement and fill order in the
+ * country > region > city > district tree, invites, the district cap under
+ * concurrent foundings, the pyramid draw (delegated to the Go world-service),
+ * joining mid-season, a full simulated season, the year-end finish with
+ * promotion and relegation, the next draw, local news scopes, caretakers and
+ * release.
  *
- * Needs an EMPTY scratch database with the current schema (drizzle-kit push
- * into a new database); it refuses to run if Clubs has any rows, so it can
+ * Needs an EMPTY scratch database with the current schema and the Go
+ * world-service running against it (WORLD_SERVICE_URL, default
+ * http://localhost:3006); it refuses to run if Clubs has any rows, so it can
  * never touch real game data.
  *
- *   REALTIME_URL=off DATABASE_URL=postgres://.../scratch npx ts-node --transpile-only src/scripts/checkWorldPyramid.ts
+ *   REALTIME_URL=off DATABASE_URL=postgres://.../scratch \
+ *     npx ts-node --transpile-only src/scripts/checkWorldPyramid.ts
  *
  * WORLD_CHECK_CLUBS sets how many clubs to found (default 40).
  */
@@ -86,10 +90,11 @@ function pureChecks() {
   assert.strictEqual(dayKind(year, 12), 'L');
   ok('week template: 20 league days and 8 cup days in a 28-day year');
 
-  const a = { town: 't1', region: 'r1', country: 'c1' };
-  assert.deepStrictEqual(scopeChain([a, a]).map((s) => s.scope), ['town', 'region', 'country', 'world']);
-  assert.deepStrictEqual(scopeChain([a, { ...a, town: 't2' }]).map((s) => s.scope), ['region', 'country', 'world']);
-  assert.deepStrictEqual(scopeChain([a, { town: 't3', region: 'r3', country: 'c3' }]).map((s) => s.scope), ['world']);
+  // News scopes: the leaf is the district now (migration 0038).
+  const a = { district: 'd1', region: 'r1', country: 'c1' };
+  assert.deepStrictEqual(scopeChain([a, a]).map((s) => s.scope), ['district', 'region', 'country', 'world']);
+  assert.deepStrictEqual(scopeChain([a, { ...a, district: 'd2' }]).map((s) => s.scope), ['region', 'country', 'world']);
+  assert.deepStrictEqual(scopeChain([a, { district: 'd3', region: 'r3', country: 'c3' }]).map((s) => s.scope), ['world']);
   assert.ok(bar('country', 2000) > bar('country', 288) && bar('country', 288) === bar('country', 10));
   ok('news: natural scope and a bar that rises only with a busy scope');
 }
@@ -123,20 +128,25 @@ async function found(invite?: string) {
     name: `Check Club ${n}`,
     code: `Q${letters(n)}`,
     crest: randomCrest(`c${n}`, `Q${letters(n)}`),
-    newTown: { name: `Town ${n}`, terrain: 'city' },
+    newTown: { name: `City ${n}`, terrain: 'city' },
     newRegion: { name: `Region ${n}` },
     newCountry: { name: `Land ${n}`, code: `L${letters(n)}`, colors: ['#2f8a1c', '#f5b82e'] },
   };
   return foundClub(await newUser(), body);
 }
 
-async function placeInvariants(sizes: { town: number; region: number; country: number }) {
+async function placeInvariants(sizes: { district: number; city: number; region: number; country: number }) {
   const overfull = await db().execute(sql`
-    SELECT "TownId" FROM "Clubs" WHERE "TownId" IS NOT NULL GROUP BY "TownId" HAVING count(*) > ${sizes.town}`);
-  assert.strictEqual(overfull.length, 0, 'no town over TownSize');
+    SELECT "DistrictId" FROM "Clubs" WHERE "DistrictId" IS NOT NULL GROUP BY "DistrictId" HAVING count(*) > ${sizes.district}`);
+  assert.strictEqual(overfull.length, 0, 'no district over DistrictClubs');
+  const cities = await db().execute(sql`
+    SELECT "ParentId" FROM "Places" WHERE "Type" = 'district' AND "ParentId" IS NOT NULL
+    GROUP BY "ParentId" HAVING count(*) > ${sizes.city + 1}`);
+  assert.strictEqual(cities.length, 0, 'no city over CityDistricts (+1 for invites)');
   const regions = await db().execute(sql`
-    SELECT "RegionId" FROM "Places" WHERE "Type" = 'town' AND "RegionId" IS NOT NULL GROUP BY "RegionId" HAVING count(*) > ${sizes.region + 1}`);
-  assert.strictEqual(regions.length, 0, 'no region over RegionTowns (+1 for invites)');
+    SELECT "RegionId" FROM "Places" WHERE "Type" = 'city' AND "RegionId" IS NOT NULL
+    GROUP BY "RegionId" HAVING count(*) > ${sizes.region + 1}`);
+  assert.strictEqual(regions.length, 0, 'no region over RegionCities (+1 for invites)');
   const countries = await db().execute(sql`
     SELECT "ParentId" FROM "Places" WHERE "Type" = 'region' GROUP BY "ParentId" HAVING count(*) > ${sizes.country}`);
   assert.strictEqual(countries.length, 0, 'no country over CountryRegions');
@@ -144,9 +154,13 @@ async function placeInvariants(sizes: { town: number; region: number; country: n
 
 async function dbChecks() {
   console.log('database');
-  assert.strictEqual(await count(clubs), 0, 'Refusing to run: the Clubs table is not empty (use a scratch database)');
+  if (await count(clubs)) throw new Error('Refusing to run: the Clubs table is not empty (use a scratch database)');
   const N = Number(process.env.WORLD_CHECK_CLUBS) || 40;
-  const sizes = { town: 3, region: 2, country: 2 };
+  // Small capacities so the world opens many levels in ~40 clubs. The capital
+  // city is capped like an ordinary one (MetropolisDistricts = CityDistricts)
+  // so the test exercises city/region/country growth rather than one big
+  // metropolis.
+  const sizes = { district: 3, city: 2, region: 2, country: 2 };
 
   const now = new Date();
   await db().delete(calendars);
@@ -155,9 +169,11 @@ async function dbChecks() {
     CurrentDay: 0,
     YearStartDay: 0,
     YearLengthDays: 28,
-    TownSize: sizes.town,
-    RegionTowns: sizes.region,
+    DistrictClubs: sizes.district,
+    CityDistricts: sizes.city,
+    RegionCities: sizes.region,
     CountryRegions: sizes.country,
+    MetropolisDistricts: sizes.city,
     updatedAt: now,
   });
   await DrizzleDatabase.getInstance().sql`CREATE SEQUENCE IF NOT EXISTS manager_counter_seq`;
@@ -171,30 +187,32 @@ async function dbChecks() {
   assert.ok(c1.pool, 'the first club gets a pyramid pool');
   const c2 = await found();
   const c3 = await found();
-  assert.ok(c2.town.id === c1.town.id && c3.town.id === c1.town.id, 'a town fills first');
+  assert.ok(c2.town.id === c1.town.id && c3.town.id === c1.town.id, 'a district fills first');
   const c4 = await found();
   assert.deepStrictEqual(c4.opened, ['town']);
-  assert.strictEqual(c4.region?.id, c1.region?.id, 'then a new town in the same region');
-  for (let i = 0; i < 2; i++) await found();
-  const c7 = await found();
-  assert.deepStrictEqual(c7.opened, ['region', 'town'], 'a full region opens a new region');
-  assert.strictEqual(c7.country.id, c1.country.id);
-  for (let i = 0; i < 5; i++) await found();
-  const c13 = await found();
-  assert.deepStrictEqual(c13.opened, ['country', 'region', 'town'], 'a full country opens a new country');
+  assert.notStrictEqual(c4.town.id, c1.town.id, 'then a new district in the same city');
+  assert.strictEqual(c4.region?.id, c1.region?.id, 'the new district keeps the region');
+  for (let i = 0; i < 2; i++) await found(); // c5, c6: finish the second district
+  const c7 = await found(); // c7: first club of a new city in the same region
+  assert.deepStrictEqual(c7.opened, ['town'], 'a full city opens a new city in the region');
+  assert.strictEqual(c7.region?.id, c1.region?.id);
+  for (let i = 0; i < 11; i++) await found(); // c8..c18 (c13 opens region 2)
+  for (let i = 0; i < 6; i++) await found(); // c19..c24: fill region 2
+  const c25 = await found(); // c25: country 1 is full -> a new country
+  assert.deepStrictEqual(c25.opened, ['country', 'region', 'town'], 'a full country opens a new country');
   await placeInvariants(sizes);
-  ok('fill order: town, region, country, then a new country');
+  ok('fill order: district, city, region, country, then a new country');
 
-  // Invites: a friend lands in the inviter's town (or its region).
-  const [owner] = await db().select({ id: clubs.UserId }).from(clubs).where(eq(clubs.id, c13.clubId));
-  const invite = await createInvite(owner!.id!, c13.clubId);
+  // Invites: a friend lands in the inviter's district.
+  const [owner] = await db().select({ id: clubs.UserId }).from(clubs).where(eq(clubs.id, c25.clubId));
+  const invite = await createInvite(owner!.id!, c25.clubId);
   const friend = await found(invite.token);
-  assert.strictEqual(friend.town.id, c13.town.id);
+  assert.strictEqual(friend.town.id, c25.town.id);
   const preview = await previewPlacement(invite.token);
-  assert.ok(preview.invite?.valid && preview.invite.townName === c13.town.name);
-  ok('an invite link places a friend in the inviter\'s town');
+  assert.ok(preview.invite?.valid && preview.invite.townName === c25.town.name);
+  ok("an invite link places a friend in the inviter's district");
 
-  // Concurrent foundings never overfill a town.
+  // Concurrent foundings never overfill a district.
   await Promise.all(Array.from({ length: 6 }, () => found()));
   await placeInvariants(sizes);
   ok('six foundings at once keep every cap');
@@ -207,10 +225,11 @@ async function dbChecks() {
   assert.strictEqual(ai, 0, 'no AI clubs are spawned');
   ok(`${N} clubs founded, no AI rivals`);
 
-  // --- Pyramid: everyone placed, late joiners have exactly the remaining rounds.
+  // --- Pyramid: the Go service assigned the pools (Node persisted them). -----
   const running = await db().select().from(seasons).where(eq(seasons.Status, 'running'));
+  assert.ok(running.length >= 1, 'at least one pyramid edition is running');
   const entered = await db().select().from(entries).where(isNotNull(entries.Division));
-  assert.strictEqual(entered.length, N, 'every club is in its country\'s pyramid');
+  assert.strictEqual(entered.length, N, "every club is in its country's pyramid");
   for (const e of entered) {
     const mates = entered.filter((x) => x.Group === e.Group && x.ClubId !== e.ClubId);
     const mine = await db()
@@ -242,7 +261,7 @@ async function dbChecks() {
   const before = await db().select().from(entries).where(isNotNull(entries.Division));
   await runWorldDay();
   const finished = await db().select().from(seasons).where(eq(seasons.Status, 'finished'));
-  assert.ok(finished.length >= running.length, 'last year\'s pyramids finished');
+  assert.ok(finished.length >= running.length, "last year's pyramids finished");
   const moved = await db().select().from(entries).where(and(isNotNull(entries.Movement), sql`${entries.Movement} <> 0`));
   const redrawn = await db().select().from(seasons).where(eq(seasons.Status, 'running'));
   assert.strictEqual(redrawn.length, running.length, 'a new edition per country');
@@ -262,12 +281,12 @@ async function dbChecks() {
     .select({ scope: newsItems.ScopeType, n: sql<number>`count(*)::int` })
     .from(newsItems)
     .groupBy(newsItems.ScopeType);
-  assert.ok(scoped.some((s) => s.scope === 'town'), 'local news exists');
+  assert.ok(scoped.some((s) => s.scope === 'district'), 'local news exists');
   const reached = await postNews({ kind: 'test', importance: 100, title: 'Big story', clubIds: [c1.clubId] });
-  assert.deepStrictEqual(reached, ['town', 'region', 'country', 'world']);
+  assert.deepStrictEqual(reached, ['district', 'region', 'country', 'world']);
   ok(`news by scope: ${scoped.map((s) => `${s.scope} ${s.n}`).join(', ')}`);
 
-  // --- Caretakers and release free a town slot. -------------------------------
+  // --- Caretakers and release free a district slot. ---------------------------
   const [cal] = await db().select().from(calendars).limit(1);
   await db().update(clubs).set({ LastActiveAt: new Date(0) }).where(eq(clubs.id, c2.clubId));
   await sweepCaretakers(cal!);
@@ -275,15 +294,13 @@ async function dbChecks() {
   assert.ok(ct!.c, 'an away owner gets a caretaker');
   const released = await releaseInactiveClubs(cal!);
   assert.ok(released.includes(c2.clubId));
-  const [gone] = await db().select({ town: clubs.TownId }).from(clubs).where(eq(clubs.id, c2.clubId));
-  assert.strictEqual(gone!.town, null);
+  const [gone] = await db().select({ district: clubs.DistrictId }).from(clubs).where(eq(clubs.id, c2.clubId));
+  assert.strictEqual(gone!.district, null);
   const hole = await previewPlacement();
   assert.strictEqual(hole.kind, 'town');
   assert.strictEqual(hole.town?.id, c1.town.id, 'the freed slot is the next hole');
-  ok('caretaker after time away; release frees the town slot for the next club');
-
+  ok('caretaker after time away; release frees the district slot for the next club');
 }
-
 
 async function main() {
   pureChecks();
