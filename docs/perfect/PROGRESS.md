@@ -11,7 +11,7 @@ Program of record: `FOR-AGENTS.md` (R1–R11, D1–D5, Batches 0–6).
 | B0 | 0B audit (facts) | `core/launch` (read-only) | **PARTIAL** — facts confirmed; 10k measurement not run | `BASELINE.md` §2, §4 |
 | B1 | 1A hierarchy spec | `perfect/b1-1a` (commit `8925cc5`) | **done; lead-approved** (`DECISIONS.md`) | `WORLD-HIERARCHY-SPEC.md`, `B1-1A-REPORT.md` |
 | B1 | 1B world-service skeleton | `perfect/b1-1b` (commit `522a1b0`) | **done; pending verify** | `B1-1B-REPORT.md`, `services/world-service/**` |
-| B1 | 1C test infra | `perfect/b1-1c` @ `.claude/worktrees/b1c` (ses_eeb050ef0ffebWP1d2I85Yrtle) | **running** | `B1-1C-REPORT.md` (when done) |
+| B1 | 1C test infra | `perfect/b1-1c` (commit `3ed2606`) | **done; pending verify** | `B1-1C-REPORT.md`, `tests/e2e/**`, vitest, CI |
 | B2–B6 | — | — | not started | — |
 
 Nothing is merged; `perfect/integration` is not created yet (Q6).

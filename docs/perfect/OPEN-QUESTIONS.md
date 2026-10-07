@@ -124,3 +124,26 @@ specifically needs a 200-parallel-founding concurrency test.
   concurrency tests without the detector. Violates R4.
 
 **Need:** A / B / C.
+
+---
+
+## INCIDENT-1 — two uncommitted lines in `FOR-AGENTS.md` were discarded
+
+At ~01:42 the lead ran `git checkout -- FOR-AGENTS.md` on the integration
+worktree to clear what looked like a line-ending artifact. It was not: `git diff
+--ignore-cr-at-eol --stat` had shown `2 insertions`, i.e. a real edit to the
+working copy that was never committed. The content is **not recoverable** — no
+dangling git blobs (`git fsck --lost-found` = 0), every worktree copy is the
+250-line committed version, no editor backup. The owner should re-apply those
+two lines.
+
+Process fix (adopted): never `git checkout -- <file>` unless the full diff of
+that file has been read; check `--stat` first, then read the diff.
+
+## RESOLVED — `services/worldgen` embedded data was untracked
+
+Found by Batch 1C (OQ1) and fixed on `perfect/integration` in `a90b32a`:
+`.gitignore:29 data` was unanchored and swallowed `services/worldgen/**/data`,
+so `a480c86` could not build on a fresh checkout. Changed to `/data`; the 29
+name-bank/face-part JSON files are now tracked (36 worldgen files total). CI's
+`::warning::` skip for worldgen can be removed.
