@@ -1,0 +1,15 @@
+{
+  "name": "fs-pro-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "End-to-end Playwright flows for the fs-pro game",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "report": "playwright show-report",
+    "install:browsers": "playwright install"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
+}
