@@ -119,7 +119,7 @@ Formations (home pts/match): 352 = 2.00/2.05/1.88/1.57 beats all others (~1.3-1.
 | Command | Result | Output |
 | --- | --- | --- |
 | client build `cmd.exe /c "npm run build --workspace fs-pro-client"` (Windows Node) | **PASS** | `✓ built in 15.44s` |
-| client typecheck `/tmp/opencode/vuecheck/node_modules/.bin/vue-tsc --noEmit -p tsconfig.json` (vue-tsc@2.0.29 + typescript@5.4.5) | **FAIL (pre-existing)** | `VUETSC_EXIT=2`, 34 errors in 10 files — full log `docs/perfect/vue-tsc-baseline.log` |
+| client typecheck `/tmp/opencode/vuecheck/node_modules/.bin/vue-tsc --noEmit -p tsconfig.json` (vue-tsc@2.0.29 + typescript@5.4.5) | **FAIL (pre-existing)** | `VUETSC_EXIT=2`, 31 errors in 14 files — full log `docs/perfect/vue-tsc-baseline.log` |
 | 10k scale on `fspro_pyramid_check` | **NOT RUN** | DB is stale: 10 clubs, 30 tables, no `SqlMigrations` table → must be rebuilt to current schema first |
 
 Environment fact discovered: the repo `node_modules` is **Windows-native**
@@ -130,7 +130,7 @@ build/typecheck must run under Windows Node (`v26.10.0`,
 
 ### Pre-existing client type errors (do NOT fix in Batch 0)
 
-34 errors, 10 files; top offenders: `src/views/admin/clubs/club-form.vue`
+31 errors, 14 files; top offenders: `src/views/admin/clubs/club-form.vue`
 (12), `src/components/players/players-table.vue` (5). Categories:
 missing api-contract exports (`MedicalStatus`, `WorldFeedOtherLeague`,
 `WorldFeedInjury`), ts-rest `.mutation` not on query args, `undefined` into

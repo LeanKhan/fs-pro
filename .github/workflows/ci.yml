@@ -22,7 +22,7 @@ jobs:
       - name: Typecheck the server
         run: npx tsc --noEmit
         working-directory: apps/fs-pro-server
-      # BASELINE.md recorded 34 pre-existing errors (docs/perfect/vue-tsc-baseline.log).
+      # BASELINE.md recorded 31 pre-existing errors (docs/perfect/vue-tsc-baseline.log).
       # The repo's own vue-tsc is broken, so run the pinned pair in a scratch
       # folder (BASELINE.md §3). continue-on-error keeps CI honest about the
       # known failures without going red; remove it once the 34 are fixed.
