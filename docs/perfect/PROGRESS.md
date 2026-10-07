@@ -26,11 +26,26 @@ Batch 1 build agents run.
 
 ## Baseline result at a glance (Batch 0)
 
-All suites currently **green**: server `tsc` PASS; Go `test` PASS in all 3
-modules; Rust `cargo test --release` PASS; sim-lab runs (9.4 s). Three
+All backend suites **green**: server `tsc` PASS; Go `test` PASS in all 3
+modules; Rust `cargo test --release` PASS; sim-lab runs (9.4 s); client
+**build** PASS (Windows Node, 15.4 s). **Client typecheck FAILS with 34
+pre-existing errors** (`docs/perfect/vue-tsc-baseline.log`). Three
 pre-existing **metric** faults are recorded for Batch 5A (goals 3.21 vs
-2.5-2.9; 3-5-2 dominates; quality 47% vs 30-45%). `go test -race` blocked
-(Q7). Client vue-tsc / vite build / 10k scale still to run.
+2.5-2.9; 3-5-2 dominates; quality 47% vs 30-45%). `go test -race` runs via
+Docker (Q7, owner-approved). Still to run: 10k scale (`fspro_pyramid_check`
+must be rebuilt first).
+
+## Environment corrections (apply to every agent)
+
+- Client build/tests must use **Windows Node** (`cmd.exe /c "npm ..."`); the
+  repo `node_modules` is win32-native (no Linux `rollup`/`esbuild` binding).
+- Go/Rust run through the **Windows** toolchains via WSL interop; `go test
+  -race` only inside the `golang:1.24-bookworm` Docker image (Q7).
+- Skills live at `C:\Users\Emmanuel\.claude\skills\threejs-*` and
+  `C:\Users\Emmanuel\.impeccable` (not in WSL home).
+- Git identity for this run is repo-local `OpenCode Agent
+  <opencode-agent@localhost>` (no identity existed; no attribution lines were
+  supplied by the environment).
 
 ## Evidence index
 
