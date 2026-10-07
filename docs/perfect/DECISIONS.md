@@ -1,0 +1,36 @@
+# DECISIONS.md — lead rulings
+
+The owner delegated approvals ("don't ask, just continue"). This file records
+the lead's binding decisions so Batch 2+ can proceed without an owner gate.
+Each is either the authoring agent's own recommendation or the conservative
+option; none contradicts D1–D5 or WORLD-PYRAMID-SPEC.
+
+## A. Spec approval
+
+- **WORLD-HIERARCHY-SPEC.md (Batch 1A) — APPROVED** for implementation in
+  Batch 2. It supersedes the geography/placement/pyramid-shape/map parts of
+  `WORLD-PYRAMID-SPEC.md` and the map part of `WORLD-VIEW-UI-PLAN.md`, as it
+  states in its header. All other parts of WORLD-PYRAMID-SPEC still win.
+
+## B. Answers to WORLD-HIERARCHY-SPEC §11 (Q1–Q8)
+
+| Q | Decision | Rationale |
+| --- | --- | --- |
+| **Q1** founding lock at 1M | **Keep the single global `PLACEMENT_LOCK`.** Batch 2A must prove O(1) per-founding cost so lock-hold drops to low single-digit ms; only if the 1M benchmark cannot sustain ≥200 foundings/s does sharding by country/region become a follow-up (not this program). | Simplest correct option; the lock already guarantees no overfill. |
+| **Q2** capacity defaults | **Accept** `DistrictClubs=10`, `CityDistricts=2`, `RegionCities=8`, `CountryRegions=6`, `MetropolisDistricts=40`. | Spec's recommendation; keeps 1 district ≈ 1 pool. All are world settings, tunable later without migration. |
+| **Q3** district naming / UI rename | **Auto-name** new districts `"<City> <Compass word>"` via the existing `regionName` fallback. Rename **data model** town→city and add district. UI: show `City › District`; a full string rename is allowed where cheap but not required. | Avoids a fourth founding-name field; no gameplay value in naming a district. |
+| **Q4** prominence caps/weights | **Accept** caps (Elo 1200–2400, Level 20, Fans 10^6, Rep 100, DIV_MAX 14) and weights 0.30/0.25/0.20/0.15/0.10. | Shape decisions with sane ranges; sum to 1. |
+| **Q5** unbounded sea | **Keep unbounded** for this program. No world bound. | Integer quadtree coords handle growth; a bound is an unrelated product decision. |
+| **Q6** `PlaceStats` maintenance | **DB trigger** on `Clubs` (INSERT/DELETE/UPDATE OF DistrictId). | Correct regardless of which writer (Node or Go) changes clubs; one source of truth. |
+| **Q7** news scopes | **Add `district`/`city` scopes in Batch 2**, mapping legacy `town` → district. Keep escalation smallest→widest. | Finishes the 4-level tree in the news scope model; cheap while the migration is open. |
+| **Q8** district-name source | **Existing `regionName` compass fallback until Batch 4**, then switch to the country's culture bank. | Does not block the schema; Batch 4 owns culture naming. |
+
+## C. Process rulings
+
+- Batch 1A's spec is not blocked on an owner reply; Batch 2 build agents start
+  once `VERIFY-B1` passes.
+- `go test -race` runs in `golang:1.24-bookworm` (Docker).
+- Client build/typecheck run through **Windows Node**; server/DB work may use
+  Linux Node.
+- Scratch DBs (`fspro_pyramid_check`, `fspro_scale_100k`) are the only
+  destructive targets; the dev DB `fspro` is off-limits.
