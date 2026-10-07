@@ -100,6 +100,10 @@
             </form>
           </template>
           <p v-if="formError" class="warn">{{ formError }}</p>
+          <p v-if="needsEmail" class="warn">
+            <span>{{ resent || 'We emailed you a link when you signed up.' }}</span>
+            <button class="btn small" type="button" :disabled="resending" @click="resendEmail">Send it again</button>
+          </p>
           <div class="row-btns sticky">
             <button class="btn primary" type="button" :disabled="!homeReady" @click="goTo('club')">Next: your club</button>
           </div>
@@ -144,6 +148,10 @@
           </div>
           <p class="sub">You start from nothing: a dirt pitch, hopeful amateurs, a few loyal fans. Your league fixtures start right away. Win matches to earn money and XP, then build your grounds up.</p>
           <p v-if="formError" class="warn">{{ formError }}</p>
+          <p v-if="needsEmail" class="warn">
+            <span>{{ resent || 'We emailed you a link when you signed up. Open it, then come back and try again.' }}</span>
+            <button class="btn small" type="button" :disabled="resending" @click="resendEmail">Send it again</button>
+          </p>
           <div class="row-btns sticky">
             <button class="btn" type="button" @click="goTo('club')">Back</button>
             <button class="btn primary big" type="button" :disabled="busy" @click="submitClub">{{ busy ? 'Founding…' : `Found ${clubForm.name.trim()}` }}</button>
@@ -224,6 +232,21 @@ const mapRef = ref<InstanceType<typeof AtlasMap> | null>(null);
 const step = ref<Step>('home');
 const busy = ref(false);
 const formError = ref('');
+const needsEmail = computed(() => /confirm your email/i.test(formError.value));
+const resending = ref(false);
+const resent = ref('');
+
+async function resendEmail() {
+  resending.value = true;
+  try {
+    const res = await client.users.resendVerification.mutation({ body: {} });
+    resent.value = (res.body as { message?: string }).message ?? 'Sent';
+  } catch {
+    resent.value = 'Could not send the link. Try again in a minute.';
+  } finally {
+    resending.value = false;
+  }
+}
 const done = ref<FoundedClub | null>(null);
 const toast = ref<{ text: string; tone: 'good' | 'bad' } | null>(null);
 const invite = typeof route.query.invite === 'string' ? route.query.invite : undefined;

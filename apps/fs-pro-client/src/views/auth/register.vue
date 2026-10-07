@@ -4,6 +4,10 @@
     <p v-if="error" class="warn">{{ error }}</p>
     <label>Your name<input v-model="form.FullName" autocomplete="name" maxlength="60" required /></label>
     <label>
+      <span>Email <small>to confirm your account and reset your password</small></span>
+      <input v-model.trim="form.Email" type="email" autocomplete="email" maxlength="254" required />
+    </label>
+    <label>
       <span>Username <small>3-24 letters, numbers, . _ -</small></span>
       <input v-model.trim="form.Username" autocomplete="username" maxlength="24" required />
     </label>
@@ -28,7 +32,7 @@ import { client } from '@/services/api';
 const router = useRouter();
 const store = useStore();
 
-const form = ref({ FullName: '', Username: '', Password: '' });
+const form = ref({ FullName: '', Username: '', Email: '', Password: '' });
 const confirmPassword = ref('');
 const loading = ref(false);
 const error = ref('');
@@ -37,6 +41,7 @@ const valid = computed(
   () =>
     form.value.FullName.trim().length > 0 &&
     /^[A-Za-z0-9_.-]{3,24}$/.test(form.value.Username) &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value.Email) &&
     form.value.Password.length >= 8 &&
     form.value.Password === confirmPassword.value
 );

@@ -12,4 +12,6 @@ export interface IUser {
   Session: string;
   /** imagination account id (accounts.id) this user signs in as, if migrated. */
   accountId?: string | null;
+  Email?: string | null;
+  EmailVerifiedAt?: Date | null;
 }

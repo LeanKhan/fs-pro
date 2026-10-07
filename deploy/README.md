@@ -74,6 +74,30 @@ docker compose -f compose.prod.yaml --env-file .env.production run --rm \
 - Single sign-on (Imaginations) and player faces (worldgen) are optional; leave
   their variables empty to run without them.
 
+## Email (Resend)
+
+Sign-up confirmation and password reset go out through Resend.
+
+1. In Resend, add your sending domain and publish the DNS records it shows
+   (SPF and DKIM). Mail from an unverified domain is rejected.
+2. Create an API key with sending access.
+3. Set `RESEND_API_KEY` and `MAIL_FROM` (for example
+   `FS Pro <noreply@play.example.com>`). Links in the emails point at
+   `https://$PUBLIC_HOST`.
+4. Send yourself a test: sign up with your own address and open the link.
+
+Without `RESEND_API_KEY` in production nothing is sent and the server logs an
+error, so nobody could confirm an email or reset a password: set it before
+launch. Outside production the email is printed in the server log instead.
+
+New accounts must confirm their email before founding a club
+(`REQUIRE_VERIFIED_EMAIL`, on by default in the compose files). Admins and
+imagination-login accounts are exempt. Existing accounts can add an email in
+Settings; they keep their clubs either way.
+
+Resend's failures (a rejected key, an unverified domain) are logged as
+`[mail] Resend rejected ...` with the reason from Resend.
+
 ## Hardening that ships with the server
 
 - **Rate limits** (`apps/fs-pro-server/src/middleware/hardening.ts`): login 20 per

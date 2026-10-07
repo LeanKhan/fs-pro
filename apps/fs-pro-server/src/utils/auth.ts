@@ -1,5 +1,18 @@
 import bcrypt from 'bcryptjs';
+import { sql } from 'drizzle-orm';
 import { store } from '../sessionStore';
+import { DrizzleDatabase } from '../db/drizzle';
+
+let dummy: Promise<string> | undefined;
+/** A real bcrypt hash nobody's password matches: comparing against it costs the same as a genuine check. */
+export function dummyHash(): Promise<string> {
+  return (dummy ??= hashPassword(`dummy-${Math.random()}`));
+}
+
+/** Signs the user out everywhere (after a password reset). */
+export async function revokeSessions(userId: string): Promise<void> {
+  await DrizzleDatabase.getInstance().database.execute(sql`DELETE FROM "Sessions" WHERE session->>'userID' = ${userId}`);
+}
 
 /**
  * Standalone replacements for the two `UserSchema.methods` in
