@@ -1,6 +1,7 @@
+import { randomUUID } from 'crypto';
 import { getClubs } from '../controllers/clubs/club.service';
 import { resolveManagerTactic } from '../controllers/managers/manager.service';
-import { ITactic } from '../simulation/state/PersistentState/Formations';
+import { ITactic } from '../match/tactics';
 import { SimulateMatchRequest } from './simulationContract';
 import { moodRatingBonus } from '../services/world/club-standing.service';
 
@@ -70,6 +71,9 @@ export async function buildSimulateMatchRequest(
 
   return {
     fixtureId,
+    // A new match every time this fixture is played - see
+    // SimulateMatchRequest.seed.
+    seed: randomUUID(),
     clubs: plainClubs,
     sides: { home, away },
     tactics,

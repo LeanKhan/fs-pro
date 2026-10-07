@@ -1,20 +1,17 @@
-import { IMatchDetails, IMatchFrame } from '../simulation/classes/Match';
+import { IMatchDetails } from '../match/types';
 import { getMatchReplayNamespace } from './io';
 import { expandFrames } from './frameInterpolation';
+import { MatchFrames, unpackFrames } from './packedFrames';
 
 const DEFAULT_TICK_MS = 300;
 
-/**
- * Everything replayMatch actually reads off a finished match. A real
- * `Match` instance satisfies this structurally, but so does the plain
- * result object a worker_thread posts back (see src/jobs/matchSimWorker.ts)
- * - the simulation itself may now run somewhere that never held a real
- * `Match` class instance.
- */
+/** Everything replayMatch reads off a finished match (the sim service's
+ * result, or a saved replay). */
 export interface IReplayableMatch {
   Home: { _id: string; Name: string; ClubCode: string };
   Away: { _id: string; Name: string; ClubCode: string };
-  Frames: IMatchFrame[];
+  /** Packed (sim service, new replays) or a plain array (old replays). */
+  Frames: MatchFrames;
   Details: IMatchDetails;
 }
 
@@ -41,10 +38,11 @@ export function replayMatch(
 ): Promise<void> {
   return new Promise((resolve) => {
     const room = getMatchReplayNamespace().to(fixtureId);
-    const steps = expandFrames(match.Frames);
+    const frames = unpackFrames(match.Frames);
+    const steps = expandFrames(frames);
 
     console.log(
-      `[replay] starting ${fixtureId}: ${match.Frames.length} ticks -> ${steps.length} playback frames`
+      `[replay] starting ${fixtureId}: ${frames.length} ticks -> ${steps.length} playback frames`
     );
 
     room.emit('match-replay-start', {

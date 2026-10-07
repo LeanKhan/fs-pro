@@ -16,7 +16,7 @@ import {
   computeExpectedGoals,
   unitRatingsForClub,
   type UnitRatings,
-} from '../../simulation/quick-sim/QuickSimResolver';
+} from './team-strength';
 import type { IClub } from '../../interfaces/Club';
 import type { PlayerInterface } from '../../interfaces/Player';
 

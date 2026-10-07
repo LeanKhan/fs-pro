@@ -42,8 +42,10 @@ export const playContract = c.router(
       method: 'POST',
       path: '/:clubId/match',
       pathParams: z.object({ clubId: z.string() }),
-      /** Optional: fight a specific opponent from the matchmaking preview. */
-      body: z.object({ opponentId: z.string().optional() }).optional(),
+      /** Optional: fight a specific opponent from the matchmaking preview.
+       * `watch`: record the replay so the Matchzone can play it (otherwise
+       * the match is played headless - straight to the result). */
+      body: z.object({ opponentId: z.string().optional(), watch: z.boolean().optional() }).optional(),
       responses: {
         200: successEnvelope(MatchResultSchema),
         400: failEnvelope(),

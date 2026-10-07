@@ -16,6 +16,7 @@
         :timers="timers"
         :alerts="alerts"
         :now-ms="game.now.value"
+        :suspended="matchOpen"
         @tap="onTap"
         @hover="onHover"
         @alert="onAlert"
@@ -97,6 +98,14 @@
           @medical="onOpenMedicalFromMatchmaking"
         />
       </cozy-modal>
+
+      <matchzone-view
+        v-if="matchOpen"
+        :fixture-id="game.matchResult.value!.fixtureId"
+        overlay
+        autoplay
+        @close="game.finishBattle()"
+      />
 
       <cozy-modal v-model="game.showRewards.value">
         <cozy-rewards
@@ -213,7 +222,7 @@ import { useClubRefresh } from '@/composables/use-club-refresh';
 import { clubColors } from '@/components/cozy/club-colors';
 import { stageName } from '@/components/cozy/stages';
 import { icon } from '@/components/cozy/icons';
-import { showMatch } from '@/components/cozy/match-view';
+import MatchzoneView from '@/components/matchzone/matchzone-view.vue';
 import { CELL } from '@/components/cozy/scene/models';
 import { renderThumbs } from '@/components/cozy/scene/thumbs';
 import type { CityVariant } from '@/components/cozy/scene/terrain';
@@ -657,19 +666,11 @@ async function kickOff() {
   await game.startBattle(quickSim.value);
 }
 
-watch(game.showBattleArena, async (open) => {
-  const r = game.matchResult.value;
-  if (!open || !r || !club.value || !rootEl.value) return;
-  await showMatch(
-    {
-      home: { name: club.value.Name, colors: colors.value },
-      away: { name: r.opponent.name, colors: await clubColors(r.opponent.code) },
-      highlights: r.highlights ?? [],
-      score: [r.score.you, r.score.them],
-    },
-    rootEl.value
-  );
-  game.finishBattle();
+/** The match just played, watched in the Matchzone over the campus. */
+const matchOpen = computed(() => game.showBattleArena.value && !!game.matchResult.value?.fixtureId);
+watch(game.showBattleArena, (open) => {
+  // No replay to show (shouldn't happen when watching): straight to the spoils.
+  if (open && !game.matchResult.value?.fixtureId) game.finishBattle();
 });
 
 /** Away match today: the bus leaves, and the host's grounds open with it arriving. */

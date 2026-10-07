@@ -1,0 +1,97 @@
+# Dokploy variant of compose.prod.yaml: no bundled database (use a Dokploy
+# database service) and no published port (Dokploy's Traefik routes the
+# domain to `fspro-web`).
+#
+# In Dokploy: create a Compose service from this repo, Compose Path =
+# ./compose.dokploy.yaml, set the variables from .env.production.example in its
+# Environment tab (DATABASE_URL, PUBLIC_HOST, SESSION_SECRET, REALTIME_SECRET),
+# then under Domains add PUBLIC_HOST -> service `fspro-web`, port 80, HTTPS on.
+# Service names are prefixed fspro-: they share dokploy-network with other
+# projects, where a plain `server` or `sim` could resolve to someone else's.
+services:
+  fspro-sim:
+    build:
+      context: .
+      dockerfile: deploy/sim.Dockerfile
+    restart: unless-stopped
+
+  fspro-realtime:
+    build:
+      context: .
+      dockerfile: deploy/realtime.Dockerfile
+    restart: unless-stopped
+    environment:
+      REALTIME_SECRET: ${REALTIME_SECRET:?set REALTIME_SECRET}
+      REALTIME_ORIGINS: ${PUBLIC_HOST:?set PUBLIC_HOST}
+
+  # One-shot: applies migrations, then exits. `fspro-server` waits for it.
+  migrate:
+    build:
+      context: .
+      dockerfile: deploy/server.Dockerfile
+    image: fs-pro-server
+    command: ['sh', '../../deploy/migrate.sh']
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+    networks: [default, dokploy-network]
+    restart: 'no'
+
+  fspro-server:
+    image: fs-pro-server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET}
+      SIM_SERVICE_URL: http://fspro-sim:5050
+      SIM_SERVICE_CONCURRENCY: ${SIM_SERVICE_CONCURRENCY:-8}
+      REALTIME_URL: http://fspro-realtime:3005
+      REALTIME_PUBLIC_URL: wss://${PUBLIC_HOST}/realtime
+      REALTIME_SECRET: ${REALTIME_SECRET:?set REALTIME_SECRET}
+      REMOTE_HOST: ${PUBLIC_HOST:?set PUBLIC_HOST}
+      CORS_ORIGINS: https://${PUBLIC_HOST}
+      TRUST_PROXY: '1'
+      COOKIE_SECURE: 'true'
+      GAME_TIME_SCALE: ${GAME_TIME_SCALE:-1}
+      WORLD_TICK_MINUTES: ${WORLD_TICK_MINUTES:-10}
+      IMAGINATION_API_URL: ${IMAGINATION_API_URL:-}
+      IMAGINATION_CLIENT_ID: ${IMAGINATION_CLIENT_ID:-}
+      IMAGINATION_CLIENT_SECRET: ${IMAGINATION_CLIENT_SECRET:-}
+      IMAGINATION_WORLD_ID: ${IMAGINATION_WORLD_ID:-}
+      WORLDGEN_SERVICE_URL: ${WORLDGEN_SERVICE_URL:-}
+    volumes:
+      # Uploaded images survive redeploys (seeded from the image on first use).
+      - server_assets:/repo/apps/fs-pro-server/assets
+    networks: [default, dokploy-network]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      fspro-sim:
+        condition: service_started
+      fspro-realtime:
+        condition: service_started
+
+  fspro-web:
+    build:
+      context: .
+      dockerfile: deploy/web.Dockerfile
+    restart: unless-stopped
+    expose:
+      - '80'
+    environment:
+      SERVER_HOST: fspro-server
+      REALTIME_HOST: fspro-realtime
+    networks: [default, dokploy-network]
+    depends_on:
+      - fspro-server
+      - fspro-realtime
+
+volumes:
+  server_assets:
+
+networks:
+  # Created by Dokploy: Traefik reaches `fspro-web` over it, and a Dokploy database
+  # is reachable on it by its app name.
+  dokploy-network:
+    external: true

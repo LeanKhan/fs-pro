@@ -10,3 +10,14 @@ coverage
 
 .codex
 .agents
+
+# Build output and large local artefacts
+**/target
+*.exe
+*.dll
+*.so
+apps/fs-pro-server/db-backups
+apps/fs-pro-server/assets.zip
+apps/fs-pro-server/tmp
+artifacts
+.env.production

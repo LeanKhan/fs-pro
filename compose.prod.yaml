@@ -1,0 +1,95 @@
+# Production stack. Copy .env.production.example to .env.production, fill it
+# in, then:
+#   docker compose -f compose.prod.yaml --env-file .env.production up -d --build
+# Only `web` is published; put TLS in front of it. The database, sim service
+# and gateway stay on the internal network.
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  sim:
+    build:
+      context: .
+      dockerfile: deploy/sim.Dockerfile
+    restart: unless-stopped
+
+  realtime:
+    build:
+      context: .
+      dockerfile: deploy/realtime.Dockerfile
+    restart: unless-stopped
+    environment:
+      REALTIME_SECRET: ${REALTIME_SECRET:?set REALTIME_SECRET}
+      REALTIME_ORIGINS: ${PUBLIC_HOST:?set PUBLIC_HOST}
+
+  # One-shot: applies migrations, then exits. `server` waits for it.
+  migrate:
+    build:
+      context: .
+      dockerfile: deploy/server.Dockerfile
+    image: fs-pro-server
+    command: ['sh', '../../deploy/migrate.sh']
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: 'no'
+
+  server:
+    image: fs-pro-server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET}
+      SIM_SERVICE_URL: http://sim:5050
+      SIM_SERVICE_CONCURRENCY: ${SIM_SERVICE_CONCURRENCY:-8}
+      REALTIME_URL: http://realtime:3005
+      REALTIME_PUBLIC_URL: wss://${PUBLIC_HOST}/realtime
+      REALTIME_SECRET: ${REALTIME_SECRET:?set REALTIME_SECRET}
+      REMOTE_HOST: ${PUBLIC_HOST:?set PUBLIC_HOST}
+      CORS_ORIGINS: https://${PUBLIC_HOST}
+      TRUST_PROXY: '1'
+      COOKIE_SECURE: 'true'
+      GAME_TIME_SCALE: ${GAME_TIME_SCALE:-1}
+      WORLD_TICK_MINUTES: ${WORLD_TICK_MINUTES:-10}
+      IMAGINATION_API_URL: ${IMAGINATION_API_URL:-}
+      IMAGINATION_CLIENT_ID: ${IMAGINATION_CLIENT_ID:-}
+      IMAGINATION_CLIENT_SECRET: ${IMAGINATION_CLIENT_SECRET:-}
+      IMAGINATION_WORLD_ID: ${IMAGINATION_WORLD_ID:-}
+      WORLDGEN_SERVICE_URL: ${WORLDGEN_SERVICE_URL:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      sim:
+        condition: service_started
+      realtime:
+        condition: service_started
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/web.Dockerfile
+    restart: unless-stopped
+    ports:
+      - '${WEB_PORT:-80}:80'
+    depends_on:
+      - server
+      - realtime
+
+volumes:
+  postgres_data:

@@ -1,3 +1,7 @@
+import { inArray } from 'drizzle-orm';
+import { isPacked } from '@repo/api-contract';
+import { DrizzleDatabase } from '../../db/drizzle';
+import { players } from '../../db/drizzle/schema';
 import { IReplayableMatch } from '../../realtime/matchBroadcaster';
 import { MatchReplayRepositoryFactory } from '../../repositories/MatchReplayRepositoryFactory';
 
@@ -42,4 +46,21 @@ export function saveReplay(
 
 export function fetchReplay(fixtureId: string) {
   return getMatchReplayRepo().findByFixtureId(fixtureId);
+}
+
+/** Display names ("F. Lastname") for everyone in a replay's roster, so
+ * the Matchzone can label players without a second request. */
+export async function replayPlayerNames(frames: unknown): Promise<Record<string, string>> {
+  const ids = new Set<string>();
+  if (isPacked(frames as any)) {
+    for (const r of (frames as { roster: { id: string }[] }).roster) ids.add(r.id);
+  } else if (Array.isArray(frames)) {
+    for (const f of frames as { players?: { id: string }[] }[]) for (const p of f.players ?? []) ids.add(p.id);
+  }
+  if (!ids.size) return {};
+  const rows = await DrizzleDatabase.getInstance()
+    .database.select({ id: players.id, first: players.FirstName, last: players.LastName })
+    .from(players)
+    .where(inArray(players.id, [...ids]));
+  return Object.fromEntries(rows.map((r) => [r.id, `${r.first.charAt(0)}. ${r.last}`]));
 }

@@ -135,7 +135,7 @@ export class MatchdayRunnerService {
       return simulateFixtureWithRetry(
         fixture._id as string,
         {
-          quickSim: !isLive,
+          headless: !isLive,
           skipStandings: true,
           skipDayAdvance: true,
           skipReplay: !isLive,

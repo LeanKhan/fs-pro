@@ -1,0 +1,266 @@
+// crates/sim-core/src/types.rs
+//
+// Core domain types, player attributes, match events, and replay structures.
+
+use crate::geom::Vec2;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PositionCategory {
+    GK,
+    DEF,
+    MID,
+    ATT,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Attributes {
+    pub speed: f32,
+    pub shooting: f32,
+    pub short_pass: f32,
+    pub long_pass: f32,
+    pub tackling: f32,
+    pub keeping: f32,
+    pub control: f32,
+    pub strength: f32,
+    pub stamina: f32,
+    pub dribbling: f32,
+    pub vision: f32,
+    pub shot_power: f32,
+    pub aggression: f32,
+    pub interception: f32,
+    pub marking: f32,
+    pub agility: f32,
+    pub crossing: f32,
+    pub positioning: f32,
+    pub long_shot: f32,
+    /// Composure and decision-making.
+    pub mental: f32,
+    pub set_piece: f32,
+}
+
+impl Default for Attributes {
+    fn default() -> Self {
+        Self {
+            speed: 50.0,
+            shooting: 50.0,
+            short_pass: 50.0,
+            long_pass: 50.0,
+            tackling: 50.0,
+            keeping: 50.0,
+            control: 50.0,
+            strength: 50.0,
+            stamina: 50.0,
+            dribbling: 50.0,
+            vision: 50.0,
+            shot_power: 50.0,
+            aggression: 50.0,
+            interception: 50.0,
+            marking: 50.0,
+            agility: 50.0,
+            crossing: 50.0,
+            positioning: 50.0,
+            long_shot: 50.0,
+            mental: 50.0,
+            set_piece: 50.0,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CardState {
+    None,
+    Yellow,
+    Red,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SimPlayer {
+    pub id: String,
+    pub name: String,
+    pub position: PositionCategory,
+    pub rating: f32,
+    pub attributes: Attributes,
+    pub pos: Vec2,
+    pub target_pos: Vec2,
+    pub anchor_pos: Vec2, // Base formation home anchor
+    pub stamina: f32,      // 0.0 to 100.0 current stamina in match
+    pub condition: f32,    // 0.0 to 100.0 overall fitness
+    pub cards: CardState,
+    pub is_sent_off: bool,
+    pub team_index: usize, // 0 = Home, 1 = Away
+    pub squad_index: usize, // 0..10
+    pub shirt_number: String,
+    /// Tactical role (from the squad Role + attributes) - its tendencies
+    /// colour this player's decisions.
+    pub role: crate::roles::PlayerRole,
+    /// Multiplier on every skill this player uses (home advantage).
+    pub boost: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum BallFlightType {
+    Ground,
+    LowAir,
+    HighAir,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SimBall {
+    pub pos: Vec2,
+    pub z: f32, // Height off ground (meters)
+    pub velocity: Vec2,
+    pub vz: f32,
+    pub holder_idx: Option<usize>, // 0..21 active player index
+    pub flight: Option<BallFlightType>,
+    pub target_pos: Option<Vec2>,
+    pub target_player_idx: Option<usize>,
+}
+
+impl Default for SimBall {
+    fn default() -> Self {
+        Self {
+            pos: Vec2::new(0.5, 0.5),
+            z: 0.0,
+            velocity: Vec2::ZERO,
+            vz: 0.0,
+            holder_idx: None,
+            flight: None,
+            target_pos: None,
+            target_player_idx: None,
+        }
+    }
+}
+
+use crate::model::PassKind;
+
+/// What happened, recorded by the engine with squad indices only - the
+/// contract layer turns these into the TypeScript `IMatchEvent` shape
+/// (names, club codes, messages), keeping presentation out of the engine.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum EventKind {
+    KickOff,
+    HalfTime,
+    FullTime,
+    Goal { penalty: bool },
+    Save { penalty: bool },
+    Miss { penalty: bool, blocked: bool },
+    Foul { card: CardState, penalty: bool },
+}
+
+#[derive(Debug, Clone)]
+pub struct EngineEvent {
+    pub tick: u16,
+    pub minute: u8,
+    pub kind: EventKind,
+    /// The actor: scorer, saving keeper, shooter who missed, offender.
+    pub player: Option<usize>,
+    /// The other party: assister, shooter whose shot was saved, blocker,
+    /// fouled player.
+    pub other: Option<usize>,
+    pub xg: Option<f32>,
+}
+
+/// Per-player match stats, mirroring the TypeScript engine's GameStats so
+/// PlayerMatchDetails, MOTM and training growth keep working. `points`
+/// uses the same weights as TS `GamePoints`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PlayerMatchStats {
+    pub goals: u16,
+    pub assists: u16,
+    pub saves: u16,
+    pub shots: u16,
+    /// Completed passes (the TS engine's `Passes` counted only these).
+    pub passes: u16,
+    pub tackles: u16,
+    pub fouls: u16,
+    pub yellow_cards: u8,
+    pub red_cards: u8,
+    pub dribbles: u16,
+    pub interceptions: u16,
+    /// 1 for the goalkeeper and defenders of a side that conceded nothing.
+    pub clean_sheets: u8,
+    pub points: f32,
+}
+
+/// TypeScript `IMatchEvent`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TsEvent {
+    #[serde(rename = "type")]
+    pub event_type: String,
+    pub message: String,
+    /// Match minute, as a string - what TS consumers parse.
+    pub time: String,
+    #[serde(rename = "playerID", skip_serializing_if = "Option::is_none")]
+    pub player_id: Option<String>,
+    /// The acting player's club code (not id), as the TS engine sends it.
+    #[serde(rename = "playerTeamID", skip_serializing_if = "Option::is_none")]
+    pub player_team_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<serde_json::Value>,
+}
+
+/// Grid units per stored position integer (x 0-32, y 0-20).
+pub const REPLAY_SCALE: f32 = 10.0;
+
+/// Replay frames in the compact format the TS server stores and streams
+/// (apps/fs-pro-server/src/realtime/packedFrames.ts - keep in step): the
+/// roster once, positions as flat integer arrays, and status changes and
+/// events only on the frames where they happen. ~40x smaller than an
+/// object per player per frame.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackedFrames {
+    pub format: String,
+    pub scale: f32,
+    pub roster: Vec<RosterEntry>,
+    pub tick: Vec<u16>,
+    pub minute: Vec<u8>,
+    pub half: Vec<u8>,
+    /// Ball per frame: x0, y0, x1, y1, ... (scaled).
+    pub ball: Vec<i16>,
+    /// Per frame, per roster slot: x, y (scaled).
+    pub xy: Vec<i16>,
+    /// Roster slot on the ball per frame, -1 for nobody.
+    pub holder: Vec<i8>,
+    /// (frame, slot, matchStatus, yellowCards, redCards) from that frame on;
+    /// everyone starts active with no cards.
+    pub status: Vec<(u32, u8, String, u8, u8)>,
+    pub events: Vec<(u32, TsEvent)>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RosterEntry {
+    pub id: String,
+    pub side: String,
+    pub num: String,
+    pub pos: String,
+}
+
+/// What the engine records per tick; the contract layer adds the roster
+/// and events to make `PackedFrames`.
+#[derive(Debug, Clone, Default)]
+pub struct ReplayBuffer {
+    pub tick: Vec<u16>,
+    pub minute: Vec<u8>,
+    pub half: Vec<u8>,
+    pub ball: Vec<i16>,
+    pub xy: Vec<i16>,
+    pub holder: Vec<i8>,
+    pub status: Vec<(u32, u8, String, u8, u8)>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TeamMatchStats {
+    pub score: u8,
+    pub shots: u16,
+    pub shots_on_target: u16,
+    pub passes: u16,
+    pub passes_completed: u16,
+    pub tackles: u16,
+    pub fouls: u16,
+    pub yellow_cards: u8,
+    pub red_cards: u8,
+    pub possession_ticks: u32,
+    pub xg: f32,
+}

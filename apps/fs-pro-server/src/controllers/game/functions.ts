@@ -2,7 +2,7 @@ import {
   IMatchDetails,
   IMatchEvent,
   IMatchSideDetails,
-} from '../../simulation/classes/Match';
+} from '../../match/types';
 import { updateFixtureFields } from '../fixtures/fixture.service';
 import { createManyPlayerMatches } from '../player-match/player-match.service';
 import { PlayerMatchDetailsInterface } from '../player-match/player-match.model';

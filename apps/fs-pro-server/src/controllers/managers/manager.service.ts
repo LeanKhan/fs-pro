@@ -2,7 +2,7 @@ import { ManagerInterface } from './manager.model';
 import {
   ITactic,
   tacticFromManager,
-} from '../../simulation/state/PersistentState/Formations';
+} from '../../match/tactics';
 import { ManagerRepositoryFactory } from '../../repositories/ManagerRepositoryFactory';
 import {
   IManagerFilter,
