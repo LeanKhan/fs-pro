@@ -1,11 +1,13 @@
 import { sql } from 'drizzle-orm';
 import { numeric, real } from 'drizzle-orm/pg-core';
 import {
+  bigint,
   boolean,
   index,
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -48,6 +50,9 @@ export const places = pgTable('Places', {
   Name: text('Name').notNull(),
   Code: text('Code').notNull().unique(),
   Region: text('Region'),
+  /** Place level: 'country' | 'region' | 'city' | 'district'
+   * (docs/perfect/WORLD-HIERARCHY-SPEC.md §2.1; 'town' was renamed 'city'
+   * in migration 0038 and districts were added). */
   Type: text('Type'),
   Picture: text('Picture'),
   /** Universal entity id of the matching `country` place in the Imaginations world. */
@@ -57,11 +62,12 @@ export const places = pgTable('Places', {
   WorldSyncedAt: timestamp('WorldSyncedAt', { withTimezone: true }),
   /** The world no longer knows this place (deleted); last known values are kept. */
   WorldStale: boolean('WorldStale').notNull().default(false),
-  /** Atlas (packages/api-contract world-geo.ts): a town's or region's
+  /** Atlas (packages/api-contract world-geo.ts): a region's or city's
    * country. Null for countries. */
   ParentId: uuid('ParentId').references((): AnyPgColumn => places.id),
-  /** A town's region (a Places row with Type 'region' under the same
-   * country); docs/WORLD-PYRAMID-SPEC.md, "Geography and placement". */
+  /** A place's region (a Places row with Type 'region' under the same
+   * country); set for cities and districts
+   * (docs/perfect/WORLD-HIERARCHY-SPEC.md §2.1). */
   RegionId: uuid('RegionId').references((): AnyPgColumn => places.id),
   /** The user who founded this country or town; null for the original world. */
   FoundedBy: uuid('FoundedBy').references((): AnyPgColumn => users.id),
@@ -227,9 +233,16 @@ export const clubs = pgTable('Clubs', {
   /** Where the owner put each campus building (packages/api-contract
    * campus-grid.ts); null = the default layout. */
   CampusPlacement: jsonb('CampusPlacement').$type<Record<string, { x: number; z: number; rot: number }> | null>(),
-  /** The club's town (a Places row whose ParentId is its country). Null
-   * once the club is released. */
-  TownId: uuid('TownId').references((): AnyPgColumn => places.id),
+  /** The club's district (a Places row whose ParentId is its city; the city
+   * is the district's ParentId, the region its RegionId). Null once the club
+   * is released. Renamed from TownId in migration 0038
+   * (docs/perfect/WORLD-HIERARCHY-SPEC.md §2.1). */
+  DistrictId: uuid('DistrictId').references((): AnyPgColumn => places.id),
+  /** Cached prominence score (0-100), owned by services/world-service and
+   * recomputed from stored fields; docs/perfect/WORLD-HIERARCHY-SPEC.md §5.
+   * The raw fields stay authoritative. */
+  Prominence: real('Prominence').notNull().default(0),
+  ProminenceUpdatedAt: timestamp('ProminenceUpdatedAt', { precision: 3 }),
   /** docs/WORLD-PYRAMID-SPEC.md, "Caretaker and release": the owner's last
    * authenticated request (written at most hourly), whether the AI is
    * minding the club while they're away, and when it was released. */
@@ -244,7 +257,9 @@ export const clubs = pgTable('Clubs', {
   Crest: jsonb('Crest').$type<Record<string, unknown> | null>(),
   ...timestamps,
   // Players dropped - it's the exact inverse of players.Club below.
-});
+  },
+  (t) => [index('Clubs_Prominence_idx').on(t.Prominence)]
+);
 
 /**
  * One perpetual timeline shared by the whole game world (no multi-tenancy
@@ -290,11 +305,19 @@ export const calendars = pgTable('Calendars', {
     .notNull()
     .default(sql`'[12,13,14,15,16,17,18,19,20,21,22]'::jsonb`),
   CupKickoffHour: integer('CupKickoffHour').notNull().default(20),
-  /** Placement capacities: clubs per town, towns per region, regions per
-   * country. */
-  TownSize: integer('TownSize').notNull().default(6),
-  RegionTowns: integer('RegionTowns').notNull().default(8),
+  /** Placement capacities (docs/perfect/WORLD-HIERARCHY-SPEC.md §3.1):
+   * clubs per district, districts a city grows to, cities per region and the
+   * frontier city's district cap. The `Frontier*` ids point at the newest
+   * country/region and its capital city the world is filling. Renamed from
+   * TownSize/RegionTowns in migration 0038. */
+  DistrictClubs: integer('DistrictClubs').notNull().default(10),
+  CityDistricts: integer('CityDistricts').notNull().default(2),
+  RegionCities: integer('RegionCities').notNull().default(8),
   CountryRegions: integer('CountryRegions').notNull().default(6),
+  MetropolisDistricts: integer('MetropolisDistricts').notNull().default(40),
+  FrontierCountryId: uuid('FrontierCountryId').references(() => places.id),
+  FrontierRegionId: uuid('FrontierRegionId').references(() => places.id),
+  FrontierCityId: uuid('FrontierCityId').references(() => places.id),
   /** Days away before a human club gets a caretaker; whole caretaker years
    * before it is released. */
   CaretakerAfterDays: integer('CaretakerAfterDays').notNull().default(14),
@@ -979,25 +1002,57 @@ export const pools = pgTable(
   (t) => [index('pools_season_division_idx').on(t.SeasonId, t.Division)]
 );
 
-/** An invite link to found a club in a town (docs/WORLD-PYRAMID-SPEC.md,
- * "Invites"). */
-export const townInvites = pgTable(
-  'TownInvites',
+/** An invite link to found a club in a district or city
+ * (docs/perfect/WORLD-HIERARCHY-SPEC.md §3.6). Renamed from TownInvites in
+ * migration 0038; `PlaceId` points at a district (Level='district') or a city
+ * (Level='city'). */
+export const placeInvites = pgTable(
+  'PlaceInvites',
   {
     id: uuid('_id').primaryKey().defaultRandom(),
     Token: text('Token').notNull().unique(),
-    TownId: uuid('TownId')
+    PlaceId: uuid('PlaceId')
       .notNull()
       .references(() => places.id),
     ByClubId: uuid('ByClubId')
       .notNull()
       .references(() => clubs.id),
+    Level: text('Level').notNull().default('district'),
     ExpiresAt: timestamp('ExpiresAt', { precision: 3 }).notNull(),
     MaxUses: integer('MaxUses').notNull().default(5),
     Uses: integer('Uses').notNull().default(0),
     createdAt: timestamp('createdAt', { precision: 3 }).defaultNow().notNull(),
   },
-  (t) => [index('town_invites_club_idx').on(t.ByClubId)]
+  (t) => [index('place_invites_club_idx').on(t.ByClubId)]
+);
+
+/** Clubs per place projection (docs/perfect/WORLD-HIERARCHY-SPEC.md §2.3),
+ * maintained by the "Clubs_place_stats" trigger so placement can find a hole
+ * with one indexed read instead of a GROUP BY over Clubs. Keyed by district
+ * for placement; the world-service reads it for /places/:id/children too. */
+export const placeStats = pgTable(
+  'PlaceStats',
+  {
+    PlaceId: uuid('PlaceId')
+      .primaryKey()
+      .references(() => places.id),
+    Clubs: integer('Clubs').notNull().default(0),
+    UpdatedAt: timestamp('UpdatedAt', { precision: 3 }).notNull().defaultNow(),
+  },
+  (t) => [index('PlaceStats_Clubs_idx').on(t.Clubs)]
+);
+
+/** Map tile cache-invalidation counters (docs/perfect/WORLD-HIERARCHY-SPEC.md
+ * §7.5): bump `rev` for a tile's cell when anything it draws changes. */
+export const tileRevisions = pgTable(
+  'TileRevisions',
+  {
+    z: integer('z').notNull(),
+    x: integer('x').notNull(),
+    y: integer('y').notNull(),
+    rev: bigint('rev', { mode: 'number' }).notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.z, t.x, t.y] })]
 );
 
 /** Local news (docs/WORLD-PYRAMID-SPEC.md, "News scopes"): one row per

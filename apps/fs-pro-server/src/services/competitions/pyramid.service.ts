@@ -19,6 +19,7 @@ import { addXp, changeLevel } from '../world/level-change';
 import { levelForXp } from '../world/level';
 import { DEFAULT_LEAGUE_RULES } from './definition';
 import { rankRows, type RankedRow } from './ranking';
+import { drawPyramid as clientDrawPyramid, joinPyramid as clientJoinPyramid } from '../world/world-service.client';
 
 /**
  * Pyramid leagues (docs/WORLD-PYRAMID-SPEC.md, "Pyramid league"): one
@@ -265,9 +266,9 @@ export async function drawPyramid(competitionId: string, opts: { fromDay?: numbe
     const days = editionLeagueDays(calendar, endDay, startDay);
 
     const [country] = await tx.select().from(places).where(eq(places.id, countryId));
-    const desired = await desiredDivisions(competitionId);
 
-    // The country's clubs with their locality.
+    // The country's clubs with their strength and locality. Migration 0038:
+    // a club's region comes from its district (Clubs.DistrictId -> RegionId).
     const rows = await tx
       .select({
         id: clubs.id,
@@ -275,53 +276,51 @@ export async function drawPyramid(competitionId: string, opts: { fromDay?: numbe
         name: clubs.Name,
         xp: clubs.XP,
         elo: clubs.Elo,
-        townId: clubs.TownId,
         regionId: places.RegionId,
       })
       .from(clubs)
-      .leftJoin(places, eq(places.id, clubs.TownId))
+      .leftJoin(places, eq(places.id, clubs.DistrictId))
       .where(and(eq(clubs.AddressCountryId, countryId), isNull(clubs.ReleasedAt)));
     if (!rows.length) return null;
+
     const regionRows = await tx
       .select({ id: places.id, name: places.Name, createdAt: places.createdAt })
       .from(places)
       .where(and(eq(places.Type, 'region'), eq(places.ParentId, countryId)));
-    const regionOrder = new Map(
-      [...regionRows].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()).map((r, i) => [r.id, i])
-    );
     const regionName = new Map(regionRows.map((r) => [r.id, r.name]));
-    const townIds = [...new Set(rows.map((r) => r.townId).filter((t): t is string => !!t))];
-    const townRows = townIds.length
-      ? await tx.select({ id: places.id, createdAt: places.createdAt }).from(places).where(inArray(places.id, townIds))
-      : [];
-    const townOrder = new Map(
-      [...townRows].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id)).map((t, i) => [t.id, i])
-    );
-    const pad = (n: number) => String(n).padStart(6, '0');
 
-    const club: DrawClub[] = rows.map((r) => ({
-      id: r.id,
-      code: r.code,
-      name: r.name,
-      xp: r.xp,
-      elo: r.elo,
-      level: levelForXp(r.xp, calendar.LevelThresholds ?? undefined),
-      regionId: r.regionId,
-      regionKey: r.regionId ? pad(regionOrder.get(r.regionId) ?? 999999) : 'zzzzzz',
-      townKey: r.townId ? pad(townOrder.get(r.townId) ?? 999999) : 'zzzzzz',
-      desired: desired.get(r.id) ?? Infinity,
-    }));
-    club.sort(
-      (a, b) =>
-        a.desired - b.desired ||
-        b.level - a.level ||
-        b.xp - a.xp ||
-        b.elo - a.elo ||
-        a.id.localeCompare(b.id)
+    const detail = new Map(
+      rows.map((r) => [
+        r.id,
+        {
+          id: r.id,
+          code: r.code,
+          name: r.name,
+          xp: r.xp,
+          elo: r.elo,
+          level: levelForXp(r.xp, calendar.LevelThresholds ?? undefined),
+          regionId: r.regionId,
+        },
+      ])
     );
 
-    const shape = pyramidShape(club.length, stage.poolSize, stage.bottomFill);
-    const bottomDivision = shape[shape.length - 1]!.division;
+    // The Go world-service decides the pool assignment (WORLD-SERVICE-CONTRACT
+    // §4, WORLD-HIERARCHY-SPEC §6.2/§6.5); Node persists entries/pools/fixtures.
+    let assignment;
+    try {
+      assignment = await clientDrawPyramid(competitionId);
+    } catch (err) {
+      // No drawable edition (or the service is down): behave like the old
+      // "no clubs" path rather than failing the year-end.
+      console.warn(`[pyramid] world-service draw unavailable for ${competitionId}`, err);
+      return null;
+    }
+    if (!assignment.pools.length) return null;
+
+    const byDivision = new Map<number, typeof assignment.pools>();
+    for (const p of assignment.pools) byDivision.set(p.division, [...(byDivision.get(p.division) ?? []), p]);
+    const divisions = [...byDivision.keys()].sort((a, b) => a - b);
+    const bottomDivision = divisions[divisions.length - 1]!;
 
     // The edition.
     const [{ last }] = await tx
@@ -358,43 +357,34 @@ export async function drawPyramid(competitionId: string, opts: { fromDay?: numbe
       .where(eq(seasons.Status, 'running'));
     let hourIndex = dealt;
 
-    let cursor = 0;
     let poolCount = 0;
     let fixtureCount = 0;
     const entryRows: (typeof entries.$inferInsert)[] = [];
     const rankingRows: (typeof rankings.$inferInsert)[] = [];
     const fixtureRows: (typeof fixtures.$inferInsert)[] = [];
 
-    for (const div of shape) {
-      const inDivision = club.slice(cursor, cursor + div.clubs);
-      cursor += div.clubs;
-      // Local pools: neighbours by region, then town.
-      const local = [...inDivision].sort(
-        (a, b) => a.regionKey.localeCompare(b.regionKey) || a.townKey.localeCompare(b.townKey) || a.id.localeCompare(b.id)
-      );
-      const chunks: DrawClub[][] = [];
-      let at = 0;
-      for (const n of div.poolClubs) {
-        chunks.push(local.slice(at, at + n));
-        at += n;
-      }
+    for (const division of divisions) {
+      const divisionPools = byDivision.get(division)!;
       const names = poolNames(
         country?.Name ?? competition.Name,
-        div.division,
-        chunks.map((c) => {
-          const r = mostCommon(c.map((x) => x.regionId).filter((x): x is string => !!x));
+        division,
+        divisionPools.map((p) => {
+          const r = mostCommon(p.clubIds.map((id) => detail.get(id)?.regionId).filter((x): x is string => !!x));
           return r ? (regionName.get(r) ?? null) : null;
         })
       );
 
-      for (const [i, members] of chunks.entries()) {
-        const size = div.poolSizes[i]!;
+      for (const [i, pool] of divisionPools.entries()) {
+        const members = pool.clubIds.map((id) => detail.get(id)).filter((m): m is NonNullable<typeof m> => !!m);
+        if (!members.length) continue;
+        // A single oversized pool (n <= poolSize+1) keeps its real size.
+        const size = Math.max(stage.poolSize, members.length);
         const kickoff = hours[hourIndex++ % hours.length]!;
-        const [pool] = await tx
+        const [poolRow] = await tx
           .insert(pools)
           .values({
             SeasonId: season!.id,
-            Division: div.division,
+            Division: division,
             Number: i,
             Name: names[i]!,
             RegionId: mostCommon(members.map((m) => m.regionId).filter((x): x is string => !!x)),
@@ -412,8 +402,8 @@ export async function drawPyramid(competitionId: string, opts: { fromDay?: numbe
             ClubId: m.id,
             Status: 'active',
             Seed: slot + 1,
-            Group: pool!.id,
-            Division: div.division,
+            Group: poolRow!.id,
+            Division: division,
             PoolSlot: slot,
             updatedAt: new Date(),
           });
@@ -421,7 +411,7 @@ export async function drawPyramid(competitionId: string, opts: { fromDay?: numbe
             SeasonId: season!.id,
             StageIndex: 0,
             ClubId: m.id,
-            Group: pool!.id,
+            Group: poolRow!.id,
             EloStart: m.elo,
             updatedAt: new Date(),
           });
@@ -454,7 +444,7 @@ export async function drawPyramid(competitionId: string, opts: { fromDay?: numbe
     return {
       seasonId: season!.id,
       competitionId,
-      clubs: club.length,
+      clubs: rows.length,
       divisions: bottomDivision,
       pools: poolCount,
       fixtures: fixtureCount,
@@ -529,35 +519,32 @@ export async function joinPyramid(competitionId: string, clubId: string): Promis
       return pool ? { seasonId: season.id, poolId: pool.id, name: pool.Name, division: pool.Division, fixtures: 0 } : null;
     }
 
+    // Migration 0038: region comes from the club's district.
     const [club] = await tx
       .select({ id: clubs.id, code: clubs.ClubCode, name: clubs.Name, elo: clubs.Elo, regionId: places.RegionId })
       .from(clubs)
-      .leftJoin(places, eq(places.id, clubs.TownId))
+      .leftJoin(places, eq(places.id, clubs.DistrictId))
       .where(eq(clubs.id, clubId));
     if (!club) return null;
 
     const calendar = await world(tx);
     const all = await tx.select().from(pools).where(eq(pools.SeasonId, season.id));
-    const bottom = Math.max(0, ...all.map((p) => p.Division));
-    const filled = await tx
-      .select({ group: entries.Group, slot: entries.PoolSlot })
-      .from(entries)
-      .where(and(eq(entries.SeasonId, season.id), isNotNull(entries.Group)));
-    const slotsOf = (poolId: string) => new Set(filled.filter((f) => f.group === poolId).map((f) => f.slot!));
-    const open = all
-      .filter((p) => p.Division === bottom && slotsOf(p.id).size < p.Size)
-      .sort(
-        (a, b) =>
-          Number(b.RegionId === club.regionId) - Number(a.RegionId === club.regionId) ||
-          slotsOf(a.id).size - slotsOf(b.id).size ||
-          a.Number - b.Number
-      );
 
-    let pool = open[0];
+    // The Go world-service picks the bottom-division slot (WORLD-SERVICE-
+    // CONTRACT §4); Node creates the pool when none has room and persists.
+    let join;
+    try {
+      join = await clientJoinPyramid({ competitionId, clubId });
+    } catch (err) {
+      console.warn(`[pyramid] world-service join unavailable for ${competitionId}`, err);
+      return null;
+    }
+
+    let pool = join.poolId ? all.find((p) => p.id === join.poolId) : undefined;
+    if (join.poolId && !pool) return null;
     if (!pool) {
       const hours = calendar.KickoffHours?.length ? calendar.KickoffHours : [19];
-      // Division 1 stays one pool: a full single-pool pyramid opens D2.
-      const division = bottom <= 1 ? 2 : bottom;
+      const division = join.division;
       const siblings = all.filter((p) => p.Division === division);
       const [country] = await tx.select({ name: places.Name }).from(places).where(eq(places.id, season.Definition!.Entry.countryIds![0]!));
       const [region] = club.regionId
@@ -581,22 +568,20 @@ export async function joinPyramid(competitionId: string, clubId: string): Promis
         .returning();
     }
 
-    const used = slotsOf(pool!.id);
-    let slot = 0;
-    while (used.has(slot)) slot++;
+    const slot = join.poolId ? join.slot : 0;
     await tx.insert(entries).values({
       SeasonId: season.id,
       ClubId: club.id,
       Status: 'active',
       Seed: slot + 1,
-      Group: pool!.id,
-      Division: pool!.Division,
+      Group: pool.id,
+      Division: pool.Division,
       PoolSlot: slot,
       updatedAt: new Date(),
     });
     await tx
       .insert(rankings)
-      .values({ SeasonId: season.id, StageIndex: 0, ClubId: club.id, Group: pool!.id, EloStart: club.elo, updatedAt: new Date() })
+      .values({ SeasonId: season.id, StageIndex: 0, ClubId: club.id, Group: pool.id, EloStart: club.elo, updatedAt: new Date() })
       .onConflictDoNothing();
 
     // Remaining rounds against the pool's filled slots.
@@ -604,12 +589,12 @@ export async function joinPyramid(competitionId: string, clubId: string): Promis
       .select({ id: clubs.id, code: clubs.ClubCode, name: clubs.Name, slot: entries.PoolSlot })
       .from(entries)
       .innerJoin(clubs, eq(clubs.id, entries.ClubId))
-      .where(and(eq(entries.SeasonId, season.id), eq(entries.Group, pool!.id)));
+      .where(and(eq(entries.SeasonId, season.id), eq(entries.Group, pool.id)));
     const bySlot = new Map(members.map((m) => [m.slot!, m]));
     const days = editionLeagueDays(calendar, season.EndDay ?? calendar.CurrentDay, season.StartDay ?? calendar.YearStartDay);
-    const legs = poolLegs(pool!.Size, stage, days.length);
+    const legs = poolLegs(pool.Size, stage, days.length);
     const rows: (typeof fixtures.$inferInsert)[] = [];
-    roundRobin(pool!.Size, legs).forEach((round, r) => {
+    roundRobin(pool.Size, legs).forEach((round, r) => {
       const day = days[r];
       if (day == null || day <= calendar.CurrentDay) return;
       for (const p of round) {
@@ -617,11 +602,11 @@ export async function joinPyramid(competitionId: string, clubId: string): Promis
         const home = bySlot.get(p.home);
         const away = bySlot.get(p.away);
         if (!home || !away) continue;
-        rows.push(leagueFixture(season, season.CompetitionCode, competitionId, r + 1, home, away, day, pool!.KickoffHour, calendar));
+        rows.push(leagueFixture(season, season.CompetitionCode, competitionId, r + 1, home, away, day, pool.KickoffHour, calendar));
       }
     });
     if (rows.length) await tx.insert(fixtures).values(rows);
-    return { seasonId: season.id, poolId: pool!.id, name: pool!.Name, division: pool!.Division, fixtures: rows.length };
+    return { seasonId: season.id, poolId: pool.id, name: pool.Name, division: pool.Division, fixtures: rows.length };
   });
 }
 

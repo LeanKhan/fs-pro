@@ -16,7 +16,11 @@ import type { WorldFeed, WorldFeedHeadline } from '@repo/api-contract';
  * feed costs the same in a world of 10 clubs or 10,000.
  */
 
-const SCOPE_TAG: Record<Scope, string> = { town: 'TOWN', region: 'REGION', country: 'NATIONAL', world: 'WORLD' };
+// Migration 0038 renamed the `town` scope to `district`; the client-facing
+// tag and topic keep the legacy `town` name (see news-scope.service.ts).
+const SCOPE_TAG: Record<Scope, string> = { district: 'TOWN', region: 'REGION', country: 'NATIONAL', world: 'WORLD' };
+/** The client-facing local scope: the district is the legacy `town`. */
+const wireScope = (scope: Scope): 'town' | 'region' | 'country' | 'world' => (scope === 'district' ? 'town' : scope);
 
 function category(kind: string): WorldFeedHeadline['category'] {
   if (kind === 'transfer') return 'transfer';
@@ -194,9 +198,11 @@ export class WorldFeedService {
       otherLeagues,
       activeInjuries,
       local: {
-        scope: feed.scopes.local,
+        scope: wireScope(feed.scopes.local),
         name: feed.scopes.localName,
-        townId: feed.scopes.where.town,
+        // townId is the club's district now (migration 0038); the client keys
+        // its realtime subscription on it unchanged.
+        townId: feed.scopes.where.district,
         regionId: feed.scopes.where.region,
         countryId: feed.scopes.where.country,
       },
