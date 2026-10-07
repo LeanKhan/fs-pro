@@ -33,6 +33,15 @@ type Pool struct {
 	log     *slog.Logger
 }
 
+// Querier is the read/write surface the domain packages (placement, ranking,
+// pyramid) need. *Pool satisfies it, and tests can inject a fake. Every method
+// applies the pool timeout.
+type Querier interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+}
+
 // New parses databaseURL and builds the pool. It does not dial Postgres, so it
 // returns an error only for a malformed configuration. A nil logger is
 // replaced with slog.Default.
