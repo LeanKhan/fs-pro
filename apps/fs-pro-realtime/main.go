@@ -105,6 +105,47 @@ func newServer(cfg config, hub *Hub) http.Handler {
 		writeJSON(w, map[string]any{"topic": topic, "members": hub.Members(topic)})
 	})
 
+	// Moderator tools, signed like /publish (X-Signature: HMAC of the body).
+	// The Node API calls these for admins; they can also be used with curl.
+	admin := func(path string, handle func(body []byte) (any, int)) {
+		mux.HandleFunc("POST "+path, func(w http.ResponseWriter, r *http.Request) {
+			body, err := io.ReadAll(io.LimitReader(r.Body, 8<<10))
+			if err != nil || !VerifyBody(cfg.secret, body, r.Header.Get("X-Signature")) {
+				http.Error(w, "bad signature", http.StatusUnauthorized)
+				return
+			}
+			out, status := handle(body)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(status)
+			_ = json.NewEncoder(w).Encode(out)
+		})
+	}
+	admin("/admin/mute", func(body []byte) (any, int) {
+		var p struct {
+			UserID  string `json:"uid"`
+			Minutes int    `json:"minutes"`
+			Purge   bool   `json:"purge"`
+		}
+		if json.Unmarshal(body, &p) != nil || p.UserID == "" || p.Minutes <= 0 || p.Minutes > 60*24*30 {
+			return map[string]any{"error": "need uid and minutes (1 to 43200)"}, http.StatusBadRequest
+		}
+		until := hub.AdminMute(p.UserID, time.Duration(p.Minutes)*time.Minute, p.Purge)
+		return map[string]any{"uid": p.UserID, "until": until.UnixMilli()}, http.StatusOK
+	})
+	admin("/admin/unmute", func(body []byte) (any, int) {
+		var p struct {
+			UserID string `json:"uid"`
+		}
+		if json.Unmarshal(body, &p) != nil || p.UserID == "" {
+			return map[string]any{"error": "need uid"}, http.StatusBadRequest
+		}
+		hub.mod.Unmute(p.UserID)
+		return map[string]any{"uid": p.UserID}, http.StatusOK
+	})
+	admin("/admin/reports", func([]byte) (any, int) {
+		return map[string]any{"reports": hub.mod.Reports(), "muted": hub.mod.Muted()}, http.StatusOK
+	})
+
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"ok": true})
 	})
@@ -122,6 +163,12 @@ func writeJSON(w http.ResponseWriter, v any) {
 func main() {
 	cfg := loadConfig()
 	hub := NewHub()
+	hub.mod = newModerator(loadModConfig())
+	go func() {
+		for range time.Tick(time.Minute) {
+			hub.mod.Sweep()
+		}
+	}()
 	go hub.RunOnline(make(chan struct{}))
 	log.Printf("fs-pro realtime gateway on %s", cfg.addr)
 	srv := &http.Server{Addr: cfg.addr, Handler: newServer(cfg, hub), ReadHeaderTimeout: 10 * time.Second}

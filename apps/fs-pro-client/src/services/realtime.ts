@@ -25,6 +25,25 @@ export interface ChatMessage {
   at: number;
 }
 
+const BLOCKED_KEY = 'fspro-blocked-players';
+
+function loadBlocked(): string[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(BLOCKED_KEY) ?? '[]');
+    return Array.isArray(raw) ? raw.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveBlocked(uids: string[]) {
+  try {
+    localStorage.setItem(BLOCKED_KEY, JSON.stringify(uids.slice(-200)));
+  } catch {
+    /* private mode: blocking lasts until the tab closes */
+  }
+}
+
 type Handler = (data: any, meta: { topic: string; event: string }) => void;
 
 const DEDUPE_MS = 1500;
@@ -38,6 +57,10 @@ class Realtime {
   /** Chat lines per topic, oldest first. */
   readonly chats = reactive(new Map<string, ChatMessage[]>());
   readonly lastError = ref('');
+  /** Good news from the gateway (a report was received), shown like an error but calmer. */
+  readonly lastNotice = ref('');
+  /** Players this browser has blocked: their lines are hidden. Kept per device. */
+  readonly blocked = reactive(new Set<string>(loadBlocked()));
 
   private ws: WebSocket | null = null;
   private topics = new Map<string, number>();
@@ -77,6 +100,21 @@ class Realtime {
   say(topic: string, text: string) {
     const t = text.trim();
     if (t) this.send({ op: 'say', topic, text: t });
+  }
+
+  /** Tell the moderators about a chat line. */
+  report(topic: string, id: number, reason = '') {
+    this.send({ op: 'report', topic, id, text: reason });
+  }
+
+  block(uid: string) {
+    this.blocked.add(uid);
+    saveBlocked([...this.blocked]);
+  }
+
+  unblock(uid: string) {
+    this.blocked.delete(uid);
+    saveBlocked([...this.blocked]);
   }
 
   /** Close for good (logout). */
@@ -169,6 +207,15 @@ class Realtime {
       case 'error':
         this.lastError.value = msg.message;
         break;
+      case 'notice':
+        this.lastNotice.value = msg.message;
+        break;
+      case 'removed': {
+        // A moderator (or enough reports) pulled these lines.
+        const gone = new Set<number>(msg.ids ?? []);
+        this.chats.set(msg.topic, (this.chats.get(msg.topic) ?? []).filter((m) => !gone.has(m.id)));
+        break;
+      }
     }
   }
 

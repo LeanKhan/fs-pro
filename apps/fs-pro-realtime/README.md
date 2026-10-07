@@ -55,6 +55,33 @@ Server to client:
 
 Chat is allowed on `world` and `campus:*`. Messages are trimmed, have control characters removed and are capped at 280 characters. Each connection may send a burst of 5, then one every 2 seconds. A client that can't keep up with its send buffer is disconnected rather than slowing everyone else.
 
+## Moderation
+
+Everything a player says goes through `moderation.go` first, in this order:
+
+1. **Muted?** The player is told until when; the line is dropped.
+2. **Unconfirmed email?** They can read but not write (`CHAT_REQUIRE_VERIFIED`, default on; the ticket's `ver` claim, which the Node API sets).
+3. **Rate limit**, per account rather than per tab: a burst of 5, then one every 2 seconds.
+4. **Screen** (admins skip it): links, the same line twice within 30 seconds, and a word list.
+
+The word list is a short built-in baseline plus your own: `CHAT_BLOCKLIST` (comma-separated) and/or `CHAT_BLOCKLIST_FILE` (one word per line, `#` comments). Words match whole words after undoing look-alikes (`sh1t`, `b!tch`), repeated letters (`fuuuck`) and spelling out (`f.u.c.k`), so "class" and "Scunthorpe" pass. It is a baseline, not a guarantee; keep your real list, slurs included, in the file.
+
+**Reports.** `{"op":"report","topic":"…","id":<message id>,"text":"reason"}`. Five reports a minute per player. When `CHAT_REPORTS_TO_MUTE` (default 3) different players report the same line, its author is muted for ten minutes, their lines are pulled from the history and clients get `{"type":"removed","topic","ids"}`. The reporter gets `{"type":"notice","message"}`. Reports are also written to the log (`chat report: …`).
+
+**Moderator endpoints**, signed like `/publish` (`X-Signature: hex HMAC-SHA256(body)`), all `POST`:
+
+| Path | Body | Does |
+| --- | --- | --- |
+| `/admin/mute` | `{"uid","minutes","purge"}` | mute for 1 to 43,200 minutes; `purge` removes their lines |
+| `/admin/unmute` | `{"uid"}` | lift a mute |
+| `/admin/reports` | `{}` | the last 200 reports and who is muted |
+
+The Node API exposes these to signed-in admins as `GET /api/realtime/mod/reports`, `POST /api/realtime/mod/mute` and `POST /api/realtime/mod/unmute`.
+
+Mutes and reports live in the gateway's memory: a restart clears them. That suits mutes of minutes; for permanent bans, act on the account (the API) instead.
+
+Players can also block someone for themselves (stored in their browser) and report from the chat window.
+
 ## Publishing (Node)
 
 `apps/fs-pro-server/src/realtime/world-events.ts`:

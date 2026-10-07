@@ -28,6 +28,10 @@
           <b>{{ m.from.name }}<small v-if="m.from.code"> {{ m.from.code }}</small></b>
           <span>{{ m.text }}</span>
           <time>{{ clock(m.at) }}</time>
+          <span v-if="m.from.uid !== me?.uid" class="chat-actions">
+            <button type="button" :aria-label="`Report ${m.from.name}'s message`" @click="report(m)">Report</button>
+            <button type="button" :aria-label="`Block ${m.from.name}`" @click="block(m)">Block</button>
+          </span>
         </li>
         <li v-if="!lines.length" class="empty">{{ tab === 'ground' ? `Say hello to ${clubName}'s visitors` : 'Say hello to the world' }}</li>
       </ol>
@@ -35,7 +39,12 @@
         <input v-model="draft" maxlength="280" :placeholder="status === 'live' ? 'Write a message…' : 'Chat is offline'" :disabled="status !== 'live'" />
         <button class="btn small primary" type="submit" :disabled="!draft.trim() || status !== 'live'">Send</button>
       </form>
-      <p v-if="error" class="chat-error">{{ error }}</p>
+      <p v-if="blockedHere" class="chat-note">
+        {{ blockedHere }} blocked {{ blockedHere === 1 ? 'player' : 'players' }} hidden.
+        <button type="button" @click="unblockAll">Show them</button>
+      </p>
+      <p v-if="notice" class="chat-note" role="status">{{ notice }}</p>
+      <p v-if="error" class="chat-error" role="alert">{{ error }}</p>
     </section>
   </div>
 </template>
@@ -71,7 +80,9 @@ const here = computed<Member[]>(() =>
   groundTopic.value ? (realtime.presence.get(groundTopic.value) ?? []).filter((m) => m.uid !== me.value?.uid) : []
 );
 const visitors = here;
-const lines = computed(() => realtime.chats.get(topic.value) ?? []);
+const notice = realtime.lastNotice;
+const lines = computed(() => (realtime.chats.get(topic.value) ?? []).filter((m) => !realtime.blocked.has(m.from.uid)));
+const blockedHere = computed(() => new Set((realtime.chats.get(topic.value) ?? []).filter((m) => realtime.blocked.has(m.from.uid)).map((m) => m.from.uid)).size);
 const groundLines = computed(() => realtime.chats.get(groundTopic.value ?? 'world') ?? []);
 const unread = computed(() => (open.value ? 0 : Math.max(0, groundLines.value.length - seen.value)));
 
@@ -113,8 +124,24 @@ watch(here, (members) => {
 });
 
 function send() {
+  realtime.lastError.value = '';
+  realtime.lastNotice.value = '';
   realtime.say(topic.value, draft.value);
   draft.value = '';
+}
+
+function report(m: { id: number }) {
+  realtime.lastError.value = '';
+  realtime.report(topic.value, m.id);
+}
+
+function block(m: { from: Member }) {
+  realtime.block(m.from.uid);
+  realtime.lastNotice.value = `${m.from.name} is blocked on this device.`;
+}
+
+function unblockAll() {
+  for (const uid of [...realtime.blocked]) realtime.unblock(uid);
 }
 
 const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -239,6 +266,47 @@ const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: '2-dig
   grid-column: 2;
   font-size: 11px;
   color: var(--muted);
+}
+.chat-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 2px;
+  opacity: 0.55;
+}
+.chat-lines li:hover .chat-actions,
+.chat-lines li:focus-within .chat-actions {
+  opacity: 1;
+}
+@media (hover: none) {
+  .chat-actions {
+    opacity: 0.8;
+  }
+}
+.chat-actions button {
+  padding: 2px 0;
+  font-size: 11px;
+  color: var(--muted);
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+.chat-actions button:hover {
+  color: var(--wood-d);
+}
+.chat-note {
+  margin: 4px 10px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.chat-note button {
+  margin-left: 4px;
+  font-size: 12px;
+  text-decoration: underline;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--wood-d);
 }
 .chat-lines .empty {
   display: block;

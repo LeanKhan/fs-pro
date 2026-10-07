@@ -28,7 +28,6 @@ type Conn struct {
 	out    chan []byte
 	once   sync.Once
 	done   chan struct{}
-	chat   *bucket
 }
 
 func newConn(hub *Hub, ws *websocket.Conn, claims Claims) *Conn {
@@ -39,8 +38,6 @@ func newConn(hub *Hub, ws *websocket.Conn, claims Claims) *Conn {
 		topics: map[string]struct{}{},
 		out:    make(chan []byte, sendBuffer),
 		done:   make(chan struct{}),
-		// 5 messages at once, then one every 2 seconds.
-		chat: newBucket(5, 2*time.Second),
 	}
 }
 
@@ -77,6 +74,7 @@ type inbound struct {
 	Op    string `json:"op"`
 	Topic string `json:"topic"`
 	Text  string `json:"text"`
+	ID    int64  `json:"id"`
 }
 
 // Run serves the connection until it closes.
@@ -116,13 +114,17 @@ func (c *Conn) handle(msg inbound) {
 		if text == "" {
 			return
 		}
-		if !c.chat.take(time.Now()) {
-			c.Send(map[string]any{"type": "error", "topic": msg.Topic, "message": "slow down"})
+		// Mutes, unconfirmed accounts, the per-player rate limit and the
+		// content screen (moderation.go).
+		if ok, reason := c.hub.mod.Check(c.claims, text); !ok {
+			c.Send(map[string]any{"type": "error", "topic": msg.Topic, "message": reason})
 			return
 		}
 		if !c.hub.Say(c, msg.Topic, text) {
 			c.Send(map[string]any{"type": "error", "topic": msg.Topic, "message": "not allowed"})
 		}
+	case "report":
+		c.Send(map[string]any{"type": "notice", "topic": msg.Topic, "message": c.hub.Report(c, msg.Topic, msg.ID, msg.Text)})
 	case "ping":
 		c.Send(map[string]any{"type": "pong"})
 	}
