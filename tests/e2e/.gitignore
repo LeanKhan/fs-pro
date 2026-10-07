@@ -1,0 +1,6 @@
+# Playwright run output (traces, HTML report) is generated; keep the committed
+# screenshots under artifacts/<project>/ as evidence.
+artifacts/test-results/
+artifacts/playwright-report/
+playwright-report/
+test-results/
