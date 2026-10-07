@@ -96,13 +96,16 @@ function toRegion(p: PlaceRow, founders: Map<string, string>): AtlasRegion {
   };
 }
 
-/** Countries (with a map spot), regions and towns, as rows. */
+/** Countries (with a map spot), regions and cities, as rows. Migration 0038
+ * renamed the old `town` level to `city` (WORLD-HIERARCHY-SPEC §2.1); the
+ * atlas' `towns` output field keeps its name for the client, but its rows are
+ * now cities and its club counts sum the city's districts. */
 async function loadPlaces() {
   const rows = await db().select().from(places).where(isNotNull(places.MapX));
   return {
     countries: rows.filter((p) => p.Type === 'country'),
     regions: rows.filter((p) => p.Type === 'region' && p.ParentId),
-    towns: rows.filter((p) => p.Type === 'town' && p.ParentId),
+    towns: rows.filter((p) => p.Type === 'city' && p.ParentId),
   };
 }
 
@@ -110,7 +113,7 @@ async function foundedCounts(userId: string) {
   const [row] = await db()
     .select({
       countries: sql<number>`count(*) filter (where ${places.Type} = 'country')::int`,
-      towns: sql<number>`count(*) filter (where ${places.Type} = 'town')::int`,
+      towns: sql<number>`count(*) filter (where ${places.Type} = 'city')::int`,
     })
     .from(places)
     .where(eq(places.FoundedBy, userId));
@@ -123,12 +126,15 @@ async function foundedCounts(userId: string) {
 
 export async function getAtlas(userId?: string | null, opts: { countryId?: string } = {}): Promise<Atlas> {
   const { countries, regions, towns } = await loadPlaces();
+  // Clubs point at a district (Clubs.DistrictId); a city's count sums its
+  // districts (migration 0038, WORLD-HIERARCHY-SPEC §2.1).
   const counts = await db()
-    .select({ townId: clubs.TownId, n: sql<number>`count(*)::int` })
+    .select({ cityId: places.ParentId, n: sql<number>`count(*)::int` })
     .from(clubs)
-    .where(and(isNotNull(clubs.TownId), isNull(clubs.ReleasedAt)))
-    .groupBy(clubs.TownId);
-  const countOf = new Map(counts.map((c) => [c.townId!, c.n]));
+    .innerJoin(places, eq(places.id, clubs.DistrictId))
+    .where(and(isNotNull(clubs.DistrictId), isNull(clubs.ReleasedAt)))
+    .groupBy(places.ParentId);
+  const countOf = new Map(counts.map((c) => [c.cityId!, c.n]));
   const total = counts.reduce((s, c) => s + c.n, 0);
   const all = total <= FULL_ATLAS_CLUBS;
   // A big world lists the clubs of the country asked for, else the user's own.
@@ -142,9 +148,9 @@ export async function getAtlas(userId?: string | null, opts: { countryId?: strin
     wanted = own?.country ?? undefined;
   }
   const countryId = !all && wanted && countries.some((c) => c.id === wanted) ? wanted : null;
-  const listTownIds = all ? null : countryId ? towns.filter((t) => t.ParentId === countryId).map((t) => t.id) : [];
+  const listCityIds = all ? null : countryId ? towns.filter((t) => t.ParentId === countryId).map((t) => t.id) : [];
 
-  const clubRows = listTownIds && !listTownIds.length ? [] : await db()
+  const clubRows = listCityIds && !listCityIds.length ? [] : await db()
     .select({
       id: clubs.id,
       name: clubs.Name,
@@ -155,12 +161,13 @@ export async function getAtlas(userId?: string | null, opts: { countryId?: strin
       rating: clubs.Rating,
       fans: clubs.Fans,
       userId: clubs.UserId,
-      townId: clubs.TownId,
+      cityId: places.ParentId,
       ownerName: users.FullName,
     })
     .from(clubs)
     .leftJoin(users, eq(users.id, clubs.UserId))
-    .where(and(isNull(clubs.ReleasedAt), listTownIds ? inArray(clubs.TownId, listTownIds) : undefined));
+    .leftJoin(places, eq(places.id, clubs.DistrictId))
+    .where(and(isNull(clubs.ReleasedAt), listCityIds ? inArray(places.ParentId, listCityIds) : undefined));
 
   const founderIds = [...new Set([...countries, ...regions, ...towns].map((p) => p.FoundedBy).filter((x): x is string => !!x))];
   const founders = new Map(
@@ -173,7 +180,7 @@ export async function getAtlas(userId?: string | null, opts: { countryId?: strin
 
   const byTown = new Map<string, AtlasClub[]>();
   const unplaced: AtlasClub[] = [];
-  const townIds = new Set(towns.map((t) => t.id));
+  const cityIds = new Set(towns.map((t) => t.id));
   for (const c of clubRows) {
     const club: AtlasClub = {
       id: c.id,
@@ -188,7 +195,7 @@ export async function getAtlas(userId?: string | null, opts: { countryId?: strin
       ownerName: c.userId ? (c.ownerName ?? null) : null,
       founded: isCrestDesign(c.crest),
     };
-    if (c.townId && townIds.has(c.townId)) byTown.set(c.townId, [...(byTown.get(c.townId) ?? []), club]);
+    if (c.cityId && cityIds.has(c.cityId)) byTown.set(c.cityId, [...(byTown.get(c.cityId) ?? []), club]);
     else unplaced.push(club);
   }
 
@@ -370,7 +377,8 @@ export async function foundTown(
       Name: name,
       Code: code,
       Region: country.Region,
-      Type: 'town',
+      // Migration 0038: the old `town` level is `city`.
+      Type: 'city',
       ParentId: country.id,
       RegionId: nearest?.id ?? null,
       FoundedBy: user.id,
@@ -380,21 +388,39 @@ export async function foundTown(
       updatedAt: new Date(),
     })
     .returning();
+  // Every city owns at least one district; clubs attach to the district
+  // (WORLD-HIERARCHY-SPEC §2.1).
+  await db()
+    .insert(places)
+    .values({
+      Fullname: `${name} Central, ${name}`,
+      Name: `${name} Central`,
+      Code: `${code}-D`,
+      Region: country.Region,
+      Type: 'district',
+      ParentId: row!.id,
+      RegionId: row!.RegionId ?? null,
+      FoundedBy: user.id,
+      MapX: spot.x,
+      MapY: spot.y,
+      Terrain: body.terrain,
+      updatedAt: new Date(),
+    });
   return toTown(row!, new Map([[user.id, user.FullName]]), []);
 }
 
-/** A town row with its country, or a 404. */
+/** A city row with its country, or a 404. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function getTown(townId: string) {
-  if (!UUID.test(townId)) throw new FoundingError('Town not found', 404);
+  if (!UUID.test(townId)) throw new FoundingError('City not found', 404);
   const [town] = await db()
     .select()
     .from(places)
-    .where(and(eq(places.id, townId), eq(places.Type, 'town')));
-  if (!town?.ParentId) throw new FoundingError('Town not found', 404);
+    .where(and(eq(places.id, townId), eq(places.Type, 'city')));
+  if (!town?.ParentId) throw new FoundingError('City not found', 404);
   const [country] = await db().select().from(places).where(eq(places.id, town.ParentId));
-  if (!country) throw new FoundingError('Town not found', 404);
+  if (!country) throw new FoundingError('City not found', 404);
   return { town, country };
 }
 

@@ -39,8 +39,11 @@ async function settings() {
     weekTemplate: c.WeekTemplate,
     kickoffHours: c.KickoffHours,
     cupKickoffHour: c.CupKickoffHour,
-    townSize: c.TownSize,
-    regionTowns: c.RegionTowns,
+    // The API field names stay for the client, but the columns are the new
+    // district capacities (migration 0038 renamed TownSize -> DistrictClubs
+    // and RegionTowns -> RegionCities). `townSize` is now clubs per district.
+    townSize: c.DistrictClubs,
+    regionTowns: c.RegionCities,
     countryRegions: c.CountryRegions,
     caretakerAfterDays: c.CaretakerAfterDays,
     releaseAfterSeasons: c.ReleaseAfterSeasons,
@@ -117,8 +120,11 @@ export const worldTsRestRoutes = s.router(contract.world, {
           ...(patch.weekTemplate !== undefined && { WeekTemplate: patch.weekTemplate }),
           ...(patch.kickoffHours !== undefined && { KickoffHours: patch.kickoffHours }),
           ...(patch.cupKickoffHour !== undefined && { CupKickoffHour: patch.cupKickoffHour }),
-          ...(patch.townSize !== undefined && { TownSize: patch.townSize }),
-          ...(patch.regionTowns !== undefined && { RegionTowns: patch.regionTowns }),
+          // API names townSize/regionTowns map onto the renamed columns
+          // (migration 0038): townSize = clubs per district; regionTowns =
+          // cities per region.
+          ...(patch.townSize !== undefined && { DistrictClubs: patch.townSize }),
+          ...(patch.regionTowns !== undefined && { RegionCities: patch.regionTowns }),
           ...(patch.countryRegions !== undefined && { CountryRegions: patch.countryRegions }),
           ...(patch.caretakerAfterDays !== undefined && { CaretakerAfterDays: patch.caretakerAfterDays }),
           ...(patch.releaseAfterSeasons !== undefined && { ReleaseAfterSeasons: patch.releaseAfterSeasons }),

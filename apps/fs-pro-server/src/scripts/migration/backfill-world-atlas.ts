@@ -3,15 +3,20 @@ import { createDrizzleConnection } from '../../db/drizzle/client';
 import { suggestTownSpot, type AtlasPoint, type TownTerrain } from '@repo/api-contract';
 
 /**
- * Puts the original world on the atlas (run after 0033). Idempotent:
+ * Puts the original world on the atlas (run after 0033, before the pyramid).
+ * Idempotent:
  *  - every country without a map spot gets one (west / east of the middle
  *    sea, the known ones at hand-picked spots) and colours;
- *  - every club city (Clubs.Address.City) becomes a town Place under the
- *    club's country, and the club gets TownId;
- *  - each club's campus layout follows its town's terrain.
+ *  - every club city (Clubs.Address.City) becomes a city Place under the
+ *    club's country plus a district (migration 0038 / WORLD-HIERARCHY-SPEC
+ *    §2.1), and the club gets DistrictId;
+ *  - each club's campus layout follows its city's terrain.
  * `--dry` prints the plan without writing. `--relayout` re-spaces the
- * original world's towns (never player-founded ones) with the current
+ * original world's cities (never player-founded ones) with the current
  * spacing rules.
+ *
+ * On a world that has already had 0038 applied, clubs have DistrictId and
+ * cities/districts already exist, so the script is a no-op.
  */
 
 const KNOWN_SPOTS: Record<string, [number, number]> = {
@@ -91,15 +96,15 @@ async function main() {
     }
     const centre = new Map(countries.map((c) => [c.id, { x: c.MapX!, y: c.MapY! }]));
 
-    // 1b. Re-space the original towns (player-founded towns never move).
+    // 1b. Re-space the original cities (player-founded cities never move).
     if (process.argv.includes('--relayout')) {
       const fixed = await sql<{ x: number; y: number }[]>`
-        SELECT "MapX" AS x, "MapY" AS y FROM "Places" WHERE "Type" = 'town' AND "FoundedBy" IS NOT NULL`;
+        SELECT "MapX" AS x, "MapY" AS y FROM "Places" WHERE "Type" = 'city' AND "FoundedBy" IS NOT NULL`;
       const placed: AtlasPoint[] = [...fixed];
       for (const c of countries) {
         const own = await sql<{ id: string; Name: string }[]>`
-          SELECT "_id" AS id, "Name" FROM "Places" WHERE "Type" = 'town' AND "ParentId" = ${c.id} AND "FoundedBy" IS NULL
-          ORDER BY (SELECT count(*) FROM "Clubs" WHERE "TownId" = "Places"."_id") DESC, "Name"`;
+          SELECT "_id" AS id, "Name" FROM "Places" WHERE "Type" = 'city' AND "ParentId" = ${c.id} AND "FoundedBy" IS NULL
+          ORDER BY (SELECT count(*) FROM "Places" d WHERE d."ParentId" = "Places"."_id" AND d."Type" = 'district') DESC, "Name"`;
         const others = countries.filter((o) => o.id !== c.id).map((o) => centre.get(o.id)!);
         for (const [i, t] of own.entries()) {
           const spot = suggestTownSpot(centre.get(c.id)!, placed, others, i * 3);
@@ -110,31 +115,31 @@ async function main() {
           placed.push(spot);
           if (!dry) await sql`UPDATE "Places" SET "MapX" = ${spot.x}, "MapY" = ${spot.y}, "updatedAt" = now() WHERE "_id" = ${t.id}`;
         }
-        if (own.length) console.log(`relayout ${c.Name}: ${own.length} town(s)`);
+        if (own.length) console.log(`relayout ${c.Name}: ${own.length} city(ies)`);
       }
     }
 
-    // 2. Towns from club cities.
-    const clubs = await sql<{ id: string; Name: string; country: string | null; city: string | null; TownId: string | null }[]>`
-      SELECT "_id" AS id, "Name", "AddressCountryId" AS country, trim("Address"->>'City') AS city, "TownId"
+    // 2. Cities (and a district each) from club cities.
+    const clubs = await sql<{ id: string; Name: string; country: string | null; city: string | null; DistrictId: string | null }[]>`
+      SELECT "_id" AS id, "Name", "AddressCountryId" AS country, trim("Address"->>'City') AS city, "DistrictId"
       FROM "Clubs" ORDER BY "Name"`;
-    const towns = await sql<{ id: string; ParentId: string; Name: string; MapX: number; MapY: number }[]>`
-      SELECT "_id" AS id, "ParentId", "Name", "MapX", "MapY" FROM "Places" WHERE "Type" = 'town'`;
-    const townKey = (countryId: string, name: string) => `${countryId}:${name.toLowerCase()}`;
-    const townByKey = new Map(towns.map((t) => [townKey(t.ParentId, t.Name), t]));
-    const spots: AtlasPoint[] = towns.map((t) => ({ x: t.MapX, y: t.MapY }));
+    const cities = await sql<{ id: string; ParentId: string; Name: string; MapX: number; MapY: number }[]>`
+      SELECT "_id" AS id, "ParentId", "Name", "MapX", "MapY" FROM "Places" WHERE "Type" = 'city'`;
+    const cityKey = (countryId: string, name: string) => `${countryId}:${name.toLowerCase()}`;
+    const cityByKey = new Map(cities.map((t) => [cityKey(t.ParentId, t.Name), t]));
+    const spots: AtlasPoint[] = cities.map((t) => ({ x: t.MapX, y: t.MapY }));
     const codes = new Set((await sql<{ Code: string }[]>`SELECT "Code" FROM "Places"`).map((r) => r.Code));
     let created = 0;
     let linked = 0;
 
     for (const club of clubs) {
-      if (club.TownId || !club.country || !club.city) {
-        if (!club.TownId) console.log(`  ! ${club.Name}: no country or city, left unplaced`);
+      if (club.DistrictId || !club.country || !club.city) {
+        if (!club.DistrictId) console.log(`  ! ${club.Name}: no country or city, left unplaced`);
         continue;
       }
       const country = countries.find((c) => c.id === club.country)!;
-      let town = townByKey.get(townKey(country.id, club.city));
-      if (!town) {
+      let city = cityByKey.get(cityKey(country.id, club.city));
+      if (!city) {
         const others = countries.filter((c) => c.id !== country.id).map((c) => centre.get(c.id)!);
         const spot = suggestTownSpot(centre.get(country.id)!, spots, others, hash(club.city) % 7);
         if (!spot) {
@@ -145,28 +150,41 @@ async function main() {
         for (let n = 2; codes.has(code); n++) code = `${country.Code}-${slug(club.city)}${n}`;
         codes.add(code);
         const terrain = terrainForTownName(club.city);
-        console.log(`town ${club.city.padEnd(15)} in ${country.Name.padEnd(8)} (${spot.x}, ${spot.y}) ${terrain}`);
-        town = { id: '', ParentId: country.id, Name: club.city, MapX: spot.x, MapY: spot.y };
+        console.log(`city ${club.city.padEnd(15)} in ${country.Name.padEnd(8)} (${spot.x}, ${spot.y}) ${terrain}`);
+        city = { id: '', ParentId: country.id, Name: club.city, MapX: spot.x, MapY: spot.y };
         if (!dry) {
           const [row] = await sql<{ id: string }[]>`
             INSERT INTO "Places" ("Fullname", "Name", "Code", "Region", "Type", "ParentId", "MapX", "MapY", "Terrain", "updatedAt")
-            VALUES (${`${club.city}, ${country.Name}`}, ${club.city}, ${code}, ${country.Region}, 'town', ${country.id},
+            VALUES (${`${club.city}, ${country.Name}`}, ${club.city}, ${code}, ${country.Region}, 'city', ${country.id},
                     ${spot.x}, ${spot.y}, ${terrain}, now())
             RETURNING "_id" AS id`;
-          town.id = row!.id;
+          city.id = row!.id;
         }
-        townByKey.set(townKey(country.id, club.city), town);
+        cityByKey.set(cityKey(country.id, club.city), city);
         spots.push(spot);
         created++;
       }
-      if (!dry) {
-        await sql`UPDATE "Clubs" SET "TownId" = ${town.id},
-          "CampusLayout" = (SELECT COALESCE("Terrain", 'city') FROM "Places" WHERE "_id" = ${town.id}),
+      // Each city owns at least one district; clubs attach to a district.
+      let [district] = await sql<{ id: string }[]>`
+        SELECT "_id" AS id FROM "Places" WHERE "Type" = 'district' AND "ParentId" = ${city.id} ORDER BY "createdAt" ASC LIMIT 1`;
+      if (!district && !dry) {
+        let dcode = `${city.Name.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8)}-D`;
+        for (let n = 2; codes.has(dcode); n++) dcode = `${dcode}${n}`;
+        codes.add(dcode);
+        [district] = await sql<{ id: string }[]>`
+          INSERT INTO "Places" ("Fullname", "Name", "Code", "Region", "Type", "ParentId", "MapX", "MapY", "Terrain", "updatedAt")
+          VALUES (${`${city.Name} Central, ${city.Name}`}, ${`${city.Name} Central`}, ${dcode}, ${country.Region}, 'district', ${city.id},
+                  ${city.MapX}, ${city.MapY}, ${terrainForTownName(city.Name)}, now())
+          RETURNING "_id" AS id`;
+      }
+      if (!dry && district) {
+        await sql`UPDATE "Clubs" SET "DistrictId" = ${district.id},
+          "CampusLayout" = (SELECT COALESCE("Terrain", 'city') FROM "Places" WHERE "_id" = ${district.id}),
           "updatedAt" = now() WHERE "_id" = ${club.id}`;
       }
       linked++;
     }
-    console.log(`${dry ? '[dry] ' : ''}${created} town(s) created, ${linked} club(s) linked`);
+    console.log(`${dry ? '[dry] ' : ''}${created} city(ies) created, ${linked} club(s) linked`);
   } finally {
     await sql.end();
   }
