@@ -40,3 +40,9 @@ yarn-error.log*
 
 # Prisma
 **/src/generated
+
+# Production deploy secrets (see .env.production.example)
+.env.production
+
+# For Rust
+/target

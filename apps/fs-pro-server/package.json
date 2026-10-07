@@ -13,6 +13,8 @@
     "predev-test": "npm run build --workspace @repo/api-contract",
     "dev-test": "set NODE_ENV=dev && set DEV_TEST=true && npm run start-dev",
     "start-dev": "ts-node-dev --respawn --transpile-only ./src/server.ts",
+    "start": "node ./build/server.js",
+    "migrate:prod": "sh ../../deploy/migrate.sh",
     "prod": "npm run build --workspace @repo/api-contract && tsc && node ./build/server.js",
     "lint": "oxlint src",
     "lint:fix": "oxlint --fix",

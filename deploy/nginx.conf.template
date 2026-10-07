@@ -1,0 +1,62 @@
+# Template: the official nginx image substitutes ${SERVER_HOST} and
+# ${REALTIME_HOST} (the compose service names) at start-up.
+# Serves the built client and proxies the API, so browser and API share one
+# origin (no CORS, first-party session cookie). TLS is terminated in front of
+# this container (a load balancer, Caddy, Cloudflare...); the server runs with
+# TRUST_PROXY=1 and COOKIE_SECURE=true for that.
+map $http_upgrade $connection_upgrade {
+  default upgrade;
+  ''      close;
+}
+
+# Use the scheme the outer proxy saw, or http when nginx is the edge.
+map $http_x_forwarded_proto $forwarded_proto {
+  default $http_x_forwarded_proto;
+  ''      $scheme;
+}
+
+server {
+  listen 80;
+  server_name _;
+  root /usr/share/nginx/html;
+  index index.html;
+
+  client_max_body_size 10m;
+  gzip on;
+  gzip_types text/css application/javascript application/json image/svg+xml;
+
+  # API, images, Socket.IO (match replay streaming) and API docs.
+  location ~ ^/(api|api-docs|api-docs\.json|socket\.io)(/|$) {
+    proxy_pass http://${SERVER_HOST}:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $forwarded_proto;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_read_timeout 120s;
+  }
+
+  # The realtime gateway's WebSocket (REALTIME_PUBLIC_URL points here).
+  location /realtime/ {
+    proxy_pass http://${REALTIME_HOST}:3005/;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_read_timeout 3600s;
+  }
+
+  # Hashed build assets never change: cache them hard.
+  location /assets/ {
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+    try_files $uri =404;
+  }
+
+  # Vue Router (history mode): unknown paths load the app.
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+}
