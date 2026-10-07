@@ -81,9 +81,18 @@ correct; club lists respect the z0 cap of 3/place.
 | `TileRevisions` read + `BumpRevisions` | `service.go` | PASS |
 
 ## 5. Known gaps / next
-1. **No 1M-latency benchmark yet.** `p95 ≤ 50 ms` on the synthetic 1M set and
-   `wrk`/`k6` on `fspro_scale_100k` are the Batch 3A acceptance numbers; they
-   need the 1M synthetic DB and a load tool. Not run here.
+1. **Latency/payload budget — measured on real worlds (in-process).**
+   `TestTileLatencyPercentiles` builds every populated cell of a scratch world:
+
+   | world | cells | p50 | p95 | p99 | max | max payload |
+   | --- | --- | --- | --- | --- | --- | --- |
+   | `fspro_pyramid_check` (10k clubs) | 6837 | 5.9 ms | 12.0 ms | 20.6 ms | 544 ms¹ | 11.9 KB |
+   | `fspro_scale_100k` (20.7k clubs) | 4690 | 5.8 ms | 10.7 ms | 16.2 ms | 50.7 ms | 29.8 KB |
+
+   Both p95 ≤ 50 ms and every payload ≤ 60 KB (asserted). ¹ The 10k `max`
+   is a cold first-query outlier (connection/dial warmup); p99 is 20.6 ms.
+   Still open: the **1M synthetic** p95 and an HTTP-level `wrk`/`k6` run
+   (neither tool is installed here).
 2. **Node proxy + zod + route-policy (R6) — added after the first pass.**
    `packages/api-contract` now has `TileSchema` + the `tiles` ts-rest route,
    the server proxies `GET /api/tiles/{z}/{x}/{y}`, and route-policy marks it
