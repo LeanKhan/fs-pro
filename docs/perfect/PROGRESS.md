@@ -24,7 +24,7 @@ Program of record: `FOR-AGENTS.md` (R1–R11, D1–D5, Batches 0–6).
 | B2 | 2E founding throughput | `perfect/b2-2e` (`67b4438`) | **merged** — D5 100k complete (31 ms/club) | `B2-2E-REPORT.md` |
 | B3 | 3A world-service tiles | `perfect/b3-3a` (`af938cf`) | **verified + merged** (`3ca16bd`) | `B3-3A-REPORT.md` |
 | B3 | verify 3A | `perfect/b3-verify` (`55d64a7`) | **PASS** (3 rounds; D2/D3/D5/D6/D10 fixed) | `VERIFY-B3.md` |
-| B3 | 3B client LOD map + 3C atlas retirement | `perfect/b3-3c` | **in progress** (agent) | — |
+| B3 | 3B client LOD map + 3C atlas retirement | `perfect/b3-3c` (`7f48bb3`) | **done + merged** (`346f587`) | `B3-B-C-REPORT.md` |
 | B4 | cultures (worldgen, 8 cultures) | `perfect/b4-cultures` (`e6f1d93`) | **done + merged** (`bb74b96`) | `B4-CULTURES-REPORT.md` |
 | B5 | 5A crest/launch-setup/formation | `perfect/integration` | **done** (`3bacbc0`, `d68f7e7`, `6bb0a8d`) | `B5A-FORMATION-BALANCE.md` |
 | B5 | 5B error tracking | `perfect/integration` (`2bd1dd8`) | **done** — Sentry, DSN-gated | `B5B-OPS-REPORT.md` |
