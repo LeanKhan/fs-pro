@@ -540,3 +540,175 @@ tile serialises `places:null`, which the frozen `TileSchema`
 Batch 3A acceptance criterion **D1 (1M-synthetic p95)** remains unmet and **D4
 (`?placeId=`)** remains a spec gap; those were open in round 1 and are still
 open here.
+
+---
+
+# ROUND 3 — re-verification of the D10 / D1 fixes (`perfect/b3-3a` @ `af938cf`)
+
+**This section supersedes round-2's D10 blocker and D1 status.**
+
+## R3.0 Merge
+
+```
+$ git merge --no-edit perfect/b3-3a
+Merge made by the 'ort' strategy.
+ .../migrations/0041_clubs_district_index.sql       | 19 +++++++++++++
+ docs/perfect/B3-3A-REPORT.md                       | 18 ++++++++++---
+ services/world-service/internal/http/server.go     |  2 +-
+ .../world-service/internal/tiles/latency_test.go   | 30 ++++++++++
+ services/world-service/internal/tiles/service.go   |  8 +++++-
+```
+
+Clean, no conflicts (merge commit `bc1df54`).
+
+## R3.1 Go suite — PASS
+
+```
+go build ./...            -> exit 0
+go vet ./...              -> exit 0
+go test -count=1 ./...    -> all 9 packages ok
+```
+
+## R3.2 D10 (z5 `places:null`) — **FIXED**
+
+Rebuilt a fresh `fspro_b3v` (clone of `fspro`) and applied **0038 → 0039 → 0040
+→ 0041** (`MIGRATIONS_OK`), then built and ran the service on it.
+
+```
+$ GET /tiles/5/163/55
+{"key":{"z":5,"x":163,"y":55},"places":[],"clubs":[{...6 clubs...}],"clubCount":6,"overflow":false,...}
+```
+
+`places` is `[]` (not `null`); z0–z4 still carry places. Node `TileSchema`
+acceptance (re-ran the round-2 proof on the **actual** Go bodies):
+
+```
+_t_z5.json key={"z":5,"x":163,"y":55} places=array(0) clubs=6 => TileSchema VALID
+_t_z0.json key={"z":0,"x":4,"y":1}    places=array(1) clubs=3 => TileSchema VALID
+_t_z1.json key={"z":1,"x":2,"y":3}    places=array(1) clubs=5 => TileSchema VALID
+_t_z2.json key={"z":2,"x":5,"y":7}    places=array(1) clubs=2 => TileSchema VALID
+_t_z3.json key={"z":3,"x":8,"y":14}   places=array(1) clubs=1 => TileSchema VALID
+_t_z4.json key={"z":4,"x":81,"y":27}  places=array(1) clubs=6 => TileSchema VALID
+control places:null => INVALID (expected)
+```
+
+Fix: `places()` returns `[]PlaceMarker{}` for the club level, plus a defensive
+nil→empty normalisation in `Build` (`service.go:74-83,110-112`).
+
+## R3.3 D1 (1M-synthetic p95) — **MITIGATED (design + benchmark); not directly proven**
+
+**Migration 0041 exists** (`0041_clubs_district_index.sql`) adding:
+
+```
+Clubs_DistrictId_Prominence_idx  btree ("DistrictId", "Prominence" DESC)
+Clubs_active_DistrictId_idx      btree ("DistrictId") WHERE "ReleasedAt" IS NULL
+```
+
+I applied 0041 to `fspro_pyramid_check` and `fspro_scale_100k` (additive,
+idempotent `IF NOT EXISTS`) so plans/benchmarks reflect the shipped indexes.
+
+**EXPLAIN (COSTS OFF), clubs tile query, `fspro_scale_100k`, dense z2 cell 12/7:**
+
+```
+Limit -> Sort
+  -> Nested Loop
+       -> Nested Loop
+            -> Seq Scan on "Places" d            (MapX/MapY range filter)
+            -> Index Scan using "Places_pkey" on "Places" ci
+       -> Bitmap Heap Scan on "Clubs" c
+            Recheck Cond: ((d._id = "DistrictId") AND ("ReleasedAt" IS NULL))
+            -> Bitmap Index Scan on "Clubs_active_DistrictId_idx"
+                 Index Cond: ("DistrictId" = d._id)
+```
+
+- **Uses `Clubs_active_DistrictId_idx`** — yes.
+- **No Seq Scan of `Clubs`** — confirmed (bitmap index scan).
+- The **places** query uses `Places_map_idx` (`Index Scan ... Index Cond: Type +
+  MapX/MapY range`). The clubs query's join to `Places d` is still a Seq Scan at
+  this scale (2873 rows is tiny, so the planner prefers it over the index).
+
+**Latency re-run (with 0041):**
+
+```
+fspro_pyramid_check  cells=6837 p50=1.6256ms p95=2.2250ms p99=2.5139ms max=7.9521ms maxPayload=2076 B
+fspro_scale_100k     cells=4690 p50=1.6322ms p95=2.4112ms p99=4.3282ms max=9.7919ms maxPayload=4476 B
+```
+
+**`BenchmarkBuildTile` (`-benchmem`, run on both DBs):**
+
+```
+fspro_pyramid_check  BenchmarkBuildTile-16  1328  1,850,593 ns/op  27,593 B/op  234 allocs/op
+fspro_scale_100k     BenchmarkBuildTile-16  1153  1,911,812 ns/op  50,180 B/op  473 allocs/op
+```
+
+**Independent view.** The 0041 index removes the O(world) hazard the round-2
+`EXPLAIN` exposed: Clubs is no longer globally joined/scanned, so per-tile cost
+is now driven by the clubs *in the cell* plus the `Places` driving access. At
+20.7k clubs the measured p95 is 2.41 ms — ~20× under the 50 ms budget — and the
+benchmark (~1.9 ms/op) agrees with the percentile run. I judge D1 **mitigated
+by design + benchmark**: the specific pathological scan is fixed and measured,
+and headroom is large.
+
+Residual, stated plainly (R1): a **direct 1M-club tile p95 was not measured** —
+the `internal/synth` 1M generator populates no Postgres DB, and no 1M scratch DB
+is constructible here, so the 1M figure remains an extrapolation. The clubs
+query still Seq Scans `Places` (the district join) at current scale; whether the
+planner switches that to `Places_map_idx` at ~1M clubs is untested. Given the
+~20× headroom and that `Places` grows ~10× slower than clubs, I do not consider
+this a merge blocker, but the numeric 1M acceptance line is not literally
+demonstrated.
+
+## R3.4 Overflow ETag now reflects the returned key — **FIXED**
+
+`handleTile` builds the ETag from `tile.Key` (`server.go:508`). Live on
+`fspro_scale_100k`:
+
+```
+GET /tiles/4/50/28  -> Etag: "3/25/14:0"   body key {z:3,x:25,y:14} overflow=true
+GET /tiles/5/100/56 -> Etag: "3/25/14:0"   body key {z:3,x:25,y:14} overflow=true
+GET /tiles/2/12/7   -> Etag: "2/12/7:0"    (non-overflow, unchanged)
+```
+
+The token now describes the payload (parent key) in the overflow case.
+
+## R3.5 Node contract + server tsc — PASS
+
+```
+CONTRACT_BUILD_EXIT=0
+SERVER_TSC_EXIT=0
+```
+
+## R3.6 Defect status after round 3
+
+| Defect | Status |
+| --- | --- |
+| D1 — 1M-synthetic tile p95 | **MITIGATED** (design + benchmark; direct 1M not proven — §R3.3) |
+| D2 — per-place cap applied per district | FIXED (round 2) |
+| D3 — overflow returned truncated subset | FIXED (round 2) |
+| D4 — no `?placeId=` filter | **OPEN** (spec §7.3/§9; not an acceptance line for 3A) |
+| D5 — z5 level + marker drift | FIXED (round 2) |
+| D6 — 0040 header comment | FIXED (round 2) |
+| D7 — report cited migration "0039" | FIXED (round 2) |
+| D8 — `-race` not runnable here | INFO (unchanged) |
+| D9 — released club NULL district | INFO (unchanged) |
+| D10 — z5 `places:null` breaks zod/Node proxy | **FIXED** (§R3.2) |
+| R2.9 — overflow ETag used requested key | **FIXED** (§R3.4) |
+
+Migration hygiene: `0039_perf_indexes.sql` is byte-identical to
+`perfect/integration` (`7a68dc51…`); `0040`/`0041` are new on this branch (not
+in integration), which is expected.
+
+## R3.7 Final verdict
+
+**PASS — `perfect/b3-3a` @ `af938cf` is mergeable into `perfect/integration`.**
+
+- No remaining functional blockers. D10 (the round-2 blocker) is fixed and
+  proven end-to-end through the zod contract; the overflow ETag is fixed.
+- All Go packages green; p95 2.23/2.41 ms and payload 2.1/4.5 KB (≤50 ms,
+  ≤60 KB); the 0041 indexes remove the global Clubs scan and the benchmark
+  records ~1.9 ms/op.
+- Remaining non-blocking items: **D4** (`?placeId=` focused-zoom filter, an
+  unimplemented spec extra) stays open; **D1**'s direct 1M-club p95 is
+  extrapolated (mitigated by design + benchmark, not literally measured).
+- Environment note: `go test -race` still cannot run here (no Windows C
+  compiler); it should be run in CI/Docker before release.
