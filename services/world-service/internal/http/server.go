@@ -505,7 +505,7 @@ func (s *Server) handleTile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	etag := fmt.Sprintf(`"%s:%d"`, key.String(), tile.Rev)
+	etag := fmt.Sprintf(`"%s:%d"`, tile.Key.String(), tile.Rev)
 	w.Header().Set("ETag", etag)
 	w.Header().Set("Cache-Control", "public, max-age=15, stale-while-revalidate=30")
 	if match := r.Header.Get("If-None-Match"); match != "" && match == etag {
