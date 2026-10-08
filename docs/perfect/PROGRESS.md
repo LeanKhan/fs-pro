@@ -22,10 +22,12 @@ Program of record: `FOR-AGENTS.md` (R1–R11, D1–D5, Batches 0–6).
 | B2 | merge | `perfect/integration` (`e732c11`) | **Batch 2 merged** | — |
 | B2 | 2D checks + 10k/100k scale | `perfect/b2-2d` (`686447a`) | **merged** (10k done; 100k infeasible) | `B2-2D-REPORT.md`, `SCALE.md` |
 | B2 | 2E founding throughput | `perfect/b2-2e` (`67b4438`) | **merged** — D5 100k complete (31 ms/club) | `B2-2E-REPORT.md` |
-| B3 | 3A world-service tiles | `perfect/b3-3a` (external?) | **held** — ANOMALY-1 | `B3-3A-REPORT.md` (on branch) |
-| B3–B6 | — | — | not started | — |
+| B3 | 3A world-service tiles | `perfect/b3-3a` (`af938cf`) | **verified + merged** (`3ca16bd`) | `B3-3A-REPORT.md` |
+| B3 | verify 3A | `perfect/b3-verify` (`55d64a7`) | **PASS** (3 rounds; D2/D3/D5/D6/D10 fixed) | `VERIFY-B3.md` |
+| B3 | 3B client LOD map + 3C atlas retirement | — | **pending** | — |
+| B4–B6 | — | — | pending (B5 fix pass in flight) | — |
 
-Nothing is merged; `perfect/integration` is not created yet (Q6).
+`perfect/integration` is the run branch; B1, B2 (2A–2E) and B3-3A are merged.
 
 ## Open questions
 
