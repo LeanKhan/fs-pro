@@ -83,6 +83,62 @@ _(Environment note: after this session WSL→Windows interop, which I need to
 drive Windows Node/Playwright, went down — every `cmd.exe` call returned
 `UtilAcceptVsock:271 accept4 failed 110`. I paused the playtest and retried.)_
 
+---
+
+## Session 3 — 2026-10-08, ~12:20–16:00 UTC (blocked: instance outage)
+
+Two separate environment failures stopped the run:
+
+1. **Interop down (~12:20 onwards).** Every Windows sidecar call (`cmd.exe`,
+   `powershell.exe`) failed with `WSL UtilAcceptVsock:271 accept4 failed 110`
+   for ~3.5 h. The Windows-side Playwright harness (D7) could not run at all.
+   I kept polling; it never recovered inside my window.
+
+2. **Shared API hung (~15:15 onwards).** I fell back to the same trick A01 had
+   already set up — running the *identical* production client bundle on Linux
+   (`dist/` served on `http://localhost:4173`) with the browser's API calls
+   proxied ("172.22.48.1:3010", the WSL host gateway) to the same shared
+   instance. That loaded the client and I reached the sign-in screen, but
+   **`POST /api/users/login` never returns** (no response after 85 s; button
+   stuck on "Signing in…"). `GET /healthz` returns **HTTP 503 `{"ok":false}`**.
+   Note the DB port (5434) still accepts TCP, so this looks like a hung worker
+   / pool in the Node API, not a dead DB — the kind of thing the lead restarts
+   and logs.
+
+I did **not** bypass this by touching the API by hand or the DB (U2). I stopped
+advancing and polled for recovery. No gameplay progress was possible from
+~15:15 UTC; I had reached **Level 0** with the onboarding and the Recruitment
+screen exercised.
+
+_Correction to Session 2's point 3:_ the empty market wasn't a race. Re-checking
+the screenshots, the day-469 table (5,596 rows) and the day-470 table ("No
+players available") differ because the **transfer window closed** between them —
+while the day-469 banner still said "closes in 2 days (day 471)". Logged as
+P02-10 (market empties silently when the window shuts) and P02-11 (the countdown
+contradicts the close day).
+
+**Mood: 2/5** — not the game's fault today, but the pass depends on the shared
+instance staying up.
+
+---
+
+## Stop — 2026-10-08 ~19:20 UTC (D5 cap)
+
+Both the interop and the shared API stayed down to the 8-hour cap (first
+registration ~11:23 UTC → cap ~19:23 UTC). `healthz` polled **503** every 30 s
+for ~4 h; interop polled `accept4 failed 110` for ~7 h. I stopped per D5:
+"truly blocked, log it, stop at the cap". No gameplay was possible after
+~15:15 UTC.
+
+Final state of my club: **Veteran Analytics (VET), Sdev Central, Kev — Level 0,
+0/100 XP**, Owner's Program step 1 (hire a manager) not started, transfer window
+closed. 12 issues logged (1 S1 instance, 2 S2, 7 S3, 2 S4).
+
+**Mood: 1/5** at the stop — I came to play to Level 2 and never got a healthy
+instance for more than a few minutes.
+
+
+
 
 - [2026-10-08T11:25:17.969Z] Opened the client at http://localhost:4173; landed on http://localhost:4173/auth/login.
 - [2026-10-08T11:26:51.674Z] Opened the New manager registration form; reading the fields.
@@ -100,3 +156,7 @@ drive Windows Node/Playwright, went down — every `cmd.exe` call returned
 - [2026-10-08T12:08:15.821Z] Dismissed the comeback modal, then clicked the Manager dock button.
 - [2026-10-08T12:13:13.870Z] Opened Owner's office → Recruitment tab.
 - [2026-10-08T12:17:20.567Z] Recruitment diag: 1 rows, duplicates=[], PgTest=false, tableScroll={"sw":792,"cw":792}.
+- [2026-10-08T15:17:01.320Z] Linux fallback: signed in; url=http://localhost:4173/auth/login.
+- [2026-10-08T15:17:34.435Z] Linux fallback: probed the login response; API looks degraded.
+- [2026-10-08T15:18:13.070Z] Linux fallback: logged the login request/response; API degraded.
+- [2026-10-08T15:53:42.901Z] Linux fallback: long login attempt -> status null.
