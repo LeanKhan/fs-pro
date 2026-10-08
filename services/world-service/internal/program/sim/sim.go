@@ -34,19 +34,21 @@ type clubState struct {
 
 // RunResult is one run's outcome.
 type RunResult struct {
-	Reached     bool
-	Minutes     float64
-	Matches     int
-	Wins        int
-	Draws       int
-	Losses      int
-	StarTotal   int
-	FinalRating float64
-	FinalCash   float64
-	FinalTiers  map[string]int
-	Bankrupt    bool
-	Recovery    int
-	SoftLocked  bool
+	Reached      bool
+	Minutes      float64
+	Matches      int
+	Wins         int
+	Draws        int
+	Losses       int
+	StarTotal    int
+	ProgramStars int // manager + players + facilities stars (0-9), earned before the friendly grind
+	ProgramXp    int // capped program XP credited to Clubs.XP
+	FinalRating  float64
+	FinalCash    float64
+	FinalTiers   map[string]int
+	Bankrupt     bool
+	Recovery     int
+	SoftLocked   bool
 }
 
 // friendlyCash is the spec §5.5 gate-share cash for a Level-0 friendly.
@@ -191,7 +193,15 @@ func (c *clubState) chooseSquad(strat Strategy, rng *rand.Rand) {
 	case Random:
 		c.randomSign(16, rng)
 	case SplurgeOnManager, FacilitiesFirst:
-		c.signCheapest(13)
+		// A naive owner spends the bulk on the priority (the manager or the
+		// building) and does not reserve the legal-XI cost, so they must use
+		// the board advance to assemble one — the recovery path (L7, spec §4
+		// step 2). A small floor (below the ~V220k an XI needs) models
+		// "spend nearly everything, then discover the hole".
+		c.signBestSpend(50_000)
+		if len(c.squad) < 11 {
+			c.signCheapest(11)
+		}
 	}
 }
 
@@ -206,40 +216,44 @@ func runOne(balance float64, strat Strategy, rng *rand.Rand) RunResult {
 	managers := genManagers(rng, 60)
 
 	c.pickManager(strat, managers, rng)
-	c.recordStar(program.StepManager)
+	c.creditStep(program.StepManager)
 
 	if strat == FacilitiesFirst {
 		c.buildFacility(strat, rng)
-		c.recordStar(program.StepFacilities)
+		c.creditStep(program.StepFacilities)
 		c.chooseSquad(strat, rng)
 		c.ensureSquad()
-		c.recordStar(program.StepPlayers)
+		c.creditStep(program.StepPlayers)
 	} else {
 		c.chooseSquad(strat, rng)
 		c.ensureSquad()
-		c.recordStar(program.StepPlayers)
+		c.creditStep(program.StepPlayers)
 		c.buildFacility(strat, rng)
-		c.recordStar(program.StepFacilities)
+		c.creditStep(program.StepFacilities)
 	}
 
+	// The three paying steps above have credited their program XP to clubXp;
+	// now earn the remainder in qualifying friendlies (spec §3.2 XP budget).
 	for c.clubXp < Level1Xp && c.matches < RunMatchCap {
 		c.playFriendly(rng)
 	}
 	if !c.facilityBuilt {
 		c.buildFacility(strat, rng)
-		c.recordStar(program.StepFacilities)
+		c.creditStep(program.StepFacilities)
 	}
 
 	res := RunResult{
-		Wins:        c.wins,
-		Draws:       c.draws,
-		Losses:      c.losses,
-		Matches:     c.matches,
-		StarTotal:   c.starTotal(),
-		FinalRating: medianXI(c.squad),
-		FinalCash:   c.budget,
-		FinalTiers:  map[string]int{},
-		Recovery:    c.recovery,
+		Wins:         c.wins,
+		Draws:        c.draws,
+		Losses:       c.losses,
+		Matches:      c.matches,
+		StarTotal:    c.starTotal(),
+		ProgramStars: c.stars[program.StepManager] + c.stars[program.StepPlayers] + c.stars[program.StepFacilities],
+		ProgramXp:    c.programXpTotal(),
+		FinalRating:  medianXI(c.squad),
+		FinalCash:    c.budget,
+		FinalTiers:   map[string]int{},
+		Recovery:     c.recovery,
 	}
 	for t, tier := range c.assets {
 		res.FinalTiers[t] = tier
