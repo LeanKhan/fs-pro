@@ -24,6 +24,7 @@ import (
 	"fs-pro-world-service/internal/placement"
 	"fs-pro-world-service/internal/pyramid"
 	"fs-pro-world-service/internal/ranking"
+	"fs-pro-world-service/internal/tiles"
 )
 
 func main() {
@@ -52,6 +53,7 @@ func main() {
 		Hierarchy:  placement.New(pool),
 		Prominence: ranking.New(pool),
 		Pyramid:    pyramid.New(pool),
+		Tiles:      tiles.New(pool),
 	})
 	httpServer := &nethttp.Server{
 		Addr:         cfg.Addr(),

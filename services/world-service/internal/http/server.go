@@ -12,14 +12,17 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"fs-pro-world-service/internal/placement"
 	"fs-pro-world-service/internal/pyramid"
 	"fs-pro-world-service/internal/ranking"
+	"fs-pro-world-service/internal/tiles"
 )
 
 // Version is stamped at build time with -ldflags "-X .../internal/http.Version=...".
@@ -55,12 +58,18 @@ type PyramidEngine interface {
 	Join(ctx context.Context, competitionID, clubID string) (pyramid.JoinResult, error)
 }
 
+// TileBuilder builds a bounded map tile for a zoom cell.
+type TileBuilder interface {
+	Build(ctx context.Context, key tiles.Key) (tiles.Tile, error)
+}
+
 // Deps are the domain services the HTTP layer needs.
 type Deps struct {
 	Placement  Spotter
 	Hierarchy  Hierarchy
 	Prominence ProminenceStore
 	Pyramid    PyramidEngine
+	Tiles      TileBuilder
 }
 
 // Server is the world-service HTTP handler.
@@ -72,6 +81,7 @@ type Server struct {
 	hierarchy  Hierarchy
 	prominence ProminenceStore
 	pyramid    PyramidEngine
+	tiles      TileBuilder
 	started    time.Time
 }
 
@@ -89,6 +99,7 @@ func New(logger *slog.Logger, database Pinger, deps Deps) *Server {
 		hierarchy:  deps.Hierarchy,
 		prominence: deps.Prominence,
 		pyramid:    deps.Pyramid,
+		tiles:      deps.Tiles,
 		started:    time.Now(),
 	}
 	s.registerRoutes()
@@ -103,6 +114,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /prominence/recompute", s.handleRecompute)
 	s.mux.HandleFunc("POST /pyramid/draw/{competitionId}", s.handlePyramidDraw)
 	s.mux.HandleFunc("POST /pyramid/join", s.handlePyramidJoin)
+	s.mux.HandleFunc("GET /tiles/{z}/{x}/{y}", s.handleTile)
 }
 
 // ServeHTTP logs every request with its status and duration, then dispatches.
@@ -457,6 +469,51 @@ func (s *Server) handlePyramidJoin(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// GET /tiles/{z}/{x}/{y}
+// ---------------------------------------------------------------------------
+
+func (s *Server) handleTile(w http.ResponseWriter, r *http.Request) {
+	if s.tiles == nil {
+		writeError(w, http.StatusServiceUnavailable, "tiles are not configured")
+		return
+	}
+	z, err1 := strconv.Atoi(r.PathValue("z"))
+	x, err2 := strconv.Atoi(r.PathValue("x"))
+	y, err3 := strconv.Atoi(r.PathValue("y"))
+	if err1 != nil || err2 != nil || err3 != nil {
+		writeError(w, http.StatusBadRequest, "z, x and y must be integers")
+		return
+	}
+	key := tiles.Key{Z: z, X: x, Y: y}
+	if !key.Valid() {
+		writeError(w, http.StatusBadRequest, "zoom must be 0..5 and x/y non-negative")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), requestTimeout)
+	defer cancel()
+
+	tile, err := s.tiles.Build(ctx, key)
+	if err != nil {
+		if errors.Is(err, tiles.ErrInvalidKey) {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		s.fail(w, "tile", err)
+		return
+	}
+
+	etag := fmt.Sprintf(`"%s:%d"`, tile.Key.String(), tile.Rev)
+	w.Header().Set("ETag", etag)
+	w.Header().Set("Cache-Control", "public, max-age=15, stale-while-revalidate=30")
+	if match := r.Header.Get("If-None-Match"); match != "" && match == etag {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	writeJSON(w, http.StatusOK, tile)
+}
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
