@@ -65,6 +65,36 @@ func TestTileLatencyPercentiles(t *testing.T) {
 	}
 }
 
+// BenchmarkBuildTile measures per-tile build latency on the configured DB so
+// the tile cost can be tracked as worlds grow (the Batch 3A acceptance needs
+// the 1M synthetic set; this runs at whatever scale the DB has).
+//
+//	WORLD_TEST_DATABASE_URL=... go test ./internal/tiles -run '^$' -bench .
+func BenchmarkBuildTile(b *testing.B) {
+	url := os.Getenv("WORLD_TEST_DATABASE_URL")
+	if url == "" {
+		b.Skip("set WORLD_TEST_DATABASE_URL to a scratch DB to run this benchmark")
+	}
+	pool, err := db.New(context.Background(), url, 30*time.Second, nil)
+	if err != nil {
+		b.Fatalf("db.New: %v", err)
+	}
+	defer pool.Close()
+
+	keys, err := populatedCells(context.Background(), pool)
+	if err != nil || len(keys) == 0 {
+		b.Fatalf("populatedCells: %v (%d keys)", err, len(keys))
+	}
+	svc := New(pool)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := svc.Build(context.Background(), keys[i%len(keys)]); err != nil {
+			b.Fatalf("Build: %v", err)
+		}
+	}
+}
+
 func populatedCells(ctx context.Context, q db.Querier) ([]Key, error) {
 	rows, err := q.Query(ctx, `
 SELECT DISTINCT z,
