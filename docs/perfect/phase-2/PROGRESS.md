@@ -19,7 +19,10 @@ Integration branch: **`p2/integration`**, from `perfect/integration` @ `1cfd57a`
 | B1 | 1B advisor spec + art | `p2/b1-1b` (`98d8e02`) | **verified + merged** | `ADVISOR-SPEC.md`, `B1-1B-REPORT.md` |
 | B1 | 1C cultures + worldgen | `p2/b1-1c` (`a3306e3`) | **verified + merged** | `CULTURES-SPEC.md` |
 | B1 | verify | `p2/integration` | **PASS** | `VERIFY-B1.md` |
-| B2–B5 | — | — | pending | — |
+| B2 | 2A Go program + sim; 2B Node owner model; 2C seed/economy/names | `p2/b2-2a/2b/2c` | **done + merged** | `VERIFY-B2.md` |
+| B3 | 3A advisor; 3B program screens; 3C wiring + e2e | `p2/b3-3a/3b/3c` | **done + merged** | `VERIFY-B3.md` |
+| B4 | 4A balance tuning; 4B visual/feel QA | `p2/b4-4a/4b` | **done + merged** | `VERIFY-B4.md` |
+| B5 | final verification + release report | `p2/integration` | **done** — run stops; owner decides | `RELEASE-REPORT.md` |
 
 ## Environment facts (carried from phase 1)
 
