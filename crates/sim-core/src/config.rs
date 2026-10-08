@@ -162,6 +162,9 @@ pub struct SimConfig {
     /// Skill edge for the side whose style counters the other's
     /// (tactics::style_matchup); the countered side loses the same.
     pub counter_edge: f32,
+    /// Skill edge for the side whose formation counters the other's
+    /// (tactics::formation_matchup); the countered side loses the same.
+    pub formation_edge: f32,
     /// Share of a player's missing fitness (0-100, between matches) that
     /// carries into his starting stamina.
     pub fitness_carry: f32,
@@ -208,7 +211,7 @@ pub const CFG: SimConfig = SimConfig {
     skill_pivot: 65.0,
     shooter_scale: 45.0,
     keeper_scale: 45.0,
-    max_goal_probability: 0.9,
+    max_goal_probability: 0.33,
     on_target_base: 0.3,
     on_target_skill_scale: 200.0,
     on_target_pressure: 0.05,
@@ -266,6 +269,7 @@ pub const CFG: SimConfig = SimConfig {
     halftime_recovery: 0.35,
     fitness_carry: 0.5,
     counter_edge: 0.05,
+    formation_edge: 0.10,
     press_drain: 0.25,
     lofted_pressure_factor: 0.0,
     shot_crowd: -0.3,
