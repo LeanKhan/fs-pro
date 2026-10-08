@@ -182,7 +182,13 @@ export async function deductWagesForYear(year: string): Promise<void> {
     await tx.execute(drizzleSql`select pg_advisory_xact_lock(hashtext(${`wages:${year}`}))`);
     await tx.execute(drizzleSql`
       WITH bills AS (
-        SELECT c."_id" AS club, coalesce(sum(p."Wage") FILTER (WHERE p."isSigned"), 0) AS bill
+        SELECT c."_id" AS club,
+               coalesce(sum(p."Wage") FILTER (WHERE p."isSigned"), 0)
+               + coalesce((
+                   SELECT m."Wage" FROM "Managers" m
+                   WHERE m."ClubId" = c."_id" AND m."isEmployed" = true
+                   LIMIT 1
+                 ), 0) AS bill
         FROM "Clubs" c
         LEFT JOIN "Players" p ON p."ClubId" = c."_id"
         WHERE c."ReleasedAt" IS NULL

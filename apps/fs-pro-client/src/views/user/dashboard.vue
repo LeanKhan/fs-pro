@@ -382,6 +382,7 @@ import DayFixturesList from '@/components/user-dashboard/day-fixtures-list.vue';
 import WorldFeedTicker from '@/components/user-dashboard/world-feed-ticker.vue';
 import { client } from '@/services/api';
 import { groupFixturesByDay } from '@/helpers/calendar';
+import { formatVilla } from '@repo/api-contract';
 import type { Fixture } from '@repo/api-contract';
 
 const router = useRouter();
@@ -436,23 +437,16 @@ const injuredCount = computed(() => {
   return userClub.value.Players.filter((p: any) => p.Injury?.isInjured).length;
 });
 
-const clubBudgetFormatted = computed(() => {
-  const b = userClub.value?.Budget ?? 0;
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(b);
-});
+// Villa display (L13): the shared formatter, never a bespoke currency style.
+const clubBudgetFormatted = computed(() => formatVilla(userClub.value?.Budget ?? 0));
 
 /** Player wages are yearly (utils/players.ts calculatePlayerWage). */
 const clubWageBillFormatted = computed(() => {
-  const w = (userClub.value?.Players ?? []).reduce((sum: number, p: any) => sum + (p.isRetired ? 0 : (p.Wage ?? 0)), 0);
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(w);
+  const w = (userClub.value?.Players ?? []).reduce(
+    (sum: number, p: any) => sum + (p.isRetired ? 0 : (p.Wage ?? 0)),
+    0
+  );
+  return formatVilla(w);
 });
 
 /** "4231" -> "4-2-3-1". */

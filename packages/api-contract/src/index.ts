@@ -24,6 +24,10 @@ import { atlasContract } from './routes/atlas';
 import { tilesContract } from './routes/tiles';
 import { programContract } from './routes/program';
 
+// The one shared Villa (V) money formatter (phase-2 L13/D2) - used by both the
+// server's written text and the client so the symbol/format cannot drift.
+export { formatVilla, formatVillaCompact } from './villa';
+
 const c = initContract();
 
 // Note: file uploads (/files/upload, /files/upload-clubs) are intentionally

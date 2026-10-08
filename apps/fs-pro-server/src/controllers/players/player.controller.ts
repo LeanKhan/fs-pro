@@ -14,7 +14,7 @@ import { applyTrainingGrowth } from './player-training.service';
 import { PlayerInterface, IPlayerAttributes } from '../../interfaces/Player';
 import { runSpawn } from '../../utils/scripts';
 import { titleCase } from '../../helpers/misc';
-import { nationalityIdForCulture } from '../../services/nationality';
+import { countryIdForCulture } from '../../services/worldgen/names.service';
 import { getAssetEffectsForClubs } from '../../services/facilities/facilities.service';
 import { eq, sql } from 'drizzle-orm';
 import { players } from '../../db/drizzle/schema';
@@ -164,7 +164,7 @@ export async function generateAndSavePlayers(
     .filter((x) => x || null)
     .map((n) => n.split('__').map((l) => titleCase(l)));
 
-  const nationalityId = await nationalityIdForCulture(culture);
+  const nationalityId = (await countryIdForCulture(culture)) ?? undefined;
   const generatedPlayers = names.map((p) =>
     generatePlayer({
       position,

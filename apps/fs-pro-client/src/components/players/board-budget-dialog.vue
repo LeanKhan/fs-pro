@@ -78,7 +78,7 @@
             <v-text-field
               v-model.number="requestedAmount"
               type="number"
-              prefix="$"
+              prefix="V"
               variant="outlined"
               density="comfortable"
               color="cyan-accent-3"
@@ -310,11 +310,12 @@ const totalMatchdayRevenue = computed(() => Number(finances.value.totalMatchdayR
 const totalMatchdayCosts = computed(() => Number(finances.value.totalMatchdayCosts ?? 0));
 const netMatchdayProfit = computed(() => Math.max(0, totalMatchdayRevenue.value - totalMatchdayCosts.value));
 
+// Villa (L13): labels use the shared formatter, never a currency symbol.
 const presets = [
-  { label: '+$500K', amount: 500_000 },
-  { label: '+$1.0M', amount: 1_000_000 },
-  { label: '+$2.5M', amount: 2_500_000 },
-  { label: '+$5.0M', amount: 5_000_000 },
+  { label: `+${currency(500_000)}`, amount: 500_000 },
+  { label: `+${currency(1_000_000)}`, amount: 1_000_000 },
+  { label: `+${currency(2_500_000)}`, amount: 2_500_000 },
+  { label: `+${currency(5_000_000)}`, amount: 5_000_000 },
 ];
 
 function close() {

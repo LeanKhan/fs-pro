@@ -4,6 +4,7 @@ import { clubs, players, transferLedger } from '../../db/drizzle/schema';
 import { getPerformance } from '../world/performance.service';
 import { JevService, ChoiceAnswer } from './jev.service';
 import { formScore } from '../world/club-standing.service';
+import { formatVilla } from '@repo/api-contract';
 
 export type BudgetJustification = 'TITLE_CHALLENGE' | 'SQUAD_DEPTH' | 'REINVEST_PROFITS' | 'PROMOTION_PUSH';
 
@@ -32,8 +33,8 @@ function generateBoardStatement(
   financialHealth: string,
   standingDesc: string
 ): string {
-  const grantedStr = `$${grantedAmount.toLocaleString()}`;
-  const requestedStr = `$${requestedAmount.toLocaleString()}`;
+  const grantedStr = formatVilla(grantedAmount);
+  const requestedStr = formatVilla(requestedAmount);
 
   if (status === 'ACCEPTED') {
     switch (justification) {
@@ -186,7 +187,7 @@ export async function processBoardBudgetRequest(
   const confidence = Math.round((decisionAnswer?.confidence ?? 0.88) * 100);
 
   const boardStatement = lostFaith
-    ? `The Board has declined your request for $${requestedAmount.toLocaleString()}. Confidence in the current direction is at a low ebb after recent results; there will be no further investment until performances improve.`
+    ? `The Board has declined your request for ${formatVilla(requestedAmount)}. Confidence in the current direction is at a low ebb after recent results; there will be no further investment until performances improve.`
     : generateBoardStatement(
         club.Name,
         status,

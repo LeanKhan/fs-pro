@@ -2,16 +2,16 @@ import 'dotenv/config';
 import { DrizzleDatabase } from '../db/drizzle';
 import { players, places, transferLedger } from '../db/drizzle/schema';
 import { eq, and, sql } from 'drizzle-orm';
-import { generateSystemCountryName, SYSTEM_COUNTRY_SYLLABLES } from '../services/transfers/system-country-names.service';
+import { STARTING_COUNTRIES } from '../services/world/world-seed.service';
+import { generatePersonNamesForCulture } from '../services/worldgen/names.service';
 import { generateForeignLeagueIntake, ensureFreeAgentMarketStock } from '../services/transfers/foreign-intake.service';
 
 async function main() {
-  console.log('--- Testing Procedural System Country Name Generator ---');
+  console.log('--- Testing worldgen culture name generation (Node tables retired) ---');
 
-  const countries = Object.keys(SYSTEM_COUNTRY_SYLLABLES);
-  for (const country of countries) {
-    const names = Array.from({ length: 3 }, () => generateSystemCountryName(country));
-    console.log(`[${country.toUpperCase()}]: ${names.map(n => `${n.firstName} ${n.lastName}`).join(' | ')}`);
+  for (const country of STARTING_COUNTRIES) {
+    const names = await generatePersonNamesForCulture(country.key, 3);
+    console.log(`[${country.key.toUpperCase()}]: ${names.map(n => `${n.firstName} ${n.lastName}`).join(' | ')}`);
   }
 
   console.log('\n--- Testing Foreign League Intake Generation ---');

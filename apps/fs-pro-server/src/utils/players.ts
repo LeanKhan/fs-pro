@@ -437,7 +437,7 @@ function generatePlayer({
   firstname: string;
   lastname: string;
   nationality: string;
-  /** Resolved local country id (see services/nationality.ts); overrides the legacy `nationality` switch. */
+  /** Resolved local country id (see services/worldgen/names.service.ts); overrides the legacy `nationality` switch. */
   nationalityId?: string;
   /** Passed straight to randomBetween - default [18,30] reproduces the
    * original generic-generation behavior unchanged. Youth intake
