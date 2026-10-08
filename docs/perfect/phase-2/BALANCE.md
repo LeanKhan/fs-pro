@@ -227,7 +227,7 @@ is evaluated as Spearman(progStars, speed) > 0 pooled, and asserted in
 | 4 | 0 soft-locks at every balance | **PASS** | `soft = 0` in all 15 cells, before and after |
 | 5 | Star rating correlates with time-to-Level-1 (Spearman > 0) | **PASS** | pooled rho(progStars, speed) = **+0.489**; `TestBalanceMatrix` |
 | — | `go test ./...` green, `-race` in Docker | **PASS** | §5 |
-| — | Three Playwright bots confirm the ordering | **PASS** | §6 |
+| — | Three Playwright bots confirm the ordering | **PASS** (directionally) | §6: expert@V1.1M ≤ naive@V3.2M/4.4M friendlies; naive ≥2× in one run; live/sim players-star gap noted |
 
 ---
 
