@@ -125,6 +125,26 @@ pub fn style_matchup(own: &str, opp: &str) -> f32 {
     }
 }
 
+/// The formation matchup: no shape beats every other. 3-5-2's midfield
+/// overload wins the middle but its back three is exposed by two-striker and
+/// wide shapes (4-4-2, 4-3-3); 4-3-3's front three beats 4-4-2's flat four;
+/// 4-2-3-1's double pivot smothers 4-3-3's midfield. Returns +1 when `own`
+/// counters `opp`, -1 when countered, 0 otherwise.
+pub fn formation_matchup(own: &str, opp: &str) -> f32 {
+    let key = |s: &str| s.replace([' ', '-', '_'], "").to_lowercase();
+    let (o, p) = (key(own), key(opp));
+    let beats = |a: &str, b: &str| -> i32 {
+        ((o == a && p == b) as i32) - ((o == b && p == a) as i32)
+    };
+    let mut e = 0i32;
+    e += beats("442", "352");
+    e += beats("433", "352");
+    e += beats("352", "4231");
+    e += beats("4231", "433");
+    e += beats("433", "442");
+    e.signum() as f32
+}
+
 fn match_style_defaults(style_name: &str) -> (f32, f32, f32, f32, f32, f32) {
     let clean = style_name.replace([' ', '_', '-'], "").to_lowercase();
     match clean.as_str() {

@@ -9,7 +9,7 @@ use crate::config::CFG;
 use crate::decider::{self, ActionChoice};
 use crate::geom::{Vec2, PITCH_LENGTH_METERS};
 use crate::model::{self, PassKind, ShotKind};
-use crate::tactics::{compute_dynamic_anchor, style_matchup, TeamTactics};
+use crate::tactics::{compute_dynamic_anchor, formation_matchup, style_matchup, TeamTactics};
 use crate::types::*;
 use rand::Rng;
 use rand::SeedableRng;
@@ -342,7 +342,8 @@ impl MatchEngine {
     /// Skill boost from the style matchup, on top of home advantage. Re-run
     /// whenever a side changes style (half-time orders).
     fn apply_style_edge(&mut self) {
-        let edge = style_matchup(&self.home_tactics.style_name, &self.away_tactics.style_name) * CFG.counter_edge;
+        let edge = style_matchup(&self.home_tactics.style_name, &self.away_tactics.style_name) * CFG.counter_edge
+            + formation_matchup(&self.home_tactics.formation_name, &self.away_tactics.formation_name) * CFG.formation_edge;
         for i in 0..22 {
             let home = i < 11;
             let base = if home { 1.0 + CFG.home_advantage } else { 1.0 };
