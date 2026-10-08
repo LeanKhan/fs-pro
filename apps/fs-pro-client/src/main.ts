@@ -12,6 +12,7 @@ import { currency, ordinal, roundTo } from './helpers/misc';
 import { customIcons } from './plugins/customIcons';
 import { useStore } from './store';
 import { VueQueryPlugin } from '@tanstack/vue-query';
+import * as Sentry from '@sentry/vue';
 
 export { $axios };
 
@@ -61,6 +62,19 @@ const vuetify = createVuetify({
 
 const app = createApp(App);
 
+// Error tracking (Batch 5B): Sentry, DSN-gated. No VITE_SENTRY_DSN (local dev)
+// means no reporting and no account needed.
+const sentryDsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
+if (sentryDsn) {
+  Sentry.init({
+    app,
+    dsn: sentryDsn,
+    environment: import.meta.env.MODE,
+    integrations: [Sentry.browserTracingIntegration()],
+    tracesSampleRate: Number(import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE ?? '0') || 0,
+  });
+}
+
 app.config.globalProperties.$socket = appSocket;
 app.config.globalProperties.$axios = $axios;
 
@@ -75,6 +89,7 @@ app.use(VueQueryPlugin);
 // changed but the page never rendered." Surface the existing error
 // overlay instead so there's always a way back.
 app.config.errorHandler = (err, _instance, info) => {
+  if (sentryDsn) Sentry.captureException(err);
   console.error('[global error]', err, {
     info,
     route: router.currentRoute.value.path,

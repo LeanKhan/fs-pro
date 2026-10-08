@@ -16,6 +16,7 @@ import cookie from 'cookie';
 import path from 'path';
 
 import log from './helpers/logger';
+import { captureException, initErrorTracking, setupErrorTracking } from './helpers/error-tracking';
 import { store } from './sessionStore';
 import {
   startCalendarClock,
@@ -25,6 +26,10 @@ import { startFacilitiesSweep } from './services/facilities/facilities.service';
 import { startWorldTick } from './services/world/ai-world.service';
 
 const app: Application = express();
+
+// Error tracking (Batch 5B): Sentry, DSN-gated. Initialised before any route
+// is registered so captures carry request context.
+initErrorTracking();
 
 import { Server } from 'http';
 
@@ -171,6 +176,10 @@ app.use((req, res, next) => {
   next();
 });
 
+// Error tracking must be registered after every route (Batch 5B); no-op when
+// SENTRY_DSN is unset.
+setupErrorTracking(app);
+
 //  ==== THE GAME CLASS GAN GAN! EVERYTHING ABOUT THE GAME STARTS HERE! == //
 //  ==== THE GAME CLASS GAN GAN! EVERYTHING ABOUT THE GAME STARTS HERE! == //
 
@@ -239,6 +248,18 @@ function shutdown(signal: string) {
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+
+// Report crashes that escape the request pipeline (Batch 5B); a no-op when
+// Sentry is disabled. uncaughtException still exits: that is Node's contract.
+process.on('unhandledRejection', (reason) => {
+  captureException(reason);
+  console.error('[server] unhandledRejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+  captureException(err);
+  console.error('[server] uncaughtException:', err);
+  process.exit(1);
+});
 
 io.use((socket: Socket, next: (err?: Error) => void) => {
   const socketRequest = socket.request as typeof socket.request & {

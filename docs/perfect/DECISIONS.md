@@ -68,3 +68,11 @@ and without the sim service up, each of ~90k fixtures retries 3× against
 127.0.0.1:5050 → the run appears to hang (measured: >1h16m before kill). Batch 0's
 10k numbers must be produced with `SCALE_SKIP_MATCHES=1` (founding/draw/year-end
 timings) and, separately, with the sim service up if match throughput is wanted.
+
+## G. Owner rulings — Batch 5 (from the owner, 2026-10-07)
+
+| Q | Owner decision | Consequence |
+| --- | --- | --- |
+| **Legal pages** | **Skip for now.** | No Terms/Privacy pages and no signup checkbox this run. Recorded as deferred, not done. No legal text is ever authored by an agent. |
+| **Error tracking** | **Sentry.** | Server `@sentry/node` and client `@sentry/vue`, both **DSN-gated** (`SENTRY_DSN` / `VITE_SENTRY_DSN`); a complete no-op when unset. The DSN itself is supplied per environment (not committed). |
+| **Empty world / AI sparring** | **Keep the existing clubs in production**, so the world is never empty. | No AI rival clubs are spawned on founding (D-rule: never spawn AI clubs on founding). The first player already has opponents. B5C needs no AI-opponent implementation; the retention of the existing clubs is an ops/deploy concern. |
