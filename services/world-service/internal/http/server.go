@@ -20,6 +20,8 @@ import (
 	"time"
 
 	"fs-pro-world-service/internal/placement"
+	"fs-pro-world-service/internal/program"
+	"fs-pro-world-service/internal/program/sim"
 	"fs-pro-world-service/internal/pyramid"
 	"fs-pro-world-service/internal/ranking"
 	"fs-pro-world-service/internal/tiles"
@@ -115,6 +117,11 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /pyramid/draw/{competitionId}", s.handlePyramidDraw)
 	s.mux.HandleFunc("POST /pyramid/join", s.handlePyramidJoin)
 	s.mux.HandleFunc("GET /tiles/{z}/{x}/{y}", s.handleTile)
+	s.mux.HandleFunc("GET /program/steps", s.handleProgramSteps)
+	s.mux.HandleFunc("POST /program/evaluate", s.handleProgramEvaluate)
+	s.mux.HandleFunc("POST /program/next", s.handleProgramNext)
+	s.mux.HandleFunc("POST /program/tip", s.handleProgramTip)
+	s.mux.HandleFunc("POST /program/simulate", s.handleProgramSimulate)
 }
 
 // ServeHTTP logs every request with its status and duration, then dispatches.
@@ -464,6 +471,91 @@ func (s *Server) handlePyramidJoin(w http.ResponseWriter, r *http.Request) {
 		Slot:     join.Slot,
 		NewPool:  join.NewPool,
 	})
+}
+
+// ---------------------------------------------------------------------------
+// Program (owner program engine; docs/perfect/phase-2/PROGRAM-SERVICE-CONTRACT.md)
+// ---------------------------------------------------------------------------
+
+func (s *Server) handleProgramSteps(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, program.Steps())
+}
+
+func (s *Server) handleProgramEvaluate(w http.ResponseWriter, r *http.Request) {
+	var req program.ProgramEvaluateRequest
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	if err := req.Validate(); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	out, err := program.Evaluate(req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (s *Server) handleProgramNext(w http.ResponseWriter, r *http.Request) {
+	var req program.ProgramNextRequest
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	if err := req.Validate(); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	out, err := program.Next(req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (s *Server) handleProgramTip(w http.ResponseWriter, r *http.Request) {
+	var req program.ProgramTipRequest
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	if err := req.Validate(); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	out, err := program.Tip(req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (s *Server) handleProgramSimulate(w http.ResponseWriter, r *http.Request) {
+	var req program.ProgramSimulateRequest
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	if req.Balance < 1_000_000 || req.Balance > 5_000_000 {
+		writeError(w, http.StatusBadRequest, "balance must be between 1000000 and 5000000")
+		return
+	}
+	if req.Runs < 1 || req.Runs > 100_000 {
+		writeError(w, http.StatusBadRequest, "runs must be between 1 and 100000")
+		return
+	}
+	report, err := sim.Run(sim.Request{
+		Balance:  req.Balance,
+		Strategy: req.Strategy,
+		Runs:     req.Runs,
+		Seed:     req.Seed,
+	})
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, report)
 }
 
 // ---------------------------------------------------------------------------
