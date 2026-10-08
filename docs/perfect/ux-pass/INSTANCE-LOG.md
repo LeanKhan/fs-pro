@@ -9,7 +9,9 @@ is UTC−5; server logs print local time).
 - **Client production build commit: `e4db26c`** (repo HEAD when the client was
   built; client/server/Go/Rust sources are identical to `218bf73` — the only
   commits on top are the UX-pass docs and the 0B harness).
-- Status: **UP** since 2026-10-08T11:02Z. Smoke test PASS. Admin ready for A01.
+- Status: **UP (restored 2026-10-08T23:08Z)** — the ~12:10Z interop outage and
+  the ~13:20Z API DB-hang are both resolved (see §7 last rows / §8). Was UP since
+  `11:02Z`; smoke test PASS; admin ready for A01. Pass 1 resumed.
 
 ---
 
@@ -261,12 +263,24 @@ branch (a shipped-binary issue, not a code change).
 | 11:16 | Verified sim engine | `simServiceE2E.ts`: **20/20** Rust, 2.50 goals/match, 0 problems |
 | 11:19 | Verified world plays fixtures | worker `[world] 4 match(es)`; DB fixtures Played 3374/3847 |
 | 12:18 | **[A01] WSL→Windows interop outage** | Windows `cmd.exe` launched from WSL began failing with `UtilAcceptVsock:271: accept4 failed 110`; all Windows-Node/Playwright runs (the harness) blocked for A01 at least. Client preview binds 127.0.0.1 so it is not reachable from WSL either. Reported in `playtest/A01/ISSUES.md` (A01-12). Re-login/setup already done before the outage. |
+| 13:22 | **[A01] API degradation (instance health)** | From WSL at host `172.22.48.1`: `3010/` answers `200` in ~2 ms (helmet/CSP root, no DB) but `3010/healthz` and `3010/api/*` now hang (8 s timeout), i.e. the Node API is accepting connections but its downstream/DB pipeline is stalled. `3005/healthz` still 200. `3016/5050/3004` are 127.0.0.1-bound (not testable from WSL). This is a service/instance problem for the lead, not a game finding. |
+| 14:52 | **[A01] API diagnosis: DB-backed routes hang** | Via a WSL-side TCP proxy to `172.22.48.1:3010`: `/api/users/login` POST with an empty body returns `400` in ~4 ms (validation runs) but a real login hangs indefinitely — the UI shows "Signing in…". `/healthz` now returns `503 {"ok":false}`. `docker ps` from WSL shows `fs-pro-db-1 Up 28 hours (healthy)` and TCP `172.22.48.1:5434` is OPEN. So Postgres and the API process are up, but the API cannot complete DB queries (pool exhaustion / wedged worker). The API web+worker need a restart; A01 cannot do this (interop down, not an admin-UI action). |
+| 15:05 | **[A01] Root cause in API logs: DB `ECONNRESET`** | `.playtest-runtime/logs/api-web.log` and `api-worker.log` show repeated `DrizzleQueryError: Failed query … cause: Error: read ECONNRESET` (TCP) on ordinary queries (e.g. `select … from "Clubs"`, and the clock's `update "ClubAssets" … where CompleteAt <= now`). The API's Postgres connections are being reset out from under it, so every DB-backed request hangs/fails; a restart of API web+worker (3010/3011) is the immediate fix. Excerpt saved at `playtest/A01/traces/A01-12-api-db-econnreset.log`. |
+| 11:32 | **[A01] Founded admin club (world state change)** | To reach the app at all — admin login forces the player "Found your club" onboarding and the only Admin console link is in Settings → Account (see `playtest/A01/ISSUES.md` A01-01) — A01 founded **"Playtest Admin FC" (ADM, Playtest Park)** in **Sdev Central, Kev**. `Clubs` 50 → 51. It is a real club in the shared world; the lead may want to freeze/remove it after the pass. |
+| 23:08 | **[LEAD] Interop + API restored — Pass 1 resumed** | WSL→Windows interop is working again (all `cmd.exe` calls succeed). Docker Desktop had restarted the stack (~5 min earlier; `fs-pro-db-1 Up (healthy)`), which left the API's Postgres pool dead. Per **D8**, killed the wedged API web (3010) + worker (3011) process trees and relaunched `run-api-web.bat` / `run-api-worker.bat`. Verified: `/healthz` → `200 {"ok":true}` on 3010 **and** 3011; real admin login (`playtestadmin`) → `200 isAdmin:true`; worker logged `PostgreSQL Drizzle connection successful!`; clock **live** (`LastTickAt` advancing, `CurrentHour` 18 → 20); DB intact (`fspro_playtest`, `Clubs`=56). Windows-Node Playwright smoke → client `:4173` `200` + a11y snapshot + screenshot OK. No source changed. |
 
 ---
 
 ## 8. Blockers / notes for the lead
 
-- **No open blocker.** All seven services are up and reachable. One S1 was
+- **BLOCKER RESOLVED (2026-10-08T23:08Z).** The ~12:10Z WSL→Windows interop
+  outage and the ~13:20Z API DB-hang are both fixed (interop restored by the
+  operator / Docker Desktop restart; API web+worker restarted by the lead under
+  D8). `/healthz` is `200 {"ok":true}` on 3010 and 3011, real admin login works,
+  the worker holds a healthy Postgres connection, the clock is live, and the
+  Windows-Node Playwright harness reaches the client. **Pass 1 resumed**
+  (A01 Session 2 + wave 2 P06–P10). Evidence captured before the outage stands.
+- One S1 was
   found and fixed during setup: the shipped `sim_core.dll` was stale and
   rejected every match (see §6.1) — the fix is a rebuilt DLL, no source change.
 - Two stale dev stacks had to be stopped (logged above); D8 authorises this.

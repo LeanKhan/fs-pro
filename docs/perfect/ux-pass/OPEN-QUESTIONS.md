@@ -1,24 +1,22 @@
 # OPEN-QUESTIONS.md — UX pass (credentials/paid/legal only)
 
-## OQ-UX-1 — Windows↔WSL interop outage (BLOCKER, needs the operator)
+## OQ-UX-1 — Windows↔WSL interop outage (RESOLVED 2026-10-08T23:08Z)
 
-At ~2026-10-08 12:10Z the WSL→Windows interop socket died: every `cmd.exe`
-invocation from WSL returns `UtilAcceptVsock:271: accept4 failed 110`. The
-playtester harness runs Playwright through **Windows Node** (`cmd.exe /c`), and
-the client preview binds Windows `127.0.0.1:4173` (not reachable from WSL), so
-**no agent can drive a browser** while this is down. This is the only thing
-blocking Pass 1. It needs the operator to restart the WSL interop / Docker
-Desktop (or the machine). Logged in `INSTANCE-LOG.md §7`.
+At ~12:10Z the WSL→Windows interop socket died (`UtilAcceptVsock:271: accept4
+failed 110`) and from ~13:20Z the API's DB-backed routes hung. **Both are now
+resolved:** interop works again (Docker Desktop was restarted by the operator,
+which also refreshed the Postgres container), and the lead restarted the API
+web+worker under D8 (INSTANCE-LOG §7). Full verification: `/healthz`
+`200 {"ok":true}` on 3010/3011, real admin login `200`, worker reconnected to
+Postgres, clock live, Playwright reachable. **No answer needed.**
 
 Before the outage the wave-1 playtesters captured **53 issues** (1×S1, 9×S2,
 36×S3, 7×S4) and **156 screenshots**; those reports stand.
 
-**Follow-up diagnosis (lead, 12:xxZ):** from WSL, `http://localhost:4173/`
-returns **200** (WSL shares Windows loopback), but `:3010`, `:3016` are
-**refused** — the `0.0.0.0`-bound services are either **down** or blocked for
-the WSL→host route. Restarting them needs interop, so both must be restored by
-the operator. A Linux Chromium *is* installed (`~/.cache/ms-playwright`) as a
-possible fallback, but it cannot reach the API while the API is unreachable.
+**Resolved diagnosis:** the outage was WSL→Windows interop (operator/Docker
+Desktop restart) plus a dead API DB pool (containers were restarted under the
+API's live connections). The lead restarted API web+worker under D8 and verified
+the stack end-to-end; see INSTANCE-LOG §7 last row.
 P05 logged 16 issues (3×S2, 6×S3, 7×S4).
 
 _Everything else is ruled in `DECISIONS.md`._
