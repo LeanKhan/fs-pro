@@ -15,9 +15,10 @@ Integration branch: **`p2/integration`**, from `perfect/integration` @ `1cfd57a`
 | B0 | 0A baseline | `p2/integration` | **done** | `BASELINE.md` |
 | B0 | 0B audit | `p2/b0-0b` | **running** | `AUDIT.md` |
 | B0 | 0C research | `p2/b0-0c` | **running** | `RESEARCH.md` |
-| B1 | 1A owner-program spec | — | pending (after VERIFY B0) | `OWNER-PROGRAM-SPEC.md` |
-| B1 | 1B advisor spec + art | — | pending | `ADVISOR-SPEC.md` |
-| B1 | 1C cultures + worldgen | — | pending | `CULTURES-SPEC.md` |
+| B1 | 1A owner-program spec | `p2/b1-1a` (`647365e`) | **verified + merged** | `OWNER-PROGRAM-SPEC.md` |
+| B1 | 1B advisor spec + art | `p2/b1-1b` (`98d8e02`) | **verified + merged** | `ADVISOR-SPEC.md`, `B1-1B-REPORT.md` |
+| B1 | 1C cultures + worldgen | `p2/b1-1c` (`a3306e3`) | **verified + merged** | `CULTURES-SPEC.md` |
+| B1 | verify | `p2/integration` | **PASS** | `VERIFY-B1.md` |
 | B2–B5 | — | — | pending | — |
 
 ## Environment facts (carried from phase 1)

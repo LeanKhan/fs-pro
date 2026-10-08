@@ -57,3 +57,13 @@ agents must follow:
 | D3 | Advisor portrait source | (a) threejs-image-generator (Gemini); (b) in-repo layered SVG; (c) worldgen face service | **Try (a); fall back to (b)** | L9 order; (a) may be blocked on billing (check first); (b) is deterministic and animatable. |
 
 _More rows are appended as the run proceeds._
+
+## 3. Batch 1 verification rulings (lead, after VERIFY-B1)
+
+| # | Question | Choice | Why |
+| --- | --- | --- | --- |
+| B1-1 | 1A §15 Q1: `AUDIT.md` says Phase-1 B4 cultures never shipped, but the tree has them (`e6f1d93`) | **1C verifies and retires the Node tables; do not rebuild worldgen** | The 8 culture banks, `GenerateKind`/`GenerateMixed` and `/names/*` exist and pass tests; the audit predates B4. |
+| B1-2 | 1B §8: the shared `--muted` token fails WCAG AA on cream app-wide | **Schedule a token sweep in Batch 4** | It is a cross-cutting polish change; keep Batch 2 backend-focused. |
+| B1-3 | 1B L9 portrait art path | **Accept the hand-built layered SVG (path b)** | threejs-image-generator is blocked (no `GEMINI_API_KEY`); the SVG supports blink + visemes and is regenerable. |
+| B1-4 | 1C does not re-implement worldgen | **Accept** | Per the brief; the mix/sub-group/sheet-name **data** commit is a follow-up owned by the worldgen-data pass (Batch 2C/4). |
+
