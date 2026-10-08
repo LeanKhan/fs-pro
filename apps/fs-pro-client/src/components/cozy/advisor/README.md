@@ -14,6 +14,61 @@ advisor (L9 path **b**). One generator, six outputs, no runtime dependencies.
 | `advisor-contact-sheet.svg` | Every expression + both point poses, for QA and the spec. |
 | `advisor-motion.html` | Frozen blink / talk frames proving the shared layers stack. |
 
+Each expression file also carries **two hidden point arms** (`adv-point-right` /
+`adv-point-left`). The root's `adv-pose-point-<side>` class shows one; the arm's
+`.adv-pointer` group rotates by `--adv-aim` to aim at the projected building.
+
+---
+
+## The component (Batch 3A)
+
+`CozyAdvisor.vue` is **the one advisor component**, used by the campus (docked
+bottom-left) and by the drawers and founding flow (`mode="inline"`). It renders
+the inlined SVG above, so the art's own bob/blink/talk CSS and reduced-motion
+gating run unchanged.
+
+```html
+<CozyAdvisor
+  :club-id="clubId"          <!-- omit to drive it yourself via show() -->
+  mode="campus"              <!-- or "inline" -->
+  :suspended="matchOpen"      <!-- pauses while a match/drawer owns the screen -->
+  :marker="projectedAnchor"   <!-- { x, y, visible } viewport px, for pointing -->
+  :source="myAdvisorSource"   <!-- optional; default is the API source -->
+  @advance="..." @dismiss="..." @update:quiet="..." @point="..."
+/>
+```
+
+Driven by one Pinia store, `use-advisor.ts` (`useAdvisorStore`):
+
+- `configure(clubId, { own, src })` then `load()` — pulls the step line from
+  `GET /program/:clubId` and the contextual tip from the Go `POST /program/tip`
+  engine. The client reaches Go through the Node proxy `POST /program/:clubId/tip`
+  (the Batch-3C seam; a 404 is cached and the step line still guides the owner).
+- `advance()` (Enter), `dismissCurrent()` (Esc; never discards a program line),
+  `setQuiet()`, `push(line)` (founding), `markerLive(now)` (6s marker window).
+
+Selection is deterministic and mirrors PROGRAM-SERVICE-CONTRACT §6 —
+`advisor-content.ts` holds the priority bands, the eligibility filters
+(dismissed / max-shows / cooldown / quiet) and the priority-desc, id-asc sort.
+
+### Accessibility
+
+The whole line is always in the DOM (an sr-only span) inside a
+`role="status" aria-live="polite" aria-atomic` region; the typewriter only
+toggles a visible, `aria-hidden` copy, so a screen reader never hears a
+half-typed word. The container is focusable (Enter/Space advance, Esc
+dismisses); every control is ≥44×44. All motion is gated behind
+`prefers-reduced-motion`.
+
+### Dev lab
+
+`apps/fs-pro-client/advisor-lab.html` mounts the real component over the app's
+own `cozy.scss` HUD/dock/PLAY geometry with a scripted source, and exposes
+`window.__ADVISOR_TEST_HOOKS__`. `tests/e2e/specs/advisor.spec.ts` screenshots
+every state at 1440×900 and 390×844, asserts the advisor never overlaps
+PLAY/dock/HUD/presence, and checks reduced motion, keyboard and `aria-live`.
+
+
 ## Using it
 
 Every file is a standalone SVG with a transparent background, `role="img"` and an

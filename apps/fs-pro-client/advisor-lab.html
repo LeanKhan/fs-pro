@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Advisor Lab</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #6dbb47; font-family: 'Fredoka', system-ui, sans-serif; }
+      /* A faithful backdrop for the advisor's overlap check: the real cozy.scss
+         HUD/dock/PLAY classes are used, plus the community pill from
+         cozy-presence.vue (left:12, bottom:120 desktop / left:8, top:252 mobile). */
+      .cozy { background: linear-gradient(#8fc96b, #6dbb47); }
+      .presence { position: absolute; left: 12px; bottom: 120px; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 17px; background: var(--cream, #fdf4df); border: 3px solid #c9a46a; box-shadow: var(--shadow, 0 4px 0 rgba(70, 40, 15, 0.35)); font-size: 13px; font-weight: 600; color: var(--wood-d, #5e3b22); }
+      .presence i { width: 9px; height: 9px; border-radius: 50%; background: #5cc23a; }
+      .lab-hill { position: absolute; inset: 0; background:
+        radial-gradient(120% 70% at 50% 120%, #9bd46e 0 55%, transparent 55%),
+        linear-gradient(#a9d986, #8fc96b); }
+      .lab-pitch { position: absolute; left: 18%; top: 30%; width: 52%; height: 38%; border: 4px solid rgba(255,255,255,.6); border-radius: 8px; }
+      body.shot .lab-hill::after, body.shot .lab-pitch { opacity: 0; }
+      .lab-marker { position: absolute; left: 0; top: 0; z-index: 6; width: 48px; height: 60px; margin: -58px 0 0 -24px; pointer-events: none; filter: drop-shadow(0 3px 2px rgba(70,40,15,.35)); }
+      .lab-marker .ring { fill: none; stroke: #f5b82e; stroke-width: 4; stroke-dasharray: 5 4; }
+      .lab-marker .chev { fill: #f5b82e; stroke: #b5860f; stroke-width: 2; stroke-linejoin: round; }
+      .lab-marker .stem { stroke: #b5860f; stroke-width: 3; stroke-linecap: round; }
+      @media (max-width: 760px) { .presence { left: 8px; bottom: auto; top: 252px; } }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <!-- Dev-only lab for the advisor component, with QA hooks
+         (window.__ADVISOR_TEST_HOOKS__). Not part of the build. -->
+    <script type="module" src="/src/dev/advisor-lab.ts"></script>
+  </body>
+</html>

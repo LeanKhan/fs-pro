@@ -150,7 +150,25 @@ function chinHand() {
 
 // --- the figure ---------------------------------------------------------------
 // pose: 'idle' | 'point-right' | 'point-left'
-function figure(cfg, pose, uid = '') {
+// The raised arm + aimable pointer for one direction, used both by the point
+// poses and (hidden until posed) by the idle expression files, so the component
+// can add `adv-pose-point-<side>` to the root and aim the arm.
+function pointGroup(dir) {
+  const hx = 120 + dir * 96; // hand centre x
+  const hy = 198; // hand centre y
+  return `
+      <g class="adv-point adv-point-${dir > 0 ? 'right' : 'left'}">
+        <path d="M${120 + dir * 34} 246 q${dir * 36} -8 ${dir * 62} -30" fill="none" stroke="${P.outline}" stroke-width="34" stroke-linecap="round"/>
+        <path d="M${120 + dir * 34} 246 q${dir * 36} -8 ${dir * 62} -30" fill="none" stroke="${P.bandA}" stroke-width="26" stroke-linecap="round"/>
+        <circle cx="${hx}" cy="${hy}" r="16" fill="${P.skin}" stroke="${P.outline}" stroke-width="${OUT}"/>
+        <g class="adv-pointer" style="transform-origin:${hx}px ${hy}px">
+          <path d="M${hx} ${hy} L${hx + dir * 22} ${hy - 88}" stroke="${P.wood}" stroke-width="9" stroke-linecap="round"/>
+          <circle cx="${hx + dir * 22}" cy="${hy - 88}" r="6" fill="${P.woodD}"/>
+        </g>
+      </g>`;
+}
+
+function figure(cfg, pose, uid = '', withIdlePoints = false) {
   const pointing = pose !== 'idle';
   const dir = pose === 'point-left' ? -1 : 1;
   const hx = 120 + dir * 96; // hand centre x
@@ -168,6 +186,7 @@ function figure(cfg, pose, uid = '') {
       <path d="M${120 + dir * 34} 246 q${dir * 36} -8 ${dir * 62} -30" fill="none" stroke="${P.bandA}" stroke-width="26" stroke-linecap="round"/>
       <circle cx="${hx}" cy="${hy}" r="16" fill="${P.skin}" stroke="${P.outline}" stroke-width="${OUT}"/>`
     : '';
+  const idlePoints = !pointing && withIdlePoints ? pointGroup(1) + pointGroup(-1) : '';
   return `
     <g id="adv-bob">
       <g class="adv-figure">
@@ -200,6 +219,7 @@ function figure(cfg, pose, uid = '') {
         ${TALK_MOUTH}
         ${cfg.hand && !pointing ? chinHand() : ''}
         ${pointer}
+        ${idlePoints}
       </g>
     </g>`;
 }
@@ -210,6 +230,11 @@ const STYLE = `
   .adv-lid { transform: translateY(-42px); }
   .adv-talk { opacity:0; }
   .adv-talk .adv-viseme { opacity:1; }
+  /* The raised arm is hidden until the root is posed; the pointer aims. */
+  .adv-point { display:none; }
+  .adv-pose-point-right .adv-point-right,
+  .adv-pose-point-left .adv-point-left { display:block; }
+  .adv-pointer { transform: rotate(var(--adv-aim, 0deg)); }
   @media (prefers-reduced-motion: no-preference) {
     .adv #adv-bob { animation: adv-bob 3.4s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
     .adv-lid { animation: adv-blink 4.8s ease-in-out infinite; }
@@ -219,6 +244,7 @@ const STYLE = `
     .adv-state-talking .adv-viseme:nth-child(2) { animation-delay: 0.11s; }
     .adv-state-talking .adv-viseme:nth-child(3) { animation-delay: 0.22s; }
     .adv-state-talking .adv-viseme:nth-child(4) { animation-delay: 0.33s; }
+    .adv-pointer { transition: transform 0.28s ease-out; }
   }
   @keyframes adv-bob { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-5px) } }
   @keyframes adv-blink { 0%,90%,100%{ transform: translateY(-42px) } 93%,95%{ transform: translateY(0) } }
@@ -230,7 +256,7 @@ function svg(cfg, pose, { title, cls }) {
   class="adv expr-${cls} adv-state-idle adv-pose-${pose}" role="img" aria-label="${title}">
   <title>${title}</title>
   <style>${STYLE}</style>
-  ${figure(cfg, pose, '')}
+  ${figure(cfg, pose, '', pose === 'idle')}
 </svg>
 `;
 }
@@ -295,7 +321,7 @@ console.log(`wrote ${written.length} files:\n  ${written.join('\n  ')}`);
 function motionDemo() {
   const base = svg(EXPRESSIONS.neutral, 'idle', { title: 'Vintra', cls: 'neutral' });
   const talking = base.replace('adv-state-idle', 'adv-state-talking');
-  const cell = (label, inner, extra = '') => `
+  const cell = (label, inner, _extra = '') => `
     <figure class="cell">${inner}<figcaption>${label}</figcaption></figure>`;
   const overrides = `
     /* Freeze the shared layers at the closed-eye and open-mouth frames so a
