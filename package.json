@@ -17,7 +17,8 @@
     "format:check": "oxfmt --check",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
-    "test:e2e": "npm run test --workspace fs-pro-e2e"
+    "test:e2e": "npm run test --workspace fs-pro-e2e",
+    "test:e2e:playtest": "npm run playtest --workspace fs-pro-e2e"
   },
   "devDependencies": {
     "@repo/typescript-config": "*",
