@@ -372,3 +372,171 @@ cmd.exe /c _b3v_list.bat   # tsc --listFiles, grep b3v paths
 (The `_b3v_*` helper scripts and the `fspro_b3v` scratch DB were created for
 this verification; the scripts were removed before committing. `perfect/b3-3a`
 was not modified.)
+
+---
+
+# ROUND 2 — re-verification of the D2/D3/D5/D6 fixes (`perfect/b3-3a` @ `1ff26d3`)
+
+**This section supersedes the round-1 defect statuses for D2/D3/D5/D6 and adds a
+new blocker D10.** Round-1 criteria 1–9 are re-run where the fix touched them.
+
+## R2.0 Merge
+
+```
+$ git merge --no-edit perfect/b3-3a
+Merge made by the 'ort' strategy.
+ apps/.../0040_tile_revisions_trigger.sql |  2 +-
+ docs/perfect/B3-3A-REPORT.md             | 33 ++++++-
+ services/world-service/internal/tiles/service.go | 106 +++++++++++++-------
+ services/world-service/internal/tiles/tiles.go   |   4 +-
+ services/world-service/internal/tiles/tiles_test.go | 12 +--
+```
+
+Clean merge (no conflicts). New commits covered: `c85a1d2` (code),
+`1ff26d3` (report). Merge commit `6ec9ebe` on `perfect/b3-verify`.
+
+## R2.1 Go suite — PASS
+
+```
+go build ./...            -> exit 0
+go vet ./...              -> exit 0
+go test -count=1 ./...    -> all 9 packages ok
+```
+
+## R2.2 D2 (per-place club cap) — **FIXED**
+
+`capPerPlace` now keys on the **drawn place** (`r.place`) instead of the district
+(`service.go:229-248`), and `ancestorExpr` maps each club's district to the
+country/region/city/district drawn at that zoom (`service.go:150-155`).
+
+Reproduced live. Exact requests and the `clubs` array length:
+
+| Request | Before (`363bb08`) | After (`1ff26d3`) | Spec cap |
+| --- | --- | --- | --- |
+| `GET /tiles/1/2/3` country Kev (fspro_b3v) | 11 clubs | **5** | z1 ≤5 |
+| `GET /tiles/1/9/3` country Bellean (fspro_b3v) | 17 clubs | **5** | z1 ≤5 |
+| `GET /tiles/2/12/7` region Scale Region 0, 540 clubs (fspro_scale_100k) | n/a | **5** | z2 ≤5 |
+| `GET /tiles/3/25/14` cell holds 2 cities, 400+20 clubs (fspro_scale_100k) | n/a | **16 = 8 + 8** | z3 ≤8/place |
+| `GET /tiles/4/81/27` district Ivania Central (fspro_b3v, 6 clubs) | n/a | **6** | z4 ≤10 |
+
+`/tiles/1/2/3` previously returned >5 clubs and now returns ≤5 (5), as required.
+
+## R2.3 D3 (parent-summary overflow) — **FIXED**
+
+`Build` returns the parent tile when a cap is exceeded for `z>0`
+(`service.go:65-75`). Triggered live on `fspro_scale_100k`:
+
+```
+GET /tiles/4/50/28 -> body key {"z":3,"x":25,"y":14} ... "overflow":true "zoomHint":true
+GET /tiles/5/100/56 -> body key {"z":3,"x":25,"y":14} ... "overflow":true "zoomHint":true
+GET /tiles/2/12/7   -> body key {"z":2,"x":12,"y":7}  ... "overflow":false
+```
+
+The z4/z5 dense cells overflow and return the **z3 parent summary** with the
+flags set — the §7.4 behaviour. (Code-verified and live-triggered; the `places`
+truncation branch at `z0` still returns the bounded subset with flags, which is
+sensible as z0 has no parent.)
+
+## R2.4 D5 (z5 = club level) — **FIXED (but see D10)**
+
+`LevelForZoom(5)=="club"` (`tiles.go:66-78`; asserted in `TestLevelForZoom`),
+and z5 draws no place markers:
+
+```
+GET /tiles/5/163/55 -> "places":null, "clubs":[...6 clubs...]
+GET /tiles/5/101/56 -> "places":null, "clubs":[], "clubCount":0
+```
+
+Only clubs are returned at z5 — **but `"places":null`, not `[]`** → D10.
+
+## R2.5 D6 (documentation) — **FIXED**
+
+```
+$ head -1 .../0040_tile_revisions_trigger.sql  ->  -- 0040_tile_revisions_trigger.sql
+$ git rev-parse perfect/integration:.../0039_perf_indexes.sql -> 7a68dc51cf72d022f55c0d6d5e74f7cc55ea46ed
+$ git rev-parse HEAD:.../0039_perf_indexes.sql               -> 7a68dc51cf72d022f55c0d6d5e74f7cc55ea46ed
+```
+
+`0039_perf_indexes.sql` is byte-identical to integration; only `0040…` is added.
+
+## R2.6 Latency / payload re-run — PASS
+
+```
+fspro_pyramid_check  cells=6837 p50=1.6447ms p95=2.3665ms p99=3.0916ms max=18.0091ms maxPayload=2076 B
+fspro_scale_100k     cells=4690 p50=1.9505ms p95=2.8856ms p99=5.3945ms max=11.6073ms maxPayload=4476 B
+```
+
+Both p95 ≤50 ms and max payload ≤60 KB. The sargable bounds (`service.go:88-96`)
+and the per-place cap cut payload from 11.9 KB→2.1 KB (10k) and 29.8 KB→4.5 KB
+(20.7k); the author's updated report figures (2.1 KB / 4.5 KB) reproduce.
+
+## R2.7 Node contract + server tsc — PASS
+
+```
+CONTRACT_BUILD_EXIT=0
+SERVER_TSC_EXIT=0
+```
+
+## R2.8 **NEW DEFECT D10 (BLOCKER): `places:null` at z5 fails the zod contract**
+
+- **File:** `services/world-service/internal/tiles/service.go:105-108`
+  (`places()` returns `nil, nil` for `level=="club"`), consumed at
+  `service.go:40,80`. `encoding/json` marshals a nil slice as `null`.
+- **Repro (curl):** `GET /tiles/5/101/56` →
+  `{"key":{"z":5,...},"places":null,"clubs":[],...}`.
+- **Contract:** `packages/api-contract/src/schemas/world-service.ts:163-171`
+  declares `places: z.array(TilePlaceSchema)` (non-nullable). The Node proxy
+  parses every Go tile with this schema
+  (`apps/fs-pro-server/src/services/world/world-service.client.ts:55-68,136-138`).
+- **Proof it breaks the boundary (run by me):**
+  ```
+  $ node _b3v_zod.js
+  z5 places:null (actual Go output) => INVALID: [{"code":"invalid_type","expected":"array","received":"null","path":["places"],...}]
+  z5 places:[]  (expected shape)    => VALID
+  ```
+- **Expected:** `GET /api/tiles/5/{x}/{y}` proxies a valid tile.
+- **Actual:** `TileSchema.parse` throws, so the proxy catches and returns
+  `400 {success:false,...}` (`controllers/world/tiles.router.ts:17-20`). Every z5
+  request is unusable through Node, and Batch 3B's club zoom level would break.
+- **Regression:** at `363bb08` z5 was `LevelForZoom=="district"`, so `places()`
+  never early-returned nil and `places` was `[]`. The D5 fix introduced this.
+- **Fix (one line):** `return []PlaceMarker{}, nil` in `places()` for z5, or
+  normalise nil→empty in `Build`. No test covers z5 serialisation, so CI stayed
+  green.
+
+## R2.9 Observation (minor, not blocking): overflow ETag key
+
+On an overflow response the handler builds the ETag from the **requested** key
+(`server.go:508`, `key.String()`) while `tile.Key` is the parent. E.g. a request
+for `4/50/28` returns body key `3/25/14` but `ETag: "4/50/28:<parentRev>"`.
+Revalidation still works (same URL → same ETag), but the token does not describe
+the payload. Low priority.
+
+## R2.10 Defect status after round 2
+
+| Defect | Status |
+| --- | --- |
+| D1 — no 1M-synthetic tile benchmark (acceptance criterion) | **OPEN** (unchanged) |
+| D2 — per-place cap applied per district | **FIXED** (§R2.2) |
+| D3 — overflow returned truncated subset | **FIXED** (§R2.3) |
+| D4 — no `?placeId=` filter | **OPEN** (unchanged; spec §7.3/§9) |
+| D5 — z5 level + marker drift | **FIXED** (§R2.4), except the `places` shape → D10 |
+| D6 — 0040 header comment | **FIXED** (§R2.5) |
+| D7 — report cited migration "0039" | **FIXED** (report now says 0040) |
+| D8 — `-race` not runnable here | INFO (unchanged) |
+| D9 — released club NULL district | INFO (unchanged) |
+| **D10 — z5 `places:null` breaks zod/Node proxy** | **NEW · BLOCKER** (§R2.8) |
+
+## R2.11 Final verdict
+
+**FAIL — not mergeable as-is.**
+
+The requested fixes D2, D3, D5 and D6 are **verified fixed** with live evidence,
+and the Go suite, latency/payload budget and Node type-check all pass. However
+`perfect/b3-3a` @ `1ff26d3` introduces **D10**, a new functional blocker: the z5
+tile serialises `places:null`, which the frozen `TileSchema`
+(`z.array`) rejects, so the Node proxy fails z5 with a 400. This must be fixed
+(`return []PlaceMarker{}, nil`) and re-verified before merge. Separately, the
+Batch 3A acceptance criterion **D1 (1M-synthetic p95)** remains unmet and **D4
+(`?placeId=`)** remains a spec gap; those were open in round 1 and are still
+open here.
