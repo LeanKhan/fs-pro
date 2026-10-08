@@ -26,6 +26,13 @@
 
       <cozy-presence v-if="clubId" :club-id="clubId" :club-name="club.Name" :is-mine="isMyClub" @notify="(t: string) => game.toast(t)" />
 
+      <!-- The owner's guided start (phase-2 OWNER-PROGRAM-SPEC): prominent
+           while the program runs; it hands over to the challenge card at Level 1. -->
+      <button v-if="programActive && !liveMatch" class="program-chip" @click="openProgram">
+        <span class="ic" v-html="icon('trophy')"></span>
+        <span class="pc-text"><b>Owner's program</b><small>{{ programChipHint }}</small></span>
+      </button>
+
       <cozy-hud
         :club="{ name: club.Name, code: club.ClubCode }"
         :level="{ level: playState?.club.level ?? 0, xpInto: playState?.club.xpIntoLevel ?? 0, xpNeed: playState?.club.xpForNext ?? 0 }"
@@ -257,6 +264,7 @@ import { useOpenPlayStore } from '@/store/open-play';
 import { useClubGame } from '@/composables/use-club-game';
 import { useClubDirectory } from '@/helpers/open-play';
 import { currency } from '@/helpers/misc';
+import { fetchProgramState } from '@/services/program';
 import SideSheet from '@/components/world/side-sheet.vue';
 import ChallengeInbox from '@/components/open-play/challenge-inbox.vue';
 import ChallengeDialog from '@/components/open-play/challenge-dialog.vue';
@@ -354,6 +362,34 @@ const isMyClub = computed(() => {
 });
 
 const treasury = computed(() => playState.value?.club.budget ?? club.value?.Budget ?? 0);
+
+// --- The owner program entry (phase-2 OWNER-PROGRAM-SPEC) ---------------------------------
+// The server owns the step; the campus only offers a way in while it runs.
+const programStep = ref<string | null>(null);
+const PROGRAM_STEP_HINT: Record<string, string> = {
+  not_started: 'Your opening balance is ready',
+  manager: 'Hire your first manager',
+  players: 'Build a legal matchday squad',
+  facilities: 'Build a Tier-1 facility',
+  level1: 'Reach Level 1 to join a league',
+};
+async function loadOwnerProgram() {
+  if (!isMyClub.value || !clubId.value) {
+    programStep.value = null;
+    return;
+  }
+  try {
+    programStep.value = (await fetchProgramState(clubId.value)).step;
+  } catch {
+    programStep.value = null;
+  }
+}
+watch([isMyClub, clubId], loadOwnerProgram, { immediate: true });
+const programActive = computed(() => !!programStep.value && !['done'].includes(programStep.value));
+const programChipHint = computed(() => PROGRAM_STEP_HINT[programStep.value ?? ''] ?? 'Your guided start');
+function openProgram() {
+  router.push(`/game/${clubId.value}/program`);
+}
 
 // --- The 3D campus ------------------------------------------------------------------
 const colors = ref<[string, string]>(['#3a6fd8', '#f5f1e6']);
@@ -601,10 +637,10 @@ type HubKey = 'matchday' | 'team' | 'squad' | 'transfers' | 'club' | 'analysis';
 interface HubTab { key: HubKey; title: string; component?: Component; readOnly?: boolean }
 const HUB_TABS: HubTab[] = [
   { key: 'matchday', title: 'Matchday' },
-  { key: 'team', title: 'Team sheet', component: TeamSheetZone, readOnly: true },
+  { key: 'team', title: 'The brief', component: TeamSheetZone, readOnly: true },
   { key: 'squad', title: 'Squad', component: SquadZone },
-  { key: 'transfers', title: 'Transfers', component: TransferZone },
-  { key: 'club', title: 'Club', component: OwnerZone, readOnly: true },
+  { key: 'transfers', title: 'Recruitment', component: TransferZone },
+  { key: 'club', title: 'Owner', component: OwnerZone, readOnly: true },
   { key: 'analysis', title: 'Analysis', component: PerformanceZone },
 ];
 const BUILDING_TAB: Partial<Record<CampusBuilding, HubKey>> = {
@@ -642,7 +678,7 @@ const drawerTitle = computed(() =>
         : drawer.value === 'prep'
           ? 'Match prep'
           : isMyClub.value
-            ? 'Manager'
+            ? "Owner's office"
             : (club.value?.Name ?? '')
 );
 // Sounds for panels opening and closing.
@@ -964,6 +1000,7 @@ function onAct(action: string) {
   switch (action) {
     case 'build': return (showBuild.value = true);
     case 'move': return startMove();
+    case 'program': return openProgram();
     case 'play': return game.findMatch(quickSim.value);
     case 'collect':
       if (game.shopPending.value >= 1) return collect();
@@ -1117,15 +1154,15 @@ const managerBriefingMessage = computed(() => {
   const streak = standing?.streak;
   if (streak && streak.length >= 3 && streak.type === 'L') {
     return standing!.boardConfidence < 35
-      ? `${streak.length} defeats in a row. The board is losing patience and the crowds are thinning - we need a result.`
-      : `${streak.length} defeats in a row. The dressing room is low and the fans are restless.`;
+      ? `Your manager reports ${streak.length} defeats in a row. The board is losing patience and the crowds are thinning - a result is needed.`
+      : `Your manager reports ${streak.length} defeats in a row. The dressing room is low and the fans are restless.`;
   }
   if (streak && streak.length >= 3 && streak.type === 'W') {
-    return `${streak.length} wins on the bounce! The squad is flying and the supporters are pouring in.`;
+    return `Your manager reports ${streak.length} wins on the bounce. The squad is flying and the supporters are pouring in.`;
   }
-  if (game.cooldownLeft.value > 0) return 'The squad is resting and recovering fitness between matches.';
-  if (!standing?.form.length) return 'Your journey starts here. Build your club, train your team and take on your first opponents.';
-  return 'Every result counts: wins bring fans through the gates, defeats send them home.';
+  if (game.cooldownLeft.value > 0) return 'Your manager is managing the squad’s recovery between matches.';
+  if (!standing?.form.length) return 'Your journey starts here. Hire a manager, build a squad and take on your first opponents.';
+  return 'Your manager reports: every result counts - wins bring fans through the gates, defeats send them home.';
 });
 
 // While you were away
@@ -1219,5 +1256,69 @@ function goManager(key?: string) {
   gap: 12px;
   text-align: center;
   font-size: 20px;
+}
+
+/* Owner's program entry (phase-2): a cozy plaque that never covers PLAY, the
+   dock, the resource HUD or the advisor (bottom-left). */
+.program-chip {
+  position: absolute;
+  top: 160px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 8px 10px;
+  border-radius: 16px;
+  background: linear-gradient(#ffe9a6, #f5b82e);
+  border: 3px solid #fff3c9;
+  box-shadow: 0 4px 0 rgba(70, 40, 15, 0.35), 0 8px 18px rgba(0, 0, 0, 0.18);
+  color: #5e3b22;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  animation: pc-bob 2.4s ease-in-out infinite;
+}
+.program-chip .ic {
+  width: 26px;
+  height: 26px;
+}
+.pc-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.pc-text b {
+  font-size: 15px;
+}
+.pc-text small {
+  font-size: 11px;
+  color: #6f5010;
+}
+@keyframes pc-bob {
+  50% {
+    transform: translate(-50%, -4px);
+  }
+}
+@media (max-width: 760px) {
+  .program-chip {
+    padding: 6px 12px 6px 8px;
+  }
+  .program-chip .ic {
+    width: 22px;
+    height: 22px;
+  }
+  .pc-text b {
+    font-size: 13px;
+  }
+  .pc-text small {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .program-chip {
+    animation: none;
+  }
 }
 </style>

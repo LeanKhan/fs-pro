@@ -97,6 +97,16 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Play' },
   },
   {
+    // The owner's guided start (phase-2 OWNER-PROGRAM-SPEC): sign a manager,
+    // sign a squad, build a Tier-1, reach Level 1. Its own screen so the
+    // flow can be deep-linked and screenshotted without the campus.
+    path: '/game/:clubId/program',
+    component: () =>
+      import(/* webpackChunkName: "owner_program" */ '../views/game/owner-program.vue'),
+    name: 'Owner Program',
+    meta: { title: 'Owner program' },
+  },
+  {
     // A manager without a club founds one here (country, town, club, crest).
     path: '/start',
     component: () =>
