@@ -1,0 +1,22 @@
+
+/mnt/c/done/fs-pro/.claude/worktrees/p2b1b/docs/perfect/phase-2/assets/advisor/advisor-mock.html
+  [cramped-padding] <div> "stage": children flush against bg on all sides (no inset)
+    → Text is too close to the edge of its container. Two shapes: (1) an element with its own text where the padding is too low for the font size, and (2) a wrapper with text-bearing children and near-zero padding against a visible boundary (border, outline, or non-transparent background) — children land flush against the boundary line. Add at least 8px (ideally 12–16px) of padding inside bordered, outlined, or colored containers.
+
+1 anti-pattern found.
+
+── Advisory (not counted as failures) ──
+
+/mnt/c/done/fs-pro/.claude/worktrees/p2b1b/docs/perfect/phase-2/assets/advisor/advisor-mock.html
+  [repeating-stripes-gradient] repeating-gradient decorative stripes
+    → Repeating-gradient stripes used as surface decoration are a recurring generated-UI signature. Reach for a deliberate texture or leave the surface plain.
+
+/mnt/c/done/fs-pro/.claude/worktrees/p2b1b/docs/perfect/phase-2/assets/advisor/advisor-motion.html
+  [shape-assembled-illustration] inline <svg> scene: 18 primitive shapes, ~240x270px, 11 fill colors
+    → A large inline SVG that builds a pictorial scene from a pile of primitive shapes reads as placeholder clip art, not illustration. Icons, logos, and data graphics are fine at their scale; a hero-sized visual deserves real artwork, a photograph, or a deliberately drawn graphic.
+  [shape-assembled-illustration] inline <svg> scene: 18 primitive shapes, ~240x270px, 11 fill colors
+    → A large inline SVG that builds a pictorial scene from a pile of primitive shapes reads as placeholder clip art, not illustration. Icons, logos, and data graphics are fine at their scale; a hero-sized visual deserves real artwork, a photograph, or a deliberately drawn graphic.
+  [shape-assembled-illustration] inline <svg> scene: 18 primitive shapes, ~240x270px, 11 fill colors
+    → A large inline SVG that builds a pictorial scene from a pile of primitive shapes reads as placeholder clip art, not illustration. Icons, logos, and data graphics are fine at their scale; a hero-sized visual deserves real artwork, a photograph, or a deliberately drawn graphic.
+
+4 advisory notes. Suppress with --no-advisory.

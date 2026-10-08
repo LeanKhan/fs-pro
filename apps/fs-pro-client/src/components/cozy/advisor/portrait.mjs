@@ -1,0 +1,330 @@
+// Advisor portrait art — a hand-built, layered, flat-shaded SVG (L9 path b).
+//
+// Why a generator instead of hand-drawn files: the character has one head and
+// six variants (5 expressions + pointing poses) that must stay in sync. The
+// shared geometry (skull, ears, cap, scarf, blink lids, mouth visemes) lives
+// here once; a variant only changes eyes, brows, mouth rest shape and the arm.
+// Output is plain, dependency-free SVG so the client can inline it, use it as
+// an <img>, or drop it in CSS `background-image` — no build step, no network.
+//
+// Run:  node portrait.mjs          (writes the .svg files beside this file)
+//
+// Art direction (FOR-AGENTS R8): cozy, flat-shaded, sunny, cream/wood, Fredoka.
+// Never dark or realistic. Palette mirrors cozy.scss tokens.
+
+import { writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+
+// --- palette (mirrors apps/fs-pro-client/src/components/cozy/cozy.scss) -------
+const P = {
+  skin: '#f2c79b',
+  skinD: '#e0aa78',
+  cheek: '#e79b78',
+  hair: '#cfc7b6',
+  hairD: '#a89f8b',
+  white: '#fffaf0',
+  eye: '#40483f',
+  bandA: '#5cc23a', // club colour A (overridable by consumer CSS vars)
+  bandB: '#f5b82e', // club colour B
+  wood: '#8a5a3b',
+  woodD: '#5e3b22',
+  outline: '#5e3b22',
+  gold: '#f5b82e',
+};
+const OUT = 3.4; // uniform "chunky outline" width
+const W = 240;
+const H = 270;
+
+// --- expression parameters ----------------------------------------------------
+// eye: 'open' | 'wide' | 'soft' | 'look-up' | 'look-side'
+const EXPRESSIONS = {
+  neutral: { eye: 'open', brow: { y: 104, tilt: 0, lift: 0 }, mouth: 'smile', cheek: false },
+  happy: { eye: 'soft', brow: { y: 101, tilt: 0, lift: 2 }, mouth: 'smile-open', cheek: true },
+  excited: { eye: 'wide', brow: { y: 96, tilt: 0, lift: 4 }, mouth: 'grin', cheek: true, spark: true },
+  worried: { eye: 'look-side', brow: { y: 103, tilt: 11, lift: 0 }, mouth: 'frown', sweat: true },
+  thinking: { eye: 'look-up', brow: { y: 100, tilt: -6, lift: 0 }, mouth: 'pursed', hand: true },
+};
+
+// --- shared animated pieces (work in every expression) -----------------------
+// Blink lids: eye-shaped skin plates parked above the eyes and clipped to the
+// eye sockets, so they are invisible when open and slide down to close. The
+// clip id is suffixed per instance (the contact sheet inlines many figures).
+const blinkLids = (uid) => `
+      <clipPath id="adv-eye-clip${uid}">
+        <rect x="76" y="104" width="44" height="46"/>
+        <rect x="120" y="104" width="44" height="46"/>
+      </clipPath>
+      <g class="adv-lids" clip-path="url(#adv-eye-clip${uid})" aria-hidden="true">
+        <g class="adv-lid">
+          <ellipse cx="98" cy="126" rx="20" ry="20" fill="${P.skin}"/>
+          <path d="M85 126 q13 7 26 0" fill="none" stroke="${P.outline}" stroke-width="3" stroke-linecap="round"/>
+        </g>
+        <g class="adv-lid">
+          <ellipse cx="142" cy="126" rx="20" ry="20" fill="${P.skin}"/>
+          <path d="M129 126 q13 7 26 0" fill="none" stroke="${P.outline}" stroke-width="3" stroke-linecap="round"/>
+        </g>
+      </g>`;
+
+// Talking visemes: 4 mouth frames; CSS cycles them when .adv-state-talking.
+const TALK_MOUTH = `
+      <g class="adv-talk" aria-hidden="true">
+        <g class="adv-viseme"><ellipse cx="120" cy="171" rx="11" ry="7" fill="#8c4a3f" stroke="${P.outline}" stroke-width="2.6"/></g>
+        <g class="adv-viseme"><ellipse cx="120" cy="171" rx="8" ry="10" fill="#8c4a3f" stroke="${P.outline}" stroke-width="2.6"/></g>
+        <g class="adv-viseme"><ellipse cx="120" cy="171" rx="13" ry="5" fill="#8c4a3f" stroke="${P.outline}" stroke-width="2.6"/></g>
+        <g class="adv-viseme"><ellipse cx="120" cy="171" rx="6" ry="8" fill="#8c4a3f" stroke="${P.outline}" stroke-width="2.6"/></g>
+      </g>`;
+
+function eyes(cfg) {
+  if (cfg.eye === 'soft') {
+    // Happy closed-arc eyes — two upward arcs.
+    return `
+      <g class="adv-eyes">
+        <path d="M84 128 q14 -18 28 0" fill="none" stroke="${P.outline}" stroke-width="4.6" stroke-linecap="round"/>
+        <path d="M128 128 q14 -18 28 0" fill="none" stroke="${P.outline}" stroke-width="4.6" stroke-linecap="round"/>
+      </g>`;
+  }
+  const wide = cfg.eye === 'wide';
+  const rx = wide ? 17 : 16;
+  const ry = wide ? 19 : 16;
+  const iris = wide ? 9.5 : 8.5;
+  const off = { open: [0, 0], 'look-up': [0, -5], 'look-side': [5, 1] }[cfg.eye] ?? [0, 0];
+  const one = (cx) => `
+        <ellipse cx="${cx}" cy="126" rx="${rx}" ry="${ry}" fill="${P.white}" stroke="${P.outline}" stroke-width="${OUT}"/>
+        <circle cx="${cx + off[0]}" cy="${126 + off[1]}" r="${iris}" fill="${P.eye}"/>
+        <circle cx="${cx + off[0] - 2.6}" cy="${126 + off[1] - 2.6}" r="2.6" fill="#fff"/>`;
+  return `
+      <g class="adv-eyes">
+${one(98)}
+${one(142)}
+      </g>`;
+}
+
+function brows(cfg) {
+  const { y, tilt, lift } = cfg.brow;
+  // A brow is a short thick stroke; tilt rotates the inner end (+ = worried).
+  return `
+      <g class="adv-brows">
+        <path d="M84 ${y - lift} q13 -7 28 -3" fill="none" stroke="${P.hairD}" stroke-width="5" stroke-linecap="round" transform="rotate(${tilt} 98 104)"/>
+        <path d="M156 ${y - lift} q-13 -7 -28 -3" fill="none" stroke="${P.hairD}" stroke-width="5" stroke-linecap="round" transform="rotate(${-tilt} 142 104)"/>
+      </g>`;
+}
+
+function mouth(cfg) {
+  const d = {
+    smile: `<path d="M104 168 q16 12 32 0" fill="none" stroke="${P.outline}" stroke-width="4" stroke-linecap="round"/>`,
+    'smile-open': `<path d="M100 165 q20 22 40 0 z" fill="#8c4a3f" stroke="${P.outline}" stroke-width="3.2" stroke-linejoin="round"/><path d="M106 166 q14 8 28 0" fill="${P.white}" stroke="none"/>`,
+    grin: `<path d="M98 164 q22 26 44 0 z" fill="#8c4a3f" stroke="${P.outline}" stroke-width="3.2" stroke-linejoin="round"/><path d="M103 165 q17 10 34 0 z" fill="${P.white}"/>`,
+    frown: `<path d="M106 174 q14 -12 28 0" fill="none" stroke="${P.outline}" stroke-width="4" stroke-linecap="round"/>`,
+    pursed: `<path d="M110 170 q10 -6 20 0 q-10 8 -20 0 z" fill="#8c4a3f" stroke="${P.outline}" stroke-width="2.8" stroke-linejoin="round"/>`,
+  }[cfg.mouth];
+  return `<g class="adv-mouth-static">${d}</g>`;
+}
+
+function extras(cfg) {
+  let s = '';
+  if (cfg.cheek) {
+    s += `<circle cx="82" cy="150" r="11" fill="${P.cheek}" opacity=".45"/><circle cx="158" cy="150" r="11" fill="${P.cheek}" opacity=".45"/>`;
+  }
+  if (cfg.spark) {
+    // Flat gold sparkles (never a glow). Kept clear of the cap and face.
+    s += `<path d="M206 66 l4 10 10 4 -10 4 -4 10 -4 -10 -10 -4 10 -4 z" fill="${P.gold}" stroke="${P.woodD}" stroke-width="2"/>`;
+    s += `<circle cx="38" cy="176" r="5" fill="${P.gold}" stroke="${P.woodD}" stroke-width="2"/>`;
+  }
+  if (cfg.sweat) {
+    s += `<path d="M200 96 q7 10 0 15 q-7 -5 0 -15 z" fill="#8fd0f2" stroke="#3a8ee0" stroke-width="2.2"/>`;
+  }
+  return s;
+}
+
+// The chin-rest hand for the thinking pose. Drawn on top of the body.
+function chinHand() {
+  return `
+      <g class="adv-hand-chin">
+        <path d="M150 214 q-6 -22 10 -30 q18 -9 26 8 q6 22 -14 30 q-16 6 -22 -8 z" fill="${P.skin}" stroke="${P.outline}" stroke-width="${OUT}"/>
+        <path d="M162 192 q14 -4 20 6" fill="none" stroke="${P.skinD}" stroke-width="2.4" stroke-linecap="round"/>
+      </g>`;
+}
+
+// --- the figure ---------------------------------------------------------------
+// pose: 'idle' | 'point-right' | 'point-left'
+function figure(cfg, pose, uid = '') {
+  const pointing = pose !== 'idle';
+  const dir = pose === 'point-left' ? -1 : 1;
+  const hx = 120 + dir * 96; // hand centre x
+  const hy = 198; // hand centre y
+  const pointer = pointing
+    ? `
+      <g class="adv-pointer" style="transform-origin:${hx}px ${hy}px">
+        <path d="M${hx} ${hy} L${hx + dir * 22} ${hy - 88}" stroke="${P.wood}" stroke-width="9" stroke-linecap="round"/>
+        <circle cx="${hx + dir * 22}" cy="${hy - 88}" r="6" fill="${P.woodD}"/>
+      </g>`
+    : '';
+  const arm = pointing
+    ? `
+      <path d="M${120 + dir * 34} 246 q${dir * 36} -8 ${dir * 62} -30" fill="none" stroke="${P.outline}" stroke-width="34" stroke-linecap="round"/>
+      <path d="M${120 + dir * 34} 246 q${dir * 36} -8 ${dir * 62} -30" fill="none" stroke="${P.bandA}" stroke-width="26" stroke-linecap="round"/>
+      <circle cx="${hx}" cy="${hy}" r="16" fill="${P.skin}" stroke="${P.outline}" stroke-width="${OUT}"/>`
+    : '';
+  return `
+    <g id="adv-bob">
+      <g class="adv-figure">
+        <!-- shoulders / club kit -->
+        <path d="M22 270 q6 -54 60 -62 h76 q54 8 60 62 z" fill="${P.bandA}" stroke="${P.outline}" stroke-width="${OUT}"/>
+        <path d="M104 214 q16 16 32 0 v40 h-32 z" fill="${P.bandB}" opacity=".9"/>
+        <!-- neck -->
+        <path d="M102 186 h36 v30 q-18 12 -36 0 z" fill="${P.skinD}" stroke="${P.outline}" stroke-width="${OUT}"/>
+        <!-- scarf -->
+        <path d="M70 240 q50 24 100 0 q4 16 -6 24 q-44 20 -88 0 q-10 -8 -6 -24 z" fill="${P.bandB}" stroke="${P.outline}" stroke-width="${OUT}"/>
+        ${arm}
+        <!-- bun + hair behind the head -->
+        <circle cx="120" cy="52" r="19" fill="${P.hair}" stroke="${P.outline}" stroke-width="${OUT}"/>
+        <path d="M58 128 q-10 -74 62 -74 q72 0 62 74 q-10 -18 -22 -24 q-26 10 -80 0 q-12 6 -22 24 z" fill="${P.hair}" stroke="${P.outline}" stroke-width="${OUT}"/>
+        <!-- ears -->
+        <ellipse cx="60" cy="132" rx="12" ry="16" fill="${P.skin}" stroke="${P.outline}" stroke-width="${OUT}"/>
+        <ellipse cx="180" cy="132" rx="12" ry="16" fill="${P.skin}" stroke="${P.outline}" stroke-width="${OUT}"/>
+        <!-- head -->
+        <ellipse cx="120" cy="126" rx="62" ry="66" fill="${P.skin}" stroke="${P.outline}" stroke-width="${OUT}"/>
+        ${extras(cfg)}
+        <!-- flat cap: crown then darker forward brim -->
+        <path d="M56 104 q-2 -62 64 -62 q66 0 64 62 q-64 -26 -128 0 z" fill="${P.wood}" stroke="${P.outline}" stroke-width="${OUT}"/>
+        <path d="M48 104 q72 -24 144 0 q0 15 -22 15 q-50 -16 -100 0 q-22 0 -22 -15 z" fill="${P.woodD}" stroke="${P.outline}" stroke-width="${OUT}"/>
+        ${brows(cfg)}
+        ${eyes(cfg)}
+        ${blinkLids(uid)}
+        <!-- nose -->
+        <path d="M120 134 q6 12 0 18 q-6 -2 -8 -6" fill="none" stroke="${P.skinD}" stroke-width="3" stroke-linecap="round"/>
+        ${mouth(cfg)}
+        ${TALK_MOUTH}
+        ${cfg.hand && !pointing ? chinHand() : ''}
+        ${pointer}
+      </g>
+    </g>`;
+}
+
+// --- self-contained CSS (motion only when the user allows it) -----------------
+const STYLE = `
+  .adv { display:block; }
+  .adv-lid { transform: translateY(-42px); }
+  .adv-talk { opacity:0; }
+  .adv-talk .adv-viseme { opacity:1; }
+  @media (prefers-reduced-motion: no-preference) {
+    .adv #adv-bob { animation: adv-bob 3.4s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+    .adv-lid { animation: adv-blink 4.8s ease-in-out infinite; }
+    .adv-state-talking .adv-mouth-static { opacity:0; }
+    .adv-state-talking .adv-talk { opacity:1; }
+    .adv-state-talking .adv-viseme { animation: adv-vis 0.44s steps(1) infinite; }
+    .adv-state-talking .adv-viseme:nth-child(2) { animation-delay: 0.11s; }
+    .adv-state-talking .adv-viseme:nth-child(3) { animation-delay: 0.22s; }
+    .adv-state-talking .adv-viseme:nth-child(4) { animation-delay: 0.33s; }
+  }
+  @keyframes adv-bob { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-5px) } }
+  @keyframes adv-blink { 0%,90%,100%{ transform: translateY(-42px) } 93%,95%{ transform: translateY(0) } }
+  @keyframes adv-vis { 0%,25%{ opacity:1 } 26%,100%{ opacity:0 } }
+`;
+
+function svg(cfg, pose, { title, cls }) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"
+  class="adv expr-${cls} adv-state-idle adv-pose-${pose}" role="img" aria-label="${title}">
+  <title>${title}</title>
+  <style>${STYLE}</style>
+  ${figure(cfg, pose, '')}
+</svg>
+`;
+}
+
+// --- write the expression files ----------------------------------------------
+const EXPR_TITLES = {
+  neutral: 'Vintra, your club advisor, listening',
+  happy: 'Vintra, pleased',
+  excited: 'Vintra, excited',
+  worried: 'Vintra, worried about the budget',
+  thinking: 'Vintra, thinking it over',
+};
+
+const written = [];
+function write(name, body) {
+  writeFileSync(join(HERE, name), body);
+  written.push(name);
+}
+
+for (const [key, cfg] of Object.entries(EXPRESSIONS)) {
+  write(`advisor-${key}.svg`, svg(cfg, 'idle', { title: EXPR_TITLES[key], cls: key }));
+}
+
+// A contact sheet with every expression + the two pointing poses (QA/spec only).
+const cells = ['neutral', 'happy', 'excited', 'worried', 'thinking']
+  .map((k) => ({ k, pose: 'idle' }))
+  .concat([
+    { k: 'neutral', pose: 'point-right' },
+    { k: 'happy', pose: 'point-right' },
+    { k: 'thinking', pose: 'point-left' },
+  ]);
+const cellW = 250;
+const cellH = H + 34;
+const col = 4;
+const sheetW = col * cellW;
+const sheetH = Math.ceil(cells.length / col) * cellH;
+const sheetSvgs = cells
+  .map((s, i) => {
+    const x = (i % col) * cellW;
+    const y = Math.floor(i / col) * cellH;
+    const label = `${s.k}${s.pose !== 'idle' ? ' + point' : ''}`;
+    return `<g transform="translate(${x},${y})">
+      <text x="${cellW / 2}" y="22" text-anchor="middle" font-family="Fredoka, system-ui, sans-serif" font-weight="600" font-size="17" fill="#5e3b22">${label}</text>
+      <g transform="translate(5,30)" class="adv adv-state-idle">${figure(EXPRESSIONS[s.k], s.pose, `-${i}`)}</g></g>`;
+  })
+  .join('\n');
+write(
+  'advisor-contact-sheet.svg',
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${sheetW} ${sheetH}" width="${sheetW}" height="${sheetH}" role="img" aria-label="Advisor expression and pose contact sheet">
+  <style>${STYLE}</style>
+  <rect width="${sheetW}" height="${sheetH}" fill="#f6e7c4"/>
+${sheetSvgs}
+</svg>
+`
+);
+
+console.log(`wrote ${written.length} files:\n  ${written.join('\n  ')}`);
+
+// --- motion proof -------------------------------------------------------------
+// A static, regenerable page that freezes the CSS at chosen frames (negative
+// animation-delay) so a screenshot proves blink and mouth animation exist.
+function motionDemo() {
+  const base = svg(EXPRESSIONS.neutral, 'idle', { title: 'Vintra', cls: 'neutral' });
+  const talking = base.replace('adv-state-idle', 'adv-state-talking');
+  const cell = (label, inner, extra = '') => `
+    <figure class="cell">${inner}<figcaption>${label}</figcaption></figure>`;
+  const overrides = `
+    /* Freeze the shared layers at the closed-eye and open-mouth frames so a
+       single screenshot proves both states exist and stack correctly. */
+    .cell-blinking .adv-lid { transform: translateY(0) !important; animation: none !important; }
+    .cell-talking .adv-mouth-static { opacity: 0 !important; }
+    .cell-talking .adv-talk { opacity: 1 !important; }
+    .cell-talking .adv-viseme { animation: none !important; opacity: 0 !important; }
+    .cell-talking .adv-viseme:nth-child(2) { opacity: 1 !important; }
+`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"/>
+<title>Advisor motion proof</title>
+<style>
+  body { margin:0; background:#f6e7c4; font-family:'Fredoka',system-ui,sans-serif; color:#5e3b22; }
+  .row { display:flex; gap:0; }
+  .cell { margin:0; text-align:center; padding:10px 6px 16px; }
+  .cell svg { display:block; margin:0 auto; }
+  figcaption { font-size:16px; margin-top:6px; color:#5e3b22; }
+  .note { padding:4px 16px 14px; font-size:14px; color:#6f5940; }
+  ${overrides}
+</style></head><body>
+  <div class="row">
+    ${cell('idle (eyes open)', base)}
+    ${cell('blink (eyes closed)', base, '').replace('<figure class="cell">', '<figure class="cell cell-blinking">')}
+    ${cell('talk viseme (mouth open)', talking).replace('<figure class="cell">', '<figure class="cell cell-talking">')}
+  </div>
+  <p class="note">Frozen frames of the layers in advisor-neutral.svg. At runtime the blink lid slides every 4.8s and the four talk visemes cycle every 0.44s — both defined in the SVG's own CSS and gated behind <code>prefers-reduced-motion: no-preference</code>.</p>
+</body></html>`;
+}
+writeFileSync(join(HERE, 'advisor-motion.html'), motionDemo());
+written.push('advisor-motion.html');
+
