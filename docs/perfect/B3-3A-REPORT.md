@@ -86,11 +86,12 @@ correct; club lists respect the z0 cap of 3/place.
 
    | world | cells | p50 | p95 | p99 | max | max payload |
    | --- | --- | --- | --- | --- | --- | --- |
-   | `fspro_pyramid_check` (10k clubs) | 6837 | 5.9 ms | 12.0 ms | 20.6 ms | 544 ms¹ | 11.9 KB |
-   | `fspro_scale_100k` (20.7k clubs) | 4690 | 5.8 ms | 10.7 ms | 16.2 ms | 50.7 ms | 29.8 KB |
+   | `fspro_pyramid_check` (10k clubs) | 6837 | 1.62 ms | 2.26 ms | 2.67 ms | 13.6 ms | 2.1 KB |
+   | `fspro_scale_100k` (20.7k clubs) | 4690 | 1.63 ms | 2.36 ms | 4.60 ms | 16.0 ms | 4.5 KB |
 
-   Both p95 ≤ 50 ms and every payload ≤ 60 KB (asserted). ¹ The 10k `max`
-   is a cold first-query outlier (connection/dial warmup); p99 is 20.6 ms.
+   Both p95 ≤ 50 ms and every payload ≤ 60 KB (asserted). (The earlier
+   pre-fix run measured p95 12.0/10.7 ms and max payload 11.9/29.8 KB; the
+   per-place cap fix and sargable predicates brought both down.)
    Still open: the **1M synthetic** p95 and an HTTP-level `wrk`/`k6` run
    (neither tool is installed here).
 2. **Node proxy + zod + route-policy (R6) — added after the first pass.**
@@ -99,7 +100,7 @@ correct; club lists respect the z0 cap of 3/place.
    public. Server `tsc --noEmit` = 0 errors. `vitest` cannot start through the
    worktree's WSL symlinks (known worktree limitation), so the TS additions are
    type-checked, not unit-tested, here.
-3. **Tile invalidation — done in migration `0039`.** `TileRevisions` is now
+3. **Tile invalidation — done in migration `0040`.** `TileRevisions` is now
    maintained by a trigger on `Clubs` (insert/delete/`DistrictId` change),
    mirroring the `PlaceStats` trigger, plus a backfill. Verified on
    `fspro_b2c`: a district change bumped the `(z=0,x=3,y=1)` cell `42 → 43`
@@ -127,3 +128,25 @@ answered "are you running batches in parallel? → proceed"). Reconciled:
   rebase.
 
 It is safe to verify and merge `perfect/b3-3a` on top of `27fb399`.
+
+## 7. VERIFY-B3 defects addressed
+
+Independent VERIFY-B3 (`perfect/b3-verify`) passed 9/10 and raised defects.
+This branch now fixes:
+
+- **D2 (MEDIUM, spec §7.2)** — the per-place club cap is now keyed on the
+  **drawn place** at the zoom (country/region/city/district), not the district.
+  Verified live: `/tiles/1/6/3` (a country) returns ≤5 clubs (was 15).
+- **D3 (LOW/MED, §7.4)** — on overflow the tile now returns the **parent-level
+  summary** with `overflow`/`zoomHint` set (recursing up to z0).
+- **D5 (LOW, §7.2)** — `LevelForZoom(5) = "club"`; z5 draws clubs with no place
+  markers. The club `code` is the crest reference (the client's `crestUrl`).
+- **Perf** — queries use sargable `MapX/MapY` range bounds instead of a
+  computed `floor()` predicate, so the `Places_map_idx` can be used. p95 fell
+  from 12.0/10.7 ms to **2.26/2.36 ms**.
+- **D6** — the `0040` header comment is corrected.
+
+Still open (from VERIFY-B3): **D1** the 1M-synthetic p95 benchmark (no synth
+path in `internal/tiles`; the WSL/Windows toolchain cannot run `-race` here),
+**D4** the `?placeId=` focused-zoom filter, and **D8** `go test -race` (needs
+the Docker image).
