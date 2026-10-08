@@ -59,7 +59,7 @@ func TestCellAtQuadtreeHalves(t *testing.T) {
 }
 
 func TestLevelForZoom(t *testing.T) {
-	want := map[int]string{0: "country", 1: "country", 2: "region", 3: "city", 4: "district", 5: "district"}
+	want := map[int]string{0: "country", 1: "country", 2: "region", 3: "city", 4: "district", 5: "club"}
 	for z, lvl := range want {
 		if got := LevelForZoom(z); got != lvl {
 			t.Errorf("LevelForZoom(%d) = %q, want %q", z, got, lvl)
@@ -78,11 +78,11 @@ func TestClubCapForZoom(t *testing.T) {
 
 func TestCapPerPlace(t *testing.T) {
 	rows := []clubRow{
-		{marker: ClubMarker{ID: "a1", Prominence: 9}, district: "a"},
-		{marker: ClubMarker{ID: "a2", Prominence: 8}, district: "a"},
-		{marker: ClubMarker{ID: "a3", Prominence: 7}, district: "a"},
-		{marker: ClubMarker{ID: "b1", Prominence: 6}, district: "b"},
-		{marker: ClubMarker{ID: "a4", Prominence: 5}, district: "a"},
+		{marker: ClubMarker{ID: "a1", Prominence: 9}, place: "a"},
+		{marker: ClubMarker{ID: "a2", Prominence: 8}, place: "a"},
+		{marker: ClubMarker{ID: "a3", Prominence: 7}, place: "a"},
+		{marker: ClubMarker{ID: "b1", Prominence: 6}, place: "b"},
+		{marker: ClubMarker{ID: "a4", Prominence: 5}, place: "a"},
 	}
 	got := capPerPlace(rows, 2)
 	if len(got) != 3 {

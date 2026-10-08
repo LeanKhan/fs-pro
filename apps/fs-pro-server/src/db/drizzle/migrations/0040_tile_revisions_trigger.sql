@@ -1,4 +1,4 @@
--- 0039_tile_revisions_trigger.sql
+-- 0040_tile_revisions_trigger.sql
 --
 -- Tile invalidation (docs/perfect/WORLD-HIERARCHY-SPEC.md §7.5): bump the
 -- TileRevisions counter for every quadtree cell (z0..z5) that contains a
