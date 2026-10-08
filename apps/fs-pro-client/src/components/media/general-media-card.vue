@@ -499,7 +499,7 @@
                     {{ selectedStory.transferDetails.fee > 0 ? formatVilla(selectedStory.transferDetails.fee) : 'FREE TRANSFER' }}
                   </div>
                   <div class="text-caption text-disabled">
-                    Valuation: ${{ (selectedStory.transferDetails.value || selectedStory.transferDetails.fee).toLocaleString() }}
+                    Valuation: {{ formatVilla(selectedStory.transferDetails.value || selectedStory.transferDetails.fee) }}
                   </div>
                 </div>
               </div>

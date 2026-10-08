@@ -312,7 +312,7 @@ const expectations = computed(() => {
       title: 'Matchdays turn a profit',
       met: !lastGate || Number(lastGate.net) >= 0,
       status: lastGate
-        ? `Last gate: ${Number(lastGate.attendance).toLocaleString()} fans, net ${Math.round(Number(lastGate.net)).toLocaleString()}`
+        ? `Last gate: ${Number(lastGate.attendance).toLocaleString()} fans, net ${formatCurrency(Number(lastGate.net))}`
         : 'No home matches yet',
     },
   ];

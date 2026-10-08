@@ -1,6 +1,6 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
-import { clubs } from '../../db/drizzle/schema';
+import { clubs, ownerProgram } from '../../db/drizzle/schema';
 import { squadSummary } from './program-facts.service';
 
 /**
@@ -58,6 +58,21 @@ export function gateProblem(
 }
 
 /**
+ * Record that the owner pressed PLAY while the squad was illegal, so the
+ * advisor's `tip.play.gate` line can fire (PROGRAM-SERVICE-CONTRACT §1.2). One
+ * jsonb_set, best-effort: a failure here must never mask the gate refusal.
+ */
+async function notePlayBlocked(clubId: string): Promise<void> {
+  await db()
+    .update(ownerProgram)
+    .set({
+      Scout: sql`jsonb_set(coalesce(${ownerProgram.Scout}, '{}'::jsonb), '{playBlockedAt}', to_jsonb(${Date.now()}::bigint))`,
+      updatedAt: new Date(),
+    })
+    .where(eq(ownerProgram.ClubId, clubId));
+}
+
+/**
  * Throw a `ProgramGateError` unless `clubId` may play. Cheap enough to call at
  * the top of every PLAY; the squad read is one indexed query.
  */
@@ -69,5 +84,10 @@ export async function assertClubPlayable(clubId: string): Promise<void> {
   if (!club) throw new ProgramGateError('club_not_found', 'Club not found');
   const squad = await squadSummary(clubId);
   const problem = gateProblem(club.managerId, squad);
-  if (problem) throw problem;
+  if (problem) {
+    await notePlayBlocked(clubId).catch(() => {
+      /* the refusal is what matters */
+    });
+    throw problem;
+  }
 }

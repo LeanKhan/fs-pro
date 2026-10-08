@@ -1,6 +1,6 @@
 import { initServer } from '@ts-rest/express';
 import { apiContract as contract } from '@repo/api-contract';
-import { advanceProgram, dismissTip, getChapterState, getProgramState, requestLoan } from '../../services/program/owner-program.service';
+import { advanceProgram, dismissTip, getChapterState, getProgramState, getTip, requestLoan } from '../../services/program/owner-program.service';
 import { browseManagers, interviewManager, releaseManager, signManager } from '../../services/program/manager-market.service';
 import { browsePlayers, scoutPlayer, signPlayer } from '../../services/program/free-agent-market.service';
 import { ProgramGateError } from '../../services/program/squad-gate';
@@ -47,6 +47,24 @@ export const programTsRestRoutes = s.router(contract.program, {
     run(async () => ({
       message: 'Tip dismissed',
       payload: { dismissed: await dismissTip(params.clubId, params.tipId) },
+    })),
+
+  tip: ({ params, body }) =>
+    run(async () => ({
+      message: 'Advisor tip',
+      payload: {
+        tip: await getTip(
+          params.clubId,
+          {
+            shows: body.shows,
+            lastShownAt: body.lastShownAt,
+            dismissed: body.dismissed,
+            quiet: body.quiet,
+          },
+          body.now,
+          body.events
+        ),
+      },
     })),
 
   browseManagers: ({ params }) =>

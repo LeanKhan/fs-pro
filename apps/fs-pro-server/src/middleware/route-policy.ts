@@ -90,6 +90,7 @@ export const POLICIES: Record<string, Rule> = {
   'program.getProgram': { club: param('clubId') },
   'program.advanceProgram': { club: param('clubId') },
   'program.dismissTip': { club: param('clubId') },
+  'program.tip': { club: param('clubId') },
   'program.browseManagers': { club: param('clubId') },
   'program.interviewManager': { club: param('clubId') },
   'program.signManager': { club: param('clubId') },

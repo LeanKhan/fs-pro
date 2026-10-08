@@ -94,10 +94,21 @@ async function managerFacts(clubId: string): Promise<ManagerFacts | null> {
   };
 }
 
+/** Client-supplied session events the DB cannot know (the advisor seam passes
+ * them through; the server-derived `playBlockedAt` is the fallback). */
+export interface ProgramEventOverrides {
+  playBlocked?: boolean;
+  sessionMinutes?: number;
+}
+
+/** How long a PLAY-gate refusal keeps `tip.play.gate` eligible. */
+export const PLAY_BLOCKED_TTL_MS = 15 * 60_000;
+
 /** Build `StepFacts` for a club at a given active step. */
 export async function buildStepFacts(
   clubId: string,
-  step: ProgramStepFacts['step']
+  step: ProgramStepFacts['step'],
+  eventOverrides?: ProgramEventOverrides
 ): Promise<ProgramStepFacts> {
   const [club] = await db().select().from(clubs).where(eq(clubs.id, clubId));
   if (!club) throw new Error('Club not found');
@@ -114,6 +125,7 @@ export async function buildStepFacts(
   ]);
 
   const scout = program?.Scout ?? {};
+  const blockedAt = typeof scout.playBlockedAt === 'number' ? scout.playBlockedAt : 0;
   return {
     step,
     startingBalance: program?.StartingBalance ?? club.Budget ?? 0,
@@ -135,8 +147,8 @@ export async function buildStepFacts(
       scoutedPlayerIds: scout.scoutedPlayerIds ?? [],
     },
     events: {
-      playBlocked: false,
-      sessionMinutes: 0,
+      playBlocked: eventOverrides?.playBlocked ?? (blockedAt > 0 && Date.now() - blockedAt < PLAY_BLOCKED_TTL_MS),
+      sessionMinutes: eventOverrides?.sessionMinutes ?? 0,
       programCompletedOnce: program?.Step === 'done' && !!program?.CompletedAt,
     },
   };

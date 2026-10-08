@@ -32,6 +32,12 @@ import {
   type AdvisorMemory,
 } from './advisor-content';
 
+/** Whole minutes since this page loaded: the `tip.idle.break` trigger. */
+const loadedAt = typeof performance !== 'undefined' ? performance.timeOrigin : Date.now();
+function sessionMinutes(): number {
+  return Math.max(0, Math.round((Date.now() - loadedAt) / 60_000));
+}
+
 /** How a source yields lines. Implemented by the API and by the lab/tests. */
 export interface AdvisorSource {
   /** The step's framing line (arrive / done-N★ / blocked), or null. */
@@ -61,13 +67,23 @@ export class ApiAdvisorSource implements AdvisorSource {
     if (this.tipUnavailable) return null;
     try {
       // The Node proxy to Go `POST /program/tip`. Absent today -> caught below.
-      const res = await $axios.post(`/program/${encodeURIComponent(clubId)}/tip`, {
-        shows: memory.shows,
-        lastShownAt: memory.lastShownAt,
-        dismissed: memory.dismissed,
-        quiet: memory.quiet,
-        now,
-      });
+      const res = await $axios.post(
+        `/program/${encodeURIComponent(clubId)}/tip`,
+        {
+          shows: memory.shows,
+          lastShownAt: memory.lastShownAt,
+          dismissed: memory.dismissed,
+          quiet: memory.quiet,
+          now,
+          // The one session event the server can't know: how long this visit
+          // has lasted (drives `tip.idle.break`). `playBlocked` is derived
+          // server-side from the PLAY-gate ledger.
+          events: { sessionMinutes: sessionMinutes() },
+        },
+        // The API is cross-origin in dev (client :8080, API :3010): the
+        // session cookie only travels with credentials, like ts-rest's client.
+        { withCredentials: true }
+      );
       const payload = res.data?.payload ?? res.data;
       return (payload?.tip as AdvisorLine | null) ?? null;
     } catch (err) {

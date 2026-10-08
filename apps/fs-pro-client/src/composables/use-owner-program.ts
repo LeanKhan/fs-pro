@@ -13,6 +13,7 @@ import type {
   TransferWindow,
   Player as MarketPlayer,
 } from '@repo/api-contract';
+import { formatVilla } from '@repo/api-contract';
 import { client } from '@/services/api';
 import {
   advanceProgram,
@@ -258,7 +259,7 @@ export function useOwnerProgram(clubIdInput: Ref<string> | string) {
     try {
       const result = await signFreeAgent(clubId.value, player.id);
       state.value = result.state;
-      say(`${player.firstName} ${player.lastName} joins for ${player.value.toLocaleString('en-US')} V.`);
+      say(`${player.firstName} ${player.lastName} joins for ${formatVilla(player.value)}.`);
       await loadPlayers();
     } catch (err) {
       say(err instanceof Error ? err.message : 'Could not sign the player', true);
@@ -281,7 +282,7 @@ export function useOwnerProgram(clubIdInput: Ref<string> | string) {
         body: { playerId: player._id, buyingClubId: clubId.value, offerAmount: player.Value },
       });
       if (res.status !== 200) throw new Error(res.body.message);
-      say(`${player.FirstName} ${player.LastName} bought for ${player.Value.toLocaleString('en-US')} V.`);
+      say(`${player.FirstName} ${player.LastName} bought for ${formatVilla(player.Value)}.`);
       await Promise.all([loadTransferMarket(), loadPlayers(), load()]);
     } catch (err) {
       say(err instanceof Error ? err.message : 'Transfer failed', true);
@@ -315,7 +316,7 @@ export function useOwnerProgram(clubIdInput: Ref<string> | string) {
     try {
       const loan: ProgramLoan = await requestBoardAdvance(clubId.value);
       state.value = loan.state;
-      say(loan.granted ? `The board advanced you ${loan.amount.toLocaleString('en-US')} V.` : 'The board refused this time.');
+      say(loan.granted ? `The board advanced you ${formatVilla(loan.amount)}.` : 'The board refused this time.');
     } catch (err) {
       say(err instanceof Error ? err.message : 'The board refused', true);
     } finally {

@@ -2,10 +2,11 @@ import { and, eq, sql } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
 import { calendars, clubs, ownerProgram, transferLedger } from '../../db/drizzle/schema';
 import { formatVilla } from '@repo/api-contract';
-import type { AdvisorLine, ProgramEvaluation, ProgramStep } from '@repo/api-contract';
-import { evaluateProgramStep } from '../world/world-service.client';
+import type { AdvisorLine, ProgramAdvisorState, ProgramEvaluation, ProgramStep } from '@repo/api-contract';
+import { evaluateProgramStep, programTip } from '../world/world-service.client';
 import { addXp, enterPyramidAtLevelOne } from '../world/level-change';
-import { buildStepFacts, type PersistedStep } from './program-facts.service';
+import { buildStepFacts, type PersistedStep, type ProgramEventOverrides } from './program-facts.service';
+import { notifyProgramStep } from './program-notifications.service';
 import { ACTIVE_STEPS, NEXT_STEP, activeStepOf, programXpFromStars } from './program-constants';
 
 /**
@@ -134,6 +135,10 @@ export async function refreshProgram(clubId: string): Promise<ProgramState> {
       await enterPyramidAtLevelOne(clubId).catch((err: unknown) =>
         console.warn('[program] pyramid trigger', err)
       );
+      // Inbox/news hooks (L8): best-effort, never fail the advance.
+      await notifyProgramStep(clubId, current.step, current.evaluation).catch((err: unknown) =>
+        console.warn('[program] milestone notification', err)
+      );
       return stateWithoutEvaluation(clubId, current.evaluation, true);
     }
   }
@@ -217,6 +222,37 @@ async function stateWithoutEvaluation(
 /** `POST /program/:clubId/advance`: strict - a Go failure is surfaced. */
 export async function advanceProgram(clubId: string): Promise<ProgramState> {
   return refreshProgram(clubId);
+}
+
+/**
+ * The highest-priority contextual advisor tip (L9; PROGRAM-SERVICE-CONTRACT §6).
+ * Node re-derives the club's `StepFacts` from the DB and forwards the owner's
+ * advisor memory to the pure Go `POST /program/tip` engine. Tips are silent once
+ * the program is over (`done`), and the server-side dismissal list is merged in
+ * so a tip dismissed on one device never returns on another (L8).
+ */
+export async function getTip(
+  clubId: string,
+  advisor: ProgramAdvisorState,
+  now: number,
+  events?: ProgramEventOverrides
+): Promise<AdvisorLine | null> {
+  const program = await ensureProgram(clubId);
+  const active = activeStepOf(program.Step);
+  if (!active) return null;
+  const facts = await buildStepFacts(clubId, active, events);
+  const dismissed = [...new Set([...(program.DismissedTips ?? []), ...(advisor.dismissed ?? [])])];
+  const response = await programTip({
+    facts,
+    advisor: {
+      shows: advisor.shows ?? {},
+      lastShownAt: advisor.lastShownAt ?? {},
+      dismissed,
+      quiet: advisor.quiet ?? false,
+    },
+    now,
+  });
+  return response.tip ?? null;
 }
 
 /** Server-side tip dismissal (L9). */
