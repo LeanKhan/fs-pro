@@ -4,6 +4,11 @@
   .adv-lid { transform: translateY(-42px); }
   .adv-talk { opacity:0; }
   .adv-talk .adv-viseme { opacity:1; }
+  /* The raised arm is hidden until the root is posed; the pointer aims. */
+  .adv-point { display:none; }
+  .adv-pose-point-right .adv-point-right,
+  .adv-pose-point-left .adv-point-left { display:block; }
+  .adv-pointer { transform: rotate(var(--adv-aim, 0deg)); }
   @media (prefers-reduced-motion: no-preference) {
     .adv #adv-bob { animation: adv-bob 3.4s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
     .adv-lid { animation: adv-blink 4.8s ease-in-out infinite; }
@@ -13,6 +18,7 @@
     .adv-state-talking .adv-viseme:nth-child(2) { animation-delay: 0.11s; }
     .adv-state-talking .adv-viseme:nth-child(3) { animation-delay: 0.22s; }
     .adv-state-talking .adv-viseme:nth-child(4) { animation-delay: 0.33s; }
+    .adv-pointer { transition: transform 0.28s ease-out; }
   }
   @keyframes adv-bob { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-5px) } }
   @keyframes adv-blink { 0%,90%,100%{ transform: translateY(-42px) } 93%,95%{ transform: translateY(0) } }
@@ -87,6 +93,7 @@
       </g>
         
         
+        
       </g>
     </g></g></g>
 <g transform="translate(250,0)">
@@ -149,6 +156,7 @@
         <g class="adv-viseme"><ellipse cx="120" cy="171" rx="13" ry="5" fill="#8c4a3f" stroke="#5e3b22" stroke-width="2.6"/></g>
         <g class="adv-viseme"><ellipse cx="120" cy="171" rx="6" ry="8" fill="#8c4a3f" stroke="#5e3b22" stroke-width="2.6"/></g>
       </g>
+        
         
         
       </g>
@@ -221,6 +229,7 @@
       </g>
         
         
+        
       </g>
     </g></g></g>
 <g transform="translate(750,0)">
@@ -289,6 +298,7 @@
         <g class="adv-viseme"><ellipse cx="120" cy="171" rx="13" ry="5" fill="#8c4a3f" stroke="#5e3b22" stroke-width="2.6"/></g>
         <g class="adv-viseme"><ellipse cx="120" cy="171" rx="6" ry="8" fill="#8c4a3f" stroke="#5e3b22" stroke-width="2.6"/></g>
       </g>
+        
         
         
       </g>
@@ -364,6 +374,7 @@
         <path d="M150 214 q-6 -22 10 -30 q18 -9 26 8 q6 22 -14 30 q-16 6 -22 -8 z" fill="#f2c79b" stroke="#5e3b22" stroke-width="3.4"/>
         <path d="M162 192 q14 -4 20 6" fill="none" stroke="#e0aa78" stroke-width="2.4" stroke-linecap="round"/>
       </g>
+        
         
       </g>
     </g></g></g>
@@ -442,6 +453,7 @@
         <path d="M216 198 L238 110" stroke="#8a5a3b" stroke-width="9" stroke-linecap="round"/>
         <circle cx="238" cy="110" r="6" fill="#5e3b22"/>
       </g>
+        
       </g>
     </g></g></g>
 <g transform="translate(500,304)">
@@ -513,6 +525,7 @@
         <path d="M216 198 L238 110" stroke="#8a5a3b" stroke-width="9" stroke-linecap="round"/>
         <circle cx="238" cy="110" r="6" fill="#5e3b22"/>
       </g>
+        
       </g>
     </g></g></g>
 <g transform="translate(750,304)">
@@ -590,6 +603,7 @@
         <path d="M24 198 L2 110" stroke="#8a5a3b" stroke-width="9" stroke-linecap="round"/>
         <circle cx="2" cy="110" r="6" fill="#5e3b22"/>
       </g>
+        
       </g>
     </g></g></g>
 </svg>

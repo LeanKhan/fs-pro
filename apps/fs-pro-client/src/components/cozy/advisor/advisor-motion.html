@@ -27,6 +27,11 @@
   .adv-lid { transform: translateY(-42px); }
   .adv-talk { opacity:0; }
   .adv-talk .adv-viseme { opacity:1; }
+  /* The raised arm is hidden until the root is posed; the pointer aims. */
+  .adv-point { display:none; }
+  .adv-pose-point-right .adv-point-right,
+  .adv-pose-point-left .adv-point-left { display:block; }
+  .adv-pointer { transform: rotate(var(--adv-aim, 0deg)); }
   @media (prefers-reduced-motion: no-preference) {
     .adv #adv-bob { animation: adv-bob 3.4s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
     .adv-lid { animation: adv-blink 4.8s ease-in-out infinite; }
@@ -36,6 +41,7 @@
     .adv-state-talking .adv-viseme:nth-child(2) { animation-delay: 0.11s; }
     .adv-state-talking .adv-viseme:nth-child(3) { animation-delay: 0.22s; }
     .adv-state-talking .adv-viseme:nth-child(4) { animation-delay: 0.33s; }
+    .adv-pointer { transition: transform 0.28s ease-out; }
   }
   @keyframes adv-bob { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-5px) } }
   @keyframes adv-blink { 0%,90%,100%{ transform: translateY(-42px) } 93%,95%{ transform: translateY(0) } }
@@ -107,6 +113,25 @@
       </g>
         
         
+        
+      <g class="adv-point adv-point-right">
+        <path d="M154 246 q36 -8 62 -30" fill="none" stroke="#5e3b22" stroke-width="34" stroke-linecap="round"/>
+        <path d="M154 246 q36 -8 62 -30" fill="none" stroke="#5cc23a" stroke-width="26" stroke-linecap="round"/>
+        <circle cx="216" cy="198" r="16" fill="#f2c79b" stroke="#5e3b22" stroke-width="3.4"/>
+        <g class="adv-pointer" style="transform-origin:216px 198px">
+          <path d="M216 198 L238 110" stroke="#8a5a3b" stroke-width="9" stroke-linecap="round"/>
+          <circle cx="238" cy="110" r="6" fill="#5e3b22"/>
+        </g>
+      </g>
+      <g class="adv-point adv-point-left">
+        <path d="M86 246 q-36 -8 -62 -30" fill="none" stroke="#5e3b22" stroke-width="34" stroke-linecap="round"/>
+        <path d="M86 246 q-36 -8 -62 -30" fill="none" stroke="#5cc23a" stroke-width="26" stroke-linecap="round"/>
+        <circle cx="24" cy="198" r="16" fill="#f2c79b" stroke="#5e3b22" stroke-width="3.4"/>
+        <g class="adv-pointer" style="transform-origin:24px 198px">
+          <path d="M24 198 L2 110" stroke="#8a5a3b" stroke-width="9" stroke-linecap="round"/>
+          <circle cx="2" cy="110" r="6" fill="#5e3b22"/>
+        </g>
+      </g>
       </g>
     </g>
 </svg>
@@ -120,6 +145,11 @@
   .adv-lid { transform: translateY(-42px); }
   .adv-talk { opacity:0; }
   .adv-talk .adv-viseme { opacity:1; }
+  /* The raised arm is hidden until the root is posed; the pointer aims. */
+  .adv-point { display:none; }
+  .adv-pose-point-right .adv-point-right,
+  .adv-pose-point-left .adv-point-left { display:block; }
+  .adv-pointer { transform: rotate(var(--adv-aim, 0deg)); }
   @media (prefers-reduced-motion: no-preference) {
     .adv #adv-bob { animation: adv-bob 3.4s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
     .adv-lid { animation: adv-blink 4.8s ease-in-out infinite; }
@@ -129,6 +159,7 @@
     .adv-state-talking .adv-viseme:nth-child(2) { animation-delay: 0.11s; }
     .adv-state-talking .adv-viseme:nth-child(3) { animation-delay: 0.22s; }
     .adv-state-talking .adv-viseme:nth-child(4) { animation-delay: 0.33s; }
+    .adv-pointer { transition: transform 0.28s ease-out; }
   }
   @keyframes adv-bob { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-5px) } }
   @keyframes adv-blink { 0%,90%,100%{ transform: translateY(-42px) } 93%,95%{ transform: translateY(0) } }
@@ -200,6 +231,25 @@
       </g>
         
         
+        
+      <g class="adv-point adv-point-right">
+        <path d="M154 246 q36 -8 62 -30" fill="none" stroke="#5e3b22" stroke-width="34" stroke-linecap="round"/>
+        <path d="M154 246 q36 -8 62 -30" fill="none" stroke="#5cc23a" stroke-width="26" stroke-linecap="round"/>
+        <circle cx="216" cy="198" r="16" fill="#f2c79b" stroke="#5e3b22" stroke-width="3.4"/>
+        <g class="adv-pointer" style="transform-origin:216px 198px">
+          <path d="M216 198 L238 110" stroke="#8a5a3b" stroke-width="9" stroke-linecap="round"/>
+          <circle cx="238" cy="110" r="6" fill="#5e3b22"/>
+        </g>
+      </g>
+      <g class="adv-point adv-point-left">
+        <path d="M86 246 q-36 -8 -62 -30" fill="none" stroke="#5e3b22" stroke-width="34" stroke-linecap="round"/>
+        <path d="M86 246 q-36 -8 -62 -30" fill="none" stroke="#5cc23a" stroke-width="26" stroke-linecap="round"/>
+        <circle cx="24" cy="198" r="16" fill="#f2c79b" stroke="#5e3b22" stroke-width="3.4"/>
+        <g class="adv-pointer" style="transform-origin:24px 198px">
+          <path d="M24 198 L2 110" stroke="#8a5a3b" stroke-width="9" stroke-linecap="round"/>
+          <circle cx="2" cy="110" r="6" fill="#5e3b22"/>
+        </g>
+      </g>
       </g>
     </g>
 </svg>
@@ -213,6 +263,11 @@
   .adv-lid { transform: translateY(-42px); }
   .adv-talk { opacity:0; }
   .adv-talk .adv-viseme { opacity:1; }
+  /* The raised arm is hidden until the root is posed; the pointer aims. */
+  .adv-point { display:none; }
+  .adv-pose-point-right .adv-point-right,
+  .adv-pose-point-left .adv-point-left { display:block; }
+  .adv-pointer { transform: rotate(var(--adv-aim, 0deg)); }
   @media (prefers-reduced-motion: no-preference) {
     .adv #adv-bob { animation: adv-bob 3.4s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
     .adv-lid { animation: adv-blink 4.8s ease-in-out infinite; }
@@ -222,6 +277,7 @@
     .adv-state-talking .adv-viseme:nth-child(2) { animation-delay: 0.11s; }
     .adv-state-talking .adv-viseme:nth-child(3) { animation-delay: 0.22s; }
     .adv-state-talking .adv-viseme:nth-child(4) { animation-delay: 0.33s; }
+    .adv-pointer { transition: transform 0.28s ease-out; }
   }
   @keyframes adv-bob { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-5px) } }
   @keyframes adv-blink { 0%,90%,100%{ transform: translateY(-42px) } 93%,95%{ transform: translateY(0) } }
@@ -293,6 +349,25 @@
       </g>
         
         
+        
+      <g class="adv-point adv-point-right">
+        <path d="M154 246 q36 -8 62 -30" fill="none" stroke="#5e3b22" stroke-width="34" stroke-linecap="round"/>
+        <path d="M154 246 q36 -8 62 -30" fill="none" stroke="#5cc23a" stroke-width="26" stroke-linecap="round"/>
+        <circle cx="216" cy="198" r="16" fill="#f2c79b" stroke="#5e3b22" stroke-width="3.4"/>
+        <g class="adv-pointer" style="transform-origin:216px 198px">
+          <path d="M216 198 L238 110" stroke="#8a5a3b" stroke-width="9" stroke-linecap="round"/>
+          <circle cx="238" cy="110" r="6" fill="#5e3b22"/>
+        </g>
+      </g>
+      <g class="adv-point adv-point-left">
+        <path d="M86 246 q-36 -8 -62 -30" fill="none" stroke="#5e3b22" stroke-width="34" stroke-linecap="round"/>
+        <path d="M86 246 q-36 -8 -62 -30" fill="none" stroke="#5cc23a" stroke-width="26" stroke-linecap="round"/>
+        <circle cx="24" cy="198" r="16" fill="#f2c79b" stroke="#5e3b22" stroke-width="3.4"/>
+        <g class="adv-pointer" style="transform-origin:24px 198px">
+          <path d="M24 198 L2 110" stroke="#8a5a3b" stroke-width="9" stroke-linecap="round"/>
+          <circle cx="2" cy="110" r="6" fill="#5e3b22"/>
+        </g>
+      </g>
       </g>
     </g>
 </svg>
