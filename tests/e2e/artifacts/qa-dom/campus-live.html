@@ -1,0 +1,2481 @@
+<!DOCTYPE html><html lang="en"><head>
+    <script type="module" src="/@vite/client"></script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus + Advisor Lab</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #6dbb47; font-family: 'Fredoka', system-ui, sans-serif; }
+      /* QA (Batch 4B): freeze CSS animation while a screenshot is captured, so
+         the canvas inspector's frames stabilize. Only the lab sets this. */
+      .qa-still .adv-portrait *,
+      .qa-still .adv-bubble,
+      .qa-still .adv-nudge,
+      .qa-still .adv-caret { animation: none !important; transition: none !important; }
+    </style>
+  <style type="text/css" data-vite-dev-id="C:/done/fs-pro/.claude/worktrees/p2b4b/apps/fs-pro-client/src/components/cozy/cozy.scss">@charset "UTF-8";
+.cozy {
+  --cream: #fdf4df;
+  --cream-2: #f6e7c4;
+  --wood: #8a5a3b;
+  --wood-d: #5e3b22;
+  --ink: #4a3220;
+  --muted: #6f5940;
+  --green: #5cc23a;
+  --green-d: #2f8a1c;
+  --red: #e5402f;
+  --gold: #f5b82e;
+  --blue: #3a8ee0;
+  --shadow: 0 4px 0 rgba(70, 40, 15, 0.35), 0 8px 18px rgba(0, 0, 0, 0.18);
+  color-scheme: light;
+}
+.cozy * {
+  box-sizing: border-box;
+}
+.cozy {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  overflow: clip;
+  background: #6dbb47;
+  font-family: "Fredoka", system-ui, sans-serif;
+  color: var(--ink);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.cozy :where(button:not(.v-btn)) {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: 0;
+  background: none;
+  padding: 0;
+}
+.cozy :where(button:disabled) {
+  cursor: not-allowed;
+}
+.cozy .ic {
+  width: 1.4em;
+  height: 1.4em;
+  flex: none;
+  display: inline-block;
+  vertical-align: middle;
+}
+.cozy .stage {
+  position: absolute;
+  inset: 0;
+}
+.cozy .stage canvas {
+  display: block;
+  touch-action: none;
+}
+.cozy .hud, .cozy .bubbles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.cozy .hud > *, .cozy .bubbles > * {
+  pointer-events: auto;
+}
+.cozy {
+  /* --- Top bar ------------------------------------------------------------------ */
+}
+.cozy .profile {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 92px;
+  cursor: pointer;
+}
+.cozy .avatar {
+  width: 86px;
+  height: 86px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(#7cc7f5, #4aa3e6);
+  border: 4px solid #f3d27a;
+  box-shadow: var(--shadow);
+}
+.cozy .lvl-badge {
+  position: absolute;
+  left: -6px;
+  top: 62px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: var(--wood-d);
+  background: radial-gradient(circle at 35% 30%, #ffe28a, #e9a91c);
+  border: 3px solid #fff3c9;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+}
+.cozy .xpbar {
+  position: relative;
+  margin-top: 8px;
+  height: 20px;
+  border-radius: 12px;
+  background: #3b2a1a;
+  border: 2px solid #2a1c10;
+  overflow: hidden;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+}
+.cozy .xpbar > div {
+  height: 100%;
+  background: linear-gradient(#8be15c, #46ad2a);
+  transition: width 0.4s;
+}
+.cozy .xpbar span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 0 #000;
+}
+.cozy .resbar {
+  position: absolute;
+  top: 14px;
+  left: 118px;
+  right: 130px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.cozy .res {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 14px 0 4px;
+  min-width: 110px;
+  border-radius: 22px;
+  background: linear-gradient(#f9ebc9, #e9cf98);
+  border: 3px solid #b88a4f;
+  box-shadow: var(--shadow);
+}
+.cozy .res > .ic {
+  width: 38px;
+  height: 38px;
+  margin-left: -10px;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.25));
+}
+.cozy .res b {
+  font-size: 19px;
+  margin-left: 4px;
+  color: var(--wood-d);
+  font-variant-numeric: tabular-nums;
+}
+@keyframes bump {
+  50% {
+    transform: scale(1.12);
+  }
+}
+.cozy .topright {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
+}
+.cozy .roundbtn {
+  position: relative;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 40% 30%, #fff6dd, #ecd29a);
+  border: 3px solid #c39457;
+  box-shadow: var(--shadow);
+  transition: transform 0.1s;
+}
+.cozy .roundbtn .ic {
+  width: 30px;
+  height: 30px;
+}
+.cozy .roundbtn.big {
+  width: 58px;
+  height: 58px;
+}
+.cozy .roundbtn.big .ic {
+  width: 34px;
+  height: 34px;
+}
+.cozy .roundbtn:active, .cozy .dock button:active, .cozy .playbtn:active, .cozy .btn:active:not(:disabled), .cozy .worldbtn:active {
+  transform: translateY(2px) scale(0.97);
+}
+.cozy .dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--red);
+  border: 2px solid #fff;
+  display: none;
+}
+.cozy {
+  /* --- Quests ------------------------------------------------------------------- */
+}
+.cozy .quests {
+  position: absolute;
+  top: 140px;
+  left: 12px;
+  width: 300px;
+  padding: 10px;
+  border-radius: 18px;
+  background: var(--cream);
+  border: 3px solid #c9a46a;
+  box-shadow: var(--shadow);
+}
+.cozy .q-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 19px;
+  font-weight: 600;
+  padding: 2px 6px 8px;
+  cursor: pointer;
+}
+.cozy .q-head span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cozy .q {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border-radius: 12px;
+  background: #fffaf0;
+  border: 2px solid #eadbb8;
+}
+.cozy .q-ic .ic {
+  width: 26px;
+  height: 26px;
+}
+.cozy .q-body {
+  flex: 1;
+  min-width: 0;
+}
+.cozy .q-title {
+  font-weight: 600;
+  font-size: 15px;
+}
+.cozy .q-bar {
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 6px;
+  background: #e6d8b8;
+  overflow: hidden;
+}
+.cozy .q-bar div {
+  height: 100%;
+  background: linear-gradient(#8be15c, #46ad2a);
+  border-radius: 6px;
+  transition: width 0.4s;
+}
+.cozy .q-num {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.cozy .q.done {
+  background: #f1fae6;
+  border-color: #bfe3a5;
+}
+.cozy .q-reward {
+  margin-top: 4px;
+  padding: 8px;
+  border-radius: 12px;
+  background: #f6ead0;
+  border: 2px solid #e2cc9c;
+  text-align: center;
+}
+.cozy .q-rlabel {
+  font-size: 13px;
+  color: var(--muted);
+}
+.cozy .q-rlist {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  font-weight: 600;
+  margin: 4px 0;
+}
+.cozy .q-rlist span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.cozy {
+  /* --- Speed up / side buttons ---------------------------------------------------------- */
+}
+.cozy .speedup {
+  position: absolute;
+  top: 80px;
+  right: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 8px 18px 14px;
+  border-radius: 16px;
+  background: var(--cream);
+  border: 3px solid #c9a46a;
+  box-shadow: var(--shadow);
+}
+.cozy .su-title {
+  font-weight: 600;
+  color: var(--blue);
+  font-size: 15px;
+}
+.cozy .su-time {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 2px 12px 2px 4px;
+  border-radius: 14px;
+  background: #fff;
+  border: 2px solid #e2cc9c;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.cozy .su-count {
+  position: absolute;
+  bottom: 2px;
+  left: 14px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.cozy .sidebtns {
+  position: absolute;
+  right: 14px;
+  top: 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cozy {
+  /* --- Bottom ---------------------------------------------------------------------- */
+}
+.cozy .dock {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  padding: 6px;
+  border-radius: 20px;
+  background: linear-gradient(#fff8e6, #f1dfb6);
+  border: 3px solid #c9a46a;
+  box-shadow: var(--shadow);
+}
+.cozy .dock button {
+  width: 108px;
+  padding: 6px 0 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--wood-d);
+  border-radius: 14px;
+}
+.cozy .dock button + button {
+  border-left: 2px solid #e2cc9c;
+  border-radius: 0;
+}
+.cozy .dock button:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+.cozy .dock .ic {
+  width: 34px;
+  height: 34px;
+}
+.cozy .worldbtn {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  width: 96px;
+  height: 96px;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: linear-gradient(#6fb7f2, #2f75c9);
+  border: 4px solid #f3d27a;
+  box-shadow: var(--shadow);
+  color: #fff;
+  font-weight: 700;
+  font-size: 17px;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+}
+.cozy .worldbtn .ic {
+  width: 50px;
+  height: 50px;
+}
+.cozy .playbtn {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 118px;
+  height: 104px;
+  border-radius: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(#ffc94a, #f08a1c);
+  border: 4px solid #fff0b8;
+  box-shadow: var(--shadow);
+  color: #fff;
+  font-weight: 700;
+  font-size: 24px;
+  text-shadow: 0 2px 0 rgba(120, 50, 0, 0.5);
+}
+.cozy .playbtn .ic {
+  width: 46px;
+  height: 46px;
+  animation: spin 6s linear infinite;
+}
+.cozy .playbtn small {
+  font-size: 12px;
+  font-weight: 600;
+}
+.cozy .playbtn.tired {
+  filter: saturate(0.5);
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.cozy .placebar {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+}
+.cozy [hidden] {
+  display: none !important;
+}
+.cozy {
+  /* --- Buttons ---------------------------------------------------------------------- */
+}
+.cozy .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: 14px;
+  font-weight: 600;
+  font-size: 16px;
+  background: linear-gradient(#fffaf0, #ecdcb8);
+  border: 3px solid #c39457;
+  box-shadow: 0 3px 0 rgba(70, 40, 15, 0.35);
+  color: var(--wood-d);
+}
+.cozy .btn .ic {
+  width: 22px;
+  height: 22px;
+}
+.cozy .btn.primary {
+  background: linear-gradient(#7bd655, #3fa526);
+  border-color: #2c7d18;
+  color: #fff;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+}
+.cozy .btn.small {
+  padding: 4px 10px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+.cozy .btn.tiny {
+  padding: 2px 8px;
+  font-size: 12px;
+  border-radius: 8px;
+  border-width: 2px;
+}
+.cozy .btn:disabled {
+  filter: grayscale(0.7);
+  opacity: 0.6;
+}
+.cozy .row-btns {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+.cozy {
+  /* --- Bubbles over buildings ---------------------------------------------------------------- */
+}
+.cozy .bubble {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid #f3e3bf;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.2);
+  will-change: transform;
+}
+.cozy .bubble::after {
+  content: "";
+  position: absolute;
+  bottom: -9px;
+  left: 50%;
+  margin-left: -7px;
+  border: 7px solid transparent;
+  border-top-color: #fff;
+  border-bottom: 0;
+}
+.cozy .bubble .ic {
+  width: 30px;
+  height: 30px;
+}
+.cozy .bubble.ready {
+  animation: bob 1.6s ease-in-out infinite;
+}
+.cozy .bubble.ready > .ic {
+  animation: wiggle 1.6s ease-in-out infinite;
+}
+.cozy .bubble.full {
+  border-color: #ffcf4a;
+}
+.cozy .bubble.job {
+  border-radius: 14px;
+  padding: 4px 8px;
+  flex-direction: row;
+  gap: 6px;
+}
+.cozy .bubble.job .ic {
+  width: 22px;
+  height: 22px;
+}
+.cozy .b-prog {
+  width: 50px;
+  height: 8px;
+  border-radius: 5px;
+  background: #eadbb8;
+  overflow: hidden;
+}
+.cozy .b-prog div {
+  height: 100%;
+  background: linear-gradient(#8be15c, #46ad2a);
+}
+.cozy .b-time {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+@keyframes bob {
+  50% {
+    margin-top: -5px;
+  }
+}
+@keyframes wiggle {
+  25% {
+    transform: rotate(-8deg);
+  }
+  75% {
+    transform: rotate(8deg);
+  }
+}
+@keyframes floatup {
+  to {
+    transform: translate(-50%, -260%);
+    opacity: 0;
+  }
+}
+.cozy {
+  /* --- Building panel ---------------------------------------------------------------- */
+}
+.cozy .panel {
+  position: absolute;
+  bottom: 104px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(420px, 100vw - 32px);
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: var(--cream);
+  border: 3px solid #c9a46a;
+  box-shadow: var(--shadow);
+  animation: rise 0.18s ease-out;
+}
+@keyframes rise {
+  from {
+    transform: translate(-50%, 16px);
+    opacity: 0;
+  }
+}
+.cozy .pn-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cozy .pn-head h3 {
+  margin: 0;
+  font-size: 22px;
+}
+.cozy .lv {
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: var(--gold);
+  color: var(--wood-d);
+  font-weight: 700;
+  font-size: 14px;
+}
+.cozy .pn-blurb {
+  margin: 4px 0 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.cozy .pn-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0;
+  flex-wrap: wrap;
+}
+.cozy .pn-row.effect {
+  font-weight: 600;
+  color: var(--green-d);
+}
+.cozy .pn-next {
+  margin: 8px 0;
+  font-size: 14px;
+}
+.cozy .pn-why {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--red);
+}
+.cozy .pn-job {
+  margin: 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cozy .pn-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.cozy .panel > .btn {
+  width: 100%;
+  margin-top: 4px;
+}
+.cozy .x {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  color: var(--muted);
+}
+.cozy .x .ic {
+  width: 22px;
+  height: 22px;
+}
+.cozy .chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.cozy .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px 2px 4px;
+  border-radius: 10px;
+  background: #fff;
+  border: 2px solid #eadbb8;
+  font-weight: 600;
+  font-size: 13px;
+}
+.cozy .chip .ic {
+  width: 18px;
+  height: 18px;
+}
+.cozy .chip.short {
+  color: var(--red);
+  border-color: #f2b5ab;
+}
+.cozy {
+  /* --- Modals ------------------------------------------------------------------------ */
+}
+.cozy .modal-root {
+  position: fixed;
+  inset: 0;
+  display: none;
+  place-items: center;
+  z-index: 20;
+}
+.cozy .modal-root.open {
+  display: grid;
+}
+.cozy .backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(40, 25, 10, 0.45);
+}
+.cozy .modal {
+  position: relative;
+  width: min(560px, 100vw - 32px);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  padding: 20px;
+  border-radius: 22px;
+  background: var(--cream);
+  border: 4px solid #c9a46a;
+  box-shadow: var(--shadow);
+  animation: pop 0.2s ease-out;
+}
+.cozy .modal.wide {
+  width: min(820px, 100vw - 32px);
+}
+.cozy .modal.small {
+  width: min(440px, 100vw - 32px);
+}
+@keyframes pop {
+  from {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+}
+.cozy .modal h2 {
+  margin: 0 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 26px;
+  padding-right: 30px;
+}
+.cozy .modal h2 .ic {
+  width: 32px;
+  height: 32px;
+}
+.cozy .modal h4 {
+  margin: 14px 0 6px;
+}
+.cozy .sub {
+  color: var(--muted);
+  margin: 4px 0 10px;
+  font-size: 15px;
+}
+.cozy .cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 12px;
+}
+.cozy .card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 10px;
+  border-radius: 16px;
+  background: #fffaf0;
+  border: 3px solid #e2cc9c;
+  box-shadow: 0 3px 0 rgba(70, 40, 15, 0.2);
+  transition: transform 0.1s;
+}
+.cozy .card:hover:not(.off) {
+  transform: translateY(-3px);
+  border-color: var(--green);
+}
+.cozy .card.off {
+  filter: grayscale(0.6);
+  opacity: 0.7;
+  cursor: default;
+}
+.cozy .card.focus {
+  border-color: var(--gold);
+}
+.cozy .card-title {
+  font-weight: 700;
+  font-size: 16px;
+}
+.cozy .card-art {
+  width: 120px;
+  height: 110px;
+  background-position: center;
+  background-size: contain;
+  background-repeat: no-repeat;
+  display: grid;
+  place-items: center;
+}
+.cozy .card-art .ic {
+  width: 40px;
+  height: 40px;
+}
+.cozy .card-desc {
+  font-size: 13px;
+  color: var(--green-d);
+  font-weight: 600;
+}
+.cozy .card-meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.cozy .card-why {
+  font-size: 12px;
+  color: var(--red);
+  margin-top: 4px;
+}
+.cozy .stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+  margin: 8px 0;
+}
+.cozy .stats-row > div {
+  padding: 8px;
+  border-radius: 12px;
+  background: #fffaf0;
+  border: 2px solid #eadbb8;
+  text-align: center;
+}
+.cozy .stats-row small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+.cozy .stats-row b {
+  font-size: 20px;
+}
+.cozy .pos {
+  display: inline-block;
+  width: 38px;
+  text-align: center;
+  padding: 1px 0;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+}
+.cozy .warn {
+  padding: 10px;
+  margin: 8px 0;
+  border-radius: 12px;
+  background: #fde6e1;
+  border: 2px solid #f2b5ab;
+  color: #9a2216;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cozy .away {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.cozy .away li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #fffaf0;
+  border: 2px solid #eadbb8;
+}
+.cozy {
+  /* --- Matchmaking ------------------------------------------------------------------- */
+}
+.cozy .opps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+.cozy .opp {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 22px 12px 12px;
+  border-radius: 16px;
+  background: #fffaf0;
+  border: 3px solid #e2cc9c;
+  text-align: center;
+}
+.cozy .opp-label {
+  position: absolute;
+  top: -12px;
+  padding: 2px 12px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 13px;
+  color: #fff;
+}
+.cozy .opp-name {
+  font-weight: 700;
+  font-size: 17px;
+}
+.cozy .opp-meta {
+  font-size: 13px;
+  color: var(--muted);
+}
+.cozy .opp .btn {
+  width: 100%;
+  margin-top: 6px;
+}
+.cozy {
+  /* --- Match result ------------------------------------------------------------------- */
+}
+.cozy .team {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+  min-width: 0;
+}
+.cozy .team.right {
+  justify-content: flex-end;
+  text-align: right;
+}
+.cozy .kit {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, var(--a) 50%, var(--b) 50%);
+  border: 2px solid #fff;
+}
+.cozy .score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 18px;
+  border-radius: 14px;
+  background: var(--cream);
+  color: var(--ink);
+  border: 3px solid #c9a46a;
+}
+.cozy .score b {
+  font-size: 30px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.cozy .score small {
+  font-size: 13px;
+  color: var(--muted);
+}
+.cozy .result {
+  text-align: center;
+}
+.cozy .result h2 {
+  justify-content: center;
+  font-size: 34px;
+  padding: 0;
+}
+.cozy .result.win h2 {
+  color: var(--green-d);
+}
+.cozy .result.loss h2 {
+  color: var(--red);
+}
+.cozy .final {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+.cozy .final b {
+  font-size: 46px;
+}
+.cozy .rewards {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.cozy .rewards > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 84px;
+  padding: 8px;
+  border-radius: 12px;
+  background: #fffaf0;
+  border: 2px solid #eadbb8;
+}
+.cozy .rewards .ic {
+  width: 30px;
+  height: 30px;
+}
+.cozy .rewards small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.cozy {
+  /* --- Onboarding ------------------------------------------------------------------- */
+  /* --- Toasts ------------------------------------------------------------------- */
+}
+.cozy .toasts {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  z-index: 40;
+  pointer-events: none;
+}
+.cozy .toast {
+  padding: 8px 16px;
+  border-radius: 14px;
+  background: var(--cream);
+  border: 3px solid #c9a46a;
+  font-weight: 600;
+  box-shadow: var(--shadow);
+  animation: pop 0.2s;
+  transition: opacity 0.4s, transform 0.4s;
+  max-width: calc(100vw - 32px);
+  text-align: center;
+}
+.cozy .toast.good {
+  border-color: var(--green);
+}
+.cozy .toast.bad {
+  border-color: var(--red);
+  color: #9a2216;
+}
+.cozy .toast.out {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+.cozy {
+  /* --- Narrow screens --------------------------------------------------------------- */
+}
+@media (max-width: 760px) {
+  .cozy .profile {
+    width: 64px;
+    top: 8px;
+    left: 8px;
+  }
+  .cozy .avatar {
+    width: 58px;
+    height: 58px;
+    border-radius: 14px;
+    border-width: 3px;
+  }
+  .cozy .avatar svg {
+    width: 38px;
+    height: 38px;
+  }
+  .cozy .lvl-badge {
+    width: 26px;
+    height: 26px;
+    top: 40px;
+    font-size: 13px;
+  }
+  .cozy .xpbar {
+    height: 16px;
+  }
+  .cozy .xpbar span {
+    font-size: 10px;
+  }
+  .cozy .resbar {
+    left: 80px;
+    right: 8px;
+    top: 8px;
+    gap: 6px 10px;
+  }
+  .cozy .res {
+    min-width: 0;
+    height: 30px;
+    padding: 0 10px 0 2px;
+    border-width: 2px;
+  }
+  .cozy .res > .ic {
+    width: 26px;
+    height: 26px;
+    margin-left: -6px;
+  }
+  .cozy .res b {
+    font-size: 14px;
+  }
+  .cozy .topright {
+    top: auto;
+    bottom: 118px;
+    right: 10px;
+    flex-direction: column;
+  }
+  .cozy .roundbtn {
+    width: 42px;
+    height: 42px;
+  }
+  .cozy .roundbtn .ic {
+    width: 24px;
+    height: 24px;
+  }
+  .cozy .roundbtn.big {
+    width: 46px;
+    height: 46px;
+  }
+  .cozy .roundbtn.big .ic {
+    width: 26px;
+    height: 26px;
+  }
+  .cozy .sidebtns {
+    top: 150px;
+    right: 10px;
+    gap: 8px;
+  }
+  .cozy .quests {
+    top: 100px;
+    width: min(260px, 100vw - 80px);
+    padding: 8px;
+  }
+  .cozy .q {
+    padding: 6px 8px;
+  }
+  .cozy .speedup {
+    top: auto;
+    bottom: 182px;
+    left: 8px;
+    right: auto;
+    transform: scale(0.85);
+    transform-origin: bottom left;
+  }
+  .cozy .worldbtn {
+    display: none;
+  }
+  .cozy .dock {
+    left: 8px;
+    right: 112px;
+    transform: none;
+    bottom: 8px;
+    padding: 4px;
+  }
+  .cozy .dock button {
+    width: auto;
+    flex: 1;
+    font-size: 12px;
+  }
+  .cozy .dock .ic {
+    width: 26px;
+    height: 26px;
+  }
+  .cozy .playbtn {
+    width: 96px;
+    height: 76px;
+    right: 8px;
+    bottom: 8px;
+    font-size: 18px;
+  }
+  .cozy .playbtn .ic {
+    width: 32px;
+    height: 32px;
+  }
+  .cozy .panel {
+    bottom: 88px;
+  }
+  .cozy .placebar {
+    bottom: 10px;
+  }
+  .cozy .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .cozy .card-art {
+    width: 90px;
+    height: 80px;
+  }
+  .cozy .modal {
+    padding: 14px;
+  }
+}
+.cozy {
+  /* --- fs-pro additions ------------------------------------------------------------ */
+}
+.cozy .res > span {
+  display: contents;
+}
+.cozy .res {
+  cursor: default;
+}
+.cozy .avatar img {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+.cozy .datebar {
+  position: absolute;
+  top: 66px;
+  left: 118px;
+  right: 130px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cozy .datebar .chip {
+  background: rgba(255, 250, 240, 0.92);
+  padding: 3px 10px;
+  box-shadow: 0 2px 0 rgba(70, 40, 15, 0.2);
+}
+.cozy .datebar .chip.today {
+  border-color: var(--gold);
+}
+.cozy .yearchip {
+  gap: 6px;
+}
+.cozy .yearbar {
+  display: inline-block;
+  width: 70px;
+  height: 7px;
+  border-radius: 4px;
+  background: #eadbb8;
+  overflow: hidden;
+}
+.cozy .yearbar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(#8be15c, #46ad2a);
+}
+.cozy .formchip i {
+  display: inline-block;
+  width: 18px;
+  text-align: center;
+  border-radius: 5px;
+  color: #fff;
+  font-style: normal;
+  font-size: 11px;
+  margin-left: 2px;
+}
+.cozy .quests {
+  top: 150px;
+}
+.cozy .briefing {
+  margin: 8px 2px 0;
+  font-size: 13px;
+  color: var(--muted);
+  font-style: italic;
+}
+.cozy .dot.count {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  font-size: 11px;
+  font-style: normal;
+  color: #fff;
+  font-weight: 700;
+}
+.cozy .speedup {
+  top: 150px;
+  padding-bottom: 20px;
+}
+.cozy .sidebtns {
+  top: 250px;
+}
+.cozy .playwrap {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.cozy .playwrap .playbtn {
+  position: static;
+}
+.cozy .quicksim {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: var(--cream);
+  border: 2px solid #c9a46a;
+  font-size: 13px;
+  font-weight: 600;
+}
+.cozy .toasts {
+  top: 110px;
+}
+@media (max-width: 760px) {
+  .cozy .datebar {
+    top: auto;
+    bottom: 96px;
+    left: 8px;
+    right: 64px;
+  }
+  .cozy .datebar .chip {
+    font-size: 11px;
+  }
+  .cozy .quests {
+    top: 84px;
+    width: 200px;
+  }
+  .cozy .quests .q-reward, .cozy .quests .briefing, .cozy .quests .q-head {
+    display: none;
+  }
+  .cozy .datebar .chip:nth-child(3) {
+    display: none;
+  }
+  .cozy .speedup, .cozy .sidebtns .roundbtn:nth-child(2) {
+    display: none;
+  }
+  .cozy .playwrap {
+    right: 8px;
+    bottom: 8px;
+  }
+  .cozy .playwrap .playbtn {
+    width: 96px;
+    height: 70px;
+  }
+}
+.cozy .opp {
+  cursor: pointer;
+}
+.cozy .opp.picked {
+  border-color: var(--green);
+}
+.cozy .opp a {
+  color: var(--blue);
+}
+.cozy .warn.good {
+  background: #eaf8e0;
+  border-color: #bfe3a5;
+  color: var(--green-d);
+  justify-content: center;
+}
+.cozy .warn .row-btns {
+  margin: 0;
+}
+.cozy {
+  /* --- Drawer: dashboard screens over the campus ------------------------------------- */
+}
+.cozy .drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 25;
+  width: min(820px, 100vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--cream);
+  border-left: 4px solid #c9a46a;
+  box-shadow: -8px 0 24px rgba(40, 25, 10, 0.3);
+}
+.cozy .drawer-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 48px 10px 18px;
+  border-bottom: 3px solid #e2cc9c;
+  background: linear-gradient(#fff8e6, #f1dfb6);
+}
+.cozy .drawer-head h2 {
+  margin: 0;
+  font-size: 24px;
+}
+.cozy .drawer-head .x {
+  top: 12px;
+}
+.cozy .drawer-tabs {
+  display: flex;
+  gap: 6px;
+}
+.cozy .drawer-tabs button {
+  padding: 4px 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  border: 2px solid #e2cc9c;
+  background: #fffaf0;
+}
+.cozy .drawer-tabs button.on {
+  background: var(--green);
+  border-color: var(--green-d);
+  color: #fff;
+}
+.cozy .drawer-body {
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+  user-select: text;
+}
+.cozy .res-w {
+  background: var(--green);
+}
+.cozy .res-d {
+  background: var(--gold);
+}
+.cozy .res-l {
+  background: var(--red);
+}
+.cozy .favoured .opp-label {
+  background: var(--green);
+}
+.cozy .even .opp-label {
+  background: var(--gold);
+}
+.cozy .challenger .opp-label {
+  background: var(--red);
+}
+.cozy .drawer-enter-active, .cozy .drawer-leave-active {
+  transition: transform 0.22s ease-out;
+}
+.cozy .drawer-enter-from, .cozy .drawer-leave-to {
+  transform: translateX(100%);
+}
+.cozy .bubble.alert {
+  flex-direction: row;
+  gap: 2px;
+  padding: 5px 8px 5px 6px;
+  border-radius: 14px;
+  border-color: #f2b5ab;
+  animation: bob 1.6s ease-in-out infinite;
+}
+.cozy .bubble.alert .ic {
+  width: 24px;
+  height: 24px;
+}
+.cozy .bubble.alert b {
+  color: var(--red);
+  font-size: 15px;
+}
+.cozy .panel > .btn.door {
+  margin-top: 8px;
+}
+.cozy .panel .warn {
+  justify-content: flex-start;
+  margin: 0 28px 8px 0;
+}
+.cozy {
+  /* --- Newsstand / billboard drawers ------------------------------------------------- */
+}
+.cozy .news h4 {
+  margin: 14px 0 6px;
+}
+.cozy .headline {
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  background: #fffaf0;
+  border: 2px solid #eadbb8;
+}
+.cozy .headline p {
+  margin: 4px 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+.cozy .headline small {
+  color: var(--muted);
+}
+.cozy .news .tag {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--blue);
+}
+.cozy .news .cat-transfer {
+  background: var(--green);
+}
+.cozy .news .cat-result {
+  background: var(--red);
+}
+.cozy .news .cat-injury {
+  background: #f2a72a;
+}
+.cozy .result-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-bottom: 1px dashed #eadbb8;
+}
+.cozy .result-row b {
+  min-width: 52px;
+  text-align: center;
+}
+.cozy .ticker {
+  cursor: pointer;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cozy {
+  /* --- Forms ---------------------------------------------------------------------- */
+}
+.cozy .form {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+.cozy .form label,
+.cozy .form .label {
+  display: grid;
+  gap: 4px;
+  font-weight: 600;
+  font-size: 14px;
+}
+.cozy .form small {
+  color: var(--muted);
+  font-weight: 500;
+}
+.cozy .form input {
+  font: inherit;
+  font-size: 17px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 3px solid #e2cc9c;
+  background: #fffaf0;
+  color: var(--ink);
+  outline: none;
+}
+.cozy .form input:focus {
+  border-color: var(--green);
+}
+.cozy .form input {
+  user-select: text;
+  -webkit-user-select: text;
+  width: 100%;
+  min-width: 0;
+}
+.cozy .form label > span {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.cozy .form input.code {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 700;
+}
+.cozy .two {
+  display: grid;
+  grid-template-columns: 1fr 110px;
+  gap: 10px;
+}
+.cozy {
+  /* --- Atlas forms: flags, terrains, sticky actions ----------------------------------- */
+}
+.cozy .flag {
+  display: inline-flex;
+  flex-direction: column;
+  width: 44px;
+  height: 30px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 2px solid #3b2a1a;
+  flex: none;
+}
+.cozy .flag.small {
+  width: 30px;
+  height: 20px;
+}
+.cozy .flag i {
+  flex: 1;
+}
+.cozy .flagpick {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  align-items: center;
+}
+.cozy .flagpick .flag {
+  grid-row: span 2;
+  grid-column: 2;
+  grid-row-start: 1;
+  width: 60px;
+  height: 40px;
+}
+.cozy .swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.cozy .sw {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid #fffaf0;
+  box-shadow: 0 0 0 2px #c9a46a;
+}
+.cozy .sw.on {
+  box-shadow: 0 0 0 3px var(--green-d);
+}
+.cozy .tdot {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  flex: none;
+  border: 2px solid #5e3b22;
+}
+.cozy .tdot.city,
+.cozy .terrain.city .t-art {
+  background: linear-gradient(#e5402f 0 40%, #f6e7c4 40%);
+}
+.cozy .tdot.coastal,
+.cozy .terrain.coastal .t-art {
+  background: linear-gradient(#f6e7c4 0 45%, #e9d6a1 45% 60%, #4b9fd3 60%);
+}
+.cozy .tdot.hillside,
+.cozy .terrain.hillside .t-art {
+  background: linear-gradient(160deg, #9bd46e 0 50%, #2f8a1c 50%);
+}
+.cozy .terrains {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.cozy .terrain {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  padding: 8px;
+  border-radius: 14px;
+  background: #fffaf0;
+  border: 3px solid #e2cc9c;
+  text-align: center;
+}
+.cozy .terrain.on {
+  border-color: var(--green-d);
+  background: #eaf8e0;
+}
+.cozy .t-art {
+  width: 56px;
+  height: 40px;
+  border-radius: 10px;
+  border: 2px solid #5e3b22;
+}
+.cozy .terrain small {
+  font-size: 11px;
+}
+.cozy .row-btns.sticky {
+  position: sticky;
+  bottom: -16px;
+  margin: 10px -18px -16px;
+  padding: 10px 18px 14px;
+  background: linear-gradient(rgba(253, 244, 223, 0), var(--cream) 30%);
+}
+.cozy .flag.big {
+  width: 60px;
+  height: 40px;
+}
+.cozy {
+  /* --- First steps checklist (campus quests card) ----------------------------------- */
+}
+.cozy .q.step {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  padding: 6px 10px;
+  margin-bottom: 4px;
+}
+.cozy .q.step .q-ic .ic {
+  width: 22px;
+  height: 22px;
+}
+.cozy .q.step.done {
+  padding: 3px 10px;
+}
+.cozy .q.step:hover:not(:disabled) {
+  border-color: var(--green);
+}
+.cozy .q.step.done {
+  cursor: default;
+}
+.cozy .q.step.done .q-title {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.cozy .q.step .q-title, .cozy .q.step .q-num {
+  display: block;
+}
+.cozy .q-count {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.cozy {
+  /* --- Core loop (docs/CORE-LOOP.md) ----------------------------------------------- */
+  /* League badge in the resource bar */
+}
+.cozy .res.league-res {
+  cursor: pointer;
+  min-width: 0;
+  padding-right: 12px;
+}
+.cozy .res.league-res b small {
+  font-size: 12px;
+  color: var(--muted);
+  margin-left: 1px;
+}
+.cozy .div-shield {
+  width: 34px;
+  height: 38px;
+  margin-left: -10px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 17px;
+  color: #fff;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+  clip-path: polygon(50% 0, 100% 18%, 100% 70%, 50% 100%, 0 70%, 0 18%);
+  background: linear-gradient(#b7c3cf, #7d8b99);
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.25));
+}
+.cozy .league-res.d1 .div-shield {
+  background: linear-gradient(#ffe28a, #e9a91c);
+}
+.cozy .league-res.d2 .div-shield {
+  background: linear-gradient(#e3e9ef, #9fb0c2);
+}
+.cozy .league-res.d3 .div-shield {
+  background: linear-gradient(#f2b98a, #b8692c);
+}
+.cozy .league-res.d4 .div-shield, .cozy .league-res.d5 .div-shield {
+  background: linear-gradient(#a7d98c, #4d9a2e);
+}
+.cozy .res.bump {
+  animation: bump 0.45s ease-out;
+}
+.cozy .datebar {
+  align-items: flex-start;
+}
+.cozy .datebar .chip {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.cozy .datebar .chip.ticker {
+  flex: 0 1 auto;
+  min-width: 140px;
+}
+.cozy .datebar .nextchip {
+  white-space: nowrap;
+  cursor: pointer;
+  gap: 4px;
+  font: inherit;
+  font-weight: 600;
+  font-size: 13px;
+}
+.cozy .datebar .nextchip .ic {
+  width: 18px;
+  height: 18px;
+}
+.cozy .datebar .chip.warnchip {
+  border-color: #f2b5ab;
+  color: #9a2216;
+}
+.cozy {
+  /* Onboarding pointer: a pulsing ring on the control the next first step needs */
+}
+.cozy .coach {
+  z-index: 2;
+  animation: coachpulse 1.4s ease-out infinite;
+}
+.cozy .dock button.coach, .cozy .playwrap .playbtn.coach, .cozy .datebar .coach {
+  position: relative;
+}
+.cozy .coach::before {
+  content: "👆";
+  position: absolute;
+  left: 50%;
+  bottom: -34px;
+  transform: translateX(-50%);
+  font-size: 30px;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.3));
+  animation: coachpoke 1s ease-in-out infinite;
+  pointer-events: none;
+}
+.cozy .topright .coach::before, .cozy .resbar .coach::before, .cozy .sidebtns .coach::before {
+  bottom: auto;
+  top: calc(100% + 2px);
+}
+.cozy .dock .coach::before, .cozy .playbtn.coach::before {
+  bottom: auto;
+  top: -36px;
+  transform: translateX(-50%) rotate(180deg);
+}
+.cozy .dock button.coach {
+  background: rgba(255, 233, 150, 0.7);
+}
+@keyframes coachpulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 207, 74, 0.9), var(--shadow);
+  }
+  70% {
+    box-shadow: 0 0 0 16px rgba(255, 207, 74, 0), var(--shadow);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 207, 74, 0), var(--shadow);
+  }
+}
+@keyframes coachpoke {
+  50% {
+    margin-top: 6px;
+    margin-bottom: -6px;
+  }
+}
+.cozy .q.step.next {
+  border-color: var(--gold);
+  background: #fff7dc;
+}
+.cozy .quests.folded {
+  width: auto;
+  padding: 4px 8px;
+}
+.cozy .quests.folded .q-head {
+  padding: 2px 4px;
+  gap: 10px;
+}
+.cozy {
+  /* Shop takings bubble over the Stands */
+}
+.cozy .bubble.collect {
+  flex-direction: row;
+  gap: 4px;
+  padding: 6px 12px 6px 6px;
+  border-radius: 18px;
+  border-color: #ffcf4a;
+  background: linear-gradient(#fffdf2, #fff0bf);
+  animation: bob 1.6s ease-in-out infinite;
+}
+.cozy .bubble.collect::after {
+  border-top-color: #fff0bf;
+}
+.cozy .bubble.collect .ic {
+  width: 30px;
+  height: 30px;
+}
+.cozy .bubble.collect b {
+  font-size: 17px;
+  color: var(--wood-d);
+  font-variant-numeric: tabular-nums;
+}
+.cozy .bubble.collect.full {
+  box-shadow: 0 0 0 4px rgba(255, 207, 74, 0.55), 0 3px 0 rgba(0, 0, 0, 0.2);
+}
+.cozy .bubble.collect.full > .ic {
+  animation: wiggle 1s ease-in-out infinite;
+}
+.cozy .bubble.collect.coach {
+  animation: bob 1.6s ease-in-out infinite, coachpulse 1.4s ease-out infinite;
+}
+.cozy {
+  /* Coins flying to the treasury */
+}
+.cozy .coinfly {
+  position: fixed;
+  z-index: 45;
+  width: 34px;
+  height: 34px;
+  pointer-events: none;
+  will-change: transform, opacity;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.25));
+}
+.cozy .coinfly .ic {
+  width: 100%;
+  height: 100%;
+}
+.cozy .floattext {
+  position: fixed;
+  z-index: 45;
+  pointer-events: none;
+  font-weight: 700;
+  font-size: 26px;
+  color: #fff;
+  text-shadow: 0 2px 0 #8a5a00, 0 0 8px rgba(0, 0, 0, 0.25);
+  animation: floatup 1.4s ease-out forwards;
+}
+@media (max-width: 760px) {
+  .cozy .res.league-res {
+    padding-right: 8px;
+  }
+  .cozy .div-shield {
+    width: 24px;
+    height: 28px;
+    font-size: 13px;
+    margin-left: -6px;
+  }
+  .cozy .coach::before {
+    font-size: 24px;
+  }
+}
+.cozy {
+  /* Match day: live button, plan flag on the next-match chip, drawer back link */
+}
+.cozy .livebtn {
+  position: absolute;
+  top: 108px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 18px;
+  background: linear-gradient(#ff6b55, #d8321f);
+  border: 3px solid #fff0e8;
+  color: #fff;
+  font-weight: 600;
+  font-size: 16px;
+  box-shadow: var(--shadow);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+  animation: bob 1.6s ease-in-out infinite;
+}
+.cozy .livebtn b {
+  letter-spacing: 1px;
+}
+.cozy .livedot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  animation: livepulse 1s ease-in-out infinite;
+}
+@keyframes livepulse {
+  50% {
+    transform: scale(1.5);
+    opacity: 0.5;
+  }
+}
+.cozy .planflag {
+  margin-left: 4px;
+  padding: 0 6px;
+  border-radius: 7px;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--red);
+}
+.cozy .planflag.ok {
+  background: var(--green-d);
+}
+.cozy .drawer-body .backbtn {
+  margin-bottom: 8px;
+}
+@media (max-width: 760px) {
+  .cozy .livebtn {
+    top: auto;
+    bottom: 150px;
+    font-size: 14px;
+    padding: 6px 14px;
+  }
+}
+.cozy {
+  /* Phones: scrollable hub tabs, and only the current first step */
+}
+.cozy .drawer-tabs {
+  overflow-x: auto;
+  scrollbar-width: none;
+  max-width: 100%;
+}
+.cozy .drawer-tabs button {
+  white-space: nowrap;
+  flex: none;
+}
+@media (max-width: 760px) {
+  .cozy .drawer-head {
+    flex-wrap: nowrap;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .cozy .quests .q.step:not(.next) {
+    display: none;
+  }
+  .cozy .quests .q-head {
+    display: flex;
+  }
+}</style><style type="text/css" data-vite-dev-id="C:/done/fs-pro/.claude/worktrees/p2b4b/apps/fs-pro-client/src/components/cozy/advisor/CozyAdvisor.vue?vue&amp;type=style&amp;index=0&amp;scoped=32f744d1&amp;lang.css">
+/* --- Dock (campus) --------------------------------------------------------- */
+.cozy-advisor[data-v-32f744d1] {
+  position: fixed;
+  left: 10px;
+  bottom: 166px;
+  z-index: 6;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  max-width: calc(100vw - 20px);
+  font-family: 'Fredoka', system-ui, sans-serif;
+  color: var(--ink, #4a3220);
+  outline: none;
+}
+.cozy-advisor:focus-visible .adv-bubble[data-v-32f744d1],
+.cozy-advisor:focus-visible .adv-portrait[data-v-32f744d1] {
+  box-shadow: 0 0 0 3px #f5b82e, var(--shadow, 0 4px 0 rgba(70, 40, 15, 0.35));
+}
+.cozy-advisor.is-inline[data-v-32f744d1] {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  max-width: 100%;
+}
+
+/* Portrait stands on a soft ground shadow; not a rounded "avatar card". */
+.adv-portrait[data-v-32f744d1] {
+  position: relative;
+  z-index: 2;
+  flex: none;
+  width: 116px;
+  height: 130px;
+  cursor: pointer;
+  filter: drop-shadow(0 7px 6px rgba(70, 40, 15, 0.3));
+  transition: transform 0.14s ease-out;
+}
+.adv-portrait[data-v-32f744d1]:active {
+  transform: translateY(2px);
+}
+.adv-portrait[data-v-32f744d1] svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+.cozy-advisor.is-collapsed .adv-portrait[data-v-32f744d1] {
+  width: 92px;
+  height: 104px;
+}
+
+/* --- Bubble ----------------------------------------------------------------- */
+.adv-bubble[data-v-32f744d1] {
+  position: relative;
+  z-index: 2;
+  width: 340px;
+  max-width: calc(100vw - 20px);
+  padding: 9px 12px 10px;
+  border-radius: 18px;
+  background: var(--cream, #fdf4df);
+  border: 3px solid #c9a46a;
+  box-shadow: var(--shadow, 0 4px 0 rgba(70, 40, 15, 0.35), 0 8px 18px rgba(0, 0, 0, 0.18));
+  animation: adv-in-32f744d1 0.22s ease-out both;
+  transform-origin: 0 100%;
+}
+.is-quiet .adv-bubble[data-v-32f744d1] {
+  border-color: #d8c39a;
+}
+.adv-tail[data-v-32f744d1] {
+  position: absolute;
+  left: -12px;
+  bottom: 22px;
+  width: 0;
+  height: 0;
+  border: 7px solid transparent;
+  border-right-color: #c9a46a;
+  border-left: 0;
+}
+.adv-tail[data-v-32f744d1]::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: -7px;
+  border: 7px solid transparent;
+  border-right-color: var(--cream, #fdf4df);
+  border-left: 0;
+}
+.adv-head[data-v-32f744d1] {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+}
+.adv-speaker[data-v-32f744d1] {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--wood-d, #5e3b22);
+}
+.adv-role[data-v-32f744d1] {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6f5940;
+}
+.adv-close[data-v-32f744d1] {
+  margin-left: auto;
+}
+.adv-line[data-v-32f744d1] {
+  margin: 3px 0 8px;
+  font-size: 16px;
+  line-height: 1.34;
+  min-height: 2.7em;
+  color: var(--ink, #4a3220);
+  user-select: text;
+}
+.adv-sr[data-v-32f744d1] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.adv-caret[data-v-32f744d1] {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: var(--wood, #8a5a3b);
+  animation: adv-caret-32f744d1 0.7s steps(1) infinite;
+}
+.adv-actions[data-v-32f744d1] {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.adv-icon-btn[data-v-32f744d1] {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  color: var(--wood-d, #5e3b22);
+  background: #fffaf0;
+  border: 2px solid #e2cc9c;
+}
+.adv-icon-btn[data-v-32f744d1]:hover {
+  background: #fff;
+}
+.adv-icon-btn svg[data-v-32f744d1] {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.adv-icon-btn[data-v-32f744d1] .ic {
+  width: 20px;
+  height: 20px;
+}
+.adv-next[data-v-32f744d1] {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 16px;
+  color: #fff;
+  background: linear-gradient(#7bd655, #3fa526);
+  border: 2px solid #2c7d18;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
+}
+.adv-next svg[data-v-32f744d1] {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.adv-next[data-v-32f744d1]:hover {
+  filter: brightness(1.05);
+}
+
+/* Collapsed nudge dot. */
+.adv-nudge[data-v-32f744d1] {
+  align-self: flex-end;
+  margin-left: -14px;
+  margin-bottom: 8px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--wood-d, #5e3b22);
+  background: var(--gold, #f5b82e);
+  border: 3px solid #fff3c9;
+  box-shadow: var(--shadow, 0 4px 0 rgba(70, 40, 15, 0.35));
+  animation: adv-bob-32f744d1 1.6s ease-in-out infinite;
+}
+
+/* Dotted sight-line to the projected building. */
+.adv-sightline[data-v-32f744d1] {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
+  pointer-events: none;
+  overflow: visible;
+}
+.adv-sightline line[data-v-32f744d1] {
+  stroke: var(--gold, #f5b82e);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 2 9;
+}
+.adv-sightline circle[data-v-32f744d1] {
+  fill: var(--gold, #f5b82e);
+  stroke: #b5860f;
+  stroke-width: 2;
+}
+
+/* Enter / exit (gated by reduced motion). */
+@keyframes adv-in-32f744d1 {
+from {
+    transform: translateY(16px);
+    opacity: 0;
+}
+}
+@keyframes adv-out-32f744d1 {
+to {
+    transform: translateY(10px);
+    opacity: 0;
+}
+}
+@media (prefers-reduced-motion: no-preference) {
+.cozy-advisor.phase-exiting[data-v-32f744d1] {
+    animation: adv-out-32f744d1 0.18s ease-in both;
+}
+}
+@keyframes adv-caret-32f744d1 {
+50% {
+    opacity: 0;
+}
+}
+@keyframes adv-bob-32f744d1 {
+50% {
+    transform: translateY(-4px);
+}
+}
+
+/* --- Mobile (cozy.scss breakpoint) ----------------------------------------- */
+@media (max-width: 760px) {
+.cozy-advisor[data-v-32f744d1] {
+    left: 8px;
+    bottom: 136px;
+    gap: 6px;
+}
+.adv-portrait[data-v-32f744d1] {
+    width: 84px;
+    height: 94px;
+}
+.cozy-advisor.is-collapsed .adv-portrait[data-v-32f744d1] {
+    width: 72px;
+    height: 82px;
+}
+.adv-bubble[data-v-32f744d1] {
+    width: min(62vw, 246px);
+    padding: 7px 10px 8px;
+}
+.adv-line[data-v-32f744d1] {
+    font-size: 14px;
+    min-height: 2.9em;
+}
+}
+
+/* Tiny screens: stack the bubble above the portrait. */
+@media (max-width: 360px) {
+.cozy-advisor[data-v-32f744d1] {
+    flex-direction: column;
+    align-items: flex-start;
+    bottom: 132px;
+}
+.adv-portrait[data-v-32f744d1] {
+    order: 2;
+}
+.adv-bubble[data-v-32f744d1] {
+    order: 1;
+    width: auto;
+    max-width: calc(100vw - 16px);
+}
+.adv-tail[data-v-32f744d1] {
+    left: 18px;
+    bottom: -12px;
+    transform: rotate(90deg);
+}
+}
+
+/* --- Reduced motion --------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+.adv-bubble[data-v-32f744d1] {
+    animation: none;
+}
+.adv-caret[data-v-32f744d1],
+  .adv-nudge[data-v-32f744d1] {
+    animation: none;
+}
+.adv-portrait[data-v-32f744d1] {
+    transition: none;
+}
+}
+</style></head>
+  <body>
+    <div id="app" data-v-app=""><div class="cozy"><div class="stage"><canvas data-engine="three.js r186" width="1440" height="900" style="display: block; width: 1440px; height: 900px;"></canvas></div><div class="profile"><div class="avatar"><span style="font-size: 34px;">🧑</span></div><div class="lvl-badge">2</div><div class="xpbar"><div style="width: 40%;"></div><span>40 / 100</span></div></div><div class="resbar" data-testid="hud"><div class="res"><span class="ic">🪙</span><b>V3.2M</b></div><div class="res"><span class="ic">🧑‍🤝‍🧑</span><b>1,204</b></div><div class="res"><span class="ic">🏆</span><b>Level 2</b></div></div><div class="datebar"><span class="chip today">Matchday</span></div><div class="presence" data-testid="presence"><i></i>12 online</div><div class="dock" data-testid="dock"><button><span class="ic">⚽</span><span>Team</span></button><button><span class="ic">🎒</span><span>Transfers</span></button><button><span class="ic">🔨</span><span>Build</span></button><button><span class="ic">🏆</span><span>League</span></button></div><div class="worldbtn">World</div><div class="playwrap"><button class="playbtn" data-testid="play">PLAY</button></div><div data-v-32f744d1="" class="cozy-advisor phase-ready is-docked is-pointing expr-neutral adv-pose-point-right" role="group" aria-label="Club advisor" tabindex="0"><!-- Portrait: decorative, so expressions/poses never carry meaning alone. --><div data-v-32f744d1="" class="adv-portrait" aria-hidden="true" data-testid="advisor-portrait"><svg style="--adv-aim:38deg;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 270" width="240" height="270" class="adv expr-neutral adv-state-idle adv-pose-point-right" role="img" aria-label="Vintra, your club advisor, listening">
+  <title>Vintra, your club advisor, listening</title>
+  <style>
+  .adv { display:block; }
+  .adv-lid { transform: translateY(-42px); }
+  .adv-talk { opacity:0; }
+  .adv-talk .adv-viseme { opacity:1; }
+  /* The raised arm is hidden until the root is posed; the pointer aims. */
+  .adv-point { display:none; }
+  .adv-pose-point-right .adv-point-right,
+  .adv-pose-point-left .adv-point-left { display:block; }
+  .adv-pointer { transform: rotate(var(--adv-aim, 0deg)); }
+  @media (prefers-reduced-motion: no-preference) {
+    .adv #adv-bob { animation: adv-bob 3.4s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+    .adv-lid { animation: adv-blink 4.8s ease-in-out infinite; }
+    .adv-state-talking .adv-mouth-static { opacity:0; }
+    .adv-state-talking .adv-talk { opacity:1; }
+    .adv-state-talking .adv-viseme { animation: adv-vis 0.44s steps(1) infinite; }
+    .adv-state-talking .adv-viseme:nth-child(2) { animation-delay: 0.11s; }
+    .adv-state-talking .adv-viseme:nth-child(3) { animation-delay: 0.22s; }
+    .adv-state-talking .adv-viseme:nth-child(4) { animation-delay: 0.33s; }
+    .adv-pointer { transition: transform 0.28s ease-out; }
+  }
+  @keyframes adv-bob { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-5px) } }
+  @keyframes adv-blink { 0%,90%,100%{ transform: translateY(-42px) } 93%,95%{ transform: translateY(0) } }
+  @keyframes adv-vis { 0%,25%{ opacity:1 } 26%,100%{ opacity:0 } }
+</style>
+  
+    <g id="adv-bob">
+      <g class="adv-figure">
+        <!-- shoulders / club kit -->
+        <path d="M22 270 q6 -54 60 -62 h76 q54 8 60 62 z" fill="#5cc23a" stroke="#5e3b22" stroke-width="3.4"></path>
+        <path d="M104 214 q16 16 32 0 v40 h-32 z" fill="#f5b82e" opacity=".9"></path>
+        <!-- neck -->
+        <path d="M102 186 h36 v30 q-18 12 -36 0 z" fill="#e0aa78" stroke="#5e3b22" stroke-width="3.4"></path>
+        <!-- scarf -->
+        <path d="M70 240 q50 24 100 0 q4 16 -6 24 q-44 20 -88 0 q-10 -8 -6 -24 z" fill="#f5b82e" stroke="#5e3b22" stroke-width="3.4"></path>
+        
+        <!-- bun + hair behind the head -->
+        <circle cx="120" cy="52" r="19" fill="#cfc7b6" stroke="#5e3b22" stroke-width="3.4"></circle>
+        <path d="M58 128 q-10 -74 62 -74 q72 0 62 74 q-10 -18 -22 -24 q-26 10 -80 0 q-12 6 -22 24 z" fill="#cfc7b6" stroke="#5e3b22" stroke-width="3.4"></path>
+        <!-- ears -->
+        <ellipse cx="60" cy="132" rx="12" ry="16" fill="#f2c79b" stroke="#5e3b22" stroke-width="3.4"></ellipse>
+        <ellipse cx="180" cy="132" rx="12" ry="16" fill="#f2c79b" stroke="#5e3b22" stroke-width="3.4"></ellipse>
+        <!-- head -->
+        <ellipse cx="120" cy="126" rx="62" ry="66" fill="#f2c79b" stroke="#5e3b22" stroke-width="3.4"></ellipse>
+        
+        <!-- flat cap: crown then darker forward brim -->
+        <path d="M56 104 q-2 -62 64 -62 q66 0 64 62 q-64 -26 -128 0 z" fill="#8a5a3b" stroke="#5e3b22" stroke-width="3.4"></path>
+        <path d="M48 104 q72 -24 144 0 q0 15 -22 15 q-50 -16 -100 0 q-22 0 -22 -15 z" fill="#5e3b22" stroke="#5e3b22" stroke-width="3.4"></path>
+        
+      <g class="adv-brows">
+        <path d="M84 104 q13 -7 28 -3" fill="none" stroke="#a89f8b" stroke-width="5" stroke-linecap="round" transform="rotate(0 98 104)"></path>
+        <path d="M156 104 q-13 -7 -28 -3" fill="none" stroke="#a89f8b" stroke-width="5" stroke-linecap="round" transform="rotate(0 142 104)"></path>
+      </g>
+        
+      <g class="adv-eyes">
+
+        <ellipse cx="98" cy="126" rx="16" ry="16" fill="#fffaf0" stroke="#5e3b22" stroke-width="3.4"></ellipse>
+        <circle cx="98" cy="126" r="8.5" fill="#40483f"></circle>
+        <circle cx="95.4" cy="123.4" r="2.6" fill="#fff"></circle>
+
+        <ellipse cx="142" cy="126" rx="16" ry="16" fill="#fffaf0" stroke="#5e3b22" stroke-width="3.4"></ellipse>
+        <circle cx="142" cy="126" r="8.5" fill="#40483f"></circle>
+        <circle cx="139.4" cy="123.4" r="2.6" fill="#fff"></circle>
+      </g>
+        
+      <clipPath id="adv-eye-clip">
+        <rect x="76" y="104" width="44" height="46"></rect>
+        <rect x="120" y="104" width="44" height="46"></rect>
+      </clipPath>
+      <g class="adv-lids" clip-path="url(#adv-eye-clip)" aria-hidden="true">
+        <g class="adv-lid">
+          <ellipse cx="98" cy="126" rx="20" ry="20" fill="#f2c79b"></ellipse>
+          <path d="M85 126 q13 7 26 0" fill="none" stroke="#5e3b22" stroke-width="3" stroke-linecap="round"></path>
+        </g>
+        <g class="adv-lid">
+          <ellipse cx="142" cy="126" rx="20" ry="20" fill="#f2c79b"></ellipse>
+          <path d="M129 126 q13 7 26 0" fill="none" stroke="#5e3b22" stroke-width="3" stroke-linecap="round"></path>
+        </g>
+      </g>
+        <!-- nose -->
+        <path d="M120 134 q6 12 0 18 q-6 -2 -8 -6" fill="none" stroke="#e0aa78" stroke-width="3" stroke-linecap="round"></path>
+        <g class="adv-mouth-static"><path d="M104 168 q16 12 32 0" fill="none" stroke="#5e3b22" stroke-width="4" stroke-linecap="round"></path></g>
+        
+      <g class="adv-talk" aria-hidden="true">
+        <g class="adv-viseme"><ellipse cx="120" cy="171" rx="11" ry="7" fill="#8c4a3f" stroke="#5e3b22" stroke-width="2.6"></ellipse></g>
+        <g class="adv-viseme"><ellipse cx="120" cy="171" rx="8" ry="10" fill="#8c4a3f" stroke="#5e3b22" stroke-width="2.6"></ellipse></g>
+        <g class="adv-viseme"><ellipse cx="120" cy="171" rx="13" ry="5" fill="#8c4a3f" stroke="#5e3b22" stroke-width="2.6"></ellipse></g>
+        <g class="adv-viseme"><ellipse cx="120" cy="171" rx="6" ry="8" fill="#8c4a3f" stroke="#5e3b22" stroke-width="2.6"></ellipse></g>
+      </g>
+        
+        
+        
+      <g class="adv-point adv-point-right">
+        <path d="M154 246 q36 -8 62 -30" fill="none" stroke="#5e3b22" stroke-width="34" stroke-linecap="round"></path>
+        <path d="M154 246 q36 -8 62 -30" fill="none" stroke="#5cc23a" stroke-width="26" stroke-linecap="round"></path>
+        <circle cx="216" cy="198" r="16" fill="#f2c79b" stroke="#5e3b22" stroke-width="3.4"></circle>
+        <g class="adv-pointer" style="transform-origin:216px 198px">
+          <path d="M216 198 L238 110" stroke="#8a5a3b" stroke-width="9" stroke-linecap="round"></path>
+          <circle cx="238" cy="110" r="6" fill="#5e3b22"></circle>
+        </g>
+      </g>
+      <g class="adv-point adv-point-left">
+        <path d="M86 246 q-36 -8 -62 -30" fill="none" stroke="#5e3b22" stroke-width="34" stroke-linecap="round"></path>
+        <path d="M86 246 q-36 -8 -62 -30" fill="none" stroke="#5cc23a" stroke-width="26" stroke-linecap="round"></path>
+        <circle cx="24" cy="198" r="16" fill="#f2c79b" stroke="#5e3b22" stroke-width="3.4"></circle>
+        <g class="adv-pointer" style="transform-origin:24px 198px">
+          <path d="M24 198 L2 110" stroke="#8a5a3b" stroke-width="9" stroke-linecap="round"></path>
+          <circle cx="2" cy="110" r="6" fill="#5e3b22"></circle>
+        </g>
+      </g>
+      </g>
+    </g>
+</svg>
+</div><div data-v-32f744d1="" class="adv-bubble"><span data-v-32f744d1="" class="adv-tail" aria-hidden="true"></span><div data-v-32f744d1="" class="adv-head"><span data-v-32f744d1="" class="adv-speaker">Vintra</span><span data-v-32f744d1="" class="adv-role">club secretary</span><button data-v-32f744d1="" class="adv-icon-btn adv-close" type="button" aria-label="Dismiss this tip"><svg viewBox="0 0 32 32" class="ic" aria-hidden="true"><path d="M9 9l14 14M23 9L9 23" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"></path></svg></button></div><p data-v-32f744d1="" class="adv-line" role="status" aria-live="polite" aria-atomic="true" data-testid="advisor-line"><!-- Full text for assistive tech; the visible span is a reveal. --><span data-v-32f744d1="" class="adv-sr">A Tier-1 stand pays the gate fee every match.</span><span data-v-32f744d1="" class="adv-visible" aria-hidden="true">A Tier-1 stand pays the gate fee every match.</span><!--v-if--></p><div data-v-32f744d1="" class="adv-actions"><button data-v-32f744d1="" class="adv-icon-btn adv-quiet" type="button" aria-pressed="false" aria-label="Quiet advisor tips"><svg data-v-32f744d1="" viewBox="0 0 24 24" aria-hidden="true"><path data-v-32f744d1="" d="M12 4a4 4 0 0 0-4 4v3l-1.6 2.4a.7.7 0 0 0 .6 1.1h10a.7.7 0 0 0 .6-1.1L16 11V8a4 4 0 0 0-4-4Z"></path><path data-v-32f744d1="" d="M10 17.5a2 2 0 0 0 4 0"></path><!--v-if--></svg></button><button data-v-32f744d1="" class="adv-next" type="button">Got it <svg data-v-32f744d1="" viewBox="0 0 24 24" aria-hidden="true"><path data-v-32f744d1="" d="M9 6l6 6-6 6"></path></svg></button></div></div><!-- Collapsed: the portrait alone, with a nudge dot to re-open. --><!--v-if--><!-- Dotted sight-line from the pointer hand to the 3D marker. --><svg data-v-32f744d1="" class="adv-sightline" viewBox="0 0 1440 900" aria-hidden="true"><line data-v-32f744d1="" x1="114.4" y1="699.55" x2="1231.9141039941865" y2="663.5204010116258"></line><circle data-v-32f744d1="" cx="1231.9141039941865" cy="663.5204010116258" r="4"></circle></svg></div></div></div>
+    <!-- Dev-only lab for the real 3D campus + the advisor, with QA hooks
+         (window.__CAMPUS_TEST_HOOKS__ / __THREE_GAME_TEST_HOOKS__).
+         Separate from campus-lab.* (which covers terrain/Tier states).
+         Not part of the build. -->
+    <script type="module" src="/src/dev/campus-advisor-lab.ts"></script>
+  
+
+</body></html>

@@ -1,0 +1,15 @@
+{
+ "name": {
+  "scrollW": 569,
+  "clientW": 569,
+  "ellipsis": "ellipsis",
+  "fits": true,
+  "text": "Gurenchi El Calisto",
+  "w": 569
+ },
+ "card": {
+  "scrollW": 1042,
+  "clientW": 1042,
+  "fits": true
+ }
+}
