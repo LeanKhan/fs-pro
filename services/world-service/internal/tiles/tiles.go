@@ -71,8 +71,10 @@ func LevelForZoom(z int) string {
 		return "region"
 	case 3:
 		return "city"
-	default: // 4, 5
+	case 4:
 		return "district"
+	default: // 5
+		return "club"
 	}
 }
 
