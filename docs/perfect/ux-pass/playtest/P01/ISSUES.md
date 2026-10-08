@@ -1,0 +1,9 @@
+# P01 — ISSUES
+
+Row format (FOR-AGENTS §4):
+`ID | severity | category | screen/route | viewport | steps | expected | actual | screenshot | first seen (game Level + wall time)`
+
+| ID | Severity | Category | Screen/route | Viewport | Steps | Expected | Actual | Screenshot | First seen |
+|----|----------|----------|--------------|----------|-------|----------|--------|------------|------------|
+| P01-01 | S2 | copy/functional | `/start` (Found your club → after founding) | 390×844 | 1. /auth/join → create account. 2. `/start` home step shows "Your home: **Sdev Central**, Kev Central, Kev · 2/6 clubs" and "You'll join **Kev's** league pyramid". 3. Name club, found it. | The club is founded in the town shown on the "Your home" step (Sdev Central, Kev) — the name I chose is based on it. | The post-founding card says "**Philamentia Central, Bellean Central, Bellean** has a new club" and "invite links … put them in **Philamentia Central**". My club named "Sdev Central United" now sits in a town called Philamentia, in a different country (Bellean, not Kev). | `screenshots/s01-05-your-club.png` (home/Sdev shown), `screenshots/s01-08-kickoff.png` (Kick-off still Sdev Central, Kev), `screenshots/s01-09-campus.png` (placed in Philamentia Central, Bellean) | Level 0, 2026-10-08T11:40Z |
+| P01-02 | S3 | copy | `/start` (Found your club → "Your club" step) | 390×844 | 1. Reach the "Your club" step. 2. Club name and Ground have example placeholders; "Code" is a blank box with no hint. 3. "Next: kick-off" stays disabled until Code is filled. | A first-timer can tell what "Code" means (club abbreviation?) and that it is required. | "Code" has no label help or placeholder while every field on the join screen had helper text ("3-24 letters…", "at least 8 characters"). Only by trying to continue do you discover it is required. | `screenshots/s01-05-your-club.png` | Level 0, 2026-10-08T11:38Z |

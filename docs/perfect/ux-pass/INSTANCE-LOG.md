@@ -260,6 +260,7 @@ branch (a shipped-binary issue, not a code change).
 | 11:15 | Rebuilt Rust core + swapped DLL | `cargo build --release`; copied `crates/sim-core/target/release/sim_core.dll` (sha `1b2eb1e1…`) to `.playtest-runtime`; killed stale sim (20712), restarted (PID 31292) |
 | 11:16 | Verified sim engine | `simServiceE2E.ts`: **20/20** Rust, 2.50 goals/match, 0 problems |
 | 11:19 | Verified world plays fixtures | worker `[world] 4 match(es)`; DB fixtures Played 3374/3847 |
+| 12:18 | **[A01] WSL→Windows interop outage** | Windows `cmd.exe` launched from WSL began failing with `UtilAcceptVsock:271: accept4 failed 110`; all Windows-Node/Playwright runs (the harness) blocked for A01 at least. Client preview binds 127.0.0.1 so it is not reachable from WSL either. Reported in `playtest/A01/ISSUES.md` (A01-12). Re-login/setup already done before the outage. |
 
 ---
 
