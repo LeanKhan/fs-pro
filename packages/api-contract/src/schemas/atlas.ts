@@ -76,6 +76,25 @@ export const AtlasCountrySchema = z.object({
   foundedAt: z.string().nullable(),
 });
 
+/** What the signed-in user has founded so far, and may still found. */
+export const AtlasMeSchema = z.object({
+  userId: z.string(),
+  founded: z.object({ countries: z.number(), towns: z.number(), clubs: z.number() }),
+  limits: z.object({ countries: z.number(), towns: z.number(), clubs: z.number() }),
+  clubIds: z.array(z.string()),
+  /** The user's first active club's home, for the map's "my club" jump. */
+  home: z
+    .object({
+      clubId: z.string(),
+      countryId: z.string(),
+      cityId: z.string(),
+      districtId: z.string(),
+      x: z.number(),
+      y: z.number(),
+    })
+    .nullable(),
+});
+
 export const AtlasSchema = z.object({
   width: z.number(),
   height: z.number(),
@@ -87,14 +106,32 @@ export const AtlasSchema = z.object({
   /** Clubs with no town yet (should be none once the world is backfilled). */
   unplaced: z.array(AtlasClubSchema),
   /** What the signed-in user has founded so far, and may still found. */
-  me: z
-    .object({
-      userId: z.string(),
-      founded: z.object({ countries: z.number(), towns: z.number(), clubs: z.number() }),
-      limits: z.object({ countries: z.number(), towns: z.number(), clubs: z.number() }),
-      clubIds: z.array(z.string()),
-    })
-    .nullable(),
+  me: AtlasMeSchema.nullable(),
+});
+
+/**
+ * The map "chrome" that is not per-viewport: the country headers (their map
+ * spot and founder-chosen flag colours, which a tile does not carry) plus the
+ * signed-in user's founding summary. Small (one row per country) and stable, so
+ * it is fetched once and sits alongside the bounded tiles
+ * (docs/perfect/WORLD-HIERARCHY-SPEC.md §7.6: `me` comes from a small endpoint,
+ * not the whole atlas).
+ */
+export const AtlasChromeSchema = z.object({
+  countries: z.array(AtlasCountrySchema),
+  me: AtlasMeSchema.nullable(),
+});
+
+/** One hit from the map search box: a place or a club, and where to zoom. */
+export const AtlasSearchResultSchema = z.object({
+  kind: z.enum(['country', 'region', 'city', 'district', 'club']),
+  id: z.string(),
+  name: z.string(),
+  code: z.string().nullable(),
+  /** The country to frame alongside, when known. */
+  countryId: z.string().nullable(),
+  x: z.number(),
+  y: z.number(),
 });
 
 export const FoundCountrySchema = z.object({
@@ -191,6 +228,9 @@ export type FoundCountry = z.infer<typeof FoundCountrySchema>;
 export type FoundTown = z.infer<typeof FoundTownSchema>;
 export type FoundClub = z.infer<typeof FoundClubSchema>;
 export type AtlasRegion = z.infer<typeof AtlasRegionSchema>;
+export type AtlasMe = z.infer<typeof AtlasMeSchema>;
+export type AtlasChrome = z.infer<typeof AtlasChromeSchema>;
+export type AtlasSearchResult = z.infer<typeof AtlasSearchResultSchema>;
 export type Placement = z.infer<typeof PlacementSchema>;
 export type NewTown = z.infer<typeof NewTownSchema>;
 export type NewRegion = z.infer<typeof NewRegionSchema>;

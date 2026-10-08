@@ -21,12 +21,15 @@ server {
   root /usr/share/nginx/html;
   index index.html;
 
-  # Baseline headers. No Content-Security-Policy yet: the client uses inline
-  # styles (Vuetify) and WebGL; add one after testing it against a staging copy.
+  # Baseline headers. The CSP is a conservative starting policy: inline styles
+  # are allowed because Vuetify injects them; fonts/icons come from Google and
+  # jsDelivr; the API and Socket.IO share this origin; Sentry ingest is allowed
+  # for error reporting. Validate it on staging before tightening further.
   add_header X-Content-Type-Options "nosniff" always;
   add_header X-Frame-Options "SAMEORIGIN" always;
   add_header Referrer-Policy "strict-origin-when-cross-origin" always;
   add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+  add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' ws: wss: https://*.sentry.io https://*.ingest.sentry.io; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'" always;
   server_tokens off;
 
   client_max_body_size 10m;

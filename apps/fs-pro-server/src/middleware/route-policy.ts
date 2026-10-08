@@ -123,6 +123,10 @@ export const POLICIES: Record<string, Rule> = {
   'atlas.getPlacement': 'signedIn',
   'atlas.listInvites': 'handler',
   'atlas.createInvite': 'handler',
+  // Map chrome (country headers + the caller's own founding summary) and the
+  // search box are public, like the tiles they sit beside.
+  'atlas.getChrome': 'public',
+  'atlas.search': 'public',
 
   // Map tiles are public, per-viewport, bounded payloads (D2).
   'tiles.getTile': 'public',

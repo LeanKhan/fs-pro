@@ -14,7 +14,10 @@ group — the run is **not** a complete Batches 0–6 pass.
 | B2 fix | pgx per-call-timeout cancel bug (`internal/db/db.go`) fixed | `4c83f08` |
 | B2-D/E | 10k scale proof; founding-throughput pass; migration `0039` perf indexes; **100k world founded** | `B2-2D/2E-REPORT.md`, `SCALE.md` §B2D/E |
 | B3-A | Zoomable-map tile API: quadtree `GET /tiles/{z}/{x}/{y}`, per-place caps, parent-summary overflow, ETag/304, contract + Node proxy + route-policy, invalidation trigger (`0040`), `Clubs(DistrictId…​)` indexes (`0041`) | `B3-3A-REPORT.md`, `VERIFY-B3.md` (PASS) |
-| B5-B | **Error tracking = Sentry**, DSN-gated (`@sentry/node` + `@sentry/vue`); no-op without a DSN | `apps/fs-pro-server/src/helpers/error-tracking.ts`, `2 vitest` |
+| B3-B/C | Client LOD map (`store/world-tiles.ts`, `world-tiles-map.vue`, SVG by design), whole-world `getAtlas` retired (0 callers), `/atlas/chrome` + `/atlas/search`, screenshots at every zoom, desktop + mobile | `B3-B-C-REPORT.md`, commit `7f48bb3` |
+| B4 | Cultures: 8 culture-keyed worldgen banks (2000 first + 2000 surnames + place/club/stadium patterns each), mix-aware, deny-list, collision 1.24% over 800k | `B4-CULTURES-REPORT.md`, commit `e6f1d93` |
+| B5-A | Crest resolution (API is the single source; legacy redirect), idempotent `launch-setup` script, formation balance (3-5-2 no longer dominant; goals 2.58) | `B5A-FORMATION-BALANCE.md`, commits `3bacbc0`, `d68f7e7`, `6bb0a8d` |
+| B5-B | Sentry error tracking, Postgres backup/restore + drill, client CSP, 1,000-concurrency load test | `B5B-OPS-REPORT.md`, commits `2bd1dd8`, `8675be6`, `c296a7a`, `4923086` |
 | B5 owner rulings | Legal skipped; existing production clubs retained (no empty world) | `DECISIONS.md` §G |
 
 ## 2. Numbers (before → after)
@@ -32,18 +35,17 @@ group — the run is **not** a complete Batches 0–6 pass.
 | Server vitest | (none) | 94 tests (92 + 2 Sentry) | `B2-2C-REPORT.md`, this run |
 | Client `vue-tsc` | **31 errors** | **31 errors** (unfixed) | `vue-tsc-baseline.log` |
 
-## 3. What did NOT ship (the honest part)
+## 3. Status of every batch item
 
 | Item | Status | Why |
 | --- | --- | --- |
-| **B3-B** client LOD renderer | **not done** | `world-map.vue`/`AtlasMap` are bound to the whole-world `Atlas`; a rewrite needs browser/fps verification. Tooling installed (Playwright + Chromium) but the app stack was not stood up to verify. |
-| **B3-C** retire `getAtlas` | **not done** | depends on 3B. |
-| **B4** cultures (8 name banks, look/identity, migration) | **not done** | large data + identity batch, not started. |
-| **B5-A** crest resolution, `launch-setup`, formation balance | **not done** | the three baseline metric faults (goals 3.21; 3-5-2 dominates; quality 47%) remain. |
-| **B5-B ops** backup/restore drill, client CSP, 1k-concurrency load test | **not done** | Sentry done; the rest not. |
+| **B3-B/C** client LOD map + `getAtlas` retirement | **DONE** | see §1; full-stack fps trace and DB-backed `/atlas/chrome|search` unverified (component verified with Playwright route mocks). |
+| **B4** cultures | **DONE** | see §1; Node is not yet wired to the new name kinds (GO-only batch). |
+| **B5-A** crest, `launch-setup`, formation balance | **DONE** | see §1. |
+| **B5-B ops** backup/restore, CSP, load test, Sentry | **DONE** | see §1. |
 | **B5 legal** | **skipped by owner** | no legal text authored. |
 | **B5-C empty world** | **resolved by owner** | keep existing clubs; no AI-spawn implementation needed. |
-| **B6** full re-run + Playwright + visual QA | **not done** | this report is a summary, not a verified release candidate. |
+| **B6** full re-run + Playwright + visual QA | **partial** | server tsc/vitest (99), client build, Go tests, and component screenshots pass on `perfect/integration`; a full-stack Playwright fps run and the 1M tile benchmark remain. |
 
 ## 4. Remaining risks
 

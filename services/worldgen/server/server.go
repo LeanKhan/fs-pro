@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"time"
 
 	"fs-pro-worldgen/faces"
 	"fs-pro-worldgen/names"
@@ -39,7 +40,9 @@ func NewServer() *Server {
 
 func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /health", s.handleHealth)
+	s.mux.HandleFunc("GET /cultures", s.handleCultures)
 	s.mux.HandleFunc("POST /names/generate", s.handleGenerateNames)
+	s.mux.HandleFunc("POST /names/mixed", s.handleMixedNames)
 	s.mux.HandleFunc("POST /names/family", s.handleFamilyNames)
 	s.mux.HandleFunc("GET /faces/generate", s.handleGenerateFace)
 }
@@ -72,8 +75,24 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 type generateNamesRequest struct {
 	Count int `json:"count"`
 	// ReturnParts is names.ReturnParts ("f_l", "f" or "l"); defaults to "f_l".
+	// Kept for the original callers; Kind supersedes it when both are set.
 	ReturnParts string `json:"returnParts"`
 	Culture     string `json:"culture"`
+	// Kind is one of first|last|full|club|region|city|district|stadium;
+	// defaults to full.
+	Kind string `json:"kind"`
+	// Country selects mix-aware generation (the country's demographic mix);
+	// when set, Culture is ignored.
+	Country string `json:"country"`
+	// Seed makes the result reproducible. Omitted or 0 = fresh random seed.
+	Seed *int64 `json:"seed"`
+}
+
+type mixedNamesRequest struct {
+	Count   int    `json:"count"`
+	Country string `json:"country"`
+	Kind    string `json:"kind"`
+	Seed    *int64 `json:"seed"`
 }
 
 type familyNamesRequest struct {
@@ -84,6 +103,17 @@ type familyNamesRequest struct {
 
 type namesResponse struct {
 	Names []string `json:"names"`
+	// Cultures is the per-culture histogram for mix-aware requests only.
+	Cultures map[string]int `json:"cultures,omitempty"`
+}
+
+func (s *Server) handleCultures(w http.ResponseWriter, _ *http.Request) {
+	infos, err := names.CultureInfos()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"cultures": infos})
 }
 
 func (s *Server) handleGenerateNames(w http.ResponseWriter, r *http.Request) {
@@ -91,23 +121,62 @@ func (s *Server) handleGenerateNames(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	if req.ReturnParts == "" {
-		req.ReturnParts = string(names.FirstAndLast)
-	}
 	if !validCount(w, req.Count) {
 		return
 	}
+	if req.Culture == "" && req.Country == "" {
+		writeError(w, http.StatusBadRequest, "culture or country is required")
+		return
+	}
+	kind := req.Kind
+	if kind == "" {
+		kind = req.ReturnParts
+	}
+	seed := seedFrom(req.Seed)
 
-	result := make([]string, 0, req.Count)
-	for i := 0; i < req.Count; i++ {
-		name, err := names.GenerateName(names.ReturnParts(req.ReturnParts), req.Culture)
+	if req.Country != "" {
+		result, dist, err := names.GenerateMixed(req.Country, names.Kind(kind), seed, req.Count)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		result = append(result, name)
+		writeJSON(w, http.StatusOK, namesResponse{Names: result, Cultures: dist})
+		return
+	}
+
+	result, err := names.GenerateUnique(req.Culture, names.Kind(kind), seed, req.Count)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 	writeJSON(w, http.StatusOK, namesResponse{Names: result})
+}
+
+func (s *Server) handleMixedNames(w http.ResponseWriter, r *http.Request) {
+	var req mixedNamesRequest
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	if req.Country == "" {
+		writeError(w, http.StatusBadRequest, "country is required")
+		return
+	}
+	if !validCount(w, req.Count) {
+		return
+	}
+	result, dist, err := names.GenerateMixed(req.Country, names.Kind(req.Kind), seedFrom(req.Seed), req.Count)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, namesResponse{Names: result, Cultures: dist})
+}
+
+func seedFrom(seed *int64) int64 {
+	if seed != nil && *seed != 0 {
+		return *seed
+	}
+	return time.Now().UnixNano()
 }
 
 func (s *Server) handleFamilyNames(w http.ResponseWriter, r *http.Request) {

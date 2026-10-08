@@ -11,9 +11,12 @@ import {
   tidyName,
   townSpotProblem,
   type Atlas,
+  type AtlasChrome,
   type AtlasClub,
   type AtlasCountry,
+  type AtlasMe,
   type AtlasRegion,
+  type AtlasSearchResult,
   type AtlasTown,
   type CrestDesign,
   type FoundCountry,
@@ -210,6 +213,7 @@ export async function getAtlas(userId?: string | null, opts: { countryId?: strin
       founded: await foundedCounts(userId),
       limits: { ...FOUNDING_LIMITS },
       clubIds: mine.map((c) => c.id),
+      home: await homeOf(userId),
     };
   }
 
@@ -224,6 +228,122 @@ export async function getAtlas(userId?: string | null, opts: { countryId?: strin
     unplaced: all ? unplaced : [],
     me,
   };
+}
+
+// --- Map chrome and search (docs/perfect/WORLD-HIERARCHY-SPEC.md §7.6) --------
+//
+// The zoomable map is served by bounded per-viewport tiles (the Go
+// world-service). A tile does not carry a country's founder-chosen flag
+// colours, nor the signed-in user's founding summary, and there is no
+// viewport-agnostic way to search. These two small endpoints supply exactly
+// that - they never return the whole atlas with its clubs (D2).
+
+/** The signed-in user's first active club's home, for the "my club" jump. */
+async function homeOf(userId: string): Promise<AtlasMe['home']> {
+  const [row] = await db()
+    .select({
+      clubId: clubs.id,
+      districtId: places.id,
+      cityId: places.ParentId,
+      x: places.MapX,
+      y: places.MapY,
+    })
+    .from(clubs)
+    .innerJoin(places, eq(places.id, clubs.DistrictId))
+    .where(and(eq(clubs.UserId, userId), isNull(clubs.ReleasedAt), isNotNull(places.MapX)))
+    .orderBy(clubs.createdAt)
+    .limit(1);
+  if (!row?.cityId || row.x === null || row.y === null) return null;
+  const [city] = await db().select({ countryId: places.ParentId }).from(places).where(eq(places.id, row.cityId));
+  if (!city?.countryId) return null;
+  return {
+    clubId: row.clubId,
+    districtId: row.districtId,
+    cityId: row.cityId,
+    countryId: city.countryId,
+    x: row.x,
+    y: row.y,
+  };
+}
+
+/** Country headers (spot + flag colours) and the user's founding summary. */
+export async function getAtlasChrome(userId?: string | null): Promise<AtlasChrome> {
+  const { countries } = await loadPlaces();
+  const founderIds = [...new Set(countries.map((p) => p.FoundedBy).filter((x): x is string => !!x))];
+  const founders = new Map(
+    founderIds.length
+      ? (await db().select({ id: users.id, name: users.FullName }).from(users).where(inArray(users.id, founderIds))).map(
+          (u) => [u.id, u.name] as [string, string]
+        )
+      : []
+  );
+
+  let me: AtlasChrome['me'] = null;
+  if (userId) {
+    const mine = await db().select({ id: clubs.id }).from(clubs).where(and(eq(clubs.UserId, userId), isNull(clubs.ReleasedAt)));
+    me = {
+      userId,
+      founded: await foundedCounts(userId),
+      limits: { ...FOUNDING_LIMITS },
+      clubIds: mine.map((c) => c.id),
+      home: await homeOf(userId),
+    };
+  }
+
+  return { countries: countries.map((p) => toCountry(p, founders)), me };
+}
+
+/** Find a place or club by name/code (map search). Bounded, public, indexable
+ * with a trigram index on the two names. */
+export async function searchAtlas(q: string): Promise<AtlasSearchResult[]> {
+  const term = `%${q.trim()}%`;
+  if (q.trim().length < 2) return [];
+
+  const placeRows = await db()
+    .select({
+      id: places.id,
+      name: places.Name,
+      code: places.Code,
+      type: places.Type,
+      countryId: sql<string | null>`CASE
+        WHEN ${places.Type} = 'country' THEN ${places.id}::text
+        WHEN ${places.Type} IN ('region', 'city') THEN ${places.ParentId}::text
+        ELSE (SELECT ci."ParentId"::text FROM "Places" AS ci WHERE ci."_id" = ${places.ParentId})
+      END`,
+      x: places.MapX,
+      y: places.MapY,
+    })
+    .from(places)
+    .where(and(isNotNull(places.MapX), sql`(${places.Name} ILIKE ${term} OR ${places.Code} ILIKE ${term})`))
+    .orderBy(sql`length(${places.Name})`)
+    .limit(10);
+
+  const clubRows = await db()
+    .select({
+      id: clubs.id,
+      name: clubs.Name,
+      code: clubs.ClubCode,
+      countryId: sql<string | null>`(SELECT ci."ParentId"::text FROM "Places" d JOIN "Places" ci ON ci."_id" = d."ParentId" WHERE d."_id" = ${clubs.DistrictId})`,
+      x: places.MapX,
+      y: places.MapY,
+    })
+    .from(clubs)
+    .innerJoin(places, eq(places.id, clubs.DistrictId))
+    .where(and(isNull(clubs.ReleasedAt), isNotNull(places.MapX), sql`(${clubs.Name} ILIKE ${term} OR ${clubs.ClubCode} ILIKE ${term})`))
+    .orderBy(sql`length(${clubs.Name})`)
+    .limit(10);
+
+  const results: AtlasSearchResult[] = [];
+  for (const p of placeRows) {
+    if (p.type !== 'country' && p.type !== 'region' && p.type !== 'city' && p.type !== 'district') continue;
+    if (p.x === null || p.y === null) continue;
+    results.push({ kind: p.type, id: p.id, name: p.name, code: p.code, countryId: p.countryId, x: p.x, y: p.y });
+  }
+  for (const c of clubRows) {
+    if (c.x === null || c.y === null) continue;
+    results.push({ kind: 'club', id: c.id, name: c.name, code: c.code, countryId: c.countryId, x: c.x, y: c.y });
+  }
+  return results;
 }
 
 // --- Names ------------------------------------------------------------------

@@ -24,13 +24,14 @@ Program of record: `FOR-AGENTS.md` (R1–R11, D1–D5, Batches 0–6).
 | B2 | 2E founding throughput | `perfect/b2-2e` (`67b4438`) | **merged** — D5 100k complete (31 ms/club) | `B2-2E-REPORT.md` |
 | B3 | 3A world-service tiles | `perfect/b3-3a` (`af938cf`) | **verified + merged** (`3ca16bd`) | `B3-3A-REPORT.md` |
 | B3 | verify 3A | `perfect/b3-verify` (`55d64a7`) | **PASS** (3 rounds; D2/D3/D5/D6/D10 fixed) | `VERIFY-B3.md` |
-| B3 | 3B client LOD map + 3C atlas retirement | — | **not done** (needs browser/fps verification) | — |
-| B4 | cultures (B4A/B/C) | — | **not done** | — |
-| B5 | 5A crest/launch-setup/formation | — | **not done** | — |
-| B5 | 5B error tracking | `perfect/integration` (`2bd1dd8`) | **done** — Sentry, DSN-gated | this run |
-| B5 | 5B ops (backup/CSP/load test) + 5 legal | — | **not done** (legal skipped by owner) | — |
+| B3 | 3B client LOD map + 3C atlas retirement | `perfect/b3-3c` (`7f48bb3`) | **done + merged** (`346f587`) | `B3-B-C-REPORT.md` |
+| B4 | cultures (worldgen, 8 cultures) | `perfect/b4-cultures` (`e6f1d93`) | **done + merged** (`bb74b96`) | `B4-CULTURES-REPORT.md` |
+| B5 | 5A crest/launch-setup/formation | `perfect/integration` | **done** (`3bacbc0`, `d68f7e7`, `6bb0a8d`) | `B5A-FORMATION-BALANCE.md` |
+| B5 | 5B error tracking | `perfect/integration` (`2bd1dd8`) | **done** — Sentry, DSN-gated | `B5B-OPS-REPORT.md` |
+| B5 | 5B ops (backup/restore, CSP, load test) | `perfect/integration` | **done** (`8675be6`, `c296a7a`, `4923086`) | `B5B-OPS-REPORT.md` |
+| B5 | 5 legal | skipped by owner | **not done** | `DECISIONS.md` §G |
 | B5 | 5C empty world | owner ruling | **resolved** — keep existing clubs, no AI spawn | `DECISIONS.md` §G |
-| B6 | release report | `perfect/integration` | **summary written, not a verified RC** | `RELEASE-REPORT.md` |
+| B6 | release report | `perfect/integration` | summary updated; final re-run pending B3/B4 | `RELEASE-REPORT.md` |
 
 `perfect/integration` is the run branch; B1, B2 (2A–2E), B3-3A and the B5B
 Sentry work are merged. See `RELEASE-REPORT.md` for what did **not** ship.
