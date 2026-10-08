@@ -40,6 +40,50 @@ explicit syllabus. **Mood: 4/5.**
 
 Plan: spend the board's V4M on the Owner's Program in order.
 
+---
+
+## Session 2 — 2026-10-08, ~11:45–12:10 UTC (Owner's office, Recruitment)
+
+Came back after a break and got the "While you were away — Squad rested"
+modal. That's the comeback beat working as intended; nice. Small annoyance:
+Escape doesn't dismiss it and the backdrop blocks the whole campus until you
+press "Let's go!".
+
+The "Manager" button on the dock opens an **Owner's office** drawer with six
+tabs: Matchday, The brief, Squad, Recruitment, Owner, Analysis. This is the
+depth screen I was hoping for. Recruitment is a real transfer market:
+Budget V4M, a "Request Board Funding" button, a transfer-window banner
+("open — closes in 2 days (day 471)"), My Offers with a season/history toggle,
+a Scouted Shortlist, search, All/Free Agents/Other Clubs filters, and a
+5,596-player table with Player · Position · Age · Rating · Origin/Club · Value ·
+Wage · Actions, paginated at 10/page.
+
+For an FM veteran this is the good stuff — rating chips, age, value, wage all
+visible. But three things jarred:
+
+1. **Test data in the live market.** The list included a player literally named
+   "HTTP PgTest" (DEF, 29, OVR **0**, V0, V0). It is a Postgres test fixture
+   leaking into the production market a player sees on day one. It reads as
+   "this build is unfinished".
+2. **Duplicate rows.** The same player (Drikumu Bloobraz, DEF 19 62 V416,000)
+   appeared twice in a single page of 10, as did Peebrubrai Mevra. It makes the
+   market look broken.
+3. **Empty state inconsistency.** A second visit showed "No players available"
+   in the same table where the first visit had 5,596 — I need to re-test whether
+   it's a race or a real intermittent bug.
+
+Also: the right-hand drawer means the Actions column (the eye / sign buttons)
+is clipped at 1440 wide and the table doesn't obviously scroll horizontally.
+The primary action is the one you can't see.
+
+**Mood: 3/5.** The ambition is right; the polish and number-hygiene are not yet
+FM-grade.
+
+_(Environment note: after this session WSL→Windows interop, which I need to
+drive Windows Node/Playwright, went down — every `cmd.exe` call returned
+`UtilAcceptVsock:271 accept4 failed 110`. I paused the playtest and retried.)_
+
+
 - [2026-10-08T11:25:17.969Z] Opened the client at http://localhost:4173; landed on http://localhost:4173/auth/login.
 - [2026-10-08T11:26:51.674Z] Opened the New manager registration form; reading the fields.
 - [2026-10-08T11:28:04.520Z] Registered p02mick; after submit url=http://localhost:4173/start.

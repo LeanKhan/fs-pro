@@ -63,7 +63,13 @@ exist at the money it gives you.
 **Mood: 2/5.** I started the Stands build step, then the WSL↔Windows interop used to drive the
 Windows-only Playwright browser died: `cmd.exe /c …` fails with
 `WSL … UtilAcceptVsock:271: accept4 failed 110` (host unreachable), so no further browser steps can run.
-This is an **environment** blocker, not a game finding. Waiting/retrying (a background watcher is
-polling); the Stands build, the facility completion, gate-fee income, level-up and any second session
-are still pending.
+This is an **environment** blocker, not a game finding. A background watcher retried for **75 minutes**
+(45 min + 30 min; `INTEROP_STILL_DOWN`); `cmd.exe` and `powershell.exe` both still fail. A fallback was considered and
+rejected: a Linux Chromium build and WSL Node do exist, but the client is bound to Windows
+`127.0.0.1:4173` (unreachable from WSL — `curl` → `000`) and the API host is not reachable via the WSL
+gateway either, so the harness cannot be run from WSL against this instance. Play stopped here.
+
+**Still pending when the outage hit:** the Stands/Ticket Booth build had just been initiated; its
+completion + timer, gate-fee income, the facility step of the Owner program, reaching Level 1/2, playing
+a match, the league table, and a second session were not observed.
 

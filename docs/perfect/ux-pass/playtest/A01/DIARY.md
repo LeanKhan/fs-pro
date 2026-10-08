@@ -61,6 +61,27 @@ survey of every admin screen before the outage, so the evidence above stands.
 
 ## Session 2 — [pending interop recovery] run the world, observe, moderate
 
+**Session 2 could not start.** The WSL→Windows interop outage (A01-12) was
+still total at 12:50Z — every `cmd.exe`, `powershell.exe` and `tasklist.exe`
+launched from WSL fails with `UtilAcceptVsock:271: accept4 failed 110`, so the
+Windows-Node Playwright harness cannot run. The only long-lived interop channel
+is another agent's leftover `p2b3c` dev-server `cmd.exe` (PID 74765, started
+06:03); all new launches time out. Starting a fresh Chrome from WSL is
+impossible and the production client binds Windows `127.0.0.1:4173` (not
+reachable from WSL — confirmed: the API on `:3010` answers 200 at the host IP
+but `:4173` refuses). This is an environment blocker for the whole playtest,
+not a game finding. A probe is running; if interop returns I will resume the
+calendar and observation work here.
+
+**Mood: 1/5** (blocked by tooling, not by the game).
+
+**Further:** the outage was unchanged at 13:59Z (interop down; API `/healthz`
+and `/api/*` still hang). I also stood up a Linux-side fallback (same
+production bundle + a proxy to the Windows host API, Linux Chromium) so the
+instance could be played without the Windows-Node harness — but it cannot help
+while the API's DB pipeline is stalled. No further UI play was possible; the
+admin's Session 1 evidence is the complete record.
+
 - [2026-10-08T11:59:19.469Z] Opened admin Competitions to confirm competitions exist.
 - [2026-10-08T12:03:49.421Z] Surveyed admin Clubs screen.
 - [2026-10-08T12:07:53.472Z] Surveyed admin Clubs screen.

@@ -20,7 +20,7 @@ guidance.**
 | Wall time to Level 1 | **not reached** |
 | Wall time to Level 2 | **not reached** (8-hour cap not the cause; interop outage was) |
 | Real play | ≈46 min across two sittings (11:24–11:43Z, 11:51–12:10Z) |
-| Stop reason | **blocked S1 (harness)** at the 12:10Z interop outage; logged |
+| Stop reason | **blocked S1 (harness)** by the global WSL→Windows interop outage (12:10Z; re-probed still down at 13:09Z). Logged per D5; not a game defect. A session 3 can resume from the preserved `state.json`. |
 
 Game clock at stop: Day 470 · Thu Dec 16 2027 (Year 8). Club **Skip FC**,
 Philamentia Central, Bellean. Bank V4.3M · Fans 150 · Squad 0/16 · First steps 0/4.

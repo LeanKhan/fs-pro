@@ -3,8 +3,26 @@
 Persona A01: admin, 1440x900 mouse. Instance: client `http://localhost:4173`,
 API `:3010` (INSTANCE-LOG.md). Sessions with breaks per D4.
 
-> Status: DRAFT — this file is finalised when the pass ends. See DIARY.md and
-> ISSUES.md for the running evidence.
+> Status: Session 1 complete (all admin screens surveyed, D3 verified).
+> Session 2 (run the calendar / observe / moderate) is **blocked by an
+> environment failure** — A01-12: WSL→Windows interop is down, so the
+> Windows-Node Playwright harness cannot run. See DIARY.md. The findings below
+> are all from Session 1 and are fully evidenced.
+
+## Pass outcome (A01)
+
+- **Stopped by instance/tooling failure, not by the game.** From 12:10Z the
+  WSL→Windows interop died (`UtilAcceptVsock accept4 failed 110`), and from
+  ~13:20Z the Windows API also stalled on all DB-backed routes (`/healthz`,
+  `/api/*` hang; `/` answers). A Linux-side fallback (same production bundle +
+  host proxy) was prepared but is useless while the API is stalled.
+- **Admin job status:** D3 clock/settings verified and competitions confirmed
+  (the setup half of the brief) **done and evidenced**. The continuous
+  run-the-calendar / observe-players / moderate half **could not be exercised**.
+- **12 issues** reported: 1 × S2 (Managers screen error), 10 × S3/S4 (admin
+  flow, header state loss, "undefinedd", missing time-scale, ambiguous save
+  feedback, no moderation tools, empty League column, dead console Home, club
+  placeholder), 1 × S1 environment blocker (A01-12).
 
 ## Level reached and when
 

@@ -88,7 +88,14 @@ line, don't read.
 - [12:20Z] Last screenshot `error.png`; the run hung in the a11y snapshot and
   was killed by the shell timeout. Recovered state.json so the next session
   stays logged in.
-- [12:30Z] Started a background interop probe; documented findings while
-  waiting.
-- [pending] Resume session 3 when interop returns: finish the owner program,
-  push toward Level 2, and re-check P04-04 (manager hire) and P04-01 (home).
+- [12:30Z] Started a background interop probe (30 s poll); documented findings
+  while waiting.
+- [13:09Z] Probe finished: **still down after 30 min** (outage ≈1 h). No
+  playtest artifact anywhere in `ux-pass/playtest/` has been written since
+  12:35Z — every Windows-Node persona is blocked. No lead fix recorded in
+  INSTANCE-LOG §7. **Stopped per D5** ("truly blocked by an S1, log it, stop"),
+  not at Level 2. Account `p04skipper` / `state.json` preserved, so a session 3
+  can resume if interop is restored:
+  - finish "hire a manager" and the rest of the owner program to **Level 2**;
+  - re-check P04-04 (manager hire route) and P04-01 (home vs founded town);
+  - time a build and a match, and find the league table.

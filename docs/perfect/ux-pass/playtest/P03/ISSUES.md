@@ -31,9 +31,16 @@ Screenshots are under `playtest/P03/screenshots/`.
 
 - P03-01, -02, -03, -04, -05, -06, -07, -09 are directly evidenced by screenshots.
 - P03-08 (moving chip): the failed normal click is in the trace
-  `traces/trace-2026-10-08T11-37-11-550Z.zip`; a two-still motion capture is pending (blocked by an
-  environment outage — see DIARY).
-- P03-10: the "Budget after" value was read once; a contract-length sweep was planned to confirm it is
-  invariant (pending environment).
+  `traces/trace-2026-10-08T11-37-11-550Z.zip`; a two-still motion capture was prepared
+  (`steps/20-chip-build.mjs`) but could not run before the environment outage (below).
+- P03-10: the "Budget after" value was read once; a contract-length sweep to confirm it is invariant was
+  prepared but could not run before the outage.
 - P03-11: award split (+9 then +3) observed but the exact XP-per-action rule was not documented in-game
   (no tooltip found); reported as an ambiguity.
+
+## Environment outage (not a game issue, does not count toward the pass)
+
+From **12:18Z** the WSL↔Windows interop that runs the Windows-only Playwright harness failed
+(`cmd.exe /c …` → `WSL … UtilAcceptVsock:271: accept4 failed 110`), and stayed down through a 45-minute
+retry window. No further evidence could be captured. Pending screenshots/verifications above are blocked
+by this, not by the game. `DIARY.md` § "Session 2" has the detail.

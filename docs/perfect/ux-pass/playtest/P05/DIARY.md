@@ -83,7 +83,47 @@ sense — the game world kept ticking (Day advanced).*
 
 *Break 12:11–12:18Z: another interop gap. Resumed 12:18Z.*
 
-## Session 3 — 12:18Z– … (in progress)
+## Session 3 — 12:18Z– … (interrupted)
 
-- 12:21 Signed a manager by keyboard; continuing through Squad → Facilities →
-  Level 1. (Details appended below.)
+- 12:21 Attempted to sign a manager. The program screen was still loading
+  ("Opening the owner's program…"), so my first two attempts to Tab to a Sign
+  button found nothing (focus stayed on `body`).
+- 12:22 With a proper wait for the manager search box, I reached "Sign this
+  manager" and pressed Enter. Screenshot `23-sign-confirm.png`.
+- 12:28–12:31 Used the same screenshots to measure pixel contrast objectively
+  (pure-Python PNG sampler). Good news: campus HUD, manager-card text and body
+  copy are all ≥ 6:1. Two low spots: the inactive Owner's-Program step
+  subtitles (3.38:1) and the disabled "Create account" label (2.38:1).
+- 12:31 **HOST OUTAGE.** Every Windows-interop call (`cmd.exe`, `powershell.exe`,
+  absolute paths) began failing with
+  `WSL (…): ERROR: UtilAcceptVsock:271: accept4 failed 110`. Because the repo's
+  `node_modules` is win32-native, I cannot launch Playwright at all. I kept
+  polling every ~30–60 s; still failing at 14:02Z (~90 min). Logged as an
+  environment blocker, not a game issue.
+
+### Workaround attempt (13:58Z–14:05Z)
+
+Rather than just wait, I checked whether I could drive the *same* client from
+WSL without Windows interop:
+
+- `curl http://localhost:4173` from WSL returned **200** (WSL's Windows
+  localhost relay works and does not depend on the broken vsock interop).
+- WSL has a Linux Node 24 and a cached Linux Chromium
+  (`~/.cache/ms-playwright/chromium-1243`). I installed `playwright-core@1.55`
+  in `/tmp/opencode/pw05`, extracted the missing shared libraries
+  (`libnspr4`/`libnss3`/`libasound2t64`) into a local sysroot, and launched
+  Chromium against `http://localhost:4173`.
+- **Result:** the client shell loads (title "FSPro", the login screen renders),
+  but **every `/api/` request fails** — `net::ERR_SOCKET_NOT_CONNECTED` /
+  `ERR_CONNECTION_RESET` to `http://localhost:3010/...`. From WSL, only 4173
+  (bound `127.0.0.1`) is reachable; every other service — 3010, 3011, 3016,
+  3005, 3004, 5050 (`0.0.0.0`-bound) — returns connection-refused. So the
+  workaround cannot run the game either: the app cannot log in without the API.
+- This is consistent with either (a) the API being down after the host
+  event, or (b) WSL only relaying `127.0.0.1`-bound Windows services and
+  Windows Firewall blocking the host-IP route for `0.0.0.0`-bound ones. I
+  cannot distinguish (a) from (b) without Windows access, so the lead should
+  check the API process on 3010 first.
+
+**Stop: D5 environment block.** The instance's UI is unreachable from the only
+tooling I have; I logged everything reachable and stopped. No Level 1/2.

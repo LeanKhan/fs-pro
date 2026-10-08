@@ -13,4 +13,12 @@ Desktop (or the machine). Logged in `INSTANCE-LOG.md §7`.
 Before the outage the wave-1 playtesters captured **53 issues** (1×S1, 9×S2,
 36×S3, 7×S4) and **156 screenshots**; those reports stand.
 
+**Follow-up diagnosis (lead, 12:xxZ):** from WSL, `http://localhost:4173/`
+returns **200** (WSL shares Windows loopback), but `:3010`, `:3016` are
+**refused** — the `0.0.0.0`-bound services are either **down** or blocked for
+the WSL→host route. Restarting them needs interop, so both must be restored by
+the operator. A Linux Chromium *is* installed (`~/.cache/ms-playwright`) as a
+possible fallback, but it cannot reach the API while the API is unreachable.
+P05 logged 16 issues (3×S2, 6×S3, 7×S4).
+
 _Everything else is ruled in `DECISIONS.md`._
