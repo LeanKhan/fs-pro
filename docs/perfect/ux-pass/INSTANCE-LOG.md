@@ -90,7 +90,7 @@ REM -> admin created; Amateur Cup edition already live
 | - | ------- | ---- | ---- | --- | ------ | --------------------- |
 | 1 | Go `worldgen` | 3004 | 127.0.0.1 | 52084 | `.playtest-runtime\run-worldgen.bat` | `WORLDGEN_SERVICE_PORT=3004` |
 | 2 | Go `world-service` | 3016 | 127.0.0.1 | 53004 | `run-world-service.bat` | `WORLD_SERVICE_PORT=3016`, `DATABASE_URL=.../fspro_playtest`, `LOG_LEVEL=info` |
-| 3 | Rust engine + Go `sim-service` | 5050 | 127.0.0.1 | 20712 | `run-sim.bat` | `PORT=5050`, `SIM_CORE_DLL_PATH=C:\done\fs-pro\.playtest-runtime\sim_core.dll` (R9 copy) |
+| 3 | Rust engine + Go `sim-service` | 5050 | 127.0.0.1 | 31292 | `run-sim.bat` | `PORT=5050`, `SIM_CORE_DLL_PATH=C:\done\fs-pro\.playtest-runtime\sim_core.dll` (R9 copy of the **rebuilt** `crates/sim-core/target/release/sim_core.dll`) |
 | 4 | Go `realtime` gateway | 3005 | 0.0.0.0 | 15532 | `run-realtime.bat` | `REALTIME_PORT=3005`, `REALTIME_SECRET=fs-pro-playtest-realtime-secret` |
 | 5 | Node API (web) | 3010 | 0.0.0.0 | 50360 | `run-api-web.bat` | `NODE_ENV=dev`, `ROLE=web`, `DATABASE_URL`, `WORLD_SERVICE_URL=http://localhost:3016`, `WORLDGEN_SERVICE_URL=http://localhost:3004`, `SIM_SERVICE_URL=http://localhost:5050`, `REALTIME_URL=http://localhost:3005`, `REALTIME_SECRET=...`, `GAME_TIME_SCALE=4`, `RATE_LIMIT=off`, `FSPRO_CLIENT_URL=http://localhost:4173` |
 | 6 | Node API (worker) | 3011 | 0.0.0.0 | 30784 | `run-api-worker.bat` | same as #5 but `PORT=3011`, `ROLE=worker` |
@@ -207,6 +207,26 @@ Test credentials only; they live in the scratch DB.
 - R9: the sim engine locks `sim_core.dll` via `LoadLibrary`, so `run-sim.bat`
   points `SIM_CORE_DLL_PATH` at a copy in `.playtest-runtime/sim_core.dll`,
   leaving the repo's `services/sim-service/sim_core.dll` unlocked.
+
+### 6.1 **Blocker found and fixed: the shipped `sim_core.dll` was stale**
+
+`services/sim-service/sim_core.dll` (430,080 bytes) is an **old build**: it
+serializes the match payload as `match_data`, while the current Rust source
+(`crates/sim-core/src/contract.rs:331` `#[serde(rename = "match")]`) and the
+Node `jobs/matchQueue.ts` expect `match`. With the stale DLL every match came
+back HTTP 200 `{"ok":true,"match_data":...}` with no `match`, so
+`simulateMatch` failed with *"sim service rejected the match (HTTP 200: no match
+in response)":* **0/20** matches served and no fixture could be played
+(AI or player) — an S1-functional blocker.
+
+Fixed in setup (no source changed): `cargo build --release` in
+`crates/sim-core` produces the current `target/release/sim_core.dll`
+(712,704 bytes, sha256 `1b2eb1e1…`); I stopped the sim service, copied that DLL
+to `.playtest-runtime/sim_core.dll` (matching shas), and restarted it. Verified
+`services/../simServiceE2E.ts`: **20/20 served by the Rust engine, 2.50
+goals/match, 0 problems**, and the world tick now plays fixtures
+(`[world] 4 match(es)`). The repo's stale DLL is left untouched; the lead should
+flag replacing it on the branch (a shipped-binary issue, not a code change).
 - Sentry off (`SENTRY_DSN` unset). Email verification not required
   (`REQUIRE_VERIFIED_EMAIL` unset). Rate limiting off (`RATE_LIMIT=off`).
 - The client is the **production** bundle served by `vite preview`
@@ -235,12 +255,19 @@ Test credentials only; they live in the scratch DB.
 | 11:07 | Calendar verified ticking | `CurrentHour` advanced, `LastTickAt` updating; facilities sweep ran (`14 upgrades completed`) |
 | 11:08 | Smoke test | register → found → campus 1440×900 + 390×844, PASS |
 | 11:09 | Delete throwaway account+club | one transaction; `Clubs` 50, throwaway user 0 |
+| 11:12 | Verified A01 admin login | `POST /api/users/login` `playtestadmin` → HTTP 200, `isAdmin:true` |
+| 11:14 | **Found S1: stale `sim_core.dll`** | repo DLL serialized `match_data`; `/sim/match` never returned `match`; 20/20 E2E and all world matches rejected |
+| 11:15 | Rebuilt Rust core + swapped DLL | `cargo build --release`; copied `crates/sim-core/target/release/sim_core.dll` (sha `1b2eb1e1…`) to `.playtest-runtime`; killed stale sim (20712), restarted (PID 31292) |
+| 11:16 | Verified sim engine | `simServiceE2E.ts`: **20/20** Rust, 2.50 goals/match, 0 problems |
+| 11:19 | Verified world plays fixtures | worker `[world] 4 match(es)`; DB fixtures Played 3374/3847 |
 
 ---
 
 ## 8. Blockers / notes for the lead
 
-- **No hard blocker.** All seven services are up and reachable.
+- **No open blocker.** All seven services are up and reachable. One S1 was
+  found and fixed during setup: the shipped `sim_core.dll` was stale and
+  rejected every match (see §6.1) — the fix is a rebuilt DLL, no source change.
 - Two stale dev stacks had to be stopped (logged above); D8 authorises this.
 - A second Node API (`ROLE=worker`, 3011) runs the world clock. It is required
   because the briefed `ROLE=web` instance cannot tick. Keep both running.
