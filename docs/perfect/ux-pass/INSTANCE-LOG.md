@@ -207,6 +207,10 @@ Test credentials only; they live in the scratch DB.
 - R9: the sim engine locks `sim_core.dll` via `LoadLibrary`, so `run-sim.bat`
   points `SIM_CORE_DLL_PATH` at a copy in `.playtest-runtime/sim_core.dll`,
   leaving the repo's `services/sim-service/sim_core.dll` unlocked.
+- Sentry off (`SENTRY_DSN` unset). Email verification not required
+  (`REQUIRE_VERIFIED_EMAIL` unset). Rate limiting off (`RATE_LIMIT=off`).
+- The client is the **production** bundle served by `vite preview`
+  (`npm run serve`, the repo's script name is `serve`, not `preview`).
 
 ### 6.1 **Blocker found and fixed: the shipped `sim_core.dll` was stale**
 
@@ -223,14 +227,10 @@ Fixed in setup (no source changed): `cargo build --release` in
 `crates/sim-core` produces the current `target/release/sim_core.dll`
 (712,704 bytes, sha256 `1b2eb1e1…`); I stopped the sim service, copied that DLL
 to `.playtest-runtime/sim_core.dll` (matching shas), and restarted it. Verified
-`services/../simServiceE2E.ts`: **20/20 served by the Rust engine, 2.50
-goals/match, 0 problems**, and the world tick now plays fixtures
-(`[world] 4 match(es)`). The repo's stale DLL is left untouched; the lead should
-flag replacing it on the branch (a shipped-binary issue, not a code change).
-- Sentry off (`SENTRY_DSN` unset). Email verification not required
-  (`REQUIRE_VERIFIED_EMAIL` unset). Rate limiting off (`RATE_LIMIT=off`).
-- The client is the **production** bundle served by `vite preview`
-  (`npm run serve`, the repo's script name is `serve`, not `preview`).
+`simServiceE2E.ts`: **20/20 served by the Rust engine, 2.50 goals/match, 0
+problems**, and the world tick now plays fixtures (`[world] 4 match(es)`). The
+repo's stale DLL is left untouched; the lead should flag replacing it on the
+branch (a shipped-binary issue, not a code change).
 
 ---
 
