@@ -1,16 +1,14 @@
 <template>
   <div class="cozy found">
-    <atlas-map
-      v-if="atlas"
+    <world-tiles-map
       ref="mapRef"
-      :atlas="atlas"
       :selected="mapSelection"
       :pending="pendingSpot"
       :focus-country-id="placement?.country?.id ?? null"
-      :my-club-ids="myClubIds"
+      :my-club-ids="tiles.myClubIds"
       :insets="insets"
     />
-    <div v-else class="found-loading">{{ loadError || 'Unrolling the map…' }}</div>
+    <div v-if="!tiles.ready" class="found-loading">{{ loadError || tiles.error || 'Unrolling the map…' }}</div>
 
     <header class="found-head">
       <div class="found-title">
@@ -189,19 +187,19 @@ import {
   nameProblem,
   randomCrest,
   suggestCode,
-  type Atlas,
   type CrestDesign,
   type FoundedClub,
   type Placement,
   type TownTerrain,
 } from '@repo/api-contract';
-import AtlasMap, { type AtlasPick } from '@/components/atlas/atlas-map.vue';
+import WorldTilesMap, { type AtlasPick } from '@/components/atlas/world-tiles-map.vue';
 import CrestDesigner from '@/components/atlas/crest-designer.vue';
 import { TERRAINS, TERRAIN_LABEL } from '@/components/atlas/terrains';
 import { icon } from '@/components/cozy/icons';
 import { client } from '@/services/api';
 import { useStore } from '@/store';
 import { unwrap } from '@/store/open-play';
+import { useWorldTilesStore } from '@/store/world-tiles';
 import '@/components/cozy/cozy.scss';
 
 /**
@@ -224,11 +222,11 @@ const router = useRouter();
 const route = useRoute();
 const store = useStore();
 store.getUser();
+const tiles = useWorldTilesStore();
 
-const atlas = ref<Atlas | null>(null);
 const placement = ref<Placement | null>(null);
 const loadError = ref('');
-const mapRef = ref<InstanceType<typeof AtlasMap> | null>(null);
+const mapRef = ref<InstanceType<typeof WorldTilesMap> | null>(null);
 const step = ref<Step>('home');
 const busy = ref(false);
 const formError = ref('');
@@ -263,7 +261,6 @@ const firstClubId = computed(() => {
   return typeof c === 'string' ? c : (c as { _id?: string } | undefined)?._id;
 });
 const hasClub = computed(() => !!firstClubId.value);
-const myClubIds = computed(() => new Set(atlas.value?.me?.clubIds ?? []));
 
 const townName = computed(() => placement.value?.town?.name ?? (newTown.name.trim() || 'Town'));
 const whereLine = computed(() => {
@@ -274,8 +271,10 @@ const whereLine = computed(() => {
   return [townName.value, region, country].filter(Boolean).join(', ');
 });
 const pendingSpot = computed(() => (placement.value && placement.value.kind !== 'town' ? { x: placement.value.x, y: placement.value.y } : null));
+/** Highlight the placed city: migration 0038 renamed the old town level to
+ * city, and the map's z3 markers are cities. */
 const mapSelection = computed<AtlasPick | null>(() =>
-  placement.value?.town ? { kind: 'town', id: placement.value.town.id } : null
+  placement.value?.town ? { kind: 'city', id: placement.value.town.id } : null
 );
 
 /** What's wrong with the new place names, if anything. */
@@ -327,12 +326,11 @@ async function loadPlacement() {
   placement.value = unwrap<Placement>(await client.atlas.getPlacement.query({ query: { invite } }));
 }
 
-async function loadAtlas() {
-  try {
-    atlas.value = unwrap<Atlas>(await client.atlas.getAtlas.query({ query: { countryId: placement.value?.country?.id } }));
-  } catch (err) {
-    loadError.value = err instanceof Error ? err.message : String(err);
-  }
+/** The world-service tiles are the map source (the whole-world atlas is
+ * retired, WORLD-HIERARCHY-SPEC §7); chrome carries the country colours. */
+function loadMap() {
+  tiles.reset();
+  void tiles.loadChrome();
 }
 
 function focusHome() {
@@ -403,9 +401,10 @@ async function submitClub() {
     done.value = founded;
     const ids = (store.user.clubs ?? []).map((c) => (typeof c === 'string' ? c : (c as { _id: string })._id));
     store.setUser({ ...store.user, clubs: [founded.clubId, ...ids.filter((id) => id !== founded.clubId)] });
-    await loadAtlas();
-    const town = atlas.value?.towns.find((t) => t.id === founded.town.id);
-    if (town) mapRef.value?.focusPoint(town.x, town.y, 220);
+    // The new club is in a tile the client already holds; refetch the view so
+    // it appears, and frame the spot we founded at.
+    tiles.invalidate();
+    setTimeout(() => mapRef.value?.focusPoint(p.x, p.y, 160), 60);
     say(`${founded.town.name} welcomes ${clubForm.name.trim()}!`);
   } catch (err) {
     formError.value = err instanceof Error ? err.message : String(err);
@@ -428,7 +427,7 @@ onMounted(async () => {
   } catch (err) {
     loadError.value = err instanceof Error ? err.message : String(err);
   }
-  await loadAtlas();
+  loadMap();
   focusHome();
   window.addEventListener('resize', onResize);
 });

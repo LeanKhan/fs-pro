@@ -30,7 +30,7 @@
           <template v-slot:prepend>
             <v-avatar>
               <v-img
-                :src="`${apiUrl}/img/clubs/logos/${item.ClubCode}.png`"
+                :src="crestUrl(item.ClubCode)"
                 width="40px"
               ></v-img>
             </v-avatar>
@@ -81,6 +81,7 @@ import { useRouter } from 'vue-router';
 import { useStore } from '@/store';
 import type { Club } from '@repo/api-contract';
 import { apiUrl } from '@/store';
+import { crestUrl } from '@/helpers/crest';
 interface Props {
   clubs: Club[];
   loading?: boolean;
