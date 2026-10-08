@@ -61,6 +61,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import type { CampusBuilding, Placed } from '@repo/api-contract';
+import { formatVillaCompact } from '@repo/api-contract';
 import { formatClock } from '@/composables/use-club-game';
 import { useStore } from '@/store';
 import { icon } from './icons';
@@ -110,7 +111,8 @@ const advisorClubId = computed(() => {
   return clubs.some((c) => (typeof c === 'string' ? c === id : c._id === id)) ? id : null;
 });
 let raf = 0;
-const short = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e4 ? `${Math.floor(n / 1e3)}k` : Math.floor(n).toLocaleString('en-US'));
+// The collector bubble shows money: use the shared Villa formatter (L13).
+const short = (n: number) => formatVillaCompact(n);
 
 onMounted(() => {
   const w = new World(stageEl.value!, props.variant);

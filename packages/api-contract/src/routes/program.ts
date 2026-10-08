@@ -13,6 +13,7 @@ import {
   ProgramSignResultSchema,
   ProgramStateSchema,
 } from '../schemas/program';
+import { ProgramAdvisorStateSchema, ProgramTipResponseSchema } from '../schemas/program-service';
 
 const c = initContract();
 
@@ -58,6 +59,32 @@ export const programContract = c.router(
       pathParams: z.object({ clubId: z.string(), tipId: z.string() }),
       body: z.object({}).optional(),
       responses: { 200: successEnvelope(ProgramDismissTipSchema), ...errors },
+    },
+
+    /**
+     * The one highest-priority eligible contextual advisor tip
+     * (OWNER-PROGRAM-SPEC §4; PROGRAM-SERVICE-CONTRACT §6). Node is a thin
+     * proxy: it re-derives the club's `StepFacts` from the DB and forwards the
+     * owner's advisor memory to the pure Go `POST /program/tip` engine, so the
+     * tip rules stay the single source of truth (L9). The client's advisor
+     * store (components/cozy/advisor/use-advisor.ts) is the only caller.
+     */
+    tip: {
+      method: 'POST',
+      path: '/:clubId/tip',
+      pathParams: z.object({ clubId: z.string() }),
+      body: ProgramAdvisorStateSchema.extend({
+        now: z.number(),
+        /** Session events the DB cannot know (optional; the server derives
+         * `playBlocked` from the PLAY-gate ledger when omitted). */
+        events: z
+          .object({
+            playBlocked: z.boolean().optional(),
+            sessionMinutes: z.number().optional(),
+          })
+          .optional(),
+      }),
+      responses: { 200: successEnvelope(ProgramTipResponseSchema), ...errors },
     },
 
     /** Browse the seeded manager pool; attributes masked to scouted ranges. */

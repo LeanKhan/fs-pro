@@ -255,7 +255,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@tanstack/vue-query';
 import {
   CAMPUS_GRID, footprint, validatePlacement,
-  type CampusBuilding, type CampusPlacement, type Matchday, type MatchdayFixture, type Placed, type TransferWindow, type WorldFeed,
+  type CampusBuilding, type CampusPlacement, type Matchday, type MatchdayFixture, type Placed, type ProgramState, type TransferWindow, type WorldFeed,
 } from '@repo/api-contract';
 import { client, apiUrl } from '@/services/api';
 import { sfx } from '@/services/sfx';
@@ -363,9 +363,11 @@ const isMyClub = computed(() => {
 
 const treasury = computed(() => playState.value?.club.budget ?? club.value?.Budget ?? 0);
 
-// --- The owner program entry (phase-2 OWNER-PROGRAM-SPEC) ---------------------------------
-// The server owns the step; the campus only offers a way in while it runs.
-const programStep = ref<string | null>(null);
+// --- The owner program (phase-2 OWNER-PROGRAM-SPEC, L8) ----------------------
+// The server owns the step, the stars and the XP; the campus only offers a way
+// in while it runs. This is the guided start, and it replaced the device-local
+// `fspro_steps_<id>` first steps, so every device sees the same program.
+const programState = ref<ProgramState | null>(null);
 const PROGRAM_STEP_HINT: Record<string, string> = {
   not_started: 'Your opening balance is ready',
   manager: 'Hire your first manager',
@@ -373,20 +375,40 @@ const PROGRAM_STEP_HINT: Record<string, string> = {
   facilities: 'Build a Tier-1 facility',
   level1: 'Reach Level 1 to join a league',
 };
+/** The four server program steps, as the HUD checklist renders them. The
+ * `p-` key prefix keeps them from colliding with the dock/hub actions. */
+const PROGRAM_HUD_STEPS: { key: string; label: string; hint: string; icon: string }[] = [
+  { key: 'manager', label: 'Sign a manager', hint: 'Interview, then hire', icon: 'people' },
+  { key: 'players', label: 'Build a squad', hint: 'Eleven and a keeper', icon: 'bag' },
+  { key: 'facilities', label: 'Build a facility', hint: 'Start with one Tier 1', icon: 'hammer' },
+  { key: 'level1', label: 'Reach Level 1', hint: 'Win qualifying friendlies', icon: 'trophy' },
+];
+const PROGRAM_STEP_ORDER: Record<string, number> = { not_started: -1, manager: 0, players: 1, facilities: 2, level1: 3, done: 4 };
 async function loadOwnerProgram() {
   if (!isMyClub.value || !clubId.value) {
-    programStep.value = null;
+    programState.value = null;
     return;
   }
   try {
-    programStep.value = (await fetchProgramState(clubId.value)).step;
+    programState.value = await fetchProgramState(clubId.value);
   } catch {
-    programStep.value = null;
+    programState.value = null;
   }
 }
 watch([isMyClub, clubId], loadOwnerProgram, { immediate: true });
-const programActive = computed(() => !!programStep.value && !['done'].includes(programStep.value));
+const programStep = computed(() => programState.value?.step ?? null);
+const programActive = computed(() => !!programStep.value && programStep.value !== 'done');
 const programChipHint = computed(() => PROGRAM_STEP_HINT[programStep.value ?? ''] ?? 'Your guided start');
+/** The HUD checklist is the server program, not a device-local flag (L8). */
+const firstSteps = computed(() => {
+  if (!isMyClub.value || !programActive.value) return null;
+  const step = programStep.value!;
+  const stars = programState.value?.stepStars ?? {};
+  const at = PROGRAM_STEP_ORDER[step] ?? 0;
+  return PROGRAM_HUD_STEPS.map((s, i) => ({ ...s, key: `p-${s.key}`, done: !!stars[s.key] || at > i }));
+});
+/** Where the onboarding pointer sits: the current server program step. */
+const coach = computed(() => (programActive.value ? `p-${programStep.value}` : null));
 function openProgram() {
   router.push(`/game/${clubId.value}/program`);
 }
@@ -499,7 +521,6 @@ function openLeague(tab = 0) {
   selectedKey.value = null;
   drawerTab.value = tab;
   drawer.value = 'league';
-  markStep('league');
 }
 
 // --- The club shop: the campus's gold mine (docs/CORE-LOOP.md) ----------------------------
@@ -517,7 +538,6 @@ async function collect() {
   sfx.play('collect');
   campusRef.value?.burst('stands', 'coins');
   flyCoins(from, amount);
-  markStep('collect');
 }
 
 /** Coins arc from the Stands into the treasury chip, with a floating "+amount". */
@@ -742,7 +762,6 @@ function openPrep(fixtureId: string) {
 }
 function onPlanSaved() {
   matchdayKey.value++;
-  markStep('prep');
 }
 
 function startBooking() {
@@ -997,6 +1016,8 @@ watch(
 
 function onAct(action: string) {
   if (action.startsWith('move-')) return onMoveAct(action);
+  // The owner-program checklist (server-backed, L8) opens the program screens.
+  if (action.startsWith('p-')) return openProgram();
   switch (action) {
     case 'build': return (showBuild.value = true);
     case 'move': return startMove();
@@ -1072,50 +1093,9 @@ watch(
   { immediate: true }
 );
 
-// --- First steps for a young club ----------------------------------------------------------------
-/** One-off onboarding steps done on this device, per club. */
-const stepFlags = ref<Record<string, boolean>>({});
-watch(
-  clubId,
-  (id) => {
-    try {
-      stepFlags.value = JSON.parse(localStorage.getItem(`fspro_steps_${id}`) || '{}');
-    } catch {
-      stepFlags.value = {};
-    }
-  },
-  { immediate: true }
-);
-function markStep(key: string) {
-  if (stepFlags.value[key]) return;
-  stepFlags.value = { ...stepFlags.value, [key]: true };
-  try {
-    localStorage.setItem(`fspro_steps_${clubId.value}`, JSON.stringify(stepFlags.value));
-  } catch {
-    // Private mode: the step just stays open.
-  }
-}
-
-const firstSteps = computed(() => {
-  if (!isMyClub.value || (playState.value?.club.level ?? 0) > 2) return null;
-  const assets = game.campus.value?.assets ?? [];
-  const steps = [
-    { key: 'collect', label: 'Collect your shop takings', hint: 'Tap the coins over your Stands', icon: 'coins', done: !!stepFlags.value.collect },
-    { key: 'play', label: 'Play your first match', hint: 'Press PLAY: you meet a club of your level', icon: 'ball', done: (playState.value?.recent.length ?? 0) > 0 },
-    {
-      key: 'prep',
-      label: 'Plan your next match',
-      hint: 'Tap your next match: pick the XI, the style and half-time orders',
-      icon: 'bag',
-      done: !!stepFlags.value.prep || !!matchday.value?.upcoming.some((f) => f.planSet) || (!!matchday.value && !nextUp.value),
-    },
-    { key: 'build', label: 'Build a facility', hint: 'Stands earn gate money; a pitch helps at home', icon: 'hammer', done: assets.some((a) => a.level > 0 || !!a.upgrade) },
-    { key: 'league', label: 'Check your league', hint: 'Your division, the table and your next fixture', icon: 'trophy', done: !!stepFlags.value.league || !playState.value?.league },
-  ];
-  return steps.every((s) => s.done) ? null : steps;
-});
-/** Where the onboarding pointer sits: the first step not done yet. */
-const coach = computed(() => firstSteps.value?.find((s) => !s.done)?.key ?? null);
+// The device-local first steps (`fspro_steps_<id>`) were replaced by the
+// server-backed program checklist above (L8); `firstSteps`/`coach` now come
+// from `fetchProgramState`.
 
 // --- Kept from the previous campus screen ---------------------------------------------------
 const FORMATION_LABELS: Record<string, string> = { '433': '4-3-3', '442': '4-4-2', '4231': '4-2-3-1', '352': '3-5-2' };

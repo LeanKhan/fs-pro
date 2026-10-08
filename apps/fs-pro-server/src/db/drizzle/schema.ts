@@ -587,9 +587,16 @@ export const ownerProgram = pgTable(
     ProgramXp: integer('ProgramXp').notNull().default(0),
     /** The V1M-V5M draw at founding; the manager step measures fee against it. */
     StartingBalance: real('StartingBalance').notNull().default(0),
-    /** Browsed managers, interviewed managers and scouted players. */
+    /** Browsed managers, interviewed managers and scouted players, plus the
+     * last PLAY-gate refusal (for the advisor's `tip.play.gate`). */
     Scout: jsonb('Scout')
-      .$type<{ managerIdsBrowsed?: string[]; interviewedManagerIds?: string[]; scoutedPlayerIds?: string[] }>()
+      .$type<{
+        managerIdsBrowsed?: string[];
+        interviewedManagerIds?: string[];
+        scoutedPlayerIds?: string[];
+        /** Epoch ms of the last illegal PLAY press (session-scoped tip). */
+        playBlockedAt?: number;
+      }>()
       .notNull()
       .default(
         sql`'{"managerIdsBrowsed":[],"interviewedManagerIds":[],"scoutedPlayerIds":[]}'::jsonb`
