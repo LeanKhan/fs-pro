@@ -1,0 +1,29 @@
+{
+  "expert": {
+    "bot": "expert",
+    "clubId": "febb5f15-7cf6-4aaf-a249-0d6a8c6e6304",
+    "startingBalance": 1100000,
+    "programXp": 30,
+    "stars": 6,
+    "friendlies": 3,
+    "reached": true
+  },
+  "splurge": {
+    "bot": "splurge",
+    "clubId": "420d2e48-2f78-4409-971d-0900bb4cef21",
+    "startingBalance": 3200000,
+    "programXp": 30,
+    "stars": 6,
+    "friendlies": 3,
+    "reached": true
+  },
+  "allin": {
+    "bot": "allin",
+    "clubId": "34694397-70c5-406e-9d7c-d0d008a8d601",
+    "startingBalance": 4400000,
+    "programXp": 30,
+    "stars": 6,
+    "friendlies": 3,
+    "reached": true
+  }
+}

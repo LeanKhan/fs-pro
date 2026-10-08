@@ -303,6 +303,53 @@ Result (see `tests/e2e/artifacts/desktop-1440x900/balance-bots/results.json` and
 the screenshots; pasted below when the run completes):
 
 <!-- BOT-RESULTS -->
+The test passed (8.2 m and 6.7 m on the two runs). Results
+(`artifacts/desktop-1440x900/balance-bots/results.json`, screenshots
+`expert-*/splurge-*/allin-*`):
+
+Final run:
+
+| Bot | Start | Program XP | Stars | Friendlies | Level 1 |
+| --- | --- | --- | --- | --- | --- |
+| expert | **V1.1M** | 30 | 6 | **3** | yes |
+| splurge (naive) | V3.2M | 30 | 6 | 3 | yes |
+| allin (naive) | V4.4M | 30 | 6 | 3 | yes |
+
+Earlier run of the same spec (before the expert's squad-shape tweak):
+
+| Bot | Start | Program XP | Stars | Friendlies | Level 1 |
+| --- | --- | --- | --- | --- | --- |
+| expert | V3.5M | 30 | 6 | **3** | yes |
+| splurge (naive) | V2.2M | 30 | 6 | **7** | yes |
+| allin (naive) | V4.9M | 30 | 6 | 3 | yes |
+
+What the live stack confirms:
+
+- **L7 (skill beats luck).** In the final run the expert at the **worst** balance
+  (drawn V1.1M) needed **3** friendlies — the same as the naive owners holding
+  V3.2M and V4.4M. The expert never needed more than the richer lucky owner.
+- **A naive owner can need ≥2× the friendlies.** In the earlier run
+  `splurge_on_manager` needed **7** friendlies against the expert's **3** (2.33×).
+  A single live run is one match-outcome sample; the medians live in the
+  simulator (§3).
+- All three bots reached Level 1 and joined a league; 0 soft-locks, so the live
+  recovery/gate path holds at every starting balance drawn.
+
+**Live/sim gap found (for the lead — not a balance knob).** The `players` step's
+completion predicate is `≥11` players (§3.2) and the live server **advances the
+step as soon as it holds**. Its ★2 shape needs `GK≥2, DEF≥4, MID≥4, ATT≥3` — **13**
+players — so a live owner can never sign the 13th before the step advances.
+Every live bot therefore scored `players: 1` and `program XP: 30`
+(`{manager:2, players:1, facilities:3}`), even the expert with a GK×2 balanced
+squad in the final run. The simulator (which signs the 13-player shape inside one
+`chooseSquad`) scores `players: 2` and 36 program XP. The live game cannot
+express the simulator's players-★2/★3 spread. Recommended fix (owner of the
+star clause / 1A spec, not this agent): make the ★2/★3 shape satisfiable from 11
+players (e.g. `GK≥1, DEF≥4, MID≥4, ATT≥2`) **or** give the `players` step an
+explicit "build the squad is done" confirmation before advancing. This is a
+frozen-contract change, so it is left to the lead.
+
+<!-- /BOT-RESULTS -->
 
 The test asserts all three reach Level 1, that the expert scores at least as
 much program XP as either naive owner, and that the expert is not the slowest to
