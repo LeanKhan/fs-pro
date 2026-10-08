@@ -339,6 +339,19 @@ func (c *clubState) recordStar(step program.Step) {
 	c.stars[step] = int(ev.Stars)
 }
 
+// creditStep records a completed step's stars and credits its reward XP to the
+// club's XP bar, exactly as Node's recordAndAdvance does
+// (owner-program.service.ts:107-113: `if (evaluation.xp > 0) addXp(...)`).
+// The spec is explicit that program XP and qualifying-friendly XP both raise
+// Clubs.XP (OWNER-PROGRAM-SPEC §3.2 "the remaining ≥46 must come from winning
+// qualifying friendlies", §7). The level1 bar is therefore their sum; a better
+// build opens the league faster. Crediting it here is what lets skill beat luck
+// (L7) — without it every strategy needs the same 100 XP from friendlies.
+func (c *clubState) creditStep(step program.Step) {
+	c.recordStar(step)
+	c.clubXp += program.RewardXP(program.Stars(c.stars[step]))
+}
+
 // programXpTotal sums the rewards of the three paying steps, capped at 54.
 func (c *clubState) programXpTotal() int {
 	xp := 0
