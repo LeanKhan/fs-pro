@@ -3,6 +3,7 @@ import {
   FOUNDING_LIMITS,
   codeProblem,
   isCrestDesign,
+  formatVilla,
   nameProblem,
   tidyName,
   type CrestDesign,
@@ -14,6 +15,8 @@ import {
 import { DrizzleDatabase } from '../../db/drizzle';
 import { clubMessages, clubs, ownerProgram, places, users } from '../../db/drizzle/schema';
 import { FoundingError } from './atlas.service';
+import { generatePlaceName } from '../worldgen/names.service';
+import { restockAfterFounding } from './world-seed.service';
 import {
   advanceFrontier,
   inviteByToken,
@@ -107,16 +110,6 @@ async function clubIdentityTaken(name: string, code: string): Promise<boolean> {
     .where(sql`lower(${clubs.Name}) = lower(${name}) OR ${clubs.ClubCode} = ${code}`)
     .limit(1);
   return rows.length > 0;
-}
-
-/** Villa display (D2): `V1.5M` at or above V1M, `V1,500,000` below. Kept
- * local to the welcome copy; 2C's shared formatter (L13) will replace it. */
-function villaShort(n: number): string {
-  if (n >= 1_000_000) {
-    const millions = n / 1_000_000;
-    return `V${Number.isInteger(millions) ? millions.toFixed(0) : millions.toFixed(1)}M`;
-  }
-  return `V${Math.round(n).toLocaleString('en-US')}`;
 }
 
 /** Names the body must carry for the levels `spot.needsNames` opens. */
@@ -282,7 +275,10 @@ async function openPlaces(
       .select({ n: sql<number>`count(*)::int` })
       .from(places)
       .where(and(eq(places.Type, 'district'), eq(places.ParentId, city.id)));
-    const name = regionName(city.Name, n);
+    // L12: the auto district name comes from worldgen's district kind for the
+    // country's culture; the deterministic compass name is the offline
+    // fallback (logged once by names.service when worldgen is down).
+    const name = await generatePlaceName(country.Name, 'district', () => regionName(city.Name, n));
     [district] = (await tx
       .insert(places)
       .values({
@@ -427,6 +423,12 @@ export async function foundClub(userId: string | undefined, body: FoundClub): Pr
   // when it reaches Level 1 (`enterPyramidAtLevelOne`).
   await Promise.all([
     news,
+    // L5 restock: top the founding country's free-agent pool up by a squad's
+    // worth of players and one manager, idempotent per club.
+    restockAfterFounding(clubId, placed.country.id).catch((err) => {
+      console.warn('[founding] restock', err);
+      return null;
+    }),
     // Keep the frontier pointer moving for the Go service's O(1) fast path
     // (B2-2A Q-D); it is a validated hint, so a failure here is not fatal. It
     // records the newest country/region/capital, which can only change when a
@@ -446,7 +448,7 @@ export async function foundClub(userId: string | undefined, body: FoundClub): Pr
       Tone: 'good',
       Title: `Welcome to ${placed.district.Name}`,
       Body:
-        `${name} is official, and the board drew you ${villaShort(startingBalance)} to build with. ` +
+        `${name} is official, and the board drew you ${formatVilla(startingBalance)} to build with. ` +
         'No manager, no squad, no league yet - that is your job now. ' +
         'Hire a manager, sign a legal XI, put up a building, then reach Level 1 and the game will find you a league.',
       updatedAt: new Date(),

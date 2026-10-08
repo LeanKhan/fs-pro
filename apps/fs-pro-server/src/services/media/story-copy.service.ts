@@ -1,3 +1,4 @@
+import { formatVilla } from '@repo/api-contract';
 import { pick, ord } from './story-angles.service';
 
 /**
@@ -7,7 +8,8 @@ import { pick, ord } from './story-angles.service';
  * between deals / seasons.
  */
 
-const money = (n: number) => (n > 0 ? `$${Math.round(n).toLocaleString()}` : 'a free transfer');
+/** Shared Villa formatter (L13): news copy is server-written text. */
+const money = (n: number) => (n > 0 ? formatVilla(n) : 'a free transfer');
 
 // ---------------------------------------------------------------------------
 // Transfers

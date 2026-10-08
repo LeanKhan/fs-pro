@@ -24,14 +24,12 @@ export function capitalize(text: string) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-const currencyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  maximumFractionDigits: 0,
-});
+import { formatVilla } from '@repo/api-contract';
 
+/** Villa display (L13): delegates to the one shared formatter. Kept under the
+ * historical name `currency` so every existing call site converts at once. */
 export function currency(value: number | null | undefined) {
-  return currencyFormatter.format(value ?? 0);
+  return formatVilla(value ?? 0);
 }
 
 /** Formats to Ordinal 1st, 2nd, 3rd etc from

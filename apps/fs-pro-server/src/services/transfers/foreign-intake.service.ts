@@ -3,7 +3,7 @@ import { DrizzleDatabase } from '../../db/drizzle';
 import { places, players, transferLedger } from '../../db/drizzle/schema';
 import { generatePlayer } from '../../utils/players';
 import { pickRandomFromArray, randomBetween } from '../../helpers/misc';
-import { generateSystemCountryName } from './system-country-names.service';
+import { generatePersonNames } from '../worldgen/names.service';
 
 export const FOREIGN_LEAGUES = [
   'Continental Premiership',
@@ -63,7 +63,10 @@ export async function generateForeignLeagueIntake(
 
   for (const pos of positionsToGenerate) {
     const country = pickRandomFromArray(systemCountries)!;
-    const { firstName, lastName } = generateSystemCountryName(country.name);
+    // L12: names come from worldgen's culture mix for the country (the Node
+    // syllable tables are retired); the logged fallback keeps intake working
+    // when worldgen is down.
+    const { firstName, lastName } = (await generatePersonNames(country.name, 1))[0]!;
     const originLeague = pickRandomFromArray(FOREIGN_LEAGUES);
 
     // Varied ages: 18 to 34

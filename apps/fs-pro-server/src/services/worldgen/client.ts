@@ -47,19 +47,36 @@ export async function getFaceSvg(
   return { svg, cacheControl: response.headers.get('cache-control') };
 }
 
-async function postNames(path: string, body: Record<string, unknown>): Promise<string[]> {
+/** The wire shape of a names response; `cultures` is the mix histogram. */
+export interface GeneratedNames {
+  names: string[];
+  cultures?: Record<string, number>;
+}
+
+/** Never let a slow worldgen stall a founding transaction. */
+const NAME_TIMEOUT_MS = Number(process.env.WORLDGEN_TIMEOUT_MS) || 2_500;
+
+async function postNamesFull(
+  path: string,
+  body: Record<string, unknown>
+): Promise<GeneratedNames> {
   const response = await fetch(`${getBaseUrl()}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(NAME_TIMEOUT_MS),
   });
 
   if (!response.ok) {
     throw new Error(`worldgen ${path} failed (${response.status})`);
   }
 
-  const payload = (await response.json()) as { names?: string[] };
-  return payload.names ?? [];
+  const payload = (await response.json()) as GeneratedNames;
+  return { names: payload.names ?? [], cultures: payload.cultures };
+}
+
+async function postNames(path: string, body: Record<string, unknown>): Promise<string[]> {
+  return (await postNamesFull(path, body)).names;
 }
 
 /**
@@ -73,6 +90,26 @@ export function generateNames(
   returnParts: NameReturnParts = 'f_l'
 ): Promise<string[]> {
   return postNames('/names/generate', { count, culture, returnParts });
+}
+
+/**
+ * Mix-aware generation for a country: returns `count` names of `kind` using
+ * the country's demographic mix, plus the per-culture histogram actually drawn.
+ * This is what the world seed and the foreign intake use, so a country's
+ * players are named by its cultures (L12), not by a single syllable table.
+ */
+export function generateMixedNames(
+  country: string,
+  count: number,
+  kind: 'first' | 'last' | 'full' | 'club' | 'region' | 'city' | 'district' | 'stadium' = 'full',
+  seed?: number
+): Promise<GeneratedNames> {
+  return postNamesFull('/names/mixed', {
+    country,
+    count,
+    kind,
+    ...(seed != null ? { seed } : {}),
+  });
 }
 
 /** Generates `count` first names that share the given last name. */

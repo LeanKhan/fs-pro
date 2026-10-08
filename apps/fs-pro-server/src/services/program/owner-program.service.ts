@@ -1,6 +1,7 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
 import { calendars, clubs, ownerProgram, transferLedger } from '../../db/drizzle/schema';
+import { formatVilla } from '@repo/api-contract';
 import type { AdvisorLine, ProgramEvaluation, ProgramStep } from '@repo/api-contract';
 import { evaluateProgramStep } from '../world/world-service.client';
 import { addXp, enterPyramidAtLevelOne } from '../world/level-change';
@@ -231,15 +232,34 @@ export async function dismissTip(clubId: string, tipId: string): Promise<string[
 }
 
 /**
- * The L7 recovery path (a thin, deterministic board advance: +V250k for a V50k
- * fee, contract §8.1). 2C owns tuning this; the schema and route are here.
+ * The L7 recovery path: a board advance of `LOAN_GROSS` less a `LOAN_FEE`
+ * (contract §8.1). Available to a club that has run out of cash, but only once
+ * per game year (a per-club ledger guard), so it recovers a bad run instead of
+ * being an infinite money tap. 2C owns this tuning.
  */
 export const LOAN_GROSS = 250_000;
 export const LOAN_FEE = 50_000;
 
 export async function requestLoan(clubId: string): Promise<{ granted: boolean; amount: number }> {
   const amount = LOAN_GROSS - LOAN_FEE;
+  const [calendar] = await db()
+    .select({ year: calendars.CurrentYear })
+    .from(calendars)
+    .limit(1);
+  const year = `Y${calendar?.year ?? 0}`;
   await db().transaction(async (tx) => {
+    const [already] = await tx
+      .select({ id: transferLedger.id })
+      .from(transferLedger)
+      .where(
+        and(
+          eq(transferLedger.Type, 'board_advance'),
+          eq(transferLedger.BuyerClubId, clubId),
+          eq(transferLedger.Year, year)
+        )
+      )
+      .limit(1);
+    if (already) throw new Error('The board has already advanced you funds this year');
     await tx
       .update(clubs)
       .set({ Budget: sql`coalesce(${clubs.Budget}, 0) + ${amount}`, updatedAt: new Date() })
@@ -248,7 +268,8 @@ export async function requestLoan(clubId: string): Promise<{ granted: boolean; a
       Type: 'board_advance',
       BuyerClubId: clubId,
       Amount: amount,
-      Note: `Board advance: V${LOAN_GROSS} granted, V${LOAN_FEE} fee`,
+      Year: year,
+      Note: `Board advance: ${formatVilla(LOAN_GROSS)} granted, ${formatVilla(LOAN_FEE)} fee`,
       updatedAt: new Date(),
     });
   });

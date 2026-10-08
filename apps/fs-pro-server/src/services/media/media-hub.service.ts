@@ -10,6 +10,7 @@ import {
   players,
 } from '../../db/drizzle/schema';
 import type { MediaItem } from '@repo/api-contract';
+import { formatVilla } from '@repo/api-contract';
 import { DerbyDetectorService, DerbyContext } from '../ai/derby-detector.service';
 import { gatherFixtureFacts } from './story-facts.service';
 import { buildMatchStory, MatchStory } from './story-angles.service';
@@ -838,8 +839,7 @@ export class MediaHubService {
       const dealType = isFreeAgent
         ? 'Free Agent Contract'
         : 'Permanent Club Transfer';
-      const formattedFee =
-        fee > 0 ? `$${fee.toLocaleString()}` : 'Free Transfer';
+      const formattedFee = fee > 0 ? formatVilla(fee) : 'Free Transfer';
       const playerName = `${player.FirstName} ${player.LastName}`;
       const rating = Math.round(player.Rating || 70);
 
@@ -882,7 +882,7 @@ export class MediaHubService {
           `📰 ${story.insight}`,
           `📋 Transferred From: ${fromOrigin}`,
           `🎯 Destination: ${toDestination}`,
-          `💵 Agreed Fee: ${formattedFee} (Valuation: $${(player.Value || fee).toLocaleString()})`,
+          `💵 Agreed Fee: ${formattedFee} (Valuation: ${formatVilla(player.Value || fee)})`,
           `⭐ Player Profile: ${player.Position || 'ATH'} | Age ${player.Age} | Overall Rating: ${rating}`,
         ],
         transferDetails: {

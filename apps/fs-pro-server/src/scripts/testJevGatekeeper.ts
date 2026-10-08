@@ -37,7 +37,7 @@ async function testGatekeeper() {
     playerRating: 72,
     squadSize: 22,
   });
-  console.log('   Lowball Bid ($400k for $1M):', lowballBid);
+  console.log('   Lowball Bid (V400k for V1M):', lowballBid);
   if (lowballBid.resolvedBy !== 'heuristic' || lowballBid.decision !== 'reject') {
     throw new Error('Test failed: lowball bid should be auto-rejected by heuristic');
   }
@@ -48,7 +48,7 @@ async function testGatekeeper() {
     playerRating: 68,
     squadSize: 22,
   });
-  console.log('   Overpay Bid ($1.8M for $1M):', overpayBid);
+  console.log('   Overpay Bid (V1.8M for V1M):', overpayBid);
   if (overpayBid.resolvedBy !== 'heuristic' || overpayBid.decision !== 'accept') {
     throw new Error('Test failed: huge overpay should be auto-accepted by heuristic');
   }
@@ -59,7 +59,7 @@ async function testGatekeeper() {
     playerRating: 75,
     squadSize: 22,
   });
-  console.log('   Realistic Bid ($1.1M for $1M):', realisticBid);
+  console.log('   Realistic Bid (V1.1M for V1M):', realisticBid);
   if (realisticBid.resolvedBy !== 'jev') {
     throw new Error('Test failed: realistic bid should escalate to Jev');
   }

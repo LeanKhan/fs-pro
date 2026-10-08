@@ -13,6 +13,7 @@ import { getShop, type ShopState } from './shop';
 import { getClubLeague, type ClubLeague } from './club-league';
 import { ensureDefaultLineup } from './default-lineup';
 import { assertClubPlayable } from '../program/squad-gate';
+import { QUALIFYING_FRIENDLY_XP } from './qualifying';
 
 /**
  * PLAY: the match is the club's primary loop. Pressing PLAY matches the club
@@ -47,7 +48,7 @@ const MATCH_TITLE_MARK = '(Matchmade)';
  * mattered financially past Stands Level 1. A % of gate keeps outcome
  * meaningful at every stadium size while keeping gate income the main
  * earner, as intended. */
-const REWARD_XP = { win: 30, draw: 10, loss: 5 } as const;
+export const REWARD_XP = QUALIFYING_FRIENDLY_XP;
 const GATE_SHARE = { win: 0.5, draw: 0.1, loss: -0.15 } as const;
 /** A win always pays at least this much cash, even at a Level 0 stadium. */
 const MIN_WIN_CASH = 3_000;

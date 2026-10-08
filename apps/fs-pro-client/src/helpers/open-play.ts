@@ -1,5 +1,6 @@
 import { ref } from 'vue';
 import type { Club } from '@repo/api-contract';
+import { formatVilla } from '@repo/api-contract';
 import { client } from '@/services/api';
 
 /** Labels and small helpers for the open-play screens. */
@@ -89,7 +90,7 @@ export function formatSummary(def: {
     return `a ${s.legs === 2 ? 'two-leg' : 'single-leg'} knockout`;
   });
   parts.push(stages.join(', then '));
-  if (e.entryFee) parts.push(`$${e.entryFee.toLocaleString()} to enter`);
+  if (e.entryFee) parts.push(`${money(e.entryFee)} to enter`);
   return parts.join(' · ');
 }
 
@@ -106,8 +107,10 @@ export function roundName(round: number, totalRounds: number) {
   return `Round ${round}`;
 }
 
+/** Villa display (L13): the one shared formatter, so the client and the
+ * server's written text can never drift on the symbol or the format. */
 export function money(n: number | null | undefined) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n ?? 0);
+  return formatVilla(n ?? 0);
 }
 
 /** Level from XP with the world's thresholds (same rule as the server). */

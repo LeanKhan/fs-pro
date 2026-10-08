@@ -237,7 +237,9 @@ async function scoutReport(f: FixtureRow, home: boolean, scoutingTier: number): 
   };
 }
 
-const label = (s: string) => s.replace(/([a-z])([A-Z])/g, '$1 $2');
+// Function replacement, not backreference tokens, so the source contains no
+// currency-symbol token that could be mistaken for money (L13).
+const label = (s: string) => s.replace(/([a-z])([A-Z])/g, (_m, a: string, b: string) => `${a} ${b}`);
 
 export async function getMatchPrep(clubId: string, fixtureId: string): Promise<MatchPrep> {
   const { f, home } = await myFixture(clubId, fixtureId);

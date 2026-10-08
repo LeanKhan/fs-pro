@@ -90,6 +90,7 @@ import { client } from '@/services/api';
 import { useOpenPlayStore } from '@/store/open-play';
 import { levelForXp, useClubDirectory } from '@/helpers/open-play';
 import { crestUrl } from '@/helpers/crest';
+import { formatVillaCompact } from '@repo/api-contract';
 
 defineProps<{
   socketConnected?: boolean;
@@ -133,12 +134,10 @@ const wageBill = computed<number | null>(() => {
   return players.reduce((sum: number, p: { Wage?: number; isRetired?: boolean }) => sum + (p.isRetired ? 0 : (p.Wage ?? 0)), 0);
 });
 
+/** Villa display (L13): the shared compact formatter, so the ticker can never
+ * show a different currency from the rest of the app. */
 function money(n: number) {
-  const abs = Math.abs(n);
-  const sign = n < 0 ? '-' : '';
-  if (abs >= 1e6) return `${sign}$${(abs / 1e6).toFixed(1)}M`;
-  if (abs >= 1e3) return `${sign}$${Math.round(abs / 1e3)}k`;
-  return `${sign}$${Math.round(abs)}`;
+  return formatVillaCompact(n);
 }
 
 const formattedGameDate = computed(() => {

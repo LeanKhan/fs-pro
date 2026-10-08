@@ -10,7 +10,7 @@
     </div>
     <v-row dense>
       <v-col cols="6">
-        <v-text-field v-model.number="form.maxFee" type="number" label="Max entry fee" prefix="$" density="compact" variant="outlined" clearable :disabled="!form.autoRegister" />
+        <v-text-field v-model.number="form.maxFee" type="number" label="Max entry fee" prefix="V" density="compact" variant="outlined" clearable :disabled="!form.autoRegister" />
       </v-col>
       <v-col cols="6">
         <v-text-field v-model.number="form.maxEntries" type="number" label="Stop at N entries" density="compact" variant="outlined" clearable :disabled="!form.autoRegister" />

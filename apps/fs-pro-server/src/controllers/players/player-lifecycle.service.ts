@@ -4,9 +4,8 @@ import { players, transferLedger } from '../../db/drizzle/schema';
 import { PlayerRepositoryFactory } from '../../repositories/PlayerRepositoryFactory';
 import { getClubs } from '../clubs/club.service';
 import { generatePlayer } from '../../utils/players';
-import { pickPlaceholderName } from '../../utils/placeholder-names';
 import { pickRandomFromArray } from '../../helpers/misc';
-import { nationalityIdForCulture } from '../../services/nationality';
+import { countryIdForCulture, generatePersonNamesForCulture } from '../../services/worldgen/names.service';
 import type { PlayerInterface } from '../../interfaces/Player';
 import { getAssetEffects, getAssetEffectsForClubs, getAssetLevel } from '../../services/facilities/facilities.service';
 import { describeHours, scaled } from '../../services/play/game-time';
@@ -203,19 +202,27 @@ async function generateYouthPlayers(
   qualityBonus = 0
 ) {
   const cultures = ['kev', 'bellean'];
-  const nationalityIds = new Map(
+  // L12: names come from worldgen per culture in one batch, with the country id
+  // resolved from Places (the retired nationality.ts is gone). The logged
+  // fallback inside names.service keeps youth intake working offline.
+  const namesByCulture = new Map(
     await Promise.all(
-      cultures.map(
-        async (c) => [c, await nationalityIdForCulture(c)] as [string, string]
-      )
+      cultures.map(async (c) => {
+        const [names, nationalityId] = await Promise.all([
+          generatePersonNamesForCulture(c, count),
+          countryIdForCulture(c),
+        ]);
+        return [c, { names, nationalityId }] as const;
+      })
     )
   );
   // qualityBonus (0-0.3ish) scaled onto the attribute point ranges, not used
   // directly as points - keeps the shift modest without a second tuning knob.
   const pointBonus = Math.round(qualityBonus * 40);
   return Array.from({ length: count }, (_, i) => {
-    const { firstName, lastName } = pickPlaceholderName();
     const culture = pickRandomFromArray(cultures);
+    const entry = namesByCulture.get(culture)!;
+    const { firstName, lastName } = entry.names[i % entry.names.length]!;
     return {
       ...generatePlayer({
         position:
@@ -223,7 +230,7 @@ async function generateYouthPlayers(
         firstname: firstName,
         lastname: lastName,
         nationality: culture,
-        nationalityId: nationalityIds.get(culture),
+        nationalityId: entry.nationalityId ?? undefined,
         ageRange: YOUTH_AGE_RANGE,
         attributeRange: shiftRange(YOUTH_ATTRIBUTE_RANGE, pointBonus),
         positionAttributeRange: shiftRange(YOUTH_POSITION_ATTRIBUTE_RANGE, pointBonus),

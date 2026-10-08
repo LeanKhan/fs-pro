@@ -15,6 +15,7 @@ import { closeYear } from './performance.service';
 import { finishAllPyramids } from '../competitions/pyramid.service';
 import { drawAllPyramids } from '../competitions/world-competitions.service';
 import { releaseInactiveClubs } from './caretaker.service';
+import { expireFreeAgents } from './world-seed.service';
 
 /**
  * The Year (docs/WORLD-PYRAMID-SPEC.md, "Year = Season"): a fixed run of
@@ -114,6 +115,9 @@ export async function endYear(): Promise<YearEndSummary | null> {
   );
   const retired: RetiredPlayerSummary[] = retirement?.retired ?? [];
   await step('youth intake', () => runYouthIntakeForYear(label));
+  // L5 expiry: unsigned free agents that have sat in the pool for the TTL
+  // retire, so foundings/restock cannot grow the market without bound.
+  await step('free-agent expiry', () => expireFreeAgents(today));
   await step('club ratings', () => refreshAllClubsRatings());
   const released = await step('release inactive clubs', () => releaseInactiveClubs(calendar));
   const drawn = await step('pyramid draw', () => drawAllPyramids());

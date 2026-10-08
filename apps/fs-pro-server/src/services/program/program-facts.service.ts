@@ -1,9 +1,10 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
 import { clubAssets, clubs, managers, ownerProgram, players } from '../../db/drizzle/schema';
 import type { ProgramStepFacts } from '@repo/api-contract';
 import { programXpFromStars } from './program-constants';
 import { managerFee, managerWage, managerOverall } from './manager-model';
+import { qualifyingFriendlyRecord } from '../play/qualifying';
 
 /**
  * Build the pure `StepFacts` snapshot from the database (PROGRAM-SERVICE-
@@ -93,28 +94,6 @@ async function managerFacts(clubId: string): Promise<ManagerFacts | null> {
   };
 }
 
-async function friendlyRecord(clubId: string): Promise<{ wins: number; draws: number; losses: number }> {
-  const rows = await db().execute(sql`
-    SELECT
-      count(*) FILTER (WHERE
-        (f."HomeTeamId" = ${clubId} AND (f."Details"->>'HomeTeamScore')::int > (f."Details"->>'AwayTeamScore')::int)
-        OR (f."AwayTeamId" = ${clubId} AND (f."Details"->>'AwayTeamScore')::int > (f."Details"->>'HomeTeamScore')::int)
-      )::int AS wins,
-      count(*) FILTER (WHERE
-        (f."Details"->>'HomeTeamScore')::int = (f."Details"->>'AwayTeamScore')::int
-      )::int AS draws,
-      count(*) FILTER (WHERE
-        (f."HomeTeamId" = ${clubId} AND (f."Details"->>'HomeTeamScore')::int < (f."Details"->>'AwayTeamScore')::int)
-        OR (f."AwayTeamId" = ${clubId} AND (f."Details"->>'AwayTeamScore')::int < (f."Details"->>'HomeTeamScore')::int)
-      )::int AS losses
-    FROM "Fixtures" f
-    WHERE f."Type" = 'friendly' AND f."Played" = true
-      AND (f."HomeTeamId" = ${clubId} OR f."AwayTeamId" = ${clubId})
-  `);
-  const row = (rows as unknown as { wins: number; draws: number; losses: number }[])[0];
-  return { wins: Number(row?.wins ?? 0), draws: Number(row?.draws ?? 0), losses: Number(row?.losses ?? 0) };
-}
-
 /** Build `StepFacts` for a club at a given active step. */
 export async function buildStepFacts(
   clubId: string,
@@ -131,7 +110,7 @@ export async function buildStepFacts(
       .select({ type: clubAssets.AssetType, tier: clubAssets.Level, upgradingTo: clubAssets.UpgradingTo })
       .from(clubAssets)
       .where(eq(clubAssets.ClubId, clubId)),
-    friendlyRecord(clubId),
+    qualifyingFriendlyRecord(clubId),
   ]);
 
   const scout = program?.Scout ?? {};
