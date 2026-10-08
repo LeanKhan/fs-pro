@@ -12,12 +12,7 @@ import {
   type TownTerrain,
 } from '@repo/api-contract';
 import { DrizzleDatabase } from '../../db/drizzle';
-import { clubMessages, clubs, entries, managers, places, players, pools, users } from '../../db/drizzle/schema';
-import { type ClubInterface } from '../../controllers/clubs/club.model';
-import { generatePlayer } from '../../utils/players';
-import { pickPlaceholderName } from '../../utils/placeholder-names';
-import { getNextCounterId } from '../../utils/counter';
-import { updateClubFields } from '../../controllers/clubs/club.service';
+import { clubMessages, clubs, ownerProgram, places, users } from '../../db/drizzle/schema';
 import { FoundingError } from './atlas.service';
 import {
   advanceFrontier,
@@ -29,8 +24,8 @@ import {
   useInvite,
   type Tx,
 } from './placement.service';
-import { placeInPyramid } from '../competitions/world-competitions.service';
 import { postNews } from './news-scope.service';
+import { drawStartingBalance } from '../program/manager-model';
 
 /**
  * Founding a club (docs/perfect/WORLD-HIERARCHY-SPEC.md §3-§4; docs/WORLD-
@@ -38,10 +33,13 @@ import { postNews } from './news-scope.service';
  * where it goes (a district with a hole, or a new district/city/region/country
  * the founder names), or an invite puts it in a friend's district. Placement
  * runs inside this transaction while holding PLACEMENT_LOCK; Node creates the
- * places the spot opens and inserts the club. A new club starts at Level 0
- * with no facilities, a raw squad of amateurs, a small budget, a handful of
- * fans and its owner as manager, and joins its country's pyramid league
- * straight away. No AI clubs are created.
+ * places the spot opens and inserts the club.
+ *
+ * Phase 2 (L1): a new club starts at Level 0 with its owner program at
+ * `not_started`, a random V1M-V5M balance, no manager row, no squad and no
+ * pyramid entry. The owner signs a manager and players from the shared market,
+ * builds a facility and reaches Level 1 - only then does the game assign a
+ * league (`enterPyramidAtLevelOne`). No AI clubs are created.
  *
  * The contract (docs/perfect/WORLD-SERVICE-CONTRACT.md §1) carries a single
  * anchor point per spot; every new level is created at that anchor (B2-2A
@@ -51,16 +49,8 @@ import { postNews } from './news-scope.service';
 
 const db = () => DrizzleDatabase.getInstance().database;
 
-export const STARTING_BUDGET = 1_500_000;
 const STARTING_FANS = 150;
 const STARTING_REPUTATION = 5;
-
-/** 16 players: 2 GK, 5 DEF, 5 MID, 4 ATT. */
-const SQUAD_SHAPE = ['GK', 'GK', 'DEF', 'DEF', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'MID', 'MID', 'ATT', 'ATT', 'ATT', 'ATT'];
-
-/** Attribute ranges of a starting squad (rates about 57; the original
- * world's clubs rate 65-78). */
-const STARTER = { attr: [35, 55] as [number, number], pos: [52, 64] as [number, number] };
 
 /** The existing rows a contract spot resolves to (see `resolveSpotPlaces`). */
 type ResolvedPlaces = {
@@ -119,115 +109,14 @@ async function clubIdentityTaken(name: string, code: string): Promise<boolean> {
   return rows.length > 0;
 }
 
-/** The default team sheet's slots, matching services/play/default-lineup.ts
- * (SLOTS_433/BENCH_SIZE are module-private there, so kept in step here). */
-const SLOTS_433 = ['GK', 'DEF', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'ATT', 'ATT', 'ATT'] as const;
-const BENCH_SIZE = 7;
-
-/**
- * The same best-fit XI `ensureDefaultLineup` (default-lineup.ts:18) picks, but
- * from the rows just inserted instead of two more reads: every starter is a
- * healthy player if 11 are available, otherwise the best overall. Folding it
- * into createSquad's single Club update removes that function's two selects
- * and its update per founding.
- */
-function defaultLineup(squad: { id: string; pos: string | null; rating: number | null; injury: unknown }[]) {
-  const injured = (x: unknown) => Number((x as { daysRemaining?: number } | null)?.daysRemaining) > 0;
-  const byRating = (a: { rating: number | null }, b: { rating: number | null }) => (b.rating ?? 0) - (a.rating ?? 0);
-  const fit = squad.filter((p) => !injured(p.injury)).sort(byRating);
-  const pool = fit.length >= 11 ? fit : [...squad].sort(byRating);
-  const used = new Set<string>();
-  const take = (pos?: string) => {
-    const p = pool.find((x) => !used.has(x.id) && (!pos || x.pos === pos));
-    if (p) used.add(p.id);
-    return p?.id;
-  };
-  const startingXI = SLOTS_433.map((pos) => take(pos) ?? take()).filter((id): id is string => !!id);
-  const bench: string[] = [];
-  while (bench.length < BENCH_SIZE) {
-    const id = take();
-    if (!id) break;
-    bench.push(id);
+/** Villa display (D2): `V1.5M` at or above V1M, `V1,500,000` below. Kept
+ * local to the welcome copy; 2C's shared formatter (L13) will replace it. */
+function villaShort(n: number): string {
+  if (n >= 1_000_000) {
+    const millions = n / 1_000_000;
+    return `V${Number.isInteger(millions) ? millions.toFixed(0) : millions.toFixed(1)}M`;
   }
-  return { startingXI, bench };
-}
-
-/** The Rating/AttackingClass/DefensiveClass/`<POS>_Rating` fields for a set of
- * per-position averages - the exact arithmetic of calculateAndUpdateClubRating
- * (club.service.ts:121) so the stored numbers are unchanged. */
-function clubRatingFields(ratings: { position: string | null; avg_rating: number }[]) {
-  const total = ratings.reduce((sum, r) => sum + r.avg_rating, 0);
-  const att =
-    (ratings.find((r) => r.position === 'ATT')?.avg_rating ?? 0) +
-    (ratings.find((r) => r.position === 'MID')?.avg_rating ?? 0) / 2;
-  const def =
-    (ratings.find((r) => r.position === 'GK')?.avg_rating ?? 0) +
-    (ratings.find((r) => r.position === 'DEF')?.avg_rating ?? 0) / 2;
-  const data: Partial<ClubInterface> & Record<string, unknown> = {
-    Rating: ratings.length ? total / ratings.length : 0,
-    AttackingClass: att,
-    DefensiveClass: def,
-  };
-  for (const r of ratings) data[`${r.position}_Rating`] = r.avg_rating;
-  return data;
-}
-
-/** The position averages of a freshly generated squad, in the same shape
- * `calculateClubsTotalRatings` returns: a `WHERE ClubId = ? GROUP BY Position`
- * read of Players. Players has no ClubId index, so that read seq-scans the
- * whole (1.6M-row at 100k-club) table on every founding; the rows were just
- * inserted, so computing the averages from them removes the scan. */
-function positionAverages(rows: { Position: string | null; Rating: number | null }[]) {
-  const groups = new Map<string, { sum: number; count: number }>();
-  for (const p of rows) {
-    if (!p.Position) continue;
-    const g = groups.get(p.Position) ?? { sum: 0, count: 0 };
-    g.sum += p.Rating ?? 0;
-    g.count++;
-    groups.set(p.Position, g);
-  }
-  return [...groups.entries()].map(([position, g]) => ({ position, avg_rating: g.sum / g.count }));
-}
-
-/**
- * The raw squad (16 players, bulk-inserted in one statement) plus the Club's
- * Rating fields and its default 4-3-3 team sheet, written in a single Club
- * update. Previously this was the insert + calculateAndUpdateClubRating
- * (select+update) + ensureDefaultLineup (2 selects + update): four fewer
- * round trips per founded club (B2-2E measured ~7 ms/club).
- */
-async function createSquad(club: { id: string; code: string }, nationalityId: string) {
-  const rows = SQUAD_SHAPE.map((position) => {
-    const { firstName, lastName } = pickPlaceholderName();
-    const p = generatePlayer({
-      position,
-      firstname: firstName,
-      lastname: lastName,
-      nationality: '',
-      nationalityId,
-      ageRange: [17, 30],
-      attributeRange: STARTER.attr,
-      positionAttributeRange: STARTER.pos,
-    });
-    return {
-      ...p,
-      Attributes: p.Attributes as unknown as Record<string, unknown>,
-      isSigned: true,
-      ClubId: club.id,
-      ClubCode: club.code,
-      updatedAt: new Date(),
-    };
-  });
-  const inserted = await db()
-    .insert(players)
-    .values(rows as (typeof players.$inferInsert)[])
-    .returning({ id: players.id, Position: players.Position, Rating: players.Rating, Injury: players.Injury });
-  const lineup = defaultLineup(inserted.map((p) => ({ id: p.id, pos: p.Position, rating: p.Rating, injury: p.Injury })));
-  await updateClubFields(club.id, {
-    ...clubRatingFields(positionAverages(inserted)),
-    Lineup: lineup,
-    Tactic: { formationName: '433', styleName: 'Balanced' },
-  });
+  return `V${Math.round(n).toLocaleString('en-US')}`;
 }
 
 /** Names the body must carry for the levels `spot.needsNames` opens. */
@@ -351,6 +240,8 @@ async function openPlaces(
         FoundedBy: userId,
         MapX: spot.x,
         MapY: spot.y,
+        // Inherit the country's culture (L12; migration 0043).
+        CultureId: country.CultureId,
         updatedAt: now,
       })
       .returning()) as [typeof places.$inferSelect];
@@ -376,6 +267,7 @@ async function openPlaces(
         MapX: spot.x,
         MapY: spot.y,
         Terrain: c.terrain as TownTerrain,
+        CultureId: country.CultureId,
         updatedAt: now,
       })
       .returning()) as [typeof places.$inferSelect];
@@ -405,6 +297,7 @@ async function openPlaces(
         MapX: spot.x,
         MapY: spot.y,
         Terrain: city.Terrain,
+        CultureId: city.CultureId ?? country.CultureId,
         updatedAt: now,
       })
       .returning()) as [typeof places.$inferSelect];
@@ -438,9 +331,8 @@ export async function foundClub(userId: string | undefined, body: FoundClub): Pr
   if (!isCrestDesign(body.crest)) throw new FoundingError('That crest is not valid');
   if (await clubIdentityTaken(name, code)) throw new FoundingError('That name or code is taken', 409);
   const crest: CrestDesign = { ...body.crest, initials: body.crest.initials || code };
-
-  const { id: managerKey } = await getNextCounterId('manager');
-  const [first, ...rest] = tidyName(user.FullName || user.Username).split(' ');
+  // L1/P7: the founder draws V1M-V5M (uniform V100k bands) and is shown it.
+  const startingBalance = drawStartingBalance();
 
   let placed: OpenedPlaces;
   let clubId: string;
@@ -466,30 +358,19 @@ export async function foundClub(userId: string | undefined, body: FoundClub): Pr
         if (invite) await useInvite(tx, invite.id);
       }
 
-      const [manager] = await tx
-        .insert(managers)
-        .values({
-          Key: managerKey,
-          FirstName: first || user.Username,
-          LastName: rest.join(' ') || 'Manager',
-          Age: user.Age ?? 35,
-          NationalityId: where.country.id,
-          isEmployed: true,
-          updatedAt: new Date(),
-        })
-        .returning({ id: managers.id });
       const [row] = await tx
         .insert(clubs)
         .values({
           Name: name,
           ClubCode: code,
           UserId: user.id,
-          ManagerId: manager!.id,
+          // L1: no manager, no squad, no pyramid entry - the owner hires and
+          // builds through the owner program first.
           // Migration 0038 renamed TownId -> DistrictId; clubs belong to a district.
           DistrictId: where.district.id,
           AddressCountryId: where.country.id,
           Address: { City: where.city.Name, Section: '' },
-          Budget: STARTING_BUDGET,
+          Budget: startingBalance,
           CampusLayout: where.city.Terrain ?? 'city',
           Crest: crest as unknown as Record<string, unknown>,
           Stadium: { Name: body.stadiumName?.trim() || `${where.district.Name} Park`, Capacity: 1000 },
@@ -500,7 +381,14 @@ export async function foundClub(userId: string | undefined, body: FoundClub): Pr
           updatedAt: new Date(),
         })
         .returning({ id: clubs.id });
-      await tx.update(managers).set({ ClubId: row!.id, updatedAt: new Date() }).where(eq(managers.id, manager!.id));
+      // The owner program starts at `not_started`; the drawn balance is stored
+      // so the manager step can measure the fee against it.
+      await tx.insert(ownerProgram).values({
+        ClubId: row!.id,
+        Step: 'not_started',
+        StartingBalance: startingBalance,
+        updatedAt: new Date(),
+      });
       return { placed: where, clubId: row!.id };
     }));
   } catch (err) {
@@ -534,17 +422,10 @@ export async function foundClub(userId: string | undefined, body: FoundClub): Pr
     return null;
   });
 
-  // These steps touch different tables and are independent of each other, so
-  // run them together: the Go round-trip inside placeInPyramid overlaps the
-  // squad insert, the Club rating/lineup update, the frontier update and the
-  // news write instead of serialising (B2-2E measured 42 ms sequential vs
-  // 37 ms overlapped per club at 1,000).
-  const [, joined] = await Promise.all([
-    createSquad({ id: clubId, code }, placed.country.id),
-    placeInPyramid(clubId, placed.country.id).catch((err) => {
-      console.warn('[founding] pyramid placement failed', err);
-      return null;
-    }),
+  // The frontier update and the news write are independent, so run them
+  // together. No pyramid placement at founding (L1/L2): the club joins only
+  // when it reaches Level 1 (`enterPyramidAtLevelOne`).
+  await Promise.all([
     news,
     // Keep the frontier pointer moving for the Go service's O(1) fast path
     // (B2-2A Q-D); it is a validated hint, so a failure here is not fatal. It
@@ -557,10 +438,6 @@ export async function foundClub(userId: string | undefined, body: FoundClub): Pr
       : Promise.resolve(),
   ]);
 
-  let pool: FoundedClub['pool'] = null;
-  if (joined && 'poolId' in joined) pool = { id: joined.poolId, name: joined.name, division: joined.division };
-  else if (joined) pool = await poolOf(joined.seasonId, clubId);
-
   await db()
     .insert(clubMessages)
     .values({
@@ -569,10 +446,9 @@ export async function foundClub(userId: string | undefined, body: FoundClub): Pr
       Tone: 'good',
       Title: `Welcome to ${placed.district.Name}`,
       Body:
-        `${name} is official. You have a dirt pitch, ${SQUAD_SHAPE.length} hopeful amateurs and ` +
-        `${STARTING_BUDGET.toLocaleString('en-US')} in the bank.` +
-        (pool ? ` You start in ${pool.name}: your fixtures are already on the calendar.` : '') +
-        ' Win matches to earn money and XP, then build up the grounds.',
+        `${name} is official, and the board drew you ${villaShort(startingBalance)} to build with. ` +
+        'No manager, no squad, no league yet - that is your job now. ' +
+        'Hire a manager, sign a legal XI, put up a building, then reach Level 1 and the game will find you a league.',
       updatedAt: new Date(),
     });
 
@@ -584,15 +460,7 @@ export async function foundClub(userId: string | undefined, body: FoundClub): Pr
     region: placed.region ? { id: placed.region.id, name: placed.region.Name } : null,
     country: { id: placed.country.id, name: placed.country.Name },
     opened: placed.opened,
-    pool,
+    // L1: no pyramid entry at founding.
+    pool: null,
   };
-}
-
-async function poolOf(seasonId: string, clubId: string): Promise<FoundedClub['pool']> {
-  const [row] = await db()
-    .select({ id: pools.id, name: pools.Name, division: pools.Division })
-    .from(entries)
-    .innerJoin(pools, sql`${pools.id}::text = ${entries.Group}`)
-    .where(and(eq(entries.SeasonId, seasonId), eq(entries.ClubId, clubId)));
-  return row ?? null;
 }

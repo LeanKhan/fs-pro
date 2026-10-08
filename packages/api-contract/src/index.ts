@@ -22,6 +22,7 @@ import { worldContract } from './routes/world';
 import { competitionDefinitionsContract } from './routes/competition-definitions';
 import { atlasContract } from './routes/atlas';
 import { tilesContract } from './routes/tiles';
+import { programContract } from './routes/program';
 
 const c = initContract();
 
@@ -50,6 +51,7 @@ export const apiContract = c.router({
   competitionDefinitions: competitionDefinitionsContract,
   atlas: atlasContract,
   tiles: tilesContract,
+  program: programContract,
 });
 
 export * from './replay';
@@ -261,3 +263,36 @@ export type {
   ProgramHistogramBucket,
   ProgramSimulationReport,
 } from './schemas/program-service';
+
+// Client-facing owner-program shapes and routes (Node serves these; phase-2
+// OWNER-PROGRAM-SPEC §10.1). The Go-boundary shapes above are separate.
+export {
+  ProgramStepSchema as OwnerProgramStepSchema,
+  ProgramStepStarsSchema,
+  AttributeRangeSchema,
+  ProgramManagerSchema,
+  ProgramPlayerSchema,
+  ProgramScoutRevealSchema,
+  ProgramStateSchema,
+  ProgramManagerListSchema,
+  ProgramPlayerListSchema,
+  ProgramSignResultSchema,
+  ProgramDismissTipSchema,
+  ProgramChapterSchema,
+  ProgramLoanSchema,
+} from './schemas/program';
+export type {
+  ProgramStep as OwnerProgramStep,
+  ProgramStepStars as OwnerProgramStepStars,
+  AttributeRange,
+  ProgramManager,
+  ProgramPlayer,
+  ProgramScoutReveal,
+  ProgramState,
+  ProgramManagerList,
+  ProgramPlayerList,
+  ProgramSignResult,
+  ProgramDismissTip,
+  ProgramChapter,
+  ProgramLoan,
+} from './schemas/program';

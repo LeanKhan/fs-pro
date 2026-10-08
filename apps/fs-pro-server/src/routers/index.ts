@@ -27,6 +27,7 @@ import { awardTsRestRoutes } from '../controllers/awards/awards.router';
 import { metaTsRestRoutes } from '../controllers/meta/meta.router';
 import { atlasTsRestRoutes, crestRouter, kitRouter } from '../controllers/world/atlas.router';
 import { tilesTsRestRoutes } from '../controllers/world/tiles.router';
+import { programTsRestRoutes } from '../controllers/program/program.router';
 import { realtimeRouter } from '../controllers/realtime/realtime.router';
 import { routePolicy } from '../middleware/route-policy';
 
@@ -56,6 +57,7 @@ export const apiRouter = s.router(apiContract, {
   competitionDefinitions: competitionDefinitionTsRestRoutes,
   atlas: atlasTsRestRoutes,
   tiles: tilesTsRestRoutes,
+  program: programTsRestRoutes,
 });
 
 // export default mainRouter;

@@ -12,6 +12,7 @@ import { scaled } from './game-time';
 import { getShop, type ShopState } from './shop';
 import { getClubLeague, type ClubLeague } from './club-league';
 import { ensureDefaultLineup } from './default-lineup';
+import { assertClubPlayable } from '../program/squad-gate';
 
 /**
  * PLAY: the match is the club's primary loop. Pressing PLAY matches the club
@@ -262,6 +263,10 @@ export async function playMatch(
 ): Promise<MatchResult> {
   const [club] = await db().select().from(clubs).where(eq(clubs.id, clubId));
   if (!club) throw new Error('Club not found');
+
+  // L5: no manager, no legal matchday squad, no match. The owner program's
+  // advisor turns the typed refusal into a tip.
+  await assertClubPlayable(clubId);
 
   const cooldown = await cooldownSeconds(clubId);
   if (cooldown > 0) throw new Error(`Your squad is resting - next match in ${cooldown}s`);

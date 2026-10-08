@@ -19,6 +19,10 @@
 import {
   PlaceChildrenSchema,
   PlacementSpotSchema,
+  ProgramEvaluationSchema,
+  ProgramNextResponseSchema,
+  ProgramStepsConfigSchema,
+  ProgramTipResponseSchema,
   ProminenceRecomputeResultSchema,
   ProminenceSchema,
   PyramidDrawSchema,
@@ -30,6 +34,13 @@ import type {
   PlaceChildren,
   PlacementSpot,
   PlacementSpotRequest,
+  ProgramEvaluateRequest,
+  ProgramEvaluation,
+  ProgramNextRequest,
+  ProgramNextResponse,
+  ProgramStepsConfig,
+  ProgramTipRequest,
+  ProgramTipResponse,
   Prominence,
   ProminenceRecompute,
   ProminenceRecomputeResult,
@@ -135,6 +146,33 @@ export function joinPyramid(request: PyramidJoinRequest): Promise<PyramidJoin> {
 /** GET /tiles/{z}/{x}/{y} - one bounded map tile (zoom 0..5). */
 export function getTile(z: number, x: number, y: number): Promise<Tile> {
   return call('GET /tiles/:z/:x/:y', `/tiles/${z}/${x}/${y}`, TileSchema);
+}
+
+/**
+ * The owner-program engine (Go `internal/program`, phase-2
+ * PROGRAM-SERVICE-CONTRACT.md). Pure evaluation only - Node persists the
+ * result and every money/DB write. These are server-to-server calls, never
+ * ts-rest routes.
+ */
+
+/** GET /program/steps - the step table, rewards, XP caps and fees. */
+export function getProgramSteps(): Promise<ProgramStepsConfig> {
+  return call('GET /program/steps', '/program/steps', ProgramStepsConfigSchema);
+}
+
+/** POST /program/evaluate - completion, stars, reward XP, reasons, advisor line. */
+export function evaluateProgramStep(request: ProgramEvaluateRequest): Promise<ProgramEvaluation> {
+  return call('POST /program/evaluate', '/program/evaluate', ProgramEvaluationSchema, postJson(request));
+}
+
+/** POST /program/next - the next active step after re-checking the predicate. */
+export function nextProgramStep(request: ProgramNextRequest): Promise<ProgramNextResponse> {
+  return call('POST /program/next', '/program/next', ProgramNextResponseSchema, postJson(request));
+}
+
+/** POST /program/tip - the single highest-priority eligible advisor line. */
+export function programTip(request: ProgramTipRequest): Promise<ProgramTipResponse> {
+  return call('POST /program/tip', '/program/tip', ProgramTipResponseSchema, postJson(request));
 }
 
 /** GET /health - the service's typed health payload. */
