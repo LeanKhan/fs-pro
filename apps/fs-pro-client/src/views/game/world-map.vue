@@ -875,9 +875,14 @@ onBeforeUnmount(() => {
     left: 8px;
   }
   .world-title small,
-  .filters,
-  .world-search input {
+  .filters {
     display: none;
+  }
+  .world-search {
+    flex: 1 1 100%;
+  }
+  .world-search input {
+    width: 100%;
   }
   .world-panel {
     top: auto;
