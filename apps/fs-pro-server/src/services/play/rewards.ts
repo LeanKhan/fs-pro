@@ -1,6 +1,7 @@
 import { eq, sql as drizzleSql } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
 import { clubs, transferLedger } from '../../db/drizzle/schema';
+import { enterPyramidAtLevelOne } from '../world/level-change';
 
 /** Level from XP lives in services/world/level.ts (one Level concept for
  * PLAY and competition entry). Re-exported for existing callers. */
@@ -38,4 +39,12 @@ export async function payClub(
       });
     }
   });
+
+  // The XP write is the level-change seam that can take a club to Level 1
+  // (L2): run the pyramid trigger after the money/XP transaction commits.
+  if (reward.xp > 0) {
+    await enterPyramidAtLevelOne(clubId).catch((err) =>
+      console.warn('[rewards] pyramid trigger', err)
+    );
+  }
 }

@@ -79,6 +79,11 @@ export const places = pgTable('Places', {
   /** Town terrain ('city' | 'coastal' | 'hillside'): the campus scene of its clubs. */
   Terrain: text('Terrain'),
   Motto: text('Motto'),
+  /** The worldgen culture id this place names its people and places from
+   * (migration 0043; L12). Cultures are data in services/worldgen, not DB
+   * rows, so this is text with no FK. A country carries its primary culture;
+   * a region/city/district inherits its country's. */
+  CultureId: text('CultureId'),
   ...timestamps,
 });
 
@@ -138,6 +143,20 @@ export const managers = pgTable('Managers', {
   NationalTeam: boolean('NationalTeam').notNull().default(false),
   Records: jsonArray('Records'),
   isEmployed: boolean('isEmployed').notNull().default(false),
+  /** Real-hire quality attributes (migration 0042; L4), 40-90. */
+  Tactics: integer('Tactics'),
+  Motivation: integer('Motivation'),
+  Development: integer('Development'),
+  Discipline: integer('Discipline'),
+  /** Cached overall, round(0.40*Tactics+0.20*Motivation+0.25*Development+0.15*Discipline). */
+  Overall: integer('Overall'),
+  /** Per game Year (Villa). */
+  Wage: real('Wage'),
+  /** One-off signing fee (Villa). */
+  SigningFee: real('SigningFee'),
+  /** Remaining contract years; the manager step needs > 0. */
+  ContractYears: integer('ContractYears').notNull().default(0),
+  ContractUntilYear: integer('ContractUntilYear'),
   ...timestamps,
 });
 
@@ -544,7 +563,53 @@ export const players = pgTable('Players', {
    * sim as a small bounded Rating nudge. `Morale` above is a legacy label. */
   MoraleValue: integer('MoraleValue').notNull().default(60),
   isYouth: boolean('isYouth').notNull().default(false),
+  /** The game day the player entered the free-agent pool (migration 0042;
+   * L5). 2C's expiry retires unsigned players once the TTL has passed. */
+  FreeAgentSince: integer('FreeAgentSince'),
   ...timestamps,
+});
+
+/** The server-side, per-club owner program (migration 0042; L8 / phase-2
+ * OWNER-PROGRAM-SPEC §3). One row per club. Step: not_started | manager |
+ * players | facilities | level1 | done. StepStars is the 1-3 decision quality
+ * per completed step; ProgramXp is their capped sum. */
+export const ownerProgram = pgTable(
+  'OwnerProgram',
+  {
+    ClubId: uuid('ClubId')
+      .primaryKey()
+      .references(() => clubs.id),
+    Step: text('Step').notNull().default('manager'),
+    StepStars: jsonb('StepStars')
+      .$type<Record<string, number>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    ProgramXp: integer('ProgramXp').notNull().default(0),
+    /** The V1M-V5M draw at founding; the manager step measures fee against it. */
+    StartingBalance: real('StartingBalance').notNull().default(0),
+    /** Browsed managers, interviewed managers and scouted players. */
+    Scout: jsonb('Scout')
+      .$type<{ managerIdsBrowsed?: string[]; interviewedManagerIds?: string[]; scoutedPlayerIds?: string[] }>()
+      .notNull()
+      .default(
+        sql`'{"managerIdsBrowsed":[],"interviewedManagerIds":[],"scoutedPlayerIds":[]}'::jsonb`
+      ),
+    Chapter: text('Chapter'),
+    ChapterData: jsonb('ChapterData').$type<Record<string, unknown> | null>(),
+    DismissedTips: jsonb('DismissedTips').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    StartedAt: timestamp('StartedAt', { precision: 3 }).defaultNow().notNull(),
+    CompletedAt: timestamp('CompletedAt', { precision: 3 }),
+    updatedAt: timestamp('updatedAt', { precision: 3 }).notNull().defaultNow(),
+  },
+  (t) => [index('OwnerProgram_step_idx').on(t.Step)]
+);
+
+/** The idempotency ledger for the L5 world seed (2C writes the job; the table
+ * ships with migration 0042). */
+export const worldSeed = pgTable('WorldSeed', {
+  Key: text('Key').primaryKey(),
+  Version: integer('Version').notNull().default(1),
+  AppliedAt: timestamp('AppliedAt', { precision: 3 }).defaultNow().notNull(),
 });
 
 export const fixtures = pgTable(

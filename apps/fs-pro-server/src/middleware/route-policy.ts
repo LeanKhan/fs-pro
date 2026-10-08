@@ -86,6 +86,20 @@ export const POLICIES: Record<string, Rule> = {
   'transfers.getOffers': { club: queryField('clubId') },
   'transfers.setTransferWindow': 'admin',
 
+  // Owner program (phase 2): the club's owner (or an admin) drives it.
+  'program.getProgram': { club: param('clubId') },
+  'program.advanceProgram': { club: param('clubId') },
+  'program.dismissTip': { club: param('clubId') },
+  'program.browseManagers': { club: param('clubId') },
+  'program.interviewManager': { club: param('clubId') },
+  'program.signManager': { club: param('clubId') },
+  'program.releaseManager': { club: param('clubId') },
+  'program.browsePlayers': { club: param('clubId') },
+  'program.scoutPlayer': { club: param('clubId') },
+  'program.signPlayer': { club: param('clubId') },
+  'program.requestLoan': { club: param('clubId') },
+  'program.getProgramChapter': { club: param('clubId') },
+
   'facilities.startUpgrade': 'handler',
   'facilities.savePlacement': 'handler',
   'facilities.squadRecovery': 'handler',

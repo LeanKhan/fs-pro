@@ -5,6 +5,7 @@ import { collectShop } from '../../services/play/shop';
 import { PrepError, bookMatch, getMatchPrep, getMatchday, previewMatchPlan, saveMatchPlan } from '../../services/play/match-plan.service';
 import { getInbox, markInboxRead } from '../../services/world/club-standing.service';
 import { accessDenied, canManageClub } from '../auth/club-access';
+import { ProgramGateError } from '../../services/program/squad-gate';
 
 const s = initServer();
 
@@ -25,8 +26,16 @@ function ownerOnly<A extends { params: { clubId: string }; req: { session?: unkn
 
 function errorResponse(err: unknown) {
   const message = err instanceof Error ? err.message : String(err);
+  const status =
+    err instanceof PrepError
+      ? err.status
+      : err instanceof ProgramGateError
+        ? (err.status as 409)
+        : /not found/i.test(message)
+          ? (404 as const)
+          : (400 as const);
   return {
-    status: err instanceof PrepError ? err.status : /not found/i.test(message) ? (404 as const) : (400 as const),
+    status,
     body: { success: false as const, message, payload: message },
   };
 }

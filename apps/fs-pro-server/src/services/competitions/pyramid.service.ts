@@ -289,8 +289,15 @@ export async function drawPyramid(competitionId: string, opts: { fromDay?: numbe
       .where(and(eq(places.Type, 'region'), eq(places.ParentId, countryId)));
     const regionName = new Map(regionRows.map((r) => [r.id, r.name]));
 
+    // Phase 2 L2: a pyramid edition only contains clubs at Level 1 or above.
+    // A brand-new owner club is Level 0 and joins only when it reaches Level 1
+    // (services/world/level-change.ts `enterPyramidAtLevelOne`), so the draw
+    // never drags an unqualified club into a league.
+    const eligible = rows.filter((r) => levelForXp(r.xp, calendar.LevelThresholds ?? undefined) >= 1);
+    if (!eligible.length) return null;
+
     const detail = new Map(
-      rows.map((r) => [
+      eligible.map((r) => [
         r.id,
         {
           id: r.id,
@@ -444,7 +451,7 @@ export async function drawPyramid(competitionId: string, opts: { fromDay?: numbe
     return {
       seasonId: season!.id,
       competitionId,
-      clubs: rows.length,
+      clubs: eligible.length,
       divisions: bottomDivision,
       pools: poolCount,
       fixtures: fixtureCount,

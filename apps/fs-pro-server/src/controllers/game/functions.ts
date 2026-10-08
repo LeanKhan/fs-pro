@@ -43,7 +43,9 @@ export async function updateFixture(
 ) {
   const matchDetails = {
     ...MatchDetails,
-    MOTM: MatchDetails.MOTM.id,
+    // The engine returns no Man of the Match for a side with no players (e.g.
+    // a caretaker club whose squad emptied). Keep the fixture saveable.
+    MOTM: MatchDetails.MOTM ? MatchDetails.MOTM.id : null,
     Winner: MatchDetails.Winner ? MatchDetails.Winner.id : null,
     Loser: MatchDetails.Loser ? MatchDetails.Loser.id : null,
   };

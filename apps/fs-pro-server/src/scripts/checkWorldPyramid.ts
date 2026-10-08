@@ -11,6 +11,7 @@ import { createInvite, previewPlacement } from '../services/world/placement.serv
 import { bar, postNews, scopeChain } from '../services/world/news-scope.service';
 import { releaseInactiveClubs, sweepCaretakers } from '../services/world/caretaker.service';
 import { runWorldDay } from '../services/world/world-day.service';
+import { enterPyramidAtLevelOne } from '../services/world/level-change';
 
 /**
  * End-to-end checks for the world pyramid (docs/perfect/WORLD-HIERARCHY-SPEC.md
@@ -118,6 +119,10 @@ async function newUser() {
   return u!.id;
 }
 
+/** Every club founded by the check, in order (phase 2: they join the pyramid
+ * only when promoted to Level 1, not at founding). */
+const allClubs: { clubId: string; countryId: string }[] = [];
+
 /** Found a club, naming any new places it opens. */
 let clubSeq = 0;
 async function found(invite?: string) {
@@ -132,7 +137,9 @@ async function found(invite?: string) {
     newRegion: { name: `Region ${n}` },
     newCountry: { name: `Land ${n}`, code: `L${letters(n)}`, colors: ['#2f8a1c', '#f5b82e'] },
   };
-  return foundClub(await newUser(), body);
+  const club = await foundClub(await newUser(), body);
+  allClubs.push({ clubId: club.clubId, countryId: club.country.id });
+  return club;
 }
 
 async function placeInvariants(sizes: { district: number; city: number; region: number; country: number }) {
@@ -184,7 +191,15 @@ async function dbChecks() {
   assert.deepStrictEqual(first.needs, { town: true, region: true, country: true });
   const c1 = await found();
   assert.deepStrictEqual(c1.opened, ['country', 'region', 'town']);
-  assert.ok(c1.pool, 'the first club gets a pyramid pool');
+  // Phase 2 L1: no pyramid entry, no manager and no squad at founding.
+  assert.strictEqual(c1.pool, null, 'a founded club has no pyramid pool');
+  const [fresh] = await db()
+    .select({ entries: sql<number>`count(*)::int` })
+    .from(entries)
+    .where(eq(entries.ClubId, c1.clubId));
+  assert.strictEqual(fresh!.entries, 0, 'the first club is not entered in a pyramid');
+  const [freshClub] = await db().select({ ManagerId: clubs.ManagerId }).from(clubs).where(eq(clubs.id, c1.clubId));
+  assert.strictEqual(freshClub!.ManagerId, null, 'the first club has no manager at founding');
   const c2 = await found();
   const c3 = await found();
   assert.ok(c2.town.id === c1.town.id && c3.town.id === c1.town.id, 'a district fills first');
@@ -224,6 +239,20 @@ async function dbChecks() {
   const ai = await count(clubs, sql`${clubs.UserId} IS NULL`);
   assert.strictEqual(ai, 0, 'no AI clubs are spawned');
   ok(`${N} clubs founded, no AI rivals`);
+
+  // Phase 2 L2: a founded club is Level 0 and in no pyramid. It joins only
+  // when it reaches Level 1. Promote every club and run the trigger; the first
+  // Level-1 club of each country draws its edition, the rest join mid-season.
+  assert.strictEqual(
+    (await db().select().from(entries).where(isNotNull(entries.Division))).length,
+    0,
+    'a Level-0 club must not be entered in a pyramid'
+  );
+  await db().update(clubs).set({ XP: 100 });
+  await Promise.all(allClubs.map((c) => enterPyramidAtLevelOne(c.clubId)));
+  const stillUnplaced = (await db().select().from(entries).where(isNotNull(entries.Division))).length;
+  assert.strictEqual(stillUnplaced, N, 'a Level-1 club did not join its pyramid');
+  ok(`reaching Level 1 entered all ${N} clubs (none entered before)`);
 
   // --- Pyramid: the Go service assigned the pools (Node persisted them). -----
   const running = await db().select().from(seasons).where(eq(seasons.Status, 'running'));
