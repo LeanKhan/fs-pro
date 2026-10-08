@@ -4,7 +4,7 @@ import { eq, sql } from 'drizzle-orm';
 import { apiContract as contract, isCrestDesign, renderCrestSvg, renderKitSvg } from '@repo/api-contract';
 import { DrizzleDatabase } from '../../db/drizzle';
 import { clubs } from '../../db/drizzle/schema';
-import { FoundingError, checkName, foundCountry, foundTown, getAtlas } from '../../services/world/atlas.service';
+import { FoundingError, checkName, foundCountry, foundTown, getAtlas, getAtlasChrome, searchAtlas } from '../../services/world/atlas.service';
 import { foundClub } from '../../services/world/club-founding.service';
 import { InviteError, createInvite, listInvites, previewPlacement } from '../../services/world/placement.service';
 import { publishWorldEvent } from '../../realtime/world-events';
@@ -28,6 +28,23 @@ export const atlasTsRestRoutes = s.router(contract.atlas, {
     try {
       const atlas = await getAtlas((req.session as Session)?.userID ?? null, { countryId: query?.countryId });
       return { status: 200, body: { success: true, message: 'Atlas', payload: atlas } };
+    } catch (err) {
+      return failure(err) as any;
+    }
+  },
+
+  getChrome: async ({ req }) => {
+    try {
+      const chrome = await getAtlasChrome((req.session as Session)?.userID ?? null);
+      return { status: 200, body: { success: true, message: 'Chrome', payload: chrome } };
+    } catch (err) {
+      return failure(err) as any;
+    }
+  },
+
+  search: async ({ query }) => {
+    try {
+      return { status: 200, body: { success: true, message: 'Results', payload: await searchAtlas(query.q) } };
     } catch (err) {
       return failure(err) as any;
     }
