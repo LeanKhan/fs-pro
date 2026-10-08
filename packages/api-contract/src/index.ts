@@ -21,6 +21,7 @@ import { challengesContract } from './routes/challenges';
 import { worldContract } from './routes/world';
 import { competitionDefinitionsContract } from './routes/competition-definitions';
 import { atlasContract } from './routes/atlas';
+import { tilesContract } from './routes/tiles';
 
 const c = initContract();
 
@@ -48,6 +49,7 @@ export const apiContract = c.router({
   world: worldContract,
   competitionDefinitions: competitionDefinitionsContract,
   atlas: atlasContract,
+  tiles: tilesContract,
 });
 
 export * from './replay';
@@ -174,6 +176,9 @@ export {
   PyramidJoinRequestSchema,
   PyramidJoinSchema,
   WorldServiceHealthSchema,
+  TilePlaceSchema,
+  TileClubSchema,
+  TileSchema,
 } from './schemas/world-service';
 export type {
   PlacementSpotKind,
@@ -190,4 +195,7 @@ export type {
   PyramidJoinRequest,
   PyramidJoin,
   WorldServiceHealth,
+  TilePlace,
+  TileClub,
+  Tile,
 } from './schemas/world-service';

@@ -13,6 +13,7 @@ import (
 	"fs-pro-world-service/internal/placement"
 	"fs-pro-world-service/internal/pyramid"
 	"fs-pro-world-service/internal/ranking"
+	"fs-pro-world-service/internal/tiles"
 )
 
 type fakePinger struct{ err error }
@@ -65,6 +66,20 @@ func (f *fakePyramid) Draw(_ context.Context, competitionID string) (pyramid.Ass
 
 func (f *fakePyramid) Join(_ context.Context, competitionID, clubID string) (pyramid.JoinResult, error) {
 	return f.join, f.err
+}
+
+type fakeTiles struct {
+	tile tiles.Tile
+	err  error
+}
+
+func (f *fakeTiles) Build(_ context.Context, key tiles.Key) (tiles.Tile, error) {
+	if f.err != nil {
+		return tiles.Tile{}, f.err
+	}
+	t := f.tile
+	t.Key = key
+	return t, nil
 }
 
 func strp(s string) *string { return &s }
@@ -270,6 +285,53 @@ func TestPyramidEndpoints(t *testing.T) {
 	rec = do(t, srv, http.MethodPost, "/pyramid/draw/comp-2", "")
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("no-edition status = %d, want 404", rec.Code)
+	}
+}
+
+func TestTilesHandler(t *testing.T) {
+	b := &fakeTiles{tile: tiles.Tile{
+		Places: []tiles.PlaceMarker{{ID: "p1", Name: "Land 1", Type: "country", Clubs: 3}},
+		Rev:    7,
+	}}
+	srv := newTestServer(t, Deps{Tiles: b}, nil)
+
+	rec := do(t, srv, http.MethodGet, "/tiles/1/2/3", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("tile status = %d, want 200", rec.Code)
+	}
+	if got := rec.Header().Get("ETag"); got != `"1/2/3:7"` {
+		t.Fatalf("ETag = %q, want %q", got, `"1/2/3:7"`)
+	}
+	if cc := rec.Header().Get("Cache-Control"); !strings.Contains(cc, "max-age=15") {
+		t.Fatalf("Cache-Control = %q", cc)
+	}
+	var body tiles.Tile
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode tile: %v", err)
+	}
+	if body.Key != (tiles.Key{Z: 1, X: 2, Y: 3}) || len(body.Places) != 1 {
+		t.Fatalf("unexpected tile body: %+v", body)
+	}
+
+	// A matching If-None-Match revalidates to 304.
+	r := httptest.NewRequest(http.MethodGet, "/tiles/1/2/3", nil)
+	r.Header.Set("If-None-Match", `"1/2/3:7"`)
+	rec2 := httptest.NewRecorder()
+	srv.ServeHTTP(rec2, r)
+	if rec2.Code != http.StatusNotModified {
+		t.Fatalf("If-None-Match status = %d, want 304", rec2.Code)
+	}
+
+	// Zoom outside the scheme and non-integer cells are client errors.
+	if rec := do(t, srv, http.MethodGet, "/tiles/9/0/0", ""); rec.Code != http.StatusBadRequest {
+		t.Fatalf("bad zoom = %d, want 400", rec.Code)
+	}
+	if rec := do(t, srv, http.MethodGet, "/tiles/x/0/0", ""); rec.Code != http.StatusBadRequest {
+		t.Fatalf("non-integer z = %d, want 400", rec.Code)
+	}
+	// Unconfigured tiles answer 503, not a panic.
+	if rec := do(t, newTestServer(t, Deps{}, nil), http.MethodGet, "/tiles/0/0/0", ""); rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("unconfigured tiles = %d, want 503", rec.Code)
 	}
 }
 
