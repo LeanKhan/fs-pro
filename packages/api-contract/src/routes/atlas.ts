@@ -4,8 +4,10 @@ import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 import { successEnvelope, failEnvelope } from '../schemas/envelope';
 import {
+  AtlasChromeSchema,
   AtlasCountrySchema,
   AtlasSchema,
+  AtlasSearchResultSchema,
   AtlasTownSchema,
   FoundClubSchema,
   FoundCountrySchema,
@@ -39,6 +41,22 @@ export const atlasContract = c.router(
       path: '',
       query: z.object({ countryId: z.string().optional() }),
       responses: { 200: successEnvelope(AtlasSchema), 400: failEnvelope() },
+    },
+
+    /** The map chrome a tile does not carry: country headers (spot + flag
+     * colours) and the signed-in user's founding summary. Small and stable. */
+    getChrome: {
+      method: 'GET',
+      path: '/chrome',
+      responses: { 200: successEnvelope(AtlasChromeSchema), 400: failEnvelope() },
+    },
+
+    /** Find a place or club by name/code for the map's search box. */
+    search: {
+      method: 'GET',
+      path: '/search',
+      query: z.object({ q: z.string() }),
+      responses: { 200: successEnvelope(z.array(AtlasSearchResultSchema)), 400: failEnvelope() },
     },
 
     /** Where a new club would go now (with an invite, if given). */

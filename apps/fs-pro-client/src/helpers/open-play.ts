@@ -124,7 +124,7 @@ export function xpForLevel(level: number, thresholds?: number[] | null) {
 }
 
 // Club directory: names and codes by id, loaded once and shared.
-type ClubLite = Pick<Club, 'Name' | 'ClubCode' | 'XP' | 'Elo' | 'Budget' | 'homePlaceId' | 'CampusLayout' | 'Rating' | 'Address' | 'Form' | 'UserId'> & { _id: string };
+type ClubLite = Pick<Club, 'Name' | 'ClubCode' | 'XP' | 'Elo' | 'Budget' | 'homePlaceId' | 'CampusLayout' | 'Rating' | 'Address' | 'Form' | 'UserId' | 'Fans'> & { _id: string };
 const directory = ref<Map<string, ClubLite>>(new Map());
 let loading: Promise<void> | null = null;
 
