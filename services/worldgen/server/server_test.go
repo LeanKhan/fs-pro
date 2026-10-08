@@ -135,6 +135,119 @@ func TestGenerateRejectsUnknownCulture(t *testing.T) {
 	}
 }
 
+func TestGenerateRejectsNoCultureOrCountry(t *testing.T) {
+	srv := NewServer()
+
+	w := post(t, srv, "/names/generate", map[string]interface{}{"count": 1})
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("Expected 400 when neither culture nor country is set, got %d", w.Code)
+	}
+}
+
+func TestCulturesEndpoint(t *testing.T) {
+	srv := NewServer()
+
+	w := get(t, srv, "/cultures")
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var res struct {
+		Cultures []struct {
+			ID         string `json:"id"`
+			FirstNames int    `json:"firstNames"`
+			Surnames   int    `json:"surnames"`
+		} `json:"cultures"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatalf("parse cultures: %v", err)
+	}
+	if len(res.Cultures) < 8 {
+		t.Fatalf("Expected >= 8 cultures, got %d", len(res.Cultures))
+	}
+	for _, c := range res.Cultures {
+		if c.FirstNames < 400 || c.Surnames < 400 {
+			t.Errorf("culture %s below floors: first=%d last=%d", c.ID, c.FirstNames, c.Surnames)
+		}
+	}
+}
+
+func TestGenerateEveryKindEndpoint(t *testing.T) {
+	srv := NewServer()
+	kinds := []string{"first", "last", "full", "club", "region", "city", "district", "stadium"}
+	for _, kind := range kinds {
+		w := post(t, srv, "/names/generate", map[string]interface{}{
+			"count": 5, "culture": "kiyoto", "kind": kind, "seed": 1,
+		})
+		if w.Code != http.StatusOK {
+			t.Fatalf("kind %s: expected 200, got %d: %s", kind, w.Code, w.Body.String())
+		}
+		names := decodeNames(t, w)
+		if len(names) != 5 {
+			t.Fatalf("kind %s: expected 5 names, got %v", kind, names)
+		}
+		for _, n := range names {
+			if strings.TrimSpace(n) == "" {
+				t.Fatalf("kind %s: empty name in %v", kind, names)
+			}
+		}
+		if kind == "full" && !strings.Contains(names[0], "__") {
+			t.Fatalf("full name %q missing separator", names[0])
+		}
+	}
+}
+
+func TestGenerateSeedIsDeterministic(t *testing.T) {
+	srv := NewServer()
+	body := map[string]interface{}{"count": 12, "culture": "karsh", "kind": "full", "seed": 777}
+	a := decodeNames(t, post(t, srv, "/names/generate", body))
+	b := decodeNames(t, post(t, srv, "/names/generate", body))
+	if strings.Join(a, "|") != strings.Join(b, "|") {
+		t.Fatalf("same seed produced different names: %v vs %v", a, b)
+	}
+}
+
+func TestGenerateMixedEndpoint(t *testing.T) {
+	srv := NewServer()
+
+	w := post(t, srv, "/names/generate", map[string]interface{}{
+		"count": 40, "country": "bellean", "kind": "full", "seed": 5,
+	})
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var res struct {
+		Names    []string       `json:"names"`
+		Cultures map[string]int `json:"cultures"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatalf("parse mixed response: %v", err)
+	}
+	if len(res.Names) != 40 {
+		t.Fatalf("Expected 40 names, got %d", len(res.Names))
+	}
+	sum := 0
+	for _, v := range res.Cultures {
+		sum += v
+	}
+	if sum != 40 || len(res.Cultures) < 2 {
+		t.Fatalf("Expected a mixed histogram summing to 40, got %v", res.Cultures)
+	}
+}
+
+func TestMixedNamesEndpoint(t *testing.T) {
+	srv := NewServer()
+
+	w := post(t, srv, "/names/mixed", map[string]interface{}{
+		"count": 10, "country": "upp", "kind": "club", "seed": 3,
+	})
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if names := decodeNames(t, w); len(names) != 10 {
+		t.Fatalf("Expected 10 names, got %v", names)
+	}
+}
+
 // ---- faces -----------------------------------------------------------
 
 func TestGenerateFaceEndpoint(t *testing.T) {
