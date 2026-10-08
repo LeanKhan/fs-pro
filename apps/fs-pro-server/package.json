@@ -27,6 +27,7 @@
     "drizzle:push": "drizzle-kit push",
     "drizzle:studio": "drizzle-kit studio",
     "db:test": "ts-node src/scripts/test-connection.ts",
+    "launch:setup": "ts-node --transpile-only src/scripts/launch-setup.ts",
     "db:reset:dev": "set DEV_TEST=true && ts-node src/scripts/reset-dev-sql-db.ts",
     "setup:counter-sequences": "ts-node src/scripts/migration/setup-counter-sequences.ts",
     "setup:sessions-table": "ts-node src/scripts/migration/setup-sessions-table.ts",
