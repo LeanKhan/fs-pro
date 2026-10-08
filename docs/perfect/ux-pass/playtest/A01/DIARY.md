@@ -82,6 +82,23 @@ instance could be played without the Windows-Node harness — but it cannot help
 while the API's DB pipeline is stalled. No further UI play was possible; the
 admin's Session 1 evidence is the complete record.
 
+### Session 2b — fallback host built; instance itself is down (14:4x–15:0xZ)
+
+- Installed Linux Chromium (Playwright), extracted the 4 missing system libs
+  (`libnspr4`, `libnss3`, `libnssutil3`, `libasound2`) into a local sysroot, and
+  wrote a fallback host (`/tmp/opencode/a01/fallback-server.mjs`) that serves the
+  **same production bundle** on `127.0.0.1:4173` and TCP-proxies `3010/3011/3005`
+  to the Windows host. The login page renders pixel-for-pixel like the shipped
+  client, so the fallback is viable.
+- **But the instance is genuinely down, not just my tooling:** the fallback
+  login hangs at "Signing in…". `POST /api/users/login` with an empty body
+  returns `400` in ~4 ms (validation runs), yet a real login hangs; `/healthz`
+  is `503 {"ok":false}`. `docker ps` shows `fs-pro-db-1 Up 28 hours (healthy)`
+  and TCP `:5434` is open, so the API web/worker are wedged on DB queries
+  (pool exhaustion). Logged for the lead in `INSTANCE-LOG.md §7/§8`.
+- **Mood: 1/5.** I can see the game; I just cannot get through the door.
+
+
 - [2026-10-08T11:59:19.469Z] Opened admin Competitions to confirm competitions exist.
 - [2026-10-08T12:03:49.421Z] Surveyed admin Clubs screen.
 - [2026-10-08T12:07:53.472Z] Surveyed admin Clubs screen.

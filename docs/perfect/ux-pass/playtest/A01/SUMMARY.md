@@ -11,11 +11,14 @@ API `:3010` (INSTANCE-LOG.md). Sessions with breaks per D4.
 
 ## Pass outcome (A01)
 
-- **Stopped by instance/tooling failure, not by the game.** From 12:10Z the
+- **Stopped by instance failure, not by the game.** From 12:10Z the
   WSL→Windows interop died (`UtilAcceptVsock accept4 failed 110`), and from
-  ~13:20Z the Windows API also stalled on all DB-backed routes (`/healthz`,
-  `/api/*` hang; `/` answers). A Linux-side fallback (same production bundle +
-  host proxy) was prepared but is useless while the API is stalled.
+  ~13:20Z the Windows API also stalled on all DB-backed routes: `/healthz`
+  returns `503 {"ok":false}` and a real login hangs ("Signing in…") although an
+  empty-body login returns `400` in ~4 ms and `fs-pro-db-1` is healthy — the API
+  web/worker are wedged. A Linux-side fallback (same production bundle + host
+  proxy + Linux Chromium) was built and renders the shipped client correctly,
+  but cannot get past the hung login. Host-side restart needed (INSTANCE-LOG §7/§8).
 - **Admin job status:** D3 clock/settings verified and competitions confirmed
   (the setup half of the brief) **done and evidenced**. The continuous
   run-the-calendar / observe-players / moderate half **could not be exercised**.
