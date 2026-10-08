@@ -20,8 +20,9 @@ func New(q db.Querier) *Service { return &Service{q: q} }
 
 // Build returns the bounded tile for key. It draws the places at the zoom's
 // level that fall in the cell, each with its club count, plus the top clubs by
-// prominence. When either payload cap would be exceeded the result is the
-// bounded subset with Overflow/ZoomHint set (§7.4), never a silent truncation.
+// prominence. When a cap would be exceeded it returns the cell's parent-level
+// summary with Overflow/ZoomHint set (§7.4) rather than a silent truncation;
+// at z0 (no parent) it returns the bounded subset with the flags set.
 func (s *Service) Build(ctx context.Context, key Key) (Tile, error) {
 	if !key.Valid() {
 		return Tile{}, fmt.Errorf("%w: %s", ErrInvalidKey, key.String())
@@ -30,14 +31,13 @@ func (s *Service) Build(ctx context.Context, key Key) (Tile, error) {
 		return Tile{}, errors.New("tiles: no database configured")
 	}
 
-	size := cellSize(key.Z)
 	level := LevelForZoom(key.Z)
 	rev, err := s.revision(ctx, key)
 	if err != nil {
 		return Tile{}, err
 	}
 
-	places, err := s.places(ctx, key, level, size)
+	places, err := s.places(ctx, key, level)
 	if err != nil {
 		return Tile{}, err
 	}
@@ -47,12 +47,12 @@ func (s *Service) Build(ctx context.Context, key Key) (Tile, error) {
 		overflow = true
 	}
 
-	clubCount, err := s.clubCount(ctx, key, size)
+	clubCount, err := s.clubCount(ctx, key)
 	if err != nil {
 		return Tile{}, err
 	}
 
-	rows, err := s.clubs(ctx, key, size)
+	rows, err := s.clubs(ctx, key, level)
 	if err != nil {
 		return Tile{}, err
 	}
@@ -60,6 +60,18 @@ func (s *Service) Build(ctx context.Context, key Key) (Tile, error) {
 	if len(clubs) > TileMaxClubs {
 		clubs = clubs[:TileMaxClubs]
 		overflow = true
+	}
+
+	if overflow && key.Z > MinZ {
+		// Return the parent-level summary; the client zooms in.
+		parent := Key{Z: key.Z - 1, X: key.X / 2, Y: key.Y / 2}
+		summary, err := s.Build(ctx, parent)
+		if err != nil {
+			return Tile{}, err
+		}
+		summary.Overflow = true
+		summary.ZoomHint = true
+		return summary, nil
 	}
 
 	return Tile{
@@ -73,13 +85,28 @@ func (s *Service) Build(ctx context.Context, key Key) (Tile, error) {
 	}, nil
 }
 
+// bounds returns the inclusive-exclusive atlas box of a cell, so the queries
+// use a sargable range on MapX/MapY (index-friendly) instead of a computed
+// floor() predicate.
+func bounds(key Key) (x0, x1, y0, y1 float64) {
+	size := cellSize(key.Z)
+	x0 = float64(key.X) * size
+	y0 = float64(key.Y) * size
+	return x0, x0 + size, y0, y0 + size
+}
+
 // places draws the level's places in the cell with their total club counts.
-// The per-type count mirrors placement.Service.Children (the canonical
-// traversal): a city's ParentId is its country and it links to its region via
-// RegionId, so a region sums the districts of the cities whose RegionId is the
-// region, and a country sums the districts of the cities whose ParentId is the
-// country.
-func (s *Service) places(ctx context.Context, key Key, level string, size float64) ([]PlaceMarker, error) {
+// At z5 the level is "club": clubs are drawn individually and there is no
+// place marker, so it returns nothing. The per-type count mirrors
+// placement.Service.Children (the canonical traversal): a city's ParentId is
+// its country and it links to its region via RegionId, so a region sums the
+// districts of the cities whose RegionId is the region, and a country sums the
+// districts of the cities whose ParentId is the country.
+func (s *Service) places(ctx context.Context, key Key, level string) ([]PlaceMarker, error) {
+	if level == "club" {
+		return nil, nil
+	}
+	x0, x1, y0, y1 := bounds(key)
 	rows, err := s.q.Query(ctx, `
 SELECT p."_id"::text, p."Name", p."Type", p."MapX", p."MapY",
        CASE p."Type"
@@ -90,10 +117,10 @@ SELECT p."_id"::text, p."Name", p."Type", p."MapX", p."MapY",
          ELSE 0
        END AS clubs
 FROM "Places" p
-WHERE p."Type" = $1 AND p."MapX" IS NOT NULL
-  AND floor(p."MapX" / $2) = $3 AND floor(p."MapY" / $2) = $4
+WHERE p."Type" = $5 AND p."MapX" IS NOT NULL
+  AND p."MapX" >= $1 AND p."MapX" < $2 AND p."MapY" >= $3 AND p."MapY" < $4
 ORDER BY clubs DESC, p."Name"
-LIMIT $5`, level, size, key.X, key.Y, TileMaxPlaces+1)
+LIMIT $6`, x0, x1, y0, y1, level, TileMaxPlaces+1)
 	if err != nil {
 		return nil, err
 	}
@@ -110,27 +137,37 @@ LIMIT $5`, level, size, key.X, key.Y, TileMaxPlaces+1)
 	return out, rows.Err()
 }
 
-// clubRow is a ClubMarker plus the district it belongs to, so the per-place
-// cap can be applied after the prominence-ordered fetch.
+// clubRow is a ClubMarker plus the place it belongs to at the tile's zoom, so
+// the per-place cap can be applied after the prominence-ordered fetch.
 type clubRow struct {
-	marker   ClubMarker
-	district string
+	marker ClubMarker
+	place  string
 }
 
-// clubs draws the cell's clubs by descending prominence, with the district id
-// so capPerPlace can apply the per-place cap. It over-fetches (2× the tile
-// cap) to leave room for the per-place cap to drop the weakest of a busy
-// district before the global cap is applied.
-func (s *Service) clubs(ctx context.Context, key Key, size float64) ([]clubRow, error) {
+// ancestorExpr maps a club's district to the place drawn at the zoom's level:
+// the country is the district's city's ParentId, the region is that city's
+// RegionId, the city is the district's ParentId, otherwise the district itself.
+const ancestorExpr = `CASE $5
+  WHEN 'country' THEN ci."ParentId"::text
+  WHEN 'region' THEN ci."RegionId"::text
+  WHEN 'city' THEN d."ParentId"::text
+  ELSE d."_id"::text
+END`
+
+// clubs draws the cell's clubs by descending prominence, tagged with the place
+// they belong to at this zoom so capPerPlace can apply the per-place cap.
+func (s *Service) clubs(ctx context.Context, key Key, level string) ([]clubRow, error) {
+	x0, x1, y0, y1 := bounds(key)
 	rows, err := s.q.Query(ctx, `
-SELECT c."_id"::text, c."Name", c."ClubCode", d."_id"::text AS district,
+SELECT c."_id"::text, c."Name", c."ClubCode", `+ancestorExpr+` AS place,
        d."MapX", d."MapY", c."Prominence", (c."UserId" IS NOT NULL) AS human
 FROM "Clubs" c
 JOIN "Places" d ON d."_id" = c."DistrictId"
+JOIN "Places" ci ON ci."_id" = d."ParentId"
 WHERE c."ReleasedAt" IS NULL AND d."MapX" IS NOT NULL
-  AND floor(d."MapX" / $1) = $2 AND floor(d."MapY" / $1) = $3
+  AND d."MapX" >= $1 AND d."MapX" < $2 AND d."MapY" >= $3 AND d."MapY" < $4
 ORDER BY c."Prominence" DESC, c."_id"
-LIMIT $4`, size, key.X, key.Y, TileMaxClubs*4)
+LIMIT $6`, x0, x1, y0, y1, level, TileMaxClubs*8)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +176,7 @@ LIMIT $4`, size, key.X, key.Y, TileMaxClubs*4)
 	out := make([]clubRow, 0, 64)
 	for rows.Next() {
 		var r clubRow
-		if err := rows.Scan(&r.marker.ID, &r.marker.Name, &r.marker.Code, &r.district,
+		if err := rows.Scan(&r.marker.ID, &r.marker.Name, &r.marker.Code, &r.place,
 			&r.marker.X, &r.marker.Y, &r.marker.Prominence, &r.marker.Human); err != nil {
 			return nil, err
 		}
@@ -149,15 +186,16 @@ LIMIT $4`, size, key.X, key.Y, TileMaxClubs*4)
 }
 
 // clubCount is the total number of clubs in the cell (not just the drawn ones).
-func (s *Service) clubCount(ctx context.Context, key Key, size float64) (int, error) {
+func (s *Service) clubCount(ctx context.Context, key Key) (int, error) {
+	x0, x1, y0, y1 := bounds(key)
 	var n int
 	err := s.q.QueryRow(ctx, `
 SELECT count(*)::int
 FROM "Clubs" c
 JOIN "Places" d ON d."_id" = c."DistrictId"
 WHERE c."ReleasedAt" IS NULL AND d."MapX" IS NOT NULL
-  AND floor(d."MapX" / $1) = $2 AND floor(d."MapY" / $1) = $3`,
-		size, key.X, key.Y).Scan(&n)
+  AND d."MapX" >= $1 AND d."MapX" < $2 AND d."MapY" >= $3 AND d."MapY" < $4`,
+		x0, x1, y0, y1).Scan(&n)
 	return n, err
 }
 
@@ -188,7 +226,7 @@ ON CONFLICT (z, x, y) DO UPDATE SET rev = "TileRevisions".rev + 1`, z, cx, cy); 
 	return nil
 }
 
-// capPerPlace keeps at most cap clubs per district, preserving the incoming
+// capPerPlace keeps at most cap clubs per drawn place, preserving the incoming
 // prominence order. cap <= 0 means no per-place limit (z5 draws them all).
 func capPerPlace(rows []clubRow, cap int) []ClubMarker {
 	if cap <= 0 {
@@ -201,10 +239,10 @@ func capPerPlace(rows []clubRow, cap int) []ClubMarker {
 	seen := make(map[string]int, 32)
 	out := make([]ClubMarker, 0, cap*4)
 	for _, r := range rows {
-		if seen[r.district] >= cap {
+		if seen[r.place] >= cap {
 			continue
 		}
-		seen[r.district]++
+		seen[r.place]++
 		out = append(out, r.marker)
 	}
 	return out
