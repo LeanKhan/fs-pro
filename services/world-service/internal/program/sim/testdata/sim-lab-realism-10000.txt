@@ -1,0 +1,7 @@
+
+=== Realism (per match, both teams; real-world reference in brackets) ===
+goals 2.69 [2.5-2.9] | xG 3.27 | shots 23.3 [22-28] | on target 7.9 [8-10]
+passes 433 [800-1100] | completion 79.4% [78-86] | tackles 38.3 [30-40] | fouls 22.1 [20-26]
+yellows 3.31 [3-4] | reds 0.28 [0.1-0.25] | home W/D/L 44/24/31 [45/25/30]
+
+(10000 seeded fixtures per cell, 3.9s)

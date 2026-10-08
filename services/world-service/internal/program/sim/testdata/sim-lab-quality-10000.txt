@@ -1,0 +1,9 @@
+
+=== Quality: does the stronger XI win? ===
+goal diff per rating point 0.218 | quality explains 57% of goal diff [aim 30-45%]
+gap  0-3  : 4984 matches | stronger wins  34% draw  35% upset  30%  [~even]
+gap  3-8  : 1827 matches | stronger wins  56% draw  27% upset  17%  [50-60%]
+gap  8-15 : 1159 matches | stronger wins  83% draw  12% upset   5%  [65-75%]
+gap 15-100: 2030 matches | stronger wins  96% draw   3% upset   1%  [80-90%]
+
+(10000 seeded fixtures per cell, 4.6s)
