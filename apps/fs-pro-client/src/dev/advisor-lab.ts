@@ -175,6 +175,19 @@ const store = useAdvisorStore(pinia);
     marker.value = { x, y, visible };
     await nextTick();
   },
+  /**
+   * QA (Batch 4B): show an arbitrary frozen advisor line, so the text-fit gate
+   * can exercise every Go-authored line (not just the demo catalog). No
+   * program logic is involved — this only pushes a line into the same store the
+   * app uses.
+   */
+  async pushLine(line: AdvisorLine) {
+    currentLine.value = line;
+    marker.value = pointMarker(line);
+    store.push(line);
+    await nextTick();
+    return { id: line.id, text: line.text };
+  },
   current() {
     return { state: currentLine.value.id, text: currentLine.value.text };
   },

@@ -1,0 +1,89 @@
+{
+  "url": "http://localhost:8091/campus-advisor-lab.html",
+  "mode": "desktop",
+  "state": "campus-advisor-excited",
+  "requestedState": "campus-advisor-excited",
+  "appliedState": "campus-advisor-excited",
+  "runId": "b4b-campus-1",
+  "seed": null,
+  "screenshotPath": "docs/perfect/phase-2/assets/visual-qa/canvas-inspection/desktop-campus-advisor-excited.png",
+  "gpu": {
+    "renderer": "ANGLE (Intel, Intel(R) UHD Graphics (0x00009A60) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "vendor": "Google Inc. (Intel)",
+    "softwareRendered": false
+  },
+  "result": {
+    "ok": true,
+    "reason": "nonblank",
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 720
+    },
+    "drawingBuffer": {
+      "width": 1280,
+      "height": 720
+    },
+    "alphaPixels": 4096,
+    "variance": 255,
+    "colorBuckets": 240,
+    "metrics": {
+      "colorBuckets": 370,
+      "colorEntropyBits": 4.78,
+      "edgeDensity": 0.277,
+      "luminance": {
+        "mean": 177.4,
+        "p5": 103.1,
+        "p95": 244.4,
+        "contrast": 141.2
+      },
+      "dominantColorShare": 0.258,
+      "nonBackgroundShare": 0.742
+    },
+    "renderBudget": {
+      "tier": "desktop",
+      "note": "starting-point budget; adjust per game and document overrides",
+      "rows": [
+        {
+          "metric": "calls",
+          "actual": 132,
+          "limit": 300,
+          "ok": true
+        },
+        {
+          "metric": "triangles",
+          "actual": 179280,
+          "limit": 750000,
+          "ok": true
+        },
+        {
+          "metric": "geometries",
+          "actual": 73,
+          "limit": 300,
+          "ok": true
+        },
+        {
+          "metric": "textures",
+          "actual": 6,
+          "limit": 60,
+          "ok": true
+        }
+      ],
+      "withinBudget": true
+    },
+    "diagnostics": {
+      "state": "campus-advisor-excited",
+      "renderer": {
+        "calls": 132,
+        "triangles": 179280,
+        "geometries": 73,
+        "textures": 6
+      }
+    }
+  },
+  "consoleErrors": [],
+  "pageErrors": [],
+  "consoleErrorCount": 0,
+  "pageErrorCount": 0
+}

@@ -1,0 +1,275 @@
+[
+ {
+  "id": "balance.reveal.big",
+  "text": "V5.0M — the best draw on the board. Spend it like it's the last money you'll see; the league won't be gentle.",
+  "expr": "excited",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "balance.reveal.low",
+  "text": "We drew V1.2M. Enough for a manager, a hard-working squad and one good building — not all three done well. Choose.",
+  "expr": "worried",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "balance.reveal.mid",
+  "text": "V3.2M. You can have two of the three done well. The third decides your season.",
+  "expr": "neutral",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.manager.arrive",
+  "text": "Right then. Every club needs one voice on the training pitch. Spend on a manager first — the rest waits on him.",
+  "expr": "neutral",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.manager.nudge",
+  "text": "Still no manager? Even a modest one beats none.",
+  "expr": "thinking",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.manager.done.1",
+  "text": "He'll do a job. He won't win you the league.",
+  "expr": "happy",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.manager.done.2",
+  "text": "A steady hand. Now give him a squad that matches his style.",
+  "expr": "happy",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.manager.done.3",
+  "text": "That's a manager who carries out a brief. Now build him a team.",
+  "expr": "excited",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.manager.blocked",
+  "text": "Out of pocket? Sell a player or take the board advance — nobody's stuck here.",
+  "expr": "worried",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.players.arrive",
+  "text": "A manager needs a bench. Sign a legal matchday squad — eleven, and one of them a keeper.",
+  "expr": "neutral",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.players.nudge",
+  "text": "Short of eleven. The league won't let us play, and PLAY will say so.",
+  "expr": "worried",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.players.done.1",
+  "text": "Legal. Now make it balanced.",
+  "expr": "happy",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.players.done.2",
+  "text": "A proper shape. That's a side that can win a friendly.",
+  "expr": "happy",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.players.done.3",
+  "text": "Balanced, honest and paid for. That's how you survive year one.",
+  "expr": "excited",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.players.blocked",
+  "text": "Sell the luxury, keep the spine. We can rebuild in January.",
+  "expr": "worried",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.facilities.arrive",
+  "text": "Now build one thing that makes the next thing cheaper. Training if you'll buy young; Stands if you'll be broke.",
+  "expr": "neutral",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.facilities.nudge",
+  "text": "A Tier-1 stand pays the gate fee every match.",
+  "expr": "neutral",
+  "pose": "point-right",
+  "target": "stands"
+ },
+ {
+  "id": "step.facilities.done.1",
+  "text": "Foundation laid. Now make the next thing cheaper.",
+  "expr": "happy",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.facilities.done.2",
+  "text": "The right building. It compounds.",
+  "expr": "happy",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.facilities.done.3",
+  "text": "Foundation laid and money left over. That's an owner's build.",
+  "expr": "excited",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.facilities.blocked",
+  "text": "Too dear this month? The cheapest Tier-1 still counts for the step.",
+  "expr": "worried",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.level1.arrive",
+  "text": "One hundred XP stands between you and a real league. Wins pay 30. You need them.",
+  "expr": "neutral",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.level1.nudge",
+  "text": "Wins are the only thing that move the Level bar now.",
+  "expr": "thinking",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.level1.done.1",
+  "text": "Level 1. You're in.",
+  "expr": "happy",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.level1.done.2",
+  "text": "Level 1, and a build to be proud of.",
+  "expr": "excited",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.level1.done.3",
+  "text": "Level 1. Your league has a name now — and so do your rivals.",
+  "expr": "excited",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "step.level1.blocked",
+  "text": "Safe start: any qualifying friendly pays the same XP on the way up.",
+  "expr": "worried",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "tip.manager.scout",
+  "text": "An interview costs V25k. It tells you exactly what you're buying. Skip it and you're guessing.",
+  "expr": "thinking",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "tip.manager.wage",
+  "text": "That wage eats the budget. A cheaper voice leaves money for players.",
+  "expr": "worried",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "tip.squad.keeper",
+  "text": "No keeper, no match. Sort the gloves first.",
+  "expr": "worried",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "tip.squad.afford",
+  "text": "The cheapest legal XI is beyond us. Scout, sell, or take the board advance.",
+  "expr": "worried",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "tip.facility.stand",
+  "text": "A Tier-1 stand pays the gate fee every match.",
+  "expr": "neutral",
+  "pose": "point-right",
+  "target": "stands"
+ },
+ {
+  "id": "tip.facility.cheap",
+  "text": "The cheapest Tier-1 still counts for the step.",
+  "expr": "worried",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "tip.level.training",
+  "text": "No training ground yet. It compounds every young player you sign.",
+  "expr": "thinking",
+  "pose": "point-right",
+  "target": "staff_house"
+ },
+ {
+  "id": "tip.play.gate",
+  "text": "Can't play yet — you need a manager and a legal XI.",
+  "expr": "worried",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "tip.recovery.board",
+  "text": "Funds are low. The board can advance you a loan for a fee.",
+  "expr": "worried",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "tip.milestone.manager",
+  "text": "First manager through the door. Onwards.",
+  "expr": "happy",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "tip.idle.break",
+  "text": "You've been at this a while. The club will keep.",
+  "expr": "neutral",
+  "pose": "idle",
+  "target": null
+ },
+ {
+  "id": "tip.veteran.quiet",
+  "text": "You've done this before. I'll keep quiet unless you need me.",
+  "expr": "neutral",
+  "pose": "idle",
+  "target": null
+ }
+]
