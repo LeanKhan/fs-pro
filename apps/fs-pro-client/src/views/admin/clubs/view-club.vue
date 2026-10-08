@@ -67,7 +67,7 @@
           <v-row>
             <v-col cols="2" class="p-3">
               <v-img
-                :src="`${apiUrl}/img/clubs/logos/${club.ClubCode}.png`"
+                :src="crestUrl(club.ClubCode)"
                 width="200"
               ></v-img>
             </v-col>
@@ -182,6 +182,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useStore, apiUrl } from '@/store';
+import { crestUrl } from '@/helpers/crest';
 import { client } from '@/services/api';
 import PlayersTable from '@/components/players/players-table.vue';
 import AllPlayersTable from '@/components/players/allplayers-table.vue';

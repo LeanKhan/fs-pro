@@ -120,11 +120,18 @@ crestRouter.get('/:file', async (req, res) => {
   const code = req.params.file.replace(/\.svg$/i, '').toUpperCase();
   if (!/^[A-Z0-9]{1,8}$/.test(code)) return res.status(400).end();
   const [club] = await DrizzleDatabase.getInstance()
-    .database.select({ crest: clubs.Crest, name: clubs.Name })
+    .database.select({ crest: clubs.Crest, name: clubs.Name, code: clubs.ClubCode })
     .from(clubs)
     .where(eq(sql`upper(${clubs.ClubCode})`, code))
     .limit(1);
-  if (!club || !isCrestDesign(club.crest)) return res.status(404).end();
+  if (!club) return res.status(404).end();
+  // Founded clubs carry a CrestDesign the API draws; the original clubs keep
+  // their hand-drawn logo, which the API also serves (assets/img/clubs/logos),
+  // so the client has no code table to keep in sync (phase-1 B5A).
+  if (!isCrestDesign(club.crest)) {
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    return res.redirect(302, `/img/clubs/logos/${encodeURIComponent(club.code)}.png`);
+  }
   res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
   res.setHeader('Cache-Control', 'public, max-age=300');
   return res.send(renderCrestSvg(club.crest, { id: code.toLowerCase() }));
