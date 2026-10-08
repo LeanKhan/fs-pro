@@ -13,8 +13,8 @@ Integration branch: **`ux/integration`**, from `p2/integration` @ `218bf73`
 | Pass | Agent(s) | Status | Output |
 | --- | --- | --- | --- |
 | 0 | 0A instance; 0B harness | **done + verified** | `INSTANCE-LOG.md`, `tests/e2e/playtest/**` |
-| 1 | A01 + P01–P05 (wave 1) | **resumed** | `playtest/<id>/{DIARY,ISSUES,SUMMARY}.md`, screenshots |
-| 1 | P06–P10 (wave 2, D7 stagger) | queued | same |
+| 1 | A01 resume + P01–P05 (wave 1 resume) | **running** | `playtest/<id>/{DIARY,ISSUES,SUMMARY}.md`, screenshots |
+| 1 | P06–P10 (wave 2) | **running** | same |
 | 2 | 2A triage | pending | `ISSUES.md`, `FINDINGS.md` |
 | 3 | fix clusters | pending | `ux/fix-*` branches, before/after screenshots |
 | 4 | re-play (3 personas) + report | pending | `RELEASE-REPORT.md` |

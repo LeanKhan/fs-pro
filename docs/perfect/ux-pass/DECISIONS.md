@@ -22,6 +22,13 @@ rulings are recorded here.
 | D12 | **S1: stale `sim_core.dll`** — serialized `match_data`, but the code expects `match`, so **every match was rejected** | Rebuilt `crates/sim-core` and copied the current DLL; sim now 20/20, 2.50 goals/match | Real blocker; the repo's committed DLL is still stale and must be replaced on the branch. |
 | D13 | Stale dev stacks (`phase-2`, `p2b3c` ts-node-dev) were running | Killed them | D8 authorises; the playtest instance must own its ports/DB. |
 
+## Pass 1 resume rulings (lead, 2026-10-08T23:25Z)
+
+| # | Question | Choice | Why |
+| --- | --- | --- | --- |
+| D14 | Wave 1 was cut off before any player reached Level 2 (D5 unmet) | **Resume all of wave 1** (A01 Session 2; P01–P05) alongside wave 2, not just A01 | Definition of Done (§6) needs every player at Level 2 or the D5 cap. Preserved `state.json` logins make resume cheap (verified: the Postgres-backed `Sessions` store survives the API restart). |
+| D15 | D6 wants **P08** to join via an invite from **P01** | P08 registers normally if no invite surfaces in the UI; the lead brokers a real invite only if P01's screens expose one | The cross-persona channel is the lead, and hand-feeding an invite link risks U2 (deciding from what the UI offers). If the invite path isn't discoverable, "couldn't exercise it" is itself a finding. |
+
 ## Known risk → BACKLOG
 
 Matchmade friendlies pay 30 XP every 75 s, so a grinder can beat the 4-hour
