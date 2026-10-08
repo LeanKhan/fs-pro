@@ -12,7 +12,7 @@ Integration branch: **`p2/integration`**, from `perfect/integration` @ `1cfd57a`
 
 | Batch | Agent | Branch / worktree | Status | Report |
 | --- | --- | --- | --- | --- |
-| B0 | 0A baseline | `p2/b0-0a` | **running** | `BASELINE.md` |
+| B0 | 0A baseline | `p2/integration` | **done** | `BASELINE.md` |
 | B0 | 0B audit | `p2/b0-0b` | **running** | `AUDIT.md` |
 | B0 | 0C research | `p2/b0-0c` | **running** | `RESEARCH.md` |
 | B1 | 1A owner-program spec | — | pending (after VERIFY B0) | `OWNER-PROGRAM-SPEC.md` |
