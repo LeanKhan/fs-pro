@@ -74,6 +74,12 @@ func (s *Service) Build(ctx context.Context, key Key) (Tile, error) {
 		return summary, nil
 	}
 
+	if places == nil {
+		places = []PlaceMarker{}
+	}
+	if clubs == nil {
+		clubs = []ClubMarker{}
+	}
 	return Tile{
 		Key:       key,
 		Places:    places,
@@ -104,7 +110,7 @@ func bounds(key Key) (x0, x1, y0, y1 float64) {
 // districts of the cities whose ParentId is the country.
 func (s *Service) places(ctx context.Context, key Key, level string) ([]PlaceMarker, error) {
 	if level == "club" {
-		return nil, nil
+		return []PlaceMarker{}, nil
 	}
 	x0, x1, y0, y1 := bounds(key)
 	rows, err := s.q.Query(ctx, `

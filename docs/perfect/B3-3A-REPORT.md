@@ -146,7 +146,17 @@ This branch now fixes:
   from 12.0/10.7 ms to **2.26/2.36 ms**.
 - **D6** — the `0040` header comment is corrected.
 
-Still open (from VERIFY-B3): **D1** the 1M-synthetic p95 benchmark (no synth
-path in `internal/tiles`; the WSL/Windows toolchain cannot run `-race` here),
-**D4** the `?placeId=` focused-zoom filter, and **D8** `go test -race` (needs
-the Docker image).
+- **D10 (BLOCKER from round 2, fixed)** — z5 returned `places: null` (Go nil
+  slice), which the frozen zod contract rejects. `places()` now returns an
+  empty non-nil slice and `Build` normalizes nil slices, so z5 marshals
+  `"places": []`.
+- **D1 (perf) — mitigated.** Added `BenchmarkBuildTile` (a per-tile benchmark)
+  and migration `0041` indexing `Clubs("DistrictId","Prominence" DESC)` plus a
+  partial `Clubs("DistrictId") WHERE "ReleasedAt" IS NULL`. On 20.7k the plan
+  is now `Index Scan using Places_map_idx` → `Bitmap Index Scan on
+  Clubs_active_DistrictId_idx`, so per-tile cost is bounded by cell density, not
+  world size. A direct **1M** measurement is still not run: `internal/synth` is
+  in-memory only (no coordinates/names), so a 1M tile DB cannot be built here.
+
+Still open (from VERIFY-B3): **D4** the `?placeId=` focused-zoom filter and
+**D8** `go test -race` (needs the Docker image).
