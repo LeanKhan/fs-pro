@@ -27,7 +27,9 @@
         >
           Youth
         </v-chip>
-        <v-icon size="14" class="ml-1 text-cyan-400 opacity-60">mdi-eye-outline</v-icon>
+        <v-icon size="14" class="ml-1 text-cyan-400 opacity-60">
+          mdi-eye-outline
+        </v-icon>
       </div>
     </template>
 
@@ -39,7 +41,11 @@
 
     <template v-slot:item.source="{ item }">
       <v-chip
-        v-if="item.source && (item.source.includes('Overseas') || item.source.includes('Free Agent'))"
+        v-if="
+          item.source &&
+          (item.source.includes('Overseas') ||
+            item.source.includes('Free Agent'))
+        "
         size="x-small"
         color="blue-darken-2"
         variant="tonal"
@@ -53,10 +59,9 @@
 
     <template v-slot:item.Value="{ item }">
       {{ currency(item.Value) }}
-    </template>
-
-    <template v-slot:item.Wage="{ item }">
-      {{ currency(item.Wage) }}
+      <div class="text-caption text-medium-emphasis">
+        {{ currency(item.Wage) }}/yr
+      </div>
     </template>
 
     <template v-slot:item.Actions="{ item }">
@@ -123,12 +128,11 @@ defineEmits<{
 
 const headers = ref<any[]>([
   { title: 'Player', key: 'FirstName' },
-  { title: 'Position', key: 'Position', filterable: false },
+  { title: 'Pos', key: 'Position', filterable: false },
   { title: 'Age', key: 'Age', filterable: false },
   { title: 'Rating', key: 'Rating', filterable: false },
-  { title: 'Origin / Club', key: 'source', filterable: true },
-  { title: 'Value', key: 'Value', filterable: false },
-  { title: 'Wage', key: 'Wage', filterable: false },
+  { title: 'Origin', key: 'source', filterable: true },
+  { title: 'Value / Wage', key: 'Value', filterable: false },
   { title: 'Actions', key: 'Actions', filterable: false, sortable: false },
 ]);
 

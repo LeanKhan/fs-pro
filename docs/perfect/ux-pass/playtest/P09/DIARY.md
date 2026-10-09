@@ -1,0 +1,24 @@
+- [2026-10-08T23:13:28.101Z] Session 1 start: opened http://localhost:4173 at 768x1024 portrait (touch). Captured landing + a11y.
+- [2026-10-08T23:15:06.190Z] Tapped "New manager" in the landing toggle; captured the join form.
+- [2026-10-08T23:17:20.082Z] Filled join form as playtestP09 / Playtest-P09-2026! and tapped Create account.
+- [2026-10-08T23:19:25.319Z] Tapped "Next: your club" in the founding flow; captured the club step.
+- [2026-10-08T23:26:53.163Z] Filled Club name / Code=PCU / Ground (Next stayed disabled until all three were valid) and advanced to Kick-off.
+- [2026-10-08T23:30:09.667Z] Founded Philamentia Central United (PCU) and landed on the campus (portrait).
+- [2026-10-08T23:32:15.068Z] Entered the campus; captured portrait view.
+- [2026-10-08T23:32:20.116Z] Rotated 768x1024 -> 1024x768 (landscape) and back; compared campus layout.
+- [2026-10-09T00:58:00.000Z] Reached Level 1 (100 XP) and collected a match reward; began grinding friendlies toward Level 2 (0/300 then).
+- [2026-10-09T01:05:00.000Z] BLOCKED (instance): WSL->Windows interop down again (`UtilAcceptVsock:271: accept4 failed 110`) — every `cmd.exe /c node ...` harness run fails. Cannot drive the browser; this is the lead's to fix (same outage as A01-12 in INSTANCE-LOG). Pausing, retrying periodically.
+- [2026-10-08T23:37:22.647Z] Used "Back to my club" to escape the re-opened founding wizard and reach the campus.
+- [2026-10-08T23:43:04.111Z] Dismissed the welcome modal + advisor tip, then opened First steps → "Sign a manager".
+- [2026-10-08T23:53:46.626Z] Started the Owner's Program and landed on the manager market.
+- [2026-10-09T00:07:54.668Z] On the manager market: measured touch targets (many <44px) and tapped the "Best rated" sort.
+- [2026-10-09T00:30:00.124Z] Tapped Sign on the top "Best rated" manager; captured the result.
+- [2026-10-09T00:41:53.598Z] Confirmed the manager signing, then opened the Squad step of the Owner's Program.
+- [2026-10-09T00:51:28.932Z] Filtered free agents to GK and tapped Sign on the first goalkeeper.
+- [2026-10-09T00:59:44.845Z] Signed free agents with the "Best" sort until the matchday squad reached 11.
+- [2026-10-09T01:08:21.079Z] Opened the Facilities step and tapped Build Tier 1 on the recommended Training Ground.
+- [2026-10-09T01:14:10.993Z] Returned to the campus and tapped PLAY to open matchmaking.
+- [2026-10-09T01:22:20.414Z] Tapped "Play now" against Skip FC; captured the match kickoff screen.
+- [2026-10-09T01:32:28.423Z] Reopened PLAY immediately after a match to check cooldown and match feedback.
+- [2026-10-09T01:39:55.081Z] Sampled the screen at 1/4/8/15/25s after "Play now" to find where the match result appears.
+- [2026-10-09T01:55:46.809Z] Opened a live match in the Matchzone and tapped Result to see the full-time view.

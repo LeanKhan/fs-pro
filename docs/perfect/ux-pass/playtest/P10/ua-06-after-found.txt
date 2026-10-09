@@ -1,0 +1,10 @@
+- img "World map": Bellean Central Bellean North Bellean Central Bellean North Ashter Bellean Ekhastan Hunteerland Kev Kiyoto Legardio Pregge Proland Simeone UPP
+- button "Zoom in": +
+- button "Zoom out": −
+- button "Whole world"
+- banner: Welcome to the world
+- complementary:
+  - heading "Completionist FC is born!" [level=2]
+  - paragraph: Philamentia Central, Bellean Central, Bellean has a new club.
+  - paragraph: "Bring friends: invite links from your town page put them in Philamentia Central with you."
+  - button "Go to your ground"

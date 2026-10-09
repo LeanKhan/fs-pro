@@ -1,0 +1,21 @@
+- main:
+  - img "FS Pro"
+  - paragraph: Found a club. Make your town proud. Take on the world.
+  - navigation "Sign in or join":
+    - link "Sign in":
+      - /url: /auth/login
+    - link "New manager":
+      - /url: /auth/join
+  - text: Username
+  - textbox "Username"
+  - text: Password
+  - textbox "Password Show"
+  - button "Show"
+  - button "Sign in" [disabled]
+  - paragraph:
+    - link "Forgot your password?":
+      - /url: /auth/forgot
+- contentinfo:
+  - link "Credits":
+    - /url: /credits
+  - text: 2026 · ESL & TSL

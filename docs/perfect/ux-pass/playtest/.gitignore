@@ -1,0 +1,6 @@
+# Playtester login state (cookies + tokens) — never commit.
+**/state.json
+
+# Generated evidence — kept on disk, never committed (large binaries).
+**/screenshots/
+**/traces/

@@ -1,0 +1,62 @@
+- navigation:
+  - link "Completionist FC Playtest P10 Completionist FC":
+    - /url: /game/b7867e3f-f0de-4603-99d1-bfc44a1e5280
+    - img "Completionist FC"
+    - text: Playtest P10 Completionist FC
+  - separator
+  - list:
+    - listitem: My ground
+    - listitem: Office
+    - listitem: Competitions
+    - listitem: World Map
+    - listitem: Year Calendar
+    - listitem: Year History
+    - listitem: Completionist FC
+    - listitem: Settings
+- banner:
+  - button
+  - img
+  - text: Level 0 Year 8 · day 14/28 V3M wages V0/yr
+  - button "Fri, Dec 24, 2027"
+  - 'button "No fixtures: PLAY at your ground any time"'
+  - text: Playtest P10 Completionist FC
+  - img "Completionist FC"
+  - status "Badge"
+  - button "Account"
+- main:
+  - text: Account
+  - list:
+    - listitem: Name Playtest P10
+    - listitem: Username playtestP10
+    - listitem: Role Manager
+    - listitem: Live connection Connected · 1 online
+  - text: Change password Current password
+  - textbox "Current password Current password"
+  - alert
+  - text: New password
+  - textbox "New password New password"
+  - alert
+  - text: New password again
+  - textbox "New password again New password again"
+  - alert
+  - button "Change password" [disabled]
+  - text: Email
+  - paragraph: playtestp10@example.com Not confirmed
+  - text: Email address
+  - textbox "Email address Email address"
+  - alert
+  - text: Your password
+  - textbox "Your password Your password"
+  - alert
+  - button "Change email" [disabled]
+  - button "Send the link again"
+  - text: My clubs
+  - list:
+    - listitem:
+      - img "Completionist FC"
+      - text: Completionist FC Philamentia, Bellean
+      - link "Ground":
+        - /url: /game/b7867e3f-f0de-4603-99d1-bfc44a1e5280
+      - button "Leave"
+  - link "Found another club":
+    - /url: /start

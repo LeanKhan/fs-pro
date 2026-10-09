@@ -1,0 +1,1232 @@
+- banner:
+  - text: Owner's Program Philamentia Central United · PCU Program XP 9/54 Budget V910,000
+  - button "Back to the grounds"
+- navigation "Owner program steps": Manager The voice on the training pitch 2 Squad Eleven and a keeper 3 Facilities Build one Tier 1 4 Level 1 Earn the league place
+- note:
+  - text: “ Vintra · club secretary
+  - paragraph: A manager needs a bench. Sign a legal matchday squad — eleven, and one of them a keeper.
+- heading "Build the squad" [level=2]
+- paragraph: Eleven bodies and a keeper before the gate opens. Scout before you sign — the range is not the truth.
+- text: Budget left V910,000 Minimum matchday squad 0/11
+- progressbar
+- list:
+  - listitem: A manager
+  - listitem: 0 of 11 players
+  - listitem: 0 goalkeepers
+- paragraph: Sign 11 more to open PLAY.
+- tablist:
+  - tab "Free agents" [selected]
+  - tab "Transfer market"
+- searchbox "Search free agents"
+- group "Filter by position":
+  - button "ALL"
+  - button "GK"
+  - button "DEF"
+  - button "MID"
+  - button "ATT"
+- group "Sort players":
+  - button "Cheapest"
+  - button "Best"
+  - button "Youngest"
+- article:
+  - text: DEF HTTP PgTest Age 29 Rating 0–6 V0 V0/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Nounaildon Zhoutrune Age 36 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Daiva Vayai Age 40 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Dribeeble Gehai Age 37 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Ceidegiia Gligralia Age 39 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Lusaivai Sijunno Age 38 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Lese Dirmei Age 39 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Besisha Daimnuvau Age 38 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Ghoudrou Gokhi Age 39 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Trasyu Bindoosh Age 38 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Skessaaski Hetudei Age 39 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Skusivee Hiskebo Age 36 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Ghezi Zhuguroul Age 36 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Jeghita Maje Age 37 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Vaca Giopeiji Age 40 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Gulu Daikhai Age 38 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Stoojai Fogoot Age 37 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Shedouzu Kuzkoufuz Age 36 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Zofei Macomo Age 36 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Thaipvakle Xuktai Age 39 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Gipro Nolia Age 37 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Baskogai Kvamnohai Age 37 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Steedre Drekaigro Age 36 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Breedehoo Blafa Age 36 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Mesheze Zaiyoze Age 38 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Mionignia Sutri Age 37 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Vaiwa Wewa Age 38 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Toumeya Mobefu Age 38 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Jesto Keifi Age 38 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Yeishupu Zumem Age 36 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Grirufrei Gniogliobi Age 39 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Famemi Vitku Age 40 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Vunka Saribrai Age 40 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Luhau Moli Age 40 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Zoobri Hotizoo Age 39 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Neciaji Seiriabio Age 39 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Faiyai Drero Age 37 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Molu Vrilorfu Age 40 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Lusoudra Malaiz Age 36 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Leevagro Durmi Age 36 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Baiddagsib Xigoplaig Age 39 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Klaatjenhi Fahaar Age 38 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Ghailodro Fourfo Age 39 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Nachai Zohaidei Age 37 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Novumzai Traizou Age 39 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Lebai Geraum Age 39 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Lourousyou Laibri Age 38 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Feneihi Jaanvir Age 37 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Sikvazhi Dreber Age 36 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Jaja Veigliapi Age 36 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Naisou Dranfai Age 38 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Mateifa Bjusnude Age 40 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Zaliket Dehisu Age 39 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Witsiyi Wojoje Age 36 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Niche Cascetti Age 38 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Sayai Shaujisau Age 38 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Jaja Denia Age 37 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Rebi Bookveeza Age 37 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Zoupzaibro Choushu Age 39 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Diko Sekbo Age 37 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Rermiwei Wotne Age 40 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Dasevio Chogneve Age 39 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Braigsi Trusakto Age 36 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Chavio Bogiiagi Age 38 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Protrialo Pefioza Age 39 Rating 40–52 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Naihawai Tsucha Age 39 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Leitvoo Skithooro Age 38 Rating 41–53 V7,500 V1,125/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Gideon Ivester Age 20 Rating 34–46 V8,700 V1,305/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Gniofignei Sugro Age 35 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Soluzu Kumnou Age 35 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Soudan Roufola Age 33 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Tsaikeshe Siho Age 34 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Zihaiko Jeirsa Age 35 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Rekgaichi Raza Age 35 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Bjeidoolan Snaahaasis Age 33 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Paushau Nganinget Age 33 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Benau Sumai Age 34 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Vrairai Husezek Age 33 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Trukdijou Laibrougou Age 34 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Fapre Zechu Age 35 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Zaisher Tseirwaipu Age 34 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Zaizo Fosa Age 35 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Serdiryaz Fanoutjou Age 33 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Rugatli Kousouz Age 33 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Foumotait Lodir Age 35 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Tadrebe Fjooga Age 35 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Shukhairi Tazout Age 35 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Gaiteli Yasnut Age 35 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Yokirgai Katrounvai Age 33 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Ngaibai Buhulgi Age 34 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Teishei Jachi Age 34 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Steeblai Kveekheete Age 34 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Skuta Blaibleefo Age 35 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Trunsa Jouzaitai Age 33 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Rausledai Baingi Age 34 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Gedu Vezounmai Age 34 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Supajia Chozei Age 33 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Gniachiagn Zeigru Age 33 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Febraizhon Detsi Age 35 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Lolastu Vreevreetf Age 33 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Wairei Taiyeime Age 33 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Lufritre Grogei Age 34 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Likaisha Hesenel Age 34 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Dootve Sninmaa Age 34 Rating 39–51 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Dola Stoskav Age 33 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Mikakhu Trozoti Age 35 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Bumgau Faurbau Age 33 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Lijocia Ludechu Age 33 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Fazhoku Brokmou Age 33 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Runeyi Jari Age 34 Rating 39–51 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Khoufugu Goudribri Age 34 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Vuhewai Shaitan Age 33 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Freipria Piadefo Age 35 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Zezi Louryu Age 35 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Wami Mugagik Age 33 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Zhakake Haizainli Age 33 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Numau Wauratyes Age 35 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Pifimi Ngutpure Age 34 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Tevreepi Fagree Age 33 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Masobloo Koodroo Age 33 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Vaike Kumimu Age 35 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Broudrinu Briye Age 34 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Shutout Dritrou Age 34 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Shapei Paisori Age 35 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Teitgoo Svoobjilmu Age 33 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Kihonga Yobi Age 35 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Viopruvu Gridiagi Age 34 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Zhudreva Zhazhour Age 35 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Zizhuz Youlim Age 35 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Goone Reebai Age 33 Rating 40–52 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Shoukhe Kasp Age 34 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Bleekvi Skooru Age 35 Rating 41–53 V12,500 V1,875/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Shukaton Zituhei Age 37 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Peebrubrai Jihai Age 36 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Grargaijai Fjehitbuz Age 39 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Khazhidrai Yaidrou Age 40 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Truchiolio Buteigiei Age 40 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Koudishai Dijesha Age 39 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Siagnia Fetegro Age 36 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Snissunil Bosjollo Age 37 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Blismee Kegaizi Age 37 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Rogo Shakyituk Age 37 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Stukain Faleen Age 38 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Naingaiwi Pauniwa Age 36 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Goni Zhenodo Age 37 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Mece Trigleje Age 38 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Rumim Chateisei Age 36 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Soubva Xaishe Age 36 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Yalriji Vaufaima Age 38 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Fazeize Priofotrio Age 36 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Miyu Pokelwai Age 39 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Taini Pugaujai Age 37 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Zaizo Trubaim Age 39 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Steepeje Nimeenlu Age 37 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Drestaro Fjahe Age 40 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Verir Stiroobjo Age 36 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Nita Nekve Age 38 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Bigluti Difi Age 39 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Frugiafu Gniabi Age 40 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Neicheve Siolo Age 40 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Friochi Geigefei Age 36 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Saihai Nodeka Age 40 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Paigepai Shaigolau Age 38 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Johai Broka Age 36 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Tseike Woka Age 37 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Khegato Brekhi Age 37 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Loovjo Koofaimgai Age 38 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Priofruca Dinio Age 40 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Paula Bainringa Age 36 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Shibo Ghughila Age 36 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Bayinil Houro Age 39 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Teshewai Rungor Age 37 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Zunvori Soutraiji Age 37 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Lulnaugi Vavo Age 36 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Jeretam Nabum Age 38 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Greefjefja Peevrefje Age 37 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Fibobre Younoge Age 38 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Vrakvivree Zafjoomu Age 37 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Greicuzei Jugiiafre Age 36 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Numunne Mamai Age 38 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Koskaivoov Fuzoo Age 36 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Giiojignei Baluge Age 37 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Jugelu Halyu Age 39 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Nilnei Kujeil Age 36 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Latro Griagioco Age 37 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Zhinunha Khoughe Age 36 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Gruktoubi Klokrekaid Age 40 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Naimegai Dokwanmo Age 37 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Futu Pofeichia Age 38 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Yobe Shoufobril Age 37 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Geju Siatriobio Age 37 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Mushaire Tuvrikva Age 39 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Lusgaukas Saidi Age 38 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Stetaa Munboolo Age 36 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Lobo Toutejo Age 38 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Shukashu Pifaime Age 39 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Kevinn Prokre Age 39 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Rubakhous Goumi Age 36 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Jeedre Jegevru Age 38 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Vaikadu Vavo Age 37 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Mishogei Tsuba Age 37 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Doca Zhootaitoo Age 40 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Vrosku Fugo Age 37 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Dovjuvhuk Bihu Age 36 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Zubatre Dobrou Age 37 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Yeyatsair Neimjo Age 37 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Nimibai Doosh Age 38 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Yiyai Jowawe Age 40 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Trecu Gnezeigiei Age 36 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Brezhana Gikholmi Age 38 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Luhodi Shaitan Age 39 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Fachu Ziotru Age 38 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Fomaifes Yetut Age 36 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Khoteshou Khoraizai Age 38 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Bonjaiwut Tarba Age 36 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Skooheel Zovroskee Age 39 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Vaumainu Faishu Age 37 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Jupi Soovreevno Age 39 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Paurau Shudemau Age 37 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Moovree Veeze Age 37 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Laterho Token Age 37 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Vinaivau Bilaupe Age 37 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Gulena Zhezore Age 37 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Raiknou Houkhinou Age 36 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Mama Fjesti Age 37 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Yujou Faitain Age 36 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Vrorba Grajait Age 38 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Ziapru Dionoba Age 37 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Travosa Yorirru Age 37 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Sushi Rumyuhu Age 40 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Fihe Trijat Age 38 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Dalsafo Namewi Age 39 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Giasei Cafreichei Age 38 Rating 45–57 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Saszaslo Shatra Age 37 Rating 46–58 V16,500 V2,475/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Mouheghet Balaidou Age 31 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Rutreiprio Preitachei Age 30 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Kaidroko Jikufir Age 30 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Mesi Hozhagouz Age 31 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Neti Jetusin Age 31 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Graijaifja Ston Age 30 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Tamrino Rasaiza Age 30 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Vatru Trubibe Age 30 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Faviglia Didon Age 30 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Houzhouslu Neva Age 30 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Wukrortu Dodau Age 31 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Diva Siodatrio Age 31 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Viovifo Rijio Age 31 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Hutmaitros Ghusaitvou Age 31 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Shuku Vekhizo Age 30 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Toofjeekjo Maivu Age 31 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Soujek Treza Age 32 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Kolkurwak Jeboyo Age 31 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Kheljighi Kazim Age 31 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Cheicho Pegachei Age 31 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Kvaskisto Leske Age 30 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Trijou Vitsesi Age 32 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Yaika Troubre Age 32 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Fjathi Fjafa Age 32 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Howei Shetomjai Age 31 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Pleppaikdi Brugig Age 31 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Fetsavril Kveehavree Age 30 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Jiglimia Feri Age 30 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Fimake Vungaike Age 32 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Sifeban Vome Age 31 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Rumal Trubre Age 32 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Jeirio Peno Age 32 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Sifulel Daisnam Age 30 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Soobee Fjenoobree Age 31 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Glagii Frera Age 32 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Khagou Zhudou Age 30 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Dedre Brumsai Age 32 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Bonau Bukai Age 30 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Bifrochi Meigiognia Age 30 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Diafroto Priogne Age 30 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Zhosho Trinrargai Age 32 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Rito Zemei Age 32 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Taisetsa Kaidehai Age 30 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Goni Trouka Age 32 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Befigair Badodai Age 30 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Viyu Ghouku Age 30 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Naibroubi Vanlizhar Age 32 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Tsaimte Tepei Age 31 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Danvai Trenlu Age 32 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Wuyu Kikerai Age 32 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Jete Fugai Age 31 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Taito Mauhaiba Age 30 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Snaicho Zhaho Age 30 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Fukaizte Vougho Age 30 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Zesugnio Giore Age 30 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Zukvooblo Hiku Age 31 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Mutim Shebaipei Age 32 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Dabei Doprivia Age 30 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Mesi Hidraiga Age 31 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: GK Bisiogrei Gemagna Age 30 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Shudakhai Duna Age 32 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Jeimitsai Dumai Age 31 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Gasde Darbo Age 32 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: DEF Zionia Bavuni Age 31 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: ATT Mere Seimai Age 32 Rating 40–52 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- article:
+  - text: MID Foshe Ghouri Age 31 Rating 41–53 V18,750 V2,813/yr
+  - button "Scout · V15,000"
+  - button "Sign"
+- text: Need a cash buffer? The board advance is a once-a-year recovery path, not a tap.
+- button "Ask the board"

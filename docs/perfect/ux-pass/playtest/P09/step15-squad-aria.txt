@@ -1,0 +1,55 @@
+- banner:
+  - text: Owner's Program Philamentia Central United · PCU Program XP 12/54 Budget V737,500
+  - button "Back to the grounds"
+- navigation "Owner program steps": Manager The voice on the training pitch Squad Eleven and a keeper 3 Facilities Build one Tier 1 4 Level 1 Earn the league place
+- note:
+  - text: “ Vintra · club secretary
+  - paragraph: Now build one thing that makes the next thing cheaper. Training if you'll buy young; Stands if you'll be broke.
+- heading "Build the foundations" [level=2]
+- paragraph: "One Tier 1 goes up now. Choose what compounds: training, gate income, or recovery."
+- text: Budget V737,500
+- paragraph: ★★★ wants a Tier 1 from Training Ground, Stands or Medical Centre, and V200,000 still in the bank.
+- article:
+  - text: Training Ground Not built Recommended
+  - paragraph: Boosts player growth from training.
+  - paragraph: +0% training growth
+  - text: V200,000 Tier 1 · 5 min
+  - button "Build Tier 1"
+- article:
+  - text: Medical Centre Not built Recommended
+  - paragraph: Your squad recovers faster between matches with specialized treatment bays.
+  - paragraph: 1 Treatment Bay · Standard recovery
+  - text: V260,000 Tier 1 · 6.25 min
+  - button "Build Tier 1"
+- article:
+  - text: Stands Not built Recommended
+  - paragraph: Seating capacity. More seats mean more matchday income.
+  - paragraph: 1,000 capacity
+  - text: V300,000 Tier 1 · 7.5 min
+  - button "Build Tier 1"
+- article:
+  - text: Scouting Department Not built
+  - paragraph: "Finds transfer talent: a shortlist of recommended signings, refreshed as you upgrade."
+  - paragraph: 1 scouted transfer target
+  - text: V220,000 Tier 1 · 6.25 min
+  - button "Build Tier 1"
+- article:
+  - text: Stadium Grounds Not built
+  - paragraph: Pitch quality and floodlights. Starts as a bare dirt turf.
+  - paragraph: Dirt turf
+  - text: V250,000 Tier 1 · 5 min
+  - button "Build Tier 1"
+- article:
+  - text: Staff House Not built
+  - paragraph: Houses specialist coaches. Higher levels unlock tactical abilities (coming soon).
+  - paragraph: Coaching Tier 0
+  - text: V300,000 Tier 1 · 8.75 min
+  - button "Build Tier 1"
+- article:
+  - text: Youth Academy Not built
+  - paragraph: Improves the quality of the yearly youth intake.
+  - paragraph: Youth intake quality +0%
+  - text: V350,000 Tier 1 · 10 min
+  - button "Build Tier 1"
+- text: Play while the builders work. Qualifying friendlies pay gate money — bank a few, then build. The cheapest Tier 1 still counts.
+- button "Ask the board"

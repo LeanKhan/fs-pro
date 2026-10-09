@@ -1,0 +1,33 @@
+- button "New headlines"
+- button "+V20k"
+- button "2 online"
+- button "Owner's program Reach Level 1 to join a league"
+- img "Philamentia Central United"
+- text: 0 70/100 V554,555 165 6 128 Day 488 · Mon Jan 03 2028 Year 8 W D Southport Rangers A.C beat Rising Thunders A.C 4-1
+- button "Challenges"
+- button "League"
+- button "Settings"
+- text: First steps 3/4
+- button "Sign a manager" [disabled]
+- button "Build a squad" [disabled]
+- button "Build a facility" [disabled]
+- button "Reach Level 1 Win qualifying friendlies"
+- button "Squad"
+- button "Team Sheet"
+- button "World"
+- button "World"
+- navigation:
+  - button "Build"
+  - button "Move"
+  - button "Squad"
+  - button "Manager"
+- button "PLAY Resting 0:26"
+- button "Leave the Matchzone"
+- text: PCU 1 - 0 SKIP Full time xG 0.91 · 0.41 Full time Philamentia Central United 1 - 0 Skip FC
+- list:
+  - listitem: N. Pauniwa 67'
+- list
+- text: xG 0.91 - 0.41 Possession 50% - 50% Shots 16 - 4 Snissunil Bosjollo
+- button "Watch again"
+- button "Match centre"
+- button "Collect rewards"

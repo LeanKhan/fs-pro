@@ -2,104 +2,147 @@
   <v-dialog
     :model-value="show"
     @update:model-value="$emit('update:show', $event)"
-    width="700"
+    width="720"
     persistent
   >
     <v-card class="pa-0" :loading="loading">
       <v-card-title class="text-h5 bg-cyan-darken-2" primary-title>
         Hire a new Manager
         <v-spacer></v-spacer>
-        <v-btn size="small" icon @click="close">
+        <v-btn size="small" icon aria-label="Close" @click="close">
           <v-icon size="small">mdi-close</v-icon>
         </v-btn>
       </v-card-title>
       <v-card-text>
+        <v-alert
+          v-if="error"
+          type="error"
+          variant="tonal"
+          density="compact"
+          class="mb-3"
+        >
+          {{ error }}
+        </v-alert>
         <v-row dense no-gutters>
           <v-col dense cols="6">
-            <v-card flat tile v-if="selectedManager" class="pa-0">
-              <!-- <v-img></v-img> -->
-              <v-card-title class="subtitle">
-                {{ selectedManager.FirstName }} {{ selectedManager.LastName }}
+            <v-card flat tile v-if="selected" class="pa-2">
+              <v-card-title class="text-subtitle-1 pa-2">
+                {{ selected.firstName }} {{ selected.lastName }}
               </v-card-title>
               <v-list density="compact">
                 <v-list-item>
-                  <strong>
-                    <v-icon>mdi-globe</v-icon>
-                    Nationality: &nbsp;
-                  </strong>
-                  {{
-                    selectedManager.Nationality
-                      ? selectedManager.Nationality.Name
-                      : '-'
-                  }}
+                  <strong>Age:</strong>
+                  &nbsp;{{ selected.age }}
                 </v-list-item>
                 <v-list-item>
-                  <strong>
-                    <v-icon>mdi-number</v-icon>
-                    Age:
-                  </strong>
-                  47
+                  <strong>Overall:</strong>
+                  &nbsp;{{ range(selected.overall) }}
                 </v-list-item>
                 <v-list-item>
-                  <strong>
-                    <v-icon>mdi-trophy</v-icon>
-                    Titles:
-                  </strong>
-                  12
+                  <strong>Preferred:</strong>
+                  &nbsp;{{ selected.preferredFormation || '4-3-3' }}
+                  <span v-if="selected.preferredStyle">
+                    &nbsp;·&nbsp;{{ selected.preferredStyle }}
+                  </span>
+                </v-list-item>
+                <v-list-item>
+                  <strong>Signing fee:</strong>
+                  &nbsp;{{ currency(selected.effectiveFee) }}
+                </v-list-item>
+                <v-list-item>
+                  <strong>Wage:</strong>
+                  &nbsp;{{ currency(selected.wage) }}
+                  <span>/yr</span>
+                </v-list-item>
+                <v-list-item
+                  v-if="!selected.interviewed"
+                  class="text-caption text-medium-emphasis"
+                >
+                  Attributes stay a range until you interview him.
                 </v-list-item>
               </v-list>
             </v-card>
-            <v-sheet v-else height="100">Select a manager to hire!</v-sheet>
+            <v-sheet
+              v-else
+              height="100"
+              class="d-flex align-center justify-center text-medium-emphasis"
+            >
+              Select a manager to hire!
+            </v-sheet>
           </v-col>
 
           <v-col cols="6">
-            <v-list density="compact" max-height="400px">
+            <v-progress-linear
+              v-if="loading"
+              indeterminate
+              class="mb-1"
+            ></v-progress-linear>
+            <v-list
+              density="compact"
+              max-height="400px"
+              class="overflow-y-auto"
+            >
               <v-list-item
-                v-for="(m, i) in managers"
-                :key="i"
-                :value="i"
-                :active="managerModel === i"
-                @click="managerModel = i"
+                v-for="m in managers"
+                :key="m.id"
+                :value="m.id"
+                :active="selectedId === m.id"
+                @click="selectedId = m.id"
                 color="cyan-darken-1"
               >
                 <template v-slot:prepend>
                   <v-avatar size="30" color="yellow">
                     <span>
-                      {{ m.FirstName.charAt(0) + m.LastName.charAt(0) }}
+                      {{ m.firstName.charAt(0) + m.lastName.charAt(0) }}
                     </span>
                   </v-avatar>
                 </template>
-
                 <v-list-item-title>
-                  {{ m.FirstName }}
-                  {{ m.LastName }}
+                  {{ m.firstName }} {{ m.lastName }}
                 </v-list-item-title>
-                <!-- <v-list-item-subtitle>
-                    <strong>12</strong>
-                    Titles |
-                    <strong>2</strong>
-                    Clubs |
-                    <strong>47</strong>
-                    Years Old |
-                  </v-list-item-subtitle> -->
+                <v-list-item-subtitle>
+                  {{ range(m.overall) }} · {{ currency(m.effectiveFee) }}
+                </v-list-item-subtitle>
+              </v-list-item>
+              <v-list-item v-if="!loading && !managers.length">
+                <v-list-item-title class="text-medium-emphasis">
+                  No managers available right now.
+                </v-list-item-title>
               </v-list-item>
             </v-list>
-          </v-col>
 
-          <v-col cols="12">
-            <v-text-field
-              color="cyan-darken-1"
-              label="Details"
-              v-model="form.details"
-              hint="The press release for the Manager's appointment"
-            ></v-text-field>
+            <div class="text-caption mt-2">Contract length (years)</div>
+            <v-btn-toggle
+              v-model="contractYears"
+              density="compact"
+              mandatory
+              class="mt-1"
+            >
+              <v-btn
+                v-for="y in [1, 2, 3, 4, 5]"
+                :key="y"
+                :value="y"
+                size="small"
+              >
+                {{ y }}
+              </v-btn>
+            </v-btn-toggle>
           </v-col>
         </v-row>
       </v-card-text>
 
-      <v-card-actions>
-        <v-btn @click="hireManager" :loading="loading" :disabled="loading">
-          Hire
+      <v-card-actions class="pa-3">
+        <v-spacer></v-spacer>
+        <v-btn variant="text" @click="close">Not yet</v-btn>
+        <v-btn
+          color="primary"
+          :loading="saving"
+          :disabled="saving || !selected"
+          @click="hireManager"
+        >
+          {{
+            selected ? `Sign for ${currency(selected.effectiveFee)}` : 'Sign'
+          }}
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -107,11 +150,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { computed, ref, watch } from 'vue';
+import type { AttributeRange, ProgramManager } from '@repo/api-contract';
+import { currency } from '@/helpers/misc';
 import { client } from '@/services/api';
+
+/**
+ * The Owner's office "Hire Head Coach" flow. It goes through the owner-program
+ * manager market (`/program/:clubId/managers`), which a club owner is allowed
+ * to call — the old path used the admin-only `clubs.hireManager` route and
+ * 403'd for every real owner, which dead-ended the first hour (U-01 / P02-13).
+ * The program market also charges the real fee and applies the interview
+ * discount, so this no longer bypasses the economy, and a refusal is shown
+ * instead of being swallowed to the console.
+ */
 
 interface Props {
   show: any;
+  /** The club id (kept as `club` for call-site compatibility). */
   club: string;
 }
 
@@ -121,55 +177,76 @@ const emit = defineEmits<{
   'update-available': [];
 }>();
 
-const managerModel = ref(0);
-const managers = ref<any[]>([]);
+const managers = ref<ProgramManager[]>([]);
+const selectedId = ref<string | null>(null);
+const contractYears = ref(3);
 const loading = ref(false);
+const saving = ref(false);
+const error = ref('');
 
-const form = ref({
-  details: '',
-});
+const selected = computed(
+  () => managers.value.find((m) => m.id === selectedId.value) ?? null
+);
+const range = (r: AttributeRange | undefined) =>
+  r ? (r.low === r.high ? `${r.low}` : `${r.low}–${r.high}`) : '—';
 
-const selectedManager = computed(() => {
-  return managers.value[managerModel.value];
-});
+const close = () => emit('update:show', false);
 
-const close = () => {
-  emit('update:show', false);
-};
-
-const hireManager = () => {
+async function load() {
+  if (!props.club) return;
   loading.value = true;
-  client.clubs.hireManager
-    .mutation({
-      params: { id: props.club },
-      body: {
-        details: form.value.details,
-        manager: selectedManager.value._id,
-      },
-    })
-    .then(() => {
-      console.log('Club Manager appointed successfully!');
-      emit('update:show', false);
-      emit('update-available');
-    })
-    .catch((err: any) => {
-      console.log('Error adding manager', err);
-    })
-    .finally(() => {
-      loading.value = false;
+  error.value = '';
+  try {
+    const res = await client.program.browseManagers.query({
+      params: { clubId: props.club },
     });
-};
+    if (res.status === 200) {
+      managers.value = res.body.payload.managers;
+      selectedId.value = managers.value[0]?.id ?? null;
+    } else {
+      error.value =
+        (res.body as { message?: string }).message ??
+        'Could not load the manager market.';
+    }
+  } catch (err) {
+    error.value =
+      err instanceof Error ? err.message : 'Could not load the manager market.';
+  } finally {
+    loading.value = false;
+  }
+}
 
-onMounted(() => {
-  client.managers.getManagers
-    .query({ query: { isEmployed: false, populate: 'Club' } })
-    .then((res) => {
-      if (res.status === 200) {
-        managers.value = res.body.payload;
-      }
-    })
-    .catch((err: any) => {
-      console.log('Error! => ', err);
+async function hireManager() {
+  const pick = selected.value;
+  if (!pick) return;
+  saving.value = true;
+  error.value = '';
+  try {
+    const res = await client.program.signManager.mutation({
+      params: { clubId: props.club, managerId: pick.id },
+      body: { contractYears: contractYears.value },
     });
-});
+    if (res.status === 200) {
+      emit('update-available');
+      close();
+    } else {
+      error.value =
+        (res.body as { message?: string }).message ??
+        'Could not sign that manager.';
+    }
+  } catch (err) {
+    error.value =
+      err instanceof Error ? err.message : 'Could not sign that manager.';
+  } finally {
+    saving.value = false;
+  }
+}
+
+watch(
+  [() => props.show, () => props.club],
+  ([open]) => {
+    if (open) load();
+  },
+  { immediate: true }
+);
 </script>

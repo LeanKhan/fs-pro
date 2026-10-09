@@ -1,6 +1,11 @@
-import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, isNull, sql } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
-import { clubs, ownerProgram, players, transferLedger } from '../../db/drizzle/schema';
+import {
+  clubs,
+  ownerProgram,
+  players,
+  transferLedger,
+} from '../../db/drizzle/schema';
 import { calculateAndUpdateClubRating } from '../../controllers/clubs/club.service';
 import { SCOUT_FEE, HIDDEN_SPREAD, maskRange } from './manager-model';
 import { squadSummary } from './program-facts.service';
@@ -44,15 +49,29 @@ export async function browsePlayers(clubId: string): Promise<{
   scoutFee: number;
   needed: number;
 }> {
-  const [club] = await db().select({ budget: clubs.Budget }).from(clubs).where(eq(clubs.id, clubId));
+  const [club] = await db()
+    .select({ budget: clubs.Budget })
+    .from(clubs)
+    .where(eq(clubs.id, clubId));
   if (!club) throw new Error('Club not found');
   const rows = await db()
     .select()
     .from(players)
-    .where(and(eq(players.isSigned, false), eq(players.isRetired, false), isNull(players.ClubId)))
+    .where(
+      and(
+        eq(players.isSigned, false),
+        eq(players.isRetired, false),
+        // A V0 player is a QA fixture, not a free agent (U-09 / P02-07).
+        gt(players.Value, 0),
+        isNull(players.ClubId)
+      )
+    )
     .orderBy(asc(players.Value), asc(players.id))
     .limit(MAX_POOL);
-  const [program] = await db().select().from(ownerProgram).where(eq(ownerProgram.ClubId, clubId));
+  const [program] = await db()
+    .select()
+    .from(ownerProgram)
+    .where(eq(ownerProgram.ClubId, clubId));
   const scouted = new Set(program?.Scout?.scoutedPlayerIds ?? []);
   const squad = await squadSummary(clubId);
   return {
@@ -72,21 +91,40 @@ export interface PlayerReveal {
 }
 
 /** Pay SCOUT_FEE to reveal a free agent's exact attributes (idempotent). */
-export async function scoutPlayer(clubId: string, playerId: string): Promise<PlayerReveal> {
+export async function scoutPlayer(
+  clubId: string,
+  playerId: string
+): Promise<PlayerReveal> {
   return db().transaction(async (tx) => {
-    const [program] = await tx.select().from(ownerProgram).where(eq(ownerProgram.ClubId, clubId)).for('update');
+    const [program] = await tx
+      .select()
+      .from(ownerProgram)
+      .where(eq(ownerProgram.ClubId, clubId))
+      .for('update');
     if (!program) throw new Error('Program not started for this club');
-    const [player] = await tx.select().from(players).where(eq(players.id, playerId));
+    const [player] = await tx
+      .select()
+      .from(players)
+      .where(eq(players.id, playerId));
     if (!player) throw new Error('Player not found');
-    if (player.isSigned || player.ClubId) throw new Error('That player is not a free agent');
+    if (player.isSigned || player.ClubId)
+      throw new Error('That player is not a free agent');
 
     const scout = program.Scout ?? {};
     const already = (scout.scoutedPlayerIds ?? []).includes(playerId);
     if (!already) {
       const debited = await tx
         .update(clubs)
-        .set({ Budget: sql`coalesce(${clubs.Budget}, 0) - ${SCOUT_FEE}`, updatedAt: new Date() })
-        .where(and(eq(clubs.id, clubId), sql`coalesce(${clubs.Budget}, 0) >= ${SCOUT_FEE}`))
+        .set({
+          Budget: sql`coalesce(${clubs.Budget}, 0) - ${SCOUT_FEE}`,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(clubs.id, clubId),
+            sql`coalesce(${clubs.Budget}, 0) >= ${SCOUT_FEE}`
+          )
+        )
         .returning({ id: clubs.id });
       if (!debited.length) throw new Error('Insufficient budget to scout');
       await tx.insert(transferLedger).values({
@@ -100,14 +138,18 @@ export async function scoutPlayer(clubId: string, playerId: string): Promise<Pla
       await tx
         .update(ownerProgram)
         .set({
-          Scout: { ...scout, scoutedPlayerIds: [...(scout.scoutedPlayerIds ?? []), playerId] },
+          Scout: {
+            ...scout,
+            scoutedPlayerIds: [...(scout.scoutedPlayerIds ?? []), playerId],
+          },
           updatedAt: new Date(),
         })
         .where(eq(ownerProgram.ClubId, clubId));
     }
     const raw = (player.Attributes ?? {}) as Record<string, unknown>;
     const attributes: Record<string, number> = {};
-    for (const [k, v] of Object.entries(raw)) if (typeof v === 'number') attributes[k] = v;
+    for (const [k, v] of Object.entries(raw))
+      if (typeof v === 'number') attributes[k] = v;
     return {
       id: playerId,
       rating: player.Rating ?? 0,
@@ -129,18 +171,30 @@ export async function signPlayer(
   playerId: string
 ): Promise<{ paid: number; state: ProgramState }> {
   const paid = await db().transaction(async (tx) => {
-    const [club] = await tx.select({ code: clubs.ClubCode }).from(clubs).where(eq(clubs.id, clubId));
+    const [club] = await tx
+      .select({ code: clubs.ClubCode })
+      .from(clubs)
+      .where(eq(clubs.id, clubId));
     if (!club) throw new Error('Club not found');
-    const [player] = await tx.select().from(players).where(eq(players.id, playerId));
+    const [player] = await tx
+      .select()
+      .from(players)
+      .where(eq(players.id, playerId));
     if (!player) throw new Error('Player not found');
     const price = Math.round(player.Value ?? 0);
 
     const debited = await tx
       .update(clubs)
-      .set({ Budget: sql`coalesce(${clubs.Budget}, 0) - ${price}`, updatedAt: new Date() })
-      .where(and(eq(clubs.id, clubId), sql`coalesce(${clubs.Budget}, 0) >= ${price}`))
+      .set({
+        Budget: sql`coalesce(${clubs.Budget}, 0) - ${price}`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(eq(clubs.id, clubId), sql`coalesce(${clubs.Budget}, 0) >= ${price}`)
+      )
       .returning({ id: clubs.id });
-    if (!debited.length) throw new Error('Insufficient budget to sign this player');
+    if (!debited.length)
+      throw new Error('Insufficient budget to sign this player');
 
     const signed = await tx
       .update(players)
@@ -161,7 +215,8 @@ export async function signPlayer(
         )
       )
       .returning({ id: players.id });
-    if (!signed.length) throw new Error('Another club signed that player first');
+    if (!signed.length)
+      throw new Error('Another club signed that player first');
 
     await tx.insert(transferLedger).values({
       Type: 'transfer',

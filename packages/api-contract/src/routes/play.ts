@@ -3,8 +3,20 @@
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 import { successEnvelope, failEnvelope } from '../schemas/envelope';
-import { InboxSchema, MatchResultSchema, OpponentSchema, PlayStateSchema, ShopCollectSchema } from '../schemas/play';
-import { MatchPlanSchema, MatchPrepSchema, MatchdayFixtureSchema, MatchdaySchema, PlanPreviewSchema } from '../schemas/match-plan';
+import {
+  InboxSchema,
+  MatchResultSchema,
+  OpponentSchema,
+  PlayStateSchema,
+  ShopCollectSchema,
+} from '../schemas/play';
+import {
+  MatchPlanSchema,
+  MatchPrepSchema,
+  MatchdayFixtureSchema,
+  MatchdaySchema,
+  PlanPreviewSchema,
+} from '../schemas/match-plan';
 
 const c = initContract();
 
@@ -46,13 +58,23 @@ export const playContract = c.router(
       /** Optional: fight a specific opponent from the matchmaking preview.
        * `watch`: record the replay so the Matchzone can play it (otherwise
        * the match is played headless - straight to the result). */
-      body: z.object({ opponentId: z.string().optional(), watch: z.boolean().optional() }).optional(),
+      body: z
+        .object({
+          opponentId: z.string().optional(),
+          watch: z.boolean().optional(),
+        })
+        .optional(),
       responses: {
         200: successEnvelope(MatchResultSchema),
         400: failEnvelope(),
         401: failEnvelope(),
         403: failEnvelope(),
         404: failEnvelope(),
+        // The owner-program PLAY gate (services/program/squad-gate.ts):
+        // "Sign a manager before your first match...". Declared so the client
+        // decodes the message instead of treating the refusal as a transport
+        // error (U-06 / P02-19).
+        409: failEnvelope(),
       },
     },
 
@@ -137,7 +159,10 @@ export const playContract = c.router(
       method: 'PUT',
       path: '/:clubId/fixtures/:fixtureId/plan',
       pathParams: z.object({ clubId: z.string(), fixtureId: z.string() }),
-      body: z.object({ plan: MatchPlanSchema, asDefault: z.boolean().optional() }),
+      body: z.object({
+        plan: MatchPlanSchema,
+        asDefault: z.boolean().optional(),
+      }),
       responses: {
         200: successEnvelope(MatchPrepSchema),
         400: failEnvelope(),

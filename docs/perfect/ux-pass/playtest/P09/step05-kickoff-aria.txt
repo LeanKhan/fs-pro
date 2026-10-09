@@ -1,0 +1,21 @@
+- img "World map": Ashter Bellean Ekhastan Hunteerland Kev Kiyoto Legardio Pregge Proland Simeone UPP
+- button "Zoom in": +
+- button "Zoom out": −
+- button "Whole world"
+- banner:
+  - text: Found your club Check everything and found the club
+  - list "Steps":
+    - listitem:
+      - button "1. Home"
+    - listitem:
+      - button "2. Club"
+    - listitem:
+      - button "3. Kick-off"
+- complementary:
+  - heading "Kick-off" [level=2]
+  - heading "Philamentia Central United PCU" [level=3]
+  - paragraph: Philamentia Central, Bellean Central, Bellean · Philamentia Central Park
+  - text: Bank 1.5M Squad 16 Level 0 Fans 150
+  - paragraph: "You start from nothing: a dirt pitch, hopeful amateurs, a few loyal fans. Your league fixtures start right away. Win matches to earn money and XP, then build your grounds up."
+  - button "Back"
+  - button "Found Philamentia Central United"

@@ -1,0 +1,221 @@
+- button "New headlines"
+- button "11 lineup slot(s) empty"
+- button "+V20k"
+- group "Club advisor"
+- button "2 online"
+- button "Owner's program Hire your first manager"
+- img "Completionist FC"
+- text: 0 0/100 V3M 150 5 0 Day 484 · Thu Dec 30 2027 Year 8 Rainbow Boys beat E2E United xqchx9 3-2
+- button "Challenges"
+- button "League"
+- button "Settings"
+- text: First steps 0/4
+- button "Sign a manager Interview, then hire"
+- button "Build a squad"
+- button "Build a facility"
+- button "Reach Level 1"
+- button "Squad"
+- button "Team Sheet"
+- button "World"
+- button "World"
+- navigation:
+  - button "Build"
+  - button "Move"
+  - button "Squad"
+  - button "Manager"
+- button "PLAY Ready"
+- complementary:
+  - heading "Owner's office" [level=2]
+  - navigation:
+    - button "Matchday"
+    - button "The brief"
+    - button "Squad"
+    - button "Recruitment"
+    - button "Owner"
+    - button "Analysis"
+  - button "Close"
+  - text: "Transfer Market Budget: V3M"
+  - button "Request Board Funding"
+  - alert:
+    - text: Transfer window is
+    - strong: closed
+    - text: . Bids and purchases reopen when the next window opens.
+  - text: My Offers
+  - button "Current Season"
+  - button "All History"
+  - button "Refresh Offers"
+  - text: No offers recorded for the current season yet. While the transfer window is open, other clubs will bid for your players, and you can bid on the market below.
+  - button "View All Previous Offers"
+  - text: Scouted Shortlist 1 Recommended by your Scouting Department Lourousyou Laibri DEF · OVR 47 · V7,500 Search
+  - textbox "Search"
+  - button "All"
+  - button "Free Agents"
+  - button "Other Clubs"
+  - table:
+    - rowgroup:
+      - row "Player Position Age Rating Origin / Club Value Wage Actions":
+        - columnheader "Player"
+        - columnheader "Position"
+        - columnheader "Age"
+        - columnheader "Rating"
+        - columnheader "Origin / Club"
+        - columnheader "Value"
+        - columnheader "Wage"
+        - columnheader "Actions"
+    - rowgroup:
+      - row "Maushaura Jauna MID 19 56 🌍 Overseas Free Agent V156,000 V23,400":
+        - cell "Maushaura Jauna":
+          - strong: Maushaura Jauna
+        - cell "MID"
+        - cell "19"
+        - cell "56"
+        - cell "🌍 Overseas Free Agent"
+        - cell "V156,000"
+        - cell "V23,400"
+        - cell:
+          - button
+          - button
+      - row "HTTP PgTest DEF 29 0 🌍 Overseas Free Agent V0 V0":
+        - cell "HTTP PgTest":
+          - strong: HTTP PgTest
+        - cell "DEF"
+        - cell "29"
+        - cell "0"
+        - cell "🌍 Overseas Free Agent"
+        - cell "V0"
+        - cell "V0"
+        - cell:
+          - button
+          - button
+      - row "Gliadocia Varu DEF 31 66 🌍 Overseas Free Agent V562,500 V84,375":
+        - cell "Gliadocia Varu":
+          - strong: Gliadocia Varu
+        - cell "DEF"
+        - cell "31"
+        - cell "66"
+        - cell "🌍 Overseas Free Agent"
+        - cell "V562,500"
+        - cell "V84,375"
+        - cell:
+          - button
+          - button
+      - row "Brisgai Kinsah DEF 29 67 🌍 Overseas Free Agent V562,500 V84,375":
+        - cell "Brisgai Kinsah":
+          - strong: Brisgai Kinsah
+        - cell "DEF"
+        - cell "29"
+        - cell "67"
+        - cell "🌍 Overseas Free Agent"
+        - cell "V562,500"
+        - cell "V84,375"
+        - cell:
+          - button
+          - button
+      - row "Jugre Cheifeigie DEF 32 51 🌍 Overseas Free Agent V27,500 V4,125":
+        - cell "Jugre Cheifeigie":
+          - strong: Jugre Cheifeigie
+        - cell "DEF"
+        - cell "32"
+        - cell "51"
+        - cell "🌍 Overseas Free Agent"
+        - cell "V27,500"
+        - cell "V4,125"
+        - cell:
+          - button
+          - button
+      - row "Krosutmal Chitpaimil GK 22 46 🌍 Overseas Free Agent V30,000 V4,500":
+        - cell "Krosutmal Chitpaimil":
+          - strong: Krosutmal Chitpaimil
+        - cell "GK"
+        - cell "22"
+        - cell "46"
+        - cell "🌍 Overseas Free Agent"
+        - cell "V30,000"
+        - cell "V4,500"
+        - cell:
+          - button
+          - button
+      - row "Peebrubrai Mevra DEF 32 51 🌍 Overseas Free Agent V27,500 V4,125":
+        - cell "Peebrubrai Mevra":
+          - strong: Peebrubrai Mevra
+        - cell "DEF"
+        - cell "32"
+        - cell "51"
+        - cell "🌍 Overseas Free Agent"
+        - cell "V27,500"
+        - cell "V4,125"
+        - cell:
+          - button
+          - button
+      - row "Lushe Khouteve DEF 19 62 🌍 Overseas Free Agent V416,000 V62,400":
+        - cell "Lushe Khouteve":
+          - strong: Lushe Khouteve
+        - cell "DEF"
+        - cell "19"
+        - cell "62"
+        - cell "🌍 Overseas Free Agent"
+        - cell "V416,000"
+        - cell "V62,400"
+        - cell:
+          - button
+          - button
+      - row "Jugre Cheifeigie DEF 32 51 🌍 Overseas Free Agent V27,500 V4,125":
+        - cell "Jugre Cheifeigie":
+          - strong: Jugre Cheifeigie
+        - cell "DEF"
+        - cell "32"
+        - cell "51"
+        - cell "🌍 Overseas Free Agent"
+        - cell "V27,500"
+        - cell "V4,125"
+        - cell:
+          - button
+          - button
+      - row "Lufou Fainnozhu ATT 32 56 🌍 Overseas Free Agent V60,000 V9,000":
+        - cell "Lufou Fainnozhu":
+          - strong: Lufou Fainnozhu
+        - cell "ATT"
+        - cell "32"
+        - cell "56"
+        - cell "🌍 Overseas Free Agent"
+        - cell "V60,000"
+        - cell "V9,000"
+        - cell:
+          - button
+          - button
+  - separator
+  - text: "Items per page:"
+  - combobox:
+    - text: "10"
+    - combobox "Open": "10"
+  - text: 1-10 of 5626
+  - navigation "Pagination Navigation":
+    - list:
+      - listitem:
+        - button "First page" [disabled]
+      - listitem:
+        - button "Previous page" [disabled]
+      - listitem:
+        - button "Next page"
+      - listitem:
+        - button "Last page"
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip

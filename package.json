@@ -6,6 +6,11 @@
     "packages/*",
     "tests/*"
   ],
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "tests/*"
+  ],
   "scripts": {
     "build": "turbo build",
     "dev": "dotenv -- turbo dev",
@@ -17,10 +22,16 @@
     "format:check": "oxfmt --check",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
-    "test:e2e": "npm run test --workspace fs-pro-e2e"
+    "test:e2e": "npm run test --workspace fs-pro-e2e",
+    "test:e2e:playtest": "npm run playtest --workspace fs-pro-e2e"
   },
   "devDependencies": {
     "@repo/typescript-config": "*",
+    "dotenv-cli": "^7.4.1",
+    "drizzle-orm": "^0.45.2",
+    "oxfmt": "^0.66.0",
+    "oxlint": "^1.81.0",
+    "postgres": "^3.4.9",
     "dotenv-cli": "^7.4.1",
     "drizzle-orm": "^0.45.2",
     "oxfmt": "^0.66.0",
@@ -31,5 +42,7 @@
   "engines": {
     "node": ">=18"
   },
+  "packageManager": "npm@8.19.2"
+}
   "packageManager": "npm@8.19.2"
 }

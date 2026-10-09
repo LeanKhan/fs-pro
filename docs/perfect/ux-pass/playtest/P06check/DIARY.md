@@ -1,0 +1,3 @@
+- [2026-10-08T23:19:52.752Z] Scroll-check on join form: docScrollHeight=740 clientHeight=740 canScroll=false; Create account bottom=816 inViewport=false.
+- [2026-10-08T23:21:30.975Z] Diagnosed join-form overflow: document/body do not scroll; checking inner containers + touch drag.
+- [2026-10-08T23:23:34.848Z] Join form container scroll: before scrollTop=0, after real wheel=162; Create account top 768->606.

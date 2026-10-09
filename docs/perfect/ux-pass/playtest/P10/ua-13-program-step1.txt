@@ -1,0 +1,2018 @@
+- banner:
+  - text: Owner's Program Completionist FC · CMP Program XP 0/54 Budget V3M
+  - button "Back to the grounds"
+- navigation "Owner program steps": 1 Manager The voice on the training pitch 2 Squad Eleven and a keeper 3 Facilities Build one Tier 1 4 Level 1 Earn the league place
+- note:
+  - text: “ Vintra · club secretary
+  - paragraph: Right then. Every club needs one voice on the training pitch. Spend on a manager first — the rest waits on him.
+- heading "Sign a manager" [level=2]
+- paragraph: Fee, wage and fit. Watch the style — your brief only works if it fits.
+- text: Budget V3M
+- searchbox "Search managers"
+- group "Sort managers":
+  - button "Cheapest"
+  - button "Best rated"
+  - button "Youngest"
+- checkbox "Affordable only"
+- text: Affordable only
+- paragraph: ★★★ wants Overall 60+, a fee under 40% of your opening balance, and V400,000 left afterwards.
+- article:
+  - text: Jousare Batou Age 51 Formation 41212 Style Direct Overall 41–53
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 40–52
+    - listitem: Development 40–51
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Gego Yoshainar Age 34 Formation 451 Style LowBlock Overall 42–54
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 43–55
+    - listitem: Development 40–52
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Drufi Deskin Age 32 Formation 343 Style Balanced Overall 41–53
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 43–55
+    - listitem: Development 40–52
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Sluzzisji Proshat Age 47 Formation 541 Style Possession Overall 42–54
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 40–52
+    - listitem: Development 41–53
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Nifa Shafounai Age 33 Formation 4231 Style Direct Overall 40–52
+  - list:
+    - listitem: Tactics 40–51
+    - listitem: Motivation 41–53
+    - listitem: Development 40–51
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Pidoo Zeblel Age 34 Formation 532 Style LowBlock Overall 41–53
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 41–53
+    - listitem: Development 40–52
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Gniprachu Nedu Age 38 Formation 4231 Style LowBlock Overall 42–54
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 42–54
+    - listitem: Development 43–55
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Ghaighou Gheti Age 34 Formation 451 Style Possession Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 40–51
+    - listitem: Development 43–55
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Kiro Mooble Age 47 Formation 442 Style LowBlock Overall 41–53
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 40–52
+    - listitem: Development 40–51
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Dainjutrai Memouba Age 39 Formation 541 Style Balanced Overall 42–54
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 42–54
+    - listitem: Development 41–53
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Mikakhu Shoghotro Age 43 Formation 541 Style Direct Overall 41–53
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 41–53
+    - listitem: Development 40–51
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Bahe Shoumdaizh Age 51 Formation 41212 Style Balanced Overall 40–52
+  - list:
+    - listitem: Tactics 40–51
+    - listitem: Motivation 40–52
+    - listitem: Development 42–54
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Brakefai Yezhaimrol Age 36 Formation 343 Style LowBlock Overall 42–54
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 41–53
+    - listitem: Development 40–51
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Bikfaska Sturoo Age 38 Formation 532 Style HighPress Overall 42–54
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 40–52
+    - listitem: Development 43–55
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Faidrise Ghaikijou Age 45 Formation 541 Style HighPress Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 43–55
+    - listitem: Development 40–51
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Zijaju Gniotriapi Age 51 Formation 41212 Style Balanced Overall 40–52
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 40–52
+    - listitem: Development 40–51
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Zoria Chiaprei Age 44 Formation 41212 Style Direct Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 41–53
+    - listitem: Development 40–52
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Fresuji Fragleija Age 42 Formation 532 Style Direct Overall 42–54
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 41–53
+    - listitem: Development 42–54
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Liojianio Trigleje Age 37 Formation 451 Style LowBlock Overall 41–53
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 41–53
+    - listitem: Development 40–52
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Teilegie Didifru Age 44 Formation 442 Style Direct Overall 40–52
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 41–53
+    - listitem: Development 40–52
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Shumashoul Mailukis Age 44 Formation 541 Style Balanced Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 40–52
+    - listitem: Development 40–52
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Baglio Prochuza Age 42 Formation 442 Style Direct Overall 40–52
+  - list:
+    - listitem: Tactics 40–51
+    - listitem: Motivation 41–53
+    - listitem: Development 41–53
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Bupria Firioba Age 52 Formation 451 Style Possession Overall 41–53
+  - list:
+    - listitem: Tactics 40–51
+    - listitem: Motivation 42–54
+    - listitem: Development 41–53
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Yaimaiza Kordaru Age 42 Formation 532 Style Balanced Overall 42–54
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 43–55
+    - listitem: Development 40–52
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Haidratu Kashibrour Age 36 Formation 541 Style Balanced Overall 42–54
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 40–52
+    - listitem: Development 43–55
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Taibe Yohoza Age 38 Formation 343 Style LowBlock Overall 41–53
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 42–54
+    - listitem: Development 40–51
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Joulutdou Duna Age 44 Formation 532 Style Direct Overall 40–52
+  - list:
+    - listitem: Tactics 40–51
+    - listitem: Motivation 43–55
+    - listitem: Development 40–51
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Druhu Jaidouzuk Age 34 Formation 541 Style LowBlock Overall 41–53
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 41–53
+    - listitem: Development 42–54
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Butyubri Bidai Age 52 Formation 4141 Style Balanced Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 41–53
+    - listitem: Development 42–54
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Griodi Giiagne Age 35 Formation 4231 Style Direct Overall 41–53
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 40–51
+    - listitem: Development 43–55
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Zopudei Trugugei Age 48 Formation 352 Style Direct Overall 42–54
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 41–53
+    - listitem: Development 41–53
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Fenora Bumeisei Age 50 Formation 4141 Style Possession Overall 41–53
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 40–52
+    - listitem: Development 40–51
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Namei Sanbachai Age 39 Formation 433 Style HighPress Overall 43–55
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 43–55
+    - listitem: Development 42–54
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Kvimoo Zazeezul Age 39 Formation 352 Style Possession Overall 41–53
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 40–51
+    - listitem: Development 42–54
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Leskufei Judaasei Age 42 Formation 4141 Style Balanced Overall 41–53
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 43–55
+    - listitem: Development 41–53
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Snenisnaal Keimimar Age 38 Formation 541 Style HighPress Overall 41–53
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 40–52
+    - listitem: Development 40–51
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Lotiadi Fotrume Age 46 Formation 4141 Style Possession Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 40–51
+    - listitem: Development 40–52
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Redoguv Draivooda Age 49 Formation 4141 Style LowBlock Overall 41–53
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 43–55
+    - listitem: Development 40–52
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Naifout Khukhumbu Age 34 Formation 4231 Style Possession Overall 41–53
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 41–53
+    - listitem: Development 40–51
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Pidaimta Jaiko Age 42 Formation 4231 Style HighPress Overall 40–52
+  - list:
+    - listitem: Tactics 40–51
+    - listitem: Motivation 40–52
+    - listitem: Development 40–52
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Shaimlour Ghusho Age 34 Formation 433 Style Possession Overall 43–55
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 43–55
+    - listitem: Development 43–55
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Chuweiso Genesho Age 33 Formation 4141 Style HighPress Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 41–53
+    - listitem: Development 40–52
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Keld Dume Age 34 Formation 352 Style Balanced Overall 40–52
+  - list:
+    - listitem: Tactics 40–51
+    - listitem: Motivation 42–54
+    - listitem: Development 40–51
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Zhahedra Fadrer Age 37 Formation 541 Style Balanced Overall 42–54
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 41–53
+    - listitem: Development 41–53
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Dilfuke Puwa Age 38 Formation 4141 Style Direct Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 41–53
+    - listitem: Development 40–52
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Dreetgakva Vrisoosoo Age 34 Formation 541 Style LowBlock Overall 42–54
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 41–53
+    - listitem: Development 41–53
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Meitrisu Giutei Age 49 Formation 442 Style Possession Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 43–55
+    - listitem: Development 41–53
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Brurtee Bleefailka Age 48 Formation 343 Style LowBlock Overall 40–52
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 42–54
+    - listitem: Development 40–51
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Khahaha Latkai Age 51 Formation 532 Style HighPress Overall 41–53
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 40–51
+    - listitem: Development 40–52
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Niasapria Mobia Age 49 Formation 41212 Style HighPress Overall 41–53
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 41–53
+    - listitem: Development 40–52
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Nipor Rineekpa Age 44 Formation 442 Style Direct Overall 41–53
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 41–53
+    - listitem: Development 42–54
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Baiyigai Shafounai Age 50 Formation 352 Style LowBlock Overall 40–52
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 42–54
+    - listitem: Development 40–51
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Biafugrei Chusu Age 37 Formation 4231 Style HighPress Overall 41–53
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 40–52
+    - listitem: Development 41–53
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Rekgaichi Shogo Age 32 Formation 433 Style Direct Overall 41–53
+  - list:
+    - listitem: Tactics 40–51
+    - listitem: Motivation 42–54
+    - listitem: Development 42–54
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Keesni Vorege Age 51 Formation 4141 Style HighPress Overall 41–53
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 41–53
+    - listitem: Development 41–53
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Troche Gnogiaju Age 34 Formation 4141 Style LowBlock Overall 41–53
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 41–53
+    - listitem: Development 40–51
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Gregov Rizazoo Age 44 Formation 343 Style LowBlock Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 42–54
+    - listitem: Development 40–52
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Rugnire Veivo Age 39 Formation 442 Style LowBlock Overall 41–53
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 41–53
+    - listitem: Development 41–53
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Prago Fretri Age 44 Formation 532 Style Possession Overall 40–52
+  - list:
+    - listitem: Tactics 40–51
+    - listitem: Motivation 42–54
+    - listitem: Development 40–52
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Femidi Traishai Age 33 Formation 4141 Style LowBlock Overall 40–52
+  - list:
+    - listitem: Tactics 40–51
+    - listitem: Motivation 41–53
+    - listitem: Development 41–53
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Chiagiei Glugrize Age 36 Formation 433 Style Balanced Overall 42–54
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 41–53
+    - listitem: Development 40–51
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Yojutkai Reine Age 35 Formation 442 Style Balanced Overall 42–54
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 43–55
+    - listitem: Development 41–53
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Lothi Zoolzi Age 41 Formation 41212 Style Possession Overall 40–52
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 41–53
+    - listitem: Development 41–53
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Sodejuv Tertu Age 45 Formation 532 Style Direct Overall 41–53
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 41–53
+    - listitem: Development 40–51
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Niwawa Gahu Age 43 Formation 352 Style Balanced Overall 42–54
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 40–52
+    - listitem: Development 40–52
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Veekeda Fjopeblee Age 43 Formation 541 Style Possession Overall 41–53
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 40–52
+    - listitem: Development 41–53
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Fainijou Tileland Age 35 Formation 451 Style Possession Overall 42–54
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 40–52
+    - listitem: Development 42–54
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Bleeski Befjes Age 38 Formation 4231 Style LowBlock Overall 42–54
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 41–53
+    - listitem: Development 43–55
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Gliogrioda Megeitu Age 49 Formation 352 Style Possession Overall 42–54
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 42–54
+    - listitem: Development 41–53
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Hevunzo Saisme Age 51 Formation 41212 Style Possession Overall 41–53
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 40–52
+    - listitem: Development 43–55
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Mivaikhai Trughusye Age 45 Formation 41212 Style HighPress Overall 40–52
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 41–53
+    - listitem: Development 40–51
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Broshore Laibri Age 33 Formation 541 Style HighPress Overall 40–52
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 40–51
+    - listitem: Development 43–55
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Jume Tudau Age 39 Formation 442 Style LowBlock Overall 42–54
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 42–54
+    - listitem: Development 41–53
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Yukho Zuto Age 43 Formation 352 Style HighPress Overall 41–53
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 42–54
+    - listitem: Development 40–51
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Mosityu Kaikne Age 33 Formation 4231 Style Balanced Overall 40–52
+  - list:
+    - listitem: Tactics 40–51
+    - listitem: Motivation 41–53
+    - listitem: Development 40–52
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Fouzvoubou Fedraikja Age 45 Formation 541 Style Balanced Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 43–55
+    - listitem: Development 40–52
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Binegi Pobo Age 52 Formation 4141 Style Balanced Overall 41–53
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 40–51
+    - listitem: Development 40–51
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Rijojai Mogaisau Age 43 Formation 352 Style Balanced Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 40–52
+    - listitem: Development 40–52
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Gikiti Khouzdozho Age 37 Formation 433 Style Direct Overall 40–51
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 40–51
+    - listitem: Development 40–51
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Roofjigo Vooleeble Age 47 Formation 541 Style LowBlock Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 40–52
+    - listitem: Development 43–55
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Hazhaito Kaire Age 46 Formation 442 Style Direct Overall 40–52
+  - list:
+    - listitem: Tactics 40–51
+    - listitem: Motivation 40–51
+    - listitem: Development 43–55
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Ciochi Fenofru Age 33 Formation 442 Style Balanced Overall 40–52
+  - list:
+    - listitem: Tactics 40–51
+    - listitem: Motivation 40–52
+    - listitem: Development 43–55
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Taase Nurubeik Age 45 Formation 41212 Style Balanced Overall 42–54
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 41–53
+    - listitem: Development 43–55
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Horhipu Jalaitsais Age 51 Formation 343 Style HighPress Overall 43–55
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 42–54
+    - listitem: Development 43–55
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Rihau Kauhau Age 48 Formation 532 Style LowBlock Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 40–51
+    - listitem: Development 42–54
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Yasotru Tumtai Age 49 Formation 451 Style Direct Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 42–54
+    - listitem: Development 40–51
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Vosho Ngungangau Age 37 Formation 541 Style Balanced Overall 43–55
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 43–55
+    - listitem: Development 41–53
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Meege Kajo Age 34 Formation 532 Style Balanced Overall 41–53
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 42–54
+    - listitem: Development 40–52
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Pukaufai Beko Age 46 Formation 541 Style HighPress Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 41–53
+    - listitem: Development 40–52
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Fefi Tijiofia Age 50 Formation 343 Style HighPress Overall 42–54
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 42–54
+    - listitem: Development 41–53
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Broofjeem Kvutamja Age 41 Formation 352 Style LowBlock Overall 41–53
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 41–53
+    - listitem: Development 40–51
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Pooko Huzee Age 43 Formation 352 Style Direct Overall 40–52
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 42–54
+    - listitem: Development 40–51
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Faneichei Geipu Age 31 Formation 4231 Style LowBlock Overall 40–52
+  - list:
+    - listitem: Tactics 40–51
+    - listitem: Motivation 42–54
+    - listitem: Development 40–51
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Kvooti Greepai Age 49 Formation 451 Style Direct Overall 42–54
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 40–51
+    - listitem: Development 43–55
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Hari Judaiyol Age 49 Formation 532 Style Balanced Overall 40–52
+  - list:
+    - listitem: Tactics 40–51
+    - listitem: Motivation 40–52
+    - listitem: Development 43–55
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Nuva Fone Age 50 Formation 442 Style Balanced Overall 41–53
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 42–54
+    - listitem: Development 40–52
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Lenrailai Yinirbu Age 51 Formation 442 Style Balanced Overall 41–53
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 40–51
+    - listitem: Development 40–51
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Ngopaipi Tuneho Age 45 Formation 4231 Style Direct Overall 42–54
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 42–54
+    - listitem: Development 42–54
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Baikhu Sisuzhou Age 47 Formation 433 Style HighPress Overall 40–52
+  - list:
+    - listitem: Tactics 40–51
+    - listitem: Motivation 40–52
+    - listitem: Development 40–51
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Piju Jeityaik Age 51 Formation 41212 Style Direct Overall 42–54
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 43–55
+    - listitem: Development 41–53
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Lutri Yekhe Age 44 Formation 541 Style Balanced Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 42–54
+    - listitem: Development 42–54
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Riogiagnei Chagiogie Age 38 Formation 532 Style HighPress Overall 42–54
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 43–55
+    - listitem: Development 40–52
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Saighe Zhaihonnuz Age 47 Formation 532 Style HighPress Overall 42–54
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 40–52
+    - listitem: Development 42–54
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Maitunju Kaji Age 43 Formation 4141 Style LowBlock Overall 40–51
+  - list:
+    - listitem: Tactics 40–51
+    - listitem: Motivation 40–52
+    - listitem: Development 40–52
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Waisenyai Taungauve Age 48 Formation 532 Style Possession Overall 40–52
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 40–52
+    - listitem: Development 41–53
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Cetugio Vugrami Age 51 Formation 442 Style HighPress Overall 42–54
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 43–55
+    - listitem: Development 42–54
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Trojur Draino Age 47 Formation 451 Style HighPress Overall 40–52
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 40–52
+    - listitem: Development 42–54
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Jolako Vrebloo Age 52 Formation 4231 Style LowBlock Overall 42–54
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 40–51
+    - listitem: Development 42–54
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Paiki Juma Age 46 Formation 4231 Style Possession Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 42–54
+    - listitem: Development 42–54
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Zizjee Pulmavroo Age 40 Formation 532 Style LowBlock Overall 41–53
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 43–55
+    - listitem: Development 40–52
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Druko Rizhatai Age 51 Formation 442 Style Possession Overall 40–52
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 40–52
+    - listitem: Development 40–51
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Fije Gavoon Age 52 Formation 352 Style Possession Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 40–51
+    - listitem: Development 41–53
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Zhizaizi Ghairenou Age 37 Formation 343 Style Possession Overall 41–53
+  - list:
+    - listitem: Tactics 43–55
+    - listitem: Motivation 42–54
+    - listitem: Development 40–51
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Beite Jegiasu Age 33 Formation 433 Style LowBlock Overall 40–52
+  - list:
+    - listitem: Tactics 40–51
+    - listitem: Motivation 40–52
+    - listitem: Development 41–53
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Naiwai Sisi Age 39 Formation 343 Style Direct Overall 41–53
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 42–54
+    - listitem: Development 42–54
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Shosidra Drodro Age 34 Formation 532 Style Direct Overall 41–53
+  - list:
+    - listitem: Tactics 40–51
+    - listitem: Motivation 40–52
+    - listitem: Development 43–55
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Bjoossaasf Snukoo Age 47 Formation 343 Style HighPress Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 42–54
+    - listitem: Development 42–54
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Fugevu Fjovamo Age 37 Formation 451 Style Possession Overall 41–53
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 40–52
+    - listitem: Development 40–52
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Dupekru Vaivofin Age 47 Formation 343 Style Possession Overall 40–52
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 40–51
+    - listitem: Development 40–52
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Vioprubio Joto Age 31 Formation 343 Style Possession Overall 40–52
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 40–51
+    - listitem: Development 40–51
+    - listitem: Discipline 40–51
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Ghaili Zijuz Age 49 Formation 343 Style HighPress Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 40–51
+    - listitem: Development 43–55
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Nise Tseina Age 38 Formation 442 Style LowBlock Overall 41–53
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 42–54
+    - listitem: Development 41–53
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Zuvograi Druge Age 41 Formation 343 Style Possession Overall 41–53
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 40–52
+    - listitem: Development 42–54
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Botabrai Lotrakhou Age 47 Formation 352 Style Balanced Overall 41–53
+  - list:
+    - listitem: Tactics 40–51
+    - listitem: Motivation 40–52
+    - listitem: Development 43–55
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Drejaizgo Trouhoul Age 40 Formation 4141 Style HighPress Overall 41–53
+  - list:
+    - listitem: Tactics 41–53
+    - listitem: Motivation 40–51
+    - listitem: Development 43–55
+    - listitem: Discipline 43–55
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Dono Padantei Age 47 Formation 352 Style LowBlock Overall 42–54
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 41–53
+    - listitem: Development 42–54
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Soyuhi Zolzou Age 33 Formation 4141 Style Direct Overall 40–52
+  - list:
+    - listitem: Tactics 40–51
+    - listitem: Motivation 41–53
+    - listitem: Development 40–51
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Ghoubrai Kuzkoufuz Age 35 Formation 343 Style Balanced Overall 42–54
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 41–53
+    - listitem: Development 42–54
+    - listitem: Discipline 42–54
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Libide Zeina Age 50 Formation 343 Style Possession Overall 41–53
+  - list:
+    - listitem: Tactics 42–54
+    - listitem: Motivation 41–53
+    - listitem: Development 41–53
+    - listitem: Discipline 40–52
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Doro Briye Age 37 Formation 352 Style Direct Overall 41–53
+  - list:
+    - listitem: Tactics 40–52
+    - listitem: Motivation 43–55
+    - listitem: Development 42–54
+    - listitem: Discipline 41–53
+  - text: V40,000 fee · V2,000/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Cigragla Ditro Age 43 Formation 4141 Style Balanced Overall 45–57
+  - list:
+    - listitem: Tactics 45–57
+    - listitem: Motivation 44–56
+    - listitem: Development 46–58
+    - listitem: Discipline 45–57
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Prioglu Gniocha Age 34 Formation 352 Style HighPress Overall 46–58
+  - list:
+    - listitem: Tactics 46–58
+    - listitem: Motivation 44–56
+    - listitem: Development 46–58
+    - listitem: Discipline 48–60
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Makvoogre Kvaikotsim Age 46 Formation 41212 Style LowBlock Overall 47–59
+  - list:
+    - listitem: Tactics 48–60
+    - listitem: Motivation 47–59
+    - listitem: Development 45–57
+    - listitem: Discipline 47–59
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Nazai Jooblooboo Age 48 Formation 343 Style LowBlock Overall 46–58
+  - list:
+    - listitem: Tactics 47–59
+    - listitem: Motivation 47–59
+    - listitem: Development 45–57
+    - listitem: Discipline 46–58
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Kaghitti Ruzza Age 46 Formation 541 Style Possession Overall 46–58
+  - list:
+    - listitem: Tactics 47–59
+    - listitem: Motivation 44–56
+    - listitem: Development 47–59
+    - listitem: Discipline 44–56
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Giesia Geibiaglo Age 45 Formation 352 Style Direct Overall 45–57
+  - list:
+    - listitem: Tactics 44–56
+    - listitem: Motivation 45–57
+    - listitem: Development 45–57
+    - listitem: Discipline 47–59
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Dreesoomee Dripor Age 41 Formation 532 Style Possession Overall 46–58
+  - list:
+    - listitem: Tactics 46–58
+    - listitem: Motivation 47–59
+    - listitem: Development 48–60
+    - listitem: Discipline 44–56
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Koubi Fesi Age 35 Formation 4231 Style Direct Overall 45–57
+  - list:
+    - listitem: Tactics 44–56
+    - listitem: Motivation 45–57
+    - listitem: Development 45–57
+    - listitem: Discipline 48–60
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Lauvai Rufau Age 33 Formation 352 Style Direct Overall 46–58
+  - list:
+    - listitem: Tactics 48–60
+    - listitem: Motivation 45–57
+    - listitem: Development 45–57
+    - listitem: Discipline 46–58
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Naushu Haurtau Age 50 Formation 532 Style LowBlock Overall 46–58
+  - list:
+    - listitem: Tactics 47–59
+    - listitem: Motivation 46–58
+    - listitem: Development 47–59
+    - listitem: Discipline 44–56
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Giuteimu Tache Age 47 Formation 442 Style LowBlock Overall 46–58
+  - list:
+    - listitem: Tactics 46–58
+    - listitem: Motivation 47–59
+    - listitem: Development 45–57
+    - listitem: Discipline 46–58
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Gija Futusfou Age 52 Formation 442 Style HighPress Overall 47–59
+  - list:
+    - listitem: Tactics 48–60
+    - listitem: Motivation 45–57
+    - listitem: Development 48–60
+    - listitem: Discipline 47–59
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Zustoofai Bravigee Age 38 Formation 541 Style LowBlock Overall 47–59
+  - list:
+    - listitem: Tactics 48–60
+    - listitem: Motivation 48–60
+    - listitem: Development 48–60
+    - listitem: Discipline 44–56
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Kvulu Vrokvaim Age 42 Formation 4231 Style Balanced Overall 47–59
+  - list:
+    - listitem: Tactics 46–58
+    - listitem: Motivation 47–59
+    - listitem: Development 48–60
+    - listitem: Discipline 46–58
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Skeezfaiso Dageevro Age 52 Formation 352 Style Balanced Overall 46–58
+  - list:
+    - listitem: Tactics 45–57
+    - listitem: Motivation 45–57
+    - listitem: Development 46–58
+    - listitem: Discipline 48–60
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Brouzhe Yaknobis Age 31 Formation 343 Style Possession Overall 45–57
+  - list:
+    - listitem: Tactics 44–56
+    - listitem: Motivation 44–56
+    - listitem: Development 47–59
+    - listitem: Discipline 45–57
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Vuklidur Ngujo Age 50 Formation 451 Style HighPress Overall 47–59
+  - list:
+    - listitem: Tactics 47–59
+    - listitem: Motivation 48–60
+    - listitem: Development 48–60
+    - listitem: Discipline 47–59
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Faighuzal Nola Age 37 Formation 442 Style LowBlock Overall 46–58
+  - list:
+    - listitem: Tactics 45–57
+    - listitem: Motivation 48–60
+    - listitem: Development 45–57
+    - listitem: Discipline 45–57
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Tevaiga Raunufai Age 37 Formation 532 Style Balanced Overall 46–58
+  - list:
+    - listitem: Tactics 47–59
+    - listitem: Motivation 45–57
+    - listitem: Development 47–59
+    - listitem: Discipline 45–57
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Kobo Bisha Age 46 Formation 442 Style Direct Overall 45–57
+  - list:
+    - listitem: Tactics 45–57
+    - listitem: Motivation 44–56
+    - listitem: Development 46–58
+    - listitem: Discipline 44–56
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Yebril Ghaidaizhi Age 43 Formation 442 Style Direct Overall 45–57
+  - list:
+    - listitem: Tactics 44–56
+    - listitem: Motivation 45–57
+    - listitem: Development 45–57
+    - listitem: Discipline 45–57
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Supiaja Pigria Age 47 Formation 343 Style Direct Overall 45–57
+  - list:
+    - listitem: Tactics 46–58
+    - listitem: Motivation 44–56
+    - listitem: Development 44–56
+    - listitem: Discipline 48–60
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Sobroo Rekrookain Age 49 Formation 4231 Style Balanced Overall 45–57
+  - list:
+    - listitem: Tactics 44–56
+    - listitem: Motivation 44–56
+    - listitem: Development 44–56
+    - listitem: Discipline 48–60
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Klilmaaraa Tusku Age 36 Formation 352 Style Possession Overall 45–57
+  - list:
+    - listitem: Tactics 46–58
+    - listitem: Motivation 47–59
+    - listitem: Development 44–56
+    - listitem: Discipline 44–56
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Hofjivboo Soodraikoo Age 47 Formation 343 Style Balanced Overall 46–58
+  - list:
+    - listitem: Tactics 45–57
+    - listitem: Motivation 48–60
+    - listitem: Development 44–56
+    - listitem: Discipline 48–60
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Stedeevzu Zoobudree Age 31 Formation 4231 Style Balanced Overall 45–57
+  - list:
+    - listitem: Tactics 44–56
+    - listitem: Motivation 45–57
+    - listitem: Development 45–57
+    - listitem: Discipline 45–57
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Fjufjukzis Vrookvee Age 49 Formation 352 Style Direct Overall 46–58
+  - list:
+    - listitem: Tactics 48–60
+    - listitem: Motivation 45–57
+    - listitem: Development 44–56
+    - listitem: Discipline 44–56
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Bisaite Dutsai Age 34 Formation 541 Style Possession Overall 46–58
+  - list:
+    - listitem: Tactics 45–57
+    - listitem: Motivation 45–57
+    - listitem: Development 48–60
+    - listitem: Discipline 46–58
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Kovaira Jooblooboo Age 48 Formation 4141 Style LowBlock Overall 47–59
+  - list:
+    - listitem: Tactics 47–59
+    - listitem: Motivation 47–59
+    - listitem: Development 46–58
+    - listitem: Discipline 48–60
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Chararia Bigriogrei Age 42 Formation 442 Style Possession Overall 46–58
+  - list:
+    - listitem: Tactics 46–58
+    - listitem: Motivation 46–58
+    - listitem: Development 48–60
+    - listitem: Discipline 45–57
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Troujode Traibre Age 48 Formation 41212 Style Possession Overall 45–57
+  - list:
+    - listitem: Tactics 44–56
+    - listitem: Motivation 44–56
+    - listitem: Development 46–58
+    - listitem: Discipline 48–60
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Braivai Veesai Age 43 Formation 41212 Style HighPress Overall 46–58
+  - list:
+    - listitem: Tactics 48–60
+    - listitem: Motivation 47–59
+    - listitem: Development 44–56
+    - listitem: Discipline 45–57
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Jaidrai Bredrebri Age 48 Formation 343 Style Direct Overall 47–59
+  - list:
+    - listitem: Tactics 46–58
+    - listitem: Motivation 47–59
+    - listitem: Development 48–60
+    - listitem: Discipline 48–60
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Yaighaiz Zofekhu Age 47 Formation 451 Style Direct Overall 47–59
+  - list:
+    - listitem: Tactics 48–60
+    - listitem: Motivation 44–56
+    - listitem: Development 47–59
+    - listitem: Discipline 45–57
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Vomoukhir Trinrargai Age 41 Formation 41212 Style Direct Overall 45–57
+  - list:
+    - listitem: Tactics 45–57
+    - listitem: Motivation 44–56
+    - listitem: Development 46–58
+    - listitem: Discipline 47–59
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Jisaihei Nadugu Age 37 Formation 433 Style HighPress Overall 46–58
+  - list:
+    - listitem: Tactics 47–59
+    - listitem: Motivation 44–56
+    - listitem: Development 45–57
+    - listitem: Discipline 45–57
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Ruklurvar Saasei Age 33 Formation 451 Style Possession Overall 48–60
+  - list:
+    - listitem: Tactics 48–60
+    - listitem: Motivation 47–59
+    - listitem: Development 48–60
+    - listitem: Discipline 46–58
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Lujo Bulni Age 36 Formation 433 Style Possession Overall 46–58
+  - list:
+    - listitem: Tactics 46–58
+    - listitem: Motivation 45–57
+    - listitem: Development 44–56
+    - listitem: Discipline 48–60
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Lumu Zhatoulyil Age 34 Formation 451 Style Direct Overall 46–58
+  - list:
+    - listitem: Tactics 46–58
+    - listitem: Motivation 46–58
+    - listitem: Development 47–59
+    - listitem: Discipline 44–56
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Momeiwo Pakjaiktai Age 33 Formation 4141 Style HighPress Overall 46–58
+  - list:
+    - listitem: Tactics 44–56
+    - listitem: Motivation 46–58
+    - listitem: Development 48–60
+    - listitem: Discipline 48–60
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Poovolral Tutainle Age 36 Formation 451 Style Possession Overall 46–58
+  - list:
+    - listitem: Tactics 48–60
+    - listitem: Motivation 46–58
+    - listitem: Development 44–56
+    - listitem: Discipline 46–58
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Cefreigri Frigiei Age 38 Formation 532 Style LowBlock Overall 47–59
+  - list:
+    - listitem: Tactics 48–60
+    - listitem: Motivation 44–56
+    - listitem: Development 48–60
+    - listitem: Discipline 46–58
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Peete Grooblazle Age 47 Formation 442 Style Direct Overall 46–58
+  - list:
+    - listitem: Tactics 46–58
+    - listitem: Motivation 46–58
+    - listitem: Development 46–58
+    - listitem: Discipline 46–58
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Trotudri Moutou Age 39 Formation 442 Style Possession Overall 45–57
+  - list:
+    - listitem: Tactics 45–57
+    - listitem: Motivation 46–58
+    - listitem: Development 45–57
+    - listitem: Discipline 44–56
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Hovildu Sekhu Age 32 Formation 532 Style Balanced Overall 48–60
+  - list:
+    - listitem: Tactics 48–60
+    - listitem: Motivation 48–60
+    - listitem: Development 48–60
+    - listitem: Discipline 45–57
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Nairtusei Wuyaipe Age 48 Formation 541 Style HighPress Overall 48–60
+  - list:
+    - listitem: Tactics 48–60
+    - listitem: Motivation 47–59
+    - listitem: Development 48–60
+    - listitem: Discipline 46–58
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Bleerubra Dele Age 47 Formation 343 Style Possession Overall 46–58
+  - list:
+    - listitem: Tactics 44–56
+    - listitem: Motivation 47–59
+    - listitem: Development 48–60
+    - listitem: Discipline 45–57
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Harokai Tsaiwai Age 46 Formation 442 Style LowBlock Overall 45–57
+  - list:
+    - listitem: Tactics 46–58
+    - listitem: Motivation 46–58
+    - listitem: Development 44–56
+    - listitem: Discipline 45–57
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Kikaz Hufou Age 45 Formation 41212 Style Possession Overall 47–59
+  - list:
+    - listitem: Tactics 48–60
+    - listitem: Motivation 45–57
+    - listitem: Development 47–59
+    - listitem: Discipline 47–59
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Dekbir Guyaupi Age 50 Formation 343 Style LowBlock Overall 46–58
+  - list:
+    - listitem: Tactics 47–59
+    - listitem: Motivation 44–56
+    - listitem: Development 47–59
+    - listitem: Discipline 44–56
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Skaikvere Groobain Age 43 Formation 41212 Style Direct Overall 46–58
+  - list:
+    - listitem: Tactics 45–57
+    - listitem: Motivation 46–58
+    - listitem: Development 48–60
+    - listitem: Discipline 47–59
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Limo Salugho Age 44 Formation 41212 Style Possession Overall 46–58
+  - list:
+    - listitem: Tactics 44–56
+    - listitem: Motivation 47–59
+    - listitem: Development 48–60
+    - listitem: Discipline 47–59
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Puda Kosheishei Age 34 Formation 451 Style Balanced Overall 45–57
+  - list:
+    - listitem: Tactics 45–57
+    - listitem: Motivation 44–56
+    - listitem: Development 44–56
+    - listitem: Discipline 47–59
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Vruzaiskai Bregaz Age 34 Formation 352 Style Direct Overall 46–58
+  - list:
+    - listitem: Tactics 45–57
+    - listitem: Motivation 45–57
+    - listitem: Development 47–59
+    - listitem: Discipline 46–58
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Sago Dalaiktim Age 41 Formation 4141 Style Balanced Overall 46–58
+  - list:
+    - listitem: Tactics 47–59
+    - listitem: Motivation 48–60
+    - listitem: Development 44–56
+    - listitem: Discipline 45–57
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Hishufus Raushabai Age 33 Formation 433 Style Direct Overall 47–59
+  - list:
+    - listitem: Tactics 47–59
+    - listitem: Motivation 47–59
+    - listitem: Development 45–57
+    - listitem: Discipline 47–59
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Tagoljau Jekau Age 37 Formation 4141 Style Direct Overall 46–58
+  - list:
+    - listitem: Tactics 47–59
+    - listitem: Motivation 45–57
+    - listitem: Development 47–59
+    - listitem: Discipline 44–56
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Fjavfo Fjizvaivpa Age 36 Formation 4231 Style HighPress Overall 45–57
+  - list:
+    - listitem: Tactics 46–58
+    - listitem: Motivation 44–56
+    - listitem: Development 44–56
+    - listitem: Discipline 47–59
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Gokleimaa Givaabjei Age 43 Formation 4231 Style Direct Overall 46–58
+  - list:
+    - listitem: Tactics 46–58
+    - listitem: Motivation 46–58
+    - listitem: Development 47–59
+    - listitem: Discipline 45–57
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Jupudu Tuje Age 52 Formation 4141 Style Possession Overall 46–58
+  - list:
+    - listitem: Tactics 44–56
+    - listitem: Motivation 48–60
+    - listitem: Development 46–58
+    - listitem: Discipline 47–59
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Shonmai Fobihuz Age 43 Formation 343 Style HighPress Overall 46–58
+  - list:
+    - listitem: Tactics 47–59
+    - listitem: Motivation 46–58
+    - listitem: Development 45–57
+    - listitem: Discipline 47–59
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Faijousou Roude Age 40 Formation 433 Style LowBlock Overall 45–57
+  - list:
+    - listitem: Tactics 44–56
+    - listitem: Motivation 45–57
+    - listitem: Development 47–59
+    - listitem: Discipline 47–59
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Gniazeso Sapro Age 41 Formation 352 Style Balanced Overall 46–58
+  - list:
+    - listitem: Tactics 44–56
+    - listitem: Motivation 48–60
+    - listitem: Development 48–60
+    - listitem: Discipline 46–58
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Niavu Fegrogre Age 43 Formation 352 Style Balanced Overall 47–59
+  - list:
+    - listitem: Tactics 47–59
+    - listitem: Motivation 48–60
+    - listitem: Development 48–60
+    - listitem: Discipline 45–57
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Tejioglo Dujo Age 49 Formation 541 Style LowBlock Overall 45–57
+  - list:
+    - listitem: Tactics 44–56
+    - listitem: Motivation 47–59
+    - listitem: Development 46–58
+    - listitem: Discipline 46–58
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Ciognipo Tasiamia Age 41 Formation 4231 Style LowBlock Overall 45–57
+  - list:
+    - listitem: Tactics 44–56
+    - listitem: Motivation 44–56
+    - listitem: Development 47–59
+    - listitem: Discipline 46–58
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Ivan Theijoor Age 41 Formation 433 Style LowBlock Overall 45–57
+  - list:
+    - listitem: Tactics 44–56
+    - listitem: Motivation 48–60
+    - listitem: Development 44–56
+    - listitem: Discipline 44–56
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Needrubu Haivmookva Age 47 Formation 41212 Style Possession Overall 45–57
+  - list:
+    - listitem: Tactics 44–56
+    - listitem: Motivation 48–60
+    - listitem: Development 45–57
+    - listitem: Discipline 44–56
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Loshu Fasetde Age 38 Formation 451 Style Possession Overall 44–56
+  - list:
+    - listitem: Tactics 44–56
+    - listitem: Motivation 45–57
+    - listitem: Development 44–56
+    - listitem: Discipline 44–56
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"
+- article:
+  - text: Stemotaa Gataatge Age 32 Formation 451 Style Balanced Overall 48–60
+  - list:
+    - listitem: Tactics 48–60
+    - listitem: Motivation 48–60
+    - listitem: Development 48–60
+    - listitem: Discipline 45–57
+  - text: V90,000 fee · V4,500/yr
+  - button "Interview · V25,000"
+  - button "Sign"

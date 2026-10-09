@@ -1,0 +1,31 @@
+- button "New headlines"
+- button "11 lineup slot(s) empty"
+- button "+V20k"
+- group "Club advisor":
+  - text: Vintra club secretary
+  - button "Dismiss this tip"
+  - status: Right then. Every club needs one voice on the training pitch. Spend on a manager first — the rest waits on him.
+  - button "Quiet advisor tips"
+  - button "Got it"
+- button "2 online"
+- button "Owner's program Hire your first manager"
+- img "Completionist FC"
+- text: 0 0/100 V3M 150 5 0 Day 477 · Thu Dec 23 2027 Year 8 Invite Rovers join Philamentia Central
+- button "Challenges"
+- button "League"
+- button "Settings"
+- text: First steps 0/4
+- button "Sign a manager Interview, then hire"
+- button "Build a squad"
+- button "Build a facility"
+- button "Reach Level 1"
+- button "Squad"
+- button "Team Sheet"
+- button "World"
+- button "World"
+- navigation:
+  - button "Build"
+  - button "Move"
+  - button "Squad"
+  - button "Manager"
+- button "PLAY Ready"

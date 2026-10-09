@@ -16,10 +16,21 @@
     <div class="op-controls">
       <label class="op-search">
         <span class="op-ic" v-html="icon('bag')" />
-        <input v-model="query" type="search" placeholder="Search managers" aria-label="Search managers" />
+        <input
+          v-model="query"
+          type="search"
+          placeholder="Search managers"
+          aria-label="Search managers"
+        />
       </label>
       <div class="op-sorts" role="group" aria-label="Sort managers">
-        <button v-for="s in sorts" :key="s.key" class="op-sort" :class="{ on: sort === s.key }" @click="sort = s.key">
+        <button
+          v-for="s in sorts"
+          :key="s.key"
+          class="op-sort"
+          :class="{ on: sort === s.key }"
+          @click="sort = s.key"
+        >
           {{ s.label }}
         </button>
       </div>
@@ -31,10 +42,13 @@
 
     <p class="op-star-hint">
       <span class="op-ic" v-html="icon('star')" />
-      <span
-        >★★★ wants <b>Overall 60+</b>, a fee under 40% of your opening balance, and
-        <b>{{ formatVilla(400_000) }}</b> left afterwards.</span
-      >
+      <span>
+        Your board wants
+        <b>Overall 60+</b>
+        , a fee under 40% of your opening balance, and
+        <b>{{ formatVilla(400_000) }}</b>
+        left afterwards.
+      </span>
     </p>
 
     <div v-if="list.length" class="op-mgr-grid">
@@ -57,11 +71,19 @@
     </div>
 
     <!-- Negotiate + sign -->
-    <div v-if="pending" class="op-modal" role="dialog" aria-modal="true" aria-label="Negotiate and sign">
+    <div
+      v-if="pending"
+      class="op-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Negotiate and sign"
+    >
       <div class="op-modal-backdrop" @click="pending = null" />
       <div class="op-modal-card">
         <h3>Negotiate &amp; sign</h3>
-        <p class="op-modal-who">{{ pending.firstName }} {{ pending.lastName }}</p>
+        <p class="op-modal-who">
+          {{ pending.firstName }} {{ pending.lastName }}
+        </p>
         <dl class="op-modal-rows">
           <div>
             <dt>Signing fee</dt>
@@ -85,22 +107,38 @@
                   {{ y }}
                 </button>
               </span>
+              <span class="op-years-unit">
+                year{{ years === 1 ? '' : 's' }}
+              </span>
             </dd>
           </div>
           <div>
-            <dt>Budget after</dt>
-            <dd :class="{ bad: budget - pending.effectiveFee < 0 }">{{ formatVilla(budget - pending.effectiveFee) }}</dd>
+            <dt>Total commitment</dt>
+            <dd>
+              {{ formatVilla(pending.effectiveFee + pending.wage * years) }}
+            </dd>
+          </div>
+          <div>
+            <dt>Budget after signing fee</dt>
+            <dd :class="{ bad: budget - pending.effectiveFee < 0 }">
+              {{ formatVilla(budget - pending.effectiveFee) }}
+            </dd>
           </div>
         </dl>
         <p v-if="pending.interviewed" class="op-modal-good">
           You interviewed him — the fee is already down 10%.
         </p>
         <p v-else class="op-modal-warn">
-          You haven't interviewed him. The attributes are still a range; signing now is a gamble.
+          You haven't interviewed him. The attributes are still a range; signing
+          now is a gamble.
         </p>
         <div class="op-modal-actions">
           <button class="op-btn ghost" @click="pending = null">Not yet</button>
-          <button class="op-btn primary" :disabled="budget < pending.effectiveFee" @click="confirmSign">
+          <button
+            class="op-btn primary"
+            :disabled="budget < pending.effectiveFee"
+            @click="confirmSign"
+          >
             Sign for {{ formatVilla(pending.effectiveFee) }}
           </button>
         </div>
@@ -111,7 +149,11 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { formatVilla, type ProgramManager, type ProgramManagerList } from '@repo/api-contract';
+import {
+  formatVilla,
+  type ProgramManager,
+  type ProgramManagerList,
+} from '@repo/api-contract';
 import { icon } from '@/components/cozy/icons';
 import ProgramManagerCard from './program-manager-card.vue';
 import { rangeMid } from './program-lib';
@@ -400,6 +442,11 @@ function confirmSign() {
   background: #2f7d18;
   border-color: #24650f;
   color: #fff;
+}
+.op-years-unit {
+  margin-left: 6px;
+  font-weight: 600;
+  color: #6f5940;
 }
 .op-modal-good {
   margin: 12px 0 0;

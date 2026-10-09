@@ -1,0 +1,41 @@
+- button "New headlines"
+- button "11 lineup slot(s) empty"
+- button "+V20k"
+- group "Club advisor"
+- button "2 online"
+- button "Owner's program Hire your first manager"
+- img "Completionist FC"
+- text: "0 0/100 V3M 150 5 0 Day 477 · Thu Dec 23 2027 Year 8 Derby day: AC Philamentia win 4-0"
+- button "Challenges"
+- button "League"
+- button "Settings"
+- text: First steps 0/4
+- button "Sign a manager Interview, then hire"
+- button "Build a squad"
+- button "Build a facility"
+- button "Reach Level 1"
+- button "Squad"
+- button "Team Sheet"
+- button "World"
+- button "World"
+- navigation:
+  - button "Build"
+  - button "Move"
+  - button "Squad"
+  - button "Manager"
+- button "PLAY Ready"
+- button "Close"
+- heading "Settings" [level=2]
+- text: Sound effects Whistles, crowds, coins
+- checkbox "Sound effects Whistles, crowds, coins" [checked]
+- text: Quick sim Skip straight to the result when you press PLAY
+- checkbox "Quick sim Skip straight to the result when you press PLAY"
+- text: Match speed How fast watched matches play
+- button "1×"
+- button "2×"
+- button "4×"
+- heading "Club" [level=4]
+- button "Manager hub Matchday, team sheet, squad, transfers, finances"
+- button "Year calendar & history Every fixture of the year, and past seasons"
+- button "Account Playtest P10"
+- button "Sign out"

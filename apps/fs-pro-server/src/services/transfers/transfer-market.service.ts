@@ -1,9 +1,17 @@
 import { and, desc, eq, gte, inArray, isNull, lt, or } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
-import { clubs, players, seasons, transferOffers } from '../../db/drizzle/schema';
+import {
+  clubs,
+  players,
+  seasons,
+  transferOffers,
+} from '../../db/drizzle/schema';
 import { recruitYouthPlayersForClub } from '../../controllers/players/player-lifecycle.service';
 import { settleTransfer } from '../../controllers/transfers/transfer.service';
-import { getTransferWindow, assertTransferWindowOpen } from './transfer-window.service';
+import {
+  getTransferWindow,
+  assertTransferWindowOpen,
+} from './transfer-window.service';
 import { JevService } from '../ai/jev.service';
 import { ensureFreeAgentMarketStock } from './foreign-intake.service';
 
@@ -28,13 +36,18 @@ const AI_DEAL_CHANCE = 0.6;
 
 /** Minimum players an AI club wants per position; shortfalls are filled
  * from free agents before the random market deals run. GK comes first. */
-const MIN_PER_POSITION: Record<string, number> = { GK: 2, DEF: 3, MID: 3, ATT: 2 };
+const MIN_PER_POSITION: Record<string, number> = {
+  GK: 2,
+  DEF: 3,
+  MID: 3,
+  ATT: 2,
+};
 const POSITION_PRIORITY = ['GK', 'DEF', 'MID', 'ATT'];
 
 const OPEN_STATUSES = ['pending', 'countered'];
 
 const rand = (min: number, max: number) => min + Math.random() * (max - min);
-const pick = <T,>(items: T[]): T | undefined =>
+const pick = <T>(items: T[]): T | undefined =>
   items.length ? items[Math.floor(Math.random() * items.length)] : undefined;
 
 interface RosterPlayer {
@@ -91,11 +104,19 @@ export interface PlayerScope {
 export async function loadPlayers(scope: PlayerScope = {}) {
   const wantFree = scope.freeAgents ?? true;
   const parts = [
-    ...(scope.clubIds === undefined ? [eq(players.isSigned, true)] : scope.clubIds.length ? [inArray(players.ClubId, scope.clubIds)] : []),
+    ...(scope.clubIds === undefined
+      ? [eq(players.isSigned, true)]
+      : scope.clubIds.length
+        ? [inArray(players.ClubId, scope.clubIds)]
+        : []),
     ...(wantFree ? [eq(players.isSigned, false)] : []),
     ...(scope.listed ? [eq(players.isTransferListed, true)] : []),
   ];
-  if (!parts.length) return { byClub: new Map<string, RosterPlayer[]>(), freeAgents: [] as RosterPlayer[] };
+  if (!parts.length)
+    return {
+      byClub: new Map<string, RosterPlayer[]>(),
+      freeAgents: [] as RosterPlayer[],
+    };
   const rows = await db()
     .select({
       id: players.id,
@@ -134,7 +155,9 @@ export async function loadPlayers(scope: PlayerScope = {}) {
       if (roster) roster.push(player);
       else byClub.set(r.ClubId, [player]);
     } else if (!r.isSigned) {
-      freeAgents.push(player);
+      // A V0 free agent is not a market entity (the "HTTP PgTest" QA fixture
+      // is exactly that); never surface it (U-09 / P02-07).
+      if ((r.Value ?? 0) > 0) freeAgents.push(player);
     }
   }
   return { byClub, freeAgents };
@@ -166,23 +189,41 @@ export function aiResponse(params: {
    * let its best players go to a much smaller one cheaply, or at all. */
   bidderReputation?: number;
   sellerReputation?: number;
-}): { decision: 'accepted' | 'countered' | 'rejected'; ask: number; reason?: string } {
+}): {
+  decision: 'accepted' | 'countered' | 'rejected';
+  ask: number;
+  reason?: string;
+} {
   const { amount, value, isKeyPlayer, sellerSquadSize } = params;
-  const repGap = (params.sellerReputation ?? 50) - (params.bidderReputation ?? 50);
+  const repGap =
+    (params.sellerReputation ?? 50) - (params.bidderReputation ?? 50);
   // Up to +30% on the ask when selling down to a much smaller club.
   const reputationPremium = Math.min(Math.max(repGap, 0) / 100, 0.3);
-  const multiplier = 1.05 + (isKeyPlayer ? 0.25 : 0) + reputationPremium + rand(-0.05, 0.1);
+  const multiplier =
+    1.05 + (isKeyPlayer ? 0.25 : 0) + reputationPremium + rand(-0.05, 0.1);
   const ask = Math.round(value * multiplier);
 
   if (sellerSquadSize <= MIN_SQUAD_SIZE) {
-    return { decision: 'rejected', ask, reason: 'They cannot sell - their squad is too thin' };
+    return {
+      decision: 'rejected',
+      ask,
+      reason: 'They cannot sell - their squad is too thin',
+    };
   }
   if (isKeyPlayer && repGap >= 25) {
-    return { decision: 'rejected', ask, reason: 'He is not interested in joining a club of your stature' };
+    return {
+      decision: 'rejected',
+      ask,
+      reason: 'He is not interested in joining a club of your stature',
+    };
   }
   if (amount >= ask) return { decision: 'accepted', ask };
   if (amount >= ask * 0.75) return { decision: 'countered', ask };
-  return { decision: 'rejected', ask, reason: 'Offer far below their valuation' };
+  return {
+    decision: 'rejected',
+    ask,
+    reason: 'Offer far below their valuation',
+  };
 }
 
 async function currentDay(): Promise<number> {
@@ -190,7 +231,12 @@ async function currentDay(): Promise<number> {
 }
 
 /** Marks an offer finished, keeping a short reason for the UI. */
-async function finishOffer(id: string, Status: string, Note?: string, extra?: { CounterAmount?: number }) {
+async function finishOffer(
+  id: string,
+  Status: string,
+  Note?: string,
+  extra?: { CounterAmount?: number }
+) {
   const [row] = await db()
     .update(transferOffers)
     .set({ Status, Note: Note ?? null, ...extra, updatedAt: new Date() })
@@ -212,33 +258,54 @@ export async function placeBid(input: {
   await assertTransferWindowOpen();
   const { playerId, biddingClubId, amount } = input;
 
-  const [player] = await db().select().from(players).where(eq(players.id, playerId));
+  const [player] = await db()
+    .select()
+    .from(players)
+    .where(eq(players.id, playerId));
   if (!player) throw new Error('Player not found');
   if (player.isRetired) throw new Error('This player has retired');
-  if (!player.ClubId) throw new Error('He is a free agent - buy him outright instead of bidding');
-  if (player.ClubId === biddingClubId) throw new Error('This player already belongs to your club');
+  if (!player.ClubId)
+    throw new Error('He is a free agent - buy him outright instead of bidding');
+  if (player.ClubId === biddingClubId)
+    throw new Error('This player already belongs to your club');
   if (!(amount > 0)) throw new Error('Bid must be positive');
 
   const value = player.Value ?? 0;
   if (amount < value * MIN_BID_SHARE_OF_VALUE) {
-    throw new Error(`Bid must be at least ${Math.round(value * MIN_BID_SHARE_OF_VALUE)} (half his value)`);
+    throw new Error(
+      `Bid must be at least ${Math.round(value * MIN_BID_SHARE_OF_VALUE)} (half his value)`
+    );
   }
 
-  const [bidder] = await db().select().from(clubs).where(eq(clubs.id, biddingClubId));
-  const [owner] = await db().select().from(clubs).where(eq(clubs.id, player.ClubId));
+  const [bidder] = await db()
+    .select()
+    .from(clubs)
+    .where(eq(clubs.id, biddingClubId));
+  const [owner] = await db()
+    .select()
+    .from(clubs)
+    .where(eq(clubs.id, player.ClubId));
   if (!bidder) throw new Error('Bidding club not found');
   if (!owner) throw new Error('Owning club not found');
-  if ((bidder.Budget ?? 0) < amount) throw new Error('Insufficient Budget for this bid');
+  if ((bidder.Budget ?? 0) < amount)
+    throw new Error('Insufficient Budget for this bid');
 
   const open = await db()
     .select()
     .from(transferOffers)
-    .where(and(eq(transferOffers.FromClubId, biddingClubId), inArray(transferOffers.Status, OPEN_STATUSES)));
+    .where(
+      and(
+        eq(transferOffers.FromClubId, biddingClubId),
+        inArray(transferOffers.Status, OPEN_STATUSES)
+      )
+    );
   if (open.some((o) => o.PlayerId === playerId)) {
     throw new Error('You already have an open bid for this player');
   }
   if (open.length >= MAX_OPEN_BIDS_PER_CLUB) {
-    throw new Error(`You can have at most ${MAX_OPEN_BIDS_PER_CLUB} open bids at once`);
+    throw new Error(
+      `You can have at most ${MAX_OPEN_BIDS_PER_CLUB} open bids at once`
+    );
   }
 
   const day = await currentDay();
@@ -260,7 +327,10 @@ export async function placeBid(input: {
   // A human owner answers from their inbox.
   if (owner.UserId) return offer;
 
-  const { byClub } = await loadPlayers({ clubIds: [owner.id], freeAgents: false });
+  const { byClub } = await loadPlayers({
+    clubIds: [owner.id],
+    freeAgents: false,
+  });
   const roster = byClub.get(owner.id) ?? [];
   const rosterPlayer = roster.find((p) => p.id === playerId);
   const response = aiResponse({
@@ -276,25 +346,39 @@ export async function placeBid(input: {
     return settleOffer(offer.id, amount);
   }
   if (response.decision === 'countered') {
-    return finishOffer(offer.id, 'countered', `${owner.Name} want more`, { CounterAmount: response.ask });
+    return finishOffer(offer.id, 'countered', `${owner.Name} want more`, {
+      CounterAmount: response.ask,
+    });
   }
   return finishOffer(offer.id, 'rejected', response.reason);
 }
 
 /** Executes an agreed offer at `price`, marking it accepted (or failed with the reason). */
 async function settleOffer(offerId: string, price: number) {
-  const [offer] = await db().select().from(transferOffers).where(eq(transferOffers.id, offerId));
-  const [player] = await db().select().from(players).where(eq(players.id, offer.PlayerId));
-  const [buyer] = await db().select().from(clubs).where(eq(clubs.id, offer.FromClubId));
+  const [offer] = await db()
+    .select()
+    .from(transferOffers)
+    .where(eq(transferOffers.id, offerId));
+  const [player] = await db()
+    .select()
+    .from(players)
+    .where(eq(players.id, offer.PlayerId));
+  const [buyer] = await db()
+    .select()
+    .from(clubs)
+    .where(eq(clubs.id, offer.FromClubId));
 
   const fail = async (reason: string) => {
     await finishOffer(offerId, 'failed', reason);
     throw new Error(reason);
   };
 
-  if (!player || player.isRetired) return fail('The player is no longer available');
-  if (player.ClubId !== offer.ToClubId) return fail('The player has already moved clubs');
-  if ((buyer?.Budget ?? 0) < price) return fail('The bidding club can no longer afford this');
+  if (!player || player.isRetired)
+    return fail('The player is no longer available');
+  if (player.ClubId !== offer.ToClubId)
+    return fail('The player has already moved clubs');
+  if ((buyer?.Budget ?? 0) < price)
+    return fail('The bidding club can no longer afford this');
 
   await settleTransfer({
     playerId: offer.PlayerId,
@@ -302,7 +386,9 @@ async function settleOffer(offerId: string, price: number) {
     amount: price,
     note: `bid accepted (offer ${offerId})`,
   });
-  return finishOffer(offerId, 'accepted', undefined, { CounterAmount: undefined });
+  return finishOffer(offerId, 'accepted', undefined, {
+    CounterAmount: undefined,
+  });
 }
 
 /**
@@ -316,17 +402,26 @@ export async function respondToOffer(input: {
   action: 'accept' | 'reject';
 }) {
   const { offerId, clubId, action } = input;
-  const [offer] = await db().select().from(transferOffers).where(eq(transferOffers.id, offerId));
+  const [offer] = await db()
+    .select()
+    .from(transferOffers)
+    .where(eq(transferOffers.id, offerId));
   if (!offer) throw new Error('Offer not found');
-  if (!OPEN_STATUSES.includes(offer.Status)) throw new Error(`This offer is already ${offer.Status}`);
+  if (!OPEN_STATUSES.includes(offer.Status))
+    throw new Error(`This offer is already ${offer.Status}`);
 
-  const responder = offer.Status === 'countered' ? offer.FromClubId : offer.ToClubId;
-  if (clubId !== responder) throw new Error('It is not your turn to answer this offer');
+  const responder =
+    offer.Status === 'countered' ? offer.FromClubId : offer.ToClubId;
+  if (clubId !== responder)
+    throw new Error('It is not your turn to answer this offer');
 
   if (action === 'reject') return finishOffer(offerId, 'rejected', 'Declined');
 
   await assertTransferWindowOpen();
-  const price = offer.Status === 'countered' ? (offer.CounterAmount ?? offer.Amount) : offer.Amount;
+  const price =
+    offer.Status === 'countered'
+      ? (offer.CounterAmount ?? offer.Amount)
+      : offer.Amount;
   return settleOffer(offerId, price);
 }
 
@@ -342,7 +437,13 @@ export interface OfferView {
   /** 'me' when this club has to answer, 'them' when waiting on the other club, null when finished. */
   awaiting: 'me' | 'them' | null;
   direction: 'incoming' | 'outgoing';
-  player: { id: string; name: string; position: string | null; rating: number; value: number };
+  player: {
+    id: string;
+    name: string;
+    position: string | null;
+    rating: number;
+    value: number;
+  };
   fromClub: { id: string; name: string; code: string };
   toClub: { id: string; name: string; code: string };
 }
@@ -358,12 +459,16 @@ export async function listOffers(
   clubId: string,
   options: number | ListOffersOptions = 40
 ): Promise<OfferView[]> {
-  const opts: ListOffersOptions = typeof options === 'number' ? { limit: options } : options;
+  const opts: ListOffersOptions =
+    typeof options === 'number' ? { limit: options } : options;
   const limit = Math.min(Math.max(opts.limit ?? 40, 1), 100);
   const offset = Math.max(opts.offset ?? 0, 0);
 
   const conditions = [
-    or(eq(transferOffers.FromClubId, clubId), eq(transferOffers.ToClubId, clubId))!,
+    or(
+      eq(transferOffers.FromClubId, clubId),
+      eq(transferOffers.ToClubId, clubId)
+    )!,
   ];
 
   if (opts.currentSeasonOnly) {
@@ -373,7 +478,9 @@ export async function listOffers(
       .where(inArray(seasons.Status, ['registration', 'running']));
 
     if (activeSeasons.length > 0) {
-      const minStart = new Date(Math.min(...activeSeasons.map((s) => s.StartDate.getTime())));
+      const minStart = new Date(
+        Math.min(...activeSeasons.map((s) => s.StartDate.getTime()))
+      );
       conditions.push(gte(transferOffers.createdAt, minStart));
     } else {
       const [latestSeason] = await db()
@@ -399,7 +506,11 @@ export async function listOffers(
   const clubRows = await db()
     .select({ id: clubs.id, Name: clubs.Name, ClubCode: clubs.ClubCode })
     .from(clubs)
-    .where(inArray(clubs.id, [...new Set(rows.flatMap((r) => [r.FromClubId, r.ToClubId]))]));
+    .where(
+      inArray(clubs.id, [
+        ...new Set(rows.flatMap((r) => [r.FromClubId, r.ToClubId])),
+      ])
+    );
   const playerRows = await db()
     .select({
       id: players.id,
@@ -412,7 +523,9 @@ export async function listOffers(
     .from(players)
     .where(inArray(players.id, [...new Set(rows.map((r) => r.PlayerId))]));
 
-  const clubById = new Map(clubRows.map((c) => [c.id, { id: c.id, name: c.Name, code: c.ClubCode }]));
+  const clubById = new Map(
+    clubRows.map((c) => [c.id, { id: c.id, name: c.Name, code: c.ClubCode }])
+  );
   const playerById = new Map(playerRows.map((p) => [p.id, p]));
 
   return rows.map((r) => {
@@ -432,13 +545,23 @@ export async function listOffers(
       direction: r.ToClubId === clubId ? 'incoming' : 'outgoing',
       player: {
         id: r.PlayerId,
-        name: player ? `${player.FirstName} ${player.LastName}` : 'Unknown player',
+        name: player
+          ? `${player.FirstName} ${player.LastName}`
+          : 'Unknown player',
         position: player?.Position ?? null,
         rating: player?.Rating ?? 0,
         value: player?.Value ?? 0,
       },
-      fromClub: clubById.get(r.FromClubId) ?? { id: r.FromClubId, name: '?', code: '?' },
-      toClub: clubById.get(r.ToClubId) ?? { id: r.ToClubId, name: '?', code: '?' },
+      fromClub: clubById.get(r.FromClubId) ?? {
+        id: r.FromClubId,
+        name: '?',
+        code: '?',
+      },
+      toClub: clubById.get(r.ToClubId) ?? {
+        id: r.ToClubId,
+        name: '?',
+        code: '?',
+      },
     };
   });
 }
@@ -456,12 +579,26 @@ export interface TransferDaySummary {
  * players (answered from the human's inbox) and trade among themselves.
  */
 export async function runTransferDay(day: number): Promise<TransferDaySummary> {
-  const summary: TransferDaySummary = { expired: 0, aiBids: 0, aiDeals: 0, aiNeedSignings: 0 };
+  const summary: TransferDaySummary = {
+    expired: 0,
+    aiBids: 0,
+    aiDeals: 0,
+    aiNeedSignings: 0,
+  };
 
   const expired = await db()
     .update(transferOffers)
-    .set({ Status: 'expired', Note: 'No answer in time', updatedAt: new Date() })
-    .where(and(inArray(transferOffers.Status, OPEN_STATUSES), lt(transferOffers.ExpiresDay, day)))
+    .set({
+      Status: 'expired',
+      Note: 'No answer in time',
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        inArray(transferOffers.Status, OPEN_STATUSES),
+        lt(transferOffers.ExpiresDay, day)
+      )
+    )
     .returning({ id: transferOffers.id });
   summary.expired = expired.length;
 
@@ -485,7 +622,9 @@ export async function runTransferDay(day: number): Promise<TransferDaySummary> {
       await db()
         .selectDistinct({ id: players.ClubId })
         .from(players)
-        .where(and(eq(players.isTransferListed, true), eq(players.isSigned, true)))
+        .where(
+          and(eq(players.isTransferListed, true), eq(players.isSigned, true))
+        )
     ).map((r) => r.id)
   );
   const humans = allClubs.filter((c) => c.UserId);
@@ -493,23 +632,34 @@ export async function runTransferDay(day: number): Promise<TransferDaySummary> {
     .filter((c) => !listedOwners.has(c.id))
     .sort(() => Math.random() - 0.5)
     .slice(0, AI_BID_SAMPLE_PER_DAY);
-  const humanClubs = [...humans.filter((c) => listedOwners.has(c.id)), ...sample];
-  const { byClub } = await loadPlayers({ clubIds: [...humanClubs, ...aiClubs].map((c) => c.id), freeAgents: false });
+  const humanClubs = [
+    ...humans.filter((c) => listedOwners.has(c.id)),
+    ...sample,
+  ];
+  const { byClub } = await loadPlayers({
+    clubIds: [...humanClubs, ...aiClubs].map((c) => c.id),
+    freeAgents: false,
+  });
 
   const openOffers = await db()
     .select()
     .from(transferOffers)
     .where(inArray(transferOffers.Status, OPEN_STATUSES));
   const pendingTo = new Map<string, number>();
-  for (const o of openOffers) if (o.Status === 'pending' && o.ToClubId) pendingTo.set(o.ToClubId, (pendingTo.get(o.ToClubId) ?? 0) + 1);
+  for (const o of openOffers)
+    if (o.Status === 'pending' && o.ToClubId)
+      pendingTo.set(o.ToClubId, (pendingTo.get(o.ToClubId) ?? 0) + 1);
   const alreadyBidOn = new Set(openOffers.map((o) => o.PlayerId));
 
   for (const human of humanClubs) {
-    if ((pendingTo.get(human.id) ?? 0) >= MAX_PENDING_OFFERS_PER_HUMAN_CLUB) continue;
+    if ((pendingTo.get(human.id) ?? 0) >= MAX_PENDING_OFFERS_PER_HUMAN_CLUB)
+      continue;
 
     const roster = byClub.get(human.id) ?? [];
     if (roster.length <= MIN_SQUAD_SIZE) continue;
-    const candidates = roster.filter((p) => !alreadyBidOn.has(p.id) && p.Value > 0);
+    const candidates = roster.filter(
+      (p) => !alreadyBidOn.has(p.id) && p.Value > 0
+    );
     if (!candidates.length) continue;
 
     const listedCandidates = candidates.filter((p) => p.isTransferListed);
@@ -518,7 +668,8 @@ export async function runTransferDay(day: number): Promise<TransferDaySummary> {
     if (Math.random() > bidChance) continue;
 
     // Prioritize listed players and youth prospects
-    const pool = hasListed && Math.random() < 0.85 ? listedCandidates : candidates;
+    const pool =
+      hasListed && Math.random() < 0.85 ? listedCandidates : candidates;
     const weighted = pool.flatMap((p) => {
       let weight = Math.max(1, Math.round(p.Rating / 20));
       if (p.isTransferListed) weight *= 6;
@@ -528,7 +679,10 @@ export async function runTransferDay(day: number): Promise<TransferDaySummary> {
     const target = pick(weighted);
     if (!target) continue;
 
-    const baseVal = target.isTransferListed && target.AskingPrice ? target.AskingPrice : target.Value;
+    const baseVal =
+      target.isTransferListed && target.AskingPrice
+        ? target.AskingPrice
+        : target.Value;
     const amount = Math.round(baseVal * rand(0.92, 1.15));
     const bidders = aiClubs
       .filter(
@@ -541,17 +695,19 @@ export async function runTransferDay(day: number): Promise<TransferDaySummary> {
     const bidder = bidders[0];
     if (!bidder) continue;
 
-    await db().insert(transferOffers).values({
-      PlayerId: target.id,
-      FromClubId: bidder.id,
-      ToClubId: human.id,
-      Amount: amount,
-      Status: 'pending',
-      Initiator: 'ai',
-      CreatedDay: day,
-      ExpiresDay: day + OFFER_LIFETIME_DAYS,
-      updatedAt: new Date(),
-    });
+    await db()
+      .insert(transferOffers)
+      .values({
+        PlayerId: target.id,
+        FromClubId: bidder.id,
+        ToClubId: human.id,
+        Amount: amount,
+        Status: 'pending',
+        Initiator: 'ai',
+        CreatedDay: day,
+        ExpiresDay: day + OFFER_LIFETIME_DAYS,
+        updatedAt: new Date(),
+      });
     alreadyBidOn.add(target.id);
     summary.aiBids++;
   }
@@ -579,10 +735,17 @@ export interface AiMarketSummary {
  * free agents.
  */
 export async function runAiMarket(): Promise<AiMarketSummary> {
-  const summary: AiMarketSummary = { aiNeedSignings: 0, aiDeals: 0, debtSales: 0, debtListings: 0 };
+  const summary: AiMarketSummary = {
+    aiNeedSignings: 0,
+    aiDeals: 0,
+    debtSales: 0,
+    debtListings: 0,
+  };
   const allClubs = await loadClubs();
   const aiClubs = allClubs.filter((c) => !c.UserId);
-  const { byClub, freeAgents } = await loadPlayers({ clubIds: aiClubs.map((c) => c.id) });
+  const { byClub, freeAgents } = await loadPlayers({
+    clubIds: aiClubs.map((c) => c.id),
+  });
   const budgets = new Map(allClubs.map((c) => [c.id, c.Budget]));
 
   // 1b. Needs first: each AI club short at a position signs a free agent
@@ -600,17 +763,31 @@ export async function runAiMarket(): Promise<AiMarketSummary> {
       want: MIN_PER_POSITION[position],
     }))
       .filter((g) => g.have < g.want)
-      .sort((a, b) => (a.have === 0 ? 0 : 1) - (b.have === 0 ? 0 : 1) || b.want - b.have - (a.want - a.have));
+      .sort(
+        (a, b) =>
+          (a.have === 0 ? 0 : 1) - (b.have === 0 ? 0 : 1) ||
+          b.want - b.have - (a.want - a.have)
+      );
 
     for (const gap of gaps) {
-      const candidates = freeAgents.filter((p) => p.Position === gap.position && p.Value > 0);
-      const priced = candidates.map((p) => ({ player: p, price: Math.round(p.Value * 0.6) }));
-      const affordable = priced.filter((o) => o.price <= budget).sort((a, b) => b.player.Rating - a.player.Rating);
+      const candidates = freeAgents.filter(
+        (p) => p.Position === gap.position && p.Value > 0
+      );
+      const priced = candidates.map((p) => ({
+        player: p,
+        price: Math.round(p.Value * 0.6),
+      }));
+      const affordable = priced
+        .filter((o) => o.price <= budget)
+        .sort((a, b) => b.player.Rating - a.player.Rating);
       let chosen = affordable[0];
       const emergency = gap.position === 'GK' && gap.have === 0;
       if (!chosen && emergency && priced.length) {
         const cheapest = priced.sort((a, b) => a.price - b.price)[0];
-        chosen = { player: cheapest.player, price: Math.min(cheapest.price, Math.max(budget, 0)) };
+        chosen = {
+          player: cheapest.player,
+          price: Math.min(cheapest.price, Math.max(budget, 0)),
+        };
       }
       if (!chosen && emergency) {
         // No free-agent keeper exists at all: the club promotes a youth GK
@@ -619,9 +796,22 @@ export async function runAiMarket(): Promise<AiMarketSummary> {
           await recruitYouthPlayersForClub(
             { _id: club.id, ClubCode: club.ClubCode },
             1,
-            { forceGK: true, note: 'emergency youth goalkeeper (no free agent available)' }
+            {
+              forceGK: true,
+              note: 'emergency youth goalkeeper (no free agent available)',
+            }
           );
-          byClub.set(club.id, [...roster, { id: '', ClubId: club.id, Position: 'GK', Rating: 0, Value: 0, name: 'youth GK' }]);
+          byClub.set(club.id, [
+            ...roster,
+            {
+              id: '',
+              ClubId: club.id,
+              Position: 'GK',
+              Rating: 0,
+              Value: 0,
+              name: 'youth GK',
+            },
+          ]);
           summary.aiNeedSignings++;
           break;
         } catch (error) {
@@ -656,7 +846,9 @@ export async function runAiMarket(): Promise<AiMarketSummary> {
 
     const buyer = pick(
       aiClubs.filter(
-        (c) => (budgets.get(c.id) ?? 0) > 3_000_000 && (byClub.get(c.id)?.length ?? 0) < MAX_SQUAD_SIZE
+        (c) =>
+          (budgets.get(c.id) ?? 0) > 3_000_000 &&
+          (byClub.get(c.id)?.length ?? 0) < MAX_SQUAD_SIZE
       )
     );
     if (!buyer) continue;
@@ -669,8 +861,18 @@ export async function runAiMarket(): Promise<AiMarketSummary> {
       pool.push({ player: p, price: Math.round(p.Value * 0.6), free: true });
     }
     for (const [clubId, roster] of byClub) {
-      if (clubId === buyer.id || !aiClubIds.has(clubId) || roster.length <= MIN_SQUAD_SIZE) continue;
-      for (const p of roster) pool.push({ player: p, price: Math.round(p.Value * 1.15), free: false });
+      if (
+        clubId === buyer.id ||
+        !aiClubIds.has(clubId) ||
+        roster.length <= MIN_SQUAD_SIZE
+      )
+        continue;
+      for (const p of roster)
+        pool.push({
+          player: p,
+          price: Math.round(p.Value * 1.15),
+          free: false,
+        });
     }
 
     const options = pool
@@ -704,10 +906,19 @@ export async function runAiMarket(): Promise<AiMarketSummary> {
       freeAgents.splice(freeAgents.indexOf(chosen.player), 1);
     } else if (chosen.player.ClubId) {
       const sellerRoster = byClub.get(chosen.player.ClubId) ?? [];
-      byClub.set(chosen.player.ClubId, sellerRoster.filter((p) => p.id !== chosen.player.id));
-      budgets.set(chosen.player.ClubId, (budgets.get(chosen.player.ClubId) ?? 0) + chosen.price);
+      byClub.set(
+        chosen.player.ClubId,
+        sellerRoster.filter((p) => p.id !== chosen.player.id)
+      );
+      budgets.set(
+        chosen.player.ClubId,
+        (budgets.get(chosen.player.ClubId) ?? 0) + chosen.price
+      );
     }
-    byClub.set(buyer.id, [...buyerRoster, { ...chosen.player, ClubId: buyer.id }]);
+    byClub.set(buyer.id, [
+      ...buyerRoster,
+      { ...chosen.player, ClubId: buyer.id },
+    ]);
     summary.aiDeals++;
   }
 
@@ -716,9 +927,18 @@ export async function runAiMarket(): Promise<AiMarketSummary> {
   const wages = new Map(
     (
       await db()
-        .select({ id: players.id, Wage: players.Wage, isTransferListed: players.isTransferListed })
+        .select({
+          id: players.id,
+          Wage: players.Wage,
+          isTransferListed: players.isTransferListed,
+        })
         .from(players)
-        .where(inArray(players.ClubId, aiClubs.map((c) => c.id)))
+        .where(
+          inArray(
+            players.ClubId,
+            aiClubs.map((c) => c.id)
+          )
+        )
     ).map((r) => [r.id, r])
   );
   for (const club of aiClubs) {
@@ -732,7 +952,9 @@ export async function runAiMarket(): Promise<AiMarketSummary> {
       listed ??
       [...roster]
         .filter((p) => p.Value > 0)
-        .sort((a, b) => (wages.get(b.id)?.Wage ?? 0) - (wages.get(a.id)?.Wage ?? 0))[0];
+        .sort(
+          (a, b) => (wages.get(b.id)?.Wage ?? 0) - (wages.get(a.id)?.Wage ?? 0)
+        )[0];
     if (!seller) continue;
 
     const price = Math.round(seller.Value * 0.9);
@@ -748,20 +970,35 @@ export async function runAiMarket(): Promise<AiMarketSummary> {
 
     if (buyer) {
       try {
-        await settleTransfer({ playerId: seller.id, buyingClubId: buyer.id, amount: price, note: 'ai debt sale' });
+        await settleTransfer({
+          playerId: seller.id,
+          buyingClubId: buyer.id,
+          amount: price,
+          note: 'ai debt sale',
+        });
       } catch (error) {
         console.error('[transfer-market] AI debt sale failed:', error);
         continue;
       }
       budgets.set(buyer.id, (budgets.get(buyer.id) ?? 0) - price);
       budgets.set(club.id, (budgets.get(club.id) ?? 0) + price);
-      byClub.set(club.id, roster.filter((p) => p.id !== seller.id));
-      byClub.set(buyer.id, [...(byClub.get(buyer.id) ?? []), { ...seller, ClubId: buyer.id }]);
+      byClub.set(
+        club.id,
+        roster.filter((p) => p.id !== seller.id)
+      );
+      byClub.set(buyer.id, [
+        ...(byClub.get(buyer.id) ?? []),
+        { ...seller, ClubId: buyer.id },
+      ]);
       summary.debtSales++;
     } else if (!listed) {
       await db()
         .update(players)
-        .set({ isTransferListed: true, AskingPrice: seller.Value, updatedAt: new Date() })
+        .set({
+          isTransferListed: true,
+          AskingPrice: seller.Value,
+          updatedAt: new Date(),
+        })
         .where(eq(players.id, seller.id));
       summary.debtListings++;
     }
@@ -782,9 +1019,13 @@ export async function listPlayerForSale(input: {
   askingPrice?: number | null;
 }) {
   const { playerId, clubId, isListed, askingPrice } = input;
-  const [player] = await db().select().from(players).where(eq(players.id, playerId));
+  const [player] = await db()
+    .select()
+    .from(players)
+    .where(eq(players.id, playerId));
   if (!player) throw new Error('Player not found');
-  if (player.ClubId !== clubId) throw new Error('This player does not belong to your club');
+  if (player.ClubId !== clubId)
+    throw new Error('This player does not belong to your club');
 
   const [club] = await db().select().from(clubs).where(eq(clubs.id, clubId));
   const clubName = club?.Name ?? 'your club';
@@ -804,7 +1045,8 @@ export async function listPlayerForSale(input: {
       player: updated,
       reaction: {
         sentiment: 'reassured',
-        quote: "I'm relieved the speculation is over and I can focus entirely on playing for this club.",
+        quote:
+          "I'm relieved the speculation is over and I can focus entirely on playing for this club.",
         morale: updated.Morale ?? 'Content',
       },
       marketInterest: 'Player removed from the transfer list.',
@@ -813,7 +1055,8 @@ export async function listPlayerForSale(input: {
   }
 
   const baseVal = player.Value ?? 100000;
-  const finalAskingPrice = askingPrice && askingPrice > 0 ? askingPrice : baseVal;
+  const finalAskingPrice =
+    askingPrice && askingPrice > 0 ? askingPrice : baseVal;
 
   // Use Jev for player action/reaction
   const reaction = await JevService.generatePlayerListingReaction({
@@ -844,7 +1087,10 @@ export async function listPlayerForSale(input: {
   if (window.open) {
     const allClubs = await loadClubs();
     const aiClubs = allClubs.filter((c) => !c.UserId);
-    const { byClub } = await loadPlayers({ clubIds: aiClubs.map((c) => c.id), freeAgents: false });
+    const { byClub } = await loadPlayers({
+      clubIds: aiClubs.map((c) => c.id),
+      freeAgents: false,
+    });
     const budgets = new Map(allClubs.map((c) => [c.id, c.Budget]));
 
     const targetPlayer: RosterPlayer = {
@@ -870,7 +1116,12 @@ export async function listPlayerForSale(input: {
     if (eligibleBidders.length > 0) {
       marketInterest = `High interest: ${eligibleBidders.length} club(s) are actively tracking ${updated.FirstName}.`;
       const bidder = pick(eligibleBidders)!;
-      const bidAmount = Math.round(Math.min(finalAskingPrice * rand(0.95, 1.05), (budgets.get(bidder.id) ?? 0) * 0.9));
+      const bidAmount = Math.round(
+        Math.min(
+          finalAskingPrice * rand(0.95, 1.05),
+          (budgets.get(bidder.id) ?? 0) * 0.9
+        )
+      );
 
       const day = await currentDay();
       const [insertedOffer] = await db()
@@ -882,7 +1133,9 @@ export async function listPlayerForSale(input: {
           Amount: bidAmount,
           Status: 'pending',
           Initiator: 'ai',
-          Note: updated.isYouth ? 'Opening bid for promising youth prospect' : 'Opening bid for transfer-listed target',
+          Note: updated.isYouth
+            ? 'Opening bid for promising youth prospect'
+            : 'Opening bid for transfer-listed target',
           CreatedDay: day,
           ExpiresDay: day + OFFER_LIFETIME_DAYS,
           updatedAt: new Date(),
@@ -908,13 +1161,19 @@ export async function listPlayerForSale(input: {
           value: updated.Value ?? 0,
         },
         fromClub: { id: bidder.id, name: bidder.Name, code: bidder.ClubCode },
-        toClub: { id: clubId, name: club?.Name ?? 'Your Club', code: club?.ClubCode ?? 'YOU' },
+        toClub: {
+          id: clubId,
+          name: club?.Name ?? 'Your Club',
+          code: club?.ClubCode ?? 'YOU',
+        },
       };
     } else {
-      marketInterest = 'Scouts have noted the listing. Clubs are reviewing their wage budgets.';
+      marketInterest =
+        'Scouts have noted the listing. Clubs are reviewing their wage budgets.';
     }
   } else {
-    marketInterest = 'Transfer window is closed. Enquiries will begin once the window opens.';
+    marketInterest =
+      'Transfer window is closed. Enquiries will begin once the window opens.';
   }
 
   return {
@@ -924,4 +1183,3 @@ export async function listPlayerForSale(input: {
     newOffer,
   };
 }
-
