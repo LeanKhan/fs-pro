@@ -150,10 +150,68 @@ func (h *Handlers) getScoutedShortlist(_ *httpapi.Context, _ http.ResponseWriter
 	return httpapi.OK("Scouted shortlist loaded", shortlist)
 }
 
-func (h *Handlers) listPlayerForSale() httpapi.Response   { return stub("Listing a player for sale") }
-func (h *Handlers) scoutPlayerTransfer() httpapi.Response { return stub("Transfer scouting") }
-func (h *Handlers) requestBudgetIncrease() httpapi.Response {
-	return stub("Budget requests")
+// listPlayerForSale is POST /api/transfers/list.
+func (h *Handlers) listPlayerForSale(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r, "clubId"); !ok {
+		return denial
+	}
+	body, _ := cx.BodyMap()
+	if body == nil {
+		body = map[string]any{}
+	}
+	isListed, _ := body["isListed"].(bool)
+	var asking *float64
+	if v, ok := body["askingPrice"].(float64); ok && v > 0 {
+		asking = &v
+	}
+	result, err := h.repo.ListPlayerForSale(r.Context(), str(body, "playerId"), str(body, "clubId"), isListed, asking)
+	if err != nil {
+		return httpapi.Fail(statusFor(err), err.Error(), err.Error())
+	}
+	message := "Player unlisted"
+	if isListed {
+		message = "Player listed for sale"
+	}
+	return httpapi.OK(message, result)
+}
+
+// scoutPlayerTransfer is POST /api/transfers/scout.
+func (h *Handlers) scoutPlayerTransfer(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r, "clubId"); !ok {
+		return denial
+	}
+	body, _ := cx.BodyMap()
+	if body == nil {
+		body = map[string]any{}
+	}
+	report, err := h.repo.ScoutPlayerTransfer(r.Context(), str(body, "playerId"), str(body, "clubId"))
+	if err != nil {
+		return httpapi.Fail(statusFor(err), err.Error(), err.Error())
+	}
+	return httpapi.OK("Player transfer scouted successfully", report)
+}
+
+// requestBudgetIncrease is POST /api/transfers/budget-request.
+func (h *Handlers) requestBudgetIncrease(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r, "clubId"); !ok {
+		return denial
+	}
+	body, _ := cx.BodyMap()
+	if body == nil {
+		body = map[string]any{}
+	}
+	result, err := h.repo.RequestBudgetIncrease(r.Context(), str(body, "clubId"), floatOf(body["amount"]), str(body, "justification"))
+	if err != nil {
+		return httpapi.Fail(statusFor(err), err.Error(), err.Error())
+	}
+	message := "Board declined your budget increase request"
+	switch result["status"] {
+	case "ACCEPTED":
+		message = "Board approved your budget increase request in full"
+	case "COMPROMISE":
+		message = "Board approved a partial budget increase"
+	}
+	return httpapi.OK(message, result)
 }
 
 // --- access + helpers ------------------------------------------------------

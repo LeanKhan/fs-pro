@@ -10,9 +10,6 @@ import (
 // Register wires the 26 open-play routes (editions + challenges + definitions).
 func Register(s *httpapi.Server, h *Handlers) {
 	editionStatuses := []int{200, 400, 401, 403, 404, 409}
-	wrap := func(fn func() httpapi.Response) httpapi.Handler {
-		return func(*httpapi.Context, http.ResponseWriter, *http.Request) httpapi.Response { return fn() }
-	}
 
 	// editions: the list is exact; every other GET path shares one catch-all
 	// pattern (Go's ServeMux cannot express both `/editions/club/{clubId}` and
@@ -44,7 +41,8 @@ func Register(s *httpapi.Server, h *Handlers) {
 			r.SetPathValue("id", parts[0])
 			resp = h.editionRankings(cx, w, r)
 		case len(parts) == 2 && parts[1] == "bracket":
-			resp = h.editionBracket()
+			r.SetPathValue("id", parts[0])
+			resp = h.editionBracket(cx, w, r)
 		case len(parts) == 2 && parts[0] == "club":
 			r.SetPathValue("clubId", parts[1])
 			resp = h.clubEntries(cx, w, r)
@@ -54,11 +52,11 @@ func Register(s *httpapi.Server, h *Handlers) {
 		case len(parts) == 3 && parts[1] == "eligibility":
 			r.SetPathValue("id", parts[0])
 			r.SetPathValue("clubId", parts[2])
-			resp = h.editionEligibility()
+			resp = h.editionEligibility(cx, w, r)
 		case len(parts) == 3 && parts[1] == "opponents":
 			r.SetPathValue("id", parts[0])
 			r.SetPathValue("clubId", parts[2])
-			resp = h.eligibleOpponents()
+			resp = h.eligibleOpponents(cx, w, r)
 		default:
 			resp = stub("Fetching an edition")
 		}
@@ -66,8 +64,8 @@ func Register(s *httpapi.Server, h *Handlers) {
 	})
 
 	s.Register("editions.create", http.MethodPost, "/api/editions", []int{201, 400, 401, 403, 404, 409}, h.createEdition)
-	s.Register("editions.action", http.MethodPost, "/api/editions/{id}/status/{action}", editionStatuses, wrap(h.editionAction))
-	s.Register("editions.invite", http.MethodPost, "/api/editions/{id}/invite", editionStatuses, wrap(h.inviteClubs))
+	s.Register("editions.action", http.MethodPost, "/api/editions/{id}/status/{action}", editionStatuses, h.editionAction)
+	s.Register("editions.invite", http.MethodPost, "/api/editions/{id}/invite", editionStatuses, h.inviteClubs)
 	s.Register("editions.register", http.MethodPost, "/api/editions/{id}/entries/{clubId}", editionStatuses, h.registerEntry)
 	s.Register("editions.withdraw", http.MethodDelete, "/api/editions/{id}/entries/{clubId}", editionStatuses, h.withdrawEntry)
 	s.Register("editions.setEntryPolicy", http.MethodPut, "/api/editions/policy/{clubId}", editionStatuses, h.setEntryPolicy)
@@ -84,7 +82,7 @@ func Register(s *httpapi.Server, h *Handlers) {
 	s.Register("competitionDefinitions.list", http.MethodGet, "/api/competition-definitions", []int{200, 400}, h.listDefinitions)
 	s.Register("competitionDefinitions.get", http.MethodGet, "/api/competition-definitions/{id}", []int{200, 400, 404}, h.getDefinition)
 	s.Register("competitionDefinitions.validate", http.MethodPost, "/api/competition-definitions/validate", []int{200, 400}, h.validateDefinition)
-	s.Register("competitionDefinitions.create", http.MethodPost, "/api/competition-definitions", []int{201, 400, 401, 403, 404, 409}, wrap(h.createDefinition))
-	s.Register("competitionDefinitions.update", http.MethodPut, "/api/competition-definitions/{id}", []int{200, 400, 401, 403, 404}, wrap(h.updateDefinition))
-	s.Register("competitionDefinitions.archive", http.MethodPost, "/api/competition-definitions/{id}/archive", []int{200, 400, 401, 403, 404}, wrap(h.archiveDefinition))
+	s.Register("competitionDefinitions.create", http.MethodPost, "/api/competition-definitions", []int{201, 400, 401, 403, 404, 409}, h.createDefinition)
+	s.Register("competitionDefinitions.update", http.MethodPut, "/api/competition-definitions/{id}", []int{200, 400, 401, 403, 404}, h.updateDefinition)
+	s.Register("competitionDefinitions.archive", http.MethodPost, "/api/competition-definitions/{id}/archive", []int{200, 400, 401, 403, 404}, h.archiveDefinition)
 }

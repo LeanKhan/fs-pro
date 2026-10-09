@@ -363,7 +363,23 @@ func (h *Handlers) tip(cx *httpapi.Context, _ http.ResponseWriter, r *http.Reque
 	if denial, ok := h.requireClub(cx, r); !ok {
 		return denial
 	}
-	return httpapi.Fail(400, "The program engine is unavailable", nil)
+	body, _ := cx.BodyMap()
+	if body == nil {
+		body = map[string]any{}
+	}
+	var events map[string]any
+	if e, ok := body["events"].(map[string]any); ok {
+		events = e
+	}
+	advisor := map[string]any{
+		"shows": body["shows"], "lastShownAt": body["lastShownAt"],
+		"dismissed": body["dismissed"], "quiet": body["quiet"],
+	}
+	tip, err := h.repo.GetTip(r.Context(), r.PathValue("clubId"), advisor, int64(intOf(body["now"])), events)
+	if err != nil {
+		return httpapi.Fail(statusFor(err), err.Error(), err.Error())
+	}
+	return httpapi.OK("Advisor tip", map[string]any{"tip": tip})
 }
 
 // statusFor maps a market error to Node's status (404 for not-found, else 400).

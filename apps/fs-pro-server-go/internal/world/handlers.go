@@ -6,11 +6,13 @@ package world
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"time"
 
 	"fs-pro-server/internal/auth"
 	"fs-pro-server/internal/db"
 	"fs-pro-server/internal/httpapi"
+	"fs-pro-server/internal/performance"
 )
 
 // Handlers implements the world.* routes.
@@ -57,9 +59,25 @@ func (h *Handlers) updateSettings(cx *httpapi.Context, _ http.ResponseWriter, r 
 	return httpapi.OK("World settings updated", s)
 }
 
-func (h *Handlers) endYear() httpapi.Response     { return stub("Ending the year") }
-func (h *Handlers) advanceDay() httpapi.Response  { return stub("Advancing the day") }
-func (h *Handlers) performance() httpapi.Response { return stub("Club performance") }
+func (h *Handlers) endYear() httpapi.Response    { return stub("Ending the year") }
+func (h *Handlers) advanceDay() httpapi.Response { return stub("Advancing the day") }
+
+// performance is GET /api/world/performance/{clubId} (public, like Node).
+func (h *Handlers) performance(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	var year *int
+	if v := r.URL.Query().Get("year"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return httpapi.Fail(400, "Invalid year", nil)
+		}
+		year = &n
+	}
+	view, err := performance.GetPerformance(r.Context(), h.repo.Q(), r.PathValue("clubId"), year)
+	if err != nil {
+		return httpapi.Fail(404, err.Error(), nil)
+	}
+	return httpapi.OK("Performance", view)
+}
 
 // settingsPatchColumns maps the contract's camelCase patch keys to DB columns.
 var settingsPatchColumns = map[string]string{

@@ -1,6 +1,7 @@
 package openplay
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -76,9 +77,60 @@ func editionListItem(e map[string]any, names map[string]string) map[string]any {
 	}
 }
 
-func (h *Handlers) editionAction() httpapi.Response      { return stub("Edition status actions") }
-func (h *Handlers) inviteClubs() httpapi.Response        { return stub("Inviting clubs") }
-func (h *Handlers) editionEligibility() httpapi.Response { return stub("Edition eligibility") }
+// editionAction is POST /api/editions/{id}/status/{action} (admin).
+func (h *Handlers) editionAction(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireAdmin(cx, r); !ok {
+		return denial
+	}
+	action := r.PathValue("action")
+	body, _ := cx.BodyMap()
+	reason := ""
+	if body != nil {
+		reason = db.StringField(body, "reason")
+	}
+	var season map[string]any
+	var err error
+	if action == "publish" {
+		season, err = h.repo.PublishEdition(r.Context(), r.PathValue("id"))
+	} else {
+		season, err = h.repo.CancelEdition(r.Context(), r.PathValue("id"), reason)
+	}
+	if err != nil {
+		return editionFail(err)
+	}
+	message := "Edition published"
+	if action != "publish" {
+		message = "Edition cancelled"
+	}
+	return httpapi.OK(message, editionFields(season))
+}
+
+// inviteClubs is POST /api/editions/{id}/invite (admin).
+func (h *Handlers) inviteClubs(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireAdmin(cx, r); !ok {
+		return denial
+	}
+	body, _ := cx.BodyMap()
+	clubIDs := stringSliceOf(body["clubIds"])
+	invited, err := h.repo.Invite(r.Context(), r.PathValue("id"), clubIDs)
+	if err != nil {
+		return editionFail(err)
+	}
+	out := make([]any, 0, len(invited))
+	for _, e := range invited {
+		out = append(out, entryFields(e))
+	}
+	return httpapi.OK(fmt.Sprintf("%d club(s) invited", len(invited)), out)
+}
+
+// editionEligibility is GET /api/editions/{id}/eligibility/{clubId} (public).
+func (h *Handlers) editionEligibility(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	e, err := eligibilityAt(r.Context(), h.repo.Q(), r.PathValue("id"), r.PathValue("clubId"))
+	if err != nil {
+		return editionFail(err)
+	}
+	return httpapi.OK("OK", e)
+}
 
 // createEdition is POST /api/editions (admin).
 func (h *Handlers) createEdition(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
@@ -138,8 +190,30 @@ func (h *Handlers) withdrawEntry(cx *httpapi.Context, _ http.ResponseWriter, r *
 	}
 	return httpapi.OK("Withdrawn", map[string]any{"ok": true})
 }
-func (h *Handlers) editionBracket() httpapi.Response    { return stub("Edition brackets") }
-func (h *Handlers) eligibleOpponents() httpapi.Response { return stub("Eligible opponents") }
+
+// editionBracket is GET /api/editions/{id}/bracket (public).
+func (h *Handlers) editionBracket(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	var stage *int
+	if v := r.URL.Query().Get("stage"); v != "" {
+		if n := atoiOr(v, -1); n >= 0 {
+			stage = &n
+		}
+	}
+	b, err := h.repo.Bracket(r.Context(), r.PathValue("id"), stage)
+	if err != nil {
+		return httpapi.Fail(400, err.Error(), nil)
+	}
+	return httpapi.OK("OK", b)
+}
+
+// eligibleOpponents is GET /api/editions/{id}/opponents/{clubId} (public).
+func (h *Handlers) eligibleOpponents(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	options, err := h.repo.EligibleOpponents(r.Context(), r.PathValue("id"), r.PathValue("clubId"))
+	if err != nil {
+		return challengeFail(err)
+	}
+	return httpapi.OK("OK", options)
+}
 
 // getEdition is GET /api/editions/{id}.
 func (h *Handlers) getEdition(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
@@ -579,14 +653,80 @@ func (h *Handlers) validateDefinition(cx *httpapi.Context, _ http.ResponseWriter
 	return httpapi.OK(message, map[string]any{"ok": ok, "definition": defPayload, "errors": errs})
 }
 
-func (h *Handlers) createDefinition() httpapi.Response {
-	return stub("Creating a competition definition")
+// createDefinition is POST /api/competition-definitions (admin).
+func (h *Handlers) createDefinition(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireAdmin(cx, r); !ok {
+		return denial
+	}
+	body, _ := cx.BodyMap()
+	if body == nil {
+		body = map[string]any{}
+	}
+	def, errs, ok := BuildDefinition(body)
+	if !ok {
+		return httpapi.Fail(400, "The competition definition is invalid", errs)
+	}
+	code := strings.ToUpper(db.StringField(body, "Code"))
+	if _, found, err := h.repo.CompetitionByCode(r.Context(), code); err != nil {
+		return editionFail(err)
+	} else if found {
+		return httpapi.Fail(409, fmt.Sprintf("Code %s is taken", code), nil)
+	}
+	columns := CompetitionColumns(def, db.StringField(body, "Type"))
+	columns["CompetitionCode"] = code
+	columns["CompetitionID"] = code
+	row, err := h.repo.CreateCompetition(r.Context(), columns)
+	if err != nil {
+		return editionFail(err)
+	}
+	latest, _ := h.repo.LatestEditions(r.Context(), []string{db.StringField(row, "_id")})
+	return httpapi.OKStatus(201, "Competition created", competitionSummary(row, latest[db.StringField(row, "_id")]))
 }
-func (h *Handlers) updateDefinition() httpapi.Response {
-	return stub("Updating a competition definition")
+
+// updateDefinition is PUT /api/competition-definitions/{id} (admin).
+func (h *Handlers) updateDefinition(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireAdmin(cx, r); !ok {
+		return denial
+	}
+	body, _ := cx.BodyMap()
+	if body == nil {
+		body = map[string]any{}
+	}
+	def, errs, ok := BuildDefinition(body)
+	if !ok {
+		return httpapi.Fail(400, "The competition definition is invalid", errs)
+	}
+	row, found, err := h.repo.UpdateCompetition(r.Context(), r.PathValue("id"), CompetitionColumns(def, db.StringField(body, "Type")))
+	if err != nil {
+		return editionFail(err)
+	}
+	if !found {
+		return httpapi.Fail(404, "Competition not found", nil)
+	}
+	latest, _ := h.repo.LatestEditions(r.Context(), []string{db.StringField(row, "_id")})
+	return httpapi.OK("Competition saved", competitionSummary(row, latest[db.StringField(row, "_id")]))
 }
-func (h *Handlers) archiveDefinition() httpapi.Response {
-	return stub("Archiving a competition definition")
+
+// archiveDefinition is POST /api/competition-definitions/{id}/archive (admin).
+func (h *Handlers) archiveDefinition(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireAdmin(cx, r); !ok {
+		return denial
+	}
+	body, _ := cx.BodyMap()
+	archived, _ := body["archived"].(bool)
+	row, found, err := h.repo.ArchiveCompetition(r.Context(), r.PathValue("id"), archived)
+	if err != nil {
+		return editionFail(err)
+	}
+	if !found {
+		return httpapi.Fail(404, "Competition not found", nil)
+	}
+	message := "Restored"
+	if archived {
+		message = "Archived"
+	}
+	latest, _ := h.repo.LatestEditions(r.Context(), []string{db.StringField(row, "_id")})
+	return httpapi.OK(message, competitionSummary(row, latest[db.StringField(row, "_id")]))
 }
 
 // competitionSummary assembles the camelCase CompetitionSummarySchema Node's

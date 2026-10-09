@@ -682,3 +682,327 @@ threshold, proposes, then forces `applyResult` to fail — the fixture is still
 retrying applies exactly one `RankingResults` row; a second attempt is refused
 (`wrong-status`) and still leaves exactly one. The `RankingResults` PK guard
 still holds.
+
+---
+
+## Facilities medical + transfers list/scout real
+
+Landed 5 of the 7 requested: facilities.getMedicalStatus / squadRecovery /
+treatPlayer, transfers.listPlayerForSale, transfers.scoutPlayerTransfer.
+
+- **Medical** (`internal/facilities/medical.go`, from
+  `services/facilities/medical.service.ts`): status (facility effects from the
+  medical_centre level, treatment costs via `calculateTreatmentCosts`, the
+  squad-recovery cooldown read from `TransferLedger`, injured/fatigued lists);
+  squad recovery (guarded budget debit + `medical_treatment` ledger + squad-wide
+  +30 fitness / -1 injury day); per-player rehab/hyperbaric/surgery (level gate,
+  guarded debit, ledger, player update, read-back summary). `formatVilla` ported
+  for the exact "Insufficient budget for X (Vnn,000 required)" messages.
+- **transfers.listPlayerForSale** (`internal/transfer/ai.go`): list/unlist with
+  asking price, JevService's local listing reaction, and the AI opening bid
+  (eligible AI clubs by squad size/budget/`improvesSquad`). `pick`/`rand` in
+  Node are non-deterministic; the Go port picks the first eligible club and bids
+  at `min(asking, budget*0.9)` (documented).
+- **transfers.scoutPlayerTransfer** (`internal/transfer/scout.go`): the deep
+  report using JevService's calibrated local fallback (`fallbackEvaluate` +
+  the local listing/verdict text generators). `source` is always `"local"`
+  because the Go server has no Jev client (matches Node when Jev is down).
+
+Tests: pure `TestCalculateTreatmentCosts`/`TestFormatVilla` (facilities) and
+`TestImprovesSquad`/`TestListingReaction`/`TestVerdictRecommendation` (transfer);
+rolled-back `TestMedicalRolledBack` (cost debit + ledger + no over-100 fitness +
+no double-charge) and `TestListingScoutRolledBack`.
+
+Differential vs Node (same DB): `GET /api/facilities/{clubId}/medical` -> **0
+semantic diffs**.
+
+**Still stubbed (of the 7):** `transfers.requestBudgetIncrease` (needs the
+`getPerformance` service, a 480-line ranking/Elo/XP score) and `program.tip`
+(needs the world-service HTTP client + `getTip` fallback). Declared stubs.
+
+Census: **122 real / 37 stub / 2 empty / 1 gate**.
+
+---
+
+## performance.service + world.performance + transfers.requestBudgetIncrease real
+
+Landed 3 of the 4 requested (the shared performance service, the world view and
+the board budget request). `clubs.getClubPerformance` and `clubs.suggestLineup`
+remain declared stubs.
+
+- **`internal/performance/performance.go`** (ports
+  `services/world/performance.service.ts`): `ExpectedScore` (LevelTargets or the
+  default 0.40..0.70 curve), `PositionScore`, `KnockoutScore`, `LevelForXp`;
+  `EnsureYearRows` (one ClubPerformance row per club/year seeded with Elo and
+  Level); `RefreshPerformance` (Prestige-weighted finish scores + capped Elo
+  term + 0.05/trophy, frozen rows left alone); `GetPerformance` (the
+  `PerformanceView`: level/score/expected/gap/entries/trophies, Elo+Level
+  start/end, finishes, level moves).
+- **`world.performance`** (`GET /api/world/performance/{clubId}`, public like
+  Node) returns `PerformanceView`; 404 with `{success:false,message}` (no
+  payload) when a year has no row.
+- **`transfers.requestBudgetIncrease`** (`internal/transfer/board.go`, ports
+  `board-budget.service.ts` using JevService's local fallback: status
+  COMPROMISE, 60%): annual wage bill, matchday profit, financial-health band,
+  the performance-based standing description, the BoardConfidence/form
+  confidence cap, the exact board statements, and - when a grant is made - a
+  transactional `board_grant` ledger row + additive `Clubs.Budget` update +
+  `Finances.lastBudgetGrant`. `source` is always `"local"`.
+
+Tests: pure `TestExpectedScore` / `TestPositionScore` / `TestKnockoutScore` /
+`TestLevelForXpCurve` / `TestDefaultLevelTargets`; rolled-back
+`TestRequestBudgetIncreaseRolledBack` (60% grant, budget 100k -> 130k, exactly
+one ledger row).
+
+Differential vs Node (same DB): `GET /api/world/performance/{clubId}` -> **0
+semantic diffs**. (Found and fixed a bug where unquoted SQL aliases
+`clubElo`/`clubXP` folded to lowercase, so Elo/Level read as 0.)
+
+**Still stubbed:** `clubs.getClubPerformance` (needs the 631-line
+`club-performance.service.ts` + `getClubs` squad aggregation) and
+`clubs.suggestLineup`.
+
+Census: **124 real / 35 stub / 2 empty / 1 gate**.
+
+---
+
+## Competition-definition builder + definitions CRUD + editions action/invite real
+
+Landed all 5.
+
+- **`internal/openplay/definition.go`** (ports `services/competitions/definition.ts`
+  `buildDefinition` + the zod `CompetitionDefinitionSchema`): fills the top-level
+  defaults (Prestige 2, Entry {open,4,null}, WinCondition final-stage /
+  last-standing for a single knockout, Rewards {prizeMoney:[], xp:[]}), normalises
+  and strips unknown keys at every level (top-level, Entry, each stage, stage
+  rules/advance, WinCondition, Rewards), and enforces the full `superRefine` run
+  rules with the exact messages (maxClubs/minLevel/minElo, pyramid-only, knockout
+  last, group size, who-advances, >=2 advance, over-advance, knockout-only win
+  condition, last-standing needs a knockout).
+- **`competitionDefinitions.create`** (admin, 201) / **`update`** /
+  **`archive`**: build the definition, write the Competitions columns
+  (`CompetitionColumns`, Type inferred Cup/League), code-409 on create, 404 when
+  missing, exact messages ("Competition created"/"saved"/"Archived"/"Restored").
+- **`editions.action`** (admin): `publish` snapshots the definition via the
+  builder and invites qualified clubs; `cancel` reuses `refundFees` +
+  `closeOpenChallenges` and appends a `Cancelled` Logs entry; exact
+  transitions/messages ("Only an unpublished draft can be published", "Edition
+  is already <status>", "Edition published"/"cancelled").
+- **`editions.invite`** (admin): creates `invited` Entries (draft/registration
+  only), returns the inserted rows; message "<n> club(s) invited".
+
+Tests: pure `TestBuildDefinitionDefaults`, `TestBuildDefinitionTransformsAndWinCondition`,
+`TestBuildDefinitionRejections`; rolled-back `TestCompetitionWritesRolledBack`
+(create/update/archive) and `TestPublishAndCancelRolledBack` (publish snapshots
+a Definition with the schema keys; cancel refunds a 200 fee to the budget and
+clears FeePaid).
+
+Differentials vs Node (same DB): `GET /api/competition-definitions` and
+`/{id}` -> **0 semantic diffs**. (Post-write reads are covered by the rolled-back
+tests, since the write endpoints commit in Node.)
+
+Census: **129 real / 30 stub / 2 empty / 1 gate**.
+
+---
+
+## Editions read paths + program.tip real
+
+Landed all 4.
+
+- **`editions.eligibility`** (public): reuses `eligibilityAt` (the register
+  predicate) and returns `{eligible, reasons, fee}` with message "OK".
+- **`editions.bracket`** (public, `internal/openplay/bracket.go` ports
+  `knockout.service.ts` getBracket): resolves the knockout stage index (query
+  `stage` or the first knockout stage, else CurrentStage), loads Round fixtures
+  ordered by Round/Leg, groups legs into ties (unordered pairing, legs by Leg),
+  goals from `ClubMatchDetails` (null when unplayed), the tie's
+  winner/decidedBy from the last leg's `Details.Tie`, and `byeClubId` from the
+  season's `Bye` Logs; returns `{seasonId, stageIndex, rounds}`.
+- **`editions.eligibleOpponents`** (public): context + the club's active entry,
+  same-group active clubs, `proposalReasons` per opponent for `reasons`, sorted
+  eligible-first / rank / elo.
+- **`program.tip`** (owner/admin): new `internal/clients/programclient.go`
+  (POST `WORLD_SERVICE_URL` `/program/tip`, 6s timeout, non-2xx errors with
+  Node's exact `world-service POST /program/tip failed (N)`); new
+  `internal/program/facts.go` ports `buildStepFacts` (squad summary/median of the
+  best XI, manager facts, assets, qualifying friendly record, program XP from
+  stars, events) and `internal/program/tip.go` ports `getTip` (active step,
+  merged dismissal list, advisor state). Payload `{tip: AdvisorLine|null}`.
+
+Tests: pure `TestTiesOf` (bracket grouping), `TestProgramXpFromStarsValue`; client
+`TestProgramTipSuccess` / `TestProgramTipNon2xx` / `TestProgramTipEngineDown`
+(httptest stub engine + closed server).
+
+Differentials vs Node (same DB): `GET /api/editions/{id}/bracket` -> **0 diffs**;
+`GET /api/editions/{id}/eligibility/{clubId}` -> **0 diffs**. `program.tip`'s
+degraded path is owner/admin-gated, so it is covered by the client tests rather
+than a live anonymous differential (the network-error text differs between Go's
+dial error and Node's `fetch failed`; documented).
+
+Census: **133 real / 26 stub / 2 empty / 1 gate**.
+
+---
+
+## Atlas reads: getAtlas / getChrome / search real
+
+Landed 3 of the 9 atlas stubs (the public map reads, including both differential
+targets).
+
+- **`internal/atlas/geo.go`** ports the world-geo.ts constants and helpers
+  (ATLAS_W/H, COUNTRY_RADIUS, FOUNDING_LIMITS, TOWN_TERRAINS, `atlasSize`,
+  `nameProblem`, `codeProblem`, `tidyName`, a best-effort `isCrestDesign`).
+- **`internal/atlas/service.go`** ports `atlas.service.ts`'s read side:
+  `loadPlaces`, `founders`, `toCountry/toRegion/toTown`, `foundedCounts`,
+  `homeOf`, the `me` block, `getAtlas` (countries/regions/towns with club lists
+  and counts, `clubsLoaded`, `unplaced`, real sea size), `getChrome` (country
+  headers + me) and `searchAtlas` (places then clubs, ILIKE, length-ordered,
+  limit 10).
+- **Handlers**: `getAtlas`/`getChrome`/`search` are now real (public), message
+  "Atlas"/"Chrome"/"Results"; generic errors are a 400 with
+  `{success:false,message}` like Node's `failure()`.
+
+Tests: pure `TestNameProblem` / `TestCodeProblem` / `TestAtlasSize` /
+`TestIsCrestDesign`.
+
+Differentials vs Node (same DB): `GET /api/atlas/chrome` -> **0 diffs**;
+`GET /api/atlas/search?q=...` -> **0 diffs** (a district's `countryId` mirrors
+Node's correlated-subquery null). The search SQL comment records that.
+
+**Still stubbed (6):** getPlacement, listInvites, createInvite, foundCountry,
+foundTown, foundClub -- the placement/invite/founding writes (placement.service
++ club-founding.service + the world-service placement calls), not landed this
+pass.
+
+Census: **136 real / 23 stub / 2 empty / 1 gate**.
+
+---
+
+## Atlas founding + invites + placement real (all 6)
+
+Landed the remaining 6 atlas routes.
+
+- **`internal/clients`**: `WorldServicePost` + `PlacementSpot` (POST
+  `WORLD_SERVICE_URL` `/placement/spot`, 6s timeout; non-2xx -> Node's exact
+  `world-service POST /placement/spot failed (N)`).
+- **`internal/atlas/placement.go`** (ports placement.service.ts):
+  `PreviewPlacement` (the `Placement` shape: hole/district/city/region/country
+  -> town/new-town/new-region/new-country, invite check), `resolvePlaces`,
+  `districtClubCount`, `checkInvite`, `ListInvites`/`CreateInvite` on
+  `PlaceInvites` (14 days, 5 uses, max 5 live; owner/admin), `InviteError`.
+- **`internal/atlas/founding.go`** (ports club-founding.service.ts):
+  `pg_advisory_xact_lock(PLACEMENT_LOCK)`, `MissingNames` 409 gate,
+  `placeNameProblem`, `openPlaces` (country/region/city/district at the spot
+  anchor, `uniquePlaceCode`, auto district naming), invite use counting, club
+  insert (V1M-V5M `drawStartingBalance`, 150 fans, rep 5, board 60), the
+  `OwnerProgram` `not_started` row + `StartingBalance`, `advanceFrontier`, the
+  `ClubMessages` welcome, and the `FoundedClub` return
+  (`town`/`region`/`country`/`opened`/`pool:null`). The non-fatal news post and
+  free-agent restock Node fires after the transaction are not ported (both
+  `catch()`-swallowed there).
+- **`internal/atlas/admin_founding.go`**: `FoundCountry`/`FoundTown` (admin;
+  name/code validation, taken checks, spot problems, city + district rows).
+- Handlers wired for all six; `failure()` mapping mirrors Node (403 with
+  "logged in" -> 401; generic -> 400 no payload).
+
+Tests (rolled back): `TestMissingNames` + `TestDrawStartingBalanceRange`
+(pure); `TestInvitesRolledBack` (create/list + foreign refusal);
+`TestFoundClubRolledBack` with a **stubbed world-service (httptest)** — asserts
+the club, district, owner program, V1M-V5M balance, welcome message, and a
+second same-name founding 409s; `TestFoundCountryTownRolledBack`.
+
+Differential: `GET /api/atlas/placement` is signed-in, so it is covered by the
+stubbed world-service test rather than an anonymous diff (documented).
+
+Census: **142 real / 18 stub / 2 empty / 0 gate**. (The plan said 17 stubs;
+`foundClub` was counted in the gate column, not the stub column, so landing it
+moves the gate to 0.)
+
+---
+
+## clubs.suggestLineup real
+
+Landed 1 of the 3 (the lineup advisor). `clubs.getClubPerformance` and
+`players.generatePlayers` remain declared stubs.
+
+- **`internal/club/lineup.go`** (ports lineup-advisor.service.ts):
+  `fit` (rating tilted toward the approach's attributes, fitness factor,
+  out-of-position / GK-mismatch penalties), `assign` (greedy GK-first then
+  pairwise starter swaps until no improvement), `pickBench` (keeper + one per
+  unit + best remaining, size 7), `buildCandidate` for balanced/attacking/solid,
+  and `pickApproach` using JevService's local `fallbackEvaluate` (softmax over
+  `score - outOfPosition*8 + styleNudge`, `source:"local"`). Payload matches
+  `LineupSuggestionSchema` (approach/source/confidence/reasoning/starters/bench/
+  candidates/excludedInjured).
+- Handler wired (message "Lineup suggested"; /not found/ -> 404 else 400).
+
+Tests: pure `TestFitNaturalAndOutOfPosition`, `TestAssignFillsEverySlot`,
+`TestPickApproach` (incl. an out-of-position penalty flipping the pick),
+`TestPickBenchSize`.
+
+**Still stubbed (2):** `clubs.getClubPerformance` (the 631-line analytics view
+plus `getClubs`/`team-strength`/`performance.service`/Jev insights) and
+`players.generatePlayers` (spawns the `player_names` child-process script - not
+portable; no worldgen fallback path exists for it).
+
+Census: **143 real / 17 stub / 2 empty / 0 gate**.
+
+---
+
+## play.collectShop real (match/game pass)
+
+The sim service was **not up** (`http://localhost:5050/health` timed out), so the
+sim-backed routes were not attempted this pass. Landed the one finished,
+self-contained match/game route:
+
+- **`internal/play/shop.go`** (ports services/play/shop.ts): `shopRates`
+  (design/hour = 1500 + 6*fans + 1*stands-capacity, storage 6h + 2h/tier, scaled
+  by GAME_TIME_SCALE), `shopState` (pending/cap/perHour/secondsToFull), and
+  `CollectShop` - a never-collected club banks a full till, the update is a
+  guarded `jsonb_set` on `Finances.shopCollectedAt` whose `WHERE` only matches
+  the old stamp (so two racing tabs cannot double-pay), plus a one-row
+  `shop_income` ledger entry; a racing loser reports the fresh state.
+- Handler wired (owner/admin; message "Shop takings collected"; /not found/ 404
+  else 400).
+
+Tests: pure `TestShopStateMath`; rolled-back `TestCollectShopRolledBack` (full
+till banked, one ledger row, a second immediate collect earns only the elapsed
+few milliseconds, not the banked till).
+
+**Still stubbed (the sim-dependent match/game core):** play.playMatch,
+bookMatch, getMatchPrep, saveMatchPlan, previewMatchPlan; game.kickoffNew,
+enqueueMatch, rewatchMatch, getReplay. These need the sim client
+(`SIM_SERVICE_URL`) + match-plan/rewards/replay ports; not started because the
+sim service was down and the port did not fit the pass.
+
+Census: **144 real / 16 stub / 2 empty / 0 gate**.
+
+---
+
+## game.getReplay + rewatchMatch real (replay reads)
+
+Both services were up (`SIM_SERVICE_URL` 5050, `WORLD_SERVICE_URL` 3016), but the
+sim-driven play/game core did not fit this pass. Landed the two self-contained
+replay reads:
+
+- **`internal/game/replay.go`** (ports controllers/match-replays/
+  match-replay.service.ts): `fetchReplay` (MatchReplays by FixtureId) and
+  `replayPlayerNames` (walk the packed `Frames.roster[].id`, or the legacy
+  `frames[].players[].id`, then map Players to "F. Lastname").
+- `game.getReplay` (`GET /api/game/replay/{fixture}/data`): payload
+  `{Home, Away, Details, Frames, Names}`; 404 `No replay saved for this match`;
+  400 `Error fetching match replay` + message payload.
+- `game.rewatchMatch` (`GET /api/game/replay/{fixture}`): 404 when no replay,
+  else 202 `Match replay started` `{fixture_id}` (the Node socket re-stream has
+  no HTTP analogue).
+- Added `fixture.Repository.Q()` for the cross-domain reads.
+
+Test/differential: ran a real `GET /api/game/replay/{fixture}/data` on a fixture
+that has a stored replay, Go vs Node (same DB) -> **0 semantic diffs** (Home,
+Away, Details, Frames and Names all match).
+
+**Still stubbed (7):** play.playMatch, bookMatch, getMatchPrep, saveMatchPlan,
+previewMatchPlan; game.kickoffNew, enqueueMatch. These need the sim client
+(+ buildSimulateMatchRequest/simulationContract) and the match-plan/rewards
+ports; not started this pass.
+
+Census: **146 real / 14 stub / 2 empty / 0 gate**.

@@ -373,8 +373,26 @@ func (h *Handlers) matchdayFixtures(ctx context.Context, clubID string, rows []m
 }
 
 // collectShop / bookMatch / match-prep / preview are sim/prep-dependent stubs.
-func (h *Handlers) collectShop(_ *httpapi.Context, _ http.ResponseWriter, _ *http.Request) httpapi.Response {
-	return httpapi.Fail(400, "Shop collection is not available in the Go server yet", nil)
+// playFail maps a play-service error like Node's errorResponse.
+func playFail(err error) httpapi.Response {
+	msg := err.Error()
+	status := 400
+	if strings.Contains(strings.ToLower(msg), "not found") {
+		status = 404
+	}
+	return httpapi.Fail(status, msg, msg)
+}
+
+// collectShop is POST /api/play/{clubId}/shop/collect.
+func (h *Handlers) collectShop(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r); !ok {
+		return denial
+	}
+	result, err := h.repo.CollectShop(r.Context(), r.PathValue("clubId"))
+	if err != nil {
+		return playFail(err)
+	}
+	return httpapi.OK("Shop takings collected", result)
 }
 func (h *Handlers) bookMatch(_ *httpapi.Context, _ http.ResponseWriter, _ *http.Request) httpapi.Response {
 	return httpapi.Fail(400, "Booking matches is not available in the Go server yet", nil)

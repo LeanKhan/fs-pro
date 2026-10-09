@@ -42,6 +42,9 @@ type Repository struct {
 // NewRepository wraps a Querier.
 func NewRepository(q db.Querier) *Repository { return &Repository{q: q} }
 
+// Q exposes the querier for cross-domain reads (replays, inbox, etc.).
+func (r *Repository) Q() db.Querier { return r.q }
+
 // fixtureUnmodelled are DB columns absent from Node's Drizzle `fixtures`
 // schema; clubUnmodelled are the same for the embedded HomeTeam/AwayTeam.
 var (

@@ -57,6 +57,9 @@ type Repository struct {
 // NewRepository wraps a Querier.
 func NewRepository(q db.Querier) *Repository { return &Repository{q: q} }
 
+// Q exposes the querier for access checks.
+func (r *Repository) Q() db.Querier { return r.q }
+
 // PlaceConflicts returns existing place names/codes matching value.
 func (r *Repository) PlaceConflicts(ctx context.Context, kind, name, code string) ([]string, error) {
 	rows, err := r.q.Query(ctx, `SELECT "Name" FROM "Places" WHERE ("Name" = $1 OR ("Code" <> '' AND "Code" = $2)) AND "Type" = $3 LIMIT 1`, name, code, kind)

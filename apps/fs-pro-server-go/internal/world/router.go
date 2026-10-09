@@ -15,5 +15,5 @@ func Register(s *httpapi.Server, h *Handlers) {
 	s.Register("world.updateSettings", http.MethodPatch, "/api/world/settings", []int{200, 400, 401, 403, 404}, h.updateSettings)
 	s.Register("world.endYear", http.MethodPost, "/api/world/end-year", []int{200, 400, 401, 403, 404, 409}, wrap(h.endYear))
 	s.Register("world.advanceDay", http.MethodPost, "/api/world/advance-day", []int{200, 400, 401, 403, 404}, wrap(h.advanceDay))
-	s.Register("world.performance", http.MethodGet, "/api/world/performance/{clubId}", []int{200, 400, 404}, wrap(h.performance))
+	s.Register("world.performance", http.MethodGet, "/api/world/performance/{clubId}", []int{200, 400, 404}, h.performance)
 }

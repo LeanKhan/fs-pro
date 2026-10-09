@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"fs-pro-server/internal/auth"
@@ -103,19 +104,56 @@ func (h *Handlers) savePlacement(cx *httpapi.Context, _ http.ResponseWriter, r *
 	return httpapi.OK("Campus layout saved", campus)
 }
 
-// getMedicalStatus is GET /api/facilities/{clubId}/medical (declared stub).
-func (h *Handlers) getMedicalStatus(_ *httpapi.Context, _ http.ResponseWriter, _ *http.Request) httpapi.Response {
-	return httpapi.Fail(400, "Medical Centre status is not available in the Go server yet", nil)
+// medicalFail maps a service error like Node's errorResponse: "not found" -> 404,
+// else 400, with the message as the payload.
+func medicalFail(err error) httpapi.Response {
+	msg := err.Error()
+	status := 400
+	if strings.Contains(strings.ToLower(msg), "not found") {
+		status = 404
+	}
+	return httpapi.Fail(status, msg, msg)
 }
 
-// squadRecovery is POST /api/facilities/{clubId}/medical/squad-recovery (stub).
-func (h *Handlers) squadRecovery(_ *httpapi.Context, _ http.ResponseWriter, _ *http.Request) httpapi.Response {
-	return httpapi.Fail(400, "Squad recovery is not available in the Go server yet", nil)
+// getMedicalStatus is GET /api/facilities/{clubId}/medical (public).
+func (h *Handlers) getMedicalStatus(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	status, ok, err := h.repo.MedicalStatus(r.Context(), r.PathValue("clubId"))
+	if err != nil {
+		return medicalFail(err)
+	}
+	if !ok {
+		return httpapi.Fail(404, "Club not found", "Club not found")
+	}
+	return httpapi.OK("Medical Centre status", status)
 }
 
-// treatPlayer is POST /api/facilities/{clubId}/medical/treat-player (stub).
-func (h *Handlers) treatPlayer(_ *httpapi.Context, _ http.ResponseWriter, _ *http.Request) httpapi.Response {
-	return httpapi.Fail(400, "Player treatment is not available in the Go server yet", nil)
+// squadRecovery is POST /api/facilities/{clubId}/medical/squad-recovery.
+func (h *Handlers) squadRecovery(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	ctx := r.Context()
+	clubID := r.PathValue("clubId")
+	if status, msg := auth.CanManageClub(ctx, h.repo.Q(), sessionUser(cx), clubID); status != 0 {
+		return httpapi.Fail(status, msg, nil)
+	}
+	result, err := h.repo.SquadRecovery(ctx, clubID)
+	if err != nil {
+		return medicalFail(err)
+	}
+	return httpapi.OK(str(result, "message"), result)
+}
+
+// treatPlayer is POST /api/facilities/{clubId}/medical/treat-player.
+func (h *Handlers) treatPlayer(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	ctx := r.Context()
+	clubID := r.PathValue("clubId")
+	if status, msg := auth.CanManageClub(ctx, h.repo.Q(), sessionUser(cx), clubID); status != 0 {
+		return httpapi.Fail(status, msg, nil)
+	}
+	b := body(cx)
+	result, err := h.repo.TreatPlayer(ctx, clubID, str(b, "playerId"), str(b, "treatmentType"))
+	if err != nil {
+		return medicalFail(err)
+	}
+	return httpapi.OK(str(result, "message"), result)
 }
 
 func (h *Handlers) campus(ctx context.Context, clubID string) (map[string]any, bool, error) {

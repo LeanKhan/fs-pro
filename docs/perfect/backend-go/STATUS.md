@@ -21,7 +21,7 @@ still stubbed**, so the world cannot advance and matches cannot be played.
 |---|---:|---:|---:|---:|---:|
 | meta | 1 | 0 | 0 | 0 | 1 |
 | users | 15 | 0 | 0 | 0 | 15 |
-| clubs | 12 | 2 | 1 | 0 | 15 |
+| clubs | 13 | 1 | 1 | 0 | 15 |
 | players | 7 | 1 | 0 | 0 | 8 |
 | managers | 6 | 0 | 0 | 0 | 6 |
 | fixtures | 4 | 0 | 0 | 0 | 4 |
@@ -29,37 +29,36 @@ still stubbed**, so the world cannot advance and matches cannot be played.
 | places | 8 | 0 | 0 | 0 | 8 |
 | seasons | 5 | 0 | 0 | 0 | 5 |
 | awards | 1 | 0 | 0 | 0 | 1 |
-| game | 2 | 4 | 0 | 0 | 6 |
-| transfers | 7 | 3 | 0 | 0 | 10 |
-| facilities | 3 | 3 | 0 | 0 | 6 |
-| play | 5 | 6 | 0 | 0 | 11 |
-| editions | 9 | 5 | 0 | 0 | 14 |
+| game | 4 | 2 | 0 | 0 | 6 |
+| transfers | 10 | 0 | 0 | 0 | 10 |
+| facilities | 6 | 0 | 0 | 0 | 6 |
+| play | 6 | 5 | 0 | 0 | 11 |
+| editions | 14 | 0 | 0 | 0 | 14 |
 | challenges | 6 | 0 | 0 | 0 | 6 |
-| world | 2 | 3 | 0 | 0 | 5 |
-| competitionDefinitions | 3 | 3 | 0 | 0 | 6 |
-| atlas | 1 | 8 | 0 | 1 | 10 |
+| world | 3 | 2 | 0 | 0 | 5 |
+| competitionDefinitions | 6 | 0 | 0 | 0 | 6 |
+| atlas | 10 | 0 | 0 | 0 | 10 |
 | tiles | 1 | 0 | 0 | 0 | 1 |
-| program | 12 | 1 | 0 | 0 | 13 |
-| **total** | **117** | **42** | **2** | **1** | **162** |
+| program | 13 | 0 | 0 | 0 | 13 |
+| **total** | **146** | **14** | **2** | **0** | **162** |
 
-By verb: **GET 73 → 54 real + 2 empty (56/73 = 77 % 2xx; 17 stubbed)**;
-**non-GET 89 → 63 real, 25 stubbed, 1 gate (71 % real)**.
+By verb: **GET 73 → 66 real + 2 empty (68/73 = 93 % 2xx; 5 stubbed)**;
+**non-GET 89 → 80 real, 9 stubbed, 0 gate (90 % real)**.
 
 ### Remaining stubs grouped (all declared `400`, except `game.enqueueMatch` `409`)
-- **clubs (2):** getClubPerformance, suggestLineup. *(empty: getMediaFeed)*
+- **clubs (1):** getClubPerformance. *(empty: getMediaFeed)*
 - **players (1):** generatePlayers (gated by `ENABLE_PLAYER_GENERATION`).
 - **calendar (3):** tickClock, healCalendar, simulateToDate. *(empty: getWorldFeed)*
-- **game (4):** kickoffNew, rewatchMatch, getReplay; enqueueMatch (`409`).
-- **transfers (3):** listPlayerForSale, scoutPlayerTransfer, requestBudgetIncrease.
-- **facilities (3):** getMedicalStatus, squadRecovery, treatPlayer.
-- **play (6):** playMatch (gate `409`→`400`), collectShop, bookMatch, getMatchPrep,
-  saveMatchPlan, previewMatchPlan.
-- **editions (5):** action, invite, eligibility, bracket, eligibleOpponents.
-- **world (3):** endYear, advanceDay, performance.
-- **competitionDefinitions (3):** create, update, archive.
-- **atlas (8):** getAtlas, getChrome, search, getPlacement, listInvites,
-  createInvite, foundCountry, foundTown. *(gate: foundClub → `409`/`400`)*
-- **program (1):** tip (engine-backed; world-service unreachable).
+- **game (2):** kickoffNew, enqueueMatch (`409`). *(replay reads are now real.)*
+- **transfers (0):** none - all ten are now real.
+- **facilities (0):** none - all six are now real.
+- **play (5):** playMatch, bookMatch, getMatchPrep, saveMatchPlan,
+  previewMatchPlan. *(collectShop is now real.)*
+- **editions (0):** none - all fourteen are now real.
+- **world (2):** endYear, advanceDay. *(performance is now real.)*
+- **competitionDefinitions (0):** none - all six are now real.
+- **atlas (0):** none - all ten are now real (founding writes landed).
+- **program (0):** none - all thirteen are now real (tip calls the world-service engine).
 
 ## Verification evidence
 
@@ -121,3 +120,4 @@ By verb: **GET 73 → 54 real + 2 empty (56/73 = 77 % 2xx; 17 stubbed)**;
 | 3 | Transfers remaining (list/scout/budget) | high | S-M |
 | 4 | Atlas reads/founding (8, world-service dependent) | med-high | M–L |
 | 5 | clubs analytics (3), facilities medical (3), editions action/invite/eligibility/bracket/opponents (5), competitionDefinitions writes (3), program.tip | medium→low | M/S |
+

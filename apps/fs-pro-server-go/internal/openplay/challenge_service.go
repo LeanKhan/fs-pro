@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"fs-pro-server/internal/db"
@@ -381,6 +382,82 @@ func (r *Repository) proposalReasons(ctx context.Context, q db.Querier, c *chCtx
 		}
 	}
 	return reasons, nil
+}
+
+// EligibleOpponents ports ChallengeService.eligibleOpponents: everyone the club
+// could face in its current stage, with reasons for those it can't challenge.
+func (r *Repository) EligibleOpponents(ctx context.Context, seasonID, clubID string) ([]any, error) {
+	c, err := contextAt(ctx, r.q, seasonID)
+	if err != nil {
+		return nil, err
+	}
+	mine, err := oneAt(ctx, r.q, `SELECT * FROM "Entries" WHERE "SeasonId" = $1 AND "ClubId" = $2 LIMIT 1`, seasonID, clubID)
+	if err != nil {
+		return nil, err
+	}
+	if mine == nil || db.StringField(mine, "Status") != "active" {
+		return nil, newChallengeErr("not-allowed", "You are not playing in this stage")
+	}
+	rows, err := r.q.Query(ctx, `SELECT c."_id" AS clubId, c."Name" AS name, c."ClubCode" AS clubCode, c."Elo" AS elo, e."Group" AS grp
+		FROM "Entries" e JOIN "Clubs" c ON c."_id" = e."ClubId"
+		WHERE e."SeasonId" = $1 AND e."Status" = 'active' AND e."ClubId" <> $2`, seasonID, clubID)
+	if err != nil {
+		return nil, err
+	}
+	others, err := db.ScanAll(rows)
+	if err != nil {
+		return nil, err
+	}
+	ranks, err := r.stageRanksAt(ctx, seasonID, c.stageIndex, c.rules)
+	if err != nil {
+		return nil, err
+	}
+	myGroup := db.StringField(mine, "Group")
+
+	type option struct {
+		payload  map[string]any
+		rank     int
+		eligible bool
+		elo      float64
+	}
+	list := []option{}
+	for _, o := range others {
+		if db.StringField(o, "grp") != myGroup {
+			continue
+		}
+		reasons, err := r.proposalReasons(ctx, r.q, c, clubID, db.StringField(o, "clubId"), ranks)
+		if err != nil {
+			return nil, err
+		}
+		rank := ranks[db.StringField(o, "clubId")]
+		rankInt := 1 << 30
+		if rank != nil {
+			rankInt = intVal(rank)
+		}
+		elo := numVal(o["elo"])
+		list = append(list, option{
+			payload: map[string]any{
+				"clubId": db.StringField(o, "clubId"), "name": db.StringField(o, "name"),
+				"clubCode": db.StringField(o, "clubCode"), "rank": rank, "elo": elo,
+				"eligible": len(reasons) == 0, "reasons": reasons,
+			},
+			rank: rankInt, eligible: len(reasons) == 0, elo: elo,
+		})
+	}
+	sort.SliceStable(list, func(i, j int) bool {
+		if list[i].eligible != list[j].eligible {
+			return list[i].eligible
+		}
+		if list[i].rank != list[j].rank {
+			return list[i].rank < list[j].rank
+		}
+		return list[i].elo > list[j].elo
+	})
+	out := make([]any, 0, len(list))
+	for _, o := range list {
+		out = append(out, o.payload)
+	}
+	return out, nil
 }
 
 // --- lifecycle -------------------------------------------------------------

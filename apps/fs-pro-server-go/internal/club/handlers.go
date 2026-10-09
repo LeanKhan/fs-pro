@@ -467,10 +467,32 @@ func (h *Handlers) getClubPerformance(_ *httpapi.Context, _ http.ResponseWriter,
 	return httpapi.Fail(400, "Club performance is not available in the Go server yet", nil)
 }
 
-// suggestLineup is POST /api/clubs/{id}/lineup-suggestion. The Node advisor
-// calls Jev with a local fallback; this port returns a clear 400.
-func (h *Handlers) suggestLineup(_ *httpapi.Context, _ http.ResponseWriter, _ *http.Request) httpapi.Response {
-	return httpapi.Fail(400, "Lineup suggestions are not available in the Go server yet", nil)
+// suggestLineup is POST /api/clubs/{id}/lineup-suggestion.
+func (h *Handlers) suggestLineup(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	body, _ := cx.BodyMap()
+	if body == nil {
+		body = map[string]any{}
+	}
+	slots := []LineupSlot{}
+	if list, ok := body["slots"].([]any); ok {
+		for _, s := range list {
+			m, _ := s.(map[string]any)
+			if m == nil {
+				continue
+			}
+			slots = append(slots, LineupSlot{Label: db.StringField(m, "label"), Pos: db.StringField(m, "pos")})
+		}
+	}
+	result, err := h.repo.SuggestLineup(r.Context(), r.PathValue("id"), db.StringField(body, "formation"), db.StringField(body, "style"), slots)
+	if err != nil {
+		msg := err.Error()
+		status := 400
+		if strings.Contains(strings.ToLower(msg), "not found") {
+			status = 404
+		}
+		return httpapi.Fail(status, msg, msg)
+	}
+	return httpapi.OK("Lineup suggested", result)
 }
 
 func stringSlice(v any) []string {

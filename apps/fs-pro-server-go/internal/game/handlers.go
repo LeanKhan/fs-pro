@@ -86,12 +86,34 @@ func (h *Handlers) enqueueMatch(_ *httpapi.Context, _ http.ResponseWriter, _ *ht
 	return httpapi.Fail(409, "The match queue is not available in the Go server yet", nil)
 }
 
-// rewatchMatch is GET /api/game/replay/{fixture} (declared 400 stub).
-func (h *Handlers) rewatchMatch(_ *httpapi.Context, _ http.ResponseWriter, _ *http.Request) httpapi.Response {
-	return httpapi.Fail(400, "Match replays are not available in the Go server yet", nil)
+// rewatchMatch is GET /api/game/replay/{fixture} -> 202 when a replay exists.
+func (h *Handlers) rewatchMatch(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	replay, err := fetchReplay(r.Context(), h.fixtures.Q(), r.PathValue("fixture"))
+	if err != nil {
+		return httpapi.Fail(400, "Error fetching match replay", err.Error())
+	}
+	if replay == nil {
+		return httpapi.Fail(404, "No replay saved for this match", nil)
+	}
+	return httpapi.OKStatus(202, "Match replay started", map[string]any{"fixture_id": r.PathValue("fixture")})
 }
 
-// getReplay is GET /api/game/replay/{fixture}/data (declared 400 stub).
-func (h *Handlers) getReplay(_ *httpapi.Context, _ http.ResponseWriter, _ *http.Request) httpapi.Response {
-	return httpapi.Fail(400, "Match replays are not available in the Go server yet", nil)
+// getReplay is GET /api/game/replay/{fixture}/data.
+func (h *Handlers) getReplay(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	q := h.fixtures.Q()
+	replay, err := fetchReplay(r.Context(), q, r.PathValue("fixture"))
+	if err != nil {
+		return httpapi.Fail(400, "Error fetching match replay", err.Error())
+	}
+	if replay == nil {
+		return httpapi.Fail(404, "No replay saved for this match", nil)
+	}
+	names, err := replayPlayerNames(r.Context(), q, replay["Frames"])
+	if err != nil {
+		return httpapi.Fail(400, "Error fetching match replay", err.Error())
+	}
+	return httpapi.OK("Match replay", map[string]any{
+		"Home": replay["Home"], "Away": replay["Away"], "Details": replay["Details"],
+		"Frames": replay["Frames"], "Names": names,
+	})
 }

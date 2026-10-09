@@ -2,9 +2,14 @@ package atlas
 
 import (
 	"net/http"
+	"strings"
 
+	"fs-pro-server/internal/auth"
+	"fs-pro-server/internal/db"
 	"fs-pro-server/internal/httpapi"
 )
+
+func str(m map[string]any, key string) string { return db.StringField(m, key) }
 
 // Handlers implements the atlas.* routes.
 type Handlers struct {
@@ -42,29 +47,129 @@ func (h *Handlers) checkName(_ *httpapi.Context, _ http.ResponseWriter, r *http.
 	return httpapi.OK("Checked", NameAvailability(conflicts))
 }
 
-// foundClub is POST /api/atlas/clubs: reproduces the 409 "new places need
-// names" gate; the full founding flow is not ported, so a complete request is
-// a declared 400.
-func (h *Handlers) foundClub(cx *httpapi.Context, _ http.ResponseWriter, _ *http.Request) httpapi.Response {
+// atlasFail maps a founding/invite error like Node's failure().
+func atlasFail(err error) httpapi.Response {
+	status, message := 400, err.Error()
+	switch e := err.(type) {
+	case FoundingError:
+		status, message = e.Status, e.Message
+	case InviteError:
+		status, message = e.Status, e.Message
+	}
+	if status == 403 && strings.Contains(strings.ToLower(message), "logged in") {
+		status = 401
+	}
+	return httpapi.Fail(status, message, nil)
+}
+
+// foundClub is POST /api/atlas/clubs (signed in).
+func (h *Handlers) foundClub(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
 	body, _ := cx.BodyMap()
 	if body == nil {
 		body = map[string]any{}
 	}
-	// A fresh world always opens new places; without a placement service we ask
-	// for all three names.
-	msg, refuse := FoundingRefusal(true, true, true,
-		body["newTown"] != nil, body["newRegion"] != nil, body["newCountry"] != nil)
-	if refuse {
-		return httpapi.Fail(409, msg, nil)
+	founded, err := h.repo.FoundClub(r.Context(), sessionUser(cx), body)
+	if err != nil {
+		return atlasFail(err)
 	}
-	return stub("Founding a club")
+	return httpapi.OK("Club founded", founded)
 }
 
-func (h *Handlers) getAtlas() httpapi.Response     { return stub("The atlas") }
-func (h *Handlers) getChrome() httpapi.Response    { return stub("Atlas chrome") }
-func (h *Handlers) search() httpapi.Response       { return stub("Atlas search") }
-func (h *Handlers) getPlacement() httpapi.Response { return stub("Placement") }
-func (h *Handlers) listInvites() httpapi.Response  { return stub("Town invites") }
-func (h *Handlers) createInvite() httpapi.Response { return stub("Creating an invite") }
-func (h *Handlers) foundCountry() httpapi.Response { return stub("Founding a country") }
-func (h *Handlers) foundTown() httpapi.Response    { return stub("Founding a town") }
+func sessionUser(cx *httpapi.Context) string {
+	if cx != nil && cx.Session != nil {
+		return cx.Session.UserID()
+	}
+	return ""
+}
+
+// getAtlas is GET /api/atlas (public; the session, when present, adds `me`).
+func (h *Handlers) getAtlas(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	atlas, err := h.repo.GetAtlas(r.Context(), sessionUser(cx), r.URL.Query().Get("countryId"))
+	if err != nil {
+		return httpapi.Fail(400, err.Error(), nil)
+	}
+	return httpapi.OK("Atlas", atlas)
+}
+
+// getChrome is GET /api/atlas/chrome (public).
+func (h *Handlers) getChrome(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	chrome, err := h.repo.GetChrome(r.Context(), sessionUser(cx))
+	if err != nil {
+		return httpapi.Fail(400, err.Error(), nil)
+	}
+	return httpapi.OK("Chrome", chrome)
+}
+
+// search is GET /api/atlas/search (public).
+func (h *Handlers) search(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	results, err := h.repo.Search(r.Context(), r.URL.Query().Get("q"))
+	if err != nil {
+		return httpapi.Fail(400, err.Error(), nil)
+	}
+	return httpapi.OK("Results", results)
+}
+
+// getPlacement is GET /api/atlas/placement (signed in).
+func (h *Handlers) getPlacement(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	placement, err := h.repo.PreviewPlacement(r.Context(), r.URL.Query().Get("invite"))
+	if err != nil {
+		return atlasFail(err)
+	}
+	return httpapi.OK("Placement", placement)
+}
+
+// listInvites is GET /api/atlas/invites (owner/admin).
+func (h *Handlers) listInvites(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	clubID := r.URL.Query().Get("clubId")
+	if status, msg := auth.CanManageClub(r.Context(), h.repo.Q(), sessionUser(cx), clubID); status != 0 {
+		return httpapi.Fail(status, msg, nil)
+	}
+	invites, err := h.repo.ListInvites(r.Context(), sessionUser(cx), clubID, true)
+	if err != nil {
+		return atlasFail(err)
+	}
+	return httpapi.OK("Invites", invites)
+}
+
+// createInvite is POST /api/atlas/invites (owner/admin).
+func (h *Handlers) createInvite(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	body, _ := cx.BodyMap()
+	if body == nil {
+		body = map[string]any{}
+	}
+	clubID := str(body, "clubId")
+	if status, msg := auth.CanManageClub(r.Context(), h.repo.Q(), sessionUser(cx), clubID); status != 0 {
+		return httpapi.Fail(status, msg, nil)
+	}
+	invite, err := h.repo.CreateInvite(r.Context(), sessionUser(cx), clubID, true)
+	if err != nil {
+		return atlasFail(err)
+	}
+	return httpapi.OK("Invite created", invite)
+}
+
+// foundCountry is POST /api/atlas/countries (admin).
+func (h *Handlers) foundCountry(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	body, _ := cx.BodyMap()
+	if body == nil {
+		body = map[string]any{}
+	}
+	country, err := h.repo.FoundCountry(r.Context(), sessionUser(cx), body)
+	if err != nil {
+		return atlasFail(err)
+	}
+	return httpapi.OK(str(country, "name")+" is founded", country)
+}
+
+// foundTown is POST /api/atlas/towns (admin).
+func (h *Handlers) foundTown(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	body, _ := cx.BodyMap()
+	if body == nil {
+		body = map[string]any{}
+	}
+	town, err := h.repo.FoundTown(r.Context(), sessionUser(cx), body)
+	if err != nil {
+		return atlasFail(err)
+	}
+	return httpapi.OK(str(town, "name")+" is founded", town)
+}
