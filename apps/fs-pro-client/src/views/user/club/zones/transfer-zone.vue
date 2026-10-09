@@ -1,6 +1,8 @@
 <template>
   <v-card>
-    <v-card-title class="d-flex align-center justify-space-between flex-wrap gap-2">
+    <v-card-title
+      class="d-flex align-center justify-space-between flex-wrap gap-2"
+    >
       <div class="d-flex align-center gap-2">
         <span>Transfer Market</span>
       </div>
@@ -28,16 +30,20 @@
       class="mx-4 mt-2"
     >
       <template v-if="windowState?.open">
-        Transfer window is <strong>open</strong>
+        Transfer window is
+        <strong>open</strong>
         <template v-if="windowState.daysLeft !== null">
-          - closes in {{ windowState.daysLeft }} day{{ windowState.daysLeft === 1 ? '' : 's' }}
+          - closes in {{ windowState.daysLeft }} day{{
+            windowState.daysLeft === 1 ? '' : 's'
+          }}
           (day {{ windowState.closesDay }})
         </template>
-        <template v-else> until the next season starts.</template>
+        <template v-else>until the next season starts.</template>
       </template>
       <template v-else>
-        Transfer window is <strong>closed</strong>. Bids and purchases reopen
-        when the next window opens.
+        Transfer window is
+        <strong>closed</strong>
+        . Bids and purchases reopen when the next window opens.
       </template>
     </v-alert>
 
@@ -52,11 +58,21 @@
       <!-- Scouted Shortlist: Scouting Department facility feature. Kept on the
            cream/amber palette — it used to be a dark navy card with dark text
            and was unreadable (U-24 / P02-05, P10-05). -->
-      <v-card v-if="scoutedShortlist.length" variant="tonal" color="amber-lighten-4" class="mb-3">
+      <v-card
+        v-if="scoutedShortlist.length"
+        variant="tonal"
+        color="amber-lighten-4"
+        class="mb-3"
+      >
         <v-card-title class="text-body-1 d-flex align-center gap-2">
           <v-icon size="20" color="amber-darken-3">mdi-radar</v-icon>
           Scouted Shortlist
-          <v-chip size="x-small" color="amber-darken-2" variant="flat" class="font-weight-bold">
+          <v-chip
+            size="x-small"
+            color="amber-darken-2"
+            variant="flat"
+            class="font-weight-bold"
+          >
             {{ scoutedShortlist.length }}
           </v-chip>
           <span class="text-caption text-medium-emphasis ml-auto">
@@ -74,7 +90,9 @@
             @click="openScoutedTarget(target)"
           >
             <div class="d-flex flex-column py-1">
-              <span class="font-weight-bold" style="color: #4a2f14">{{ target.name }}</span>
+              <span class="font-weight-bold" style="color: #4a2f14">
+                {{ target.name }}
+              </span>
               <span class="text-caption" style="color: #7a5a2e">
                 {{ target.position ?? '?' }} · OVR {{ target.rating }} ·
                 {{ currency(target.askingPrice ?? target.value) }}
@@ -96,14 +114,17 @@
         <div class="d-flex justify-space-between align-center">
           <div>
             <v-icon size="small" class="mr-1">mdi-tag-multiple</v-icon>
-            <strong>Your Players on the Market ({{ myListedPlayers.length }} listed):</strong>
+            <strong>
+              Your Players on the Market ({{ myListedPlayers.length }} listed):
+            </strong>
             <span class="ml-2">
               <span
                 v-for="p in myListedPlayers"
                 :key="p._id ?? p.id"
                 class="mr-2"
               >
-                <strong>{{ p.FirstName }} {{ p.LastName }}</strong> ({{ currency(p.AskingPrice ?? p.Value) }})
+                <strong>{{ p.FirstName }} {{ p.LastName }}</strong>
+                ({{ currency(p.AskingPrice ?? p.Value) }})
               </span>
             </span>
           </div>
@@ -247,7 +268,10 @@ const myListedPlayers = computed(() => {
 });
 
 const totalPotentialRevenue = computed(() => {
-  return myListedPlayers.value.reduce((sum: number, p: any) => sum + (p.AskingPrice ?? p.Value ?? 0), 0);
+  return myListedPlayers.value.reduce(
+    (sum: number, p: any) => sum + (p.AskingPrice ?? p.Value ?? 0),
+    0
+  );
 });
 
 async function loadFreeAgents() {
@@ -291,7 +315,10 @@ function openScoutDialog(player: MarketPlayer) {
 
 function openBuyDialog(player: MarketPlayer) {
   if (windowState.value && !windowState.value.open) {
-    store.showToast({ message: 'The transfer window is closed', style: 'warning' });
+    store.showToast({
+      message: 'The transfer window is closed',
+      style: 'warning',
+    });
     return;
   }
   selectedPlayer.value = player;

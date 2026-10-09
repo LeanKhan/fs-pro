@@ -52,14 +52,29 @@
 
       <!-- Players actions -->
       <template v-slot:item.Actions="{ item }">
-        <v-btn :aria-label="`View ${item.FirstName} ${item.LastName}`" @click="viewManager(item._id)" icon color="success-lighten-2">
+        <v-btn
+          :aria-label="`View ${item.FirstName} ${item.LastName}`"
+          @click="viewManager(item._id)"
+          icon
+          color="success-lighten-2"
+        >
           <v-icon size="small">mdi-eye-outline</v-icon>
         </v-btn>
-        <v-btn :aria-label="`Edit ${item.FirstName} ${item.LastName}`" icon color="blue-lighten-2" @click="updateManager(item._id)">
+        <v-btn
+          :aria-label="`Edit ${item.FirstName} ${item.LastName}`"
+          icon
+          color="blue-lighten-2"
+          @click="updateManager(item._id)"
+        >
           <v-icon size="small">mdi-pencil-outline</v-icon>
         </v-btn>
         <!-- remove player -->
-        <v-btn :aria-label="`Delete ${item.FirstName} ${item.LastName}`" @click="deleteManager(item._id)" icon color="red-lighten-2">
+        <v-btn
+          :aria-label="`Delete ${item.FirstName} ${item.LastName}`"
+          @click="deleteManager(item._id)"
+          icon
+          color="red-lighten-2"
+        >
           <v-icon size="small">mdi-delete-outline</v-icon>
         </v-btn>
       </template>

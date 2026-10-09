@@ -1,6 +1,11 @@
 <template>
   <div ref="rootEl" class="cozy">
-    <div v-if="clubQuery.isLoading.value || !game.campus.value" class="cg-state">Loading the grounds…</div>
+    <div
+      v-if="clubQuery.isLoading.value || !game.campus.value"
+      class="cg-state"
+    >
+      Loading the grounds…
+    </div>
     <div v-else-if="clubQuery.isError.value || !club" class="cg-state">
       <p>Could not load this club.</p>
       <router-link class="btn" to="/u">Back to dashboard</router-link>
@@ -24,18 +29,35 @@
         @collect="collect"
       />
 
-      <cozy-presence v-if="clubId" :club-id="clubId" :club-name="club.Name" :is-mine="isMyClub" @notify="(t: string) => game.toast(t)" />
+      <cozy-presence
+        v-if="clubId"
+        :club-id="clubId"
+        :club-name="club.Name"
+        :is-mine="isMyClub"
+        @notify="(t: string) => game.toast(t)"
+      />
 
       <!-- The owner's guided start (phase-2 OWNER-PROGRAM-SPEC): prominent
            while the program runs; it hands over to the challenge card at Level 1. -->
-      <button v-if="programActive && !liveMatch" class="program-chip" @click="openProgram">
+      <button
+        v-if="programActive && !liveMatch"
+        class="program-chip"
+        @click="openProgram"
+      >
         <span class="ic" v-html="icon('trophy')"></span>
-        <span class="pc-text"><b>Owner's program</b><small>{{ programChipHint }}</small></span>
+        <span class="pc-text">
+          <b>Owner's program</b>
+          <small>{{ programChipHint }}</small>
+        </span>
       </button>
 
       <cozy-hud
         :club="{ name: club.Name, code: club.ClubCode }"
-        :level="{ level: playState?.club.level ?? 0, xpInto: playState?.club.xpIntoLevel ?? 0, xpNeed: playState?.club.xpForNext ?? 0 }"
+        :level="{
+          level: playState?.club.level ?? 0,
+          xpInto: playState?.club.xpIntoLevel ?? 0,
+          xpNeed: playState?.club.xpForNext ?? 0,
+        }"
         :stats="{
           budget: treasury,
           fans: playState?.standing.fans ?? 0,
@@ -56,7 +78,11 @@
         :cooldown="game.cooldownLeft.value"
         :playing="game.playing.value"
         :quick-sim="quickSim"
-        :live="liveMatch ? { opponent: liveMatch.opponent.name, home: liveMatch.home } : null"
+        :live="
+          liveMatch
+            ? { opponent: liveMatch.opponent.name, home: liveMatch.home }
+            : null
+        "
         @act="onAct"
       />
 
@@ -79,17 +105,59 @@
       />
 
       <cozy-modal v-model="showBuild" size="wide">
-        <h2><span v-html="icon('hammer')"></span> Build</h2>
-        <p class="sub">{{ game.campus.value.activeUpgrades }}/{{ game.campus.value.maxConcurrentUpgrades }} builders busy</p>
+        <h2>
+          <span v-html="icon('hammer')"></span>
+          Build
+        </h2>
+        <p class="sub">
+          {{ game.campus.value.activeUpgrades }}/{{
+            game.campus.value.maxConcurrentUpgrades
+          }}
+          builders busy
+        </p>
         <div class="cards">
-          <button v-for="a in game.campus.value.assets" :key="a.type" class="card" :class="{ off: !!a.next?.blockedReason && !a.upgrade }" @click="pickFromMenu(a.type)">
-            <div class="card-title">{{ stageName(a.type as CampusBuilding, { tier: a.level, clubLevel: 0, staffTier: 0 }) }}</div>
+          <button
+            v-for="a in game.campus.value.assets"
+            :key="a.type"
+            class="card"
+            :class="{ off: !!a.next?.blockedReason && !a.upgrade }"
+            @click="pickFromMenu(a.type)"
+          >
+            <div class="card-title">
+              {{
+                stageName(a.type as CampusBuilding, {
+                  tier: a.level,
+                  clubLevel: 0,
+                  staffTier: 0,
+                })
+              }}
+            </div>
             <div class="card-art" :class="`art-${a.type}`"></div>
-            <div class="card-desc">{{ a.name }} · Tier {{ a.level }} · {{ a.effectLabel }}</div>
-            <div v-if="a.next" class="card-meta">Next: {{ stageName(a.type as CampusBuilding, { tier: a.next.level, clubLevel: 0, staffTier: 0 }) }}</div>
-            <div v-if="a.upgrade" class="card-meta">Building Tier {{ a.upgrade.toLevel }}…</div>
-            <div v-else-if="a.next" class="chips"><span class="chip"><span v-html="icon('coins')"></span>{{ currency(a.next.cost) }}</span></div>
-            <div v-if="a.next?.blockedReason && !a.upgrade" class="card-why">{{ a.next.blockedReason }}</div>
+            <div class="card-desc">
+              {{ a.name }} · Tier {{ a.level }} · {{ a.effectLabel }}
+            </div>
+            <div v-if="a.next" class="card-meta">
+              Next:
+              {{
+                stageName(a.type as CampusBuilding, {
+                  tier: a.next.level,
+                  clubLevel: 0,
+                  staffTier: 0,
+                })
+              }}
+            </div>
+            <div v-if="a.upgrade" class="card-meta">
+              Building Tier {{ a.upgrade.toLevel }}…
+            </div>
+            <div v-else-if="a.next" class="chips">
+              <span class="chip">
+                <span v-html="icon('coins')"></span>
+                {{ currency(a.next.cost) }}
+              </span>
+            </div>
+            <div v-if="a.next?.blockedReason && !a.upgrade" class="card-why">
+              {{ a.next.blockedReason }}
+            </div>
           </button>
         </div>
       </cozy-modal>
@@ -138,19 +206,29 @@
           :cooldown="game.cooldownLeft.value"
           :level-reached="rewardLevel"
           @close="game.showRewards.value = false"
-          @again="(game.showRewards.value = false), game.findMatch(quickSim)"
+          @again="((game.showRewards.value = false), game.findMatch(quickSim))"
         />
       </cozy-modal>
 
       <cozy-modal v-model="showSettings" size="small">
-        <cozy-settings v-model:quick-sim="quickSim" :user-name="store.user?.fullname ?? store.user?.username" @act="onSettingsAct" />
+        <cozy-settings
+          v-model:quick-sim="quickSim"
+          :user-name="store.user?.fullname ?? store.user?.username"
+          @act="onSettingsAct"
+        />
       </cozy-modal>
 
       <!-- Dashboard screens and world news, over the campus -->
       <cozy-drawer
         :model-value="!!drawer"
         :title="drawerTitle"
-        :tabs="drawer === 'league' ? ['My league', 'Competitions'] : drawer === 'hub' ? hubTabs.map((t) => t.title) : undefined"
+        :tabs="
+          drawer === 'league'
+            ? ['My league', 'Competitions']
+            : drawer === 'hub'
+              ? hubTabs.map((t) => t.title)
+              : undefined
+        "
         :tab="drawerTab"
         @update:model-value="(open) => !open && closeDrawer()"
         @update:tab="(i) => (drawerTab = i)"
@@ -170,13 +248,18 @@
             v-else
             :key="`hub-${hubTab.key}`"
             :club="club"
-            v-bind="{ ...(hubTab.readOnly ? { readOnly: !isMyClub } : {}), ...(hubTab.key === 'club' ? { inGame: true } : {}) }"
+            v-bind="{
+              ...(hubTab.readOnly ? { readOnly: !isMyClub } : {}),
+              ...(hubTab.key === 'club' ? { inGame: true } : {}),
+            }"
             @update-available="onZoneUpdate"
             @switch-tab="onZoneSwitchTab"
           />
         </template>
         <template v-else-if="drawer === 'prep' && prepFixtureId">
-          <button class="btn small backbtn" @click="openHub('matchday')">‹ Matchday</button>
+          <button class="btn small backbtn" @click="openHub('matchday')">
+            ‹ Matchday
+          </button>
           <cozy-match-prep
             :club-id="clubId"
             :fixture-id="prepFixtureId"
@@ -196,30 +279,72 @@
             :my-code="club.ClubCode"
             :elapsed="leagueElapsed"
             @visit="(id: string) => router.push(`/game/${id}`)"
-            @tactics="playState?.league?.next ? openPrep(playState.league.next.fixtureId) : openHub('team')"
+            @tactics="
+              playState?.league?.next
+                ? openPrep(playState.league.next.fixtureId)
+                : openHub('team')
+            "
             @competitions="drawerTab = 1"
           />
           <user-competitions v-else />
         </template>
         <cozy-news v-else-if="drawer === 'news'" :feed="worldFeed" />
-        <cozy-news v-else-if="drawer === 'billboard'" :feed="worldFeed" category="transfer">
-          <div v-if="transferWindow" class="warn" :class="{ good: transferWindow.open }">
-            {{ transferWindow.open ? `Transfer window open${transferWindow.daysLeft !== null ? ` · ${transferWindow.daysLeft} days left` : ''}` : 'Transfer window closed' }}
+        <cozy-news
+          v-else-if="drawer === 'billboard'"
+          :feed="worldFeed"
+          category="transfer"
+        >
+          <div
+            v-if="transferWindow"
+            class="warn"
+            :class="{ good: transferWindow.open }"
+          >
+            {{
+              transferWindow.open
+                ? `Transfer window open${transferWindow.daysLeft !== null ? ` · ${transferWindow.daysLeft} days left` : ''}`
+                : 'Transfer window closed'
+            }}
           </div>
-          <button v-if="isMyClub" class="btn primary" @click="openDoor('scouting')">Open my Transfers</button>
+          <button
+            v-if="isMyClub"
+            class="btn primary"
+            @click="openDoor('scouting')"
+          >
+            Open my Transfers
+          </button>
         </cozy-news>
       </cozy-drawer>
 
       <cozy-modal v-model="showAwaySummary" size="small">
-        <h2><span v-html="icon('mail')"></span> {{ awayTitle }}</h2>
+        <h2>
+          <span v-html="icon('mail')"></span>
+          {{ awayTitle }}
+        </h2>
         <ul class="away">
-          <li v-for="(e, i) in awayEvents" :key="i"><span>{{ e.icon }}</span><span><b>{{ e.title }}</b><br />{{ e.description }}</span></li>
+          <li v-for="(e, i) in awayEvents" :key="i">
+            <span>{{ e.icon }}</span>
+            <span>
+              <b>{{ e.title }}</b>
+              <br />
+              {{ e.description }}
+            </span>
+          </li>
         </ul>
-        <div class="row-btns"><button class="btn primary" @click="showAwaySummary = false">Let's go!</button></div>
+        <div class="row-btns">
+          <button class="btn primary" @click="showAwaySummary = false">
+            Let's go!
+          </button>
+        </div>
       </cozy-modal>
 
       <div class="toasts">
-        <div v-if="game.snackbar.value" class="toast" :class="game.snackbarColor.value === 'error' ? 'bad' : 'good'">{{ game.snackbarText.value }}</div>
+        <div
+          v-if="game.snackbar.value"
+          class="toast"
+          :class="game.snackbarColor.value === 'error' ? 'bad' : 'good'"
+        >
+          {{ game.snackbarText.value }}
+        </div>
       </div>
 
       <!-- Challenges keep their existing screens. -->
@@ -227,11 +352,22 @@
         <div class="d-flex align-center pa-3">
           <div class="text-subtitle-1 font-weight-bold">Challenges</div>
           <v-spacer />
-          <v-btn size="small" color="teal" variant="flat" prepend-icon="mdi-sword-cross" @click="showChallenge = true">Challenge</v-btn>
+          <v-btn
+            size="small"
+            color="teal"
+            variant="flat"
+            prepend-icon="mdi-sword-cross"
+            @click="showChallenge = true"
+          >
+            Challenge
+          </v-btn>
         </div>
         <div class="px-3"><challenge-inbox /></div>
       </side-sheet>
-      <challenge-dialog v-model="showChallenge" :preselect-club-id="isMyClub ? null : clubId" />
+      <challenge-dialog
+        v-model="showChallenge"
+        :preselect-club-id="isMyClub ? null : clubId"
+      />
       <facility-detail-sheet
         v-model="showTreatment"
         :club-id="clubId"
@@ -250,12 +386,28 @@
 
 <script setup lang="ts">
 import '@/components/cozy/cozy.scss';
-import { computed, onMounted, onUnmounted, ref, watch, type Component } from 'vue';
+import {
+  computed,
+  onMounted,
+  onUnmounted,
+  ref,
+  watch,
+  type Component,
+} from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@tanstack/vue-query';
 import {
-  CAMPUS_GRID, footprint, validatePlacement,
-  type CampusBuilding, type CampusPlacement, type Matchday, type MatchdayFixture, type Placed, type ProgramState, type TransferWindow, type WorldFeed,
+  CAMPUS_GRID,
+  footprint,
+  validatePlacement,
+  type CampusBuilding,
+  type CampusPlacement,
+  type Matchday,
+  type MatchdayFixture,
+  type Placed,
+  type ProgramState,
+  type TransferWindow,
+  type WorldFeed,
 } from '@repo/api-contract';
 import { client, apiUrl } from '@/services/api';
 import { sfx } from '@/services/sfx';
@@ -307,7 +459,11 @@ const directory = useClubDirectory();
 const showInbox = ref(false);
 const showChallenge = ref(false);
 // Another manager's club played ours while we're looking (async PvP).
-function onDefended(p: { attackerName: string; score: string; outcome: 'win' | 'draw' | 'loss' }) {
+function onDefended(p: {
+  attackerName: string;
+  score: string;
+  outcome: 'win' | 'draw' | 'loss';
+}) {
   const text =
     p.outcome === 'win'
       ? `Your team saw off ${p.attackerName} ${p.score}!`
@@ -361,7 +517,9 @@ const isMyClub = computed(() => {
   return owned.some((c: any) => (typeof c === 'string' ? c : c._id) === id);
 });
 
-const treasury = computed(() => playState.value?.club.budget ?? club.value?.Budget ?? 0);
+const treasury = computed(
+  () => playState.value?.club.budget ?? club.value?.Budget ?? 0
+);
 
 // --- The owner program (phase-2 OWNER-PROGRAM-SPEC, L8) ----------------------
 // The server owns the step, the stars and the XP; the campus only offers a way
@@ -377,13 +535,45 @@ const PROGRAM_STEP_HINT: Record<string, string> = {
 };
 /** The four server program steps, as the HUD checklist renders them. The
  * `p-` key prefix keeps them from colliding with the dock/hub actions. */
-const PROGRAM_HUD_STEPS: { key: string; label: string; hint: string; icon: string }[] = [
-  { key: 'manager', label: 'Sign a manager', hint: 'Interview, then hire', icon: 'people' },
-  { key: 'players', label: 'Build a squad', hint: 'Eleven and a keeper', icon: 'bag' },
-  { key: 'facilities', label: 'Build a facility', hint: 'Start with one Tier 1', icon: 'hammer' },
-  { key: 'level1', label: 'Reach Level 1', hint: 'Win qualifying friendlies', icon: 'trophy' },
+const PROGRAM_HUD_STEPS: {
+  key: string;
+  label: string;
+  hint: string;
+  icon: string;
+}[] = [
+  {
+    key: 'manager',
+    label: 'Sign a manager',
+    hint: 'Interview, then hire',
+    icon: 'people',
+  },
+  {
+    key: 'players',
+    label: 'Build a squad',
+    hint: 'Eleven and a keeper',
+    icon: 'bag',
+  },
+  {
+    key: 'facilities',
+    label: 'Build a facility',
+    hint: 'Start with one Tier 1',
+    icon: 'hammer',
+  },
+  {
+    key: 'level1',
+    label: 'Reach Level 1',
+    hint: 'Win qualifying friendlies',
+    icon: 'trophy',
+  },
 ];
-const PROGRAM_STEP_ORDER: Record<string, number> = { not_started: -1, manager: 0, players: 1, facilities: 2, level1: 3, done: 4 };
+const PROGRAM_STEP_ORDER: Record<string, number> = {
+  not_started: -1,
+  manager: 0,
+  players: 1,
+  facilities: 2,
+  level1: 3,
+  done: 4,
+};
 async function loadOwnerProgram() {
   if (!isMyClub.value || !clubId.value) {
     programState.value = null;
@@ -397,18 +587,28 @@ async function loadOwnerProgram() {
 }
 watch([isMyClub, clubId], loadOwnerProgram, { immediate: true });
 const programStep = computed(() => programState.value?.step ?? null);
-const programActive = computed(() => !!programStep.value && programStep.value !== 'done');
-const programChipHint = computed(() => PROGRAM_STEP_HINT[programStep.value ?? ''] ?? 'Your guided start');
+const programActive = computed(
+  () => !!programStep.value && programStep.value !== 'done'
+);
+const programChipHint = computed(
+  () => PROGRAM_STEP_HINT[programStep.value ?? ''] ?? 'Your guided start'
+);
 /** The HUD checklist is the server program, not a device-local flag (L8). */
 const firstSteps = computed(() => {
   if (!isMyClub.value || !programActive.value) return null;
   const step = programStep.value!;
   const stars = programState.value?.stepStars ?? {};
   const at = PROGRAM_STEP_ORDER[step] ?? 0;
-  return PROGRAM_HUD_STEPS.map((s, i) => ({ ...s, key: `p-${s.key}`, done: !!stars[s.key] || at > i }));
+  return PROGRAM_HUD_STEPS.map((s, i) => ({
+    ...s,
+    key: `p-${s.key}`,
+    done: !!stars[s.key] || at > i,
+  }));
 });
 /** Where the onboarding pointer sits: the current server program step. */
-const coach = computed(() => (programActive.value ? `p-${programStep.value}` : null));
+const coach = computed(() =>
+  programActive.value ? `p-${programStep.value}` : null
+);
 function openProgram() {
   router.push(`/game/${clubId.value}/program`);
 }
@@ -425,7 +625,9 @@ watch(
   { immediate: true }
 );
 
-const variant = computed(() => ((club.value as any)?.CampusLayout ?? 'city') as CityVariant);
+const variant = computed(
+  () => ((club.value as any)?.CampusLayout ?? 'city') as CityVariant
+);
 
 // Match day: an accepted challenge for today.
 const todaysMatch = computed(() => {
@@ -437,7 +639,12 @@ const todaysMatch = computed(() => {
 const view = computed(() => {
   const campus = game.campus.value;
   if (!campus) return null;
-  const tiers = Object.fromEntries(campus.assets.map((a) => [a.type, { tier: a.level, upgrading: !!a.upgrade }]));
+  const tiers = Object.fromEntries(
+    campus.assets.map((a) => [
+      a.type,
+      { tier: a.level, upgrading: !!a.upgrade },
+    ])
+  );
   const players = ((club.value as any)?.Players ?? []).map((p: any) => ({
     id: String(p._id),
     name: `${p.FirstName ?? ''} ${p.LastName ?? ''}`.trim(),
@@ -458,17 +665,32 @@ const timers = computed(() =>
   Object.fromEntries(
     (game.campus.value?.assets ?? [])
       .filter((a) => a.upgrade)
-      .map((a) => [a.type, { start: new Date(a.upgrade!.startAt).getTime(), end: new Date(a.upgrade!.completeAt).getTime() }])
+      .map((a) => [
+        a.type,
+        {
+          start: new Date(a.upgrade!.startAt).getTime(),
+          end: new Date(a.upgrade!.completeAt).getTime(),
+        },
+      ])
   )
 );
 
 const builders = computed(() => {
   const campus = game.campus.value;
-  const next = campus?.assets.filter((a) => a.upgrade).sort((a, b) => a.upgrade!.completeAt.localeCompare(b.upgrade!.completeAt))[0];
+  const next = campus?.assets
+    .filter((a) => a.upgrade)
+    .sort((a, b) =>
+      a.upgrade!.completeAt.localeCompare(b.upgrade!.completeAt)
+    )[0];
   if (!campus || !next) return null;
   return {
     name: next.name,
-    secondsLeft: Math.max(0, Math.ceil((new Date(next.upgrade!.completeAt).getTime() - game.now.value) / 1000)),
+    secondsLeft: Math.max(
+      0,
+      Math.ceil(
+        (new Date(next.upgrade!.completeAt).getTime() - game.now.value) / 1000
+      )
+    ),
     active: campus.activeUpgrades,
     max: campus.maxConcurrentUpgrades,
   };
@@ -478,31 +700,90 @@ const builders = computed(() => {
 const facts = computed(() => {
   const cal = store.calendar as any;
   const upcoming = isMyClub.value
-    ? [...openPlay.upcoming].sort((a, b) => (a.scheduledDay ?? 0) - (b.scheduledDay ?? 0))[0]
+    ? [...openPlay.upcoming].sort(
+        (a, b) => (a.scheduledDay ?? 0) - (b.scheduledDay ?? 0)
+      )[0]
     : undefined;
-  const opponentId = upcoming && (upcoming.homeClubId === openPlay.clubId ? upcoming.awayClubId : upcoming.homeClubId);
-  const today = !!upcoming && upcoming.scheduledDay === openPlay.settings?.currentDay;
+  const opponentId =
+    upcoming &&
+    (upcoming.homeClubId === openPlay.clubId
+      ? upcoming.awayClubId
+      : upcoming.homeClubId);
+  const today =
+    !!upcoming && upcoming.scheduledDay === openPlay.settings?.currentDay;
   const lg = playState.value?.league?.next;
   // A challenge due today beats a league match further out; otherwise the league leads.
-  let next: { opponent: string; home: boolean; day: number | null; inSeconds: number | null; soon: boolean; league: boolean; travel: boolean; planSet?: boolean | null } | null = null;
+  let next: {
+    opponent: string;
+    home: boolean;
+    day: number | null;
+    inSeconds: number | null;
+    soon: boolean;
+    league: boolean;
+    travel: boolean;
+    planSet?: boolean | null;
+  } | null = null;
   const up = nextUp.value;
   if (up && !(upcoming && today)) {
-    const inSeconds = up.startsInSeconds === null ? null : Math.max(0, up.startsInSeconds - matchdayElapsed.value);
-    next = { opponent: up.opponent.name, home: up.home, day: up.day, inSeconds, soon: inSeconds !== null && inSeconds < 3600, league: false, travel: false, planSet: up.planSet };
+    const inSeconds =
+      up.startsInSeconds === null
+        ? null
+        : Math.max(0, up.startsInSeconds - matchdayElapsed.value);
+    next = {
+      opponent: up.opponent.name,
+      home: up.home,
+      day: up.day,
+      inSeconds,
+      soon: inSeconds !== null && inSeconds < 3600,
+      league: false,
+      travel: false,
+      planSet: up.planSet,
+    };
   } else if (upcoming && (today || !lg)) {
     const home = upcoming.homeClubId === openPlay.clubId;
-    next = { opponent: directory.name(opponentId), home, day: upcoming.scheduledDay ?? null, inSeconds: null, soon: today, league: false, travel: today && !home };
+    next = {
+      opponent: directory.name(opponentId),
+      home,
+      day: upcoming.scheduledDay ?? null,
+      inSeconds: null,
+      soon: today,
+      league: false,
+      travel: today && !home,
+    };
   } else if (lg) {
-    const inSeconds = lg.startsInSeconds === null ? null : Math.max(0, lg.startsInSeconds - leagueElapsed.value);
-    next = { opponent: lg.opponentName, home: lg.home, day: lg.day, inSeconds, soon: inSeconds !== null && inSeconds < 3600, league: true, travel: false };
+    const inSeconds =
+      lg.startsInSeconds === null
+        ? null
+        : Math.max(0, lg.startsInSeconds - leagueElapsed.value);
+    next = {
+      opponent: lg.opponentName,
+      home: lg.home,
+      day: lg.day,
+      inSeconds,
+      soon: inSeconds !== null && inSeconds < 3600,
+      league: true,
+      travel: false,
+    };
   }
   return {
-    day: cal ? `Day ${cal.CurrentDay}${cal.CurrentDate ? ` · ${new Date(cal.CurrentDate).toDateString()}` : ''}` : '…',
+    day: cal
+      ? `Day ${cal.CurrentDay}${cal.CurrentDate ? ` · ${new Date(cal.CurrentDate).toDateString()}` : ''}`
+      : '…',
     year: openPlay.settings
-      ? { currentYear: openPlay.settings.currentYear, dayOfYear: openPlay.settings.dayOfYear, yearLengthDays: openPlay.settings.yearLengthDays }
+      ? {
+          currentYear: openPlay.settings.currentYear,
+          dayOfYear: openPlay.settings.dayOfYear,
+          yearLengthDays: openPlay.settings.yearLengthDays,
+        }
       : null,
     next,
-    performance: isMyClub.value && openPlay.performance ? { score: openPlay.performance.score, expected: openPlay.performance.expected } : null,
+    performance:
+      isMyClub.value && openPlay.performance
+        ? {
+            score: openPlay.performance.score,
+            expected: openPlay.performance.expected,
+          }
+        : null,
     form: playState.value?.standing.form ?? [],
   };
 });
@@ -510,12 +791,19 @@ const facts = computed(() => {
 // --- The league badge and drawer ---------------------------------------------------------
 const leagueLoadedAt = ref(Date.now());
 watch(playState, () => (leagueLoadedAt.value = Date.now()));
-const leagueElapsed = computed(() => Math.max(0, Math.floor((game.now.value - leagueLoadedAt.value) / 1000)));
+const leagueElapsed = computed(() =>
+  Math.max(0, Math.floor((game.now.value - leagueLoadedAt.value) / 1000))
+);
 const leagueBadge = computed(() => {
   const l = playState.value?.league;
   if (!l) return null;
   const i = l.table.findIndex((r) => r.clubId === clubId.value);
-  return { division: l.division, position: i >= 0 ? i + 1 : null, total: l.clubsInPool, poolName: l.poolName };
+  return {
+    division: l.division,
+    position: i >= 0 ? i + 1 : null,
+    total: l.clubsInPool,
+    poolName: l.poolName,
+  };
 });
 function openLeague(tab = 0) {
   selectedKey.value = null;
@@ -526,8 +814,15 @@ function openLeague(tab = 0) {
 // --- The club shop: the campus's gold mine (docs/CORE-LOOP.md) ----------------------------
 const collector = computed(() =>
   // Shown once there's something worth a tap (a tenth of the till), like CoC's collectors.
-  isMyClub.value && playState.value?.shop && game.shopPending.value >= playState.value.shop.cap * 0.1
-    ? { key: 'stands', amount: game.shopPending.value, full: game.shopFull.value, coach: coach.value === 'collect' }
+  isMyClub.value &&
+  playState.value?.shop &&
+  game.shopPending.value >= playState.value.shop.cap * 0.1
+    ? {
+        key: 'stands',
+        amount: game.shopPending.value,
+        full: game.shopFull.value,
+        coach: coach.value === 'collect',
+      }
     : null
 );
 
@@ -541,9 +836,14 @@ async function collect() {
 }
 
 /** Coins arc from the Stands into the treasury chip, with a floating "+amount". */
-function flyCoins(from: { x: number; y: number } | null | undefined, amount: number) {
+function flyCoins(
+  from: { x: number; y: number } | null | undefined,
+  amount: number
+) {
   const root = rootEl.value;
-  const target = root?.querySelector('[data-res="cash"]')?.getBoundingClientRect();
+  const target = root
+    ?.querySelector('[data-res="cash"]')
+    ?.getBoundingClientRect();
   if (!root || !target) return;
   const sx = from?.x ?? window.innerWidth / 2;
   const sy = (from?.y ?? window.innerHeight / 2) - 30;
@@ -562,10 +862,22 @@ function flyCoins(from: { x: number; y: number } | null | undefined, amount: num
     const anim = el.animate(
       [
         { transform: 'translate(0, 0) scale(.5)', opacity: 0 },
-        { transform: `translate(${dx}px, ${dy}px) scale(1.1)`, opacity: 1, offset: 0.3 },
-        { transform: `translate(${tx - sx}px, ${ty - sy}px) scale(.6)`, opacity: 0.9 },
+        {
+          transform: `translate(${dx}px, ${dy}px) scale(1.1)`,
+          opacity: 1,
+          offset: 0.3,
+        },
+        {
+          transform: `translate(${tx - sx}px, ${ty - sy}px) scale(.6)`,
+          opacity: 0.9,
+        },
       ],
-      { duration: 850 + i * 35, delay: i * 45, easing: 'cubic-bezier(.5, 0, .6, 1)', fill: 'forwards' }
+      {
+        duration: 850 + i * 35,
+        delay: i * 45,
+        easing: 'cubic-bezier(.5, 0, .6, 1)',
+        fill: 'forwards',
+      }
     );
     anim.onfinish = () => {
       el.remove();
@@ -597,7 +909,12 @@ watch(game.justBuilt, (keys) => {
 const rewardLevel = ref<number | null>(null);
 watch(game.levelReached, (lv) => {
   if (lv === null) return;
-  if (game.playing.value || game.showBattleArena.value || game.showRewards.value) rewardLevel.value = lv;
+  if (
+    game.playing.value ||
+    game.showBattleArena.value ||
+    game.showRewards.value
+  )
+    rewardLevel.value = lv;
   else {
     sfx.play('levelup');
     campusRef.value?.burst('office', 'confetti');
@@ -609,9 +926,16 @@ watch(game.showRewards, (open) => !open && (rewardLevel.value = null));
 
 // --- Selection and panels ----------------------------------------------------------------
 const selectedKey = ref<CampusBuilding | null>(null);
-const tierOf = (type: string) => game.campus.value?.assets.find((a) => a.type === type)?.level ?? 0;
-const selectedAsset = computed(() => game.campus.value?.assets.find((a) => a.type === selectedKey.value) ?? null);
-const medicalAsset = computed(() => game.campus.value?.assets.find((a) => a.type === 'medical_centre') ?? null);
+const tierOf = (type: string) =>
+  game.campus.value?.assets.find((a) => a.type === type)?.level ?? 0;
+const selectedAsset = computed(
+  () =>
+    game.campus.value?.assets.find((a) => a.type === selectedKey.value) ?? null
+);
+const medicalAsset = computed(
+  () =>
+    game.campus.value?.assets.find((a) => a.type === 'medical_centre') ?? null
+);
 const showBuild = ref(false);
 const showTreatment = ref(false);
 const showSettings = ref(false);
@@ -621,18 +945,21 @@ watch([showBuild, showSettings, game.showMatchmaking], (now, before) => {
 
 function onTap(pick: Pick, ground: { x: number; z: number } | null) {
   if (moving.value) {
-    if (pick?.kind === 'building' && pick.id !== moving.value.key) return startMove(pick.id as CampusBuilding);
+    if (pick?.kind === 'building' && pick.id !== moving.value.key)
+      return startMove(pick.id as CampusBuilding);
     if (ground) placeGhost(ground);
     return;
   }
   if (pick?.kind === 'building') {
     selectedKey.value = pick.id as CampusBuilding;
     sfx.play('tap');
-  }
-  else if (pick?.kind === 'place') openPlace(pick.id);
+  } else if (pick?.kind === 'place') openPlace(pick.id);
   else if (pick?.kind === 'player') {
-    const p = ((club.value as any)?.Players ?? []).find((x: any) => String(x._id) === pick.id);
-    if (p) game.snackbarText.value = `${p.FirstName} ${p.LastName} · ${p.Position ?? ''} · ★${Math.round(p.Rating ?? 0)}`;
+    const p = ((club.value as any)?.Players ?? []).find(
+      (x: any) => String(x._id) === pick.id
+    );
+    if (p)
+      game.snackbarText.value = `${p.FirstName} ${p.LastName} · ${p.Position ?? ''} · ★${Math.round(p.Rating ?? 0)}`;
     game.snackbarColor.value = 'success';
     game.snackbar.value = true;
   } else selectedKey.value = null;
@@ -654,7 +981,12 @@ function onOpen(what: string) {
 // --- The Manager hub: every management screen in one drawer over the campus ------------------
 // Buildings are shortcuts into it (docs/CORE-LOOP.md, "One shell").
 type HubKey = 'matchday' | 'team' | 'squad' | 'transfers' | 'club' | 'analysis';
-interface HubTab { key: HubKey; title: string; component?: Component; readOnly?: boolean }
+interface HubTab {
+  key: HubKey;
+  title: string;
+  component?: Component;
+  readOnly?: boolean;
+}
 const HUB_TABS: HubTab[] = [
   { key: 'matchday', title: 'Matchday' },
   { key: 'team', title: 'The brief', component: TeamSheetZone, readOnly: true },
@@ -670,7 +1002,9 @@ const BUILDING_TAB: Partial<Record<CampusBuilding, HubKey>> = {
   office: 'club',
 };
 /** Visitors only see the screens that have a read-only mode. */
-const hubTabs = computed(() => (isMyClub.value ? HUB_TABS : HUB_TABS.filter((t) => t.readOnly)));
+const hubTabs = computed(() =>
+  isMyClub.value ? HUB_TABS : HUB_TABS.filter((t) => t.readOnly)
+);
 const tabFor = (key: CampusBuilding | null): HubKey | null => {
   const tab = key ? BUILDING_TAB[key] : undefined;
   if (!tab) return null;
@@ -682,12 +1016,21 @@ const tabFor = (key: CampusBuilding | null): HubKey | null => {
 function doorFor(key: CampusBuilding | null): { label: string } | null {
   const tab = tabFor(key);
   if (!tab) return null;
-  return { label: tab === 'matchday' ? 'Match day' : (HUB_TABS.find((t) => t.key === tab)?.title ?? '') };
+  return {
+    label:
+      tab === 'matchday'
+        ? 'Match day'
+        : (HUB_TABS.find((t) => t.key === tab)?.title ?? ''),
+  };
 }
 
-const drawer = ref<'hub' | 'prep' | 'news' | 'billboard' | 'league' | null>(null);
+const drawer = ref<'hub' | 'prep' | 'news' | 'billboard' | 'league' | null>(
+  null
+);
 const drawerTab = ref(0);
-const hubTab = computed(() => (drawer.value === 'hub' ? (hubTabs.value[drawerTab.value] ?? null) : null));
+const hubTab = computed(() =>
+  drawer.value === 'hub' ? (hubTabs.value[drawerTab.value] ?? null) : null
+);
 const drawerTitle = computed(() =>
   drawer.value === 'news'
     ? 'Around the world'
@@ -702,7 +1045,13 @@ const drawerTitle = computed(() =>
             : (club.value?.Name ?? '')
 );
 // Sounds for panels opening and closing.
-watch(drawer, (now, before) => (now && !before ? sfx.play('open') : !now && before ? sfx.play('close') : undefined));
+watch(drawer, (now, before) =>
+  now && !before
+    ? sfx.play('open')
+    : !now && before
+      ? sfx.play('close')
+      : undefined
+);
 
 function openHub(key: HubKey) {
   const i = hubTabs.value.findIndex((t) => t.key === key);
@@ -726,23 +1075,34 @@ function closeDrawer() {
 const matchday = ref<Matchday | null>(null);
 const matchdayLoadedAt = ref(Date.now());
 const matchdayKey = ref(0);
-const matchdayElapsed = computed(() => Math.max(0, Math.floor((game.now.value - matchdayLoadedAt.value) / 1000)));
+const matchdayElapsed = computed(() =>
+  Math.max(0, Math.floor((game.now.value - matchdayLoadedAt.value) / 1000))
+);
 async function loadMatchday() {
   if (!isMyClub.value || !clubId.value) return;
-  const res = await client.play.getMatchday.query({ params: { clubId: clubId.value } });
+  const res = await client.play.getMatchday.query({
+    params: { clubId: clubId.value },
+  });
   if (res.status === 200) {
     matchday.value = res.body.payload;
     matchdayLoadedAt.value = Date.now();
   }
 }
 watch([isMyClub, matchdayKey], () => loadMatchday(), { immediate: true });
-const nextUp = computed<MatchdayFixture | null>(() => matchday.value?.upcoming[0] ?? null);
+const nextUp = computed<MatchdayFixture | null>(
+  () => matchday.value?.upcoming[0] ?? null
+);
 
 /** A scheduled match counts as live while its broadcast would still be running at 1x. */
 const LIVE_WINDOW_MS = 5 * 60_000;
 const liveMatch = computed(
   () =>
-    matchday.value?.recent.find((f) => f.hasReplay && f.playedAt && game.now.value - Date.parse(f.playedAt) < LIVE_WINDOW_MS) ?? null
+    matchday.value?.recent.find(
+      (f) =>
+        f.hasReplay &&
+        f.playedAt &&
+        game.now.value - Date.parse(f.playedAt) < LIVE_WINDOW_MS
+    ) ?? null
 );
 // Kick-off on campus: the visitors' bus pulls in, the whistle goes.
 const announcedLive = new Set<string>();
@@ -750,8 +1110,11 @@ watch(liveMatch, async (m) => {
   if (!m || announcedLive.has(m.fixtureId)) return;
   announcedLive.add(m.fixtureId);
   sfx.play('whistle');
-  toast(`Kick-off! ${m.home ? `${m.opponent.name} are at your ground` : `You're at ${m.opponent.name}`}. Watch it live.`);
-  if (m.home && !watching.value && !matchOpen.value) await campusRef.value?.playArrival(await clubColors(m.opponent.code));
+  toast(
+    `Kick-off! ${m.home ? `${m.opponent.name} are at your ground` : `You're at ${m.opponent.name}`}. Watch it live.`
+  );
+  if (m.home && !watching.value && !matchOpen.value)
+    await campusRef.value?.playArrival(await clubColors(m.opponent.code));
 });
 
 const prepFixtureId = ref<string | null>(null);
@@ -775,11 +1138,16 @@ async function onBook(o: { id: string }) {
   openPrep(f.fixtureId);
 }
 
-const watching = ref<{ fixtureId: string; liveFromMs: number | null } | null>(null);
+const watching = ref<{ fixtureId: string; liveFromMs: number | null } | null>(
+  null
+);
 function watchFixture(fixtureId: string, playedAt: string | null) {
   const since = playedAt ? Date.now() - Date.parse(playedAt) : Infinity;
   drawer.value = null;
-  watching.value = { fixtureId, liveFromMs: since < LIVE_WINDOW_MS ? since : null };
+  watching.value = {
+    fixtureId,
+    liveFromMs: since < LIVE_WINDOW_MS ? since : null,
+  };
 }
 function closeWatching() {
   watching.value = null;
@@ -795,7 +1163,12 @@ async function onZoneUpdate() {
 
 /** The Analysis screen links to the old dashboard's tabs by index (dashboard.vue). */
 function onZoneSwitchTab(tab: number) {
-  const byTab: Record<number, HubKey> = { 1: 'team', 2: 'squad', 4: 'club', 5: 'transfers' };
+  const byTab: Record<number, HubKey> = {
+    1: 'team',
+    2: 'squad',
+    4: 'club',
+    5: 'transfers',
+  };
   if (byTab[tab]) openHub(byTab[tab]);
 }
 
@@ -803,22 +1176,43 @@ function onZoneSwitchTab(tab: number) {
 const offersAwaiting = ref(0);
 async function loadOffers() {
   if (!isMyClub.value || !clubId.value) return;
-  const res = await client.transfers.getOffers.query({ query: { clubId: clubId.value } });
+  const res = await client.transfers.getOffers.query({
+    query: { clubId: clubId.value },
+  });
   if (res.status === 200) {
-    offersAwaiting.value = res.body.payload.filter((o) => o.awaiting === 'me' && ['pending', 'countered'].includes(o.status)).length;
+    offersAwaiting.value = res.body.payload.filter(
+      (o) => o.awaiting === 'me' && ['pending', 'countered'].includes(o.status)
+    ).length;
   }
 }
 
 const alerts = computed(() => {
-  const out: Record<string, { icon: string; label: string; count?: number }> = {};
-  if (newsUnseen.value) out.newsstand = { icon: 'news', label: 'New headlines' };
+  const out: Record<string, { icon: string; label: string; count?: number }> =
+    {};
+  if (newsUnseen.value)
+    out.newsstand = { icon: 'news', label: 'New headlines' };
   if (!isMyClub.value) return out;
-  if (tacticsSummary.value?.issues.length) out.dugout = { icon: 'alert', label: tacticsSummary.value.issues.join(' · ') };
-  const injured = view.value?.players.filter((p: { injured: boolean }) => p.injured).length ?? 0;
-  if (injured) out.medical_centre = { icon: 'cross', count: injured, label: `${injured} player${injured > 1 ? 's' : ''} injured` };
+  if (tacticsSummary.value?.issues.length)
+    out.dugout = {
+      icon: 'alert',
+      label: tacticsSummary.value.issues.join(' · '),
+    };
+  const injured =
+    view.value?.players.filter((p: { injured: boolean }) => p.injured).length ??
+    0;
+  if (injured)
+    out.medical_centre = {
+      icon: 'cross',
+      count: injured,
+      label: `${injured} player${injured > 1 ? 's' : ''} injured`,
+    };
   if (offersAwaiting.value) {
     const n = offersAwaiting.value;
-    out.scouting = { icon: 'mail', count: n, label: `${n} transfer offer${n > 1 ? 's' : ''} waiting for your answer` };
+    out.scouting = {
+      icon: 'mail',
+      count: n,
+      label: `${n} transfer offer${n > 1 ? 's' : ''} waiting for your answer`,
+    };
   }
   return out;
 });
@@ -835,7 +1229,11 @@ const worldFeed = ref<WorldFeed | null>(null);
 const transferWindow = ref<TransferWindow | null>(null);
 const NEWS_SEEN_KEY = 'fspro_news_seen';
 const newsSeen = ref(localStorage.getItem(NEWS_SEEN_KEY));
-const newsUnseen = computed(() => !!worldFeed.value?.headlines[0] && worldFeed.value.headlines[0].id !== newsSeen.value);
+const newsUnseen = computed(
+  () =>
+    !!worldFeed.value?.headlines[0] &&
+    worldFeed.value.headlines[0].id !== newsSeen.value
+);
 const tickerIndex = ref(0);
 const tickerHeadline = computed(() => {
   const h = worldFeed.value?.headlines ?? [];
@@ -843,7 +1241,9 @@ const tickerHeadline = computed(() => {
 });
 
 async function loadWorldFeed() {
-  const res = await client.calendar.getWorldFeed.query({ query: { clubId: clubId.value } });
+  const res = await client.calendar.getWorldFeed.query({
+    query: { clubId: clubId.value },
+  });
   if (res.status === 200) {
     worldFeed.value = res.body.payload;
     followPlaces(res.body.payload.local);
@@ -856,20 +1256,38 @@ async function loadWorldFeed() {
 let placeTopics: string[] = [];
 function followPlaces(local: WorldFeed['local'] | null | undefined) {
   const next = local
-    ? [local.townId && `town:${local.townId}`, local.regionId && `region:${local.regionId}`, local.countryId && `country:${local.countryId}`].filter(
-        (t): t is string => !!t
-      )
+    ? [
+        local.townId && `town:${local.townId}`,
+        local.regionId && `region:${local.regionId}`,
+        local.countryId && `country:${local.countryId}`,
+      ].filter((t): t is string => !!t)
     : [];
   for (const t of placeTopics) if (!next.includes(t)) realtime.leave(t);
   for (const t of next) if (!placeTopics.includes(t)) realtime.join(t);
   placeTopics = next;
 }
-function onNewsItem(item: { storyId: string; scope: string; kind: string; title: string; body: string; day: number; fixtureId: string | null }) {
+function onNewsItem(item: {
+  storyId: string;
+  scope: string;
+  kind: string;
+  title: string;
+  body: string;
+  day: number;
+  fixtureId: string | null;
+}) {
   const feed = worldFeed.value;
-  if (!feed || feed.headlines.some((h) => h.id === `news-${item.storyId}`)) return;
-  const tag = { town: 'TOWN', region: 'REGION', country: 'NATIONAL', world: 'WORLD' }[item.scope] ?? 'NEWS';
+  if (!feed || feed.headlines.some((h) => h.id === `news-${item.storyId}`))
+    return;
+  const tag =
+    { town: 'TOWN', region: 'REGION', country: 'NATIONAL', world: 'WORLD' }[
+      item.scope
+    ] ?? 'NEWS';
   const category: WorldFeed['headlines'][number]['category'] =
-    item.kind === 'transfer' ? 'transfer' : ['founded', 'title', 'promotion', 'relegation'].includes(item.kind) ? 'milestone' : 'result';
+    item.kind === 'transfer'
+      ? 'transfer'
+      : ['founded', 'title', 'promotion', 'relegation'].includes(item.kind)
+        ? 'milestone'
+        : 'result';
   feed.headlines = [
     {
       id: `news-${item.storyId}`,
@@ -885,7 +1303,11 @@ function onNewsItem(item: { storyId: string; scope: string; kind: string; title:
 }
 
 watch([() => worldFeed.value?.headlines, campusRef], ([headlines]) =>
-  campusRef.value?.setBillboard((headlines ?? []).filter((h) => h.category === 'transfer').map((h) => h.title))
+  campusRef.value?.setBillboard(
+    (headlines ?? [])
+      .filter((h) => h.category === 'transfer')
+      .map((h) => h.title)
+  )
 );
 
 async function openPlace(id: string) {
@@ -925,7 +1347,10 @@ const ghost = computed(() => {
 });
 
 function startMove(key?: CampusBuilding) {
-  if (!draft.value) draft.value = JSON.parse(JSON.stringify(game.campus.value!.placement)) as CampusPlacement;
+  if (!draft.value)
+    draft.value = JSON.parse(
+      JSON.stringify(game.campus.value!.placement)
+    ) as CampusPlacement;
   moving.value = { key: key ?? selectedKey.value };
   selectedKey.value = null;
 }
@@ -937,7 +1362,13 @@ function placeGhost(ground: { x: number; z: number }) {
   const [w, d] = footprint(key, p.rot);
   const x = Math.round(ground.x / CELL - w / 2);
   const z = Math.round(ground.z / CELL - d / 2);
-  if (x < CAMPUS_GRID.minX || z < CAMPUS_GRID.minZ || x + w - 1 > CAMPUS_GRID.maxX || z + d - 1 > CAMPUS_GRID.maxZ) return;
+  if (
+    x < CAMPUS_GRID.minX ||
+    z < CAMPUS_GRID.minZ ||
+    x + w - 1 > CAMPUS_GRID.maxX ||
+    z + d - 1 > CAMPUS_GRID.maxZ
+  )
+    return;
   draft.value = { ...draft.value, [key]: { ...p, x, z } satisfies Placed };
 }
 
@@ -955,7 +1386,14 @@ async function onMoveAct(action: string) {
     draft.value = null;
   } else if (action === 'move-save' && draft.value) {
     const problem = validatePlacement(draft.value);
-    if (problem) return toast(problem.replace(/^\w+/, (k) => game.campus.value?.assets.find((a) => a.type === k)?.name ?? k), 'error');
+    if (problem)
+      return toast(
+        problem.replace(
+          /^\w+/,
+          (k) => game.campus.value?.assets.find((a) => a.type === k)?.name ?? k
+        ),
+        'error'
+      );
     if (await game.savePlacement(draft.value)) {
       moving.value = null;
       draft.value = null;
@@ -968,11 +1406,16 @@ function toast(text: string, color = 'success') {
   game.snackbarColor.value = color;
   game.snackbar.value = true;
 }
-watch(game.snackbar, (on) => on && setTimeout(() => (game.snackbar.value = false), 3000));
+watch(
+  game.snackbar,
+  (on) => on && setTimeout(() => (game.snackbar.value = false), 3000)
+);
 
 // --- Matches and travel --------------------------------------------------------------------
 const quickSim = ref(localStorage.getItem('fspro_play_mode') === 'quick_sim');
-watch(quickSim, (q) => localStorage.setItem('fspro_play_mode', q ? 'quick_sim' : 'battle'));
+watch(quickSim, (q) =>
+  localStorage.setItem('fspro_play_mode', q ? 'quick_sim' : 'battle')
+);
 const busArriving = ref(false);
 
 /** Home match: the visitors' bus pulls up, then the match is played. */
@@ -989,7 +1432,9 @@ async function kickOff() {
 }
 
 /** The match just played, watched in the Matchzone over the campus. */
-const matchOpen = computed(() => game.showBattleArena.value && !!game.matchResult.value?.fixtureId);
+const matchOpen = computed(
+  () => game.showBattleArena.value && !!game.matchResult.value?.fixtureId
+);
 watch(game.showBattleArena, (open) => {
   // No replay to show (shouldn't happen when watching): straight to the spoils.
   if (open && !game.matchResult.value?.fixtureId) game.finishBattle();
@@ -1008,7 +1453,9 @@ watch(
   async (ready) => {
     if (!ready || !openPlay.clubId) return;
     await new Promise((r) => setTimeout(r, 300));
-    await campusRef.value?.playArrival(await clubColors(directory.code(openPlay.clubId)));
+    await campusRef.value?.playArrival(
+      await clubColors(directory.code(openPlay.clubId))
+    );
     router.replace({ query: {} });
   },
   { immediate: true }
@@ -1019,35 +1466,63 @@ function onAct(action: string) {
   // The owner-program checklist (server-backed, L8) opens the program screens.
   if (action.startsWith('p-')) return openProgram();
   switch (action) {
-    case 'build': return (showBuild.value = true);
-    case 'move': return startMove();
-    case 'program': return openProgram();
-    case 'play': return game.findMatch(quickSim.value);
+    case 'build':
+      return (showBuild.value = true);
+    case 'move':
+      return startMove();
+    case 'program':
+      return openProgram();
+    case 'play':
+      return game.findMatch(quickSim.value);
     case 'collect':
       if (game.shopPending.value >= 1) return collect();
       return focusOn('stands');
-    case 'inbox': return (showInbox.value = true);
-    case 'challenge': return (showChallenge.value = true);
-    case 'league': return openLeague(0);
-    case 'competitions': return openLeague(1);
-    case 'world': return router.push('/world');
-    case 'home': return router.push(openPlay.clubId ? `/game/${openPlay.clubId}` : '/u');
-    case 'travel': return travel();
-    case 'squad': return openHub('squad');
-    case 'tactics': return openHub('team');
-    case 'transfers': return openHub('transfers');
-    case 'analysis': return openHub('analysis');
+    case 'inbox':
+      return (showInbox.value = true);
+    case 'challenge':
+      return (showChallenge.value = true);
+    case 'league':
+      return openLeague(0);
+    case 'competitions':
+      return openLeague(1);
+    case 'world':
+      return router.push('/world');
+    case 'home':
+      return router.push(openPlay.clubId ? `/game/${openPlay.clubId}` : '/u');
+    case 'travel':
+      return travel();
+    case 'squad':
+      return openHub('squad');
+    case 'tactics':
+      return openHub('team');
+    case 'transfers':
+      return openHub('transfers');
+    case 'analysis':
+      return openHub('analysis');
     case 'manager':
-    case 'matchday': return openHub('matchday');
+    case 'matchday':
+      return openHub('matchday');
     case 'office':
-    case 'club': return openHub('club');
+    case 'club':
+      return openHub('club');
     case 'prep':
-    case 'next': return nextUp.value ? openPrep(nextUp.value.fixtureId) : openHub('matchday');
-    case 'watch-live': return liveMatch.value && watchFixture(liveMatch.value.fixtureId, liveMatch.value.playedAt);
-    case 'book': return startBooking();
-    case 'news': return openPlace('newsstand');
-    case 'settings': return (showSettings.value = true);
-    default: return goManager(action);
+    case 'next':
+      return nextUp.value
+        ? openPrep(nextUp.value.fixtureId)
+        : openHub('matchday');
+    case 'watch-live':
+      return (
+        liveMatch.value &&
+        watchFixture(liveMatch.value.fixtureId, liveMatch.value.playedAt)
+      );
+    case 'book':
+      return startBooking();
+    case 'news':
+      return openPlace('newsstand');
+    case 'settings':
+      return (showSettings.value = true);
+    default:
+      return goManager(action);
   }
 }
 
@@ -1068,7 +1543,10 @@ function onSettingsAct(action: string) {
 
 async function logout() {
   try {
-    await client.users.logoutUser.mutation({ params: { id: (store.user as { userID?: string })?.userID ?? '' }, body: {} });
+    await client.users.logoutUser.mutation({
+      params: { id: (store.user as { userID?: string })?.userID ?? '' },
+      body: {},
+    });
   } catch (err) {
     console.warn('Logout request failed', err);
   }
@@ -1098,20 +1576,39 @@ watch(
 // from `fetchProgramState`.
 
 // --- Kept from the previous campus screen ---------------------------------------------------
-const FORMATION_LABELS: Record<string, string> = { '433': '4-3-3', '442': '4-4-2', '4231': '4-2-3-1', '352': '3-5-2' };
+const FORMATION_LABELS: Record<string, string> = {
+  '433': '4-3-3',
+  '442': '4-4-2',
+  '4231': '4-2-3-1',
+  '352': '3-5-2',
+};
 const tacticsSummary = computed(() => {
   const c = club.value as any;
   if (!c) return null;
   const formationRaw = c.Tactic?.formationName as string | undefined;
-  const formationLabel = formationRaw ? FORMATION_LABELS[formationRaw] ?? formationRaw : 'Not set';
-  const startingIds: string[] = Array.isArray(c.Lineup?.startingXI) ? c.Lineup.startingXI : [];
+  const formationLabel = formationRaw
+    ? (FORMATION_LABELS[formationRaw] ?? formationRaw)
+    : 'Not set';
+  const startingIds: string[] = Array.isArray(c.Lineup?.startingXI)
+    ? c.Lineup.startingXI
+    : [];
   const players: any[] = Array.isArray(c.Players) ? c.Players : [];
-  const starters = startingIds.map((id) => players.find((p) => String(p._id) === id)).filter(Boolean);
-  const injuredCount = starters.filter((p) => p.Injury && Number(p.Injury.daysRemaining) > 0).length;
+  const starters = startingIds
+    .map((id) => players.find((p) => String(p._id) === id))
+    .filter(Boolean);
+  const injuredCount = starters.filter(
+    (p) => p.Injury && Number(p.Injury.daysRemaining) > 0
+  ).length;
   const issues: string[] = [];
-  if (starters.length < 11) issues.push(`${11 - starters.length} lineup slot(s) empty`);
+  if (starters.length < 11)
+    issues.push(`${11 - starters.length} lineup slot(s) empty`);
   if (injuredCount > 0) issues.push(`${injuredCount} starter(s) injured`);
-  return { formationLabel, filledCount: starters.length, issues, ready: issues.length === 0 };
+  return {
+    formationLabel,
+    filledCount: starters.length,
+    issues,
+    ready: issues.length === 0,
+  };
 });
 
 function onChangeTactics() {
@@ -1140,16 +1637,25 @@ const managerBriefingMessage = computed(() => {
   if (streak && streak.length >= 3 && streak.type === 'W') {
     return `Your manager reports ${streak.length} wins on the bounce. The squad is flying and the supporters are pouring in.`;
   }
-  if (game.cooldownLeft.value > 0) return 'Your manager is managing the squad’s recovery between matches.';
-  if (!standing?.form.length) return 'Your journey starts here. Hire a manager, build a squad and take on your first opponents.';
+  if (game.cooldownLeft.value > 0)
+    return 'Your manager is managing the squad’s recovery between matches.';
+  if (!standing?.form.length)
+    return 'Your journey starts here. Hire a manager, build a squad and take on your first opponents.';
   return 'Your manager reports: every result counts - wins bring fans through the gates, defeats send them home.';
 });
 
 // While you were away
 const showAwaySummary = ref(false);
 const awayTitle = ref('While you were away');
-const awayEvents = ref<{ icon: string; title: string; description: string }[]>([]);
-const INBOX_ICONS: Record<string, string> = { fans: '📣', board: '🏛️', squad: '👥', press: '📰' };
+const awayEvents = ref<{ icon: string; title: string; description: string }[]>(
+  []
+);
+const INBOX_ICONS: Record<string, string> = {
+  fans: '📣',
+  board: '🏛️',
+  squad: '👥',
+  press: '📰',
+};
 
 function checkOfflineProgress() {
   if (!clubId.value) return;
@@ -1161,12 +1667,21 @@ function checkOfflineProgress() {
   const events = (game.inbox.value?.messages ?? [])
     .filter((m) => !m.read)
     .slice(0, 5)
-    .map((m) => ({ icon: INBOX_ICONS[m.kind] ?? '📰', title: m.title, description: m.body }));
+    .map((m) => ({
+      icon: INBOX_ICONS[m.kind] ?? '📰',
+      title: m.title,
+      description: m.body,
+    }));
   // Scheduled matches that played while we were gone, with their scores.
   const since = rawLastSeen ? Number(rawLastSeen) : nowTime;
   for (const f of matchday.value?.recent ?? []) {
     if (!f.playedAt || Date.parse(f.playedAt) <= since || !f.score) continue;
-    const res = f.score.you > f.score.them ? 'Won' : f.score.you < f.score.them ? 'Lost' : 'Drew';
+    const res =
+      f.score.you > f.score.them
+        ? 'Won'
+        : f.score.you < f.score.them
+          ? 'Lost'
+          : 'Drew';
     events.unshift({
       icon: f.score.you > f.score.them ? '🏆' : '🏟️',
       title: `${res} ${f.score.you}-${f.score.them} ${f.home ? 'vs' : 'at'} ${f.opponent.name}`,
@@ -1176,7 +1691,9 @@ function checkOfflineProgress() {
   const away = rawLastSeen ? (nowTime - Number(rawLastSeen)) / 1000 : 0;
   // A club's very first visit (just founded, or a new device) is a welcome.
   const firstVisit = !rawLastSeen;
-  awayTitle.value = firstVisit ? `Welcome to ${club.value?.Name ?? 'your club'}` : 'While you were away';
+  awayTitle.value = firstVisit
+    ? `Welcome to ${club.value?.Name ?? 'your club'}`
+    : 'While you were away';
   // Inbox news always shows; otherwise only after more than 2 minutes away.
   if (!events.length && away < 120) return;
 
@@ -1186,7 +1703,9 @@ function checkOfflineProgress() {
     events.push({
       icon: done ? '🏗️' : '🔨',
       title: done ? `${a.name} upgrade ready` : `Work continues: ${a.name}`,
-      description: done ? 'Construction finished while you were away.' : `Building towards Tier ${a.upgrade.toLevel}.`,
+      description: done
+        ? 'Construction finished while you were away.'
+        : `Building towards Tier ${a.upgrade.toLevel}.`,
     });
   }
   // No filler events: the away summary should only appear when something
@@ -1221,7 +1740,12 @@ function goManager(key?: string) {
   if (!c) return;
   // Indices into the manager dashboard's v-tabs (dashboard.vue): Home, Team
   // Sheet, Squad Zone, Club Zone, Director's Box, Transfer Zone, Analysis.
-  const tabs: Record<string, number> = { tactics: 1, squad: 2, club: 3, transfers: 5 };
+  const tabs: Record<string, number> = {
+    tactics: 1,
+    squad: 2,
+    club: 3,
+    transfers: 5,
+  };
   router.push({
     path: `/u/clubs/${c._id}/${c.ClubCode}`,
     query: key && key in tabs ? { tab: String(tabs[key]) } : {},
@@ -1255,7 +1779,9 @@ function goManager(key?: string) {
   border-radius: 16px;
   background: linear-gradient(#ffe9a6, #f5b82e);
   border: 3px solid #fff3c9;
-  box-shadow: 0 4px 0 rgba(70, 40, 15, 0.35), 0 8px 18px rgba(0, 0, 0, 0.18);
+  box-shadow:
+    0 4px 0 rgba(70, 40, 15, 0.35),
+    0 8px 18px rgba(0, 0, 0, 0.18);
   color: #5e3b22;
   cursor: pointer;
   font: inherit;

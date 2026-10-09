@@ -3,12 +3,25 @@
     <div class="op-balance-crest" aria-hidden="true">
       <span>{{ initials }}</span>
     </div>
-    <p class="op-balance-kicker">{{ clubName }} · the board's opening balance</p>
+    <p class="op-balance-kicker">
+      {{ clubName }} · the board's opening balance
+    </p>
     <div class="op-balance-figure">
-      <program-count-up :value="balance" :duration="1200" :format="formatVilla" class="op-balance-amount" />
+      <program-count-up
+        :value="balance"
+        :duration="1200"
+        :format="formatVilla"
+        class="op-balance-amount"
+      />
     </div>
     <div class="op-coin-row" aria-hidden="true">
-      <span v-for="i in 7" :key="i" class="op-coin" :style="{ animationDelay: `${i * 90}ms` }" v-html="icon('coins')" />
+      <span
+        v-for="i in 7"
+        :key="i"
+        class="op-coin"
+        :style="{ animationDelay: `${i * 90}ms` }"
+        v-html="icon('coins')"
+      />
     </div>
     <p class="op-balance-line">{{ line }}</p>
 
@@ -34,8 +47,13 @@
       <!-- The three "from" costs are ~10% of the opening balance, so the old
            "funds can't do all three" claim contradicted the numbers on the
            same screen (U-20 / P03-03, P07-17). -->
-      <p class="op-balance-hint">Spend it across the manager, the squad and the buildings — the club grows from here.</p>
-      <button class="op-btn primary big" @click="emit('begin')">Right then — start the program</button>
+      <p class="op-balance-hint">
+        Spend it across the manager, the squad and the buildings — the club
+        grows from here.
+      </p>
+      <button class="op-btn primary big" @click="emit('begin')">
+        Right then — start the program
+      </button>
     </div>
   </section>
 </template>
@@ -47,10 +65,16 @@ import { icon } from '@/components/cozy/icons';
 import { sfx } from '@/services/sfx';
 import ProgramCountUp from './program-count-up.vue';
 
-const props = defineProps<{ balance: number; clubName: string; clubCode?: string }>();
+const props = defineProps<{
+  balance: number;
+  clubName: string;
+  clubCode?: string;
+}>();
 const emit = defineEmits<{ (e: 'begin'): void }>();
 
-const initials = computed(() => (props.clubCode || props.clubName || 'FC').slice(0, 3).toUpperCase());
+const initials = computed(() =>
+  (props.clubCode || props.clubName || 'FC').slice(0, 3).toUpperCase()
+);
 
 const line = computed(() => {
   if (props.balance <= 1_500_000) {
@@ -63,7 +87,9 @@ const line = computed(() => {
 });
 
 onMounted(() => {
-  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const reduce = window.matchMedia?.(
+    '(prefers-reduced-motion: reduce)'
+  ).matches;
   sfx.play('coin');
   if (!reduce) window.setTimeout(() => sfx.play('collect'), 500);
 });

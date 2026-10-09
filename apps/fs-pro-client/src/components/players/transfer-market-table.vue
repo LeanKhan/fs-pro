@@ -27,7 +27,9 @@
         >
           Youth
         </v-chip>
-        <v-icon size="14" class="ml-1 text-cyan-400 opacity-60">mdi-eye-outline</v-icon>
+        <v-icon size="14" class="ml-1 text-cyan-400 opacity-60">
+          mdi-eye-outline
+        </v-icon>
       </div>
     </template>
 
@@ -39,7 +41,11 @@
 
     <template v-slot:item.source="{ item }">
       <v-chip
-        v-if="item.source && (item.source.includes('Overseas') || item.source.includes('Free Agent'))"
+        v-if="
+          item.source &&
+          (item.source.includes('Overseas') ||
+            item.source.includes('Free Agent'))
+        "
         size="x-small"
         color="blue-darken-2"
         variant="tonal"
@@ -53,7 +59,9 @@
 
     <template v-slot:item.Value="{ item }">
       {{ currency(item.Value) }}
-      <div class="text-caption text-medium-emphasis">{{ currency(item.Wage) }}/yr</div>
+      <div class="text-caption text-medium-emphasis">
+        {{ currency(item.Wage) }}/yr
+      </div>
     </template>
 
     <template v-slot:item.Actions="{ item }">

@@ -9,7 +9,15 @@
         Relieve Manager
       </v-card-title>
       <v-card-text>
-        <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mb-3">{{ error }}</v-alert>
+        <v-alert
+          v-if="error"
+          type="error"
+          variant="tonal"
+          density="compact"
+          class="mb-3"
+        >
+          {{ error }}
+        </v-alert>
         <v-row no-gutters>
           <v-col cols="12">
             <v-card flat tile>
@@ -102,10 +110,13 @@ const fireManager = async () => {
       emit('update-available');
       emit('update:show', false);
     } else {
-      error.value = (res.body as { message?: string }).message ?? 'Could not release that manager.';
+      error.value =
+        (res.body as { message?: string }).message ??
+        'Could not release that manager.';
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Could not release that manager.';
+    error.value =
+      err instanceof Error ? err.message : 'Could not release that manager.';
   } finally {
     loading.value = false;
   }

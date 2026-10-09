@@ -11,7 +11,12 @@
       tabindex="-1"
       @keydown.tab="trapTab"
     >
-      <button class="x" aria-label="Close" @click="close" v-html="icon('close')"></button>
+      <button
+        class="x"
+        aria-label="Close"
+        @click="close"
+        v-html="icon('close')"
+      ></button>
       <slot />
     </div>
   </div>
@@ -29,7 +34,11 @@ import { icon } from './icons';
  * uses this shell inherits the behaviour.
  */
 const props = withDefaults(
-  defineProps<{ modelValue: boolean; size?: 'small' | 'wide'; label?: string }>(),
+  defineProps<{
+    modelValue: boolean;
+    size?: 'small' | 'wide';
+    label?: string;
+  }>(),
   { label: 'Dialog' }
 );
 const emit = defineEmits<{ (e: 'update:modelValue', v: boolean): void }>();
