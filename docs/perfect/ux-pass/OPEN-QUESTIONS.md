@@ -20,3 +20,13 @@ the stack end-to-end; see INSTANCE-LOG §7 last row.
 P05 logged 16 issues (3×S2, 6×S3, 7×S4).
 
 _Everything else is ruled in `DECISIONS.md`._
+
+## OQ-UX-2 — WSL↔Windows interop outage #2 (BLOCKER, needs the operator)
+
+From ~2026-10-09 02:40Z the interop failure **recurred**: every `cmd.exe` call
+from WSL returns `UtilAcceptVsock:271: accept4 failed 110`, and all interop
+sockets (`/run/WSL/*_interop`) refuse — so the Windows-Node Playwright harness
+cannot run and **Pass 1 is paused**. The Windows-side interop server is dead and
+cannot be revived from inside WSL; it needs a host action (`wsl --shutdown`, then
+start Docker Desktop / the machine). No credentials or content are needed — just
+the restart. Logged in `INSTANCE-LOG.md` §7/§8.

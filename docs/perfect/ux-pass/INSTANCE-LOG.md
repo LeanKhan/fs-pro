@@ -9,9 +9,12 @@ is UTC−5; server logs print local time).
 - **Client production build commit: `e4db26c`** (repo HEAD when the client was
   built; client/server/Go/Rust sources are identical to `218bf73` — the only
   commits on top are the UX-pass docs and the 0B harness).
-- Status: **UP (restored 2026-10-08T23:08Z)** — the ~12:10Z interop outage and
-  the ~13:20Z API DB-hang are both resolved (see §7 last rows / §8). Was UP since
-  `11:02Z`; smoke test PASS; admin ready for A01. Pass 1 resumed.
+- Status: **IMPAIRED again (from 2026-10-09T~02:40Z)** — the first interop outage
+  (12:10Z) and API DB-hang (13:20Z) were fixed at 23:08Z and Pass 1 resumed; but
+  WSL→Windows interop has **failed a second time** (`UtilAcceptVsock accept4
+  failed 110`), so the Playwright harness is blocked again. This is an **operator**
+  fix (`wsl --shutdown` / Docker Desktop restart) — it cannot be revived from
+  inside WSL. See §7/§8 and `OPEN-QUESTIONS.md` OQ-UX-2.
 
 ---
 
@@ -270,10 +273,19 @@ branch (a shipped-binary issue, not a code change).
 | 23:08 | **[LEAD] Interop + API restored — Pass 1 resumed** | WSL→Windows interop is working again (all `cmd.exe` calls succeed). Docker Desktop had restarted the stack (~5 min earlier; `fs-pro-db-1 Up (healthy)`), which left the API's Postgres pool dead. Per **D8**, killed the wedged API web (3010) + worker (3011) process trees and relaunched `run-api-web.bat` / `run-api-worker.bat`. Verified: `/healthz` → `200 {"ok":true}` on 3010 **and** 3011; real admin login (`playtestadmin`) → `200 isAdmin:true`; worker logged `PostgreSQL Drizzle connection successful!`; clock **live** (`LastTickAt` advancing, `CurrentHour` 18 → 20); DB intact (`fspro_playtest`, `Clubs`=56). Windows-Node Playwright smoke → client `:4173` `200` + a11y snapshot + screenshot OK. No source changed. |
 | 23:25 | **[LEAD] All 11 playtesters (re)launched** | Wave 2 (**P06–P10**) started fresh; wave 1 (**A01** Session 2, **P01–P05** resumed) relaunched to finish their D5 stop rules (none had reached Level 2 before the outage). Verified the five preserved wave-1 logins still authenticate after the API restart — the session store is Postgres-backed (`Sessions` table), so `state.json` sessions survive; each landed directly in `/game/<club>` with zero 401s. No passwords needed. Bound: one shared instance (U3); lead monitors services. |
 
+| 03:19 | **[LEAD] Purged playtest binaries from git history (owner request)** | Untracked the `screenshots/`+`traces/` dirs at `52e8fcc`; then rewrote **only `ux/integration`** (they existed nowhere else) in a throwaway `--mirror` clone with `git filter-repo --invert-paths` to excise the 13 evidence dirs, fetched the rewritten ref back, moved the branch ref (working tree untouched — 40+ in-flight reports preserved), expired reflogs and `git gc --prune=now`. `.git` **2.0 GB → 64 MB**; old tip `52e8fcc` gone, rewritten tip `49df82c`; report/steps files still tracked. Files remain on disk (5+ GB) and are ignored going forward. No remote touched; `origin` intact. |
+| 03:19 | **[LEAD] WSL→Windows interop outage #2 (BLOCKER)** | From ~02:40Z `cmd.exe` from WSL fails with `UtilAcceptVsock:271: accept4 failed 110` on **every** interop socket (`4176`, `2`, `445`, `448`). The Windows-side interop server is dead, so the Windows-Node Playwright harness (all playtesters) and lead service checks are blocked. Not fixable from inside WSL — needs an operator `wsl --shutdown` / Docker Desktop restart. Pass 1 paused again (P06 confirmed blocked at 02:38Z; A01 had completed Session 2). |
+
 ---
 
 ## 8. Blockers / notes for the lead
 
+- **BLOCKER #2 (2026-10-09 ~02:40Z): interop down again — OPERATOR ACTION
+  NEEDED.** The first outage's fix (23:08Z) was temporary; `cmd.exe`/vsock is dead
+  again and all interop sockets refuse. This blocks every playtester's **Windows**
+  Playwright run (and the lead's service checks). Only the host can fix it
+  (`wsl --shutdown`, then restart Docker Desktop if needed). Pass 1 is paused;
+  evidence already captured stands.
 - **BLOCKER RESOLVED (2026-10-08T23:08Z).** The ~12:10Z WSL→Windows interop
   outage and the ~13:20Z API DB-hang are both fixed (interop restored by the
   operator / Docker Desktop restart; API web+worker restarted by the lead under
