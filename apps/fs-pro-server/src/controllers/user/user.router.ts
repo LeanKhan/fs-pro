@@ -4,15 +4,18 @@ import type { User as ContractUser, Club as ContractClub } from '@repo/api-contr
 
 import {
   createUser,
+  getUserByEmail,
   getUserById,
   getUserByUsername,
   updateUserFields,
 } from './user.service';
+import { consumeToken, issueToken } from '../../services/auth/email-token.service';
+import { resetMail, sendMail, verificationMail } from '../../services/mail/mail.service';
 import { getClubs, updateClubFields } from '../clubs/club.service';
 import type { ClubInterface } from '../clubs/club.model';
 import { IUser } from './user.model';
 import { store } from '../../sessionStore';
-import { comparePassword, resolveUserSession } from '../../utils/auth';
+import { comparePassword, dummyHash, resolveUserSession, revokeSessions } from '../../utils/auth';
 import log from '../../helpers/logger';
 
 const s = initServer();
@@ -35,12 +38,31 @@ function fail(err: unknown) {
   return err instanceof Error ? err.message : String(err);
 }
 
-/** Never let Password/Session cross the wire, on any route. */
+/** Never let Password/Session cross the wire, on any route. Email goes only
+ * to routes that return the caller's own account; the verified flag replaces
+ * the raw timestamp. */
 function sanitizeUser(user: any): any {
   if (!user) return user;
-  const { Password, Session, ...rest } = user;
-  return rest;
+  const { Password, Session, EmailVerifiedAt, ...rest } = user;
+  return { ...rest, EmailVerified: !!EmailVerifiedAt };
 }
+
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+const looksLikeEmail = (email: string) => email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+/** Emails the verification link; a failure to send never fails the request. */
+async function sendVerification(user: { _id?: string; FullName: string; Email?: string | null }) {
+  if (!user._id || !user.Email) return;
+  const token = await issueToken(user._id, 'verify');
+  await sendMail(verificationMail(user.Email, user.FullName, token));
+}
+
+const BAD_LOGIN = {
+  status: 400 as const,
+  // One message for an unknown username and a wrong password, so the form
+  // can't be used to find out who has an account.
+  body: { success: false as const, message: 'Username or password is incorrect', payload: { errorCode: 1 } },
+};
 
 function saveSession(req: { session?: any }): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -59,14 +81,18 @@ export const userTsRestRoutes = s.router(contract.users, {
         ? 'Use a password of at least 8 characters'
         : !(body.FullName ?? '').trim()
           ? 'Tell us your name'
-          : null;
+          : !looksLikeEmail(normalizeEmail(body.Email ?? ''))
+            ? 'Enter a valid email address'
+            : null;
     if (problem) return { status: 400, body: { success: false, message: problem } };
     try {
       const user: any = await createUser({
         FullName: body.FullName,
         Username: body.Username,
         Password: body.Password,
+        Email: normalizeEmail(body.Email),
       } as Partial<IUser>);
+      sendVerification(user).catch((err) => console.error('[mail] verification email failed:', err));
 
       // New managers found their own club (POST /atlas/clubs); signing up
       // never hands over an existing club, so `body.Clubs` is ignored.
@@ -88,11 +114,12 @@ export const userTsRestRoutes = s.router(contract.users, {
       };
     } catch (err: any) {
       if (err.code === 11000 || err?.cause?.code === '23505') {
+        const emailClash = /email/i.test(String(err?.cause?.constraint_name ?? err?.cause?.detail ?? ''));
         return {
           status: 400,
           body: {
             success: false,
-            message: 'Username already exists!',
+            message: emailClash ? 'That email is already used by another account' : 'Username already exists!',
             payload: fail(err),
           },
         };
@@ -116,23 +143,13 @@ export const userTsRestRoutes = s.router(contract.users, {
     try {
       const result: any = await getUserByUsername(body.Username);
       if (!result) {
-        return {
-          status: 404,
-          body: { success: false, message: 'Username does not exist' },
-        };
+        // Same work as a real check, so the response time doesn't give it away.
+        await comparePassword(body.Password, await dummyHash());
+        return BAD_LOGIN;
       }
 
       const isMatch = await comparePassword(body.Password, result.Password);
-      if (!isMatch) {
-        return {
-          status: 400,
-          body: {
-            success: false,
-            message: 'Password is incorrect!',
-            payload: { errorCode: 1 },
-          },
-        };
-      }
+      if (!isMatch) return BAD_LOGIN;
 
       (req.session as any).userID = result._id;
       await saveSession(req);
@@ -207,6 +224,92 @@ export const userTsRestRoutes = s.router(contract.users, {
           payload: fail(err),
         },
       };
+    }
+  },
+
+  requestPasswordReset: async ({ body }) => {
+    const email = normalizeEmail(body.Email ?? '');
+    if (looksLikeEmail(email)) {
+      // Not awaited and always answered the same, so neither the response
+      // nor its timing says whether the address has an account.
+      (async () => {
+        const user = await getUserByEmail(email);
+        if (!user?._id) return;
+        const token = await issueToken(String(user._id), 'reset');
+        await sendMail(resetMail(email, user.FullName, token));
+      })().catch((err) => console.error('[mail] password reset failed:', err));
+    }
+    return {
+      status: 200,
+      body: { success: true, message: 'If that email belongs to an account, we have sent a link to reset the password.' },
+    } as any;
+  },
+
+  resetPassword: async ({ body }) => {
+    try {
+      const userId = await consumeToken(body.Token, 'reset');
+      if (!userId) {
+        return { status: 400, body: { success: false, message: 'This link has expired or was already used. Ask for a new one.' } };
+      }
+      // The password change is the proof they own the mailbox too.
+      await updateUserFields(userId, { Password: body.NewPassword, EmailVerifiedAt: new Date() } as Partial<IUser>);
+      await revokeSessions(userId);
+      return { status: 200, body: { success: true, message: 'Password changed. Sign in with the new one.' } } as any;
+    } catch (err) {
+      return { status: 400, body: { success: false, message: 'Could not reset the password', payload: fail(err) } };
+    }
+  },
+
+  verifyEmail: async ({ body }) => {
+    try {
+      const userId = await consumeToken(body.Token, 'verify');
+      if (!userId) {
+        return { status: 400, body: { success: false, message: 'This link has expired or was already used. Sign in and ask for a new one.' } };
+      }
+      await updateUserFields(userId, { EmailVerifiedAt: new Date() } as Partial<IUser>);
+      return { status: 200, body: { success: true, message: 'Email confirmed. Thank you!' } } as any;
+    } catch (err) {
+      return { status: 400, body: { success: false, message: 'Could not confirm the email', payload: fail(err) } };
+    }
+  },
+
+  resendVerification: async ({ req }) => {
+    const userId = (req.session as { userID?: string } | undefined)?.userID;
+    if (!userId) return { status: 401, body: { success: false, message: 'Sign in first' } };
+    const user: any = await getUserById(userId);
+    if (!user?.Email) return { status: 400, body: { success: false, message: 'Add an email address first' } };
+    if (user.EmailVerifiedAt) return { status: 400, body: { success: false, message: 'Your email is already confirmed' } };
+    sendVerification(user).catch((err) => console.error('[mail] verification email failed:', err));
+    return { status: 200, body: { success: true, message: `We sent a new link to ${user.Email}.` } } as any;
+  },
+
+  setEmail: async ({ body, req }) => {
+    const userId = (req.session as { userID?: string } | undefined)?.userID;
+    if (!userId) return { status: 401, body: { success: false, message: 'Sign in first' } };
+    const email = normalizeEmail(body.Email);
+    if (!looksLikeEmail(email)) return { status: 400, body: { success: false, message: 'Enter a valid email address' } };
+    const user: any = await getUserById(userId);
+    if (!user) return { status: 401, body: { success: false, message: 'Sign in first' } };
+    // Whoever holds a session must not be able to point recovery at their own inbox.
+    if (!(await comparePassword(body.Password, user.Password))) {
+      return { status: 400, body: { success: false, message: 'Password is incorrect' } };
+    }
+    const taken = await getUserByEmail(email);
+    if (taken && String(taken._id) !== userId) {
+      return { status: 409, body: { success: false, message: 'That email is already used by another account' } };
+    }
+    if (user.Email?.toLowerCase() === email && user.EmailVerifiedAt) {
+      return { status: 200, body: { success: true, message: 'Email already confirmed', payload: sanitizeUser(user) as ContractUser } };
+    }
+    try {
+      const updated: any = await updateUserFields(userId, { Email: email, EmailVerifiedAt: null } as Partial<IUser>);
+      sendVerification(updated).catch((err) => console.error('[mail] verification email failed:', err));
+      return { status: 200, body: { success: true, message: `We sent a link to ${email}.`, payload: sanitizeUser(updated) as ContractUser } };
+    } catch (err: any) {
+      if (err?.cause?.code === '23505') {
+        return { status: 409, body: { success: false, message: 'That email is already used by another account' } };
+      }
+      return { status: 400, body: { success: false, message: 'Could not save the email', payload: fail(err) } };
     }
   },
 

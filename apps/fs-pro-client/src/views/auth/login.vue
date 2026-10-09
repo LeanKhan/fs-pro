@@ -17,7 +17,7 @@
       </span>
     </label>
     <button class="btn primary" type="submit" :disabled="loading || !Username || !Password">{{ loading ? 'Signing in…' : 'Sign in' }}</button>
-    <p class="hint">Forgotten your password? Ask an admin to reset it. Signed in, you can change it in Settings.</p>
+    <p class="hint"><router-link to="/auth/forgot">Forgot your password?</router-link></p>
   </form>
 </template>
 
@@ -90,6 +90,10 @@ async function login() {
   font-size: 12px;
   color: var(--muted);
   text-align: center;
+}
+.hint a {
+  color: var(--wood-d);
+  font-weight: 600;
 }
 .btn.primary {
   text-decoration: none;

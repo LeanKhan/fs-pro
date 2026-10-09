@@ -1,0 +1,6 @@
+[
+  { "id": "none", "svg": "" },
+  { "id": "mustache", "svg": "<path d=\"M42 62 Q50 66 58 62 Q50 64 42 62 Z\" fill=\"#4a2f1a\"/>" },
+  { "id": "goatee", "svg": "<path d=\"M45 68 Q50 78 55 68 Z\" fill=\"#3a2410\"/>" },
+  { "id": "full-beard", "svg": "<path d=\"M18 55 Q20 78 50 82 Q80 78 82 55 L82 66 Q80 84 50 88 Q20 84 18 66 Z\" fill=\"#3a2410\"/>" }
+]

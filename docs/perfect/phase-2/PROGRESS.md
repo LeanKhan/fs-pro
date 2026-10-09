@@ -1,0 +1,36 @@
+# PROGRESS.md — phase 2 orchestration run
+
+Lead: the orchestrator. Target repo `/mnt/c/done/fs-pro`.
+Program of record: `docs/perfect/phase-2/FOR-AGENTS.md` (P1–P7, L1–L13, R1′–R14).
+Owner brief: `docs/perfect/phase-2/INSTRUCTIONS.md`. The owner does **not**
+answer questions this run; the lead rules in `DECISIONS.md`.
+
+Integration branch: **`p2/integration`**, from `perfect/integration` @ `1cfd57a`
+(the phase-1 tip, which already includes a "starting cultures" commit).
+
+## Batch status
+
+| Batch | Agent | Branch / worktree | Status | Report |
+| --- | --- | --- | --- | --- |
+| B0 | 0A baseline | `p2/integration` | **done** | `BASELINE.md` |
+| B0 | 0B audit | `p2/b0-0b` | **running** | `AUDIT.md` |
+| B0 | 0C research | `p2/b0-0c` | **running** | `RESEARCH.md` |
+| B1 | 1A owner-program spec | `p2/b1-1a` (`647365e`) | **verified + merged** | `OWNER-PROGRAM-SPEC.md` |
+| B1 | 1B advisor spec + art | `p2/b1-1b` (`98d8e02`) | **verified + merged** | `ADVISOR-SPEC.md`, `B1-1B-REPORT.md` |
+| B1 | 1C cultures + worldgen | `p2/b1-1c` (`a3306e3`) | **verified + merged** | `CULTURES-SPEC.md` |
+| B1 | verify | `p2/integration` | **PASS** | `VERIFY-B1.md` |
+| B2 | 2A Go program + sim; 2B Node owner model; 2C seed/economy/names | `p2/b2-2a/2b/2c` | **done + merged** | `VERIFY-B2.md` |
+| B3 | 3A advisor; 3B program screens; 3C wiring + e2e | `p2/b3-3a/3b/3c` | **done + merged** | `VERIFY-B3.md` |
+| B4 | 4A balance tuning; 4B visual/feel QA | `p2/b4-4a/4b` | **done + merged** | `VERIFY-B4.md` |
+| B5 | final verification + release report | `p2/integration` | **done** — run stops; owner decides | `RELEASE-REPORT.md` |
+
+## Environment facts (carried from phase 1)
+
+- Client build/typecheck through **Windows Node**; worktrees have no
+  `node_modules`.
+- `go test -race` in `golang:1.24-bookworm` Docker; Go/Rust via WSL→Windows
+  interop (`GOTOOLCHAIN=local`, `C:\Program Files\Go\bin\go.exe`).
+- Postgres 17 in Docker on `localhost:5434`, user `fspro` / `superpassword`.
+- Destructive DB work only on scratch DBs; the dev DB `fspro` is off-limits.
+- Client `vue-tsc` baseline: 31 pre-existing errors (do not add any).
+- Error tracking (phase-1 B5B): Sentry, DSN-gated.

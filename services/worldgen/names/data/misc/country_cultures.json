@@ -1,0 +1,208 @@
+{
+  "countries": {
+    "ashter": {
+      "culture": "karsh",
+      "mix": [
+        {
+          "culture": "karsh",
+          "weight": 80
+        },
+        {
+          "culture": "legardio",
+          "weight": 10
+        },
+        {
+          "culture": "inga",
+          "weight": 10
+        }
+      ],
+      "aliases": [
+        "karsh state of ashter",
+        "ashter",
+        "ash"
+      ]
+    },
+    "bellean": {
+      "culture": "karsh",
+      "mix": [
+        {
+          "culture": "karsh",
+          "weight": 60
+        },
+        {
+          "culture": "legardio",
+          "weight": 15
+        },
+        {
+          "culture": "inga",
+          "weight": 15
+        },
+        {
+          "culture": "kiyoto",
+          "weight": 10
+        }
+      ],
+      "aliases": [
+        "karsh republic of bellean",
+        "bellean",
+        "bel"
+      ]
+    },
+    "ekhastan": {
+      "culture": "karsh",
+      "mix": [
+        {
+          "culture": "karsh",
+          "weight": 70
+        },
+        {
+          "culture": "pregge",
+          "weight": 10
+        },
+        {
+          "culture": "kiyoto",
+          "weight": 10
+        },
+        {
+          "culture": "inga",
+          "weight": 10
+        }
+      ],
+      "aliases": [
+        "united kinsalates of ekhastan",
+        "ekhastan",
+        "ekastan",
+        "ekh"
+      ]
+    },
+    "hunteerland": {
+      "culture": "hunterlaan",
+      "mix": [
+        {
+          "culture": "hunterlaan",
+          "weight": 95
+        },
+        {
+          "culture": "kev",
+          "weight": 5
+        }
+      ],
+      "aliases": [
+        "hunterland",
+        "hunteerland",
+        "hunterlaan",
+        "hun"
+      ]
+    },
+    "kev": {
+      "culture": "kev",
+      "mix": [
+        {
+          "culture": "kev",
+          "weight": 90
+        },
+        {
+          "culture": "hunterlaan",
+          "weight": 10
+        }
+      ],
+      "aliases": [
+        "free state of kev",
+        "kev"
+      ]
+    },
+    "kiyoto": {
+      "culture": "kiyoto",
+      "mix": [
+        {
+          "culture": "kiyoto",
+          "weight": 95
+        },
+        {
+          "culture": "inga",
+          "weight": 5
+        }
+      ],
+      "aliases": [
+        "kiyoto",
+        "kiy"
+      ]
+    },
+    "pregge": {
+      "culture": "pregge",
+      "mix": [
+        {
+          "culture": "pregge",
+          "weight": 100
+        }
+      ],
+      "aliases": [
+        "pregge",
+        "prg"
+      ]
+    },
+    "proland": {
+      "culture": "proland",
+      "mix": [
+        {
+          "culture": "proland",
+          "weight": 95
+        },
+        {
+          "culture": "kev",
+          "weight": 5
+        }
+      ],
+      "aliases": [
+        "proland",
+        "pro"
+      ]
+    },
+    "simeone": {
+      "culture": "legardio",
+      "mix": [
+        {
+          "culture": "legardio",
+          "weight": 95
+        },
+        {
+          "culture": "karsh",
+          "weight": 5
+        }
+      ],
+      "aliases": [
+        "royal kindred of simeon",
+        "royal kindred of simeone",
+        "simeon",
+        "simeone",
+        "leg"
+      ]
+    },
+    "upp": {
+      "culture": "inga",
+      "mix": [
+        {
+          "culture": "inga",
+          "weight": 85
+        },
+        {
+          "culture": "kiyoto",
+          "weight": 10
+        },
+        {
+          "culture": "karsh",
+          "weight": 5
+        }
+      ],
+      "aliases": [
+        "united provinces of palaba",
+        "united provines of palaba",
+        "palaba",
+        "republic of galli",
+        "galli",
+        "upp",
+        "uga"
+      ]
+    }
+  }
+}

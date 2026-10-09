@@ -1,0 +1,29 @@
+{
+ "clubId": "7d60e0c6-cc07-4d69-b9af-097adbeaefe6",
+ "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3050 Ti Laptop GPU (0x000025A0) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+ "metrics": {
+  "width": 1425,
+  "height": 900,
+  "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3050 Ti Laptop GPU (0x000025A0) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "mean": 158,
+  "min": 1,
+  "max": 255,
+  "std": 44,
+  "uniqueShades": 889,
+  "blank": false
+ },
+ "fps": {
+  "fps": 57,
+  "frames": 287,
+  "p95": 18.5,
+  "worst": 23.7
+ },
+ "viewport": "desktop-1440x900",
+ "consoleErrors": [
+  "console: WebSocket connection to 'ws://localhost:3005/ws?ticket=eyJ1aWQiOiIyN2Q3MDg2ZC1mZDA2LTQ2YjgtYWYwZS05MGM2ZDg0N2UyNjIiLCJuYW1lIjoiT3duZXIgYmR2eG4zbCIsImNsdWJzIjpbIjdkNjBlMGM2LWNjMDctNGQ2OS1iOWFmLTA5N2FkY",
+  "console: WebSocket connection to 'ws://localhost:3005/ws?ticket=eyJ1aWQiOiIyN2Q3MDg2ZC1mZDA2LTQ2YjgtYWYwZS05MGM2ZDg0N2UyNjIiLCJuYW1lIjoiT3duZXIgYmR2eG4zbCIsImNsdWJzIjpbIjdkNjBlMGM2LWNjMDctNGQ2OS1iOWFmLTA5N2FkY",
+  "console: WebSocket connection to 'ws://localhost:3005/ws?ticket=eyJ1aWQiOiIyN2Q3MDg2ZC1mZDA2LTQ2YjgtYWYwZS05MGM2ZDg0N2UyNjIiLCJuYW1lIjoiT3duZXIgYmR2eG4zbCIsImNsdWJzIjpbIjdkNjBlMGM2LWNjMDctNGQ2OS1iOWFmLTA5N2FkY",
+  "console: WebSocket connection to 'ws://localhost:3005/ws?ticket=eyJ1aWQiOiIyN2Q3MDg2ZC1mZDA2LTQ2YjgtYWYwZS05MGM2ZDg0N2UyNjIiLCJuYW1lIjoiT3duZXIgYmR2eG4zbCIsImNsdWJzIjpbIjdkNjBlMGM2LWNjMDctNGQ2OS1iOWFmLTA5N2FkY"
+ ],
+ "url": "http://localhost:8091/game/7d60e0c6-cc07-4d69-b9af-097adbeaefe6?welcome=1"
+}

@@ -1,0 +1,15 @@
+{
+ "name": {
+  "scrollW": 280,
+  "clientW": 280,
+  "ellipsis": "ellipsis",
+  "fits": true,
+  "text": "Jegeleg UnDaTop-Greencoat",
+  "w": 280
+ },
+ "card": {
+  "scrollW": 364,
+  "clientW": 364,
+  "fits": true
+ }
+}

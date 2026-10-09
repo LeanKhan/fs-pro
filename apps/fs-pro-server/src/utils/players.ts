@@ -437,7 +437,7 @@ function generatePlayer({
   firstname: string;
   lastname: string;
   nationality: string;
-  /** Resolved local country id (see services/nationality.ts); overrides the legacy `nationality` switch. */
+  /** Resolved local country id (see services/worldgen/names.service.ts); overrides the legacy `nationality` switch. */
   nationalityId?: string;
   /** Passed straight to randomBetween - default [18,30] reproduces the
    * original generic-generation behavior unchanged. Youth intake
@@ -527,7 +527,12 @@ function generatePlayer({
       : 64;
   });
 
-  console.log('Generated Player payload => ', obj);
+  // Per-player debug dump. At scale this runs 16x per founded club and emits
+  // ~11 KB of log per club (~1.1 GB at 100k), so gate it behind an explicit
+  // opt-in instead of always printing (B2-2E).
+  if (process.env.DEBUG_PLAYER_PAYLOAD === 'true') {
+    console.log('Generated Player payload => ', obj);
+  }
 
   // set Rating
   obj.Rating = calculatePlayerRating(

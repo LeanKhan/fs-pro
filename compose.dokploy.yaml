@@ -15,6 +15,21 @@ services:
       dockerfile: deploy/sim.Dockerfile
     restart: unless-stopped
 
+  fspro-worldgen:
+    build:
+      context: .
+      dockerfile: deploy/worldgen.Dockerfile
+    restart: unless-stopped
+
+  fspro-world:
+    build:
+      context: .
+      dockerfile: deploy/world-service.Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+    networks: [default, dokploy-network]
+
   fspro-realtime:
     build:
       context: .
@@ -23,6 +38,8 @@ services:
     environment:
       REALTIME_SECRET: ${REALTIME_SECRET:?set REALTIME_SECRET}
       REALTIME_ORIGINS: ${PUBLIC_HOST:?set PUBLIC_HOST}
+      CHAT_REQUIRE_VERIFIED: ${REQUIRE_VERIFIED_EMAIL:-true}
+      CHAT_BLOCKLIST: ${CHAT_BLOCKLIST:-}
 
   # One-shot: applies migrations, then exits. `fspro-server` waits for it.
   migrate:
@@ -39,6 +56,12 @@ services:
   fspro-server:
     image: fs-pro-server
     restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
     environment:
       NODE_ENV: production
       PORT: '3000'
@@ -51,7 +74,11 @@ services:
       REALTIME_SECRET: ${REALTIME_SECRET:?set REALTIME_SECRET}
       REMOTE_HOST: ${PUBLIC_HOST:?set PUBLIC_HOST}
       CORS_ORIGINS: https://${PUBLIC_HOST}
-      TRUST_PROXY: '1'
+      TRUST_PROXY: ${TRUST_PROXY:-2}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      APP_URL: https://${PUBLIC_HOST:?set PUBLIC_HOST}
+      REQUIRE_VERIFIED_EMAIL: ${REQUIRE_VERIFIED_EMAIL:-true}
       COOKIE_SECURE: 'true'
       GAME_TIME_SCALE: ${GAME_TIME_SCALE:-1}
       WORLD_TICK_MINUTES: ${WORLD_TICK_MINUTES:-10}
@@ -59,7 +86,8 @@ services:
       IMAGINATION_CLIENT_ID: ${IMAGINATION_CLIENT_ID:-}
       IMAGINATION_CLIENT_SECRET: ${IMAGINATION_CLIENT_SECRET:-}
       IMAGINATION_WORLD_ID: ${IMAGINATION_WORLD_ID:-}
-      WORLDGEN_SERVICE_URL: ${WORLDGEN_SERVICE_URL:-}
+      WORLDGEN_SERVICE_URL: ${WORLDGEN_SERVICE_URL:-http://fspro-worldgen:3004}
+      WORLD_SERVICE_URL: ${WORLD_SERVICE_URL:-http://fspro-world:3006}
     volumes:
       # Uploaded images survive redeploys (seeded from the image on first use).
       - server_assets:/repo/apps/fs-pro-server/assets
@@ -68,6 +96,10 @@ services:
       migrate:
         condition: service_completed_successfully
       fspro-sim:
+        condition: service_started
+      fspro-worldgen:
+        condition: service_started
+      fspro-world:
         condition: service_started
       fspro-realtime:
         condition: service_started

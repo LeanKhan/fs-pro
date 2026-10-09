@@ -26,7 +26,7 @@
           }"
           v-bind:cardSheet="{ height: 'auto' }"
           v-bind:previewImage="{
-            src: isUpdate ? `${api}/img/clubs/logos/${form.ClubCode}.png` : '',
+            src: isUpdate ? crestUrl(form.ClubCode) : '',
             contain: true,
           }"
           :fileName="form.ClubCode"
@@ -203,6 +203,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { apiUrl, useStore } from '@/store';
+import { crestUrl } from '@/helpers/crest';
 import { client } from '@/services/api';
 import ImageUploader from '@/components/helpers/image-uploader.vue';
 import PlacePickerModal from '@/components/PlacePickerModal.vue';

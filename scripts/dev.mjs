@@ -4,7 +4,7 @@
  *
  *   Postgres (fs-pro + imagination containers)
  *   Imaginations API      :3003  (login / auth)          ../imagination
- *   Worldgen service      :3004  (player faces)          ../imagination
+ *   Worldgen service      :3004  (names, faces, ...)     services/worldgen
  *   Sim service           :5050  (Rust match engine)     services/sim-service
  *   Realtime gateway      :3005  (presence, live events) apps/fs-pro-realtime
  *   Game server           :3000  (Node API)              apps/fs-pro-server
@@ -99,12 +99,11 @@ const services = [
     name: 'WORLDGEN',
     color: C.blue,
     port: 3004,
-    cwd: IMAGINATION,
+    cwd: resolve(FSPRO, 'services', 'worldgen'),
     cmd: 'go',
-    args: ['run', './cmd/worldgen-service'],
-    env: envFor(imaginationEnv, { PORT: '3004' }),
-    what: 'Worldgen (player faces)',
-    needs: [IMAGINATION],
+    args: ['run', '.'],
+    env: envFor({}, { WORLDGEN_SERVICE_PORT: '3004', PORT: '3004' }),
+    what: 'Worldgen (names, faces)',
   },
   {
     id: 'sim',

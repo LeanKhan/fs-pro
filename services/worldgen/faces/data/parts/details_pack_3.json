@@ -1,0 +1,7 @@
+[
+  { "id": "none", "svg": "" },
+  { "id": "wrinkles-01", "svg": "<path d=\"M28 49 Q32 51 36 49 M64 49 Q68 51 72 49 M42 28 Q50 30 58 28\" fill=\"none\" stroke=\"var(--skin-shadow, #7f4f39)\" stroke-width=\"1\" opacity=\".45\" stroke-linecap=\"round\"/>" },
+  { "id": "wrinkles-02", "svg": "<path d=\"M27 51 Q32 54 37 51 M63 51 Q68 54 73 51 M39 29 Q50 31 61 29 M40 32 Q50 34 60 32\" fill=\"none\" stroke=\"var(--skin-shadow, #7f4f39)\" stroke-width=\"1\" opacity=\".55\" stroke-linecap=\"round\"/>" },
+  { "id": "freckles-01", "svg": "<g fill=\"var(--freckle, #8a5a43)\" opacity=\".55\"><circle cx=\"29\" cy=\"55\" r=\"1\"/><circle cx=\"34\" cy=\"57\" r=\".9\"/><circle cx=\"39\" cy=\"55\" r=\".8\"/><circle cx=\"61\" cy=\"55\" r=\".8\"/><circle cx=\"66\" cy=\"57\" r=\".9\"/><circle cx=\"71\" cy=\"55\" r=\"1\"/></g>" },
+  { "id": "scar-01", "svg": "<path d=\"M67 53 L74 62 M69 56 L73 54 M71 59 L76 58\" fill=\"none\" stroke=\"var(--scar, #8b4e45)\" stroke-width=\"1.5\" stroke-linecap=\"round\"/>" }
+]

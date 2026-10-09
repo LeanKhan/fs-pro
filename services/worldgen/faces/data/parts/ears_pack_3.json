@@ -1,0 +1,4 @@
+[
+  { "id": "ears-01", "svg": "<ellipse cx=\"16\" cy=\"52\" rx=\"6\" ry=\"11\" fill=\"var(--skin, #b97855)\"/><ellipse cx=\"84\" cy=\"52\" rx=\"6\" ry=\"11\" fill=\"var(--skin, #b97855)\"/>" },
+  { "id": "ears-02", "svg": "<path d=\"M15 43 Q7 47 10 58 Q12 67 19 62\" fill=\"var(--skin, #b97855)\"/><path d=\"M85 43 Q93 47 90 58 Q88 67 81 62\" fill=\"var(--skin, #b97855)\"/>" }
+]

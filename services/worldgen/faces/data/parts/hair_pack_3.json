@@ -1,0 +1,12 @@
+[
+  { "id": "hair-01", "svg": "<path d=\"M16 40 C15 15 31 3 51 4 C72 4 86 18 84 41 C76 25 65 19 51 20 C36 18 25 25 16 40Z\" fill=\"var(--hair, #2b1b14)\"/>" },
+  { "id": "hair-02", "svg": "<path d=\"M16 43 C12 23 20 9 35 7 C39 1 48 2 51 7 C57 0 65 3 65 8 C77 7 86 21 83 43 C78 29 69 23 51 23 C33 23 22 30 16 43Z\" fill=\"var(--hair, #2b1b14)\"/>" },
+  { "id": "hair-03", "svg": "<path d=\"M16 42 C14 17 30 7 50 7 C71 7 85 20 84 43 L79 36 L76 17 L70 25 L64 13 L58 23 L50 10 L43 23 L34 13 L30 27 L22 18 L21 36Z\" fill=\"var(--hair, #2b1b14)\"/>" },
+  { "id": "hair-04", "svg": "<path d=\"M18 40 C17 18 30 7 50 7 C71 7 83 19 82 42 C74 26 67 22 56 21 L50 31 L45 20 C33 21 25 27 18 40Z\" fill=\"var(--hair, #2b1b14)\"/>" },
+  { "id": "hair-05", "svg": "<path d=\"M14 44 C10 22 23 5 49 5 C73 5 87 21 86 45 C78 30 69 22 51 21 C34 21 23 30 14 44Z\" fill=\"var(--hair, #2b1b14)\"/><path d=\"M18 37 Q11 56 18 76 M82 37 Q89 56 82 76\" fill=\"none\" stroke=\"var(--hair, #2b1b14)\" stroke-width=\"7\" stroke-linecap=\"round\"/>" },
+  { "id": "hair-06", "svg": "<path d=\"M21 32 C20 15 33 7 50 7 C67 7 80 15 79 32 C70 22 61 18 50 18 C39 18 30 22 21 32Z\" fill=\"var(--hair, #2b1b14)\"/>" },
+  { "id": "hair-07", "svg": "<circle cx=\"26\" cy=\"21\" r=\"10\" fill=\"var(--hair, #2b1b14)\"/><circle cx=\"39\" cy=\"14\" r=\"10\" fill=\"var(--hair, #2b1b14)\"/><circle cx=\"53\" cy=\"13\" r=\"11\" fill=\"var(--hair, #2b1b14)\"/><circle cx=\"67\" cy=\"17\" r=\"10\" fill=\"var(--hair, #2b1b14)\"/><circle cx=\"76\" cy=\"27\" r=\"10\" fill=\"var(--hair, #2b1b14)\"/><circle cx=\"20\" cy=\"33\" r=\"9\" fill=\"var(--hair, #2b1b14)\"/>" },
+  { "id": "hair-08", "svg": "<path d=\"M19 40 C18 19 30 8 50 8 C69 8 82 19 81 40 C70 29 64 27 55 26 L55 7 L44 27 C34 27 27 31 19 40Z\" fill=\"var(--hair, #2b1b14)\"/>" },
+  { "id": "hair-09", "svg": "<path d=\"M17 44 C14 22 27 7 50 7 C74 7 87 22 83 45 C78 35 71 29 63 25 L58 46 L51 23 L45 46 L37 24 C28 28 22 34 17 44Z\" fill=\"var(--hair, #2b1b14)\"/>" },
+  { "id": "hair-10", "svg": "<path d=\"M20 37 C19 18 30 8 50 8 C69 8 81 19 80 37 C70 26 60 23 50 23 C40 23 30 26 20 37Z\" fill=\"var(--hair, #2b1b14)\"/><path d=\"M80 37 Q88 47 82 62\" fill=\"none\" stroke=\"var(--hair, #2b1b14)\" stroke-width=\"6\" stroke-linecap=\"round\"/>" }
+]

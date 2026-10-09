@@ -1,0 +1,6 @@
+[
+  { "id": "none", "svg": "" },
+  { "id": "glasses-01", "svg": "<rect x=\"20\" y=\"37\" width=\"24\" height=\"14\" rx=\"5\" fill=\"none\" stroke=\"var(--accessory, #222)\" stroke-width=\"2.5\"/><rect x=\"56\" y=\"37\" width=\"24\" height=\"14\" rx=\"5\" fill=\"none\" stroke=\"var(--accessory, #222)\" stroke-width=\"2.5\"/><path d=\"M44 43 Q50 40 56 43\" fill=\"none\" stroke=\"var(--accessory, #222)\" stroke-width=\"2.2\"/>" },
+  { "id": "glasses-02", "svg": "<circle cx=\"32\" cy=\"44\" r=\"10\" fill=\"none\" stroke=\"var(--accessory, #222)\" stroke-width=\"2.5\"/><circle cx=\"68\" cy=\"44\" r=\"10\" fill=\"none\" stroke=\"var(--accessory, #222)\" stroke-width=\"2.5\"/><path d=\"M42 43 Q50 40 58 43\" fill=\"none\" stroke=\"var(--accessory, #222)\" stroke-width=\"2.2\"/>" },
+  { "id": "earrings-01", "svg": "<circle cx=\"15\" cy=\"60\" r=\"2.5\" fill=\"var(--jewelry, #d5a31a)\"/><circle cx=\"85\" cy=\"60\" r=\"2.5\" fill=\"var(--jewelry, #d5a31a)\"/>" }
+]

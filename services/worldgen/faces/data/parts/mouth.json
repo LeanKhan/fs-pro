@@ -1,0 +1,6 @@
+[
+  { "id": "smile", "svg": "<path d=\"M40 65 Q50 74 60 65\" fill=\"none\" stroke=\"#2b2b2b\" stroke-width=\"2.5\" stroke-linecap=\"round\"/>" },
+  { "id": "flat", "svg": "<line x1=\"40\" y1=\"67\" x2=\"60\" y2=\"67\" stroke=\"#2b2b2b\" stroke-width=\"2.5\" stroke-linecap=\"round\"/>" },
+  { "id": "frown", "svg": "<path d=\"M40 70 Q50 61 60 70\" fill=\"none\" stroke=\"#2b2b2b\" stroke-width=\"2.5\" stroke-linecap=\"round\"/>" },
+  { "id": "open", "svg": "<ellipse cx=\"50\" cy=\"67\" rx=\"7\" ry=\"4\" fill=\"#7a2e2e\"/>" }
+]

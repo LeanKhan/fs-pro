@@ -34,6 +34,8 @@ export interface TicketClaims {
   clubs: string[];
   code?: string;
   admin?: boolean;
+  /** The account's email is confirmed (or confirmation isn't required): it may chat. */
+  ver?: boolean;
 }
 
 /** A signed, short-lived ticket the browser presents to the gateway. */
@@ -42,6 +44,27 @@ export function issueTicket(claims: TicketClaims) {
   const payload = Buffer.from(JSON.stringify({ ...claims, exp: Math.floor(Date.now() / 1000) + TICKET_SECONDS }));
   const sig = crypto.createHmac('sha256', secret).update(payload).digest();
   return `${payload.toString('base64url')}.${sig.toString('base64url')}`;
+}
+
+/** Calls a signed moderator endpoint on the gateway (apps/fs-pro-realtime/moderation.go). */
+export async function gatewayAdmin(path: string, body: unknown): Promise<{ ok: boolean; status: number; data: any }> {
+  const { secret, url, enabled } = realtimeConfig();
+  if (!enabled) return { ok: false, status: 503, data: { error: 'Realtime is off' } };
+  const text = JSON.stringify(body);
+  const signature = crypto.createHmac('sha256', secret).update(text).digest('hex');
+  const res = await fetch(`${url}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Signature': signature },
+    body: text,
+    signal: AbortSignal.timeout(5000),
+  });
+  let data: any = null;
+  try {
+    data = await res.json();
+  } catch {
+    /* empty body */
+  }
+  return { ok: res.ok, status: res.status, data };
 }
 
 let lastFailureLog = 0;

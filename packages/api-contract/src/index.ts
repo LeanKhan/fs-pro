@@ -21,6 +21,12 @@ import { challengesContract } from './routes/challenges';
 import { worldContract } from './routes/world';
 import { competitionDefinitionsContract } from './routes/competition-definitions';
 import { atlasContract } from './routes/atlas';
+import { tilesContract } from './routes/tiles';
+import { programContract } from './routes/program';
+
+// The one shared Villa (V) money formatter (phase-2 L13/D2) - used by both the
+// server's written text and the client so the symbol/format cannot drift.
+export { formatVilla, formatVillaCompact } from './villa';
 
 const c = initContract();
 
@@ -48,6 +54,8 @@ export const apiContract = c.router({
   world: worldContract,
   competitionDefinitions: competitionDefinitionsContract,
   atlas: atlasContract,
+  tiles: tilesContract,
+  program: programContract,
 });
 
 export * from './replay';
@@ -71,7 +79,23 @@ export type {
   ClubStanding,
   InboxMessage,
   Inbox,
+  ShopState,
+  ClubLeague,
+  ShopCollect,
 } from './schemas/play';
+export type {
+  MatchPlan,
+  HalfTimeOrders,
+  MatchdayFixture,
+  Matchday,
+  MatchPrep,
+  PrepPlayer,
+  ScoutReport,
+  PlanPreview,
+  PlanFactor,
+  StyleKey,
+} from './schemas/match-plan';
+export { STYLE_KEYS, PLAN_FORMATIONS, TRAINING_KEYS, TEAM_TALK_KEYS } from './schemas/match-plan';
 export type { ClubPerformance, ClubPerformanceInsight, ClubPerformanceStrategy, ClubPerformanceAdvisorSummary } from './schemas/club-performance';
 export type { Award } from './schemas/award';
 export type { User } from './schemas/user';
@@ -139,3 +163,140 @@ export * from './world-geo';
 export * from './world-calendar';
 export * from './crest';
 export * from './schemas/atlas';
+
+// World-service (Go) endpoint shapes - see docs/perfect/WORLD-SERVICE-CONTRACT.md.
+// Node does not serve these; it calls them via
+// apps/fs-pro-server/src/services/world/world-service.client.ts.
+export {
+  PlacementSpotKindSchema,
+  PlacementSpotRequestSchema,
+  PlacementInviteSchema,
+  PlacementSpotSchema,
+  PlaceChildSchema,
+  PlaceChildrenSchema,
+  ProminenceSchema,
+  ProminenceRecomputeSchema,
+  ProminenceRecomputeResultSchema,
+  PyramidPoolSchema,
+  PyramidDrawSchema,
+  PyramidJoinRequestSchema,
+  PyramidJoinSchema,
+  WorldServiceHealthSchema,
+  TilePlaceSchema,
+  TileClubSchema,
+  TileSchema,
+} from './schemas/world-service';
+export type {
+  PlacementSpotKind,
+  PlacementSpotRequest,
+  PlacementInvite,
+  PlacementSpot,
+  PlaceChild,
+  PlaceChildren,
+  Prominence,
+  ProminenceRecompute,
+  ProminenceRecomputeResult,
+  PyramidPool,
+  PyramidDraw,
+  PyramidJoinRequest,
+  PyramidJoin,
+  WorldServiceHealth,
+  TilePlace,
+  TileClub,
+  Tile,
+} from './schemas/world-service';
+
+// Owner-program engine (Go) endpoint shapes - see
+// docs/perfect/phase-2/PROGRAM-SERVICE-CONTRACT.md. Node does not serve these;
+// it calls them via services/world/world-service.client.ts.
+export {
+  ProgramStepSchema,
+  ProgramNextStepSchema,
+  ProgramManagerFactsSchema,
+  ProgramSquadFactsSchema,
+  ProgramAssetFactsSchema,
+  ProgramFriendlyFactsSchema,
+  ProgramScoutFactsSchema,
+  ProgramEventFactsSchema,
+  ProgramStepFactsSchema,
+  AdvisorExprSchema,
+  AdvisorPoseSchema,
+  AdvisorLineSchema,
+  ProgramStepInfoSchema,
+  ProgramMatchXpSchema,
+  ProgramFeesSchema,
+  ProgramStepsConfigSchema,
+  ProgramEvaluateRequestSchema,
+  ProgramEvaluationSchema,
+  ProgramNextRequestSchema,
+  ProgramNextResponseSchema,
+  ProgramAdvisorStateSchema,
+  ProgramTipRequestSchema,
+  ProgramTipResponseSchema,
+  ProgramStrategySchema,
+  ProgramSimulateRequestSchema,
+  ProgramPercentilesSchema,
+  ProgramHistogramBucketSchema,
+  ProgramSimulationReportSchema,
+} from './schemas/program-service';
+export type {
+  ProgramStep,
+  ProgramNextStep,
+  ProgramManagerFacts,
+  ProgramSquadFacts,
+  ProgramAssetFacts,
+  ProgramFriendlyFacts,
+  ProgramScoutFacts,
+  ProgramEventFacts,
+  ProgramStepFacts,
+  AdvisorExpr,
+  AdvisorPose,
+  AdvisorLine,
+  ProgramStepInfo,
+  ProgramStepsConfig,
+  ProgramEvaluateRequest,
+  ProgramEvaluation,
+  ProgramNextRequest,
+  ProgramNextResponse,
+  ProgramAdvisorState,
+  ProgramTipRequest,
+  ProgramTipResponse,
+  ProgramStrategy,
+  ProgramSimulateRequest,
+  ProgramPercentiles,
+  ProgramHistogramBucket,
+  ProgramSimulationReport,
+} from './schemas/program-service';
+
+// Client-facing owner-program shapes and routes (Node serves these; phase-2
+// OWNER-PROGRAM-SPEC §10.1). The Go-boundary shapes above are separate.
+export {
+  ProgramStepSchema as OwnerProgramStepSchema,
+  ProgramStepStarsSchema,
+  AttributeRangeSchema,
+  ProgramManagerSchema,
+  ProgramPlayerSchema,
+  ProgramScoutRevealSchema,
+  ProgramStateSchema,
+  ProgramManagerListSchema,
+  ProgramPlayerListSchema,
+  ProgramSignResultSchema,
+  ProgramDismissTipSchema,
+  ProgramChapterSchema,
+  ProgramLoanSchema,
+} from './schemas/program';
+export type {
+  ProgramStep as OwnerProgramStep,
+  ProgramStepStars as OwnerProgramStepStars,
+  AttributeRange,
+  ProgramManager,
+  ProgramPlayer,
+  ProgramScoutReveal,
+  ProgramState,
+  ProgramManagerList,
+  ProgramPlayerList,
+  ProgramSignResult,
+  ProgramDismissTip,
+  ProgramChapter,
+  ProgramLoan,
+} from './schemas/program';

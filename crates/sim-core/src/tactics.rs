@@ -106,11 +106,50 @@ impl TeamTactics {
     }
 }
 
+/// The style matchup (docs/CORE-LOOP.md, "Match prep"): +1 when `own`
+/// counters `opp`, -1 when it is countered, 0 otherwise. A cycle - High
+/// Press > Possession > Low Block > Direct > High Press - with Balanced
+/// neutral against everything, so every plan has an answer.
+pub fn style_matchup(own: &str, opp: &str) -> f32 {
+    let key = |s: &str| s.replace([' ', '_', '-'], "").to_lowercase();
+    const CYCLE: [&str; 4] = ["highpress", "possession", "lowblock", "direct"];
+    let (Some(a), Some(b)) = (CYCLE.iter().position(|s| *s == key(own)), CYCLE.iter().position(|s| *s == key(opp))) else {
+        return 0.0;
+    };
+    if (a + 1) % 4 == b {
+        1.0
+    } else if (b + 1) % 4 == a {
+        -1.0
+    } else {
+        0.0
+    }
+}
+
+/// The formation matchup: no shape beats every other. 3-5-2's midfield
+/// overload wins the middle but its back three is exposed by two-striker and
+/// wide shapes (4-4-2, 4-3-3); 4-3-3's front three beats 4-4-2's flat four;
+/// 4-2-3-1's double pivot smothers 4-3-3's midfield. Returns +1 when `own`
+/// counters `opp`, -1 when countered, 0 otherwise.
+pub fn formation_matchup(own: &str, opp: &str) -> f32 {
+    let key = |s: &str| s.replace([' ', '-', '_'], "").to_lowercase();
+    let (o, p) = (key(own), key(opp));
+    let beats = |a: &str, b: &str| -> i32 {
+        ((o == a && p == b) as i32) - ((o == b && p == a) as i32)
+    };
+    let mut e = 0i32;
+    e += beats("442", "352");
+    e += beats("433", "352");
+    e += beats("352", "4231");
+    e += beats("4231", "433");
+    e += beats("433", "442");
+    e.signum() as f32
+}
+
 fn match_style_defaults(style_name: &str) -> (f32, f32, f32, f32, f32, f32) {
     let clean = style_name.replace([' ', '_', '-'], "").to_lowercase();
     match clean.as_str() {
-        "highpress" => (0.80, 0.80, 0.55, 0.70, 0.50, 0.30),
-        "lowblock" => (0.25, 0.15, 0.50, 0.30, 0.60, 0.80),
+        "highpress" => (0.72, 0.80, 0.55, 0.70, 0.50, 0.30),
+        "lowblock" => (0.40, 0.28, 0.50, 0.35, 0.60, 0.85),
         "possession" => (0.50, 0.55, 0.70, 0.40, 0.25, 0.60),
         "direct" => (0.65, 0.45, 0.50, 0.80, 0.85, 0.40),
         _ => (0.50, 0.50, 0.60, 0.50, 0.50, 0.50), // Balanced

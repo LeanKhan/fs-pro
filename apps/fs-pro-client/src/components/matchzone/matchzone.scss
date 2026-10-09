@@ -7,7 +7,7 @@
   --wood: #8a5a3b;
   --wood-d: #5e3b22;
   --ink: #4a3220;
-  --muted: #8b7357;
+  --muted: #6f5940; // AA (6.0:1 on cream); was #8b7357 (4.1:1, failed WCAG AA) — DECISIONS B1-2 sweep
   --edge: #c9a46a;
   --green: #5cc23a;
   --green-d: #2f8a1c;
@@ -832,7 +832,8 @@
     }
   }
 }
-.card {
+// Scoped: a bare .card leaked into the campus Build menu and squashed its cards.
+.mz .card {
   display: inline-block;
   width: 10px;
   height: 14px;

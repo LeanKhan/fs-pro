@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 270" width="240" height="270"
+  class="adv expr-happy adv-state-idle adv-pose-idle" role="img" aria-label="Vintra, pleased">
+  <title>Vintra, pleased</title>
+  <style>
+  .adv { display:block; }
+  .adv-lid { transform: translateY(-42px); }
+  .adv-talk { opacity:0; }
+  .adv-talk .adv-viseme { opacity:1; }
+  /* The raised arm is hidden until the root is posed; the pointer aims. */
+  .adv-point { display:none; }
+  .adv-pose-point-right .adv-point-right,
+  .adv-pose-point-left .adv-point-left { display:block; }
+  .adv-pointer { transform: rotate(var(--adv-aim, 0deg)); }
+  @media (prefers-reduced-motion: no-preference) {
+    .adv #adv-bob { animation: adv-bob 3.4s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+    .adv-lid { animation: adv-blink 4.8s ease-in-out infinite; }
+    .adv-state-talking .adv-mouth-static { opacity:0; }
+    .adv-state-talking .adv-talk { opacity:1; }
+    .adv-state-talking .adv-viseme { animation: adv-vis 0.44s steps(1) infinite; }
+    .adv-state-talking .adv-viseme:nth-child(2) { animation-delay: 0.11s; }
+    .adv-state-talking .adv-viseme:nth-child(3) { animation-delay: 0.22s; }
+    .adv-state-talking .adv-viseme:nth-child(4) { animation-delay: 0.33s; }
+    .adv-pointer { transition: transform 0.28s ease-out; }
+  }
+  @keyframes adv-bob { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-5px) } }
+  @keyframes adv-blink { 0%,90%,100%{ transform: translateY(-42px) } 93%,95%{ transform: translateY(0) } }
+  @keyframes adv-vis { 0%,25%{ opacity:1 } 26%,100%{ opacity:0 } }
+</style>
+  
+    <g id="adv-bob">
+      <g class="adv-figure">
+        <!-- shoulders / club kit -->
+        <path d="M22 270 q6 -54 60 -62 h76 q54 8 60 62 z" fill="#5cc23a" stroke="#5e3b22" stroke-width="3.4"/>
+        <path d="M104 214 q16 16 32 0 v40 h-32 z" fill="#f5b82e" opacity=".9"/>
+        <!-- neck -->
+        <path d="M102 186 h36 v30 q-18 12 -36 0 z" fill="#e0aa78" stroke="#5e3b22" stroke-width="3.4"/>
+        <!-- scarf -->
+        <path d="M70 240 q50 24 100 0 q4 16 -6 24 q-44 20 -88 0 q-10 -8 -6 -24 z" fill="#f5b82e" stroke="#5e3b22" stroke-width="3.4"/>
+        
+        <!-- bun + hair behind the head -->
+        <circle cx="120" cy="52" r="19" fill="#cfc7b6" stroke="#5e3b22" stroke-width="3.4"/>
+        <path d="M58 128 q-10 -74 62 -74 q72 0 62 74 q-10 -18 -22 -24 q-26 10 -80 0 q-12 6 -22 24 z" fill="#cfc7b6" stroke="#5e3b22" stroke-width="3.4"/>
+        <!-- ears -->
+        <ellipse cx="60" cy="132" rx="12" ry="16" fill="#f2c79b" stroke="#5e3b22" stroke-width="3.4"/>
+        <ellipse cx="180" cy="132" rx="12" ry="16" fill="#f2c79b" stroke="#5e3b22" stroke-width="3.4"/>
+        <!-- head -->
+        <ellipse cx="120" cy="126" rx="62" ry="66" fill="#f2c79b" stroke="#5e3b22" stroke-width="3.4"/>
+        <circle cx="82" cy="150" r="11" fill="#e79b78" opacity=".45"/><circle cx="158" cy="150" r="11" fill="#e79b78" opacity=".45"/>
+        <!-- flat cap: crown then darker forward brim -->
+        <path d="M56 104 q-2 -62 64 -62 q66 0 64 62 q-64 -26 -128 0 z" fill="#8a5a3b" stroke="#5e3b22" stroke-width="3.4"/>
+        <path d="M48 104 q72 -24 144 0 q0 15 -22 15 q-50 -16 -100 0 q-22 0 -22 -15 z" fill="#5e3b22" stroke="#5e3b22" stroke-width="3.4"/>
+        
+      <g class="adv-brows">
+        <path d="M84 99 q13 -7 28 -3" fill="none" stroke="#a89f8b" stroke-width="5" stroke-linecap="round" transform="rotate(0 98 104)"/>
+        <path d="M156 99 q-13 -7 -28 -3" fill="none" stroke="#a89f8b" stroke-width="5" stroke-linecap="round" transform="rotate(0 142 104)"/>
+      </g>
+        
+      <g class="adv-eyes">
+        <path d="M84 128 q14 -18 28 0" fill="none" stroke="#5e3b22" stroke-width="4.6" stroke-linecap="round"/>
+        <path d="M128 128 q14 -18 28 0" fill="none" stroke="#5e3b22" stroke-width="4.6" stroke-linecap="round"/>
+      </g>
+        
+      <clipPath id="adv-eye-clip">
+        <rect x="76" y="104" width="44" height="46"/>
+        <rect x="120" y="104" width="44" height="46"/>
+      </clipPath>
+      <g class="adv-lids" clip-path="url(#adv-eye-clip)" aria-hidden="true">
+        <g class="adv-lid">
+          <ellipse cx="98" cy="126" rx="20" ry="20" fill="#f2c79b"/>
+          <path d="M85 126 q13 7 26 0" fill="none" stroke="#5e3b22" stroke-width="3" stroke-linecap="round"/>
+        </g>
+        <g class="adv-lid">
+          <ellipse cx="142" cy="126" rx="20" ry="20" fill="#f2c79b"/>
+          <path d="M129 126 q13 7 26 0" fill="none" stroke="#5e3b22" stroke-width="3" stroke-linecap="round"/>
+        </g>
+      </g>
+        <!-- nose -->
+        <path d="M120 134 q6 12 0 18 q-6 -2 -8 -6" fill="none" stroke="#e0aa78" stroke-width="3" stroke-linecap="round"/>
+        <g class="adv-mouth-static"><path d="M100 165 q20 22 40 0 z" fill="#8c4a3f" stroke="#5e3b22" stroke-width="3.2" stroke-linejoin="round"/><path d="M106 166 q14 8 28 0" fill="#fffaf0" stroke="none"/></g>
+        
+      <g class="adv-talk" aria-hidden="true">
+        <g class="adv-viseme"><ellipse cx="120" cy="171" rx="11" ry="7" fill="#8c4a3f" stroke="#5e3b22" stroke-width="2.6"/></g>
+        <g class="adv-viseme"><ellipse cx="120" cy="171" rx="8" ry="10" fill="#8c4a3f" stroke="#5e3b22" stroke-width="2.6"/></g>
+        <g class="adv-viseme"><ellipse cx="120" cy="171" rx="13" ry="5" fill="#8c4a3f" stroke="#5e3b22" stroke-width="2.6"/></g>
+        <g class="adv-viseme"><ellipse cx="120" cy="171" rx="6" ry="8" fill="#8c4a3f" stroke="#5e3b22" stroke-width="2.6"/></g>
+      </g>
+        
+        
+        
+      <g class="adv-point adv-point-right">
+        <path d="M154 246 q36 -8 62 -30" fill="none" stroke="#5e3b22" stroke-width="34" stroke-linecap="round"/>
+        <path d="M154 246 q36 -8 62 -30" fill="none" stroke="#5cc23a" stroke-width="26" stroke-linecap="round"/>
+        <circle cx="216" cy="198" r="16" fill="#f2c79b" stroke="#5e3b22" stroke-width="3.4"/>
+        <g class="adv-pointer" style="transform-origin:216px 198px">
+          <path d="M216 198 L238 110" stroke="#8a5a3b" stroke-width="9" stroke-linecap="round"/>
+          <circle cx="238" cy="110" r="6" fill="#5e3b22"/>
+        </g>
+      </g>
+      <g class="adv-point adv-point-left">
+        <path d="M86 246 q-36 -8 -62 -30" fill="none" stroke="#5e3b22" stroke-width="34" stroke-linecap="round"/>
+        <path d="M86 246 q-36 -8 -62 -30" fill="none" stroke="#5cc23a" stroke-width="26" stroke-linecap="round"/>
+        <circle cx="24" cy="198" r="16" fill="#f2c79b" stroke="#5e3b22" stroke-width="3.4"/>
+        <g class="adv-pointer" style="transform-origin:24px 198px">
+          <path d="M24 198 L2 110" stroke="#8a5a3b" stroke-width="9" stroke-linecap="round"/>
+          <circle cx="2" cy="110" r="6" fill="#5e3b22"/>
+        </g>
+      </g>
+      </g>
+    </g>
+</svg>

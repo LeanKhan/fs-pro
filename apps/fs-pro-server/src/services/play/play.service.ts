@@ -9,6 +9,11 @@ import { getAssetEffects } from '../facilities/facilities.service';
 import { levelForXp, payClub, xpForLevel } from './rewards';
 import { getStanding, type StandingView } from '../world/club-standing.service';
 import { scaled } from './game-time';
+import { getShop, type ShopState } from './shop';
+import { getClubLeague, type ClubLeague } from './club-league';
+import { ensureDefaultLineup } from './default-lineup';
+import { assertClubPlayable } from '../program/squad-gate';
+import { QUALIFYING_FRIENDLY_XP } from './qualifying';
 
 /**
  * PLAY: the match is the club's primary loop. Pressing PLAY matches the club
@@ -43,7 +48,7 @@ const MATCH_TITLE_MARK = '(Matchmade)';
  * mattered financially past Stands Level 1. A % of gate keeps outcome
  * meaningful at every stadium size while keeping gate income the main
  * earner, as intended. */
-const REWARD_XP = { win: 30, draw: 10, loss: 5 } as const;
+export const REWARD_XP = QUALIFYING_FRIENDLY_XP;
 const GATE_SHARE = { win: 0.5, draw: 0.1, loss: -0.15 } as const;
 /** A win always pays at least this much cash, even at a Level 0 stadium. */
 const MIN_WIN_CASH = 3_000;
@@ -76,6 +81,10 @@ export interface PlayState {
   cooldownSeconds: number;
   challenge: ChallengeState;
   recent: RecentMatch[];
+  /** The club shop's till (services/play/shop.ts). */
+  shop: ShopState;
+  /** The club's pyramid league place, or null when it isn't in one. */
+  league: ClubLeague | null;
 }
 
 export interface MatchResult {
@@ -171,13 +180,20 @@ async function recentMatches(clubId: string): Promise<RecentMatch[]> {
 export async function getPlayState(clubId: string): Promise<PlayState> {
   const [club] = await db().select().from(clubs).where(eq(clubs.id, clubId));
   if (!club) throw new Error('Club not found');
-  const [challenge, cooldown, recent, standing] = await Promise.all([
+  // A manager's club never meets PLAY with an empty team sheet.
+  if (club.UserId && !club.Lineup?.startingXI?.length) await ensureDefaultLineup(clubId).catch(() => false);
+  const [challenge, cooldown, recent, standing, shop, league] = await Promise.all([
     ensureChallenge(clubId),
     cooldownSeconds(clubId),
     recentMatches(clubId),
     getStanding(clubId),
+    getShop(club),
+    getClubLeague(clubId).catch((err) => {
+      console.warn('[play] league summary failed', err);
+      return null;
+    }),
   ]);
-  return { club: summarise(club), standing, cooldownSeconds: cooldown, challenge, recent };
+  return { club: summarise(club), standing, cooldownSeconds: cooldown, challenge, recent, shop, league };
 }
 
 type Candidate = typeof clubs.$inferSelect & { manager: string | null };
@@ -248,6 +264,10 @@ export async function playMatch(
 ): Promise<MatchResult> {
   const [club] = await db().select().from(clubs).where(eq(clubs.id, clubId));
   if (!club) throw new Error('Club not found');
+
+  // L5: no manager, no legal matchday squad, no match. The owner program's
+  // advisor turns the typed refusal into a tip.
+  await assertClubPlayable(clubId);
 
   const cooldown = await cooldownSeconds(clubId);
   if (cooldown > 0) throw new Error(`Your squad is resting - next match in ${cooldown}s`);

@@ -1,0 +1,7 @@
+[
+  { "id": "face-oval", "svg": "<path d=\"M50 5 C72 5 86 23 84 50 C82 76 67 94 50 96 C33 94 18 76 16 50 C14 23 28 5 50 5Z\" fill=\"var(--skin, #b97855)\"/>" },
+  { "id": "face-round", "svg": "<ellipse cx=\"50\" cy=\"50\" rx=\"36\" ry=\"42\" fill=\"var(--skin, #b97855)\"/>" },
+  { "id": "face-square", "svg": "<path d=\"M24 10 Q50 2 76 10 Q85 23 84 48 L80 77 Q68 94 50 96 Q32 94 20 77 L16 48 Q15 23 24 10Z\" fill=\"var(--skin, #b97855)\"/>" },
+  { "id": "face-heart", "svg": "<path d=\"M50 6 C72 5 86 21 83 47 C80 70 66 89 50 97 C34 89 20 70 17 47 C14 21 28 5 50 6Z\" fill=\"var(--skin, #b97855)\"/>" },
+  { "id": "face-long", "svg": "<path d=\"M50 4 C70 4 82 18 82 46 C82 76 66 96 50 98 C34 96 18 76 18 46 C18 18 30 4 50 4Z\" fill=\"var(--skin, #b97855)\"/>" }
+]

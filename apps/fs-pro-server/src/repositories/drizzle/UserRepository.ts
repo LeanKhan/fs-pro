@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { IUser } from '../../controllers/user/user.model';
 import * as schema from '../../db/drizzle/full-schema';
@@ -43,6 +43,15 @@ export class DrizzleUserRepository implements IUserRepository {
       .select()
       .from(users)
       .where(eq(users.accountId, accountId))
+      .limit(1);
+    return user ? toUser(user) : null;
+  }
+
+  async findByEmail(email: string): Promise<IUser | null> {
+    const [user] = await this.db
+      .select()
+      .from(users)
+      .where(sql`lower(${users.Email}) = ${email.trim().toLowerCase()}`)
       .limit(1);
     return user ? toUser(user) : null;
   }

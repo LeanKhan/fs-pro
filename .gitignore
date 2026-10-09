@@ -26,7 +26,7 @@ coverage
 out/
 build
 dist
-data
+/real-world-data-samples
 
 
 # Debug
@@ -46,3 +46,5 @@ yarn-error.log*
 
 # For Rust
 /target
+# Agent/editor local state (worktrees live here)
+.claude/

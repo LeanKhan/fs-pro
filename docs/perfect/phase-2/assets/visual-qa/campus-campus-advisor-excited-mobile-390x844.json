@@ -1,0 +1,14 @@
+{
+ "metrics": {
+  "width": 390,
+  "height": 844,
+  "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3050 Ti Laptop GPU (0x000025A0) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "mean": 157,
+  "min": 0,
+  "max": 255,
+  "std": 46,
+  "uniqueShades": 690,
+  "blank": false
+ },
+ "viewport": "mobile-390x844"
+}

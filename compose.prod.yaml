@@ -1,8 +1,8 @@
 # Production stack. Copy .env.production.example to .env.production, fill it
 # in, then:
 #   docker compose -f compose.prod.yaml --env-file .env.production up -d --build
-# Only `web` is published; put TLS in front of it. The database, sim service
-# and gateway stay on the internal network.
+# Only `web` is published; put TLS in front of it. The database, sim, worldgen
+# and world services and the gateway stay on the internal network.
 services:
   db:
     image: postgres:17
@@ -25,6 +25,23 @@ services:
       dockerfile: deploy/sim.Dockerfile
     restart: unless-stopped
 
+  worldgen:
+    build:
+      context: .
+      dockerfile: deploy/worldgen.Dockerfile
+    restart: unless-stopped
+
+  world:
+    build:
+      context: .
+      dockerfile: deploy/world-service.Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        condition: service_healthy
+
   realtime:
     build:
       context: .
@@ -33,6 +50,8 @@ services:
     environment:
       REALTIME_SECRET: ${REALTIME_SECRET:?set REALTIME_SECRET}
       REALTIME_ORIGINS: ${PUBLIC_HOST:?set PUBLIC_HOST}
+      CHAT_REQUIRE_VERIFIED: ${REQUIRE_VERIFIED_EMAIL:-true}
+      CHAT_BLOCKLIST: ${CHAT_BLOCKLIST:-}
 
   # One-shot: applies migrations, then exits. `server` waits for it.
   migrate:
@@ -51,6 +70,12 @@ services:
   server:
     image: fs-pro-server
     restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
     environment:
       NODE_ENV: production
       PORT: '3000'
@@ -63,7 +88,11 @@ services:
       REALTIME_SECRET: ${REALTIME_SECRET:?set REALTIME_SECRET}
       REMOTE_HOST: ${PUBLIC_HOST:?set PUBLIC_HOST}
       CORS_ORIGINS: https://${PUBLIC_HOST}
-      TRUST_PROXY: '1'
+      TRUST_PROXY: ${TRUST_PROXY:-2}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      APP_URL: https://${PUBLIC_HOST:?set PUBLIC_HOST}
+      REQUIRE_VERIFIED_EMAIL: ${REQUIRE_VERIFIED_EMAIL:-true}
       COOKIE_SECURE: 'true'
       GAME_TIME_SCALE: ${GAME_TIME_SCALE:-1}
       WORLD_TICK_MINUTES: ${WORLD_TICK_MINUTES:-10}
@@ -71,11 +100,16 @@ services:
       IMAGINATION_CLIENT_ID: ${IMAGINATION_CLIENT_ID:-}
       IMAGINATION_CLIENT_SECRET: ${IMAGINATION_CLIENT_SECRET:-}
       IMAGINATION_WORLD_ID: ${IMAGINATION_WORLD_ID:-}
-      WORLDGEN_SERVICE_URL: ${WORLDGEN_SERVICE_URL:-}
+      WORLDGEN_SERVICE_URL: ${WORLDGEN_SERVICE_URL:-http://worldgen:3004}
+      WORLD_SERVICE_URL: ${WORLD_SERVICE_URL:-http://world:3006}
     depends_on:
       migrate:
         condition: service_completed_successfully
       sim:
+        condition: service_started
+      worldgen:
+        condition: service_started
+      world:
         condition: service_started
       realtime:
         condition: service_started

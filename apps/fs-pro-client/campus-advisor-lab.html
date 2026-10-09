@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Campus + Advisor Lab</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #6dbb47; font-family: 'Fredoka', system-ui, sans-serif; }
+      /* QA (Batch 4B): freeze CSS animation while a screenshot is captured, so
+         the canvas inspector's frames stabilize. Only the lab sets this. */
+      .qa-still .adv-portrait *,
+      .qa-still .adv-bubble,
+      .qa-still .adv-nudge,
+      .qa-still .adv-caret { animation: none !important; transition: none !important; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <!-- Dev-only lab for the real 3D campus + the advisor, with QA hooks
+         (window.__CAMPUS_TEST_HOOKS__ / __THREE_GAME_TEST_HOOKS__).
+         Separate from campus-lab.* (which covers terrain/Tier states).
+         Not part of the build. -->
+    <script type="module" src="/src/dev/campus-advisor-lab.ts"></script>
+  </body>
+</html>

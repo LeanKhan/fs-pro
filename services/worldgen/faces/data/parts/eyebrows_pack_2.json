@@ -1,0 +1,6 @@
+[
+  { "id": "soft-curve", "svg": "<path d=\"M33 40 Q38 37 43 38\" fill=\"none\" stroke=\"#2b2b2b\" stroke-width=\"1.8\" stroke-linecap=\"round\"/><path d=\"M57 38 Q62 37 67 40\" fill=\"none\" stroke=\"#2b2b2b\" stroke-width=\"1.8\" stroke-linecap=\"round\"/>" },
+  { "id": "raised-curious", "svg": "<path d=\"M33 37 Q38 31 44 36\" fill=\"none\" stroke=\"#2b2b2b\" stroke-width=\"2\" stroke-linecap=\"round\"/><path d=\"M56 39 Q62 38 67 40\" fill=\"none\" stroke=\"#2b2b2b\" stroke-width=\"2\" stroke-linecap=\"round\"/>" },
+  { "id": "slanted-intense", "svg": "<line x1=\"33\" y1=\"37\" x2=\"44\" y2=\"41\" stroke=\"#2b2b2b\" stroke-width=\"2.2\" stroke-linecap=\"round\"/><line x1=\"56\" y1=\"41\" x2=\"67\" y2=\"37\" stroke=\"#2b2b2b\" stroke-width=\"2.2\" stroke-linecap=\"round\"/>" },
+  { "id": "slit-cut", "svg": "<path d=\"M33 38 L37 38 M39 38 L43 38\" stroke=\"#2b2b2b\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><line x1=\"57\" y1=\"38\" x2=\"67\" y2=\"38\" stroke=\"#2b2b2b\" stroke-width=\"2.5\" stroke-linecap=\"round\"/>" }
+]

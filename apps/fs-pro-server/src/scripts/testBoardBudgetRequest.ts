@@ -13,10 +13,10 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`--- Testing Board Budget Request for ${club.Name} (Current Budget: $${club.Budget}) ---`);
+  console.log(`--- Testing Board Budget Request for ${club.Name} (Current Budget: V${club.Budget}) ---`);
 
   const requestedAmount = 1_500_000;
-  console.log(`Submitting Request: $${requestedAmount.toLocaleString()} [Justification: TITLE_CHALLENGE]`);
+  console.log(`Submitting Request: V${requestedAmount.toLocaleString()} [Justification: TITLE_CHALLENGE]`);
 
   const result = await processBoardBudgetRequest(club.id, requestedAmount, 'TITLE_CHALLENGE');
 

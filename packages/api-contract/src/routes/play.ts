@@ -3,7 +3,8 @@
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 import { successEnvelope, failEnvelope } from '../schemas/envelope';
-import { InboxSchema, MatchResultSchema, OpponentSchema, PlayStateSchema } from '../schemas/play';
+import { InboxSchema, MatchResultSchema, OpponentSchema, PlayStateSchema, ShopCollectSchema } from '../schemas/play';
+import { MatchPlanSchema, MatchPrepSchema, MatchdayFixtureSchema, MatchdaySchema, PlanPreviewSchema } from '../schemas/match-plan';
 
 const c = initContract();
 
@@ -63,6 +64,98 @@ export const playContract = c.router(
       pathParams: z.object({ clubId: z.string() }),
       responses: {
         200: successEnvelope(InboxSchema),
+        400: failEnvelope(),
+        401: failEnvelope(),
+        403: failEnvelope(),
+        404: failEnvelope(),
+      },
+    },
+
+    /** Bank the club shop's takings (docs/CORE-LOOP.md). Owner only. */
+    collectShop: {
+      method: 'POST',
+      path: '/:clubId/shop/collect',
+      pathParams: z.object({ clubId: z.string() }),
+      body: z.object({}).optional(),
+      responses: {
+        200: successEnvelope(ShopCollectSchema),
+        400: failEnvelope(),
+        401: failEnvelope(),
+        403: failEnvelope(),
+        404: failEnvelope(),
+      },
+    },
+
+    /** The club's matches: upcoming (with plan status and countdown) and
+     * recent (with scores and replays). Owner only. */
+    getMatchday: {
+      method: 'GET',
+      path: '/:clubId/matchday',
+      pathParams: z.object({ clubId: z.string() }),
+      responses: {
+        200: successEnvelope(MatchdaySchema),
+        400: failEnvelope(),
+        401: failEnvelope(),
+        403: failEnvelope(),
+        404: failEnvelope(),
+      },
+    },
+
+    /** Book a match with a club from the matchmaking preview: it kicks off
+     * on a later game day, giving both sides time to prepare. Owner only. */
+    bookMatch: {
+      method: 'POST',
+      path: '/:clubId/book',
+      pathParams: z.object({ clubId: z.string() }),
+      body: z.object({ opponentId: z.string() }),
+      responses: {
+        200: successEnvelope(MatchdayFixtureSchema),
+        400: failEnvelope(),
+        401: failEnvelope(),
+        403: failEnvelope(),
+        404: failEnvelope(),
+      },
+    },
+
+    /** Match prep for one of the club's fixtures: the plan (saved, or the
+     * club's defaults), the squad, the scouting report. Owner only. */
+    getMatchPrep: {
+      method: 'GET',
+      path: '/:clubId/fixtures/:fixtureId/prep',
+      pathParams: z.object({ clubId: z.string(), fixtureId: z.string() }),
+      responses: {
+        200: successEnvelope(MatchPrepSchema),
+        400: failEnvelope(),
+        401: failEnvelope(),
+        403: failEnvelope(),
+        404: failEnvelope(),
+      },
+    },
+
+    /** Save the plan for a fixture (refused once it has kicked off). */
+    saveMatchPlan: {
+      method: 'PUT',
+      path: '/:clubId/fixtures/:fixtureId/plan',
+      pathParams: z.object({ clubId: z.string(), fixtureId: z.string() }),
+      body: z.object({ plan: MatchPlanSchema, asDefault: z.boolean().optional() }),
+      responses: {
+        200: successEnvelope(MatchPrepSchema),
+        400: failEnvelope(),
+        401: failEnvelope(),
+        403: failEnvelope(),
+        404: failEnvelope(),
+      },
+    },
+
+    /** Win chance for a plan: the engine plays it a few dozen times
+     * against the opponent's plan. Nothing is saved. */
+    previewMatchPlan: {
+      method: 'POST',
+      path: '/:clubId/fixtures/:fixtureId/preview',
+      pathParams: z.object({ clubId: z.string(), fixtureId: z.string() }),
+      body: z.object({ plan: MatchPlanSchema }),
+      responses: {
+        200: successEnvelope(PlanPreviewSchema),
         400: failEnvelope(),
         401: failEnvelope(),
         403: failEnvelope(),

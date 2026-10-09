@@ -78,6 +78,9 @@ async function ensureCompetition(code: string, input: CompetitionDefinitionInput
   const built = buildDefinition(input);
   if (!built.ok) throw new Error(`Bad definition for ${code}: ${JSON.stringify(built.errors)}`);
   const d = built.definition;
+  // Race-safe: two concurrent owners reaching Level 1 in the same country both
+  // try to create the league (L2 trigger). ON CONFLICT keeps exactly one row;
+  // the loser re-reads it.
   const [row] = await db()
     .insert(competitions)
     .values({
@@ -95,8 +98,14 @@ async function ensureCompetition(code: string, input: CompetitionDefinitionInput
       CompetitionID: code,
       updatedAt: new Date(),
     })
+    // No target: both CompetitionCode and CompetitionID are unique, and a
+    // concurrent create can trip either index.
+    .onConflictDoNothing()
     .returning({ id: competitions.id });
-  return { id: row!.id, created: true };
+  if (row) return { id: row.id, created: true };
+  const [again] = await db().select({ id: competitions.id }).from(competitions).where(eq(competitions.CompetitionCode, code));
+  if (!again) throw new Error(`Competition ${code} vanished after a create race`);
+  return { id: again.id, created: false };
 }
 
 /** A first edition, open for entry now, unless one is already on the way. */

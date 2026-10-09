@@ -20,11 +20,14 @@ import { fixtureTsRestRoutes } from '../controllers/fixtures/fixture.router';
 import files from '../services/file/file.service';
 import playerFace from '../controllers/players/player-face.router';
 import managerFace from '../controllers/managers/manager-face.router';
+import services from '../controllers/services/services.router';
 import { managerTsRestRoutes } from '../controllers/managers/manager.router';
 import { placeTsRestRoutes } from '../controllers/places/places.router';
 import { awardTsRestRoutes } from '../controllers/awards/awards.router';
 import { metaTsRestRoutes } from '../controllers/meta/meta.router';
 import { atlasTsRestRoutes, crestRouter, kitRouter } from '../controllers/world/atlas.router';
+import { tilesTsRestRoutes } from '../controllers/world/tiles.router';
+import { programTsRestRoutes } from '../controllers/program/program.router';
 import { realtimeRouter } from '../controllers/realtime/realtime.router';
 import { routePolicy } from '../middleware/route-policy';
 
@@ -53,6 +56,8 @@ export const apiRouter = s.router(apiContract, {
   world: worldTsRestRoutes,
   competitionDefinitions: competitionDefinitionTsRestRoutes,
   atlas: atlasTsRestRoutes,
+  tiles: tilesTsRestRoutes,
+  program: programTsRestRoutes,
 });
 
 // export default mainRouter;
@@ -65,6 +70,7 @@ router.use(routePolicy);
 router.use('/files', files);
 router.use('/players', playerFace);
 router.use('/managers', managerFace);
+router.use('/services', services);
 router.use('/crests', crestRouter);
 router.use('/kits', kitRouter);
 router.use('/realtime', realtimeRouter);

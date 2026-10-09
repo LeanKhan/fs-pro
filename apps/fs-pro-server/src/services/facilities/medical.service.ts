@@ -3,6 +3,7 @@ import { DrizzleDatabase } from '../../db/drizzle';
 import { clubs, players, transferLedger } from '../../db/drizzle/schema';
 import { getAssetEffects } from './facilities.service';
 import log from '../../helpers/logger';
+import { formatVilla } from '@repo/api-contract';
 
 const db = () => DrizzleDatabase.getInstance().database;
 
@@ -132,7 +133,7 @@ export async function executeSquadRecovery(clubId: string) {
 
   const currentBudget = club.Budget ?? 0;
   if (currentBudget < cost) {
-    throw new Error(`Insufficient budget for Squad Cryotherapy ($${cost.toLocaleString()} required)`);
+    throw new Error(`Insufficient budget for Squad Cryotherapy (${formatVilla(cost)} required)`);
   }
 
   // Atomic update
@@ -171,7 +172,7 @@ export async function executeSquadRecovery(clubId: string) {
     return updatedClub?.budget ?? (currentBudget - cost);
   });
 
-  log(`[MedicalService] Squad recovery executed for club ${clubId} (Cost: $${cost})`);
+  log(`[MedicalService] Squad recovery executed for club ${clubId} (Cost: ${formatVilla(cost)})`);
 
   return {
     success: true,
@@ -228,7 +229,7 @@ export async function executePlayerTreatment(
 
   const currentBudget = club.Budget ?? 0;
   if (currentBudget < cost) {
-    throw new Error(`Insufficient budget for ${actionLabel} ($${cost.toLocaleString()} required)`);
+    throw new Error(`Insufficient budget for ${actionLabel} (${formatVilla(cost)} required)`);
   }
 
   // Execute treatment

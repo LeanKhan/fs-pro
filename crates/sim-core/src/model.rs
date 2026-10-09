@@ -201,6 +201,7 @@ pub fn shot_model(shooter: &SimPlayer, keeper: Option<&SimPlayer>, players: &[Si
         .filter(|d| fwd_m(d.pos, ltr) > shooter_fwd && seg_dist_m(d.pos, shooter.pos, goal) <= 1.2)
         .count();
     let pressure = pressure_at(shooter.pos, players, team, CFG.pressure_m).min(2);
+    let crowd = defenders().filter(|d| dist_m(d.pos, shooter.pos) <= CFG.crowd_m).count().min(4);
     let clear_through = defenders().all(|d| fwd_m(d.pos, ltr) <= shooter_fwd);
 
     let (situation, shooter_skill) = match kind {
@@ -212,6 +213,7 @@ pub fn shot_model(shooter: &SimPlayer, keeper: Option<&SimPlayer>, players: &[Si
                 + CFG.shot_distance * distance
                 + CFG.shot_blocker * blockers as f32
                 + CFG.shot_pressure * pressure as f32
+                + CFG.shot_crowd * crowd as f32
                 + if clear_through { CFG.shot_one_on_one } else { 0.0 },
             if kind == ShotKind::Header { heading(&shooter.attributes) } else { finishing(&shooter.attributes, distance) },
         ),
@@ -328,7 +330,9 @@ pub fn pass_model(passer: &SimPlayer, receiver: &SimPlayer, target: Vec2, kind: 
     let mut l = logit(kind.base())
         + CFG.tempo_pass_logit * (tempo - 0.5)
         + CFG.pass_per_m * (distance - CFG.pass_comfortable_m).max(0.0)
-        + CFG.pass_passer_pressure * pressure_at(passer.pos, players, team, CFG.pressure_m).min(3) as f32
+        + CFG.pass_passer_pressure
+            * if matches!(kind, PassKind::Long | PassKind::Through) { CFG.lofted_pressure_factor } else { 1.0 }
+            * pressure_at(passer.pos, players, team, CFG.pressure_m).min(3) as f32
         + CFG.pass_receiver_pressure * pressure_at(target, players, team, CFG.pressure_m + 0.5).min(3) as f32
         + CFG.pass_blocker * blockers.min(2) as f32
         + (effective(passer, passing(&passer.attributes, kind)) - CFG.skill_pivot) / CFG.passer_scale

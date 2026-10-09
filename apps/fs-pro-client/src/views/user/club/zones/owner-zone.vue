@@ -48,12 +48,14 @@
       <!-- Stadium & Infrastructure -->
       <v-col cols="12" md="7">
         <play-panel
+          v-if="!inGame"
           :club-id="club?._id"
           :read-only="readOnly"
           @update-available="emit('update-available')"
         ></play-panel>
 
         <facilities-panel
+          v-if="!inGame"
           :club-id="club?._id"
           :read-only="readOnly"
           @update-available="emit('update-available')"
@@ -221,9 +223,13 @@ const props = withDefaults(
   defineProps<{
     club?: any | null;
     readOnly?: boolean;
+    /** Shown in the campus Manager hub: the campus already has PLAY and
+     * the buildings, so those panels are left out. */
+    inGame?: boolean;
   }>(),
   {
     readOnly: false,
+    inGame: false,
   }
 );
 
@@ -306,7 +312,7 @@ const expectations = computed(() => {
       title: 'Matchdays turn a profit',
       met: !lastGate || Number(lastGate.net) >= 0,
       status: lastGate
-        ? `Last gate: ${Number(lastGate.attendance).toLocaleString()} fans, net ${Math.round(Number(lastGate.net)).toLocaleString()}`
+        ? `Last gate: ${Number(lastGate.attendance).toLocaleString()} fans, net ${formatCurrency(Number(lastGate.net))}`
         : 'No home matches yet',
     },
   ];

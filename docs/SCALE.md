@@ -1,5 +1,177 @@
 # Scale baselines (world pyramid)
 
+## B2E — founding rate: per-player log, O(N) scans, and a 100k run (2026-10-07)
+
+Batch-2 integration on the district hierarchy, same harness and scratch-DB
+recipe as B2D. This pass profiled the founding path, removed an unconditional
+per-player log and three O(N) table scans, and added a bounded-concurrency
+harness (`SCALE_CONCURRENCY`). Base `perfect/integration` @ `2f1c04c`.
+
+Rates are for `SCALE_CLUBS=N SCALE_SKIP_MATCHES=1`, one Linux Node v24 process
+unless noted, world-service on `localhost:3006`, Postgres 17 in Docker.
+
+| Run | Clubs | Clients | Founding | ms/club | Integrity |
+| --- | --- | --- | --- | --- | --- |
+| before (B2-2D-equivalent) | 1,000 | 1 | 58 s | 58 | — |
+| after | 1,000 | 1 | 38 s | 38 | 1 country / 4 regions / 100 cities |
+| after | 10,000 | 1 | 462 s | 46 | 8 countries / 44 regions / 1,000 cities; 160k players / 90k fixtures |
+| after | 2,000 | 4 | 45 s | 23 | 0 warnings, 0 unpooled clubs |
+| after | 10,000 | 4 | 276 s | 28 | 8 countries / 44 regions / 1,000 cities; 160k players / 90k fixtures |
+| after | 100,000 | 8 | 3,066 s | 31 | 75 countries / 447 regions / 3,575 cities / 10,000 districts; 100k clubs / 1.6M players / 900k fixtures; 0 unpooled; DB 2.1 GB |
+
+What changed (see `docs/perfect/B2-2E-REPORT.md` §2–§4):
+
+- `utils/players.ts:530` logged every generated player (16/club, ~11 KB/club);
+  now gated behind `DEBUG_PLAYER_PAYLOAD=true`.
+- The founding identity check seq-scanned Clubs (`lower(Name)=? OR
+  upper(ClubCode)=?`); it now BitmapOrs the two unique indexes.
+- `calculateAndUpdateClubRating` + `ensureDefaultLineup` read Players by
+  `ClubId` (no index) twice; both are now computed from the just-inserted rows
+  and written in one Club update.
+- The spot's places are resolved once (in parallel) instead of twice
+  sequentially.
+- The post-commit squad / pyramid-join / news / inbox work now overlaps.
+- `SCALE_CONCURRENCY=N` founds N at a time (the placement transaction is still
+  serialised by `PLACEMENT_LOCK`); `SCALE_SKIP_YEAR_END=1` times founding on
+  its own.
+
+Two costs remain in code outside this pass's ownership and are reported as
+blockers: no index on `Clubs.UserId` (the club-limit count) and no
+`(SeasonId, Group)` index for `pyramid.service.ts`'s `joinPyramid` members
+query. Both would need migration 0039.
+
+The year end is a separate bottleneck: at 10k it is 420,948 ms (from B2D and
+reproduced here), dominated by club ratings and youth intake, so a full 100k
+end-to-end year end is projected well past the 45-minute founding budget and is
+not claimed.
+
+
+
+## B2D — district hierarchy at 10,000 clubs, 100k attempted (2026-10-07)
+
+Batch-2 integration on the **new district hierarchy**: Node founding calls the
+Go world-service `POST /placement/spot` inside the `PLACEMENT_LOCK` transaction,
+and the pyramid draw/join delegate to `POST /pyramid/draw|join`. Scratch DB
+`fspro_scale_100k` (schema cloned from the live `fspro`, migration
+`0038_world_districts.sql` applied), Postgres 17 in Docker (host port 5434), Go
+world-service (go1.24.13, `golang:1.24-bookworm`) on `localhost:3006`, one Linux
+Node v24.21.0 process. Machine: Intel i7-11800H (16 vCPU), 15 GiB RAM, WSL2.
+
+Two harness fixes were needed first (`seedScaleWorld.ts`, both in this file):
+`SCALE_SKIP_MATCHES=1` now also skips the next-day kickoffs in §4 (it ran only
+the year-end hour), and the short-code generator now emits 26·36³ unique codes
+(the old letters-only scheme wrapped at 26³ = 17,576, where `code(17576)`
+collided with `code(0)` and founding failed with a 409).
+
+### 10,000 clubs (2026-10-07, completed)
+
+```
+SCALE_CLUBS=10000 SCALE_SKIP_MATCHES=1 REALTIME_URL=off WORLD_TICK_MINUTES=0 \
+  DATABASE_URL=…/fspro_scale_100k npx ts-node --transpile-only src/scripts/seedScaleWorld.ts
+```
+
+| Step | 10,000 clubs |
+| --- | --- |
+| Founding | 10,000 clubs in 1,051 s (105 ms each) |
+| Places opened | 8 countries, 44 regions, 1,000 cities/districts |
+| Rows | 10,000 clubs, 160,000 players, 90,000 fixtures |
+| Atlas (no club lists) | 22 ms · 132 KB, 348 cities |
+| Atlas (one country's clubs) | 56 ms · 546 KB |
+| Placement preview (Go) | 6 ms · `new-town` |
+| Local news feed | 4 ms · 10 items, local = country |
+| One pool table / a country's pools | 5 ms / 11 ms (134 pools) |
+| Year end (hour 0) | 427,005 ms · 8 pyramids finished, **8 drawn**, 0 up / 16 down; errors: 0 |
+| Editions running after redraw | 8 |
+
+Year-end step breakdown (`[year]` logs): last fixtures 6 ms; pyramid finish
+6.6 s; performance/Level review 0.9 s; player progression 13.6 s; wages 0.9 s;
+retirement 0.4 s; youth intake 52 s; **club ratings 334 s**; release 0.01 s;
+pyramid draw 17.8 s; year report 0.6 s. The `8 drawn` (vs B2-2C's `0 drawn`)
+is the `internal/db` timeout fix landed since Batch 2.
+
+### 100,000 clubs (2026-10-07, attempted — STOPPED at the 45-minute budget)
+
+```
+SCALE_CLUBS=100000 SCALE_SKIP_MATCHES=1 REALTIME_URL=off WORLD_TICK_MINUTES=0 \
+  DATABASE_URL=…/fspro_scale_100k npx ts-node --transpile-only src/scripts/seedScaleWorld.ts
+```
+
+The run was stopped after **45 minutes** (the founding step was still running),
+per the D5 hard budget. It had founded **20,686 clubs in 2,730 s
+(≈132 ms/club average; the script's own cumulative rate was 126 ms/club at
+20,500 clubs, rising ~2 ms per 1,000 clubs over the 10k–20k band)**:
+16 countries, 2,069 cities/districts, 330,976 players at the cut. **100,000
+clubs did not complete** and is not claimed.
+
+Projection: fitting the measured cumulative-rate curve (48 ms at 250 clubs →
+105 ms at 10k → 126 ms at 20.5k) gives a 100k founding time of **≈4–6 hours**
+(≈15,000 s with a concave/log fit, ≈19,000 s with a linear fit of the last
+12 samples). The degradation is driven by per-founding row counts / indexes,
+not the placement algorithm (2A: O(1) amortised). Even the optimistic fit is
+~5× the 45-minute budget, so the earlier B0 audit's "10k/100k" D5 target is
+confirmed as out of reach for an end-to-end single-process run on this machine;
+a 100k world needs a bulk/parallel founding path.
+
+| Step | 10,000 clubs | 100,000 clubs (attempted, 20,686 / 45 min) |
+| --- | --- | --- |
+| Founding | 1,051 s (105 ms each) | stopped at 20,686 clubs in 2,730 s (132 ms each), still running |
+| Places opened | 8 countries, 44 regions, 1,000 cities/districts | 16 countries, 2,069 cities/districts at the cut |
+| Rows | 10,000 clubs, 160,000 players, 90,000 fixtures | 20,686 clubs, 330,976 players at the cut |
+| Atlas (no club lists) | 22 ms · 132 KB | not reached |
+| Atlas (one country's clubs) | 56 ms · 546 KB | not reached |
+| Placement preview (Go) | 6 ms | not reached |
+| Local news feed | 4 ms | not reached |
+| One pool table / a country's pools | 5 ms / 11 ms | not reached |
+| Year end (hour 0) | 427,005 ms · 8 drawn | not reached |
+| Editions running after redraw | 8 | not reached |
+
+---
+
+## B2 — district hierarchy + Go world-service (2026-10-07, 1,000 clubs)
+
+First run of the Batch 2 integration: Node founding calls the Go world-service
+`POST /placement/spot` inside the `PLACEMENT_LOCK` transaction, and the pyramid
+draw/join delegate to `POST /pyramid/draw|join`. Scratch DB `fspro_b2c`
+(schema cloned from `fspro`, migration `0038_world_districts.sql` applied),
+Postgres 17 (Docker), Go world-service on `localhost:3006`, one Node process.
+Command (B2-2C report §Commands):
+
+```
+SCALE_CLUBS=1000 SCALE_SKIP_MATCHES=1 REALTIME_URL=off WORLD_TICK_MINUTES=0 \
+  DATABASE_URL=postgres://…/fspro_b2c npx ts-node --transpile-only src/scripts/seedScaleWorld.ts
+```
+
+| Step | Result |
+| --- | --- |
+| Founding | 1,000 clubs in 168 s (168 ms each, including the Go HTTP round-trip and 16 players/club) |
+| Places opened | 1 country, 4 regions, 100 cities/districts |
+| Rows | 1,000 clubs, 16,000 players, 3,746 fixtures |
+| Atlas (no club lists) | 7 ms · 12 KB, 31 cities |
+| Atlas (one country's clubs) | 28 ms · 320 KB |
+| Placement preview (Go) | 40 ms · `new-town` |
+| Local news feed | 8 ms · 10 items, local = country |
+| One pool table / a country's pools | 7 ms / 11 ms (42 pools) |
+| Year end + next day | 35,308 ms · 1 pyramid finished |
+| Editions running after redraw | 0 (see caveat) |
+
+**Founding is now HTTP-bound, not world-size-bound.** 168 ms/club at 1,000
+clubs vs the 75 ms/club pre-B2 baseline (below) is the Go round-trip plus
+per-call DB queries; the placement algorithm itself is O(1) amortised (2A:
+~8 ns/founding). The 10k/100k end-to-end runs (D5, `fspro_scale_100k`) were
+not captured here — the environment lost its Docker/Postgres after the 1k run
+(see the B2-2C report's Open Questions).
+
+**Caveat (2A defect, outside 2C's ownership).** The year-end redraw reported
+`0 drawn` because the Go `pyramid/draw` and `pyramid/join` handlers fail on the
+row-iterating queries. Cause (read-only inspection):
+`services/world-service/internal/db/db.go:84-88` cancels the per-call timeout
+context via `defer cancel()` when `Query` returns `pgx.Rows`, before the caller
+consumes `rows.Next()` — a known pgx pitfall. The failure is deterministic
+(`POST /pyramid/draw` returned 500 on 20/20 direct calls), so a client retry
+cannot help; the Go helper is the real fix and is filed in the B2-2C report §5.
+
+---
+
 Measured on 2026-10-04 with `apps/fs-pro-server/src/scripts/seedScaleWorld.ts`, on a scratch database (`fspro_pyramid_check`). The setup: local Postgres 17 in Docker on the dev machine, one Node process, and QuickSim matches run 4 at a time. Clubs were founded through the real placement and founding code: 16 players per club, default sizes (6 clubs per town, 8 towns per region, 6 regions per country).
 
 How to reproduce:

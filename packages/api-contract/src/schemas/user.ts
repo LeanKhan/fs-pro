@@ -20,6 +20,9 @@ export const UserSchema = z.object({
   Alerts: z.unknown().nullable().optional(),
   Clubs: z.array(z.union([z.string(), ClubSchema])).optional(),
   isAdmin: z.boolean(),
+  /** Only ever sent to the account's own owner. */
+  Email: z.string().nullable().optional(),
+  EmailVerified: z.boolean().optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
 });

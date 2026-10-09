@@ -218,7 +218,7 @@
           <!-- Arrow & Fee Badge -->
           <div class="d-flex flex-column align-center px-1">
             <v-chip size="x-small" color="teal-accent-4" variant="tonal" class="font-weight-black mb-1">
-              {{ activeItem.transferDetails?.fee ? `$${activeItem.transferDetails.fee.toLocaleString()}` : 'FREE' }}
+              {{ activeItem.transferDetails?.fee ? formatVilla(activeItem.transferDetails.fee) : 'FREE' }}
             </v-chip>
             <v-icon size="20" color="teal-accent-3" class="transfer-arrow-pulse">mdi-arrow-right</v-icon>
           </div>
@@ -496,10 +496,10 @@
                     Agreed Fee
                   </div>
                   <div class="text-h5 font-weight-black text-teal-accent-3">
-                    {{ selectedStory.transferDetails.fee > 0 ? `$${selectedStory.transferDetails.fee.toLocaleString()}` : 'FREE TRANSFER' }}
+                    {{ selectedStory.transferDetails.fee > 0 ? formatVilla(selectedStory.transferDetails.fee) : 'FREE TRANSFER' }}
                   </div>
                   <div class="text-caption text-disabled">
-                    Valuation: ${{ (selectedStory.transferDetails.value || selectedStory.transferDetails.fee).toLocaleString() }}
+                    Valuation: {{ formatVilla(selectedStory.transferDetails.value || selectedStory.transferDetails.fee) }}
                   </div>
                 </div>
               </div>
@@ -571,7 +571,7 @@
                 <v-col cols="6">
                   <div class="text-caption text-disabled font-weight-bold">ESTIMATED ANNUAL WAGE</div>
                   <div class="text-caption font-weight-bold text-high-emphasis">
-                    {{ selectedStory.transferDetails.wage ? `$${selectedStory.transferDetails.wage.toLocaleString()} / yr` : 'Undisclosed' }}
+                    {{ selectedStory.transferDetails.wage ? `${formatVilla(selectedStory.transferDetails.wage)} / yr` : 'Undisclosed' }}
                   </div>
                 </v-col>
                 <v-col cols="6">
@@ -712,6 +712,7 @@
 import { computed, ref, watch, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import type { Club, MediaItem } from '@repo/api-contract';
+import { formatVilla } from '@repo/api-contract';
 import { client } from '@/services/api';
 
 const props = defineProps<{

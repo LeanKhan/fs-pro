@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"bytes"
 	"context"
 	"encoding/hex"
@@ -188,9 +189,9 @@ func TestEndToEnd(t *testing.T) {
 
 	// Rate limit: the burst is 5 messages.
 	for i := 0; i < 6; i++ {
-		bo.send(map[string]string{"op": "say", "topic": "campus:c-ada", "text": "spam"})
+		bo.send(map[string]string{"op": "say", "topic": "campus:c-ada", "text": fmt.Sprintf("hello number %d", i)})
 	}
-	if m := bo.expect("error"); m["message"] != "slow down" {
+	if m := bo.expect("error"); m["message"] != "Slow down a little." {
 		t.Fatalf("no rate limit: %v", m)
 	}
 

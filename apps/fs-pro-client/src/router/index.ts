@@ -10,6 +10,7 @@ import competitions from './competitions';
 
 /** USER ROUTES */
 import userClubRoutes from './user/club';
+import { myGround } from './redirects';
 // import AllFixtures from '@/views/user/seasons/fixtures.vue';
 /** USER ROUTES */
 
@@ -32,6 +33,7 @@ export function replaceParams(
   return path;
 }
 
+/** The signed-in manager's own ground, or null (admin, no club, signed out). */
 const routes: RouteRecordRaw[] = [
   {
     path: '/auth',
@@ -53,6 +55,21 @@ const routes: RouteRecordRaw[] = [
         component: () =>
           import(/* webpackChunkName: "login" */ '../views/auth/login.vue'),
         name: 'Login',
+      },
+      {
+        path: 'forgot',
+        component: () => import(/* webpackChunkName: "forgot" */ '../views/auth/forgot.vue'),
+        name: 'ForgotPassword',
+      },
+      {
+        path: 'reset',
+        component: () => import(/* webpackChunkName: "reset" */ '../views/auth/reset.vue'),
+        name: 'ResetPassword',
+      },
+      {
+        path: 'verify',
+        component: () => import(/* webpackChunkName: "verify" */ '../views/auth/verify.vue'),
+        name: 'VerifyEmail',
       },
       {
         path: 'join',
@@ -80,6 +97,16 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Play' },
   },
   {
+    // The owner's guided start (phase-2 OWNER-PROGRAM-SPEC): sign a manager,
+    // sign a squad, build a Tier-1, reach Level 1. Its own screen so the
+    // flow can be deep-linked and screenshotted without the campus.
+    path: '/game/:clubId/program',
+    component: () =>
+      import(/* webpackChunkName: "owner_program" */ '../views/game/owner-program.vue'),
+    name: 'Owner Program',
+    meta: { title: 'Owner program' },
+  },
+  {
     // A manager without a club founds one here (country, town, club, crest).
     path: '/start',
     component: () =>
@@ -98,24 +125,14 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/games',
     alias: ['/game'],
-    redirect: () => {
-      try {
-        const stored = window.localStorage.getItem('fspro-user');
-        if (stored) {
-          const u = JSON.parse(stored);
-          const firstClub = u.clubs?.[0];
-          const clubId = typeof firstClub === 'string' ? firstClub : firstClub?._id;
-          if (clubId) return `/game/${clubId}`;
-        }
-      } catch (_) {}
-      return '/u';
-    },
+    redirect: () => myGround() ?? '/u',
   },
   {
     path: '/',
     component: AppView,
     name: 'AppView',
-    redirect: 'u',
+    // The campus is home (docs/CORE-LOOP.md); admins and club-less managers get the office.
+    redirect: () => myGround() ?? '/u',
     children: [
       {
         path: 'a',
@@ -157,6 +174,8 @@ const routes: RouteRecordRaw[] = [
                 /* webpackChunkName: "admin" */ '../views/user/dashboard.vue'
               ),
             name: 'User Home',
+            // Managers live on their campus; the old home is for admins.
+            beforeEnter: () => myGround() ?? true,
           },
           {
             path: 'calendar',

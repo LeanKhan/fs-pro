@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "runId": "b4b-campus-1",
+  "captures": [
+    { "mode": "desktop", "state": "campus-advisor", "report": "docs/perfect/phase-2/assets/visual-qa/canvas-inspection/desktop-campus-advisor.json" },
+    { "mode": "desktop", "state": "campus-advisor-point", "report": "docs/perfect/phase-2/assets/visual-qa/canvas-inspection/desktop-campus-advisor-point.json" },
+    { "mode": "desktop", "state": "campus-advisor-excited", "report": "docs/perfect/phase-2/assets/visual-qa/canvas-inspection/desktop-campus-advisor-excited.json" },
+    { "mode": "mobile", "state": "campus-advisor", "report": "docs/perfect/phase-2/assets/visual-qa/canvas-inspection/mobile-campus-advisor.json" },
+    { "mode": "mobile", "state": "campus-advisor-point", "report": "docs/perfect/phase-2/assets/visual-qa/canvas-inspection/mobile-campus-advisor-point.json" },
+    { "mode": "mobile", "state": "campus-advisor-excited", "report": "docs/perfect/phase-2/assets/visual-qa/canvas-inspection/mobile-campus-advisor-excited.json" }
+  ]
+}

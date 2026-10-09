@@ -78,7 +78,9 @@ export async function releaseInactiveClubs(calendar: Calendar): Promise<string[]
   const cutoff = new Date(Date.now() - gameDaysMs(calendar, years * (calendar.YearLengthDays ?? 28)));
   const gone = await db()
     .update(clubs)
-    .set({ ReleasedAt: new Date(), TownId: null, Caretaker: false, updatedAt: new Date() })
+    // Migration 0038 renamed Clubs.TownId -> Clubs.DistrictId (WORLD-HIERARCHY-SPEC
+    // §2.1/§2.3): releasing a club clears its district slot.
+    .set({ ReleasedAt: new Date(), DistrictId: null, Caretaker: false, updatedAt: new Date() })
     .where(
       and(
         isNotNull(clubs.UserId),
