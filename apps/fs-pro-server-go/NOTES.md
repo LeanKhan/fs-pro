@@ -1006,3 +1006,249 @@ previewMatchPlan; game.kickoffNew, enqueueMatch. These need the sim client
 ports; not started this pass.
 
 Census: **146 real / 14 stub / 2 empty / 0 gate**.
+
+---
+
+## play.playMatch real (matches the running sim)
+
+One endpoint, done end to end.
+
+- **`internal/clients/simclient.go`**: `SimulateMatch` POSTs the request to
+  `SIM_SERVICE_URL` `/sim/match` (30s timeout), parses the response and returns
+  the `match` object; errors on non-2xx and on `ok:false`.
+- **`internal/play/simulate.go`** (ports play.service.ts + buildSimulateMatchRequest):
+  `PlayMatch` runs the PLAY gate (manager + 11 fit players -> `PlayGateError`
+  409), the cooldown, matchmaking (closest-Rating pool of 5, honouring
+  `opponentId`), fixture creation, `buildSimRequest` (whole squads -> the
+  rust-sim-core contract: clubs with Players/Attributes/Tactic, sides, tactics,
+  seed), the sim call, fixture update (Details/Events/Played/PlayedAt), the
+  stadium gate (attendance/revenue/costs/net from `attendanceFill`), match
+  rewards (cash share of gate + outcome XP -> Budget/XP/`match_reward` ledger),
+  recent-form standing, and the `MatchReplays` write when `watch`. The handler
+  injects the fresh `PlayState` as `state` and maps `PlayGateError` -> 409.
+- Handler: owner/admin via `CanManageClub`; no wrong-shape 200s.
+
+Proof (rolled back, REAL sim): `TestPlayMatchRealSim` picks a real managed club
+with a legal squad and logs e.g. `score: <club> 2 - 0 opponent`; it asserts the
+score, a non-zero XP reward, the `match_reward` ledger row, a set cooldown, and
+a stored replay. `TestSimulateMatchSuccess`/`TestSimulateMatchErrorPaths`
+(httptest) cover the sim client incl. the `match` key and both error paths.
+
+Differential: `GET /api/play/{clubId}` is unchanged by this endpoint (a write
+Node commits), so a before/after diff is not feasible; the read shape itself has
+pre-existing `getPlayState` diffs (club level/xp boundaries, standing
+fanApproval/squadMorale/form, challenge fields) that are independent of
+`playMatch`.
+
+Census: **147 real / 13 stub / 2 empty / 0 gate**.
+
+---
+
+## play match-day plan: getMatchPrep / saveMatchPlan / previewMatchPlan / bookMatch real
+
+All four landed; `play` is now 11/0.
+
+- **`internal/play/matchplan.go`** (ports match-plan.service.ts + plan-effects.ts):
+  `toMatchdayFixture` (kind/title/opponent/kickoff/score/planSet/hasReplay),
+  `clubDefaultPlan`/`sidePlan`, `tiers`/`squadOf`/`scoutReport`,
+  `checkPlan`, `planTactic`/`parseSideTactic`/`styleKey`/`styleMatchup`/`counterTo`,
+  `planEffect`, `dayKind`/`nextCupDay`, and `buildSimRequestWithTactics`.
+  - `getMatchPrep`: plan/squad/scout/facilities/myPower + `locked`.
+  - `saveMatchPlan`: validate, write HomeTactic/AwayTactic, `asDefault` writes the
+    club's Tactic/Lineup, refuse once kicked off.
+  - `previewMatchPlan`: 40-run `/sim/batch` via the new
+    `clients.SimulateBatch`, giving win/draw/loss/goals + factors.
+  - `bookMatch`: next free cup day (>=1 day out, both sides free), booked fixture
+    on `Stage='booked'`/`ChallengeStatus='accepted'`, opponent message.
+- Handlers wired; `PrepError` -> its status (404/403/400); owner/admin via
+  `CanManageClub`.
+
+Tests: pure `TestStyleHelpers`, `TestCheckPlan`; rolled-back
+`TestMatchPlanRolledBack` exercises bookMatch (a real cup day) -> get -> save
+(round-trip, planSet true) -> **real preview against the running sim**, logging
+e.g. `runs=40 win=0.53 draw=0.30 loss=0.17 gf=1.00 ga=0.45`.
+
+Differential: `GET .../prep` needs a fixture id in the pool; no conveniently
+locatable live fixture was found for a Node diff this pass (documented).
+
+Census: **151 real / 9 stub / 2 empty / 0 gate**.
+
+---
+
+## game.kickoffNew + game.enqueueMatch real
+
+Both landed; `game` is now 6/0.
+
+- **`internal/play/playfixture.go`** (`PlayFixture`, ports game.controller.ts
+  `play()`): loads an existing fixture, uses its stored Home/AwayTactic (or the
+  club's saved tactic), builds the engine request via
+  `buildSimRequestWithTactics`, runs the sim, persists Details/Events/Played/
+  PlayedAt, credits the home gate + applies both clubs' recent form, and writes
+  the `MatchReplays` replay (unless headless). Returns `{match, HomeSideDetails,
+  AwaySideDetails, lastMatchOfSeason}` (the `PlayResult` shape).
+- **`game.kickoffNew`**: runs `PlayFixture` (quick_sim = headless), and the
+  admin-only `simulate_rest` loop plays every other unplayed fixture on the same
+  `ScheduledDay` in `_id` order; `send_other_results` returns `{main, others}`.
+  Message `[New] Match Played successfully!`; errors 400 with Node's message.
+  Access via the existing policy (`fixture` owner/admin + `simulate_rest` admin).
+- **`game.enqueueMatch`** (admin): verifies the fixture (404 if missing), runs
+  the match in-process (headless, replay kept) in a goroutine and returns the
+  Node 202 body immediately: `Match enqueued for simulation` `{fixture_id}`.
+  Mechanism documented: no Node-style job runner, so a guarded in-process play
+  backs the 202 (no 409 "already queued" state).
+
+Proof (rolled back, REAL sim): `TestKickoffNewRealSim` plays a fixture and, with
+`simulate_rest`, a second same-day fixture — logging `kickoff <id>: 6-0`,
+asserting both are `Played` with a score, and that `enqueueMatch` returns 202
+with the exact body.
+
+Differential: `GET /api/game/replay/{fixture}/data` after a watched kickoff is
+the same read already validated 0-diff in the replay pass.
+
+Census: **153 real / 7 stub / 2 empty / 0 gate**.
+
+---
+
+## calendar world-day pipeline: tickClock / healCalendar / simulateToDate + world.advanceDay
+
+Landed 4 of 5; `world.endYear` remains a declared stub (the full season
+rollover did not fit).
+
+- **`internal/calendar/clock.go`** (ports world-day.service.ts +
+  calendar-clock.service.ts, reduced): `runWorldHour` (hour 0 heals past
+  unplayed fixtures, then plays the day's scheduled fixtures up to the hour via
+  the `play.PlayFixture` path; hour 23 runs `advanceIdleDay` and resets
+  `CurrentHour` to 0), `runWorldDay` (the rest of the day, hour by hour),
+  `TickNow` (TickResult), `HealCalendar`, `SimulateToDate` (<=365 days, stops on
+  a year-end pause), and `advanceIdleDay` (CurrentDay+1 / CurrentDate+1d). The
+  `WorldDayReport` shape matches the contract.
+- Handlers: `calendar.tickClock` (`Advanced day X -> Y`), `calendar.healCalendar`
+  (`Calendar healed successfully! Auto-resolved N unplayed fixtures.`),
+  `calendar.simulateToDate` (`Simulation complete! ...`), and
+  `world.advanceDay` (`Day X done`) now call the pipeline.
+- **Reduced / documented:** edition ticking, competition AI, challenge expiry,
+  transfer-window days, caretaker sweep, fitness recovery and the year-end
+  rollover are not ported (no-ops); `pausedForYearEnd` is always false, so
+  `endYear` stays a stub. This makes tick/advance/heal/simulate functional
+  (days advance, fixtures play) without the season cycle.
+
+Proof (rolled back, REAL sim): `TestTickAndHealRolledBack` creates a day-1
+fixture, ticks from hour 23 -> day 2 with the fixture played
+(`tick repaired: day->2, fixture ... played 4-3`), then heals a past day-0
+fixture (healedCount >= 1, fixture Played). `TestNewReportAndAddDay` is pure.
+
+Differentials vs Node (same DB): `GET /api/calendar/current`,
+`GET /api/calendar/clock`, `GET /api/world/settings` -> **0 diffs**.
+
+Census: **157 real / 3 stub / 2 empty / 0 gate**.
+
+---
+
+## players.generatePlayers verified real (+ rolled-back proof)
+
+The local generator (`internal/player/generator.go`: `GeneratePlayer` +
+`CalculatePlayerRating`/`CalculatePlayerValue`/`CalculatePlayerWage`, the
+position/attribute tables and role pools) and the `generatePlayers` handler were
+already implemented and wired; this pass adds the **rolled-back end-to-end proof**
+and moves the census row to real.
+
+- `TestGeneratePlayersRolledBack`: with `ENABLE_PLAYER_GENERATION=true`, the
+  handler generates 3 MID players inside a transaction that is rolled back;
+  asserts each has a valid Position/Role/Attributes, Rating 0-99, a positive
+  Value, Age 18-30, and that the rows persisted.
+- Node shells out to a `player_names` child process for names; the Go port
+  generates names locally (documented in generator.go) - names are data, not
+  response shape, and the route is gated by `ENABLE_PLAYER_GENERATION` (dev/admin).
+
+**Not landed:** `clubs.getClubPerformance` remains a declared stub. It needs the
+631-line `club-performance.service.ts` plus `team-strength`
+(`unitRatingsForClub`/`computeExpectedGoals`), `getClubs`
+(club+players+manager), `listYears` and the Jev insight/strategy/advisor local
+fallbacks; that did not fit this pass, so I left it a stub rather than ship a
+wrong-shape 200.
+
+Census: **158 real / 2 stub / 2 empty / 0 gate**.
+
+---
+
+## clubs.getClubPerformance real
+
+- **`internal/club/performance.go` + `performance_main.go` +
+  `performance_insights.go`** port `services/analytics/club-performance.service.ts`
+  + `team-strength.ts`: `selectStartingLineup`/`unitRatingsForClub`,
+  `computeExpectedGoals` (poisson expected points, xG/`styleBonus`),
+  `summariseMatches`, `listYears` (SeasonReports + Calendar), the full
+  `ClubPerformance` payload (overall/home/away/vsStronger/vsWeaker, form,
+  leagueGoalsPerGame, units with league rank, squad shape, matches,
+  topPlayers/weakestStarters from PlayerMatchDetails) and the Jev **local
+  fallback** for `crisisLevel`/`tacticalPivot`/`trainingDirective` +
+  insights/strategies/advisorSummary.
+- Handler: message `Club performance fetched successfully`; 404 when the club is
+  missing else 400. Access follows the existing route policy.
+
+Differential (`GET /api/clubs/{id}/performance`, same DB) went 23 -> 13 diffs
+after including all clubs as peers (Node's `getClubs()` has no ReleasedAt filter)
+and matching the `Rating ?? 50` sort default. The residual 13 all cascade from
+one number: the **Goalkeeper unit's league average** (Go 88 vs Node 90 over 12
+peers), which flips the weakest-unit pick and therefore insights/strategies/
+advisor confidence. Att/Mid/Def averages, ranks, all match records, form,
+topPlayers and weakestStarters match. Documented residual: a peer best-GK
+selection difference (Node's `getClubs` player set) not yet pinned down.
+
+Census: **159 real / 1 stub / 2 empty / 0 gate** (only `world.endYear` left).
+
+---
+
+## world.endYear real (last stub) - reduced rollover
+
+- **`internal/world/endyear.go`** (ports services/world/year.service.ts): claims
+  the year with the same CAS (`UPDATE Calendars SET CurrentYear=year+1,
+  YearStartDay=today WHERE CurrentYear=year`; 0 rows -> null -> 409 "The year was
+  already ended"; a year that started today -> null), heals the last day's
+  unplayed fixtures, closes/freezes the year's performance
+  (`performance.CloseYear` = `RefreshPerformance` over the span + flip
+  `ClubPerformance.Frozen`), writes the `SeasonReports` row, and returns the
+  exact `YearEndSummary` (year/label/fromDay/toDay/retired/levelReviewMoves/
+  pyramids/released/errors). Handler: `${label} ended`; admin via the policy.
+- **Reduced (documented):** the pyramid finish/draw (promotion/relegation
+  across pools + next-season editions/fixtures), player progression, wages,
+  retirement, youth intake, free-agent expiry, caretaker release and the Level
+  review are NOT ported - the summary reports zeros for those. The year claim,
+  heal, performance freeze and season report are correct and verified.
+
+Proof (rolled back): `TestEndYearRolledBack` sets the calendar to year 1
+(day 10), ends it - `endYear: Y1 ended (days 0-9) -> year 2` - asserts the
+calendar advanced (CurrentYear 2, YearStartDay 10), the Y1 `SeasonReports` row
+exists, and a second call returns null. Pure promotion/relegation rule tests are
+not applicable (not ported).
+
+Differential: `GET /api/calendar/current` / `GET /api/world/settings` unchanged
+by this admin write (Node commits), so a post-endYear diff is not feasible.
+
+Final census: **160 real / 0 stub / 2 empty / 0 gate**. The two empty-200 routes
+(`clubs.getMediaFeed`, `calendar.getWorldFeed`) return shape-valid empties.
+
+---
+
+## S1 + S2 fixed (verifier VERIFY-COMPLETE.md)
+
+**S1 (admin gate).** `world.endYear` / `world.advanceDay` now call a shared
+`requireAdmin` (internal/world/handlers.go) that returns **401 "Not logged in"**
+for anonymous and **403 "You do not manage this club"** for a signed-in
+non-admin (Node's `accessDenied('forbidden')`), before the pipeline runs.
+`updateSettings` uses the same helper. Audit: `calendar.tickClock`/`healCalendar`/
+`simulateToDate` are already `{Kind: Admin}` (central guard); `editions.action`/
+`invite`, `competitionDefinitions.{create,update,archive}` use `requireAdmin`;
+`atlas.listInvites`/`createInvite` use `CanManageClub`; transfers/program use
+`clubBody`/`clubParam`. `TestWorldAdminHandlersDenyNonAdmin` (rolled back, real
+DB) asserts 401 anon / 403 non-admin for all three world.* handler routes and
+200 with an admin; live anonymous `POST /api/world/end-year` -> 401.
+
+**S2 (idempotent replay).** `play.PlayFixture` now commits the fixture result,
+home gate, both clubs' form and the replay **in one transaction**, and the
+replay is `INSERT ... ON CONFLICT ("FixtureId") DO UPDATE` (matching Node's
+`MatchReplayRepository` upsert). `TestPlayFixtureIdempotentRolledBack` kicks the
+same fixture twice: the second returns nil (200) with exactly one `MatchReplays`
+row.
+
+Census unchanged: **160 real / 0 stub / 2 empty / 0 gate**.

@@ -460,11 +460,18 @@ func (h *Handlers) getMediaFeed(_ *httpapi.Context, _ http.ResponseWriter, _ *ht
 	return httpapi.OK("Media feed fetched successfully", []any{})
 }
 
-// getClubPerformance is GET /api/clubs/{id}/performance. The Node analytics
-// service is out of scope for this batch; return a clear 400 rather than a
-// wrong shape.
-func (h *Handlers) getClubPerformance(_ *httpapi.Context, _ http.ResponseWriter, _ *http.Request) httpapi.Response {
-	return httpapi.Fail(400, "Club performance is not available in the Go server yet", nil)
+// getClubPerformance is GET /api/clubs/{id}/performance.
+func (h *Handlers) getClubPerformance(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	perf, err := h.repo.GetClubPerformance(r.Context(), r.PathValue("id"), r.URL.Query().Get("year"))
+	if err != nil {
+		msg := err.Error()
+		status := 400
+		if strings.Contains(strings.ToLower(msg), "not found") {
+			status = 404
+		}
+		return httpapi.Fail(status, msg, msg)
+	}
+	return httpapi.OK("Club performance fetched successfully", perf)
 }
 
 // suggestLineup is POST /api/clubs/{id}/lineup-suggestion.

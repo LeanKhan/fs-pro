@@ -300,6 +300,19 @@ func prestigeOf(f map[string]any) float64 {
 	return 2
 }
 
+// CloseYear ports performance.service.closeYear's performance half: recompute
+// the year's scores over its span, then freeze them. The optional Level review
+// is not ported (returns 0 moves), documented in NOTES.
+func CloseYear(ctx context.Context, q db.Querier, year, fromDay, toDay int) (int, error) {
+	if err := RefreshPerformance(ctx, q, nil, &Span{Year: year, FromDay: fromDay, ToDay: toDay}); err != nil {
+		return 0, err
+	}
+	if _, err := q.Exec(ctx, `UPDATE "ClubPerformance" SET "Frozen" = true, "updatedAt" = now() WHERE "Year" = $1`, year); err != nil {
+		return 0, err
+	}
+	return 0, nil
+}
+
 // GetPerformance ports getPerformance. year nil = the current year.
 func GetPerformance(ctx context.Context, q db.Querier, clubID string, year *int) (map[string]any, error) {
 	cal, err := calendarAt(ctx, q)

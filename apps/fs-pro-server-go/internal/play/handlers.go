@@ -192,24 +192,35 @@ func (h *Handlers) findOpponents(_ *httpapi.Context, _ http.ResponseWriter, r *h
 // playMatch is POST /api/play/{clubId}/match: reproduces the PLAY gate (409);
 // the simulation itself is not ported, so a gate-passing request is a declared
 // 400.
-func (h *Handlers) playMatch(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+func (h *Handlers) playMatch(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r); !ok {
+		return denial
+	}
 	ctx := r.Context()
 	clubID := r.PathValue("clubId")
-	club, ok, err := h.repo.Club(ctx, clubID)
+	body, _ := cx.BodyMap()
+	opponentID := ""
+	watch := false
+	if body != nil {
+		opponentID = db.StringField(body, "opponentId")
+		watch, _ = body["watch"].(bool)
+	}
+	result, err := h.repo.PlayMatch(ctx, clubID, opponentID, watch)
 	if err != nil {
+		if gate, ok := err.(PlayGateError); ok {
+			return httpapi.Fail(409, gate.Message, gate.Message)
+		}
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			return httpapi.Fail(404, err.Error(), err.Error())
+		}
 		return httpapi.Fail(400, err.Error(), err.Error())
 	}
-	if !ok {
-		return httpapi.Fail(404, "Club not found", nil)
-	}
-	total, gk, err := h.repo.SquadCounts(ctx, clubID)
+	state, code, err := h.playState(ctx, clubID)
 	if err != nil {
-		return httpapi.Fail(400, err.Error(), err.Error())
+		return httpapi.Fail(code, err.Error(), nil)
 	}
-	if refusal := GateProblem(db.StringField(club, "ManagerId"), total, gk); refusal != nil {
-		return httpapi.Fail(409, refusal.Message, nil)
-	}
-	return httpapi.Fail(400, "Match simulation is not available in the Go server yet", nil)
+	result["state"] = state
+	return httpapi.OK("Match played", result)
 }
 
 // getInbox is GET /api/play/{clubId}/inbox.
@@ -394,17 +405,77 @@ func (h *Handlers) collectShop(cx *httpapi.Context, _ http.ResponseWriter, r *ht
 	}
 	return httpapi.OK("Shop takings collected", result)
 }
-func (h *Handlers) bookMatch(_ *httpapi.Context, _ http.ResponseWriter, _ *http.Request) httpapi.Response {
-	return httpapi.Fail(400, "Booking matches is not available in the Go server yet", nil)
+
+// prepFail maps a PrepError to its status, else 400.
+func prepFail(err error) httpapi.Response {
+	if pe, ok := err.(PrepError); ok {
+		return httpapi.Fail(pe.Status, pe.Message, pe.Message)
+	}
+	return httpapi.Fail(400, err.Error(), err.Error())
 }
-func (h *Handlers) getMatchPrep(_ *httpapi.Context, _ http.ResponseWriter, _ *http.Request) httpapi.Response {
-	return httpapi.Fail(400, "Match prep is not available in the Go server yet", nil)
+
+// bookMatch is POST /api/play/{clubId}/book.
+func (h *Handlers) bookMatch(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r); !ok {
+		return denial
+	}
+	body, _ := cx.BodyMap()
+	opponentID := ""
+	if body != nil {
+		opponentID = db.StringField(body, "opponentId")
+	}
+	fixture, err := h.repo.BookMatch(r.Context(), r.PathValue("clubId"), opponentID)
+	if err != nil {
+		return prepFail(err)
+	}
+	return httpapi.OK("Match booked", fixture)
 }
-func (h *Handlers) saveMatchPlan(_ *httpapi.Context, _ http.ResponseWriter, _ *http.Request) httpapi.Response {
-	return httpapi.Fail(400, "Saving a match plan is not available in the Go server yet", nil)
+
+// getMatchPrep is GET .../prep.
+func (h *Handlers) getMatchPrep(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r); !ok {
+		return denial
+	}
+	prep, err := h.repo.GetMatchPrep(r.Context(), r.PathValue("clubId"), r.PathValue("fixtureId"))
+	if err != nil {
+		return prepFail(err)
+	}
+	return httpapi.OK("Match prep", prep)
 }
-func (h *Handlers) previewMatchPlan(_ *httpapi.Context, _ http.ResponseWriter, _ *http.Request) httpapi.Response {
-	return httpapi.Fail(400, "Match plan preview is not available in the Go server yet", nil)
+
+// saveMatchPlan is PUT .../plan.
+func (h *Handlers) saveMatchPlan(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r); !ok {
+		return denial
+	}
+	body, _ := cx.BodyMap()
+	plan := mapOf(body["plan"])
+	if plan == nil {
+		return httpapi.Fail(400, "A plan is required", nil)
+	}
+	asDefault, _ := body["asDefault"].(bool)
+	prep, err := h.repo.SaveMatchPlan(r.Context(), r.PathValue("clubId"), r.PathValue("fixtureId"), plan, asDefault)
+	if err != nil {
+		return prepFail(err)
+	}
+	return httpapi.OK("Plan saved", prep)
+}
+
+// previewMatchPlan is POST .../preview.
+func (h *Handlers) previewMatchPlan(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r); !ok {
+		return denial
+	}
+	body, _ := cx.BodyMap()
+	plan := mapOf(body["plan"])
+	if plan == nil {
+		return httpapi.Fail(400, "A plan is required", nil)
+	}
+	preview, err := h.repo.PreviewMatchPlan(r.Context(), r.PathValue("clubId"), r.PathValue("fixtureId"), plan)
+	if err != nil {
+		return prepFail(err)
+	}
+	return httpapi.OK("Plan preview", preview)
 }
 
 // --- helpers ---------------------------------------------------------------

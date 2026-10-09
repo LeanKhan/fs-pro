@@ -1,6 +1,7 @@
 package calendar
 
 import (
+	"fmt"
 	"math"
 	"net/http"
 	"os"
@@ -186,20 +187,50 @@ func (h *Handlers) setClock(cx *httpapi.Context, _ http.ResponseWriter, r *http.
 	return httpapi.OK("Clock "+state["mode"].(string), state)
 }
 
-// tickClock is POST /api/calendar/clock/tick. Runner-dependent (world-day
-// service) - returns a declared 400 rather than a wrong shape.
-func (h *Handlers) tickClock(_ *httpapi.Context, _ http.ResponseWriter, _ *http.Request) httpapi.Response {
-	return httpapi.Fail(400, "Error running tick", "tickClock is not available in the Go server yet")
+// tickClock is POST /api/calendar/clock/tick (advance now).
+func (h *Handlers) tickClock(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	result, err := h.repo.TickNow(r.Context())
+	if err != nil {
+		return httpapi.Fail(400, "Error running tick", err.Error())
+	}
+	return httpapi.OK(fmt.Sprintf("Advanced day %d -> %d", intOf(result["fromDay"]), intOf(result["toDay"])), result)
 }
 
-// healCalendar is POST /api/calendar/heal. Runner-dependent.
-func (h *Handlers) healCalendar(_ *httpapi.Context, _ http.ResponseWriter, _ *http.Request) httpapi.Response {
-	return httpapi.Fail(400, "Error healing calendar", "healCalendar is not available in the Go server yet")
+// healCalendar is POST /api/calendar/heal.
+func (h *Handlers) healCalendar(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	result, err := h.repo.HealCalendar(r.Context())
+	if err != nil {
+		return httpapi.Fail(400, "Error healing calendar", err.Error())
+	}
+	return httpapi.OK(fmt.Sprintf("Calendar healed successfully! Auto-resolved %d unplayed fixtures.", intOf(result["healedCount"])), result)
 }
 
-// simulateToDate is POST /api/calendar/simulate-to-date. Runner-dependent.
-func (h *Handlers) simulateToDate(_ *httpapi.Context, _ http.ResponseWriter, _ *http.Request) httpapi.Response {
-	return httpapi.Fail(400, "Error simulating to target date", "simulateToDate is not available in the Go server yet")
+// simulateToDate is POST /api/calendar/simulate-to-date.
+func (h *Handlers) simulateToDate(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	b := body(cx)
+	cal, err := h.repo.clock(r.Context())
+	if err != nil {
+		return httpapi.Fail(400, "Error simulating to target date", err.Error())
+	}
+	targetDay := intOf(cal["CurrentDay"])
+	if b["targetDay"] != nil {
+		targetDay = intOf(b["targetDay"])
+	} else if ts, _ := b["targetDate"].(string); ts != "" {
+		if t, err := time.Parse(time.RFC3339, ts); err == nil {
+			if cur, err := time.Parse("2006-01-02T15:04:05.000Z", db.StringField(cal, "CurrentDate")); err == nil {
+				targetDay = intOf(cal["CurrentDay"]) + int(math.Round(t.Sub(cur).Hours()/24))
+			}
+		}
+	}
+	includeTarget := true
+	if v, ok := b["includeTargetDay"].(bool); ok {
+		includeTarget = v
+	}
+	result, err := h.repo.SimulateToDate(r.Context(), targetDay, includeTarget)
+	if err != nil {
+		return httpapi.Fail(400, "Error simulating to target date", err.Error())
+	}
+	return httpapi.OK(fmt.Sprintf("Simulation complete! Simulated %d match(es) across %d day(s).", intOf(result["simulatedFixtures"]), intOf(result["simulatedDays"])), result)
 }
 
 // --- clock helpers ---------------------------------------------------------

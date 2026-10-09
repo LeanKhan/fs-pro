@@ -5,11 +5,13 @@ package world
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	"fs-pro-server/internal/auth"
+	"fs-pro-server/internal/calendar"
 	"fs-pro-server/internal/db"
 	"fs-pro-server/internal/httpapi"
 	"fs-pro-server/internal/performance"
@@ -39,14 +41,26 @@ func (h *Handlers) getSettings(_ *httpapi.Context, _ http.ResponseWriter, r *htt
 	return httpapi.OK("World settings", s)
 }
 
-// updateSettings is PATCH /api/world/settings. Admin-only (Node's handler).
-func (h *Handlers) updateSettings(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+// requireAdmin mirrors Node's isAdmin/accessDenied: 401 anonymous, 403
+// "You do not manage this club" for a signed-in non-admin.
+func (h *Handlers) requireAdmin(cx *httpapi.Context, r *http.Request) (httpapi.Response, bool) {
 	userID := ""
 	if cx != nil && cx.Session != nil {
 		userID = cx.Session.UserID()
 	}
+	if userID == "" {
+		return httpapi.Fail(401, "Not logged in", nil), false
+	}
 	if !auth.IsAdminByID(r.Context(), h.repo.Q(), userID) {
-		return httpapi.Fail(403, "You do not manage this club", nil)
+		return httpapi.Fail(403, "You do not manage this club", nil), false
+	}
+	return httpapi.Response{}, true
+}
+
+// updateSettings is PATCH /api/world/settings. Admin-only (Node's handler).
+func (h *Handlers) updateSettings(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireAdmin(cx, r); !ok {
+		return denial
 	}
 	body, _ := cx.BodyMap()
 	s, ok, err := h.repo.UpdateSettings(r.Context(), body)
@@ -59,8 +73,33 @@ func (h *Handlers) updateSettings(cx *httpapi.Context, _ http.ResponseWriter, r 
 	return httpapi.OK("World settings updated", s)
 }
 
-func (h *Handlers) endYear() httpapi.Response    { return stub("Ending the year") }
-func (h *Handlers) advanceDay() httpapi.Response { return stub("Advancing the day") }
+// endYear is POST /api/world/end-year (admin): end the current year.
+func (h *Handlers) endYear(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireAdmin(cx, r); !ok {
+		return denial
+	}
+	summary, err := EndYear(r.Context(), h.repo.Q())
+	if err != nil {
+		return httpapi.Fail(400, err.Error(), nil)
+	}
+	if summary == nil {
+		return httpapi.Fail(409, "The year was already ended", nil)
+	}
+	return httpapi.OK(fmt.Sprintf("%v ended", summary["label"]), summary)
+}
+
+// advanceDay is POST /api/world/advance-day (admin): the rest of the current day.
+func (h *Handlers) advanceDay(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireAdmin(cx, r); !ok {
+		return denial
+	}
+	result, err := calendar.NewRepository(h.repo.Q()).TickNow(r.Context())
+	if err != nil {
+		return httpapi.Fail(400, err.Error(), err.Error())
+	}
+	report, _ := result["report"].(map[string]any)
+	return httpapi.OK(fmt.Sprintf("Day %v done", result["fromDay"]), report)
+}
 
 // performance is GET /api/world/performance/{clubId} (public, like Node).
 func (h *Handlers) performance(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {

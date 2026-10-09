@@ -3,11 +3,13 @@
 package game
 
 import (
+	"context"
 	"net/http"
 
 	"fs-pro-server/internal/db"
 	"fs-pro-server/internal/fixture"
 	"fs-pro-server/internal/httpapi"
+	"fs-pro-server/internal/play"
 )
 
 // Formations/styles mirror match-plan.ts's PLAN_FORMATIONS / STYLE_KEYS.
@@ -76,14 +78,90 @@ func (h *Handlers) createFriendly(cx *httpapi.Context, _ http.ResponseWriter, r 
 	return httpapi.OK("Friendly created", map[string]any{"fixture_id": db.StringField(created, "_id")})
 }
 
-// kickoffNew is GET /api/game/kickoff-new/{fixture} (sim-core stub).
-func (h *Handlers) kickoffNew(_ *httpapi.Context, _ http.ResponseWriter, _ *http.Request) httpapi.Response {
-	return httpapi.Fail(400, "Match simulation is not available in the Go server yet", nil)
+func gmapOf(v any) map[string]any {
+	m, _ := v.(map[string]any)
+	return m
 }
 
-// enqueueMatch is GET /api/game/enqueue/{fixture} (declared 409 stub).
-func (h *Handlers) enqueueMatch(_ *httpapi.Context, _ http.ResponseWriter, _ *http.Request) httpapi.Response {
-	return httpapi.Fail(409, "The match queue is not available in the Go server yet", nil)
+func gintOf(v any) int {
+	switch n := v.(type) {
+	case float64:
+		return int(n)
+	case int:
+		return n
+	case int64:
+		return int(n)
+	case int32:
+		return int(n)
+	default:
+		return 0
+	}
+}
+
+// kickoffNew is GET /api/game/kickoff-new/{fixture}: the synchronous fixture
+// play, plus the admin-only simulate_rest day loop.
+func (h *Handlers) kickoffNew(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	ctx := r.Context()
+	fixtureID := r.PathValue("fixture")
+	q := r.URL.Query()
+	quickSim := q.Get("quick_sim") == "true"
+	simulateRest := q.Get("simulate_rest") == "true"
+	sendOther := q.Get("send_other_results") == "true"
+
+	repo := play.NewRepository(h.fixtures.Q())
+	main, err := repo.PlayFixture(ctx, fixtureID, quickSim)
+	if err != nil {
+		return httpapi.Fail(400, "[New] Error Playing Match and updating Standings! ", err.Error())
+	}
+	payload := any(main)
+	if simulateRest {
+		match := gmapOf(main["match"])
+		if match == nil || match["ScheduledDay"] == nil {
+			return httpapi.Fail(400, "Match Day not found!", nil)
+		}
+		day := gintOf(match["ScheduledDay"])
+		rows, err := h.fixtures.Q().Query(ctx, `SELECT "_id" FROM "Fixtures" WHERE "ScheduledDay" = $1 AND "Played" = false ORDER BY "_id"`, day)
+		if err != nil {
+			return httpapi.Fail(400, "[New] Error Playing Match and updating Standings! ", err.Error())
+		}
+		list, err := db.ScanAll(rows)
+		if err != nil {
+			return httpapi.Fail(400, "[New] Error Playing Match and updating Standings! ", err.Error())
+		}
+		others := []any{}
+		for _, fx := range list {
+			other, err := repo.PlayFixture(ctx, db.StringField(fx, "_id"), true)
+			if err != nil {
+				continue
+			}
+			others = append(others, other)
+		}
+		if sendOther {
+			payload = map[string]any{"main": main, "others": others}
+		}
+	}
+	return httpapi.OK("[New] Match Played successfully!", payload)
+}
+
+// enqueueMatch is GET /api/game/enqueue/{fixture} (admin). The Go server has no
+// Node-style job runner: it verifies the fixture, runs the match in-process
+// (headless, replay kept) and returns the 202 immediately.
+func (h *Handlers) enqueueMatch(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	fixtureID := r.PathValue("fixture")
+	rows, err := h.fixtures.Q().Query(r.Context(), `SELECT "_id" FROM "Fixtures" WHERE "_id" = $1`, fixtureID)
+	if err != nil {
+		return httpapi.Fail(400, "Error enqueuing match", err.Error())
+	}
+	if _, ok, err := db.ScanOne(rows); err != nil {
+		return httpapi.Fail(400, "Error enqueuing match", err.Error())
+	} else if !ok {
+		return httpapi.Fail(404, "Fixture not found", nil)
+	}
+	repo := play.NewRepository(h.fixtures.Q())
+	go func() {
+		_, _ = repo.PlayFixture(context.Background(), fixtureID, false)
+	}()
+	return httpapi.OKStatus(202, "Match enqueued for simulation", map[string]any{"fixture_id": fixtureID})
 }
 
 // rewatchMatch is GET /api/game/replay/{fixture} -> 202 when a replay exists.
