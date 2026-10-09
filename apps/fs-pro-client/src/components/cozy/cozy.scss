@@ -103,7 +103,7 @@
 .bubble { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; padding: 6px; border-radius: 50%; background: #fff; border: 3px solid #f3e3bf; box-shadow: 0 3px 0 rgba(0,0,0,.2); will-change: transform; }
 .bubble::after { content: ''; position: absolute; bottom: -9px; left: 50%; margin-left: -7px; border: 7px solid transparent; border-top-color: #fff; border-bottom: 0; }
 .bubble .ic { width: 30px; height: 30px; }
-.bubble.ready { animation: bob 1.6s ease-in-out infinite; }
+.bubble.ready { border-color: #f3e3bf; }
 .bubble.ready > .ic { animation: wiggle 1.6s ease-in-out infinite; }
 .bubble.full { border-color: #ffcf4a; }
 .bubble.job { border-radius: 14px; padding: 4px 8px; flex-direction: row; gap: 6px; }
@@ -287,7 +287,8 @@
 .favoured .opp-label { background: var(--green); } .even .opp-label { background: var(--gold); } .challenger .opp-label { background: var(--red); }
 .drawer-enter-active, .drawer-leave-active { transition: transform .22s ease-out; }
 .drawer-enter-from, .drawer-leave-to { transform: translateX(100%); }
-.bubble.alert { flex-direction: row; gap: 2px; padding: 5px 8px 5px 6px; border-radius: 14px; border-color: #f2b5ab; animation: bob 1.6s ease-in-out infinite; }
+.bubble.alert { flex-direction: row; gap: 2px; padding: 5px 8px 5px 6px; border-radius: 14px; border-color: #f2b5ab; animation: alertpulse 1.6s ease-in-out infinite; }
+@keyframes alertpulse { 50% { box-shadow: 0 0 0 4px rgba(220, 90, 70, .25), 0 3px 0 rgba(0,0,0,.2); } }
 .bubble.alert .ic { width: 24px; height: 24px; }
 .bubble.alert b { color: var(--red); font-size: 15px; }
 .panel > .btn.door { margin-top: 8px; }
@@ -490,13 +491,13 @@
 .quests.folded .q-head { padding: 2px 4px; gap: 10px; }
 
 /* Shop takings bubble over the Stands */
-.bubble.collect { flex-direction: row; gap: 4px; padding: 6px 12px 6px 6px; border-radius: 18px; border-color: #ffcf4a; background: linear-gradient(#fffdf2, #fff0bf); animation: bob 1.6s ease-in-out infinite; }
+.bubble.collect { flex-direction: row; gap: 4px; padding: 6px 12px 6px 6px; border-radius: 18px; border-color: #ffcf4a; background: linear-gradient(#fffdf2, #fff0bf); }
 .bubble.collect::after { border-top-color: #fff0bf; }
 .bubble.collect .ic { width: 30px; height: 30px; }
 .bubble.collect b { font-size: 17px; color: var(--wood-d); font-variant-numeric: tabular-nums; }
 .bubble.collect.full { box-shadow: 0 0 0 4px rgba(255, 207, 74, .55), 0 3px 0 rgba(0,0,0,.2); }
 .bubble.collect.full > .ic { animation: wiggle 1s ease-in-out infinite; }
-.bubble.collect.coach { animation: bob 1.6s ease-in-out infinite, coachpulse 1.4s ease-out infinite; }
+.bubble.collect.coach { animation: coachpulse 1.4s ease-out infinite; }
 
 /* Coins flying to the treasury */
 .coinfly { position: fixed; z-index: 45; width: 34px; height: 34px; pointer-events: none; will-change: transform, opacity; filter: drop-shadow(0 2px 0 rgba(0,0,0,.25)); }
@@ -510,10 +511,27 @@
 }
 
 /* Match day: live button, plan flag on the next-match chip, drawer back link */
-.livebtn { position: absolute; top: 108px; left: 50%; transform: translateX(-50%); z-index: 3; display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; border-radius: 18px; background: linear-gradient(#ff6b55, #d8321f); border: 3px solid #fff0e8; color: #fff; font-weight: 600; font-size: 16px; box-shadow: var(--shadow); text-shadow: 0 1px 0 rgba(0,0,0,.3); animation: bob 1.6s ease-in-out infinite; }
+.livebtn { position: absolute; top: 108px; left: 50%; transform: translateX(-50%); z-index: 3; display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; border-radius: 18px; background: linear-gradient(#ff6b55, #d8321f); border: 3px solid #fff0e8; color: #fff; font-weight: 600; font-size: 16px; box-shadow: var(--shadow); text-shadow: 0 1px 0 rgba(0,0,0,.3); }
 .livebtn b { letter-spacing: 1px; }
 .livedot { width: 12px; height: 12px; border-radius: 50%; background: #fff; animation: livepulse 1s ease-in-out infinite; }
 @keyframes livepulse { 50% { transform: scale(1.5); opacity: .5; } }
+
+/* Reduced motion (U-17 / P06-03): drop the decorative loops for players who
+   ask for it — the PLAY spinner, the live dot, the bubble wiggle/pulse and the
+   overlay pop. Nothing here carries information. */
+@media (prefers-reduced-motion: reduce) {
+  .playbtn .ic,
+  .livedot,
+  .bubble.ready > .ic,
+  .bubble.alert,
+  .bubble.collect.full > .ic,
+  .bubble.collect.coach,
+  .modal,
+  .found-panel,
+  .pop {
+    animation: none !important;
+  }
+}
 .planflag { margin-left: 4px; padding: 0 6px; border-radius: 7px; font-style: normal; font-size: 11px; font-weight: 700; color: #fff; background: var(--red); }
 .planflag.ok { background: var(--green-d); }
 .drawer-body .backbtn { margin-bottom: 8px; }
