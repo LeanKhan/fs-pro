@@ -364,14 +364,16 @@ func eligibilityAt(ctx context.Context, q db.Querier, seasonID, clubID string) (
 	}
 
 	// Barred by an outcome.
-	nBars, err := countAt(ctx, q, `SELECT count(*)::int AS n FROM "CompetitionAccess"
-		WHERE "ClubId" = $1 AND "CompetitionId" = $2 AND "Kind" = 'barred'
-		  AND "UntilEditionNumber" >= $3`, clubID, db.StringField(season, "CompetitionId"), intVal(season["EditionNumber"]))
-	if err != nil {
-		return Eligibility{}, err
-	}
-	if nBars > 0 {
-		reasons = append(reasons, "Barred from this competition for now")
+	if competitionID := db.StringField(season, "CompetitionId"); competitionID != "" {
+		nBars, err := countAt(ctx, q, `SELECT count(*)::int AS n FROM "CompetitionAccess"
+			WHERE "ClubId" = $1 AND "CompetitionId" = $2 AND "Kind" = 'barred'
+			  AND "UntilEditionNumber" >= $3`, clubID, competitionID, intVal(season["EditionNumber"]))
+		if err != nil {
+			return Eligibility{}, err
+		}
+		if nBars > 0 {
+			reasons = append(reasons, "Barred from this competition for now")
+		}
 	}
 
 	// Entry cap across all competitions.

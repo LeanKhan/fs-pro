@@ -73,8 +73,8 @@ func Register(s *httpapi.Server, h *Handlers) {
 	s.Register("editions.setEntryPolicy", http.MethodPut, "/api/editions/policy/{clubId}", editionStatuses, h.setEntryPolicy)
 
 	// challenges
-	s.Register("challenges.propose", http.MethodPost, "/api/challenges", []int{201, 400, 401, 403, 404, 409}, wrap(h.proposeChallenge))
-	s.Register("challenges.respond", http.MethodPost, "/api/challenges/{fixtureId}/{action}", editionStatuses, wrap(h.respondChallenge))
+	s.Register("challenges.propose", http.MethodPost, "/api/challenges", []int{201, 400, 401, 403, 404, 409}, h.proposeChallenge)
+	s.Register("challenges.respond", http.MethodPost, "/api/challenges/{fixtureId}/{action}", editionStatuses, h.respondChallenge)
 	s.Register("challenges.forClub", http.MethodGet, "/api/challenges/club/{clubId}", editionStatuses, h.challengesForClub)
 	s.Register("challenges.forEdition", http.MethodGet, "/api/challenges/edition/{editionId}", editionStatuses, h.challengesForEdition)
 	s.Register("challenges.getPolicy", http.MethodGet, "/api/challenges/policy/{clubId}", editionStatuses, h.getChallengePolicy)

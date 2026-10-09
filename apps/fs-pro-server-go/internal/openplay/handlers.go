@@ -248,8 +248,83 @@ func (h *Handlers) setEntryPolicy(cx *httpapi.Context, _ http.ResponseWriter, r 
 
 // --- challenges ------------------------------------------------------------
 
-func (h *Handlers) proposeChallenge() httpapi.Response { return stub("Proposing a challenge") }
-func (h *Handlers) respondChallenge() httpapi.Response { return stub("Responding to a challenge") }
+// proposeChallenge is POST /api/challenges (owner/admin of the challenger).
+func (h *Handlers) proposeChallenge(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	body, _ := cx.BodyMap()
+	if body == nil {
+		return httpapi.Fail(400, "Invalid body", nil)
+	}
+	challengerID := db.StringField(body, "challengerClubId")
+	opponentID := db.StringField(body, "opponentClubId")
+	if denial, ok := h.requireClubID(cx, r, challengerID); !ok {
+		return denial
+	}
+	fixture, err := h.repo.Propose(r.Context(), db.StringField(body, "editionId"), challengerID, opponentID)
+	if err != nil {
+		return challengeFail(err)
+	}
+	// The opponent's auto-accept policy answers straight away if it can.
+	_, _ = h.repo.ApplyChallengePolicy(r.Context(), db.StringField(fixture, "_id"))
+	answered, err := loadFixture(r.Context(), h.repo.Q(), db.StringField(fixture, "_id"))
+	if err != nil {
+		return challengeFail(err)
+	}
+	if answered == nil {
+		answered = fixture
+	}
+	out := toChallengeBase(answered)
+	out["direction"] = "outgoing"
+	return httpapi.OKStatus(201, "Challenge sent", out)
+}
+
+// respondChallenge is POST /api/challenges/{fixtureId}/{action}.
+func (h *Handlers) respondChallenge(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	body, _ := cx.BodyMap()
+	if body == nil {
+		return httpapi.Fail(400, "Invalid body", nil)
+	}
+	clubID := db.StringField(body, "clubId")
+	fixtureID := r.PathValue("fixtureId")
+	action := r.PathValue("action")
+	adminCancel := action == "cancel" && h.isAdmin(cx, r)
+	if !adminCancel {
+		if denial, ok := h.requireClubID(cx, r, clubID); !ok {
+			return denial
+		}
+	}
+	var forfeited bool
+	var err error
+	switch action {
+	case "accept":
+		_, err = h.repo.Accept(r.Context(), fixtureID, clubID)
+	case "decline":
+		forfeited, err = h.repo.Decline(r.Context(), fixtureID, clubID)
+	case "cancel":
+		by := clubID
+		if adminCancel {
+			by = "admin"
+		}
+		_, err = h.repo.Cancel(r.Context(), fixtureID, by)
+	default:
+		return httpapi.Fail(400, "Unknown action", nil)
+	}
+	if err != nil {
+		return challengeFail(err)
+	}
+	fixture, err := loadFixture(r.Context(), h.repo.Q(), fixtureID)
+	if err != nil {
+		return challengeFail(err)
+	}
+	payload := map[string]any{"challenge": toChallengeBase(fixture)}
+	if action == "decline" {
+		payload["forfeited"] = forfeited
+	}
+	message := "Challenge " + db.StringField(fixture, "ChallengeStatus")
+	if forfeited {
+		message = "Declined too often: recorded as a forfeit"
+	}
+	return httpapi.OK(message, payload)
+}
 
 // challengesForClub is GET /api/challenges/club/{clubId}.
 func (h *Handlers) challengesForClub(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
@@ -363,8 +438,8 @@ func entryFields(e map[string]any) map[string]any {
 	}
 }
 
-func toChallenge(f map[string]any, clubID string) map[string]any {
-	out := map[string]any{
+func toChallengeBase(f map[string]any) map[string]any {
+	return map[string]any{
 		"id":               db.StringField(f, "_id"),
 		"seasonId":         nullableString(f, "SeasonId"),
 		"competitionId":    nullableString(f, "CompetitionId"),
@@ -377,15 +452,22 @@ func toChallenge(f map[string]any, clubID string) map[string]any {
 		"respondBy":        f["RespondBy"],
 		"scheduledDay":     f["ScheduledDay"],
 		"played":           boolVal(f["Played"]),
-		"competitionName":  f["competitionName"],
 	}
+}
+
+// toChallenge is the club-scoped shape: it adds the direction (from the
+// challenge service: outgoing when this club initiated it) and the joined
+// competitionName.
+func toChallenge(f map[string]any, clubID string) map[string]any {
+	out := toChallengeBase(f)
 	if clubID != "" {
-		if db.StringField(f, "HomeTeamId") == clubID {
-			out["direction"] = "incoming"
-		} else {
+		if db.StringField(f, "ChallengerClubId") == clubID {
 			out["direction"] = "outgoing"
+		} else {
+			out["direction"] = "incoming"
 		}
 	}
+	out["competitionName"] = f["competitionName"]
 	return out
 }
 
@@ -405,15 +487,29 @@ func atoiOr(v string, fallback int) int {
 
 // requireClub enforces owner/admin for the clubID path param.
 func (h *Handlers) requireClub(cx *httpapi.Context, r *http.Request) (httpapi.Response, bool) {
-	status, msg := auth.CanManageClub(r.Context(), h.repo.Q(), sessionUser(cx), r.PathValue("clubId"))
+	return h.requireClubID(cx, r, r.PathValue("clubId"))
+}
+
+// requireClubID enforces owner/admin for an arbitrary club id (e.g. a body field).
+func (h *Handlers) requireClubID(cx *httpapi.Context, r *http.Request, clubID string) (httpapi.Response, bool) {
+	status, msg := auth.CanManageClub(r.Context(), h.repo.Q(), sessionUser(cx), clubID)
 	if status != 0 {
 		return httpapi.Fail(status, msg, nil), false
 	}
 	return httpapi.Response{}, true
 }
 
-// requireAdmin enforces the admin gate.
+// isAdmin reports whether the session user is an admin (without writing a body).
+func (h *Handlers) isAdmin(cx *httpapi.Context, r *http.Request) bool {
+	return auth.IsAdminByID(r.Context(), h.repo.Q(), sessionUser(cx))
+}
+
+// requireAdmin enforces the admin gate (401 anonymous, 403 non-admin) to match
+// Node's accessDenied mapping.
 func (h *Handlers) requireAdmin(cx *httpapi.Context, r *http.Request) (httpapi.Response, bool) {
+	if sessionUser(cx) == "" {
+		return httpapi.Fail(401, "Not logged in", nil), false
+	}
 	if !auth.IsAdminByID(r.Context(), h.repo.Q(), sessionUser(cx)) {
 		return httpapi.Fail(403, "You do not manage this club", nil), false
 	}

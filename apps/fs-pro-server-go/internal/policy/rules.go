@@ -153,6 +153,7 @@ var Table = map[string]Rule{
 	"editions.register":               {Kind: Handler},
 	"editions.withdraw":               {Kind: Handler},
 	"editions.setEntryPolicy":         {Kind: Handler},
+	"challenges.forEdition":           {Kind: Handler},
 	"challenges.propose":              {Kind: Handler},
 	"challenges.respond":              {Kind: Handler},
 	"challenges.setPolicy":            {Kind: Handler},

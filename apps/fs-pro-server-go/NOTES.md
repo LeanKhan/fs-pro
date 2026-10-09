@@ -611,3 +611,47 @@ reasons, and the unpublished "Not open for entry yet".
   ~150-line ranking/Elo/XP applier in `ranking.service.ts`). Not ported.
 
 Census: **115 real / 44 stub / 2 empty / 1 gate**.
+
+---
+
+## Challenge lifecycle: propose + respond now real (findSlot / applyResult ported)
+
+- **Scheduler** (`ranking.go` `dayKind`, `challenge_service.go` `findSlot`):
+  ported `world-calendar.ts` day kinds (week template, `YearStartDay`) and
+  `challenge.service.findSlot` (first free cup day in `[from+1, lastDay]`, live
+  fixtures on any competition block the day; cancelled challenges free it).
+- **`applyResult`** (`ApplyResult`): ported ranking.service `applyResult` -
+  `RankingResults` insert is the once-only guard, `accepted -> played`, table
+  rows via `applyMatchToRow`, Elo via `eloAfter`, XP via `grantXp` (+
+  `LevelHistory` on a level change), forfeit = 3-0. Pure maths in `ranking.go`.
+- **`challenges.propose`** (owner/admin): locks both clubs, `contextAt`
+  (running league/groups stage + full `LeagueRules`), the `proposalReasons`
+  predicate (group, caps, cooldown, pending, open count, rank range), inserts
+  the fixture, then `ApplyChallengePolicy` (`squadFitness`, `tryAccept` =
+  `Accept`, `declineOutsidePolicy`). 201 `Challenge sent`, direction `outgoing`.
+- **`challenges.respond`** (owner/admin; admin may `cancel` any):
+  `Accept` (findSlot + `ScheduledDate`), `Decline` (`refuse` ->
+  declined/forfeited; `minDeclinesBeforeForfeit`, then `applyResult`), `Cancel`.
+  Messages/statuses mirror Node (`Challenge <status>`, `Declined too often:
+  recorded as a forfeit`); the payload carries `forfeited` only for a decline.
+- **Fixed toChallenge direction** to Node's rule
+  (`ChallengerClubId === clubId ? outgoing : incoming`), which resolves the
+  earlier documented diff.
+- **D1 fix**: `challenges.forEdition` added to the policy table as `Handler`
+  (it was missing, so anonymous hit the handler's 403); `requireAdmin` now
+  returns 401 for anonymous to match Node's `accessDenied`.
+
+Tests: `TestDayKind`, `TestApplyMatchToRow`, `TestEloAfter`,
+`TestResolveFullRules` (pure); `TestChallengeProposeRespondRolledBack` (rolled
+back) drives propose -> accept (asserts a cup-day slot), propose -> decline
+(non-forfeit), then seeds three declines and asserts the fourth forfeits, writes
+one `RankingResults` row and an away 3-0 ranking row.
+
+Differential: `GET /api/challenges/club/{clubId}` now **0 semantic diffs** vs
+Node (same DB). `GET /api/challenges/edition/{editionId}` anonymous now 401 on
+both. A propose-then-read differential is not possible without committing a
+write (all writes rolled back), so the write path is covered by the rolled-back
+test instead.
+
+Census: **117 real / 42 stub / 2 empty / 1 gate**. editions.action remains the
+one open-play write stub (needs the Zod `buildDefinition` snapshot).
