@@ -588,7 +588,6 @@ func refuse(ctx context.Context, q db.Querier, fixture map[string]any, as string
 // Decline ports ChallengeService.decline (+ forfeit applyResult).
 func (r *Repository) Decline(ctx context.Context, fixtureID, byClubID string) (bool, error) {
 	var forfeit bool
-	var homeID string
 	err := db.WithTx(ctx, r.q, func(tx db.Querier) error {
 		peek, err := loadChallenge(ctx, tx, fixtureID)
 		if err != nil {
@@ -607,17 +606,20 @@ func (r *Repository) Decline(ctx context.Context, fixtureID, byClubID string) (b
 		if db.StringField(fixture, "ChallengeStatus") != "proposed" {
 			return newChallengeErr("wrong-status", "Challenge is "+db.StringField(fixture, "ChallengeStatus"))
 		}
-		homeID = db.StringField(fixture, "HomeTeamId")
 		forfeit, err = refuse(ctx, tx, fixture, "declined")
-		return err
+		if err != nil {
+			return err
+		}
+		if forfeit {
+			// D27: commit the forfeit status and its ranking/Elo/XP result in
+			// ONE transaction. A failure here rolls the status back too, so the
+			// challenge stays 'proposed' and the result is retryable.
+			return applyResultTx(ctx, tx, fixtureID, db.StringField(fixture, "HomeTeamId"))
+		}
+		return nil
 	})
 	if err != nil {
 		return false, err
-	}
-	if forfeit {
-		if err := r.ApplyResult(ctx, fixtureID, homeID); err != nil {
-			return false, err
-		}
 	}
 	return forfeit, nil
 }
@@ -782,136 +784,152 @@ func (r *Repository) ApplyChallengePolicy(ctx context.Context, fixtureID string)
 // path is wired today (forfeitedBy = the forfeiting club's id).
 func (r *Repository) ApplyResult(ctx context.Context, fixtureID, forfeitedBy string) error {
 	return db.WithTx(ctx, r.q, func(tx db.Querier) error {
-		fixture, err := loadFixture(ctx, tx, fixtureID)
-		if err != nil {
-			return err
-		}
-		seasonID := db.StringField(fixture, "SeasonId")
-		homeID := db.StringField(fixture, "HomeTeamId")
-		awayID := db.StringField(fixture, "AwayTeamId")
-		if db.StringField(fixture, "CompetitionId") == "" || seasonID == "" || homeID == "" || awayID == "" {
-			return nil
-		}
-		if !boolVal(fixture["Played"]) && forfeitedBy == "" {
-			return nil
-		}
-		tag, err := tx.Exec(ctx, `INSERT INTO "RankingResults" ("FixtureId","SeasonId") VALUES ($1,$2) ON CONFLICT ("FixtureId") DO NOTHING`, fixtureID, seasonID)
-		if err != nil {
-			return err
-		}
-		if tag.RowsAffected() == 0 {
-			return nil
-		}
-		if db.StringField(fixture, "ChallengeStatus") == "accepted" {
-			if _, err := tx.Exec(ctx, `UPDATE "Fixtures" SET "ChallengeStatus"='played', "updatedAt"=now() WHERE "_id"=$1`, fixtureID); err != nil {
-				return err
-			}
-		}
+		return applyResultTx(ctx, tx, fixtureID, forfeitedBy)
+	})
+}
 
-		homeGoals, awayGoals := 0, 0
-		if forfeitedBy != "" {
-			if forfeitedBy == homeID {
-				homeGoals, awayGoals = 0, forfeitGoals
-			} else {
-				homeGoals, awayGoals = forfeitGoals, 0
-			}
+// applyResultGuard is a test-only seam: when set it forces applyResultTx to
+// fail, so a test can prove the caller rolls the whole result back (D27).
+var applyResultGuard func() error
+
+// applyResultTx is the body of applyResult, runnable inside a caller's
+// transaction so a forfeit status and its ranking result commit or roll back
+// together.
+func applyResultTx(ctx context.Context, tx db.Querier, fixtureID, forfeitedBy string) error {
+	if applyResultGuard != nil {
+		if err := applyResultGuard(); err != nil {
+			return err
+		}
+	}
+	fixture, err := loadFixture(ctx, tx, fixtureID)
+	if err != nil {
+		return err
+	}
+	seasonID := db.StringField(fixture, "SeasonId")
+	homeID := db.StringField(fixture, "HomeTeamId")
+	awayID := db.StringField(fixture, "AwayTeamId")
+	if db.StringField(fixture, "CompetitionId") == "" || seasonID == "" || homeID == "" || awayID == "" {
+		return nil
+	}
+	if !boolVal(fixture["Played"]) && forfeitedBy == "" {
+		return nil
+	}
+	tag, err := tx.Exec(ctx, `INSERT INTO "RankingResults" ("FixtureId","SeasonId") VALUES ($1,$2) ON CONFLICT ("FixtureId") DO NOTHING`, fixtureID, seasonID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return nil
+	}
+	if db.StringField(fixture, "ChallengeStatus") == "accepted" {
+		if _, err := tx.Exec(ctx, `UPDATE "Fixtures" SET "ChallengeStatus"='played', "updatedAt"=now() WHERE "_id"=$1`, fixtureID); err != nil {
+			return err
+		}
+	}
+
+	homeGoals, awayGoals := 0, 0
+	if forfeitedBy != "" {
+		if forfeitedBy == homeID {
+			homeGoals, awayGoals = 0, forfeitGoals
 		} else {
-			if v, _ := oneAt(ctx, tx, `SELECT "Goals" FROM "ClubMatchDetails" WHERE "_id" = $1 LIMIT 1`, db.StringField(fixture, "HomeSideDetailsId")); v != nil {
-				homeGoals = intVal(v["Goals"])
-			}
-			if v, _ := oneAt(ctx, tx, `SELECT "Goals" FROM "ClubMatchDetails" WHERE "_id" = $1 LIMIT 1`, db.StringField(fixture, "AwaySideDetailsId")); v != nil {
-				awayGoals = intVal(v["Goals"])
-			}
+			homeGoals, awayGoals = forfeitGoals, 0
 		}
+	} else {
+		if v, _ := oneAt(ctx, tx, `SELECT "Goals" FROM "ClubMatchDetails" WHERE "_id" = $1 LIMIT 1`, db.StringField(fixture, "HomeSideDetailsId")); v != nil {
+			homeGoals = intVal(v["Goals"])
+		}
+		if v, _ := oneAt(ctx, tx, `SELECT "Goals" FROM "ClubMatchDetails" WHERE "_id" = $1 LIMIT 1`, db.StringField(fixture, "AwaySideDetailsId")); v != nil {
+			awayGoals = intVal(v["Goals"])
+		}
+	}
 
-		season, err := seasonRow(ctx, tx, seasonID)
-		if err != nil {
-			return err
-		}
-		competition, _ := oneAt(ctx, tx, `SELECT * FROM "Competitions" WHERE "_id" = $1 LIMIT 1`, db.StringField(fixture, "CompetitionId"))
-		cal, err := calendarAt(ctx, tx)
-		if err != nil {
-			return err
-		}
-		definition := definitionOf(season, competition)
-		stageIndex := intVal(fixture["StageIndex"])
-		rules := stageRulesFull(definition, stageIndex, mapOf(cal["DefaultRules"]))
+	season, err := seasonRow(ctx, tx, seasonID)
+	if err != nil {
+		return err
+	}
+	competition, _ := oneAt(ctx, tx, `SELECT * FROM "Competitions" WHERE "_id" = $1 LIMIT 1`, db.StringField(fixture, "CompetitionId"))
+	cal, err := calendarAt(ctx, tx)
+	if err != nil {
+		return err
+	}
+	definition := definitionOf(season, competition)
+	stageIndex := intVal(fixture["StageIndex"])
+	rules := stageRulesFull(definition, stageIndex, mapOf(cal["DefaultRules"]))
 
-		clubRows, err := tx.Query(ctx, `SELECT "_id","Elo","XP" FROM "Clubs" WHERE "_id" = ANY($1) ORDER BY "_id" FOR UPDATE`, []string{homeID, awayID})
-		if err != nil {
-			return err
-		}
-		clubList, err := db.ScanAll(clubRows)
-		if err != nil {
-			return err
-		}
-		clubByID := map[string]map[string]any{}
-		for _, c := range clubList {
-			clubByID[db.StringField(c, "_id")] = c
-		}
-		home := clubByID[homeID]
-		away := clubByID[awayID]
-		if home == nil || away == nil {
-			return nil
-		}
+	clubRows, err := tx.Query(ctx, `SELECT "_id","Elo","XP" FROM "Clubs" WHERE "_id" = ANY($1) ORDER BY "_id" FOR UPDATE`, []string{homeID, awayID})
+	if err != nil {
+		return err
+	}
+	clubList, err := db.ScanAll(clubRows)
+	if err != nil {
+		return err
+	}
+	clubByID := map[string]map[string]any{}
+	for _, c := range clubList {
+		clubByID[db.StringField(c, "_id")] = c
+	}
+	home := clubByID[homeID]
+	away := clubByID[awayID]
+	if home == nil || away == nil {
+		return nil
+	}
 
-		day := intVal(fixture["ScheduledDay"])
-		if fixture["ScheduledDay"] == nil {
-			day = intVal(cal["CurrentDay"])
-		}
-		homeRow, homeRowID, err := ensureRowAt(ctx, tx, seasonID, stageIndex, homeID, numVal(home["Elo"]))
-		if err != nil {
-			return err
-		}
-		awayRow, awayRowID, err := ensureRowAt(ctx, tx, seasonID, stageIndex, awayID, numVal(away["Elo"]))
-		if err != nil {
-			return err
-		}
-		nextHome := applyMatchToRow(homeRow, homeGoals, awayGoals, rules, forfeitedBy == homeID)
-		nextAway := applyMatchToRow(awayRow, awayGoals, homeGoals, rules, forfeitedBy == awayID)
-		if err := updateRankingRow(ctx, tx, homeRowID, nextHome, day); err != nil {
-			return err
-		}
-		if err := updateRankingRow(ctx, tx, awayRowID, nextAway, day); err != nil {
-			return err
-		}
+	day := intVal(fixture["ScheduledDay"])
+	if fixture["ScheduledDay"] == nil {
+		day = intVal(cal["CurrentDay"])
+	}
+	homeRow, homeRowID, err := ensureRowAt(ctx, tx, seasonID, stageIndex, homeID, numVal(home["Elo"]))
+	if err != nil {
+		return err
+	}
+	awayRow, awayRowID, err := ensureRowAt(ctx, tx, seasonID, stageIndex, awayID, numVal(away["Elo"]))
+	if err != nil {
+		return err
+	}
+	nextHome := applyMatchToRow(homeRow, homeGoals, awayGoals, rules, forfeitedBy == homeID)
+	nextAway := applyMatchToRow(awayRow, awayGoals, homeGoals, rules, forfeitedBy == awayID)
+	if err := updateRankingRow(ctx, tx, homeRowID, nextHome, day); err != nil {
+		return err
+	}
+	if err := updateRankingRow(ctx, tx, awayRowID, nextAway, day); err != nil {
+		return err
+	}
 
-		score := 0.5
-		if homeGoals > awayGoals {
-			score = 1
-		} else if homeGoals < awayGoals {
-			score = 0
-		}
-		newHomeElo, newAwayElo := eloAfter(numVal(home["Elo"]), numVal(away["Elo"]), score, defaultEloK)
-		if _, err := tx.Exec(ctx, `UPDATE "Clubs" SET "Elo"=$2, "updatedAt"=now() WHERE "_id"=$1`, homeID, newHomeElo); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, `UPDATE "Clubs" SET "Elo"=$2, "updatedAt"=now() WHERE "_id"=$1`, awayID, newAwayElo); err != nil {
-			return err
-		}
+	score := 0.5
+	if homeGoals > awayGoals {
+		score = 1
+	} else if homeGoals < awayGoals {
+		score = 0
+	}
+	newHomeElo, newAwayElo := eloAfter(numVal(home["Elo"]), numVal(away["Elo"]), score, defaultEloK)
+	if _, err := tx.Exec(ctx, `UPDATE "Clubs" SET "Elo"=$2, "updatedAt"=now() WHERE "_id"=$1`, homeID, newHomeElo); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `UPDATE "Clubs" SET "Elo"=$2, "updatedAt"=now() WHERE "_id"=$1`, awayID, newAwayElo); err != nil {
+		return err
+	}
 
-		xpPerMatch := defaultXPPerMatch()
-		if rewards := mapOf(definition["Rewards"]); rewards != nil {
-			if xp := mapOf(rewards["xpPerMatch"]); xp != nil {
-				xpPerMatch = xp
-			} else if xp := mapOf(cal["XPPerMatch"]); xp != nil {
-				xpPerMatch = xp
-			}
+	xpPerMatch := defaultXPPerMatch()
+	if rewards := mapOf(definition["Rewards"]); rewards != nil {
+		if xp := mapOf(rewards["xpPerMatch"]); xp != nil {
+			xpPerMatch = xp
 		} else if xp := mapOf(cal["XPPerMatch"]); xp != nil {
 			xpPerMatch = xp
 		}
-		thresholds := toAnyList(cal["LevelThresholds"])
-		if err := grantXpAt(ctx, tx, home, xpFor(xpPerMatch, homeGoals, awayGoals), day, seasonID, thresholds); err != nil {
-			return err
-		}
-		if err := grantXpAt(ctx, tx, away, xpFor(xpPerMatch, awayGoals, homeGoals), day, seasonID, thresholds); err != nil {
-			return err
-		}
-		_ = rules
-		_ = nextHome
-		_ = nextAway
-		return nil
-	})
+	} else if xp := mapOf(cal["XPPerMatch"]); xp != nil {
+		xpPerMatch = xp
+	}
+	thresholds := toAnyList(cal["LevelThresholds"])
+	if err := grantXpAt(ctx, tx, home, xpFor(xpPerMatch, homeGoals, awayGoals), day, seasonID, thresholds); err != nil {
+		return err
+	}
+	if err := grantXpAt(ctx, tx, away, xpFor(xpPerMatch, awayGoals, homeGoals), day, seasonID, thresholds); err != nil {
+		return err
+	}
+	_ = rules
+	_ = nextHome
+	_ = nextAway
+	return nil
 }
 
 func defaultXPPerMatch() map[string]any {

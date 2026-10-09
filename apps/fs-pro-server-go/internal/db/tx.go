@@ -15,11 +15,12 @@ type Beginner interface {
 // WithTx runs fn inside a transaction, committing on success and rolling back
 // on error. The transaction satisfies Querier, so repository code runs
 // unchanged against it.
+//
+// When q is itself a transaction, Begin creates a savepoint, so a failure rolls
+// back only this unit of work and leaves the outer transaction usable. That is
+// what makes composed writes (e.g. a challenge forfeit + its result) atomic
+// without losing the caller's context.
 func WithTx(ctx context.Context, q Querier, fn func(tx Querier) error) error {
-	if _, ok := q.(pgx.Tx); ok {
-		// Already inside a transaction: run directly, no nested begin.
-		return fn(q)
-	}
 	b, ok := q.(Beginner)
 	if !ok {
 		return errors.New("db: transactions are not supported by this querier")

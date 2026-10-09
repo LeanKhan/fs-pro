@@ -1,20 +1,19 @@
 # Go port — owner-facing status
 
-Date: 2026-10-09 (updated after the owner-program-market + transfers-writes pass).
+Date: 2026-10-09 (FINAL — after the open-play writes / challenge-lifecycle pass).
 Evidence: `VERIFY-B0B1.md`, `VERIFY-B2.md`, `VERIFY-B3.md`, `VERIFY-B5.md`,
-`VERIFY-B6.md`. Counts verified against the real DB with **both** Go (`:3227`) and
-Node (`:3099`) running.
+`VERIFY-B6.md`, `VERIFY-FINAL.md`. Counts verified against the real DB with both
+Go (`:3227`) and Node (`:3099`) running.
 
 ## TL;DR
 
 All **162** contract routes are registered with exact method/path/status and the
-correct policy rule. **103 are real, 56 are declared stubs, 2 return a
-shape-valid empty 200, 1 is a gate.** No S1 remains; the one open money-integrity
-risk (S2) is a concurrency gap in transfer settlement. New this pass: the whole
-owner-program market and 5 of 8 transfer writes are real and match Node.
-The server is **read-capable with a real squad/transfer/program-management
-surface**, but still **play-incapable** — matches, world progression, and
-open-play (editions/challenges) are stubbed.
+correct policy rule. **117 are real, 42 are declared stubs, 2 return a
+shape-valid empty 200, 1 is a gate.** No S1 and no S2 remain. The server now
+covers the full read surface, account/roster management, the owner-program
+market, 5/8 transfer writes, the editions register/withdraw path, and the whole
+challenge lifecycle — but the **gameplay core (matches, world progression) is
+still stubbed**, so the world cannot advance and matches cannot be played.
 
 ## Census — 162 routes
 
@@ -43,8 +42,8 @@ open-play (editions/challenges) are stubbed.
 | program | 12 | 1 | 0 | 0 | 13 |
 | **total** | **117** | **42** | **2** | **1** | **162** |
 
-By verb: **GET 73 → 47 real + 2 empty (49/73 = 67 % 2xx; 24 stubbed)**;
-**non-GET 89 → 61 real, 27 stubbed, 1 gate (69 % real)**.
+By verb: **GET 73 → 54 real + 2 empty (56/73 = 77 % 2xx; 17 stubbed)**;
+**non-GET 89 → 63 real, 25 stubbed, 1 gate (71 % real)**.
 
 ### Remaining stubs grouped (all declared `400`, except `game.enqueueMatch` `409`)
 - **clubs (2):** getClubPerformance, suggestLineup. *(empty: getMediaFeed)*
@@ -56,8 +55,6 @@ By verb: **GET 73 → 47 real + 2 empty (49/73 = 67 % 2xx; 24 stubbed)**;
 - **play (6):** playMatch (gate `409`→`400`), collectShop, bookMatch, getMatchPrep,
   saveMatchPlan, previewMatchPlan.
 - **editions (5):** action, invite, eligibility, bracket, eligibleOpponents.
-  *(create/register/withdraw are now real; see NOTES.)*
-- **challenges (0):** none — all six are now real.
 - **world (3):** endYear, advanceDay, performance.
 - **competitionDefinitions (3):** create, update, archive.
 - **atlas (8):** getAtlas, getChrome, search, getPlacement, listInvites,
@@ -68,62 +65,52 @@ By verb: **GET 73 → 47 real + 2 empty (49/73 = 67 % 2xx; 24 stubbed)**;
 
 - `go build/vet` clean, `gofmt -l .` empty, `go test ./... -count=1` green with
   and without `DATABASE_URL`; `contract-check` → `PASS: 162 route(s)`.
-- **No S1.** Anon `401 "Not logged in"` / non-owner `403 "You do not manage this
-  club"` match Node on every `program.*` market write and `transfers.{purchase,
-  placeBid,respondToOffer,getOffers}`; `TestEveryHandlerRuleDeniesAnonymous`
-  covers the whole handler set. `play.getPlayState`/`findOpponents` verified
-  **public in Node** and now public in Go.
-- Differential vs Node (same DB): `program/{id}/managers`, `program/{id}/players`,
-  `transfers/offers`, `transfers/scouted-shortlist/{id}` → **all 0 diffs**;
-  earlier MATCHes (clock, standings, seasons, editions.list,
-  competitionDefinitions, users/clubs/players/managers/fixtures/awards/places)
-  hold. Rolled-back DB tests cover the market/purchase write paths.
+- **No S1.** Live Go-vs-Node on every new write: anonymous `401 "Not logged in"`,
+  non-owner `403 "You do not manage this club"`, byte-identical to Node.
+  `TestEveryHandlerRuleDeniesAnonymous` covers the handler set.
+- Differential (same DB): `challenges/club/{clubId}`, `editions/{id}`,
+  `editions/club/{clubId}`, `editions` → **all 0 diffs**; earlier MATCHes hold.
+- Rolled-back DB tests cover the money/result write paths (purchase/settlement
+  guards, placeBid atomicity, market, edition register/withdraw, challenge
+  propose/accept/decline/forfeit); the ranking/Elo/XP maths is byte-identical to
+  `ranking.ts`/`ranking.service.ts`.
 
 ## Open defects by severity
 
 - **S1 — none.**
-- **S2 — none.** D23 (transfer settlement concurrency) is **FIXED**:
-  `settleTransfer` now uses `SELECT ... FOR UPDATE` on the player and buying
-  club plus a `RowsAffected`-checked conditional player move (`WHERE "_id"=$1
-  AND "isRetired"=false AND "ClubId" IS NOT DISTINCT FROM $expectedSeller`) and
-  conditional budget debit (`WHERE coalesce("Budget",0) >= $amount`), with
-  `expectedSeller` = nil for a free-agent purchase and the offer's `ToClubId`
-  for an accept. `TestSettlementGuardRolledBack` proves one ledger row and a
-  refused second settlement; any lost race rolls back.
-- **S3 — none.** D25 (`placeBid` non-atomicity) is **FIXED**:
-  `PlaceBid` now runs the duplicate-open-bid check, the `TransferOffers` insert,
-  and the AI answer (settle/counter/reject) in one `db.WithTx`, locking the
-  bidding club row `FOR UPDATE` so concurrent duplicate bids serialise. A
-  settlement failure rolls the insert back instead of leaving a pending offer
-  with the player moved. `TestPlaceBidAtomicRolledBack` proves a rejected
-  duplicate adds no offer row and the happy path inserts (also caught the
-  missing non-default `updatedAt` on the insert).
-  - *(Also fixed this pass:* `transfers.getScoutedShortlist` is **public** like
-    Node — D24; stale package doc comments — D26.)*
+- **S2 — none.**
+- **S3 — none.** **D27 FIXED:** a forfeit `Decline` now commits the
+  `ChallengeStatus` and runs `applyResult` in **one** transaction
+  (`applyResultTx`), so a failure rolls both back — the challenge stays
+  `proposed` and is retryable. `db.WithTx` now uses a savepoint when the
+  querier is already a transaction, so a composed write can fail without
+  poisoning the caller. `TestDeclineForfeitAtomicRolledBack` proves a forced
+  `applyResult` failure leaves status `proposed`, `Played=false` and zero
+  `RankingResults`, then a retry applies exactly one result and a second attempt
+  is refused (`wrong-status`).
+  - Pre-existing low nits: `editions.action`/`invite` stubbed (blocked on the Zod
+    `buildDefinition` snapshot); `editions/{id}/rankings` group-rule metadata uses
+    a fallback (`metric:"ppg"` vs Node's pyramid `"points"`) — rows/ranks match.
 
 **Drift WARNs (Node-identical, contract/data):** nullable club classes; NULL
 `FixtureCode`; `real` float32 formatting; `Award.Type='club'` (UNVERIFIED).
 
 ## Readiness verdict
 
-- **Read paths: ~67 % (49/73 GET return 2xx) with high Node parity.** The real
-  reads (users, clubs, players, managers, fixtures, seasons, standings, awards,
-  places, calendar, competition-definitions, editions list, transfers window/
-  offers/shortlist, world settings, the program market lists) match Node.
-- **Write paths: ~63 % real, and now include real management writes** — squad
-  add/remove, club/player/manager CRUD, facility upgrades, free-agent signings,
-  the owner-program market (interview/sign/release manager, scout/sign player),
-  and instant purchases/bids/offer responses. **Still missing the gameplay core:**
-  matches, world progression (`endYear`/`advanceDay`), editions entries/rankings,
-  and challenges. The world cannot advance and matches cannot be played.
-- **What a client sees today:** works — browsing screens, club/player/manager
-  management, facilities, the Owner Program market, the transfer window, buy/bid/
-  respond flows. Breaks — Matchzone (kickoff/prep/plan), Open Play (editions),
-  Challenges, World end-year/advance-day, Atlas map, Media feed, Medical Centre.
-  Silently degrades — media/world feeds empty; `program.tip`.
-- **Risk:** the S2 concurrency gap is the only money-integrity exposure; the S3
-  shortlist over-restriction is a parity (not security) issue. No data-corruption
-  path in normal single-request use.
+- **Read paths: ~77 % (56/73 GET) 2xx with high Node parity.**
+- **Write paths: ~71 % real (63/89).** Works end-to-end: accounts/auth, club/
+  player/manager CRUD, squad add/remove, facilities upgrades, transfers window +
+  purchase/bid/offer-response, the owner-program market, editions
+  create/register/withdraw, and the full challenge propose/accept/decline/cancel
+  lifecycle (with Elo/XP/standings on a forfeit).
+- **Not playable:** matches (`play.playMatch`, `game.kickoffNew`/replay/enqueue),
+  world progression (`world.endYear`/`advanceDay`, `calendar.tickClock`/`heal`/
+  `simulateToDate`), transfers listing/scouting/budget, the atlas map, facilities
+  medical. A client pointed at Go: browsing, squad/transfer/program management
+  work; Matchzone, World end-year, Atlas, Media feed, Medical Centre error.
+- **Risk:** none known — D27's lost-result window is closed (forfeit + result are
+  one transaction); no money-corruption path (settlement is guarded +
+  transactional).
 
 ## Prioritized remaining work (client impact × effort)
 
@@ -131,10 +118,6 @@ By verb: **GET 73 → 47 real + 2 empty (49/73 = 67 % 2xx; 24 stubbed)**;
 |---|---|---|---|
 | 1 | Match/game core: `play.playMatch` sim, plan/prep/shop/book, `game.kickoffNew`/replay (+ sim-core client) | critical | XL |
 | 2 | World progression: `world.endYear`/`advanceDay`, `calendar.tickClock`/`heal`/`simulateToDate` | critical | L–XL |
-| 3 | Editions (13) + challenges (6) | high | M–L |
-| 4 | Transfers remaining: `listPlayerForSale` / `scoutPlayerTransfer` / `requestBudgetIncrease` | high | S–M |
-| 5 | Atlas reads/founding (world-service dependent) | med-high | M–L |
-| 6 | `clubs.getClubPerformance` / `suggestLineup` / `getMediaFeed` | medium | M |
-| 7 | Facilities medical (3) | low-med | S–M |
-| 8 | `competitionDefinitions` create/update/archive | low | S |
-| 9 | Remaining S3 nits (none open; D24/D25/D26 resolved) | low | S |
+| 3 | Transfers remaining (list/scout/budget) | high | S-M |
+| 4 | Atlas reads/founding (8, world-service dependent) | med-high | M–L |
+| 5 | clubs analytics (3), facilities medical (3), editions action/invite/eligibility/bracket/opponents (5), competitionDefinitions writes (3), program.tip | medium→low | M/S |

@@ -3,6 +3,7 @@ package openplay
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"math"
 	"os"
 	"testing"
@@ -10,6 +11,47 @@ import (
 
 	"fs-pro-server/internal/db"
 )
+
+// seedRunningStage creates a running league-stage edition with the given clubs
+// as active entries in one group. Test helper (rolled back by the caller).
+func seedRunningStage(t *testing.T, ctx context.Context, tx db.Querier, clubs []string) string {
+	t.Helper()
+	cal, err := calendarAt(ctx, tx)
+	if err != nil {
+		t.Fatalf("calendar: %v", err)
+	}
+	today := intVal(cal["CurrentDay"])
+	compRow, ok, err := dbScanOne(ctx, tx, `SELECT "_id" FROM "Competitions" LIMIT 1`)
+	if err != nil {
+		t.Fatalf("competition: %v", err)
+	}
+	if !ok {
+		t.Skip("no competition")
+	}
+	def := map[string]any{
+		"Name": "Challenge Cup", "Prestige": 2,
+		"Entry":  map[string]any{"mode": "open", "minClubs": 2, "maxClubs": nil},
+		"Stages": []any{map[string]any{"type": "league", "days": 60}},
+	}
+	defBytes, _ := json.Marshal(def)
+	now := time.Now()
+	season, err := db.InsertRow(ctx, tx, "Seasons", map[string]any{
+		"SeasonCode": "TST-E1", "Title": "Test #1", "StartDate": now, "EndDate": now,
+		"CompetitionId": db.StringField(compRow, "_id"), "CompetitionCode": "TST",
+		"Status": "running", "CurrentStage": 0, "StageStartedDay": today,
+		"StartDay": today, "Definition": string(defBytes), "updatedAt": now,
+	})
+	if err != nil {
+		t.Fatalf("season: %v", err)
+	}
+	seasonID := db.StringField(season, "_id")
+	for _, club := range clubs {
+		if _, err := tx.Exec(ctx, `INSERT INTO "Entries" ("SeasonId","ClubId","Status","Group","updatedAt") VALUES ($1,$2,'active','A',now())`, seasonID, club); err != nil {
+			t.Fatalf("entry: %v", err)
+		}
+	}
+	return seasonID
+}
 
 // TestDayKind is the pure week-template scheduler helper.
 func TestDayKind(t *testing.T) {
@@ -223,5 +265,85 @@ func TestChallengeProposeRespondRolledBack(t *testing.T) {
 	}
 	if err := db.InRollback(ctx, pool, run); err != nil {
 		t.Fatalf("rolled-back challenges: %v", err)
+	}
+}
+
+// TestDeclineForfeitAtomicRolledBack is the D27 regression: a failure inside
+// applyResult must roll back the forfeit status with it (no half-forfeit), and
+// a retry must then apply the result exactly once.
+func TestDeclineForfeitAtomicRolledBack(t *testing.T) {
+	url := os.Getenv("DATABASE_URL")
+	if url == "" {
+		t.Skip("DATABASE_URL not set")
+	}
+	pool, err := db.New(context.Background(), url, 15*time.Second, nil)
+	if err != nil {
+		t.Fatalf("db.New: %v", err)
+	}
+	defer pool.Close()
+	ctx := context.Background()
+
+	run := func(tx db.Querier) error {
+		repo := NewRepository(tx)
+		clubs, err := dbScanAll(ctx, tx, `SELECT "_id" FROM "Clubs" LIMIT 2`)
+		if err != nil {
+			return err
+		}
+		if len(clubs) < 2 {
+			t.Skip("need two clubs")
+		}
+		a, c := db.StringField(clubs[0], "_id"), db.StringField(clubs[1], "_id")
+		seasonID := seedRunningStage(t, ctx, tx, []string{a, c})
+		// Three prior declines for the home club make the next one forfeit.
+		for i := 0; i < 3; i++ {
+			if _, err := tx.Exec(ctx, `INSERT INTO "Fixtures" ("Title","SeasonId","StageIndex","HomeTeamId","AwayTeamId","ChallengeStatus","Played","updatedAt")
+				VALUES ('seed',$1,0,$2,$3,'declined',false,now())`, seasonID, c, a); err != nil {
+				return err
+			}
+		}
+		fx, err := repo.Propose(ctx, seasonID, a, c)
+		if err != nil {
+			t.Fatalf("propose: %v", err)
+		}
+		fxID := db.StringField(fx, "_id")
+
+		// Force applyResult to fail: the whole decline must roll back.
+		old := applyResultGuard
+		applyResultGuard = func() error { return errors.New("forced applyResult failure") }
+		defer func() { applyResultGuard = old }()
+		if _, err := repo.Decline(ctx, fxID, c); err == nil {
+			t.Fatal("decline must fail when applyResult fails")
+		}
+		after, err := loadFixture(ctx, tx, fxID)
+		if err != nil {
+			return err
+		}
+		if db.StringField(after, "ChallengeStatus") != "proposed" || boolVal(after["Played"]) {
+			t.Errorf("half-forfeit: status=%q played=%v", db.StringField(after, "ChallengeStatus"), boolVal(after["Played"]))
+		}
+		if n, err := countAt(ctx, tx, `SELECT count(*)::int AS n FROM "RankingResults" WHERE "FixtureId"=$1`, fxID); err != nil || n != 0 {
+			t.Errorf("result written despite failure: %d (err %v)", n, err)
+		}
+
+		// Retry with the guard cleared: applies exactly once.
+		applyResultGuard = nil
+		forfeited, err := repo.Decline(ctx, fxID, c)
+		if err != nil || !forfeited {
+			t.Fatalf("retry decline = %v / %v", forfeited, err)
+		}
+		if n, err := countAt(ctx, tx, `SELECT count(*)::int AS n FROM "RankingResults" WHERE "FixtureId"=$1`, fxID); err != nil || n != 1 {
+			t.Errorf("result rows after retry = %d (err %v)", n, err)
+		}
+		// The once-only guard still refuses a second attempt.
+		if _, err := repo.Decline(ctx, fxID, c); err == nil {
+			t.Error("second decline must be refused (wrong-status)")
+		}
+		if n, err := countAt(ctx, tx, `SELECT count(*)::int AS n FROM "RankingResults" WHERE "FixtureId"=$1`, fxID); err != nil || n != 1 {
+			t.Errorf("result rows after refused retry = %d (err %v)", n, err)
+		}
+		return nil
+	}
+	if err := db.InRollback(ctx, pool, run); err != nil {
+		t.Fatalf("rolled-back decline atomicity: %v", err)
 	}
 }

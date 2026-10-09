@@ -655,3 +655,30 @@ test instead.
 
 Census: **117 real / 42 stub / 2 empty / 1 gate**. editions.action remains the
 one open-play write stub (needs the Zod `buildDefinition` snapshot).
+
+---
+
+## D27 fixed — forfeit status + applyResult are atomic
+
+`Decline` used to commit the `forfeited` status, then call `ApplyResult` in a
+separate transaction: if the result application failed the fixture was left
+`forfeited` with no `RankingResults`/Elo/XP and a retry was refused
+(`wrong-status`), losing the result permanently.
+
+- `ApplyResult` is now split: `applyResultTx(ctx, tx, ...)` runs the whole
+  ranking/Elo/XP body against a caller-supplied querier; `ApplyResult` wraps it
+  in `db.WithTx`. `Decline` calls `applyResultTx` **inside** its own
+  transaction (after `refuse`), so the status update and the result commit or
+  roll back together.
+- `db.WithTx` now begins through the `Beginner` interface unconditionally, so
+  when the querier is already a transaction pgx creates a **savepoint**: a
+  failure rolls back only this unit of work and leaves the caller's transaction
+  usable. This is what lets the composed decline fail cleanly and be retried.
+- A test-only seam (`applyResultGuard`) forces `applyResultTx` to fail.
+
+Proof: `TestDeclineForfeitAtomicRolledBack` (rolled back) seeds the forfeit
+threshold, proposes, then forces `applyResult` to fail — the fixture is still
+`proposed`, `Played=false`, with zero `RankingResults`. Clearing the guard and
+retrying applies exactly one `RankingResults` row; a second attempt is refused
+(`wrong-status`) and still leaves exactly one. The `RankingResults` PK guard
+still holds.
