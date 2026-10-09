@@ -34,3 +34,38 @@ rulings are recorded here.
 Matchmade friendlies pay 30 XP every 75 s, so a grinder can beat the 4-hour
 D3 target. Filed as a balance item (U8), not fixed in this pass.
 
+## Pass 2 rulings — triage, 2026-10-09 (lead)
+
+Scope: the owner ruled **no further sub-agents and no resuming the paused
+playtesters**; Pass 2 runs against the issues already surfaced (A01, P01–P06
+full; P07–P10 partial). The triage is `ISSUES.md`; the owner readout is
+`FINDINGS.md`; the deferred work is `BACKLOG.md`.
+
+| # | Question | Choice | Why |
+| --- | --- | --- | --- |
+| D16 | Pass 1 is paused and 4 personas are partial | **Proceed on the reports already written**, marked partial; do not resume playtesters | Owner instruction; the surfaced issues are enough to act on, and U-01 blocks every run anyway. |
+| D17 | Triage + fixes normally run as sub-agents (2A, then one per cluster) | **The lead does both directly**, one worktree, no fix sub-agents | Owner instruction ("no need to run further subagents"). R11 file-ownership clusters still hold. |
+| D18 | A shared world under concurrent founding breaks the "Your home" preview (U-03) | **Fix binding deferred** (`fix*`): the change spans the Go placement service + the founding contract and cannot be integration-tested while the instance is down | Avoiding an unverifiable cross-language change to the placement path; the honest fix is to bind the previewed slot into `foundClub`. |
+| D19 | Test fixtures in the live DB are data, not code | **Ship migration 0044** (delete the PgTest free agent; soft-release E2E clubs) **plus** a `Value > 0` market guard | The rows are QA artifacts with unambiguous names; the guard keeps the market clean even before the migration runs. |
+| D20 | The four access gates (`clubs.hireManager` / `fireManager` admin-only) are used by owner-facing UI | **Route them through the owner program** (`program.signManager` / `releaseManager`) rather than widening the admin routes | The phase-2 program is the sanctioned owner path and applies the real fee/economy; widening the legacy routes would bypass it. |
+| D21 | The transfer-window disagreement (U-08) has two day bases (`Calendar` flag vs the world `transferWindows` schedule) | **Backlog** (not fixed now) | The enforcement path (`transfer-window.service.ts`) is self-consistent; the mismatch is with the unused `transferWindows` schedule. Unifying them is a spec change, so U8 sends it to `BACKLOG.md`. |
+
+### Pass 3 fixes landed on `ux/integration` (lead, this run)
+
+| Cluster | Status | Canonical issues | Evidence |
+| --- | --- | --- | --- |
+| C1 manager-hire / first hour | done | U-01, U-05, U-10 | `manager-picker.vue`, `manager-firer.vue` now use the owner program; errors surfaced |
+| C2 play refusal + away modal | done | U-06, U-07 (part), U-13 (part) | play contract `409`; `startBattle` keeps the dialog and toasts the gate message; filler "Squad rested" modal removed |
+| C4 cozy modal a11y | done | U-13, U-22 (part) | `cozy-modal.vue` is `role=dialog`, traps focus, Escape closes, restores focus |
+| C5 program cards | done (part) | U-19, U-20, U-21 (part) | wage×contract total, plain "your board wants" hint, true balance hint |
+| C6 recruitment surface | done (part) | U-23, U-24 | table columns merged (Actions visible), shortlist card on-palette |
+| C7 test-data hygiene | done | U-09 | migration 0044 + `Value > 0` guards in both markets |
+| C9 admin console | done (part) | U-11, U-29 (part) | null-safe Manager cells, Vuetify-3 headers, labelled actions, `undefinedd` fixed |
+| C10 campus motion | done (part) | U-17, U-18 | bob removed from interactive bubbles; `prefers-reduced-motion` honoured |
+| C8 founding guard | done (part) | U-04 | `/start` gates an existing owner; "Found another club" is explicit |
+| C3 placement binding | **deferred** | U-03 | see D18 |
+
+Build status: server `tsc` clean, `@repo/api-contract` build clean, client
+`vite build` clean. Runtime repro/after screenshots are deferred to the resumed
+instance (`OQ-UX-2`).
+

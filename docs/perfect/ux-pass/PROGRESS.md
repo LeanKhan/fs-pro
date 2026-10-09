@@ -15,8 +15,8 @@ Integration branch: **`ux/integration`**, from `p2/integration` @ `218bf73`
 | 0 | 0A instance; 0B harness | **done + verified** | `INSTANCE-LOG.md`, `tests/e2e/playtest/**` |
 | 1 | A01, P02, P04, P05, P06 | **done (P1 reports complete)** | `playtest/<id>/{DIARY,ISSUES,SUMMARY}.md`, screenshots |
 | 1 | P01, P03, P07–P10 | **PAUSED — interop outage #2** (OQ-UX-2) | same |
-| 2 | 2A triage | pending | `ISSUES.md`, `FINDINGS.md` |
-| 3 | fix clusters | pending | `ux/fix-*` branches, before/after screenshots |
+| 2 | 2A triage | **done (lead, no sub-agent — D17)** | `ISSUES.md`, `FINDINGS.md`, `BACKLOG.md` |
+| 3 | fix clusters | **done for C1, C2, C4–C10 on `ux/integration`; C3 deferred** | see `DECISIONS.md` §"Pass 3 fixes landed" |
 | 4 | re-play (3 personas) + report | pending | `RELEASE-REPORT.md` |
 
 > **Pass 1 is paused (2026-10-09 ~02:40Z).** WSL↔Windows interop failed a second
