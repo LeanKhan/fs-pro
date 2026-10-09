@@ -28,6 +28,11 @@ export const MatchEventSchema = z.object({
     'interception',
     'foul',
     'substitution',
+    // Real events the match engine writes (observed in seeded data; absent
+    // from the original enum, which made every played fixture fail zod).
+    'yellow-card',
+    'red-card',
+    'penalty-shootout',
   ]),
   message: z.string(),
   time: z.string().optional(),
