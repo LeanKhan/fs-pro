@@ -65,11 +65,11 @@ func Register(s *httpapi.Server, h *Handlers) {
 		httpapi.Respond(w, resp)
 	})
 
-	s.Register("editions.create", http.MethodPost, "/api/editions", []int{201, 400, 401, 403, 404, 409}, wrap(h.createEdition))
+	s.Register("editions.create", http.MethodPost, "/api/editions", []int{201, 400, 401, 403, 404, 409}, h.createEdition)
 	s.Register("editions.action", http.MethodPost, "/api/editions/{id}/status/{action}", editionStatuses, wrap(h.editionAction))
 	s.Register("editions.invite", http.MethodPost, "/api/editions/{id}/invite", editionStatuses, wrap(h.inviteClubs))
-	s.Register("editions.register", http.MethodPost, "/api/editions/{id}/entries/{clubId}", editionStatuses, wrap(h.registerEntry))
-	s.Register("editions.withdraw", http.MethodDelete, "/api/editions/{id}/entries/{clubId}", editionStatuses, wrap(h.withdrawEntry))
+	s.Register("editions.register", http.MethodPost, "/api/editions/{id}/entries/{clubId}", editionStatuses, h.registerEntry)
+	s.Register("editions.withdraw", http.MethodDelete, "/api/editions/{id}/entries/{clubId}", editionStatuses, h.withdrawEntry)
 	s.Register("editions.setEntryPolicy", http.MethodPut, "/api/editions/policy/{clubId}", editionStatuses, h.setEntryPolicy)
 
 	// challenges

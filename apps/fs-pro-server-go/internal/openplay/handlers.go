@@ -76,14 +76,70 @@ func editionListItem(e map[string]any, names map[string]string) map[string]any {
 	}
 }
 
-func (h *Handlers) createEdition() httpapi.Response      { return stub("Creating an edition") }
 func (h *Handlers) editionAction() httpapi.Response      { return stub("Edition status actions") }
 func (h *Handlers) inviteClubs() httpapi.Response        { return stub("Inviting clubs") }
 func (h *Handlers) editionEligibility() httpapi.Response { return stub("Edition eligibility") }
-func (h *Handlers) registerEntry() httpapi.Response      { return stub("Registering for an edition") }
-func (h *Handlers) withdrawEntry() httpapi.Response      { return stub("Withdrawing from an edition") }
-func (h *Handlers) editionBracket() httpapi.Response     { return stub("Edition brackets") }
-func (h *Handlers) eligibleOpponents() httpapi.Response  { return stub("Eligible opponents") }
+
+// createEdition is POST /api/editions (admin).
+func (h *Handlers) createEdition(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireAdmin(cx, r); !ok {
+		return denial
+	}
+	body, _ := cx.BodyMap()
+	if body == nil {
+		return httpapi.Fail(400, "Invalid body", nil)
+	}
+	dates := EditionDates{
+		RegistrationOpensDay:  intVal(body["registrationOpensDay"]),
+		RegistrationClosesDay: intVal(body["registrationClosesDay"]),
+		StartDay:              intVal(body["startDay"]),
+	}
+	season, err := h.repo.CreateEdition(r.Context(), db.StringField(body, "competitionId"), dates)
+	if err != nil {
+		return editionFail(err)
+	}
+	return httpapi.OKStatus(201, "Edition created", editionFields(season))
+}
+
+// registerEntry is POST /api/editions/{id}/entries/{clubId} (owner/admin).
+func (h *Handlers) registerEntry(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r); !ok {
+		return denial
+	}
+	entry, err := h.repo.Register(r.Context(), r.PathValue("id"), r.PathValue("clubId"))
+	if err != nil {
+		return editionFail(err)
+	}
+	return httpapi.OK("Registered", entryFields(entry))
+}
+
+// withdrawEntry is DELETE /api/editions/{id}/entries/{clubId} (owner/admin).
+func (h *Handlers) withdrawEntry(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r); !ok {
+		return denial
+	}
+	ctx := r.Context()
+	id, club := r.PathValue("id"), r.PathValue("clubId")
+	rows, err := h.repo.Q().Query(ctx, `SELECT "Status" FROM "Entries" WHERE "SeasonId" = $1 AND "ClubId" = $2 LIMIT 1`, id, club)
+	if err != nil {
+		return editionFail(err)
+	}
+	m, ok, err := db.ScanOne(rows)
+	if err != nil {
+		return editionFail(err)
+	}
+	if ok && db.StringField(m, "Status") == "invited" {
+		err = h.repo.DeclineInvite(ctx, id, club)
+	} else {
+		err = h.repo.Withdraw(ctx, id, club)
+	}
+	if err != nil {
+		return editionFail(err)
+	}
+	return httpapi.OK("Withdrawn", map[string]any{"ok": true})
+}
+func (h *Handlers) editionBracket() httpapi.Response    { return stub("Edition brackets") }
+func (h *Handlers) eligibleOpponents() httpapi.Response { return stub("Eligible opponents") }
 
 // getEdition is GET /api/editions/{id}.
 func (h *Handlers) getEdition(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {

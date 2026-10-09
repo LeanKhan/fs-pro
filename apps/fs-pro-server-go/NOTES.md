@@ -559,3 +559,55 @@ The three transfer stubs (`listPlayerForSale`, `scoutPlayerTransfer`,
 `requestBudgetIncrease`) also remain; they need the Jev local-fallback shapes
 (`source:'jev'|'local'`) from `transfer-scout.service.ts` /
 `board-budget.service.ts`.
+
+---
+
+## Editions writes: create / register / withdraw now real
+
+Ported from `services/competitions/edition.service.ts` (`internal/openplay/edition_service.go`):
+
+- **`editions.create`** (admin) - `CreateEdition`: validates dates
+  (`registrationOpensDay <= registrationClosesDay <= startDay`, start not in the
+  past -> `bad-dates` 400), locks the competition `FOR UPDATE`, takes
+  `EditionNumber = max+1`, `SeasonCode = <CODE>-E<n>`, inserts a `draft`; 201 +
+  `Edition created` + `toEdition` payload.
+- **`editions.register`** (owner/admin) - `Register`: serialises per edition
+  (`Seasons ... FOR UPDATE`), runs the full eligibility predicate, guarded fee
+  debit (`WHERE coalesce("Budget",0) >= fee`) + `entry_fee` ledger row, then an
+  `Entries` upsert (`ON CONFLICT ("SeasonId","ClubId") DO UPDATE`), status
+  `registered` (or `active` when the edition is already `running`).
+- **`editions.withdraw`** (owner/admin) - router parity: an `invited` entry is
+  deleted (`DeclineInvite`), otherwise `Withdraw` refunds fees while
+  `draft`/`registration`, or cancels the club's open challenges while `running`;
+  refusals are `wrong-status` 409. Payload `{ok:true}` + `Withdrawn`.
+
+The **eligibility predicate** (`eligibilityAt`) mirrors Node reason-for-reason and
+in order: `Already entered`; `Registration is closed` (with the `lateEntryUntilDay`
+escape); `No places left`; `Invitation only`; Level/Elo/rating bands (skipped for
+invited clubs); country; `Only for past winners`; `Already in a competition that
+excludes this one`; barred; `Entry limit reached (n / max)`; `Can't afford the
+entry fee`. `levelForXp` (from `services/world/level.ts`) is ported as a pure
+function. Errors map through `editionFail` exactly like Node's `fail()` (22P02 ->
+404, `not-found`->404, `not-allowed`->403, `wrong-status`/`ineligible`->409, else
+400).
+
+Tests: `TestCheckDates` + `TestLevelForXp` (pure); `TestEligibilityAndRegisterRolledBack`
+(rolled back) covers open registration, double-registration refusal, the fee
+debit + `entry_fee` ledger + refund on withdraw, the full-places and invite-only
+reasons, and the unpublished "Not open for entry yet".
+
+### Still stubbed (declared, not half-shipped)
+- **`editions.action`**: `publish` needs `buildDefinition` (the Zod
+  `CompetitionDefinitionSchema` fills defaults/transforms - the Go
+  `ValidateDefinition` is only a minimal validator, so the snapshotted
+  `Definition` JSON would diverge); `cancel` needs the same definition path plus
+  `refundFees`/`closeOpenChallenges` (already written, but `action` is one route
+  covering both verbs).
+- **`challenges.propose`**: `propose` itself is portable, but the router runs
+  `applyChallengePolicy(fixture.id)` immediately after, which needs
+  `squadFitness` + `tryAccept` (the scheduler `findSlot` + `dayKind`).
+- **`challenges.respond`**: `accept` needs `findSlot`; `decline`/`expire` need
+  `refuse` + `minDeclinesBeforeForfeit` and, on forfeit, `applyResult` (the
+  ~150-line ranking/Elo/XP applier in `ranking.service.ts`). Not ported.
+
+Census: **115 real / 44 stub / 2 empty / 1 gate**.

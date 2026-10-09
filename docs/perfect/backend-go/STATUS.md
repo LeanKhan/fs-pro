@@ -34,17 +34,17 @@ open-play (editions/challenges) are stubbed.
 | transfers | 7 | 3 | 0 | 0 | 10 |
 | facilities | 3 | 3 | 0 | 0 | 6 |
 | play | 5 | 6 | 0 | 0 | 11 |
-| editions | 6 | 8 | 0 | 0 | 14 |
+| editions | 9 | 5 | 0 | 0 | 14 |
 | challenges | 4 | 2 | 0 | 0 | 6 |
 | world | 2 | 3 | 0 | 0 | 5 |
 | competitionDefinitions | 3 | 3 | 0 | 0 | 6 |
 | atlas | 1 | 8 | 0 | 1 | 10 |
 | tiles | 1 | 0 | 0 | 0 | 1 |
 | program | 12 | 1 | 0 | 0 | 13 |
-| **total** | **112** | **47** | **2** | **1** | **162** |
+| **total** | **115** | **44** | **2** | **1** | **162** |
 
 By verb: **GET 73 → 47 real + 2 empty (49/73 = 67 % 2xx; 24 stubbed)**;
-**non-GET 89 → 56 real, 32 stubbed, 1 gate (63 % real)**.
+**non-GET 89 → 59 real, 29 stubbed, 1 gate (66 % real)**.
 
 ### Remaining stubs grouped (all declared `400`, except `game.enqueueMatch` `409`)
 - **clubs (2):** getClubPerformance, suggestLineup. *(empty: getMediaFeed)*
@@ -55,8 +55,8 @@ By verb: **GET 73 → 47 real + 2 empty (49/73 = 67 % 2xx; 24 stubbed)**;
 - **facilities (3):** getMedicalStatus, squadRecovery, treatPlayer.
 - **play (6):** playMatch (gate `409`→`400`), collectShop, bookMatch, getMatchPrep,
   saveMatchPlan, previewMatchPlan.
-- **editions (8):** create, action, invite, eligibility, register, withdraw,
-  bracket, eligibleOpponents.
+- **editions (5):** action, invite, eligibility, bracket, eligibleOpponents.
+  *(create/register/withdraw are now real; see NOTES.)*
 - **challenges (2):** propose, respond.
 - **world (3):** endYear, advanceDay, performance.
 - **competitionDefinitions (3):** create, update, archive.
