@@ -13,8 +13,8 @@ Integration branch: **`ux/integration`**, from `p2/integration` @ `218bf73`
 | Pass | Agent(s) | Status | Output |
 | --- | --- | --- | --- |
 | 0 | 0A instance; 0B harness | **done + verified** | `INSTANCE-LOG.md`, `tests/e2e/playtest/**` |
-| 1 | A01, P02, P05, P06 | **done (P1 reports complete)** | `playtest/<id>/{DIARY,ISSUES,SUMMARY}.md`, screenshots |
-| 1 | P01, P03, P04, P07–P10 | **PAUSED — interop outage #2** (OQ-UX-2) | same |
+| 1 | A01, P02, P04, P05, P06 | **done (P1 reports complete)** | `playtest/<id>/{DIARY,ISSUES,SUMMARY}.md`, screenshots |
+| 1 | P01, P03, P07–P10 | **PAUSED — interop outage #2** (OQ-UX-2) | same |
 | 2 | 2A triage | pending | `ISSUES.md`, `FINDINGS.md` |
 | 3 | fix clusters | pending | `ux/fix-*` branches, before/after screenshots |
 | 4 | re-play (3 personas) + report | pending | `RELEASE-REPORT.md` |
@@ -23,7 +23,7 @@ Integration branch: **`ux/integration`**, from `p2/integration` @ `218bf73`
 > time (`UtilAcceptVsock accept4 failed 110`), blocking the Windows-Node
 > Playwright harness. **Operator action required** (`wsl --shutdown`, restart
 > Docker Desktop) — see `OPEN-QUESTIONS.md` OQ-UX-2 and `INSTANCE-LOG.md` §7/§8.
-> Completed so far: **A01** (Session 2), **P02, P05, P06**. Remaining personas
+> Completed so far: **A01** (Session 2), **P02, P04, P05, P06**. Remaining personas
 > resume from preserved `state.json` once interop is back.
 
 ## Environment (carried from phase 1/2)
