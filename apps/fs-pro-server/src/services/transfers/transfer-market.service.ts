@@ -134,7 +134,9 @@ export async function loadPlayers(scope: PlayerScope = {}) {
       if (roster) roster.push(player);
       else byClub.set(r.ClubId, [player]);
     } else if (!r.isSigned) {
-      freeAgents.push(player);
+      // A V0 free agent is not a market entity (the "HTTP PgTest" QA fixture
+      // is exactly that); never surface it (U-09 / P02-07).
+      if ((r.Value ?? 0) > 0) freeAgents.push(player);
     }
   }
   return { byClub, freeAgents };

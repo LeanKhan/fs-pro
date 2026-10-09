@@ -35,28 +35,31 @@
       loading-text="Fetching Managers..."
       class="elevation-1"
     >
-      <!-- Manager's Country -->
+      <!-- Manager's Country. Unemployed managers and seeded managers may have
+           no Nationality relation; reading .Name on it used to throw during
+           render and trip the global "Error!" overlay (A01-10/A01-14). -->
       <template v-slot:item.Country="{ item }">
-        {{ item.Nationality.Name }}
+        {{ item.Nationality?.Name ?? '-' }}
       </template>
 
-      <!-- Manager's Club Name -->
+      <!-- Manager's Club Name. Only employed managers have a populated Club,
+           so an unemployed manager (Club null) must not be dereferenced. -->
       <template v-slot:item.Club="{ item }">
-        <span :title="item.Club.Name">
-          {{ item.Club.ClubCode }}
+        <span :title="item.Club?.Name ?? ''">
+          {{ item.Club?.ClubCode ?? '-' }}
         </span>
       </template>
 
       <!-- Players actions -->
       <template v-slot:item.Actions="{ item }">
-        <v-btn @click="viewManager(item._id)" icon color="success-lighten-2">
+        <v-btn :aria-label="`View ${item.FirstName} ${item.LastName}`" @click="viewManager(item._id)" icon color="success-lighten-2">
           <v-icon size="small">mdi-eye-outline</v-icon>
         </v-btn>
-        <v-btn icon color="blue-lighten-2" @click="updateManager(item._id)">
+        <v-btn :aria-label="`Edit ${item.FirstName} ${item.LastName}`" icon color="blue-lighten-2" @click="updateManager(item._id)">
           <v-icon size="small">mdi-pencil-outline</v-icon>
         </v-btn>
         <!-- remove player -->
-        <v-btn @click="deleteManager(item._id)" icon color="red-lighten-2">
+        <v-btn :aria-label="`Delete ${item.FirstName} ${item.LastName}`" @click="deleteManager(item._id)" icon color="red-lighten-2">
           <v-icon size="small">mdi-delete-outline</v-icon>
         </v-btn>
       </template>
@@ -80,30 +83,25 @@ const emit = defineEmits<{
 const router = useRouter();
 
 const search = ref('');
-const isEmployed = ref<boolean | null>(null);
 
 const headers = ref<any[]>([
   {
-    text: 'First Name',
+    title: 'First Name',
     align: 'start',
-    value: 'FirstName',
+    key: 'FirstName',
   },
   {
-    text: 'Last Name',
-    value: 'LastName',
+    title: 'Last Name',
+    key: 'LastName',
   },
-  { text: 'Club', value: 'Club' },
-  { text: 'Country', value: 'Nationality.Name', filterable: false },
+  { title: 'Club', key: 'Club' },
+  { title: 'Country', key: 'Country' },
   {
-    text: 'Employed',
-    value: 'isEmployed',
-    sortable: false,
-    filter: (value: boolean) => {
-      if (!isEmployed.value) return true;
-      return value == isEmployed.value;
-    },
+    title: 'Employed',
+    key: 'isEmployed',
+    sortable: true,
   },
-  { text: 'Actions', value: 'Actions', filterable: false, sortable: false },
+  { title: 'Actions', key: 'Actions', sortable: false },
 ]);
 
 const viewManager = (id: string) => {

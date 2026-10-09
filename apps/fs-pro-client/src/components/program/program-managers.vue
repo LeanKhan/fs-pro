@@ -32,7 +32,7 @@
     <p class="op-star-hint">
       <span class="op-ic" v-html="icon('star')" />
       <span
-        >★★★ wants <b>Overall 60+</b>, a fee under 40% of your opening balance, and
+        >Your board wants <b>Overall 60+</b>, a fee under 40% of your opening balance, and
         <b>{{ formatVilla(400_000) }}</b> left afterwards.</span
       >
     </p>
@@ -85,10 +85,15 @@
                   {{ y }}
                 </button>
               </span>
+              <span class="op-years-unit">year{{ years === 1 ? '' : 's' }}</span>
             </dd>
           </div>
           <div>
-            <dt>Budget after</dt>
+            <dt>Total commitment</dt>
+            <dd>{{ formatVilla(pending.effectiveFee + pending.wage * years) }}</dd>
+          </div>
+          <div>
+            <dt>Budget after signing fee</dt>
             <dd :class="{ bad: budget - pending.effectiveFee < 0 }">{{ formatVilla(budget - pending.effectiveFee) }}</dd>
           </div>
         </dl>
@@ -400,6 +405,11 @@ function confirmSign() {
   background: #2f7d18;
   border-color: #24650f;
   color: #fff;
+}
+.op-years-unit {
+  margin-left: 6px;
+  font-weight: 600;
+  color: #6f5940;
 }
 .op-modal-good {
   margin: 12px 0 0;

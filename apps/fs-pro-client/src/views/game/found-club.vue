@@ -18,15 +18,32 @@
           <small v-if="!done">{{ STEP_HINT[step] }}</small>
         </div>
       </div>
-      <ol v-if="!done" class="found-steps" aria-label="Steps">
+      <ol v-if="!done && !gateOwnedClub" class="found-steps" aria-label="Steps">
         <li v-for="(s, i) in STEPS" :key="s" :class="{ on: s === step, past: i < stepIndex }">
           <button type="button" :disabled="i > maxReachable" @click="goTo(s)">{{ i + 1 }}. {{ STEP_LABEL[s] }}</button>
         </li>
       </ol>
-      <button v-if="hasClub && !done" class="btn small" type="button" @click="router.push(`/game/${firstClubId}`)">Back to my club</button>
+      <button
+        v-if="hasClub && !done && !gateOwnedClub"
+        class="btn small"
+        type="button"
+        @click="router.push(`/game/${firstClubId}`)"
+      >Back to my club</button>
     </header>
 
-    <aside class="found-panel" :class="{ wide: step === 'club' }">
+    <aside v-if="gateOwnedClub" class="found-panel">
+      <h2><span v-html="icon('people')"></span>You already run a club</h2>
+      <p class="sub">
+        You're signed in as an owner. Founding again would start a second club —
+        only do that if you mean to. Your existing club is one tap away.
+      </p>
+      <div class="row-btns sticky">
+        <button class="btn primary big" type="button" @click="router.push(`/game/${firstClubId}`)">Back to my club</button>
+        <button class="btn" type="button" @click="foundingAnyway = true">Found another club</button>
+      </div>
+    </aside>
+
+    <aside v-else class="found-panel" :class="{ wide: step === 'club' }">
       <!-- 1. Home: where placement puts the club, and names for new places -->
       <template v-if="step === 'home'">
         <h2><span v-html="icon('map')"></span>Your home</h2>
@@ -261,6 +278,9 @@ const firstClubId = computed(() => {
   return typeof c === 'string' ? c : (c as { _id?: string } | undefined)?._id;
 });
 const hasClub = computed(() => !!firstClubId.value);
+/** An owner opening /start with no invite sees a gate, not the wizard (U-04). */
+const foundingAnyway = ref(false);
+const gateOwnedClub = computed(() => hasClub.value && !invite && !foundingAnyway.value && !done.value);
 
 const townName = computed(() => placement.value?.town?.name ?? (newTown.name.trim() || 'Town'));
 const whereLine = computed(() => {

@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, isNull, sql } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
 import { clubs, ownerProgram, players, transferLedger } from '../../db/drizzle/schema';
 import { calculateAndUpdateClubRating } from '../../controllers/clubs/club.service';
@@ -49,7 +49,15 @@ export async function browsePlayers(clubId: string): Promise<{
   const rows = await db()
     .select()
     .from(players)
-    .where(and(eq(players.isSigned, false), eq(players.isRetired, false), isNull(players.ClubId)))
+    .where(
+      and(
+        eq(players.isSigned, false),
+        eq(players.isRetired, false),
+        // A V0 player is a QA fixture, not a free agent (U-09 / P02-07).
+        gt(players.Value, 0),
+        isNull(players.ClubId)
+      )
+    )
     .orderBy(asc(players.Value), asc(players.id))
     .limit(MAX_POOL);
   const [program] = await db().select().from(ownerProgram).where(eq(ownerProgram.ClubId, clubId));

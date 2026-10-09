@@ -49,12 +49,14 @@
         @changed="onPurchase"
       />
 
-      <!-- Scouted Shortlist: Scouting Department facility feature -->
-      <v-card v-if="scoutedShortlist.length" variant="tonal" color="indigo-darken-4" class="mb-3">
+      <!-- Scouted Shortlist: Scouting Department facility feature. Kept on the
+           cream/amber palette — it used to be a dark navy card with dark text
+           and was unreadable (U-24 / P02-05, P10-05). -->
+      <v-card v-if="scoutedShortlist.length" variant="tonal" color="amber-lighten-4" class="mb-3">
         <v-card-title class="text-body-1 d-flex align-center gap-2">
-          <v-icon size="20" color="indigo-lighten-2">mdi-radar</v-icon>
+          <v-icon size="20" color="amber-darken-3">mdi-radar</v-icon>
           Scouted Shortlist
-          <v-chip size="x-small" color="indigo" variant="flat" class="font-weight-bold">
+          <v-chip size="x-small" color="amber-darken-2" variant="flat" class="font-weight-bold">
             {{ scoutedShortlist.length }}
           </v-chip>
           <span class="text-caption text-medium-emphasis ml-auto">
@@ -65,15 +67,15 @@
           <v-chip
             v-for="target in scoutedShortlist"
             :key="target.id"
-            variant="elevated"
-            color="grey-darken-3"
+            variant="flat"
+            color="white"
             class="pa-2"
-            style="height: auto"
+            style="height: auto; border: 2px solid #e0b25a"
             @click="openScoutedTarget(target)"
           >
             <div class="d-flex flex-column py-1">
-              <span class="font-weight-bold text-high-emphasis">{{ target.name }}</span>
-              <span class="text-caption text-medium-emphasis">
+              <span class="font-weight-bold" style="color: #4a2f14">{{ target.name }}</span>
+              <span class="text-caption" style="color: #7a5a2e">
                 {{ target.position ?? '?' }} · OVR {{ target.rating }} ·
                 {{ currency(target.askingPrice ?? target.value) }}
                 <template v-if="target.isListed">(listed)</template>

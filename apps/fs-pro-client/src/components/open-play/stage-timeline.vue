@@ -31,6 +31,8 @@ const icon = (t: string) => (t === 'league' ? 'mdi-format-list-numbered' : t ===
 function label(s: StageLike, i: number) {
   const base = stageName(s, i);
   if (s.type === 'knockout') return `${base}${s.legs === 2 ? ' (2 legs)' : ''}`;
-  return `${base} · ${s.days}d`;
+  // A pyramid stage has no `days`, which used to render "Pools · undefinedd"
+  // (A01-05). Only show the duration when it exists.
+  return typeof s.days === 'number' ? `${base} · ${s.days}d` : base;
 }
 </script>

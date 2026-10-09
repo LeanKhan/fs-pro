@@ -31,7 +31,10 @@
     </div>
 
     <div class="op-balance-foot">
-      <p class="op-balance-hint">Funds can't do all three well. That choice is the game.</p>
+      <!-- The three "from" costs are ~10% of the opening balance, so the old
+           "funds can't do all three" claim contradicted the numbers on the
+           same screen (U-20 / P03-03, P07-17). -->
+      <p class="op-balance-hint">Spend it across the manager, the squad and the buildings — the club grows from here.</p>
       <button class="op-btn primary big" @click="emit('begin')">Right then — start the program</button>
     </div>
   </section>
