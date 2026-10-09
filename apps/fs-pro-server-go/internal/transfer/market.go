@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"time"
 
 	"fs-pro-server/internal/club"
 	"fs-pro-server/internal/db"
@@ -255,39 +256,51 @@ func (r *Repository) PlaceBid(ctx context.Context, playerID, biddingClubID strin
 	if floatOf(bidder["Budget"]) < amount {
 		return "", fmt.Errorf("Insufficient Budget for this bid")
 	}
-	open, err := all(ctx, r.q, `SELECT "PlayerId" FROM "TransferOffers" WHERE "FromClubId" = $1 AND "Status" IN `+openStatusesSQL, biddingClubID)
-	if err != nil {
-		return "", err
-	}
-	for _, o := range open {
-		if db.StringField(o, "PlayerId") == playerID {
-			return "", fmt.Errorf("You already have an open bid for this player")
+	// D25: the duplicate-open-bid check, the offer insert, and the AI answer
+	// (which may settle the player) all commit or roll back together. Locking
+	// the bidding club row serialises concurrent bids from the same club so the
+	// open-bid check cannot be raced into two open bids for one player.
+	err = db.WithTx(ctx, r.q, func(tx db.Querier) error {
+		rx := *r
+		rx.q = tx
+		if _, _, err := one(ctx, tx, `SELECT "_id" FROM "Clubs" WHERE "_id" = $1 FOR UPDATE`, biddingClubID); err != nil {
+			return err
 		}
-	}
-	if len(open) >= maxOpenBidsPerClub {
-		return "", fmt.Errorf("You can have at most %d open bids at once", maxOpenBidsPerClub)
-	}
-
-	day, err := r.currentDay(ctx)
-	if err != nil {
-		return "", err
-	}
-	created, err := db.InsertRow(ctx, r.q, "TransferOffers", map[string]any{
-		"PlayerId": playerID, "FromClubId": biddingClubID, "ToClubId": ownerID,
-		"Amount": amount, "Status": "pending", "Initiator": "user",
-		"CreatedDay": day, "ExpiresDay": day + offerLifetimeDays,
-	})
-	if err != nil {
-		return "", err
-	}
-	if offerID := db.StringField(created, "_id"); offerID != "" {
-		id := offerID
-		if db.StringField(owner, "UserId") != "" {
-			return id, nil
-		}
-		roster, err := r.rosterOf(ctx, ownerID)
+		open, err := all(ctx, tx, `SELECT "PlayerId" FROM "TransferOffers" WHERE "FromClubId" = $1 AND "Status" IN `+openStatusesSQL, biddingClubID)
 		if err != nil {
-			return "", err
+			return err
+		}
+		for _, o := range open {
+			if db.StringField(o, "PlayerId") == playerID {
+				return fmt.Errorf("You already have an open bid for this player")
+			}
+		}
+		if len(open) >= maxOpenBidsPerClub {
+			return fmt.Errorf("You can have at most %d open bids at once", maxOpenBidsPerClub)
+		}
+		day, err := rx.currentDay(ctx)
+		if err != nil {
+			return err
+		}
+		created, err := db.InsertRow(ctx, tx, "TransferOffers", map[string]any{
+			"PlayerId": playerID, "FromClubId": biddingClubID, "ToClubId": ownerID,
+			"Amount": amount, "Status": "pending", "Initiator": "user",
+			"CreatedDay": day, "ExpiresDay": day + offerLifetimeDays, "updatedAt": time.Now(),
+		})
+		if err != nil {
+			return err
+		}
+		id := db.StringField(created, "_id")
+		if id == "" {
+			return fmt.Errorf("Offer insert failed")
+		}
+		offerID = id
+		if db.StringField(owner, "UserId") != "" {
+			return nil
+		}
+		roster, err := rx.rosterOf(ctx, ownerID)
+		if err != nil {
+			return err
 		}
 		isKey := false
 		for _, p := range roster {
@@ -299,14 +312,14 @@ func (r *Repository) PlaceBid(ctx context.Context, playerID, biddingClubID strin
 		decision, ask, reason := AiResponse(amount, value, isKey, len(roster), floatOf(bidder["Reputation"]), floatOf(owner["Reputation"]))
 		switch decision {
 		case "accepted":
-			return id, r.settleOffer(ctx, id, amount)
+			return rx.settleOffer(ctx, id, amount)
 		case "countered":
-			return id, r.finishOffer(ctx, id, "countered", db.StringField(owner, "Name")+" want more", float64(ask))
+			return rx.finishOffer(ctx, id, "countered", db.StringField(owner, "Name")+" want more", float64(ask))
 		default:
-			return id, r.finishOffer(ctx, id, "rejected", reason, 0)
+			return rx.finishOffer(ctx, id, "rejected", reason, 0)
 		}
-	}
-	return "", fmt.Errorf("Offer insert failed")
+	})
+	return offerID, err
 }
 
 // RespondToOffer is the club-turn answer to a pending/countered offer.

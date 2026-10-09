@@ -120,6 +120,99 @@ func TestPurchaseRolledBack(t *testing.T) {
 	}
 }
 
+// TestPlaceBidAtomicRolledBack is the D25 regression: the duplicate-open-bid
+// check and the offer insert share one transaction, so a rejected duplicate
+// leaves no partially-inserted offer behind. Fully rolled back.
+func TestPlaceBidAtomicRolledBack(t *testing.T) {
+	url := os.Getenv("DATABASE_URL")
+	if url == "" {
+		t.Skip("DATABASE_URL not set")
+	}
+	pool, err := db.New(context.Background(), url, 15*time.Second, nil)
+	if err != nil {
+		t.Fatalf("db.New: %v", err)
+	}
+	defer pool.Close()
+	ctx := context.Background()
+
+	run := func(tx db.Querier) error {
+		repo := NewRepository(tx)
+		if _, err := tx.Exec(ctx, `UPDATE "Calendars" SET "TransferWindowOpen" = true, "TransferWindowClosesDay" = NULL`); err != nil {
+			return err
+		}
+		// A player owned by an AI club (no user), so the bidder is answered.
+		row, ok, err := one(ctx, tx, `SELECT p."_id", p."Value", p."ClubId" FROM "Players" p
+			JOIN "Clubs" c ON c."_id" = p."ClubId"
+			WHERE p."isRetired" = false AND p."ClubId" IS NOT NULL
+			  AND c."UserId" IS NULL AND p."Value" > 0
+			ORDER BY p."Value" ASC LIMIT 1`)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			t.Skip("no AI-owned player")
+		}
+		playerID := db.StringField(row, "_id")
+		ownerID := db.StringField(row, "ClubId")
+		value := floatOf(row["Value"])
+		bidderRow, ok, err := one(ctx, tx, `SELECT "_id" FROM "Clubs" WHERE "_id" <> $1 ORDER BY "Budget" DESC NULLS LAST LIMIT 1`, ownerID)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			t.Skip("no second club")
+		}
+		bidderID := db.StringField(bidderRow, "_id")
+		amount := value * 2
+		if _, err := tx.Exec(ctx, `UPDATE "Clubs" SET "Budget" = $2 WHERE "_id" = $1`, bidderID, amount+1_000_000); err != nil {
+			return err
+		}
+		// Happy path: the offer insert commits (proves the atomic insert path,
+		// including the non-default "updatedAt" column).
+		first, err := repo.PlaceBid(ctx, playerID, bidderID, amount)
+		if err != nil {
+			t.Errorf("first bid: %v", err)
+			return nil
+		}
+		if first == "" {
+			t.Error("placeBid returned an empty offer id")
+		}
+		// Seed an already-open bid for this player from this club.
+		if _, err := db.InsertRow(ctx, tx, "TransferOffers", map[string]any{
+			"PlayerId": playerID, "FromClubId": bidderID, "ToClubId": ownerID,
+			"Amount": amount, "Status": "pending", "Initiator": "user",
+			"CreatedDay": 1, "ExpiresDay": 8, "updatedAt": time.Now(),
+		}); err != nil {
+			return err
+		}
+		countOffers := func() (int, error) {
+			c, _, err := one(ctx, tx, `SELECT count(*)::int AS n FROM "TransferOffers" WHERE "FromClubId" = $1 AND "PlayerId" = $2`, bidderID, playerID)
+			if err != nil {
+				return 0, err
+			}
+			return intOf(c["n"]), nil
+		}
+		before, err := countOffers()
+		if err != nil {
+			return err
+		}
+		if _, err := repo.PlaceBid(ctx, playerID, bidderID, amount); err == nil {
+			t.Error("a duplicate open bid must be refused")
+		}
+		after, err := countOffers()
+		if err != nil {
+			return err
+		}
+		if after != before {
+			t.Errorf("rejected duplicate changed offer count %d -> %d", before, after)
+		}
+		return nil
+	}
+	if err := db.InRollback(ctx, pool, run); err != nil {
+		t.Fatalf("rolled-back placeBid: %v", err)
+	}
+}
+
 // TestSettlementGuardRolledBack proves the conditional settlement guard: two
 // settlements of one free agent cannot both win, and exactly one ledger row is
 // written. Deterministic (sequential calls) and fully rolled back.

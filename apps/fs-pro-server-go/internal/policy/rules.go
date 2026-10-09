@@ -195,8 +195,17 @@ var Table = map[string]Rule{
 // handlerPublic are `handler`-rule routes whose Node handler performs no
 // access check (public reads), so the guard must allow anonymous callers.
 var handlerPublic = map[string]bool{
-	"play.getPlayState":  true,
-	"play.findOpponents": true,
+	"play.getPlayState":          true,
+	"play.findOpponents":         true,
+	"editions.get":               true,
+	"editions.eligibility":       true,
+	"editions.rankings":          true,
+	"editions.bracket":           true,
+	"editions.eligibleOpponents": true,
+	"editions.getEntryPolicy":    true,
+	"editions.clubEntries":       true,
+	"challenges.forClub":         true,
+	"challenges.getPolicy":       true,
 }
 
 // IsPublicHandler reports whether a handler-rule route is reachable anonymously.

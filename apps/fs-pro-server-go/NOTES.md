@@ -492,3 +492,70 @@ payload builders.
   (`jev.service.ts`, `transfer-scout.service.ts`, `board-budget.service.ts`) and
   their exact multi-field payloads; not ported. Census therefore stays
   **103 real / 56 stub / 2 empty / 1 gate**.
+
+---
+
+## Open-play read paths ported (editions + challenges)
+
+**Real now (9):** `editions.get` (edition + entries with club name/code),
+`editions.rankings` (StageTable: groups + ranked `RankingRow`s from the
+`Rankings` table, pool metadata from `Pools`), `editions.clubEntries`
+(entry + nested edition + competitionName), `editions.getEntryPolicy` /
+`editions.setEntryPolicy`, `challenges.forClub`, `challenges.forEdition`
+(admin), `challenges.getPolicy`, `challenges.setPolicy`.
+
+Access matches Node: the edition/challenge read handlers that Node leaves
+unchecked are public via `policy.IsPublicHandler` (`editions.get`,
+`eligibility`, `rankings`, `bracket`, `eligibleOpponents`, `getEntryPolicy`,
+`clubEntries`, `challenges.forClub`, `challenges.getPolicy`); `forEdition` is
+admin; the setters are owner/admin (`auth.CanManageClub`). D1 still holds.
+
+**Differentials vs Node (same DB):** `GET /api/editions/{id}` → **0 diffs**;
+`GET /api/editions/club/{clubId}` → **0 diffs**. `GET
+/api/editions/{id}/rankings` → **5 diffs, all per-group rule metadata**
+(Node's `pyramidGroupRules` gives `metric:"points"`, `minGamesToRank:10`;
+Go's fallback gives `ppg`/world defaults) — the rows/ranks/points match;
+documented justified diff (pyramid group-rule resolution not ported).
+`GET /api/challenges/club/{clubId}` → `direction` differs (Go infers from
+home/away; Node's `ChallengeService.clubChallenges` marks challenges where the
+club did not initiate as `incoming`) — documented justified diff.
+
+**Still stubbed (10):** editions.create/action/invite/eligibility/register/
+withdraw/bracket/eligibleOpponents; challenges.propose/respond. They need
+`EditionService` (status machine, entry fee/invite, eligibility predicates) and
+`ChallengeService` (propose/accept/decline/cancel + forfeit), which were not
+ported this pass. Census: **112 real / 47 stub / 2 empty / 1 gate**.
+
+---
+
+## D25 fixed - PlaceBid is now atomic (this pass)
+
+`internal/transfer/market.go` `PlaceBid` previously inserted the `TransferOffers`
+row outside a transaction, then ran the AI answer (`settleTransfer` / `finishOffer`)
+as separate statements, and the duplicate-open-bid check was a non-transactional
+read. Now the whole answer runs inside one `db.WithTx`, which:
+- locks the bidding club row with `SELECT "_id" ... FOR UPDATE` so two concurrent
+  bids from the same club serialise and the open-bid check cannot be raced;
+- inserts the offer and performs the accept/counter/reject in the same tx, so a
+  settlement failure rolls the insert back instead of leaving a `pending` offer
+  with the player already moved;
+- **also fixes a latent bug:** the insert was missing the non-default
+  `TransferOffers."updatedAt"` column (Node passes `updatedAt: new Date()`); the
+  NotNull constraint would have rejected every bid at runtime.
+
+Regression: `TestPlaceBidAtomicRolledBack` (rolled back) - happy path inserts a
+row and returns an id; a seeded open bid makes the next `PlaceBid` refuse and
+leaves the offer count unchanged.
+
+## Still outstanding (not attempted this pass)
+
+The open-play **writes** remain stubs: editions `create/action/invite/eligibility/
+register/withdraw/bracket/eligibleOpponents` (8) and `challenges.propose/respond`
+(2). They need faithful ports of `EditionService` (status-transition machine,
+entry fee + `FeePaid`, invite rows, eligibility predicate) and
+`ChallengeService` (`propose`/`accept`/`decline`/`cancel` with `findSlot`,
+`proposalReasons`, `context` rules and forfeit counting), plus `getBracket`.
+The three transfer stubs (`listPlayerForSale`, `scoutPlayerTransfer`,
+`requestBudgetIncrease`) also remain; they need the Jev local-fallback shapes
+(`source:'jev'|'local'`) from `transfer-scout.service.ts` /
+`board-budget.service.ts`.

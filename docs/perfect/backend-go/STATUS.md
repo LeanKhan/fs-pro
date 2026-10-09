@@ -34,14 +34,14 @@ open-play (editions/challenges) are stubbed.
 | transfers | 7 | 3 | 0 | 0 | 10 |
 | facilities | 3 | 3 | 0 | 0 | 6 |
 | play | 5 | 6 | 0 | 0 | 11 |
-| editions | 1 | 13 | 0 | 0 | 14 |
-| challenges | 0 | 6 | 0 | 0 | 6 |
+| editions | 6 | 8 | 0 | 0 | 14 |
+| challenges | 4 | 2 | 0 | 0 | 6 |
 | world | 2 | 3 | 0 | 0 | 5 |
 | competitionDefinitions | 3 | 3 | 0 | 0 | 6 |
 | atlas | 1 | 8 | 0 | 1 | 10 |
 | tiles | 1 | 0 | 0 | 0 | 1 |
 | program | 12 | 1 | 0 | 0 | 13 |
-| **total** | **103** | **56** | **2** | **1** | **162** |
+| **total** | **112** | **47** | **2** | **1** | **162** |
 
 By verb: **GET 73 → 47 real + 2 empty (49/73 = 67 % 2xx; 24 stubbed)**;
 **non-GET 89 → 56 real, 32 stubbed, 1 gate (63 % real)**.
@@ -55,9 +55,9 @@ By verb: **GET 73 → 47 real + 2 empty (49/73 = 67 % 2xx; 24 stubbed)**;
 - **facilities (3):** getMedicalStatus, squadRecovery, treatPlayer.
 - **play (6):** playMatch (gate `409`→`400`), collectShop, bookMatch, getMatchPrep,
   saveMatchPlan, previewMatchPlan.
-- **editions (13):** get, create, action, invite, eligibility, register, withdraw,
-  rankings, bracket, eligibleOpponents, clubEntries, getEntryPolicy, setEntryPolicy.
-- **challenges (6):** propose, respond, forClub, forEdition, getPolicy, setPolicy.
+- **editions (8):** create, action, invite, eligibility, register, withdraw,
+  bracket, eligibleOpponents.
+- **challenges (2):** propose, respond.
 - **world (3):** endYear, advanceDay, performance.
 - **competitionDefinitions (3):** create, update, archive.
 - **atlas (8):** getAtlas, getChrome, search, getPlacement, listInvites,
@@ -90,12 +90,16 @@ By verb: **GET 73 → 47 real + 2 empty (49/73 = 67 % 2xx; 24 stubbed)**;
   `expectedSeller` = nil for a free-agent purchase and the offer's `ToClubId`
   for an accept. `TestSettlementGuardRolledBack` proves one ledger row and a
   refused second settlement; any lost race rolls back.
-- **S3 (1):**
-  1. `placeBid` not atomic (`internal/transfer/market.go`): offer row inserted
-     outside a tx, AI settlement/`finishOffer` separate; duplicate-bid check is a
-     non-transactional read. **[code-read — known, not yet fixed]**
-  - *(Fixed this pass:* `transfers.getScoutedShortlist` is now **public** like
-    Node — D24; and the stale package doc comments were corrected — D26.)*
+- **S3 — none.** D25 (`placeBid` non-atomicity) is **FIXED**:
+  `PlaceBid` now runs the duplicate-open-bid check, the `TransferOffers` insert,
+  and the AI answer (settle/counter/reject) in one `db.WithTx`, locking the
+  bidding club row `FOR UPDATE` so concurrent duplicate bids serialise. A
+  settlement failure rolls the insert back instead of leaving a pending offer
+  with the player moved. `TestPlaceBidAtomicRolledBack` proves a rejected
+  duplicate adds no offer row and the happy path inserts (also caught the
+  missing non-default `updatedAt` on the insert).
+  - *(Also fixed this pass:* `transfers.getScoutedShortlist` is **public** like
+    Node — D24; stale package doc comments — D26.)*
 
 **Drift WARNs (Node-identical, contract/data):** nullable club classes; NULL
 `FixtureCode`; `real` float32 formatting; `Award.Type='club'` (UNVERIFIED).
@@ -128,9 +132,9 @@ By verb: **GET 73 → 47 real + 2 empty (49/73 = 67 % 2xx; 24 stubbed)**;
 | 1 | Match/game core: `play.playMatch` sim, plan/prep/shop/book, `game.kickoffNew`/replay (+ sim-core client) | critical | XL |
 | 2 | World progression: `world.endYear`/`advanceDay`, `calendar.tickClock`/`heal`/`simulateToDate` | critical | L–XL |
 | 3 | Editions (13) + challenges (6) | high | M–L |
-| 4 | Transfers remaining: list/scout/budget-request; **and D23's conditional-debit fix** | high | S–M |
+| 4 | Transfers remaining: `listPlayerForSale` / `scoutPlayerTransfer` / `requestBudgetIncrease` | high | S–M |
 | 5 | Atlas reads/founding (world-service dependent) | med-high | M–L |
 | 6 | `clubs.getClubPerformance` / `suggestLineup` / `getMediaFeed` | medium | M |
 | 7 | Facilities medical (3) | low-med | S–M |
 | 8 | `competitionDefinitions` create/update/archive | low | S |
-| 9 | S3 nits: shortlist over-restriction, `placeBid` atomicity, stale docs | low | S |
+| 9 | Remaining S3 nits (none open; D24/D25/D26 resolved) | low | S |

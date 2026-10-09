@@ -34,21 +34,30 @@ func Register(s *httpapi.Server, h *Handlers) {
 	}
 	s.HandleRaw(http.MethodGet, "/api/editions/{rest...}", func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Split(r.PathValue("rest"), "/")
+		cx := httpapi.Get(r)
 		var resp httpapi.Response
 		switch {
 		case len(parts) == 1:
-			resp = h.getEdition()
+			r.SetPathValue("id", parts[0])
+			resp = h.getEdition(cx, w, r)
 		case len(parts) == 2 && parts[1] == "rankings":
-			resp = h.editionRankings()
+			r.SetPathValue("id", parts[0])
+			resp = h.editionRankings(cx, w, r)
 		case len(parts) == 2 && parts[1] == "bracket":
 			resp = h.editionBracket()
 		case len(parts) == 2 && parts[0] == "club":
-			resp = h.clubEntries()
+			r.SetPathValue("clubId", parts[1])
+			resp = h.clubEntries(cx, w, r)
 		case len(parts) == 2 && parts[0] == "policy":
-			resp = h.getEntryPolicy()
+			r.SetPathValue("clubId", parts[1])
+			resp = h.getEntryPolicy(cx, w, r)
 		case len(parts) == 3 && parts[1] == "eligibility":
+			r.SetPathValue("id", parts[0])
+			r.SetPathValue("clubId", parts[2])
 			resp = h.editionEligibility()
 		case len(parts) == 3 && parts[1] == "opponents":
+			r.SetPathValue("id", parts[0])
+			r.SetPathValue("clubId", parts[2])
 			resp = h.eligibleOpponents()
 		default:
 			resp = stub("Fetching an edition")
@@ -61,15 +70,15 @@ func Register(s *httpapi.Server, h *Handlers) {
 	s.Register("editions.invite", http.MethodPost, "/api/editions/{id}/invite", editionStatuses, wrap(h.inviteClubs))
 	s.Register("editions.register", http.MethodPost, "/api/editions/{id}/entries/{clubId}", editionStatuses, wrap(h.registerEntry))
 	s.Register("editions.withdraw", http.MethodDelete, "/api/editions/{id}/entries/{clubId}", editionStatuses, wrap(h.withdrawEntry))
-	s.Register("editions.setEntryPolicy", http.MethodPut, "/api/editions/policy/{clubId}", editionStatuses, wrap(h.setEntryPolicy))
+	s.Register("editions.setEntryPolicy", http.MethodPut, "/api/editions/policy/{clubId}", editionStatuses, h.setEntryPolicy)
 
 	// challenges
 	s.Register("challenges.propose", http.MethodPost, "/api/challenges", []int{201, 400, 401, 403, 404, 409}, wrap(h.proposeChallenge))
 	s.Register("challenges.respond", http.MethodPost, "/api/challenges/{fixtureId}/{action}", editionStatuses, wrap(h.respondChallenge))
-	s.Register("challenges.forClub", http.MethodGet, "/api/challenges/club/{clubId}", editionStatuses, wrap(h.challengesForClub))
-	s.Register("challenges.forEdition", http.MethodGet, "/api/challenges/edition/{editionId}", editionStatuses, wrap(h.challengesForEdition))
-	s.Register("challenges.getPolicy", http.MethodGet, "/api/challenges/policy/{clubId}", editionStatuses, wrap(h.getChallengePolicy))
-	s.Register("challenges.setPolicy", http.MethodPut, "/api/challenges/policy/{clubId}", editionStatuses, wrap(h.setChallengePolicy))
+	s.Register("challenges.forClub", http.MethodGet, "/api/challenges/club/{clubId}", editionStatuses, h.challengesForClub)
+	s.Register("challenges.forEdition", http.MethodGet, "/api/challenges/edition/{editionId}", editionStatuses, h.challengesForEdition)
+	s.Register("challenges.getPolicy", http.MethodGet, "/api/challenges/policy/{clubId}", editionStatuses, h.getChallengePolicy)
+	s.Register("challenges.setPolicy", http.MethodPut, "/api/challenges/policy/{clubId}", editionStatuses, h.setChallengePolicy)
 
 	// competition definitions
 	s.Register("competitionDefinitions.list", http.MethodGet, "/api/competition-definitions", []int{200, 400}, h.listDefinitions)

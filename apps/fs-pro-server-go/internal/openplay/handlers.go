@@ -2,7 +2,9 @@ package openplay
 
 import (
 	"net/http"
+	"strings"
 
+	"fs-pro-server/internal/auth"
 	"fs-pro-server/internal/db"
 	"fs-pro-server/internal/httpapi"
 )
@@ -74,28 +76,300 @@ func editionListItem(e map[string]any, names map[string]string) map[string]any {
 	}
 }
 
-func (h *Handlers) getEdition() httpapi.Response         { return stub("Fetching an edition") }
 func (h *Handlers) createEdition() httpapi.Response      { return stub("Creating an edition") }
 func (h *Handlers) editionAction() httpapi.Response      { return stub("Edition status actions") }
 func (h *Handlers) inviteClubs() httpapi.Response        { return stub("Inviting clubs") }
 func (h *Handlers) editionEligibility() httpapi.Response { return stub("Edition eligibility") }
 func (h *Handlers) registerEntry() httpapi.Response      { return stub("Registering for an edition") }
 func (h *Handlers) withdrawEntry() httpapi.Response      { return stub("Withdrawing from an edition") }
-func (h *Handlers) editionRankings() httpapi.Response    { return stub("Edition rankings") }
 func (h *Handlers) editionBracket() httpapi.Response     { return stub("Edition brackets") }
 func (h *Handlers) eligibleOpponents() httpapi.Response  { return stub("Eligible opponents") }
-func (h *Handlers) clubEntries() httpapi.Response        { return stub("Club entries") }
-func (h *Handlers) getEntryPolicy() httpapi.Response     { return stub("The entry policy") }
-func (h *Handlers) setEntryPolicy() httpapi.Response     { return stub("Setting the entry policy") }
+
+// getEdition is GET /api/editions/{id}.
+func (h *Handlers) getEdition(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	ctx := r.Context()
+	season, ok, err := h.repo.Edition(ctx, r.PathValue("id"))
+	if err != nil || !ok {
+		return httpapi.Fail(404, "Edition not found", nil)
+	}
+	entries, err := h.repo.EditionEntries(ctx, r.PathValue("id"))
+	if err != nil {
+		return httpapi.Fail(400, err.Error(), err.Error())
+	}
+	out := editionFields(season)
+	list := make([]any, 0, len(entries))
+	for _, e := range entries {
+		entry := entryFields(e)
+		entry["clubName"] = db.StringField(e, "clubName")
+		entry["clubCode"] = db.StringField(e, "clubCode")
+		list = append(list, entry)
+	}
+	out["entries"] = list
+	return httpapi.OK("OK", out)
+}
+
+// editionRankings is GET /api/editions/{id}/rankings.
+func (h *Handlers) editionRankings(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	ctx := r.Context()
+	season, ok, err := h.repo.Edition(ctx, r.PathValue("id"))
+	if err != nil || !ok {
+		return httpapi.Fail(404, "Edition not found", nil)
+	}
+	stage := intVal(season["CurrentStage"])
+	if v := r.URL.Query().Get("stage"); v != "" {
+		stage = atoiOr(v, stage)
+	}
+	table, err := h.repo.RankingsTable(ctx, r.PathValue("id"), stage, r.URL.Query().Get("group"))
+	if err != nil {
+		return httpapi.Fail(404, "Not found", nil)
+	}
+	return httpapi.OK("OK", table)
+}
+
+// clubEntries is GET /api/editions/club/{clubId}.
+func (h *Handlers) clubEntries(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	rows, err := h.repo.ClubEntries(r.Context(), r.PathValue("clubId"))
+	if err != nil {
+		return httpapi.Fail(400, err.Error(), err.Error())
+	}
+	out := make([]any, 0, len(rows))
+	for _, row := range rows {
+		entry := entryFields(row)
+		entry["edition"] = map[string]any{
+			"id":                    db.StringField(row, "SeasonId"),
+			"competitionId":         nullableString(row, "CompetitionId"),
+			"code":                  db.StringField(row, "SeasonCode"),
+			"title":                 db.StringField(row, "Title"),
+			"editionNumber":         intOrNil(row["EditionNumber"]),
+			"status":                db.StringField(row, "editionStatus"),
+			"published":             row["Definition"] != nil,
+			"registrationOpensDay":  intOrNil(row["RegistrationOpensDay"]),
+			"registrationClosesDay": intOrNil(row["RegistrationClosesDay"]),
+			"startDay":              intOrNil(row["StartDay"]),
+			"endDay":                intOrNil(row["EndDay"]),
+			"currentStage":          intVal(row["CurrentStage"]),
+			"stageStartedDay":       intOrNil(row["StageStartedDay"]),
+			"winnerId":              nullableString(row, "WinnerId"),
+			"definition":            row["Definition"],
+			"competitionName":       db.StringField(row, "competitionName"),
+		}
+		out = append(out, entry)
+	}
+	return httpapi.OK("OK", out)
+}
+
+// getEntryPolicy is GET /api/editions/policy/{clubId}.
+func (h *Handlers) getEntryPolicy(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	policy, ok, err := h.repo.ClubPolicy(r.Context(), r.PathValue("clubId"), "EntryPolicy")
+	if err != nil {
+		return httpapi.Fail(400, err.Error(), err.Error())
+	}
+	if !ok {
+		return httpapi.Fail(404, "Club not found", nil)
+	}
+	return httpapi.OK("OK", policy)
+}
+
+// setEntryPolicy is PUT /api/editions/policy/{clubId}.
+func (h *Handlers) setEntryPolicy(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r); !ok {
+		return denial
+	}
+	body, _ := cx.BodyMap()
+	var policy any
+	if body != nil {
+		policy = body["policy"]
+	}
+	if err := h.repo.SetClubPolicy(r.Context(), r.PathValue("clubId"), "EntryPolicy", policy); err != nil {
+		return httpapi.Fail(400, err.Error(), err.Error())
+	}
+	message := "Auto-register policy cleared"
+	if policy != nil {
+		message = "Auto-register policy saved"
+	}
+	return httpapi.OK(message, policy)
+}
 
 // --- challenges ------------------------------------------------------------
 
-func (h *Handlers) proposeChallenge() httpapi.Response     { return stub("Proposing a challenge") }
-func (h *Handlers) respondChallenge() httpapi.Response     { return stub("Responding to a challenge") }
-func (h *Handlers) challengesForClub() httpapi.Response    { return stub("A club's challenges") }
-func (h *Handlers) challengesForEdition() httpapi.Response { return stub("An edition's challenges") }
-func (h *Handlers) getChallengePolicy() httpapi.Response   { return stub("The challenge policy") }
-func (h *Handlers) setChallengePolicy() httpapi.Response   { return stub("Setting the challenge policy") }
+func (h *Handlers) proposeChallenge() httpapi.Response { return stub("Proposing a challenge") }
+func (h *Handlers) respondChallenge() httpapi.Response { return stub("Responding to a challenge") }
+
+// challengesForClub is GET /api/challenges/club/{clubId}.
+func (h *Handlers) challengesForClub(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	var statuses []string
+	if s := r.URL.Query().Get("status"); s != "" {
+		for _, part := range strings.Split(s, ",") {
+			if part != "" {
+				statuses = append(statuses, part)
+			}
+		}
+	}
+	rows, err := h.repo.ChallengesForClub(r.Context(), r.PathValue("clubId"), statuses)
+	if err != nil {
+		return httpapi.Fail(400, err.Error(), err.Error())
+	}
+	out := make([]any, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, toChallenge(row, r.PathValue("clubId")))
+	}
+	return httpapi.OK("OK", out)
+}
+
+// challengesForEdition is GET /api/challenges/edition/{editionId} (admin).
+func (h *Handlers) challengesForEdition(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireAdmin(cx, r); !ok {
+		return denial
+	}
+	rows, err := h.repo.ChallengesForEdition(r.Context(), r.PathValue("editionId"))
+	if err != nil {
+		return httpapi.Fail(400, err.Error(), err.Error())
+	}
+	out := make([]any, 0, len(rows))
+	for _, row := range rows {
+		ch := toChallenge(row, "")
+		ch["competitionName"] = row["competitionName"]
+		out = append(out, ch)
+	}
+	return httpapi.OK("OK", out)
+}
+
+// getChallengePolicy is GET /api/challenges/policy/{clubId}.
+func (h *Handlers) getChallengePolicy(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	policy, ok, err := h.repo.ClubPolicy(r.Context(), r.PathValue("clubId"), "ChallengePolicy")
+	if err != nil {
+		return httpapi.Fail(400, err.Error(), err.Error())
+	}
+	if !ok {
+		return httpapi.Fail(404, "Club not found", nil)
+	}
+	return httpapi.OK("OK", policy)
+}
+
+// setChallengePolicy is PUT /api/challenges/policy/{clubId}.
+func (h *Handlers) setChallengePolicy(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r); !ok {
+		return denial
+	}
+	body, _ := cx.BodyMap()
+	var policy any
+	if body != nil {
+		policy = body["policy"]
+	}
+	if err := h.repo.SetClubPolicy(r.Context(), r.PathValue("clubId"), "ChallengePolicy", policy); err != nil {
+		return httpapi.Fail(400, err.Error(), err.Error())
+	}
+	message := "Auto-accept policy cleared"
+	if policy != nil {
+		message = "Auto-accept policy saved"
+	}
+	return httpapi.OK(message, policy)
+}
+
+// --- helpers ---------------------------------------------------------------
+
+func editionFields(m map[string]any) map[string]any {
+	return map[string]any{
+		"id":                    db.StringField(m, "_id"),
+		"competitionId":         nullableString(m, "CompetitionId"),
+		"code":                  db.StringField(m, "SeasonCode"),
+		"title":                 db.StringField(m, "Title"),
+		"editionNumber":         intOrNil(m["EditionNumber"]),
+		"status":                db.StringField(m, "Status"),
+		"published":             m["Definition"] != nil,
+		"registrationOpensDay":  intOrNil(m["RegistrationOpensDay"]),
+		"registrationClosesDay": intOrNil(m["RegistrationClosesDay"]),
+		"startDay":              intOrNil(m["StartDay"]),
+		"endDay":                intOrNil(m["EndDay"]),
+		"currentStage":          intVal(m["CurrentStage"]),
+		"stageStartedDay":       intOrNil(m["StageStartedDay"]),
+		"winnerId":              nullableString(m, "WinnerId"),
+		"definition":            m["Definition"],
+	}
+}
+
+func entryFields(e map[string]any) map[string]any {
+	status := db.StringField(e, "entryStatus")
+	if status == "" {
+		status = db.StringField(e, "Status")
+	}
+	return map[string]any{
+		"seasonId":          db.StringField(e, "SeasonId"),
+		"clubId":            db.StringField(e, "ClubId"),
+		"status":            status,
+		"seed":              e["Seed"],
+		"group":             e["Group"],
+		"division":          e["Division"],
+		"feePaid":           e["FeePaid"],
+		"eliminatedAtStage": e["EliminatedAtStage"],
+		"finalPosition":     e["FinalPosition"],
+		"finishScore":       e["FinishScore"],
+	}
+}
+
+func toChallenge(f map[string]any, clubID string) map[string]any {
+	out := map[string]any{
+		"id":               db.StringField(f, "_id"),
+		"seasonId":         nullableString(f, "SeasonId"),
+		"competitionId":    nullableString(f, "CompetitionId"),
+		"stageIndex":       intOrNil(f["StageIndex"]),
+		"status":           f["ChallengeStatus"],
+		"challengerClubId": nullableString(f, "ChallengerClubId"),
+		"homeClubId":       nullableString(f, "HomeTeamId"),
+		"awayClubId":       nullableString(f, "AwayTeamId"),
+		"title":            db.StringField(f, "Title"),
+		"respondBy":        f["RespondBy"],
+		"scheduledDay":     f["ScheduledDay"],
+		"played":           boolVal(f["Played"]),
+		"competitionName":  f["competitionName"],
+	}
+	if clubID != "" {
+		if db.StringField(f, "HomeTeamId") == clubID {
+			out["direction"] = "incoming"
+		} else {
+			out["direction"] = "outgoing"
+		}
+	}
+	return out
+}
+
+func atoiOr(v string, fallback int) int {
+	n := 0
+	if v == "" {
+		return fallback
+	}
+	for _, c := range v {
+		if c < '0' || c > '9' {
+			return fallback
+		}
+		n = n*10 + int(c-'0')
+	}
+	return n
+}
+
+// requireClub enforces owner/admin for the clubID path param.
+func (h *Handlers) requireClub(cx *httpapi.Context, r *http.Request) (httpapi.Response, bool) {
+	status, msg := auth.CanManageClub(r.Context(), h.repo.Q(), sessionUser(cx), r.PathValue("clubId"))
+	if status != 0 {
+		return httpapi.Fail(status, msg, nil), false
+	}
+	return httpapi.Response{}, true
+}
+
+// requireAdmin enforces the admin gate.
+func (h *Handlers) requireAdmin(cx *httpapi.Context, r *http.Request) (httpapi.Response, bool) {
+	if !auth.IsAdminByID(r.Context(), h.repo.Q(), sessionUser(cx)) {
+		return httpapi.Fail(403, "You do not manage this club", nil), false
+	}
+	return httpapi.Response{}, true
+}
+
+func sessionUser(cx *httpapi.Context) string {
+	if cx != nil && cx.Session != nil {
+		return cx.Session.UserID()
+	}
+	return ""
+}
 
 // --- competition definitions -----------------------------------------------
 
@@ -230,6 +504,13 @@ func nullableString(m map[string]any, key string) any {
 		return s
 	}
 	return nil
+}
+
+func nilIfEmpty(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
 }
 
 func boolVal(v any) bool { b, _ := v.(bool); return b }
