@@ -39,10 +39,7 @@ type Handlers struct {
 // New builds the handler set.
 func New(repo *Repository) *Handlers { return &Handlers{repo: repo} }
 
-func (h *Handlers) getPlayState(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
-	if denial, ok := h.requireClub(cx, r); !ok {
-		return denial
-	}
+func (h *Handlers) getPlayState(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
 	state, code, err := h.playState(r.Context(), r.PathValue("clubId"))
 	if err != nil {
 		return httpapi.Fail(code, err.Error(), nil)
@@ -162,10 +159,7 @@ func (h *Handlers) recent(ctx context.Context, clubID string) ([]any, error) {
 }
 
 // findOpponents is GET /api/play/{clubId}/opponents.
-func (h *Handlers) findOpponents(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
-	if denial, ok := h.requireClub(cx, r); !ok {
-		return denial
-	}
+func (h *Handlers) findOpponents(_ *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
 	ctx := r.Context()
 	clubID := r.PathValue("clubId")
 	club, ok, err := h.repo.Club(ctx, clubID)

@@ -192,6 +192,16 @@ var Table = map[string]Rule{
 	"seasons.deleteSeason":    {Kind: Admin},
 }
 
+// handlerPublic are `handler`-rule routes whose Node handler performs no
+// access check (public reads), so the guard must allow anonymous callers.
+var handlerPublic = map[string]bool{
+	"play.getPlayState":  true,
+	"play.findOpponents": true,
+}
+
+// IsPublicHandler reports whether a handler-rule route is reachable anonymously.
+func IsPublicHandler(routeID string) bool { return handlerPublic[routeID] }
+
 // RuleFor returns the rule for a route id, applying the default (GET public,
 // otherwise admin) when the id is unlisted.
 func RuleFor(routeID, method string) Rule {

@@ -88,15 +88,17 @@ func (s *Server) Register(id, method, path string, statuses []int, h Handler) {
 		if cx != nil {
 			cx.RouteID = id
 		}
-		decision := policy.Enforce(r.Context(), rule, s.policyRequest(cx, method, r), s.access)
-		if !decision.Allowed {
-			Respond(w, Deny(decision.Status, decision.Message))
-			return
-		}
-		if len(decision.Keep) > 0 && cx != nil {
-			if body, ok := cx.BodyMap(); ok {
-				policy.KeepFields(body, decision.Keep)
-				cx.SetBodyMap(body)
+		if !policy.IsPublicHandler(id) {
+			decision := policy.Enforce(r.Context(), rule, s.policyRequest(cx, method, r), s.access)
+			if !decision.Allowed {
+				Respond(w, Deny(decision.Status, decision.Message))
+				return
+			}
+			if len(decision.Keep) > 0 && cx != nil {
+				if body, ok := cx.BodyMap(); ok {
+					policy.KeepFields(body, decision.Keep)
+					cx.SetBodyMap(body)
+				}
 			}
 		}
 		Respond(w, h(cx, w, r))

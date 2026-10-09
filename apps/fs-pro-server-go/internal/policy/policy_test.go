@@ -95,7 +95,7 @@ func TestEveryHandlerRuleDeniesAnonymous(t *testing.T) {
 	access := &fakeAccess{}
 	checked := 0
 	for id, rule := range Table {
-		if rule.Kind != Handler {
+		if rule.Kind != Handler || IsPublicHandler(id) {
 			continue
 		}
 		checked++

@@ -15,6 +15,9 @@ type Repository struct {
 // NewRepository wraps a Querier.
 func NewRepository(q db.Querier) *Repository { return &Repository{q: q} }
 
+// Q exposes the querier for access checks.
+func (r *Repository) Q() db.Querier { return r.q }
+
 // Window reads the window state.
 func (r *Repository) Window(ctx context.Context) (WindowState, error) {
 	rows, err := r.q.Query(ctx, `SELECT "CurrentDay","TransferWindowOpen","TransferWindowClosesDay" FROM "Calendars" LIMIT 1`)

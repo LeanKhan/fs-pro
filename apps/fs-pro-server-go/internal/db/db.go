@@ -70,6 +70,34 @@ func (p *Pool) Ping(ctx context.Context) error {
 	return p.pool.Ping(ctx)
 }
 
+// Begin starts a transaction, releasing the per-call timeout when it
+// commits/rolls back.
+func (p *Pool) Begin(ctx context.Context) (pgx.Tx, error) {
+	ctx, cancel := p.WithTimeout(ctx)
+	tx, err := p.pool.Begin(ctx)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	return &timeoutTx{Tx: tx, cancel: cancel}, nil
+}
+
+// timeoutTx releases the per-call timeout on Commit/Rollback.
+type timeoutTx struct {
+	pgx.Tx
+	cancel context.CancelFunc
+}
+
+func (t *timeoutTx) Commit(ctx context.Context) error {
+	defer t.cancel()
+	return t.Tx.Commit(ctx)
+}
+
+func (t *timeoutTx) Rollback(ctx context.Context) error {
+	defer t.cancel()
+	return t.Tx.Rollback(ctx)
+}
+
 type timeoutRows struct {
 	pgx.Rows
 	cancel  context.CancelFunc

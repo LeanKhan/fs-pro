@@ -39,7 +39,7 @@ func (h *Handlers) checkName(_ *httpapi.Context, _ http.ResponseWriter, r *http.
 	if err != nil {
 		return httpapi.Fail(400, err.Error(), err.Error())
 	}
-	return httpapi.OK("Name check", NameAvailability(conflicts))
+	return httpapi.OK("Checked", NameAvailability(conflicts))
 }
 
 // foundClub is POST /api/atlas/clubs: reproduces the 409 "new places need

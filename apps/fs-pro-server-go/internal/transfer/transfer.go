@@ -1,7 +1,7 @@
-// Package transfer implements the transfers.* routes. The transfer window is
-// real; the negotiation/AI/Jev endpoints are declared stubs. The window gate,
-// purchase affordability and the offer state machine are ported as pure
-// functions so they are testable without a DB.
+// Package transfer implements the transfers.* routes. The transfer window,
+// instant purchase, bids/offers (place/respond/list) and the scouted shortlist
+// are real; listPlayerForSale, scoutPlayerTransfer and requestBudgetIncrease
+// remain declared 400 stubs (they depend on the Jev scout/board services).
 package transfer
 
 // WindowState is the transfer-window view.

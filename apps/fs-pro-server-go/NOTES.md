@@ -389,3 +389,106 @@ FixtureCode, Award.Type='club').
   currently unreachable anyway, so `getProgram`'s Node-identical degraded path
   is what ships).
 - Unchanged remaining stubs elsewhere (B5 list) still stand.
+
+---
+
+## Owner-program market ported + S3 nits (this pass)
+
+**Program market (7 of the 8 stubs now real):** `browseManagers`,
+`interviewManager`, `signManager`, `releaseManager`, `browsePlayers`,
+`scoutPlayer`, `signPlayer`. Ported from `manager-market.service.ts` /
+`free-agent-market.service.ts`: masked rating ranges (`MaskRange`/`HIDDEN_SPREAD`,
+matching Node's round-then-mask), interview discount (`EffectiveManagerFee`),
+`OwnerProgram.Scout` jsonb updates, transactional conditional budget debits
+(`WHERE coalesce("Budget",0) >= fee`), `TransferLedger` rows, `Clubs.ManagerId`
+set/clear, free-agent sign + `calculateAndUpdateClubRating`, and the exact
+`ProgramManagerListSchema`/`ProgramPlayerListSchema`/`ProgramSignResultSchema`
+payloads. Added `db.Begin`/`db.WithTx`/`db.InRollback` (transaction support via
+`pgx.Tx`).
+- `program.tip` stays a declared `400`: engine-backed and the world-service
+  program engine is unreachable (Node's `tip` returns the same failure status).
+
+**S3 nits fixed:**
+- `auth.PgClubStore.FindByUserID` strips `LeagueCode`/`LeagueId`.
+- `program.getProgram` degraded `completed` = (`step == "done"`), `reasons` `[]`
+  when done.
+- `atlas.checkName` success message `"Checked"`.
+- `play.getPlayState`/`findOpponents` are public again
+  (`policy.IsPublicHandler`), matching Node; the D1 guard still covers all other
+  `handler` routes (`TestEveryHandlerRuleDeniesAnonymous` skips only these two).
+
+**Tests:** pure masking/fee/overall; rolled-back DB market test
+(`TestMarketRolledBack`) proving 0-budget rejection, double-sign rejection and
+release-to-pool — all inside `db.InRollback`, so the DB is never changed.
+
+**Differential vs Node (same DB, shared owner session):**
+`GET /api/program/{id}/managers` → **0 diffs**; `.../players` → **0 diffs**
+(after the rating rounding fix). `getProgram`/D2/D3 remain MATCH.
+
+**Still stubbed: transfers writes (8: purchase, bid, offers, respond, list,
+scout, shortlist, budget-request)** — not started this pass. Plus the unchanged
+B5 set (matches/game sim, open-play editions/challenges, world progression,
+atlas reads/founding, facilities medical, competitionDefinitions writes,
+clubs analytics).
+
+---
+
+## Transfers writes ported (this pass)
+
+**Real now (5 of the 8 stubs):** `purchasePlayer` (`ExecutePurchase` +
+`settleTransfer` — one transaction: buyer debit, seller credit, player move,
+`TransferLedger`, then both clubs' ratings refreshed), `placeBid` (offer row +
+immediate AI answer via the pure `AiResponse`, counter/reject/accept),
+`respondToOffer` (pending/countered turn check, accept settles at the agreed
+price), `getOffers` (`ListOffers` → `OfferView`: direction/awaiting/player/clubs),
+`getScoutedShortlist` (`ScoutedShortlist`: free agents + other clubs' listed
+players, scored `rating/(value+1)`, length gated by the Scouting asset level).
+Window gating (`AssertWindowOpen`) on purchase/placeBid/accept; every write is
+owner/club-scoped via `auth.CanManageClub`; all money writes go through
+`db.WithTx` (transactional) with `db.WithTx` short-circuiting inside an existing
+tx.
+
+**Tests:** pure `TestAiResponseTransitions`; rolled-back
+`TestPurchaseRolledBack` proving the player moves + budget debits + ledger row
+atomically and a double-buy is rejected (inside `db.InRollback`, DB unchanged).
+
+**Differentials vs Node (shared DB, owner session):**
+`GET /api/transfers/offers` → **0 diffs**; `GET
+/api/transfers/scouted-shortlist/{clubId}` → **0 diffs**. `POST purchase`/`bids`
+HTTP differential not run (needs a rollback wrapper around an HTTP request);
+covered by the rolled-back Go purchase test.
+
+**Still stubbed (3):** `listPlayerForSale` (Jev listing reaction + AI opening
+bid), `scoutPlayerTransfer` (Jev scout report + local fallback),
+`requestBudgetIncrease` (Jev board decision + performance service). Not ported
+this pass — they depend on `JevService`/`performance.service` and their exact
+payload builders.
+
+---
+
+## D23 (S2 concurrency) fixed + D24 (over-restriction) fixed
+
+- **D23 — FIXED.** `transfer.settleTransfer` now runs inside one transaction with
+  `SELECT ... FOR UPDATE` on the player and buying club, a **guarded player
+  move** (`WHERE "_id"=$1 AND "isRetired"=false AND "ClubId" IS NOT DISTINCT
+  FROM $expectedSeller`, `RowsAffected` checked) and a **guarded budget debit**
+  (`WHERE coalesce("Budget",0) >= $amount`, `RowsAffected` checked). `expectedSeller`
+  is `nil` for `executePurchase` (must still be a free agent) and the offer's
+  `ToClubId` for `settleOffer`, so two racing purchases of one free agent, or two
+  racing accepts of one offer, can no longer double-charge or double-insert the
+  ledger. Any lost race returns an error and the transaction rolls back.
+  - Proven by `TestSettlementGuardRolledBack` (deterministic two-call: first
+    settlement wins, second is refused by the guard, exactly **1** ledger row,
+    player owned by the first buyer) plus the existing
+    `TestPurchaseRolledBack`; both run inside `db.InRollback`.
+- **D24 — FIXED.** `transfers.getScoutedShortlist` no longer requires club
+  ownership (Node has no route-policy entry → default GET public). Anonymous
+  now reaches the handler (404 for a bogus club, 200 for a real one).
+- **D25 (placeBid not atomic) and D26 (stale comments) — D26 fixed** (package
+  docs updated). D25 remains a known S3 (offer insert + AI answer not one tx).
+- **Priority 3 (the 3 remaining transfers stubs) — NOT done this pass:**
+  `listPlayerForSale`, `scoutPlayerTransfer`, `requestBudgetIncrease`. They need
+  the probabilistic `JevService` reaction/scout/board local fallbacks
+  (`jev.service.ts`, `transfer-scout.service.ts`, `board-budget.service.ts`) and
+  their exact multi-field payloads; not ported. Census therefore stays
+  **103 real / 56 stub / 2 empty / 1 gate**.

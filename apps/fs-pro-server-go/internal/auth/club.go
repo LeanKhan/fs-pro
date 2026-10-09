@@ -34,6 +34,7 @@ func (s *PgClubStore) FindByUserID(ctx context.Context, userID string) ([]map[st
 	if err != nil {
 		return nil, err
 	}
+	db.OmitAll(clubs, "LeagueCode", "LeagueId")
 	if err := injectAddressCountry(ctx, s.q, clubs); err != nil {
 		return nil, err
 	}

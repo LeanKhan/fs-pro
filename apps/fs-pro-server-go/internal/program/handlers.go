@@ -1,7 +1,8 @@
 // Package program implements the program.* routes. getProgram / advanceProgram /
-// dismissTip / requestLoan / getProgramChapter are real; the manager/player
-// market writes are declared 400 stubs (pending a port of manager-market.service
-// and free-agent-market.service).
+// dismissTip / requestLoan / getProgramChapter and the manager/free-agent market
+// (browse/interview/sign/release managers, browse/scout/sign players) are real;
+// only `tip` remains a declared 400 (the world-service program engine is not
+// reachable).
 package program
 
 import (
@@ -35,6 +36,17 @@ func New(repo *Repository) *Handlers { return &Handlers{repo: repo} }
 
 func stub(what string) httpapi.Response {
 	return httpapi.Fail(400, what+" is not available in the Go server yet", nil)
+}
+
+func body(cx *httpapi.Context) map[string]any {
+	if cx == nil {
+		return map[string]any{}
+	}
+	m, _ := cx.BodyMap()
+	if m == nil {
+		return map[string]any{}
+	}
+	return m
 }
 
 func floatOf(v any) float64 {
@@ -71,6 +83,34 @@ func intOf(v any) int {
 	}
 }
 
+func boolOf(v any) bool { b, _ := v.(bool); return b }
+
+func intOrNil(v any) any {
+	if v == nil {
+		return nil
+	}
+	if n, ok := v.(int); ok {
+		return n
+	}
+	if s, ok := v.(string); ok {
+		_ = s
+	}
+	switch n := v.(type) {
+	case int:
+		return n
+	case int32:
+		return int(n)
+	case int64:
+		return int(n)
+	case float64:
+		return int(n)
+	case float32:
+		return int(n)
+	default:
+		return nil
+	}
+}
+
 // state builds ProgramState from the persisted OwnerProgram row, mirroring
 // owner-program.service.ts's degraded `getProgramState` (the Go engine is not
 // reachable, so `reasons` reports it and evaluation fields are zero).
@@ -94,13 +134,20 @@ func (h *Handlers) state(ctx context.Context, clubID, reason string) (map[string
 		"programXp":       intOf(row["ProgramXp"]),
 		"startingBalance": floatOf(row["StartingBalance"]),
 		"budget":          h.repo.Budget(ctx, clubID),
-		"completed":       false,
+		"completed":       step == "done",
 		"stars":           0,
 		"xp":              0,
-		"reasons":         []string{reason},
+		"reasons":         reasons(step, reason),
 		"advisor":         nil,
 		"chapter":         nullableString(row, "Chapter"),
 	}, nil
+}
+
+func reasons(step, reason string) []string {
+	if step == "done" {
+		return []string{}
+	}
+	return []string{reason}
 }
 
 // getProgram is GET /api/program/{clubId}. It degrades cleanly when the engine
@@ -203,18 +250,129 @@ func (h *Handlers) requestLoan(cx *httpapi.Context, _ http.ResponseWriter, r *ht
 	return httpapi.OK("Board advance", map[string]any{"granted": true, "amount": amount, "state": state})
 }
 
-// --- not-yet-ported market + engine routes ---------------------------------
+// --- owner-program market -------------------------------------------------
 
-func (h *Handlers) tip() httpapi.Response            { return stub("Advisor tips") }
-func (h *Handlers) browseManagers() httpapi.Response { return stub("The manager market") }
-func (h *Handlers) interviewManager() httpapi.Response {
-	return stub("Manager interviews")
+// browseManagers is GET /api/program/{clubId}/managers.
+func (h *Handlers) browseManagers(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r); !ok {
+		return denial
+	}
+	payload, err := BrowseManagers(r.Context(), h.repo.Q(), r.PathValue("clubId"))
+	if err != nil {
+		return httpapi.Fail(statusFor(err), err.Error(), err.Error())
+	}
+	return httpapi.OK("Manager market", payload)
 }
-func (h *Handlers) signManager() httpapi.Response    { return stub("Signing a manager") }
-func (h *Handlers) releaseManager() httpapi.Response { return stub("Releasing a manager") }
-func (h *Handlers) browsePlayers() httpapi.Response  { return stub("The free-agent market") }
-func (h *Handlers) scoutPlayer() httpapi.Response    { return stub("Scouting a player") }
-func (h *Handlers) signPlayer() httpapi.Response     { return stub("Signing a player") }
+
+// interviewManager is POST /api/program/{clubId}/managers/{managerId}/interview.
+func (h *Handlers) interviewManager(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r); !ok {
+		return denial
+	}
+	managers, err := InterviewManager(r.Context(), h.repo.Q(), r.PathValue("clubId"), r.PathValue("managerId"))
+	if err != nil {
+		return httpapi.Fail(statusFor(err), err.Error(), err.Error())
+	}
+	return httpapi.OK("Manager interviewed", map[string]any{"managers": managers})
+}
+
+// signManager is POST /api/program/{clubId}/managers/{managerId}/sign.
+func (h *Handlers) signManager(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r); !ok {
+		return denial
+	}
+	ctx := r.Context()
+	clubID := r.PathValue("clubId")
+	contractYears := 3
+	if cy := intOf(body(cx)["contractYears"]); cy > 0 {
+		contractYears = cy
+	}
+	paid, err := SignManager(ctx, h.repo.Q(), clubID, r.PathValue("managerId"), contractYears)
+	if err != nil {
+		return httpapi.Fail(statusFor(err), err.Error(), err.Error())
+	}
+	state, serr := h.state(ctx, clubID, "program engine unavailable")
+	if serr != nil {
+		return httpapi.Fail(statusFor(serr), serr.Error(), serr.Error())
+	}
+	return httpapi.OK("Manager signed", map[string]any{"state": state, "paid": paid})
+}
+
+// releaseManager is POST /api/program/{clubId}/managers/{managerId}/release.
+func (h *Handlers) releaseManager(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r); !ok {
+		return denial
+	}
+	ctx := r.Context()
+	clubID := r.PathValue("clubId")
+	if err := ReleaseManager(ctx, h.repo.Q(), clubID, r.PathValue("managerId")); err != nil {
+		return httpapi.Fail(statusFor(err), err.Error(), err.Error())
+	}
+	state, err := h.state(ctx, clubID, "program engine unavailable")
+	if err != nil {
+		return httpapi.Fail(statusFor(err), err.Error(), err.Error())
+	}
+	return httpapi.OK("Manager released", state)
+}
+
+// browsePlayers is GET /api/program/{clubId}/players.
+func (h *Handlers) browsePlayers(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r); !ok {
+		return denial
+	}
+	payload, err := BrowsePlayers(r.Context(), h.repo.Q(), r.PathValue("clubId"))
+	if err != nil {
+		return httpapi.Fail(statusFor(err), err.Error(), err.Error())
+	}
+	return httpapi.OK("Free agents", payload)
+}
+
+// scoutPlayer is POST /api/program/{clubId}/players/{playerId}/scout.
+func (h *Handlers) scoutPlayer(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r); !ok {
+		return denial
+	}
+	players, err := ScoutPlayer(r.Context(), h.repo.Q(), r.PathValue("clubId"), r.PathValue("playerId"))
+	if err != nil {
+		return httpapi.Fail(statusFor(err), err.Error(), err.Error())
+	}
+	return httpapi.OK("Player scouted", map[string]any{"players": players})
+}
+
+// signPlayer is POST /api/program/{clubId}/players/{playerId}/sign.
+func (h *Handlers) signPlayer(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r); !ok {
+		return denial
+	}
+	ctx := r.Context()
+	clubID := r.PathValue("clubId")
+	paid, err := SignPlayer(ctx, h.repo.Q(), clubID, r.PathValue("playerId"))
+	if err != nil {
+		return httpapi.Fail(statusFor(err), err.Error(), err.Error())
+	}
+	state, serr := h.state(ctx, clubID, "program engine unavailable")
+	if serr != nil {
+		return httpapi.Fail(statusFor(serr), serr.Error(), serr.Error())
+	}
+	return httpapi.OK("Player signed", map[string]any{"state": state, "paid": paid})
+}
+
+// tip is POST /api/program/{clubId}/tip: engine-backed; the world-service
+// program engine is unreachable, so this returns Node's declared 400.
+func (h *Handlers) tip(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r); !ok {
+		return denial
+	}
+	return httpapi.Fail(400, "The program engine is unavailable", nil)
+}
+
+// statusFor maps a market error to Node's status (404 for not-found, else 400).
+func statusFor(err error) int {
+	if err == errClubNotFound {
+		return 404
+	}
+	return 400
+}
 
 // --- helpers ---------------------------------------------------------------
 
