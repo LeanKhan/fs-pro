@@ -53,6 +53,11 @@ export const playContract = c.router(
         401: failEnvelope(),
         403: failEnvelope(),
         404: failEnvelope(),
+        // The owner-program PLAY gate (services/program/squad-gate.ts):
+        // "Sign a manager before your first match...". Declared so the client
+        // decodes the message instead of treating the refusal as a transport
+        // error (U-06 / P02-19).
+        409: failEnvelope(),
       },
     },
 

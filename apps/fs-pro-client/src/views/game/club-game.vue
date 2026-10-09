@@ -1189,7 +1189,9 @@ function checkOfflineProgress() {
       description: done ? 'Construction finished while you were away.' : `Building towards Tier ${a.upgrade.toLevel}.`,
     });
   }
-  if (game.cooldownLeft.value === 0 && !firstVisit) events.push({ icon: '⚡', title: 'Squad rested', description: 'The players are ready to play.' });
+  // No filler events: the away summary should only appear when something
+  // actually happened (inbox news, results, finished builds), not on every
+  // return just because the squad rested (U-13 / P01-04 / P08-06).
   awayEvents.value = events;
   showAwaySummary.value = events.length > 0;
 }

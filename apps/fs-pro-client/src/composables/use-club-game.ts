@@ -239,8 +239,8 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
         // Watching records the replay the Matchzone plays; quick sim doesn't.
         body: { ...(matchedOpponentId.value ? { opponentId: matchedOpponentId.value } : {}), watch: !quick },
       });
-      showMatchmaking.value = false;
       if (res.status === 200) {
+        showMatchmaking.value = false;
         matchResult.value = res.body.payload;
         const before = playState.value?.club.level;
         playState.value = res.body.payload.state;
@@ -256,6 +256,10 @@ export function useClubGame(clubId: Ref<string | undefined>, onChanged?: () => v
         onChanged?.();
         await load();
       } else {
+        // The PLAY gate (no manager / no keeper / no squad) and the cooldown
+        // arrive as a declared 409; keep the dialog open so the player can
+        // read why and act on it (U-06).
+        sfx.play('error');
         toast(res.body.message, 'error');
         await load();
       }

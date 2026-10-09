@@ -9,6 +9,7 @@
         Relieve Manager
       </v-card-title>
       <v-card-text>
+        <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mb-3">{{ error }}</v-alert>
         <v-row no-gutters>
           <v-col cols="12">
             <v-card flat tile>
@@ -62,7 +63,6 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
 import { client } from '@/services/api';
 
 interface Props {
@@ -74,29 +74,40 @@ interface Props {
 const props = defineProps<Props>();
 const emit = defineEmits<{
   'update:show': [value: boolean];
+  'update-available': [];
 }>();
 
-const router = useRouter();
-
 const loading = ref(false);
+const error = ref('');
 const reason = ref('');
 
-const fireManager = () => {
+/**
+ * Release the manager through the owner program (`/program/:clubId/managers/:id/release`),
+ * which a club owner may call. The old `clubs.fireManager` route is admin-only
+ * and 403'd for owners (same defect class as U-01), swallowing the failure.
+ * The free-text `reason` is kept for the record but the program endpoint does
+ * not persist it yet.
+ */
+const fireManager = async () => {
+  const managerId = props.manager?._id ?? props.manager?.id;
+  if (!managerId) return;
   loading.value = true;
-  client.clubs.fireManager
-    .mutation({
-      params: { id: props.club },
-      query: { reason: reason.value },
-    })
-    .then(() => {
-      emit('update:show', false);
-      router.push('..');
-    })
-    .catch((err: any) => {
-      console.log('Error! => ', err);
-    })
-    .finally(() => {
-      loading.value = false;
+  error.value = '';
+  try {
+    const res = await client.program.releaseManager.mutation({
+      params: { clubId: props.club, managerId },
+      body: {},
     });
+    if (res.status === 200) {
+      emit('update-available');
+      emit('update:show', false);
+    } else {
+      error.value = (res.body as { message?: string }).message ?? 'Could not release that manager.';
+    }
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Could not release that manager.';
+  } finally {
+    loading.value = false;
+  }
 };
 </script>
