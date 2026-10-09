@@ -48,3 +48,7 @@ yarn-error.log*
 /target
 # Agent/editor local state (worktrees live here)
 .claude/
+
+/playtest/*/screenshots/
+
+/dynamics
