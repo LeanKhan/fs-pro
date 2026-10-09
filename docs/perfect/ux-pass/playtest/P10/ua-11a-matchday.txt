@@ -1,0 +1,42 @@
+- button "New headlines"
+- button "11 lineup slot(s) empty"
+- button "+V20k"
+- group "Club advisor"
+- button "2 online"
+- button "Owner's program Hire your first manager"
+- img "Completionist FC"
+- text: 0 0/100 V3M 150 5 0 Day 482 · Tue Dec 28 2027 Year 8 Rainbow Boys beat E2E United xqf5y5 3-0
+- button "Challenges"
+- button "League"
+- button "Settings"
+- text: First steps 0/4
+- button "Sign a manager Interview, then hire"
+- button "Build a squad"
+- button "Build a facility"
+- button "Reach Level 1"
+- button "Squad"
+- button "Team Sheet"
+- button "World"
+- button "World"
+- navigation:
+  - button "Build"
+  - button "Move"
+  - button "Squad"
+  - button "Manager"
+- button "PLAY Ready"
+- complementary:
+  - heading "Owner's office" [level=2]
+  - navigation:
+    - button "Matchday"
+    - button "The brief"
+    - button "Squad"
+    - button "Recruitment"
+    - button "Owner"
+    - button "Analysis"
+  - button "Close"
+  - heading "Coming up" [level=4]
+  - paragraph: No matches scheduled. Book one below, or wait for the league draw.
+  - text: Book a match Pick an opponent from matchmaking. Kick-off is the next cup day, so both sides get time to prepare. Pays more than a quick PLAY.
+  - button "Book (0/2)"
+  - heading "Results" [level=4]
+  - paragraph: No scheduled matches played yet.

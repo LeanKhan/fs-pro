@@ -1,0 +1,60 @@
+- button "New headlines"
+- button "11 lineup slot(s) empty"
+- button "+V20k"
+- group "Club advisor"
+- button "2 online"
+- button "Owner's program Hire your first manager"
+- img "Completionist FC"
+- text: 0 0/100 V3M 150 5 0 Day 484 · Thu Dec 30 2027 Year 8 Lasena United F.C beat Al Moomood F.C 4-1
+- button "Challenges"
+- button "League"
+- button "Settings"
+- text: First steps 0/4
+- button "Sign a manager Interview, then hire"
+- button "Build a squad"
+- button "Build a facility"
+- button "Reach Level 1"
+- button "Squad"
+- button "Team Sheet"
+- button "World"
+- button "World"
+- navigation:
+  - button "Build"
+  - button "Move"
+  - button "Squad"
+  - button "Manager"
+- button "PLAY Ready"
+- complementary:
+  - heading "Owner's office" [level=2]
+  - navigation:
+    - button "Matchday"
+    - button "The brief"
+    - button "Squad"
+    - button "Recruitment"
+    - button "Owner"
+    - button "Analysis"
+  - button "Close"
+  - text: Club Treasury V3M Available for transfers & wages Annual Wage Bill V0 0 signed players Matchday Revenue V0 Gate receipts & concessions Net Operating Margin V0 Match profits minus match costs Matchday Financial Ledger
+  - table:
+    - rowgroup:
+      - row "Date Attendance Revenue Match Costs Net Profit":
+        - columnheader "Date"
+        - columnheader "Attendance"
+        - columnheader "Revenue"
+        - columnheader "Match Costs"
+        - columnheader "Net Profit"
+    - rowgroup:
+      - row "No home fixtures played yet this season.":
+        - cell "No home fixtures played yet this season."
+  - text: Manager & Technical Staff No manager currently under contract. Board Confidence
+  - progressbar
+  - text: 60% Score 0.00 vs target 0.40 for Level 0 Fan Approval
+  - progressbar
+  - text: 55%
+  - separator
+  - button "Hire Head Coach"
+  - text: Board Expectations
+  - list:
+    - listitem: Keep the board on side Confidence 60%
+    - listitem: Win more than you lose No matches yet
+    - listitem: Matchdays turn a profit No home matches yet

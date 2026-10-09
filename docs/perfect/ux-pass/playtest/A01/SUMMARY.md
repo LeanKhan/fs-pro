@@ -3,97 +3,123 @@
 Persona A01: admin, 1440x900 mouse. Instance: client `http://localhost:4173`,
 API `:3010` (INSTANCE-LOG.md). Sessions with breaks per D4.
 
-> Status: Session 1 complete (all admin screens surveyed, D3 verified).
-> Session 2 (run the calendar / observe / moderate) is **blocked by an
-> environment failure** — A01-12: WSL→Windows interop is down, so the
-> Windows-Node Playwright harness cannot run. See DIARY.md. The findings below
-> are all from Session 1 and are fully evidenced.
+> **Status: complete (no longer blocked).** Session 1 (setup + screen survey,
+> 11:24–12:19Z) stands. The outage that cut Session 2 short (A01-12:
+> WSL→Windows interop + wedged API) was fixed by the lead at **23:08Z**.
+> **Session 2 ran 2026-10-08 23:14Z → 2026-10-09 00:52Z** (a service restart
+> interrupted ~00:26Z; resumed without repeating work). All findings below are
+> evidenced.
 
 ## Pass outcome (A01)
 
-- **Stopped by instance failure, not by the game.** From 12:10Z the
-  WSL→Windows interop died (`UtilAcceptVsock accept4 failed 110`), and from
-  ~13:20Z the Windows API also stalled on all DB-backed routes: `/healthz`
-  returns `503 {"ok":false}` and a real login hangs ("Signing in…") although an
-  empty-body login returns `400` in ~4 ms and `fs-pro-db-1` is healthy — the API
-  web/worker are wedged. A Linux-side fallback (same production bundle + host
-  proxy + Linux Chromium) was built and renders the shipped client correctly,
-  but cannot get past the hung login. Host-side restart needed (INSTANCE-LOG §7/§8).
-- **Admin job status:** D3 clock/settings verified and competitions confirmed
-  (the setup half of the brief) **done and evidenced**. The continuous
-  run-the-calendar / observe-players / moderate half **could not be exercised**.
-- **12 issues** reported: 1 × S2 (Managers screen error), 10 × S3/S4 (admin
-  flow, header state loss, "undefinedd", missing time-scale, ambiguous save
-  feedback, no moderation tools, empty League column, dead console Home, club
-  placeholder), 1 × S1 environment blocker (A01-12).
+- **World-running half: exercised and good.** The live clock advances at the D3
+  scale-4 pace; "Advance one day" and the Year Calendar / Sim-to-Date controls
+  work; competitions and their editions are fully manageable.
+- **Governance/moderation half: essentially absent.** There is no Users,
+  Reports, Chat or News surface anywhere; an admin cannot see who owns a club,
+  cannot suspend a player, and cannot moderate content. The only assignment
+  control is buried in the player Account settings and has no user selector.
+- **A01-12 is resolved**; the world survived the restart with state intact.
 
 ## Level reached and when
 
-- Admin club "Playtest Admin FC" founded at **11:32Z** (needed to reach the
-  app at all — see A01-01). Admin account itself is Level 0 (it is a runner,
-  not a player).
-- World clock at hand-over: live, Day 466 → 469 during Session 1 (12 real
-  min/game day at `GAME_TIME_SCALE=4`, `DayLengthMinutes=48`).
+- Admin club "Playtest Admin FC" founded **11:32Z** (needed to reach the app at
+  all — A01-01). The admin account itself is Level 0 (it runs the world, it does
+  not chase XP).
+- World clock at hand-over: **Day 483 – Wed Dec 29 2027** (00:50Z), up from Day
+  466 at Session 1 start. That is ~7 game days across Session 2's ~80 min
+  (≈11–12 min/game day, matching D3); at scale 1 that is ~48 min/day, ~30 s/game
+  hour.
+- Year Calendar tally at hand-over: **3604 matches · 3497 played · 107
+  remaining**.
 
 ## Wall time to Level 1 / Level 2
 
 - N/A for the admin persona (A01 runs the world; it does not chase XP).
+- Session 2 wall time ≈ **1 h 38 m**, of which ~25 min was a service restart;
+  active play ≈ 65–70 min.
 
 ## D3 setup verification (the admin's first job)
 
-- `Game day length (real min)` shown in the UI = **48** (confirmed, A01 setup).
-- Effective `GAME_TIME_SCALE=4` is an environment value and is **not shown in
-  the admin UI** (A01-04); only day length is editable.
+- `Game day length (real min)` shown in the UI = **48** (confirmed Session 1,
+  re-read Session 2). Effective `GAME_TIME_SCALE=4` is an environment value and
+  is **not surfaced** (A01-04) — only day length is editable.
+- Observed pace: game hour ≈ 30 s real, game day ≈ 12 min real (hour 13→15→16 in
+  ~70 s; Day 475→483 over ~80 min). **Scale-1 equivalents: hour = 2 min, day =
+  48 min.**
 - `XP per win/draw/loss` = 30/15/5; `XP for each Level` blank (= 100×Level²);
-  clock **Live**. Competitions exist (12 shown, incl. Amateur Cup running).
+  clock **Live**. Competitions exist and are running (Amateur Cup #4 in
+  registration; the two pyramid pools running; others in draft).
 
 ## Top 5 frustrations
 
-1. **No admin door.** An `isAdmin` login is forced through the player
-   "Found your club" onboarding; the only "Admin console" link is buried in
+1. **No governance at all.** No Users/Reports/Chat/News moderation anywhere; no
+   way to see a club's owner or suspend/ban a player. (A01-15)
+2. **No admin door from login.** An `isAdmin` login is forced through the player
+   "Found your club" onboarding; the only console link is buried in
    Settings → Account. (A01-01)
-2. **Admin header loss on deep link** — sidebar/top bar show "No club yet" and
+3. **Managers screen is broken.** "Error!" + GO BACK overlay, and the table has
+   no column headers. (A01-10, A01-14)
+4. **Admin header loss on deep link** — sidebar/top bar show "No club yet" and
    "Day 1" until you first pass through `/u/settings`. (A01-03/A01-06)
-3. **Managers screen throws an Error! fallback** and loses its toolbar and
-   column headers. (A01-10)
-4. **"undefinedd"** duration on the pyramid pool leagues. (A01-05)
-5. **No moderation tools at all** — no users/accounts, reports, or chat/news
-   moderation; a club page can only recruit/rate/edit players. (A01-08)
+5. **"undefinedd"** duration on the pyramid pool leagues; **empty "League"
+   column** on Clubs. (A01-05, A01-11)
 
 ## Top 3 delights
 
-1. The **World & Calendar** page is genuinely powerful and clear: live clock
-   with next-tick time, day-length control, transfer-window controls, a
-   timeline of every season, and a fast-forward simulator, all in one place.
-2. **Competitions** management is complete and readable (create, open, edit,
-   archive; per-card format/duration/latest-edition).
-3. **Clubs/Players/Managers** tables are fast, searchable and paginated, with a
-   consistent view/edit/delete action pair.
+1. The **Year Calendar** — month grid with every fixture per day, transfer-window
+   markers, view toggles, Sim to Date, and a live matches/played/remaining tally.
+2. **World & Calendar** is genuinely powerful: live clock, advance-day,
+   fast-forward, day length, transfer windows, XP curve, all in one place.
+3. **Competitions** management is complete and readable — create/open/edit/
+   archive, with a clear per-edition view (registration window, entrants,
+   fee-paid state, invite, cancel).
 
 ## Moments I'd have quit as a real admin
 
-- Right after login: no hint anywhere that an admin console exists, while the
-  product made me create a real club in the shared world to get in. I assumed
-  the admin UI was missing.
-- Opening the console Home and getting a static logo with no dashboard.
+- Right after login: no hint that an admin console exists, while the product
+  made me create a real club in the shared world to get in. I assumed the admin
+  UI was missing (Session 1).
+- Opening the console Home and getting a static logo with no dashboard (A01-02).
+- Reaching for "suspend this account" / "hide that chat message" and finding
+  that no such screen exists at all (A01-15).
 
 ## Metrics — actions per admin key task
 
 (§4 lists player tasks; those are N/A to A01. Admin equivalents:)
+
 | Task | Actions (clicks/keystrokes) | Notes |
 | --- | --- | --- |
 | Sign in as admin | ~4 | credentials + Sign in |
-| Reach admin console from login | ~9 | forced founding flow (3 steps, name/code/ground) then Settings→Account→Admin console |
-| Verify/set clock | 4 | Settings→Account→Admin console→World & Calendar (day length already 48) |
-| Find a club | 2 | Admin console→Clubs, type in search |
-| Open/observe a club | 2 | search + eye icon |
-| Advance the world one day | 1 | "Advance one day" |
-| Check competitions | 2 | Admin console→Competitions |
-| Moderate a user | impossible | no such tool (A01-08) |
+| Reach admin console from login | ~9 | forced founding flow then Settings→Account→Admin console (A01-01). Once in the office shell, the sidebar "Admin console" link is 1 click. |
+| Watch the clock advance | 1 + reload | "Now"/"Next tick" do not auto-refresh (A01-13) |
+| Advance the world one day | 2 | Console → World & Calendar → "Advance one day" |
+| Fast-forward to a date | 3 | type target day → "Simulate to day" |
+| Open the Year Calendar | 2 | World & Calendar → "Open Year Calendar" |
+| Find a club | 2 | Console → Clubs, type in search |
+| Observe a club | 2 | search + eye icon |
+| Inspect a competition's editions | 2 | Console → Competitions → "Open" |
+| See a club's owner | impossible | no owner/user shown anywhere (A01-16) |
+| Moderate a user / report / chat | impossible | no such screen (A01-15) |
 
 ## Accessibility / consistency notes
 
 - Admin console is a **dark theme** in an otherwise cream/wood game (U7 art
   direction); flagged as a consistency observation, not a fix mandate.
-- Club rating control exposes each value three times in the a11y tree
-  (static text + button + radio) — noisy for a screen reader (P05 scope).
+- The Managers table exposes unlabelled action buttons and a headerless table
+  to the a11y tree (A01-14).
+- Club rating control exposes each value three times in the a11y tree (static
+  text + button + radio).
+
+## Session-2 evidence index
+
+- `41-s2-admin-home.png`, `42-s2-world-calendar.png`, `43-s2-calendar-top.png`
+  — console home + calendar.
+- `44-s2-live-clock.png`, `45-s2-advanced-one-day.png`, `46/47/49-s2-clock-*`
+  — live clock, advance-one-day, reload test (A01-13).
+- `50/51/52-s2-competition*-` — competitions list + Amateur Cup editions.
+- `53-s2-managers.png` (A01-10/A01-14), `54-s2-players.png`,
+  `56/57/58-s2-club*` (A01-08/09/11).
+- `59/60/61-s2-*` — moderation sweep (A01-15).
+- `63/64-s2-assign-*` — Assign clubs dialog (A01-16).
+- `65-s2-year-calendar.png`.

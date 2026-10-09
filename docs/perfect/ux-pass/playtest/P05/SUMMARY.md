@@ -1,132 +1,123 @@
 # P05 — SUMMARY (Keyboard-only + screen-reader semantics)
 
-Viewport 1440×900, keyboard only. Client `http://localhost:4173` (prod build
-`e4db26c`). Club **Keyboard FC (KBD)**, Sdev Central. All times UTC.
-**Interim report — the run was cut short by a Windows-host interop outage (§
-"Blocked" below); it will be updated if the instance comes back within the cap.**
+Viewport 1440×900, keyboard only. Client `http://localhost:4173` (production
+build `e4db26c`). Club **Keyboard FC (KBD)**, Sdev Central. All times UTC.
+
+**Status: stopped at the second environment block.** The run was cut short
+twice by a **WSL↔Windows interop outage** (not a game defect): first at
+~12:31Z on 2026-10-08 (fixed 23:08Z, see `INSTANCE-LOG.md` §7/§8), then again
+at **03:10Z on 2026-10-09** (`UtilAcceptVsock:271: accept4 failed 110`; every
+`cmd.exe`, so win32-native Playwright, is unavailable). Login persisted
+throughout (`p05keyboard` / club `15428d05-3e73-477e-a594-b4b713cc90bf`,
+`state.json`).
 
 ## Outcome
 
 | | |
 | --- | --- |
-| Level reached | **Level 0** (owner programme step 1 of 4, "Manager", started; signed a manager) |
-| Level 1 reached | **not reached** (blocked before it) |
+| Level reached | **Level 0** |
+| XP at stop | **35 / 100** (Level 1 needs 100; Level 2 needs 400) |
+| Owner's Program | **Program XP 12/54**; First steps **3/4** (manager signed, squad built, Tier 1 Training Ground building/done) |
+| Level 1 reached | **no** |
 | Level 2 reached | **no** |
-| Sessions | 3 sessions; 2 real breaks forced by the host outage |
-| Wall time played | ≈ 11:25Z–14:02Z (≈ 2 h 37 m), of which **≈ 90 min was a hard environment block** |
-| Stop reason | **D5 environment block**: Windows interop died and the API became unreachable; Playwright (win32-native `node_modules`) cannot launch, and a WSL-side browser cannot reach the API. Not a game-side S1. |
+| Sessions | 5 sessions across the two outage windows (2 forced breaks) |
+| Wall time | S1–3 ≈ 11:25–14:02Z 2026-10-08 (≈2 h 37 m, incl. ≈90 min interop block). Resumed S4–5 ≈ 23:39Z 2026-10-08 → 03:10Z 2026-10-09 (≈3 h 31 m, incl. long scale-4 waits and a second interop block at the end). |
+| Stop reason | **D5 environment block** at 03:10Z 2026-10-09 (interop down again). Before that, honest progression was possible but slow: the only Level-0 XP source is *winning* qualifying friendlies, and the squad is depleted/injured. |
+| Outage status | **Down again as of 03:10Z 2026-10-09.** Lead action (D8): restart the WSL→Windows interop / Windows-side browser tooling; verify `cmd.exe` first. |
+
+## Resumed-run narrative (what changed since the interim report)
+
+- Login was intact; the world had kept ticking through the outage — the campus
+  read **Day 478, Year 8** on resume and **Day 493, Year 9** at stop.
+- Completed **Owner's Program steps 1–3** keyboard-only: signed manager
+  *Faititrai Yaiyou* (Program XP 9/54 → 12/54), built a matchday squad, and
+  built a **Tier 1 Training Ground** (campus Level XP 12 → 30/100).
+- Opened **PLAY**; the matchmaker matched me against another persona's club
+  (**P10 "Completionist FC"**), confirming D6 PvP matchmaking works.
+- Could not convert friendlies into wins: **XP stuck at 35/100** over repeated
+  `Play now` presses. My club was 8/11 starters with injuries and a losing run
+  ("L D L D L"); at Level 0 only friendly *wins* pay meaningful XP (a loss pays
+  ~5), so Level 1 was out of reach in the time available.
+- Pacing (D3): every wait is **4× the scale-1 design number**. A Tier 1 build
+  showed "5 min" (= 20 design min); a match cooldown is 75 s (= ~19 design s).
+  At scale 1 the same build would be 20 min and the XP grind worse.
 
 ## Accessibility status (the P05 lens)
 
-This is the important section. The build is **playable but not screen-reader
-grade**. Registration and founding can be completed keyboard-only, focus rings
-are clearly visible, and the advisor tip is a proper live region — those are
-real strengths. Against that:
+Registration → founding and the whole Owner's Program are completable
+keyboard-only, focus rings are clearly visible, and the advisor tip is a proper
+live region. But the build is **not screen-reader grade**, and modal handling is
+the systemic weakness:
 
-- **Modals are not dialogs.** The campus welcome/return overlays have no
-  `role="dialog"`, no `aria-modal`, no focus move and no focus trap; focus
-  starts on `body` and the dismiss button is the **27th** tab stop. Escape does
-  nothing. (P05-01/02)
-- **The owner-program Manager list is hostile to assistive tech.** 200 cards,
-  ~400 tab stops, no headings, and every action announces the *same* name
-  ("Sign this manager" / "Reveal the exact attributes") with no manager
-  identity; visible labels ("Sign", "Interview · V25,000") are not in the
-  accessible name. (P05-07)
-- **Focus order regressions**: inside each manager card, "Sign" (lower) is
-  focused before "Interview" (upper) — reverse of reading order (P05-08).
-- **Invisible/unlabelled controls in the tab order**: the founding crest
-  builder has three 0×0 `input[type=color]` exposed as unnamed textboxes
-  (P05-03); colour swatches are announced as hex (P05-04).
-- **The founding map is an image**, not a keyboard-choice of places (P05-06);
-  the step headers of the owner program look like tabs but are plain text
-  (P05-10).
-- **Contrast** is mostly good (body/HUD/manager text 6:1–11:1). Two low spots:
-  inactive step subtitles 3.38:1 (P05-15) and disabled submit 2.38:1 (P05-16,
-  exempt).
-- 16 issues total: 3 × S2, 6 × S3, 7 × S4 (see `ISSUES.md`). No S1 found
-  in-game; the only S1-shaped event was the host outage above.
+- **Modals don't manage focus (systemic).** The campus welcome/"While you were
+  away" overlays and the **"Find a Match"** panel have no `role="dialog"` /
+  `aria-modal`, keep focus on `body`/the trigger behind them, and offer no
+  Escape (P05-01, P05-02, P05-21). The overlay's dismiss controls are the
+  **23rd/24th** tab stops.
+- **The one real dialog is unreachable by keyboard.** "Negotiate & sign" *is*
+  `role="dialog" aria-modal="true"`, but focus is not moved into it and its
+  markup sits **last in a 200-card document**, so `Not yet` / `Sign for V…`
+  are hundreds of tab stops away — a keyboard-only player **cannot sign anyone
+  without a focus workaround** (P05-17). Focus is then lost to `body` on close
+  (P05-18).
+- **Identical accessible names without identity:** 7 facility buttons named
+  "Build Tier 1" (P05-19); the 200-manager list's actions (P05-07).
+- **Invisible/unlabelled controls:** three 0×0 `input[type=color]` in the crest
+  builder (P05-03); swatches announced as hex (P05-04).
+- **Completed First-steps items are announced as disabled buttons**, not "done"
+  (P05-20).
+- **Contrast** is mostly good (6:1–11:1); low spots: inactive step subtitles
+  3.38:1 (P05-15) and the disabled submit 2.38:1 (P05-16, exempt).
+
+**Issue totals: 21** — **S1 ×0, S2 ×4, S3 ×9, S4 ×8** (see `ISSUES.md`; the
+only S1-shaped events were the two environment outages, filed by the lead).
 
 ## Top 5 frustrations
 
-1. The modal/focus management on the campus (P05-01) — as a screen-reader user
-   I did not know a dialog had opened, and as a keyboard user I had to Tab
-   through ~27 background controls, twice, to dismiss overlays.
-2. The manager list (P05-07) — 400 tab stops of identically-named "Sign this
-   manager" buttons.
-3. The invisible, unnamed colour inputs in the crest builder (P05-03).
-4. The owner-program "Manager" step taking several seconds with only a
-   non-announced loading string, focus on `body` (P05-09).
-5. The founding map being an image, so keyboard users can't choose a place
-   (P05-06).
+1. The unreachable "Negotiate & sign" dialog (P05-17) — I could not sign a
+   manager or player with the keyboard alone.
+2. Modals that never announce themselves and leave focus on `body` behind the
+   scrim (P05-01/02/21) — as a screen-reader user I did not know an overlay had
+   opened.
+3. The 200-card manager list: ~400 tab stops, identical action names, no
+   headings (P05-07).
+4. Seven facility buttons all named "Build Tier 1" (P05-19).
+5. The invisible, unnamed colour inputs in the crest builder (P05-03).
 
 ## Top 3 delights
 
-1. The focus indicator is a clear, high-contrast lime outline — easy to follow
-   (`03-join-focusorder.png`).
-2. Registration → founding is completable keyboard-only with proper visible
-   labels on every real field (name/email/username/password/club/code/ground).
-3. The Vintra advisor is a `role="status"` live region, so its tips are
-   announced; and colour swatches expose `[pressed]`.
+1. The focus indicator — a clear, high-contrast lime outline.
+2. Registration → founding and the Owner's Program are fully completable with
+   the keyboard, with proper visible labels on every real field.
+3. The Vintra advisor is a `role="status"` live region (its tips are
+   announced), and colour swatches expose `[pressed]`.
 
 ## Moments I would have quit as a real player
 
-- 11:41Z, first campus load: overlay with no dialog semantics, Escape dead,
-  dismiss button 27 tabs away (P05-01). A screen-reader user would think the
-  page is frozen.
-- 12:01Z, opening the Manager list: several seconds of "Opening the owner's
-  program…" with focus on `body` and no announcement (P05-09).
+- First campus load: overlay opens silently, Escape dead, dismiss 23–27 tabs
+  away (P05-01). A screen-reader user would think the page is frozen.
+- Opening "Negotiate & sign" and finding no reachable button — the signing loop
+  is the core of the game (P05-17).
 
 ## Metrics — actions per key task (keyboard)
 
-Measured where reached; the run stopped before most of the later tasks.
-
-| Task | Key presses / actions | Reached? |
+| Task | Key actions | Reached? |
 | --- | --- | --- |
-| Register | 5 Tabs + 5 typed fields + Tab + Enter (≈ 12 actions) | yes |
-| Found a club | 2 × Next + 3 fields + 3 crest clicks + Found (≈ 12 actions, but see P05-05: a reload loses it) | yes |
-| Open the owner program | dismiss modals (27 Tabs each) + Tab×6 + Enter + Tab to "start" + Enter | yes |
-| Sign a manager | Tab×~8 to the first "Sign this manager" + Enter | **partially** (action started; list load race) |
-| Sign a player | — | no (not reached) |
-| Start a build | — | no |
-| Play a match | — | no |
-| Set a plan (team sheet/lineup) | — | no |
-| Find the league table | — | no |
-
-## Blocked (environment)
-
-From 12:31Z onward, every Windows-interop invocation failed with
-`WSL (…): ERROR: UtilAcceptVsock:271: accept4 failed 110`:
-
-```
-$ cmd.exe /c "echo ok"
-<3>WSL (90637 - ) ERROR: UtilAcceptVsock:271: accept4 failed 110
-```
-
-`/mnt/c/Windows/System32/cmd.exe` and `powershell.exe` fail identically, so
-this is the WSL↔Windows vsock bridge, not the command. The repo's
-`node_modules` is win32-native, so Playwright cannot be started from WSL while
-interop is down. I polled every ~30–60 s from 12:31Z to 14:02Z (**≈ 90 min**)
-with no recovery.
-
-**Workaround attempted.** WSL *can* reach the client directly — `curl
-http://localhost:4173` returns 200, and a Linux Chromium installed in
-`/tmp/opencode/pw05` (with locally-extracted `libnspr4`/`libnss3`/
-`libasound2`) loads the client shell. But **every `/api/` request fails** to
-`http://localhost:3010` (`ERR_SOCKET_NOT_CONNECTED` / `ERR_CONNECTION_RESET`).
-From WSL only 4173 (bound `127.0.0.1`) is reachable; 3010, 3011, 3016, 3005,
-3004 and 5050 (all `0.0.0.0`-bound) are refused. So the game cannot be played
-through this path either.
-
-**For the lead / INSTANCE-LOG:** check the Node API on 3010 first. The failure
-is consistent with either (a) the API (and possibly other services) dying in
-the same host event, or (b) WSL relaying only `127.0.0.1`-bound Windows
-services while Windows Firewall blocks the host-IP route for `0.0.0.0`-bound
-ones. I cannot distinguish these from inside WSL. Either way, Pass 1 is paused
-for P05 until the instance is reachable again. Not a game defect.
+| Register | ~12 | yes |
+| Found a club | ~12 (a reload loses it, P05-05) | yes |
+| Open the Owner's Program | dismiss modals (23–27 Tabs each) + Tab×6 + Enter | yes |
+| Sign a manager | Tab×~7 to "Sign", Enter, then **focus workaround** for the dialog | yes (with workaround) |
+| Sign a player | direct "Sign" for free agents; negotiate dialog otherwise | yes |
+| Start a build | Tab×2 to the facility's "Build Tier 1", Enter | yes |
+| Play a match | Tab×20 to PLAY, Enter, Tab×3 to "Play now", Enter | yes (match opened; no XP won) |
+| Set a plan (team sheet) | — | no |
+| Find the league table | League is locked until Level 1 | no (locked) |
 
 ## Evidence
 
-- Screenshots: `playtest/P05/screenshots/*.png` (24 files).
-- Traces: `playtest/P05/traces/*.zip` (20 files).
-- Scripts: `.playtest-runtime/p05/step*.mjs`, `p05lib.mjs`,
-  `png_contrast.py` (throwaway, untracked).
+- Screenshots: `playtest/P05/screenshots/*.png` (this run: `25`–`42`; earlier
+  `01`–`24`).
+- Traces: `playtest/P05/traces/*.zip`.
+- Step scripts: `playtest/P05/steps/*.mjs` (throwaway, keyboard-only) and
+  `.playtest-runtime/p05/` (helpers).
+- Session log: `playtest/P05/DIARY.md`; issues: `playtest/P05/ISSUES.md`.

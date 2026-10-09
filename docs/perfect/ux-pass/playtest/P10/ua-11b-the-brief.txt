@@ -1,0 +1,63 @@
+- button "New headlines"
+- button "11 lineup slot(s) empty"
+- button "+V20k"
+- group "Club advisor"
+- button "2 online"
+- button "Owner's program Hire your first manager"
+- img "Completionist FC"
+- text: 0 0/100 V3M 150 5 0 Day 482 · Tue Dec 28 2027 Year 8 Lonen Raid 17 United beat Ivania Boys A.C 7-1
+- button "Challenges"
+- button "League"
+- button "Settings"
+- text: First steps 0/4
+- button "Sign a manager Interview, then hire"
+- button "Build a squad"
+- button "Build a facility"
+- button "Reach Level 1"
+- button "Squad"
+- button "Team Sheet"
+- button "World"
+- button "World"
+- navigation:
+  - button "Build"
+  - button "Move"
+  - button "Squad"
+  - button "Manager"
+- button "PLAY Ready"
+- complementary:
+  - heading "Owner's office" [level=2]
+  - navigation:
+    - button "Matchday"
+    - button "The brief"
+    - button "Squad"
+    - button "Recruitment"
+    - button "Owner"
+    - button "Analysis"
+  - button "Close"
+  - combobox:
+    - text: 4-3-3
+    - combobox "Open": 4-3-3
+    - text: Formation
+  - combobox:
+    - text: Balanced
+    - combobox "Open": Balanced
+    - text: Playing Style
+  - button "Auto-Pick"
+  - button "Suggest"
+  - button "Save Tactics"
+  - alert: 11 slot(s) are empty. 4-3-3 needs 1 GK, but only 0 starting is natural GK (0 fit in the squad). 4-3-3 needs 4 DEF, but only 0 starting are natural DEF (0 fit in the squad). 4-3-3 needs 3 MID, but only 0 starting are natural MID (0 fit in the squad). 4-3-3 needs 3 ATT, but only 0 starting are natural ATT (0 fit in the squad).
+  - text: GK + Pick LB + Pick CB + Pick CB + Pick RB + Pick CM + Pick CDM + Pick CM + Pick LW + Pick ST + Pick RW + Pick
+  - tablist:
+    - tab "Squad (0/7)" [selected]
+    - tab "Player Details" [disabled]
+  - text: Substitutes (Bench 0/7) In Matchday Squad
+  - list:
+    - listitem: Empty Bench Slot (Click to add player)
+    - listitem: Empty Bench Slot (Click to add player)
+    - listitem: Empty Bench Slot (Click to add player)
+    - listitem: Empty Bench Slot (Click to add player)
+    - listitem: Empty Bench Slot (Click to add player)
+    - listitem: Empty Bench Slot (Click to add player)
+    - listitem: Empty Bench Slot (Click to add player)
+  - text: Reserves (0) Click player to view details or swap
+  - list: All players in starting squad or bench.

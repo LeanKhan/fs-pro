@@ -73,3 +73,104 @@ gateway either, so the harness cannot be run from WSL against this instance. Pla
 completion + timer, gate-fee income, the facility step of the Owner program, reaching Level 1/2, playing
 a match, the league table, and a second session were not observed.
 
+- [2026-10-08T23:42:04.891Z] RESUME: opened campus after outage; instance + login working.
+- [2026-10-08T23:57:47.204Z] 24 probe failed: locator.click: Timeout 30000ms exceeded. Call log: [2m - waiting for getByRole('button', { name: /\+V20k/ }).first()[22m [2m - locator resolved to <button data-v-55d33b69="" data-coach="collect" class="bubble collect full" title="The till is full: collect your takings">…</button>[22m [2m - attempting click action[22m [2m 2 × waiting for element to be visible, enabled and stable[22m [2m - element is not stable[22m [2m - retrying click action[22m [2m - waiting 20ms[22m [2m 2 × waiting for element to be visible, enabled and stable[22m [2m - element is not stable[22m [2m - retrying click action[22m [2m - waiting 100ms[22m [2m 8 × waiting for element to be visible, enabled and stable[22m [2m - element is not stable[22m [2m - retrying click action[22m [2m - waiting 500ms[22m
+- [2026-10-09T00:15:09.687Z] Session 3: collected the bobbing till takings and read the Build panel.
+- [2026-10-09T00:33:01.804Z] Session 3: started the Ticket Booth (Stands) build; captured the terms dialog.
+- [2026-10-09T00:40:27.302Z] Session 3: drove the Stands dialog to "Upgrade to Tier 1" and captured the confirmation.
+- [2026-10-09T00:50:10.173Z] Session 3: opened the PLAY dock to find the match options.
+- [2026-10-09T00:57:05.718Z] Session 3: hit "Play now" against E2E United; captured the match screen.
+- [2026-10-09T01:09:17.872Z] Session 3: collected the till and reopened the Owner program to read XP.
+- [2026-10-09T01:15:22.705Z] Session 3: started a "qualifying friendly" from the Owner program.
+- [2026-10-09T01:20:42.969Z] Session 3: played a "Play now" friendly and re-checked the Owner program for XP.
+
+---
+
+## Session 3 (resumed) — outage over, build + first match (2026-10-08T23:42Z–2026-10-09T01:20Z, ~98 min wall)
+
+**Mood: 4/5.** The instance came back and my login was intact. This session finally showed the *economy in
+motion*: a V300,000 build, gate takings, the Owner-program XP funnel, and a real qualifying friendly against
+another playtester's club. The money loop is real — but the feedback around every money/result event is thin.
+
+**What I did**
+1. Reached the campus (Day 477). HUD unchanged: **V4.6M · 150 · ★5 · ⚡116**, Level **12/100**, First steps **2/4**.
+2. The floating **"+V20k"** turned out to be *"Collect the club shop takings"* — the recurring income loop.
+   It **bobs**, so a normal click times out (P03-14); force-clicked it: **V4.3M → V4.4M** on a later collect.
+3. **Build panel**: 7 Tier-0 plots, *"0/1 builders busy"*; next costs V200k–V350k (Total ≈V1.92M on a V4.6M
+   balance — the "hard choice" is still not a choice). Built **Stands → Ticket Booth** (3,000 capacity,
+   **V300,000**, timer **7:24**) — **one click, no confirmation** (P03-13).
+4. Facility completed → Owner-program **Facilities** step done; **+18 XP → Program XP 30/54**; First steps **3/4**.
+5. **PLAY**: the "Find a Match" screen offered me **E2E United xqchx9** (test club, Power 147) then **Keyboard FC**
+   (P05, Power 115). The screen shows "Your power 116 / Team sheet 4-3-3 / Starters 11/11" but **no XP table**
+   and no hint which button is *qualifying* (P03-16, P03-17).
+6. **Play now** vs Keyboard FC: **won → +30 XP** (30→60), **fans 150→164**, **star 5→6**, then a **"Resting 1:15"**
+   cooldown. No match screen, no scoreline, no reward summary — the result is only a HUD delta + a "W" marker (P03-15).
+7. Re-opened the **Owner's program**: `Program XP 30/54`, `Budget V4.4M`, `Level 1 progress 30/100`,
+   *Win +30 / Draw +10 / Loss +5*, *"No qualifying friendlies played yet"* before the match registered,
+   *"Every qualifying friendly pays gate money too"*, and the **Board's advance** recovery path.
+
+**Hesitations**
+- The HUD balance (**V4.3M/V4.4M**, 0.1M precision) never shows the V4k–V20k takings I just collected (P03-18).
+- After "Play now" I genuinely could not tell whether the match had happened, let alone the score (P03-15).
+- The Owner program promises "gate money" from friendlies, but the balance looked unchanged after the win.
+
+**XP/money ledger observed** — Manager step **+9**, Squad step **+3**, Facilities step **+18** (= **30/54**);
+qualifying-friendly win **+30**. Balance: 4.8M → (manager V90k + 11×V7.5k) 4.63M → −V300k build → **V4.3M** →
++V takings → **V4.4M**.
+
+**Would I have quit?** No — this session was actually fun once the match loop opened. The would-quit moment is
+still the missing match result: a sports manager game that does not show you your own scoreline is disorienting.
+
+---
+
+## Session 4 (planned) — grind qualifying friendlies to Level 1/2
+
+Plan: repeat PLAY → Play now, logging the exact XP delta and cooldown each time, and watch for the Level-1
+transition (league join) and the fatigue/"keep the squad fresh" mechanic.
+- [2026-10-09T01:47:10.628Z] 33 failed: locator.click: Timeout 15000ms exceeded. Call log: [2m - waiting for getByRole('button', { name: /^PLAY/ }).first()[22m [2m - locator resolved to <button class="playbtn">…</button>[22m [2m - attempting click action[22m [2m 2 × waiting for element to be visible, enabled and stable[22m [2m - element is not enabled[22m [2m - retrying click action[22m [2m - waiting 20ms[22m [2m 2 × waiting for element to be visible, enabled and stable[22m [2m - element is not enabled[22m [2m - retrying click action[22m [2m - waiting 100ms[22m [2m 3 × waiting for element to be visible, enabled and stable[22m [2m - element is not enabled[22m [2m - retrying click action[22m [2m - waiting 500ms[22m [2m - waiting for element to be visible, enabled and stable[22m
+- [2026-10-09T02:04:17.786Z] Session 4: single-match diagnostic with 2-min polling.
+- [2026-10-09T02:25:03.211Z] Session 4: opened a match, captured the Matchzone and jumped to the Result screen.
+- [2026-10-09T02:52:17.193Z] 36 failed: locator.click: Timeout 15000ms exceeded. Call log: [2m - waiting for getByRole('button', { name: /^PLAY/ }).first()[22m [2m - locator resolved to <button class="playbtn">…</button>[22m [2m - attempting click action[22m [2m 2 × waiting for element to be visible, enabled and stable[22m [2m - element is visible, enabled and stable[22m [2m - scrolling into view if needed[22m [2m - done scrolling[22m [2m - <div class="mz-stage"></div> from <div data-v-8eb23cb4="" class="mz mz--overlay">…</div> subtree intercepts pointer events[22m [2m - retrying click action[22m [2m - waiting 20ms[22m [2m 2 × waiting for element to be visible, enabled and stable[22m [2m - element is visible, enabled and stable[22m [2m - scrolling into view if needed[22m [2m - done scrolling[22m [2m - <div class="mz-stage"></div> from <div data-v-8eb23cb4="" class="mz mz--overlay">…</div> subtree intercepts pointer events[22m [2m - retrying click action[22m [2m - waiting 100ms[22m [2m 28 × waiting for element to be visible, enabled and stable[22m [2m - element is visible, enabled and stable[22m [2m - scrolling into view if needed[22m [2m - done scrolling[22m [2m - <div class="mz-stage"></div> from <div data-v-8eb23cb4="" class="mz mz--overlay">…</div> subtree intercepts pointer events[22m [2m - retrying click action[22m [2m - waiting 500ms[22m
+
+---
+
+## Session 4 — the match loop, and Level 1 at last (2026-10-09T01:31Z–~03:05Z, ~94 min wall, interrupted)
+
+**Mood: 4/5 → 2/5.** The core sports loop finally opened up: real friendlies against other playtester clubs,
+a live Matchzone, gate money and a league place. But the run was cut off by a **second WSL↔Windows interop
+outage** at ~03:05Z, the same failure as the first one.
+
+**What I did / learned**
+1. **Where XP comes from** (economist's ledger):
+   - Owner program steps: Manager **+9**, Squad **+3**, Facilities **+18** → Program XP **30/54**.
+   - Qualifying friendly: **Win +30 / Draw +10 / Loss +5** (matches the Owner program table).
+2. **The match loop is real and (mostly) good.** PLAY → *Find a Match* (Your power / Team sheet / Starters;
+   opponent card with power and a **Even/Challenger/Favoured** tag) → **Play now** opens the **Matchzone**:
+   a live 3D match (scoreboard `LED 0-0 KBD`, minute, 1st half, pause / 2× / skip / **Result**), which is a
+   genuine delight.
+3. **Results are credited asynchronously** (~30 s after Play now), then the PLAY dock shows **"Resting 1:15"**
+   (75 s = 300 s design, ×4). The result itself is only inferable from HUD deltas — there is **no post-match
+   summary** (P03-15).
+4. **"Error fetching match replay"** hit the very first match of the session: a blue full-screen overlay with
+   *Try again* / *Back* that **blocks the campus** until dismissed (P03-19, S2).
+5. **Reached Level 1.** XP went 60 → 90 → 100 → **Level 1**, and the requirement changed to **0/300**
+   (per-level thresholds: 100 then 300). On level-up the **league pool changed 8th/8 → 1st/6**, with no
+   explanation (P03-22).
+6. **Gate money is real.** Balance rose **V4.3M → V4.4M → V4.5M** across friendlies ("every qualifying
+   friendly pays gate money too"); the collect-takings bubble kept offering **+V14k…+V40k**.
+7. **Fatigue/injuries accumulate.** After several friendlies the pre-match panel warned **"1 starter(s)
+   injured"**, later **2 lineup slots empty**, and my **power fell 116 → 112** — with no persistent injury
+   surface or recovery cost (P03-21).
+8. **A Goal appeared**: *"Win 3 matches within 6 hours — V40,000 + 60 XP"* (2/3 wins, `3:09:13 left`,
+   `Board 0%`). A big money/XP lever, but the timer unit (game vs real hours) and the 0 % board are opaque
+   (P03-20).
+
+**Where I stopped:** ~03:05Z, when `cmd.exe /c …` again returned
+`WSL … UtilAcceptVsock:271: accept4 failed 110`. Retried 6× over ~3 min, still down; a background watcher
+keeps retrying. This is the **environment**, not the game.
+
+**Last known state:** **Level 1**, **XP 10/300**, balance **V4.5M**, fans **226**, star **10**, power **112**
+(2 injured starters), rank **1st/6**.
+
+**Would I have quit?** No. The loop is genuinely good. But two things would make a min-maxer stop: the
+replay error on a core action (P03-19) and never being able to see my own score (P03-15).

@@ -1,0 +1,40 @@
+- button "New headlines"
+- button "+V21k"
+- group "Club advisor":
+  - text: Vintra club secretary
+  - button "Dismiss this tip"
+  - status: Wins are the only thing that move the Level bar now.
+  - button "Quiet advisor tips"
+  - button "Next"
+- button "2 online"
+- button "Owner's program Reach Level 1 to join a league"
+- img "Philamentia Central United"
+- text: 1 0/300 V564,317 179 7 128
+- button "2 9th/9"
+- text: Day 491 · Thu Jan 06 2028 Year 8 Board 0% W W D Guttersberg United FC beat Al Moomood F.C 11-0
+- button "Challenges"
+- button "League"
+- button "Settings"
+- text: First steps 3/4
+- button "Sign a manager" [disabled]
+- button "Build a squad" [disabled]
+- button "Build a facility" [disabled]
+- button "Reach Level 1 Win qualifying friendlies"
+- button "Squad"
+- button "Team Sheet"
+- button "World"
+- button "World"
+- navigation:
+  - button "Build"
+  - button "Move"
+  - button "Squad"
+  - button "Manager"
+- button "PLAY Resting 0:51"
+- button "Close"
+- heading "Victory!" [level=2]
+- paragraph: A clean-sheet win. Three stars!
+- text: 1 - 0
+- paragraph: Philamentia Central United vs P07 Athletic
+- text: Level 1! Your club grew. New upgrades and competitions may be open. +V3,254 prize +V6,508 gate (364 fans) +30 XP +14 fans +1 reputation +3 board
+- button "Back to the grounds"
+- button "Squad resting 0:51" [disabled]

@@ -1,0 +1,40 @@
+- button "New headlines"
+- button "+V20k"
+- button "1 online"
+- button "Owner's program Reach Level 1 to join a league"
+- img "Philamentia Central United"
+- text: 0 40/100 V544,562 151 5 128 Day 487 · Sun Jan 02 2028 Year 8 D Royal Philamentia F.C beat Southport Rangers A.C 7-0
+- button "Challenges"
+- button "League"
+- button "Settings"
+- text: First steps 3/4
+- button "Sign a manager" [disabled]
+- button "Build a squad" [disabled]
+- button "Build a facility" [disabled]
+- button "Reach Level 1 Win qualifying friendlies"
+- button "Squad"
+- button "Team Sheet"
+- button "World"
+- button "World"
+- navigation:
+  - button "Build"
+  - button "Move"
+  - button "Squad"
+  - button "Manager"
+- button "PLAY Resting 0:36"
+- button "Leave the Matchzone"
+- text: PCU 0 - 0 SKIP 5' · 1st half xG 0.26 · 0.02
+- group "Camera":
+  - button "TV" [pressed]
+  - button "Tactics"
+  - button "Follow"
+  - button "Stats"
+- text: S. Faleen
+- button "Previous key moment"
+- button "Pause"
+- button "Next key moment"
+- button "Speed 2x": 2×
+- slider "Match timeline":
+  - img
+  - text: 4'
+- button "Result"

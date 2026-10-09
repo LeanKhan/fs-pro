@@ -1,0 +1,40 @@
+- button "New headlines"
+- button "+V20k"
+- group "Club advisor":
+  - text: Vintra club secretary
+  - button "Dismiss this tip"
+  - status: One hundred XP stands between you and a real league. Wins pay 30. You need them.
+  - button "Quiet advisor tips"
+  - button "Got it"
+- button "2 online"
+- button "Owner's program Reach Level 1 to join a league"
+- img "Philamentia Central United"
+- text: 0 12/100 V537,500 150 5 128 Day 485 · Fri Dec 31 2027 Year 8 Khashiru 94 A.C beat Al Moomood F.C 3-0
+- button "Challenges"
+- button "League"
+- button "Settings"
+- text: First steps 3/4
+- button "Sign a manager" [disabled]
+- button "Build a squad" [disabled]
+- button "Build a facility" [disabled]
+- button "Reach Level 1 Win qualifying friendlies"
+- button "Squad"
+- button "Team Sheet"
+- button "World"
+- button "World"
+- navigation:
+  - button "Build"
+  - button "Move"
+  - button "Squad"
+  - button "Manager"
+- button "PLAY Ready"
+- button "Close"
+- heading "Find a Match" [level=2]
+- paragraph: Play now for quick cash and XP, or book one to prepare for and win bigger.
+- text: Your power 128 Team sheet 4-3-3 Starters 11/11 Favoured Skip Olson
+- img "Skip FC"
+- text: Skip FC Power 121
+- link "Visit grounds":
+  - /url: /game/38ef7455-4aea-4b4d-84de-b7fa6cfdc746
+- button "Play now"
+- button "Book"

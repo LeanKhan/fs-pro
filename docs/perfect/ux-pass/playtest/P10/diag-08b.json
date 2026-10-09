@@ -1,0 +1,63 @@
+{
+  "bodyInfo": {
+    "innerW": 1920,
+    "innerH": 1080,
+    "docScrollH": 1080,
+    "docClientH": 1080,
+    "bodyScrollH": 0,
+    "bodyScrollW": 1920
+  },
+  "details": [
+    {
+      "name": "New headlines",
+      "rect": {
+        "x": 1087.6492919921875,
+        "y": 1503.7196044921875,
+        "w": 44,
+        "h": 42
+      },
+      "chain": [
+        "BUTTON.bubble alert pos=absolute tr=matrix(1, 0, 0, 1, 1087.65, 1507.41) vis=visible disp=flex op=1",
+        "DIV.bubbles pos=absolute tr=none vis=visible disp=block op=1",
+        "DIV.cozy pos=fixed tr=none vis=visible disp=block op=1",
+        "DIV. pos=static tr=none vis=visible disp=block op=1",
+        "BODY. pos=static tr=none vis=visible disp=block op=1",
+        "HTML. pos=static tr=none vis=visible disp=block op=1"
+      ]
+    },
+    {
+      "name": "11 lineup slot(s) empty",
+      "rect": {
+        "x": 1261.864501953125,
+        "y": 348.8116149902344,
+        "w": 44,
+        "h": 42
+      },
+      "chain": [
+        "BUTTON.bubble alert pos=absolute tr=matrix(1, 0, 0, 1, 1261.86, 349.155) vis=visible disp=flex op=1",
+        "DIV.bubbles pos=absolute tr=none vis=visible disp=block op=1",
+        "DIV.cozy pos=fixed tr=none vis=visible disp=block op=1",
+        "DIV. pos=static tr=none vis=visible disp=block op=1",
+        "BODY. pos=static tr=none vis=visible disp=block op=1",
+        "HTML. pos=static tr=none vis=visible disp=block op=1"
+      ]
+    },
+    {
+      "name": "The till is full: collect your takings",
+      "rect": {
+        "x": 1331.7242431640625,
+        "y": 686.810546875,
+        "w": 104.09375,
+        "h": 48
+      },
+      "chain": [
+        "BUTTON.bubble collect full pos=absolute tr=matrix(1, 0, 0, 1, 1331.72, 687.154) vis=visible disp=flex op=1",
+        "DIV.bubbles pos=absolute tr=none vis=visible disp=block op=1",
+        "DIV.cozy pos=fixed tr=none vis=visible disp=block op=1",
+        "DIV. pos=static tr=none vis=visible disp=block op=1",
+        "BODY. pos=static tr=none vis=visible disp=block op=1",
+        "HTML. pos=static tr=none vis=visible disp=block op=1"
+      ]
+    }
+  ]
+}

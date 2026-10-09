@@ -1,0 +1,106 @@
+- img "World map": Ashter Bellean Ekhastan Hunteerland Kev Kiyoto Legardio Pregge Proland Simeone UPP
+- button "Zoom in": +
+- button "Zoom out": −
+- button "Whole world"
+- banner:
+  - text: Found your club Name it and design the crest
+  - list "Steps":
+    - listitem:
+      - button "1. Home"
+    - listitem:
+      - button "2. Club"
+    - listitem:
+      - button "3. Kick-off" [disabled]
+- complementary:
+  - heading "Your club" [level=2]
+  - text: Club name
+  - textbox "Club name":
+    - /placeholder: Philamentia Central United
+  - text: Code
+  - textbox "Code"
+  - text: Ground (stadium name)
+  - textbox "Ground (stadium name)":
+    - /placeholder: Philamentia Central Park
+  - img "Your crest"
+  - button "Shuffle"
+  - heading "Shape" [level=4]
+  - button "shield"
+  - button "heater"
+  - button "round"
+  - button "badge"
+  - button "pennant" [pressed]
+  - heading "Pattern" [level=4]
+  - button "plain"
+  - button "stripes" [pressed]
+  - button "hoops"
+  - button "halves"
+  - button "sash"
+  - button "chevron"
+  - button "quarters"
+  - button "cross"
+  - heading "Emblem" [level=4]
+  - button "ball"
+  - button "star"
+  - button "crown"
+  - button "bolt"
+  - button "wave" [pressed]
+  - button "tree"
+  - button "tower"
+  - button "anchor"
+  - button "none"
+  - heading "Kit colour" [level=4]
+  - 'button "Kit colour #d8342c"'
+  - 'button "Kit colour #8e1b2b"'
+  - 'button "Kit colour #f08a1c"'
+  - 'button "Kit colour #f5b82e"'
+  - 'button "Kit colour #2f8a1c"'
+  - 'button "Kit colour #5cc23a"'
+  - 'button "Kit colour #13795b"'
+  - 'button "Kit colour #2fb3a6"'
+  - 'button "Kit colour #3a8ee0" [pressed]'
+  - 'button "Kit colour #1f4fa3"'
+  - 'button "Kit colour #14204a"'
+  - 'button "Kit colour #6a3fb5"'
+  - 'button "Kit colour #c2389b"'
+  - 'button "Kit colour #f2f2ee"'
+  - 'button "Kit colour #2b2b30"'
+  - 'button "Kit colour #8a5a3b"'
+  - textbox: "#3a8ee0"
+  - heading "Second colour" [level=4]
+  - 'button "Second colour #d8342c"'
+  - 'button "Second colour #8e1b2b"'
+  - 'button "Second colour #f08a1c"'
+  - 'button "Second colour #f5b82e"'
+  - 'button "Second colour #2f8a1c"'
+  - 'button "Second colour #5cc23a" [pressed]'
+  - 'button "Second colour #13795b"'
+  - 'button "Second colour #2fb3a6"'
+  - 'button "Second colour #3a8ee0"'
+  - 'button "Second colour #1f4fa3"'
+  - 'button "Second colour #14204a"'
+  - 'button "Second colour #6a3fb5"'
+  - 'button "Second colour #c2389b"'
+  - 'button "Second colour #f2f2ee"'
+  - 'button "Second colour #2b2b30"'
+  - 'button "Second colour #8a5a3b"'
+  - textbox: "#5cc23a"
+  - heading "Badge colour" [level=4]
+  - 'button "Badge colour #d8342c"'
+  - 'button "Badge colour #8e1b2b"'
+  - 'button "Badge colour #f08a1c"'
+  - 'button "Badge colour #f5b82e"'
+  - 'button "Badge colour #2f8a1c"'
+  - 'button "Badge colour #5cc23a"'
+  - 'button "Badge colour #13795b"'
+  - 'button "Badge colour #2fb3a6"'
+  - 'button "Badge colour #3a8ee0"'
+  - 'button "Badge colour #1f4fa3"'
+  - 'button "Badge colour #14204a"'
+  - 'button "Badge colour #6a3fb5"'
+  - 'button "Badge colour #c2389b"'
+  - 'button "Badge colour #f2f2ee"'
+  - 'button "Badge colour #2b2b30"'
+  - 'button "Badge colour #8a5a3b"'
+  - textbox: "#fffaf0"
+  - button "Back"
+  - 'button "Next: kick-off" [disabled]'

@@ -127,3 +127,89 @@ WSL without Windows interop:
 
 **Stop: D5 environment block.** The instance's UI is unreachable from the only
 tooling I have; I logged everything reachable and stopped. No Level 1/2.
+*Instance restored 2026-10-08T23:08Z (LEAD); login preserved in `state.json`.*
+
+---
+
+## Session 4 — 2026-10-08T23:39Z → (resumed; campus + Owner's Program, mood 3)
+
+- 23:39 Resumed. `state.json` login still valid; landed straight on
+  `/game/15428d05-…` (Keyboard FC). The world had kept running through the
+  outage: it is now **Day 478 · Fri Dec 24 2027, Year 8** (was Day ~470 at the
+  start). Level bar reads `0/100` (Level 0, 0 XP). A "While you were away"
+  overlay is up. Screenshot `25-resume-campus.png`.
+- 23:47 (re-run at 00:16) Probed the overlay again, keyboard-only. Still **0**
+  `role="dialog"`/`alertdialog`, **0** `aria-modal`, `activeElement` is `body`.
+  The dismiss controls are at the very end of a ~24-stop tab order: **`Close`
+  is tab #23, `Let's go!` is tab #24**. **Escape does nothing** (the overlay
+  stays). So P05-01/P05-02 are unchanged in the resumed build. Note the overlay
+  now exposes a `Close` (✕) control in the a11y tree as well as `Let's go!`.
+  Screenshot `26-away-modal-probe.png`.
+- 00:38 Dismissed the overlay (Tab×24 + Enter) and opened the **Owner's
+  Program** (chip is tab stop #6, named "Owner's program Hire your first
+  manager"). Started the program; the manager list loaded. Signed the first
+  manager, **Faititrai Yaiyou** (interviewed earlier, fee −10%): Program XP
+  **9/54**. Screenshots `27-program-manager-open.png`, `28-after-sign-manager.png`.
+- 00:50 The sign opens a **"Negotiate & sign"** overlay. Unlike the campus
+  overlay it *is* a real `role="dialog"` + `aria-modal="true"` — but **focus is
+  not moved into it** (`activeElement` is still the "Sign" button behind the
+  scrim) and the dialog markup sits **last in the DOM**, after the 200-card
+  list, so its `Not yet` / `Sign for V36,000` buttons are hundreds of tab stops
+  away. My `tabTo` scan reached neither within 40 Tabs. **A keyboard-only user
+  cannot complete a signing** without leaving the keyboard. Logged P05-17.
+  Screenshots `29-negotiate-dialog.png`, `30-manager-signed.png`.
+- 00:58 WORKAROUND (documented, not a cheat on a game rule): I placed focus on
+  the dialog's "Sign for V36,000" button and pressed **Enter**, so the
+  activation itself stayed keyboard. Focus then fell to `body` on close (P05-18).
+- 01:07 Squad step. Free-agent **Sign** signs directly (no dialog) for the
+  zero-fee seed players; I signed players until the step advanced. Program XP
+  **12/54**. Screenshot `32-squad-gk-signed.png`, `33-squad-built.png`.
+  (My shared name-helper reads a `title` before the visible text, which briefly
+  made me think a facility button was mislabelled — it was not; the accessible
+  name is the visible "Build Tier 1". Not logged as a defect.)
+- 01:14–01:41 Facilities step. Traced the full tab order (only 9 stops here:
+  "Back to the grounds", seven **"Build Tier 1"** buttons, "Ask the board") —
+  good. But the seven buttons share one accessible name with no facility
+  identity (P05-19). Built the **Tier 1 Training Ground**; it now reads
+  "Building Tier 1 — done shortly" and the other Build buttons are disabled
+  ("All builders are busy"). Screenshots `35-facilities-tabtrace.png`,
+  `36b-program-state.png`, `37-facility-built.png`.
+
+Wall time note: this resumed block is long (the outage left a stale 3D page and
+my first probe run hung 3 min on the loaded host), so I took a real break while
+the 5-min (scale-4) facility build ran and wrote these notes.
+
+---
+
+## Session 5 — 2026-10-09T01:58Z → 03:10Z — matches + XP (mood 3)
+
+- 01:58 The facility finished while I was away: campus Level XP moved
+  **12 → 30/100** ("First steps 3/4"; all three completed steps are *disabled
+  buttons* in the a11y tree — P05-20). Screenshot `40-campus-controls.png`.
+- 02:05 Opened **PLAY** (tab stop #20, named "PLAY Ready"). A **"Find a
+  Match"** overlay opened: **no `role="dialog"`, no `aria-modal`**, focus stayed
+  on the `PLAY` button behind it — the same defect class as P05-01 (logged
+  P05-21). It shows your power/team-sheet/starters, the opponent, and
+  `Play now` / `Book`. Screenshots `38-play-open.png`.
+- 02:10 Pressed **Play now**. The matchmaker matched me against another
+  playtester's club — **P10 "Completionist FC"** ("Favoured") — so D6 PvP
+  interaction works. My own panel showed a warning: "3 lineup slot(s) empty ·
+  1 starter(s) injured. The engine fills gaps automatically." (Starters 8/11.)
+  Screenshot `41-find-match-panel.png`.
+- 02:15–03:05 Grind attempts: pressed Play now 4–5 times with 55 s and 150 s
+  waits. **XP did not move from 35/100.** One friendly appears to have credited
+  +5 (a loss) earlier; repeated presses inside the 75 s cooldown and the club's
+  losing form ("L D L D L") make friendly wins — the only Level-0 XP path —
+  unreliable for a keyboard player with a depleted, injured squad.
+- 03:05 The host was visibly saturated (10 personas on one machine): a reload
+  sat on **"Loading the grounds…"** for >8 s and the a11y tree was empty, so my
+  loop bailed. Not logged as a game defect (host load), noted as an observation.
+- 03:10 **WSL↔Windows interop dropped again** — every `cmd.exe` call returns
+  `UtilAcceptVsock:271: accept4 failed 110` (same failure as the first outage).
+  Playwright is win32-native, so I cannot drive the browser. I polled 3× over
+  ~30 s; still failing. Per D8 this is the lead's to restart; I log and stop
+  the run here. State at stop: **Level 0, 35/100 XP**, Program XP 12/54,
+  First steps 3/4, world Day 493 Sat Jan 08 2028.
+
+*(Raw harness log lines for these steps, 02:07–03:06Z, are reproduced by the
+narrative above.)*

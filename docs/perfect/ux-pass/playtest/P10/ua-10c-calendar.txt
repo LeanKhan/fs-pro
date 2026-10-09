@@ -1,0 +1,44 @@
+- navigation:
+  - link "Completionist FC Playtest P10 Completionist FC":
+    - /url: /game/b7867e3f-f0de-4603-99d1-bfc44a1e5280
+    - img "Completionist FC"
+    - text: Playtest P10 Completionist FC
+  - separator
+  - list:
+    - listitem: My ground
+    - listitem: Office
+    - listitem: Competitions
+    - listitem: World Map
+    - listitem: Year Calendar
+    - listitem: Year History
+    - listitem: Completionist FC
+    - listitem: Settings
+- banner:
+  - button
+  - img
+  - text: Level 0 Year 8 · day 14/28 V3M wages V0/yr
+  - button "Fri, Dec 24, 2027"
+  - 'button "No fixtures: PLAY at your ground any time"'
+  - text: Playtest P10 Completionist FC
+  - img "Completionist FC"
+  - status "Badge"
+  - button "Account"
+- main:
+  - text: Year Calendar Year 8 · day 14 of 28 Day 478 • Fri, Dec 24, 2027 Accepted challenges and knockout ties, tie deadlines, registration closing days and transfer windows.
+  - button "Today"
+  - button "All Matches"
+  - button "My Club"
+  - combobox:
+    - text: All Competitions
+    - combobox "Open": all
+  - button "Month Grid View"
+  - button "Schedule List View"
+  - button "Sim to Date"
+  - separator
+  - text: "Total Matches: 3600 Played: 3429 Remaining: 171 Completionist FC Record: 0W•0D•0L(0 pts) Active Competition: All competitions"
+  - button
+  - text: December 2027
+  - button
+  - text: Sep Oct Nov Dec Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
+  - status "Badge"
+  - text: Jan Mon Tue Wed Thu Fri Sat Sun 1 D455 2 D456 BPG0 - 0KFZ GFZ0 - 0CTR +17 more 3 D457 GFZ0 - 0KFZ JAC2 - 0DOU +17 more 4 D458 GFZ0 - 0SFZ NET0 - 1DOU +19 more 5 D459 RP1 - 2IB FUN3 - 0SFZ +6 more 6 D460 KFZ1 - 0SFZ CTR3 - 2JAC +22 more 7 D461 KFZ2 - 1BAT BPG0 - 0FZP +20 more 8 D462 DR1 - 2IB GBL1 - 5SPR +2 more 9 D463 10 D464 11 D465 EXQC3 - 2SAY PAC4 - 2SDS +17 more Transfer window opens 12 D466 IB3 - 4SPR FUN0 - 0 (4 - 5 pens)SPO 13 D467 RT2 - 6RP BPG2 - 1FUN +17 more 14 D468 AM2 - 4BFC K941 - 1LRU17 +18 more 15 D469 SPR3 - 0SPO 16 D470 BPG0 - 2GFZ PAC0 - 0GBL +19 more 17 D471 FUN0 - 2KFZ FZP0 - 0NET +17 more Transfer window closes 18 D472 NSM3 - 2AM IB1 - 1K94 +17 more 19 D473 20 D474 SPO0 - 1PGS LU2 - 2LRU17 +18 more 21 D475 DR4 - 0AM LKM1 - 1GBL +20 more 22 D476 23 D477 EUX0 - 3RB SDS2 - 0SFZ +21 more 24 D478 TODAY SDS4 - 0PAC LKM4 - 0SFZ +17 more 25 D479 AMvsZD LRU17vsBFC +17 more Transfer window opens 26 D480 PGSvsVAS TRIvsPAC +6 more 27 D481 BFCvsAM LUvsZD +18 more 28 D482 AMvsLU BFCvsK94 +19 more Transfer window closes 29 D483 30 D484 K94vsAM NSMvsLU +17 more 31 D485 AMvsNSM K94vsIB +17 more

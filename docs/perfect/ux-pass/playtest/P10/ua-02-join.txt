@@ -1,0 +1,24 @@
+- main:
+  - img "FS Pro"
+  - paragraph: Found a club. Make your town proud. Take on the world.
+  - navigation "Sign in or join":
+    - link "Sign in":
+      - /url: /auth/login
+    - link "New manager":
+      - /url: /auth/join
+  - paragraph: Make an account, then found your club anywhere in the world.
+  - text: Your name
+  - textbox "Your name"
+  - text: Email to confirm your account and reset your password
+  - textbox "Email to confirm your account and reset your password"
+  - text: Username 3-24 letters, numbers, . _ -
+  - textbox "Username 3-24 letters, numbers, . _ -"
+  - text: Password at least 8 characters
+  - textbox "Password at least 8 characters"
+  - text: Password again
+  - textbox "Password again"
+  - button "Create account" [disabled]
+- contentinfo:
+  - link "Credits":
+    - /url: /credits
+  - text: 2026 · ESL & TSL

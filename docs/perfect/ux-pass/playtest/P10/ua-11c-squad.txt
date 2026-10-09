@@ -1,0 +1,54 @@
+- button "New headlines"
+- button "11 lineup slot(s) empty"
+- button "+V20k"
+- group "Club advisor"
+- button "2 online"
+- button "Owner's program Hire your first manager"
+- img "Completionist FC"
+- text: 0 0/100 V3M 150 5 0 Day 484 · Thu Dec 30 2027 Year 8 Qa muxikmv9 beat E2E United xqf5y5 2-1
+- button "Challenges"
+- button "League"
+- button "Settings"
+- text: First steps 0/4
+- button "Sign a manager Interview, then hire"
+- button "Build a squad"
+- button "Build a facility"
+- button "Reach Level 1"
+- button "Squad"
+- button "Team Sheet"
+- button "World"
+- button "World"
+- navigation:
+  - button "Build"
+  - button "Move"
+  - button "Squad"
+  - button "Manager"
+- button "PLAY Ready"
+- complementary:
+  - heading "Owner's office" [level=2]
+  - navigation:
+    - button "Matchday"
+    - button "The brief"
+    - button "Squad"
+    - button "Recruitment"
+    - button "Owner"
+    - button "Analysis"
+  - button "Close"
+  - text: Squad Management & Performance
+  - button "Medical Bay"
+  - button "Promote Youth Player"
+  - text: 0 Players
+  - table:
+    - rowgroup:
+      - row "Player (POS) Age Condition Status Prev. Curr. Training Focus Market / Sale":
+        - columnheader "Player (POS)"
+        - columnheader "Age"
+        - columnheader "Condition"
+        - columnheader "Status"
+        - columnheader "Prev."
+        - columnheader "Curr."
+        - columnheader "Training Focus"
+        - columnheader "Market / Sale"
+    - rowgroup:
+      - row "No players available":
+        - cell "No players available"

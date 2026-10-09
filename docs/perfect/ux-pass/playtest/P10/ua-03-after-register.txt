@@ -1,0 +1,19 @@
+- img "World map": Ashter Bellean Ekhastan Hunteerland Kev Kiyoto Legardio Pregge Proland Simeone UPP
+- button "Zoom in": +
+- button "Zoom out": −
+- button "Whole world"
+- banner:
+  - text: Found your club See where you start, and name any new places
+  - list "Steps":
+    - listitem:
+      - button "1. Home"
+    - listitem:
+      - button "2. Club"
+    - listitem:
+      - button "3. Kick-off" [disabled]
+- complementary:
+  - heading "Your home" [level=2]
+  - paragraph: The world fills up town by town, so you'll have neighbours from day one.
+  - text: Philamentia Central Bellean Central, Bellean · Coastal · 3/6 clubs
+  - paragraph: You'll join Bellean's league pyramid straight away, against the clubs around you.
+  - 'button "Next: your club"'

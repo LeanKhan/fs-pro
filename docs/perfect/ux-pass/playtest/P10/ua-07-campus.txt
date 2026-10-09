@@ -1,0 +1,36 @@
+- button "New headlines"
+- button "11 lineup slot(s) empty"
+- button "+V20k"
+- group "Club advisor":
+  - text: Vintra club secretary
+  - button "Dismiss this tip"
+  - status: V3.0M. You can have two of the three done well. The third decides your season.
+  - button "Quiet advisor tips"
+  - button "Next"
+- button "1 online"
+- button "Owner's program Hire your first manager"
+- img "Completionist FC"
+- text: 0 0/100 V3M 150 5 0 Day 476 · Wed Dec 22 2027 Year 8 Completionist FC join Philamentia Central
+- button "Challenges"
+- button "League"
+- button "Settings"
+- text: First steps 0/4
+- button "Sign a manager Interview, then hire"
+- button "Build a squad"
+- button "Build a facility"
+- button "Reach Level 1"
+- button "Squad"
+- button "Team Sheet"
+- button "World"
+- button "World"
+- navigation:
+  - button "Build"
+  - button "Move"
+  - button "Squad"
+  - button "Manager"
+- button "PLAY Ready"
+- button "Close"
+- heading "Welcome to Completionist FC" [level=2]
+- list:
+  - listitem: 🏛️ Welcome to Philamentia Central Completionist FC is official, and the board drew you V3M to build with. No manager, no squad, no league yet - that is your job now. Hire a manager, sign a legal XI, put up a building, then reach Level 1 and the game will find you a league.
+- button "Let's go!"

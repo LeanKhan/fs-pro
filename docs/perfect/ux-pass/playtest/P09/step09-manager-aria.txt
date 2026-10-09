@@ -1,0 +1,13 @@
+- banner:
+  - text: Owner's Program Philamentia Central United · PCU Program XP 0/54 Budget V1M
+  - button "Back to the grounds"
+- navigation "Owner program steps": 1 Manager The voice on the training pitch 2 Squad Eleven and a keeper 3 Facilities Build one Tier 1 4 Level 1 Earn the league place
+- note:
+  - text: “ Vintra · club secretary
+  - paragraph: Right then. Every club needs one voice on the training pitch. Spend on a manager first — the rest waits on him.
+- paragraph: Philamentia Central United · the board's opening balance
+- text: V1M
+- paragraph: Enough for a manager, a hard-working squad and one good building — not all three done well. Choose.
+- text: A manager from V40,000 Eleven players from V220,000 One Tier-1 building from V200,000
+- paragraph: Funds can't do all three well. That choice is the game.
+- button "Right then — start the program"

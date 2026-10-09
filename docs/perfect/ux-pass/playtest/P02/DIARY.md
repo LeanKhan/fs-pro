@@ -137,8 +137,103 @@ closed. 12 issues logged (1 S1 instance, 2 S2, 7 S3, 2 S4).
 **Mood: 1/5** at the stop — I came to play to Level 2 and never got a healthy
 instance for more than a few minutes.
 
+---
 
+# RESUME — 2026-10-08 ~23:45Z onward (after the outage was fixed)
 
+The login in `state.json` still worked, so I landed straight in
+`/game/766a6c8b-2547-4ba3-939f-6f6cb47613a1` — no password, no re-onboarding.
+My club had aged in the downtime: **Day 478, Year 8** on arrival (last session:
+day ~470), Level 0, 0/100 XP, V4M, transfer window **closed**. The campus and
+its "While you were away" modal came back exactly as before (Escape still does
+nothing — P02-09).
+
+## Session 4 — 2026-10-08 ~23:45–01:15Z (resume: Owner's Program, manager hire)
+
+I picked up the Owner's Program at step 1, "Hire your first manager". Opening
+the Owner's office (dock → Manager) and reading the tabs gave me the first real
+map of the game:
+
+- **Owner tab** is a proper finance board — Club Treasury, Annual Wage Bill,
+  Matchday Revenue, Net Operating Margin, a Matchday Financial Ledger table,
+  Board Confidence **60%**, Fan Approval **55%**, and "Board Expectations"
+  (a real FM-flavoured dashboard; I liked it).
+- **The brief** tab turned out to be the **Team Sheet / tactics board** (4-3-3,
+  Playing Style Balanced, Auto-Pick / Suggest / Save Tactics) — the same screen
+  as the dock's "Team Sheet" button, while the separate **Squad** tab is squad
+  management (Medical Bay, Promote Youth Player, a player table). The label
+  "The brief" doesn't match its content (P02-16).
+- **Analysis** is an empty board-review panel at Level 0 ("No performance data
+  yet") — fine, just empty.
+
+Then the headline of the whole run: **hiring a manager is impossible.** Owner →
+"Hire Head Coach" opens a "Hire a new Manager" dialog whose candidate list is
+**crawling with duplicates** (1014 rows / 1004 unique; one name ×7, another ×5 —
+P02-14), opens **empty for the first ~4 s** with no spinner (P02-15), and shows
+only Nationality/Age/Titles with an unexplained "Details" note box (P02-18).
+Worse: picking a candidate and pressing **HIRE closes the dialog and does
+nothing**. The network shows `PUT /api/clubs/<club>/manager → 403 {"message":
+"Admins only"}` while the client console logs "Club Manager appointed
+successfully!". No error is surfaced; "No manager currently under contract"
+stays and First steps never leaves 0/4. (P02-13.)
+
+**Mood: 2/5.** The depth is genuinely there on the finance/tactics side, but the
+one action the game tells me to do first is broken.
+
+## Session 5 — 2026-10-08 ~01:30–02:00Z (Recruitment resume + PLAY dead-end)
+
+Came back and re-checked the market. The transfer window is still **closed**, but
+the market is **browseable again** (5,626 rows on day 486) — so the empty "No
+players available" I saw on day 470 was an intermittent render, not the window
+closing (corrected in P02-10). Data hygiene is unchanged: **"HTTP PgTest"** is
+still a live free agent (P02-07), the same player still appears twice on one page
+("Jugre Cheifeigie" in adjacent rows, "Peebrubai Mevra" twice — P02-08), the
+"Scouted Shortlist" card is still dark-on-dark (P02-05), and the Actions column
+is still clipped at the drawer edge (P02-06).
+
+I couldn't bid (window closed), so I tried the **PLAY** dock: "Find a Match" is a
+nice, clear card (Your power / Team sheet / Starters, and — importantly — *"The
+engine fills gaps automatically"*), and it matchmade me against another **human**
+club ("Sdev Central United", manager Sam Carter; later "Invite Rovers", a P08).
+I pressed **Play now** and the dialog just **closed silently**. The reason is
+only in the network: `POST /api/play/<club>/match → 409 "Sign a manager before
+your first match"` — swallowed by the UI (P02-19).
+
+So it's a **hard dead-end**: I can't hire a manager (403, P02-13) and I can't
+play any match without one (409, P02-19), and the window is shut, so there is no
+route to XP at all. **Level 1/2 are unreachable from a new club.** I logged it as
+P02-20 and kept exploring everything I could still reach.
+
+**Mood: 1/5.** Not a persona nit — a fresh player simply cannot start.
+
+## Session 6 — 2026-10-09 ~02:00–02:30Z (breadth: League, Challenges, Build, tactics)
+
+- **League**: empty for a new club — "You're not in a league this year. New clubs
+  join their country's pyramid when the next season is drawn." No table, no
+  fixtures, just an "Other competitions" button (P02-21). As a veteran I came
+  looking for a table and found a dead end.
+- **Challenges**: a 5-tab overlay (challenge/incoming/sent/upcoming/history),
+  empty; tabs are cramped.
+- **Build**: genuinely good — seven facilities with Tier, the current stat and
+  the *next* upgrade with its price (Grass Pitch V250,000, Ticket Booth V300,000,
+  Practice Field V200,000, Youth Tent V350,000, Lookout Post V220,000, First Aid
+  Tent V260,000, Staff Hut V300,000), against my V4M. "0/1 builders busy" is
+  clear. This is the Clash-of-Clans half of the game done with taste.
+- **Tactics depth (my persona focus)**: the Team Sheet offers only **four
+  formations** (4-3-3, 4-4-2, 4-2-3-1, 3-5-2) and a Playing Style dropdown; the
+  pitch slots (LW/ST/RW, CM/CDM/CM, LB/CB/CB/RB, GK) expose **no player roles,
+  no mentality, no team instructions** even in their empty-state labels (P02-22).
+  For an FM veteran this is the thin part of an otherwise detailed game.
+
+Mid-session the **WSL→Windows interop dropped again** (`UtilAcceptVsocd:
+accept4 failed 110`) on every `cmd.exe` call, so the Windows-Node harness could
+not run. I polled for ~2 minutes per attempt; last checked it was still down when
+I stopped to write up. This is the same host issue as Session 3 (A01-12).
+
+**Mood: 3/5.** The depth on finances/facilities is real and I enjoyed it; the
+dead-end on the very first action caps the whole experience.
+
+---
 
 - [2026-10-08T11:25:17.969Z] Opened the client at http://localhost:4173; landed on http://localhost:4173/auth/login.
 - [2026-10-08T11:26:51.674Z] Opened the New manager registration form; reading the fields.
@@ -160,3 +255,18 @@ instance for more than a few minutes.
 - [2026-10-08T15:17:34.435Z] Linux fallback: probed the login response; API looks degraded.
 - [2026-10-08T15:18:13.070Z] Linux fallback: logged the login request/response; API degraded.
 - [2026-10-08T15:53:42.901Z] Linux fallback: long login attempt -> status null.
+- [2026-10-08T23:47:13.999Z] Resumed after the outage: opened the client; checking whether the preserved login lands me at my club.
+- [2026-10-08T23:55:34.552Z] Dismissed the comeback modal (Escape still does nothing, P02-09). Opened Manager to hire my first manager.
+- [2026-10-09T00:11:36.568Z] Toured the Owner's office tabs (The brief / Squad / Owner / Analysis) to locate the manager hire and the squad views.
+- [2026-10-09T00:33:04.931Z] Owner tab is a real finance board (Treasury, wage bill, board confidence, ledger). Clicked "Hire Head Coach" to start the manager interview.
+- [2026-10-09T00:44:30.524Z] Diagnosed the Hire-a-Manager dialog: waited 15s and scrolled; logging whether any candidate ever appears.
+- [2026-10-09T00:55:22.662Z] Hired the first candidate from the manager dialog; checking whether the Owner's Program step advances.
+- [2026-10-09T01:05:35.087Z] Diagnosed the failed hire: captured API responses, console errors and the dialog alert after pressing Hire.
+- [2026-10-09T01:12:13.002Z] Compared "The brief" (tactics board) with the drawer "Squad" tab and the dock "Team Sheet" button to see whether they are the same screen with different names.
+- [2026-10-09T01:24:51.524Z] Opened Recruitment and acted on the first market row to test whether a normal player can inspect/sign (the "Build a squad" step).
+- [2026-10-09T01:33:46.262Z] Pressed PLAY on an empty squad to see whether a quick match is possible before signing players.
+- [2026-10-09T01:44:27.815Z] Played a quick match (Play now) against another human club to observe the match screen, result and XP.
+- [2026-10-09T02:06:19.952Z] Enumerated the Team Sheet tactics options (formation, playing style, role slots) to judge tactical depth versus Football Manager.
+- [2026-10-09T02:23:45.185Z] Captured Playing Style options and opened the League screen to inspect information density.
+- [2026-10-09T02:30:35.785Z] Toured League, Challenges, World and Settings to compare information density across the club screens.
+- [2026-10-09T03:03:57.256Z] Opened Build to see facility costs/options and whether a normal owner can start a build while the program is blocked on the manager step.
