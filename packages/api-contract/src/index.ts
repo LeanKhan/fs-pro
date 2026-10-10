@@ -97,7 +97,24 @@ export type {
   TransferOffer,
   ScoutedTarget,
 } from './schemas/transfer';
-export type { AssetState, Campus } from './schemas/facilities';
+export type {
+  AssetState,
+  Campus,
+  MedicalPlayerSummary,
+  MedicalStatus,
+  PlayerTreatmentRequest,
+  PlayerTreatmentResponse,
+  SquadRecoveryResponse,
+} from './schemas/facilities';
+export {
+  AssetStateSchema,
+  CampusSchema,
+  MedicalPlayerSummarySchema,
+  MedicalStatusSchema,
+  PlayerTreatmentRequestSchema,
+  PlayerTreatmentResponseSchema,
+  SquadRecoveryResponseSchema,
+} from './schemas/facilities';
 export type {
   Challenge,
   PlayState,

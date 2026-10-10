@@ -81,6 +81,28 @@ export function useCampusCollect(clubId: Ref<string | undefined>) {
     }
   }
 
+  /** Start an upgrade for a campus facility. */
+  async function upgradeAsset(assetType: string): Promise<CampusState | null> {
+    if (!clubId.value) return null;
+    error.value = '';
+    try {
+      const res = await client.campus.upgrade.mutation({
+        params: { clubId: clubId.value },
+        body: { assetType },
+      });
+      if (res.status === 200) {
+        campus.value = res.body.payload;
+        return res.body.payload;
+      }
+      error.value = res.body.message;
+      return null;
+    } catch (err: any) {
+      error.value = err?.message || 'Could not start upgrade.';
+      console.error('Failed to upgrade campus asset:', err);
+      return null;
+    }
+  }
+
   return {
     campus,
     loading,
@@ -91,5 +113,6 @@ export function useCampusCollect(clubId: Ref<string | undefined>) {
     canCollect,
     load,
     collectAll,
+    upgradeAsset,
   };
 }

@@ -68,4 +68,9 @@ func TestIsAssetType(t *testing.T) {
 	if !IsAssetType("medical_centre") || IsAssetType("nope") {
 		t.Fatal("IsAssetType failed")
 	}
+	for _, at := range AssetTypes {
+		if !IsAssetType(string(at)) {
+			t.Fatalf("AssetType %s not recognized by IsAssetType", at)
+		}
+	}
 }

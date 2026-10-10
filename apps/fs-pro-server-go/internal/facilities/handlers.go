@@ -170,6 +170,14 @@ func (h *Handlers) campus(ctx context.Context, clubID string) (map[string]any, b
 	}
 	now := time.Now()
 	budget := floatOf(club["Budget"])
+	tier := intOf(club["ClubhouseTier"])
+	if tier < 1 {
+		tier = 1
+	}
+	maxCrews, err := h.repo.GroundskeeperCount(ctx, clubID, tier)
+	if err != nil {
+		return nil, false, err
+	}
 	active := 0
 	for _, row := range rows {
 		if row["UpgradingTo"] != nil {
@@ -191,8 +199,8 @@ func (h *Handlers) campus(ctx context.Context, clubID string) (map[string]any, b
 			blocked := ""
 			if upgrading {
 				blocked = "Already upgrading"
-			} else if active >= MaxConcurrentUpgrades {
-				blocked = "All builders are busy"
+			} else if active >= maxCrews {
+				blocked = "All project crews are busy"
 			} else {
 				for _, req := range def.Requires {
 					if levelOf(rows, req.Type) < target-req.LevelOffset {
@@ -249,7 +257,7 @@ func (h *Handlers) campus(ctx context.Context, clubID string) (map[string]any, b
 		"clubId":                clubID,
 		"placement":             placementJSON(placementOf(club["CampusPlacement"])),
 		"budget":                budget,
-		"maxConcurrentUpgrades": MaxConcurrentUpgrades,
+		"maxConcurrentUpgrades": maxCrews,
 		"activeUpgrades":        active,
 		"assets":                assets,
 	}, true, nil

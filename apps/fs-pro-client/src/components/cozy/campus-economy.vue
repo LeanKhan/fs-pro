@@ -34,11 +34,32 @@
             :on-done="() => onTimerDone('clubhouse', campus.clubhouse.readyAt ?? '')"
           />
         </p>
-        <ul v-if="campus.clubhouse.missing.length" class="cem-missing">
-          <li v-for="(m, i) in campus.clubhouse.missing" :key="i">
-            {{ prettify(m.facility) }} to Level {{ m.level }}
-          </li>
-        </ul>
+        <template v-else>
+          <div v-if="campus.clubhouse.missing.length" class="cem-missing-box">
+            <span class="cem-missing-title">Milestone Prerequisites for Tier {{ campus.clubhouse.tier + 1 }}:</span>
+            <ul class="cem-missing">
+              <li v-for="(m, i) in campus.clubhouse.missing" :key="i">
+                ⚠️ {{ prettify(m.facility) }} to Level {{ m.level }}
+              </li>
+            </ul>
+          </div>
+          <div v-else-if="clubhouseAsset?.next" class="cem-clubhouse-upgrade">
+            <div class="cem-upgrade-info">
+              <span>Next: <b>Tier {{ clubhouseAsset.next.level }}</b></span>
+              <span class="cem-chip-cost">{{ currency(clubhouseAsset.next.cost) }}</span>
+            </div>
+            <button
+              class="btn small primary"
+              :disabled="upgradingKey === 'clubhouse' || !!clubhouseAsset.next.blockedReason"
+              @click="onUpgrade('clubhouse')"
+            >
+              {{ upgradingKey === 'clubhouse' ? 'Upgrading…' : `Upgrade to Tier ${clubhouseAsset.next.level}` }}
+            </button>
+            <div v-if="clubhouseAsset.next.blockedReason" class="cem-why">
+              {{ clubhouseAsset.next.blockedReason }}
+            </div>
+          </div>
+        </template>
       </div>
 
       <div class="cem-card">
@@ -151,12 +172,53 @@
           <li v-if="!vaults.length" class="cem-empty">No reserves established yet.</li>
         </ul>
       </div>
+
+      <div v-if="researchAssets.length" class="cem-card">
+        <div class="cem-card-head">
+          <h3>Tactical Department & Research</h3>
+          <span class="cem-chip">Abilities</span>
+        </div>
+        <ul class="cem-list">
+          <li v-for="r in researchAssets" :key="r.type" class="cem-row">
+            <span class="row-ic" v-html="icon(r.type === 'coaching_dept' ? 'bag' : 'news')"></span>
+            <div class="row-body">
+              <div class="row-top">
+                <b>{{ r.name }}</b><small>Level {{ r.level }} / {{ r.maxLevel }}</small>
+              </div>
+              <div v-if="r.upgrade" class="row-meta">
+                <span>Building Level {{ r.upgrade.toLevel }}…</span>
+                <cozy-countdown
+                  :at="r.upgrade.readyAt"
+                  :server-now="campus.now"
+                  :on-done="() => onTimerDone(r.type, r.upgrade!.readyAt)"
+                />
+              </div>
+              <div v-else-if="r.next" class="row-meta">
+                <span>Next: Level {{ r.next.level }} · {{ count(r.next.cost) }} {{ r.currency }}</span>
+                <button
+                  class="btn tiny primary ml-auto"
+                  :disabled="upgradingKey === r.type || !!r.next.blockedReason"
+                  @click="onUpgrade(r.type)"
+                >
+                  {{ upgradingKey === r.type ? 'Upgrading…' : 'Upgrade' }}
+                </button>
+              </div>
+              <div v-else class="row-meta">
+                <span>Top Level</span>
+              </div>
+              <div v-if="r.next?.blockedReason && !r.upgrade" class="cem-why">
+                {{ r.next.blockedReason }}
+              </div>
+            </div>
+          </li>
+        </ul>
+      </div>
     </template>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, toRef } from 'vue';
+import { computed, onMounted, ref, toRef } from 'vue';
 import type { CampusCurrency } from '@repo/api-contract';
 import { currency } from '@/helpers/misc';
 import {
@@ -184,13 +246,32 @@ const emit = defineEmits<{
   (e: 'toast', text: string, level?: 'success' | 'error'): void;
 }>();
 
-const { campus, loading, collecting, error, canCollect, load, collectAll } =
+const { campus, loading, collecting, error, canCollect, load, collectAll, upgradeAsset } =
   useCampusCollect(toRef(props, 'clubId'));
 
 const collectors = computed(() =>
   campus.value ? collectorViews(campus.value) : []
 );
 const vaults = computed(() => (campus.value ? vaultsView(campus.value) : []));
+
+const clubhouseAsset = computed(() =>
+  campus.value?.assets.find((a) => a.type === 'clubhouse') ?? null
+);
+const researchAssets = computed(() =>
+  campus.value?.assets.filter(
+    (a) => a.type === 'coaching_dept' || a.type === 'video_analysis'
+  ) ?? []
+);
+
+const upgradingKey = ref<string | null>(null);
+async function onUpgrade(key: string) {
+  if (upgradingKey.value) return;
+  upgradingKey.value = key;
+  const fresh = await upgradeAsset(key);
+  upgradingKey.value = null;
+  if (fresh) emit('toast', `${prettify(key)} upgrade started.`);
+  else if (error.value) emit('toast', error.value, 'error');
+}
 
 const timers = computed(() => (campus.value ? campusTimers(campus.value) : []));
 const clubhouseTimer = computed(
@@ -263,6 +344,55 @@ onMounted(load);
   gap: 12px;
   color: var(--ink, #4a3220);
   font-family: 'Fredoka', system-ui, sans-serif;
+}
+.cem-missing-box {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #fdf5ea;
+  border: 1px dashed #e2cc9c;
+  border-radius: 10px;
+}
+.cem-missing-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #8a5a3b;
+}
+.cem-clubhouse-upgrade {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cem-upgrade-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.cem-chip-cost {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e8f7e2;
+  border: 2px solid #5cc23a;
+  color: #2f8a1c;
+  font-weight: 700;
+  font-size: 12px;
+}
+.cem-why {
+  font-size: 12px;
+  color: var(--red, #e5402f);
+  margin-top: 4px;
+  width: 100%;
+}
+.btn.tiny {
+  padding: 2px 8px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+.ml-auto {
+  margin-left: auto;
 }
 .cem-state {
   padding: 20px;

@@ -21,19 +21,63 @@ func (r *Repository) Q() db.Querier { return r.q }
 
 // Club reads the fields campus needs.
 func (r *Repository) Club(ctx context.Context, clubID string) (map[string]any, bool, error) {
-	rows, err := r.q.Query(ctx, `SELECT "_id", "Name", "ClubCode", "Budget", "CampusPlacement" FROM "Clubs" WHERE "_id" = $1 LIMIT 1`, clubID)
+	rows, err := r.q.Query(ctx, `SELECT "_id", "Name", "ClubCode", "Budget", "CampusPlacement", "ClubhouseTier" FROM "Clubs" WHERE "_id" = $1 LIMIT 1`, clubID)
 	if err != nil {
 		return nil, false, err
 	}
 	return db.ScanOne(rows)
 }
 
-// CompleteDueUpgrades finishes every upgrade whose CompleteAt has passed.
+// CompleteDueUpgrades finishes every upgrade whose CompleteAt has passed and syncs ClubhouseTier.
 func (r *Repository) CompleteDueUpgrades(ctx context.Context, now time.Time) error {
-	_, err := r.q.Exec(ctx, `UPDATE "ClubAssets"
+	tag, err := r.q.Exec(ctx, `UPDATE "ClubAssets"
 		SET "Level" = "UpgradingTo", "UpgradingTo" = NULL, "StartAt" = NULL, "CompleteAt" = NULL, "updatedAt" = now()
 		WHERE "UpgradingTo" IS NOT NULL AND "CompleteAt" <= $1`, now)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return nil
+	}
+	_, err = r.q.Exec(ctx, `UPDATE "Clubs" c
+		SET "ClubhouseTier" = ca."Level", "updatedAt" = now()
+		FROM "ClubAssets" ca
+		WHERE ca."ClubId" = c."_id" AND ca."AssetType" = 'clubhouse' AND ca."Level" > c."ClubhouseTier"`)
 	return err
+}
+
+// GroundskeeperCount reads the club's Project Crew count, never below the milestone
+// grant its Clubhouse tier has earned (1..3) and up to 6.
+func (r *Repository) GroundskeeperCount(ctx context.Context, clubID string, tier int) (int, error) {
+	if tier < 1 {
+		tier = 1
+	}
+	grant := tier
+	if grant > 3 {
+		grant = 3
+	}
+	rows, err := r.q.Query(ctx, `SELECT "Count" FROM "ClubGroundskeepers" WHERE "ClubId" = $1 LIMIT 1`, clubID)
+	if err != nil {
+		return grant, err
+	}
+	row, ok, err := db.ScanOne(rows)
+	if err != nil {
+		return grant, err
+	}
+	count := 0
+	if ok {
+		count = intOf(row["Count"])
+	}
+	if count < grant {
+		count = grant
+	}
+	if count > 6 {
+		count = 6
+	}
+	if count < 1 {
+		count = 1
+	}
+	return count, nil
 }
 
 // AssetRows returns the club's ClubAssets rows keyed by AssetType.
@@ -70,6 +114,22 @@ func (r *Repository) StartUpgrade(ctx context.Context, clubID string, assetType 
 	if err := r.CompleteDueUpgrades(ctx, time.Now()); err != nil {
 		return err
 	}
+	club, ok, err := r.Club(ctx, clubID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("club not found")
+	}
+	tier := intOf(club["ClubhouseTier"])
+	if tier < 1 {
+		tier = 1
+	}
+	maxCrews, err := r.GroundskeeperCount(ctx, clubID, tier)
+	if err != nil {
+		return err
+	}
+
 	rows, err := r.AssetRows(ctx, clubID)
 	if err != nil {
 		return err
@@ -90,8 +150,8 @@ func (r *Repository) StartUpgrade(ctx context.Context, clubID string, assetType 
 			active++
 		}
 	}
-	if active >= MaxConcurrentUpgrades {
-		return fmt.Errorf("all builders are busy - wait for the current upgrade to finish")
+	if active >= maxCrews {
+		return fmt.Errorf("all project crews are busy - wait for the current upgrade to finish")
 	}
 	for _, req := range def.Requires {
 		needed := target - req.LevelOffset

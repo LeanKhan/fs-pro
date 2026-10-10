@@ -39,13 +39,14 @@ var FacilityCurrency = map[string]Currency{
 	"academy":        Cash,
 	"coaching_dept":  Fans,
 	"video_analysis": Fans, // research: unlocks the upper ability tiers
-	// Campus/attendance facilities cost Cash (04 §1.1). The 04 row is
-	// "Stands/Stadium (attendance)"; internal/facilities names the same
-	// concepts "stands" and "stadium_grounds". The army row is "Training
-	// Ground / Academy", so both "training_ground" and "academy" resolve.
+	// Campus facilities cost Cash (04 §1.1).
 	"stands":          Cash,
 	"stadium_grounds": Cash,
 	"training_ground": Cash,
+	"youth_academy":   Cash,
+	"scouting":        Cash,
+	"medical_centre":  Cash,
+	"staff_house":     Cash,
 }
 
 // GroundskeepersForTier is the Groundskeepers earned from milestones alone

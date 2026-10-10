@@ -35,6 +35,7 @@
     <button v-if="door" class="btn primary door" @click="emit('open', 'door')">Open {{ door }}</button>
 
     <div class="pn-actions">
+      <button v-if="buildingKey === 'office' && isMine" class="btn primary" @click="emit('open', 'grounds')">Grounds & Clubhouse</button>
       <button v-if="buildingKey === 'medical_centre' && isMine" class="btn" @click="emit('open', 'treatment')">Treatment room</button>
       <button v-if="isMine" class="btn" @click="emit('move', buildingKey)"><span v-html="icon('move')"></span> Move</button>
     </div>

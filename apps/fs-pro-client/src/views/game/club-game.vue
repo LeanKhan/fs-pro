@@ -1004,6 +1004,7 @@ function pickFromMenu(key: string) {
 
 function onOpen(what: string) {
   if (what === 'treatment') showTreatment.value = true;
+  else if (what === 'grounds') showCampus.value = true;
   else if (what === 'door' && selectedKey.value) openDoor(selectedKey.value);
 }
 
