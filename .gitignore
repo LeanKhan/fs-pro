@@ -53,3 +53,5 @@ yarn-error.log*
 /playtest/*/screenshots/
 
 /dynamics
+
+docs/coc-mapping/

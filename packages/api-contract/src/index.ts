@@ -65,10 +65,19 @@ export type { Fixture } from './schemas/fixture';
 export type { Player, PlayerAttributes } from './schemas/player';
 export type { Season, ClubStandings, StandingLine } from './schemas/season';
 export type { Manager, ManagerClubRef } from './schemas/manager';
-export type { Calendar, Day, WorldFeed, WorldFeedHeadline } from './schemas/calendar';
+export type {
+  Calendar,
+  Day,
+  WorldFeed,
+  WorldFeedHeadline,
+} from './schemas/calendar';
 export type { Place } from './schemas/place';
 export type { SeasonReport, SeasonHighlight } from './schemas/season-report';
-export type { TransferWindow, TransferOffer, ScoutedTarget } from './schemas/transfer';
+export type {
+  TransferWindow,
+  TransferOffer,
+  ScoutedTarget,
+} from './schemas/transfer';
 export type { AssetState, Campus } from './schemas/facilities';
 export type {
   Challenge,
@@ -95,8 +104,18 @@ export type {
   PlanFactor,
   StyleKey,
 } from './schemas/match-plan';
-export { STYLE_KEYS, PLAN_FORMATIONS, TRAINING_KEYS, TEAM_TALK_KEYS } from './schemas/match-plan';
-export type { ClubPerformance, ClubPerformanceInsight, ClubPerformanceStrategy, ClubPerformanceAdvisorSummary } from './schemas/club-performance';
+export {
+  STYLE_KEYS,
+  PLAN_FORMATIONS,
+  TRAINING_KEYS,
+  TEAM_TALK_KEYS,
+} from './schemas/match-plan';
+export type {
+  ClubPerformance,
+  ClubPerformanceInsight,
+  ClubPerformanceStrategy,
+  ClubPerformanceAdvisorSummary,
+} from './schemas/club-performance';
 export type { Award } from './schemas/award';
 export type { User } from './schemas/user';
 export type { Tactic, PlayResult, GameResults } from './schemas/game';
@@ -159,6 +178,7 @@ export type CompetitionSummary = import('zod').infer<
 >;
 
 export * from './campus-grid';
+export * from './grid';
 export * from './world-geo';
 export * from './world-calendar';
 export * from './crest';
