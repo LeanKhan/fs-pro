@@ -52,11 +52,13 @@ type Grid struct {
 }
 
 // Anchor is a compiled sim-core formation slot in normalized pitch coordinates.
+// Its JSON keys are pinned to the shared contract's `GridAnchor`
+// (@repo/api-contract/src/grid.ts) exactly as Slot is pinned to GridSlot.
 type Anchor struct {
-	PlayerID string
-	Position Position
-	X        float64
-	Y        float64
+	PlayerID string   `json:"playerId"`
+	Position Position `json:"position"`
+	X        float64  `json:"x"`
+	Y        float64  `json:"y"`
 }
 
 // MaxColumnForTier is the highest unlocked column for a Clubhouse tier:

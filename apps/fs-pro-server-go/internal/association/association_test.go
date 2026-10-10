@@ -61,3 +61,51 @@ func TestFestivalWindow(t *testing.T) {
 		}
 	}
 }
+
+// TestFestivalWindowExactDuration pins the window as exactly Fri 07:00 UTC
+// (inclusive) to Mon 07:00 UTC (exclusive): 72h, with the final nanosecond open.
+func TestFestivalWindowExactDuration(t *testing.T) {
+	open := time.Date(2026, time.October, 9, 7, 0, 0, 0, time.UTC)   // Friday
+	close := time.Date(2026, time.October, 12, 7, 0, 0, 0, time.UTC) // Monday
+	if close.Sub(open) != 72*time.Hour {
+		t.Fatalf("window duration = %s, want 72h", close.Sub(open))
+	}
+	if !FestivalActive(open) {
+		t.Error("the window must include its opening instant (Fri 07:00 UTC)")
+	}
+	if FestivalActive(close) {
+		t.Error("the window must exclude its closing instant (Mon 07:00 UTC)")
+	}
+	if !FestivalActive(close.Add(-time.Nanosecond)) {
+		t.Error("the window must still be open just before Mon 07:00 UTC")
+	}
+}
+
+// TestFestivalActiveTimezoneAgnostic proves the window is evaluated in UTC, not
+// in the caller's zone: the same instant expressed in any offset gives the same
+// answer (DST-irrelevant because UTC has none).
+func TestFestivalActiveTimezoneAgnostic(t *testing.T) {
+	zones := []*time.Location{
+		time.UTC,
+		time.FixedZone("UTC-11", -11*3600),
+		time.FixedZone("UTC+13", 13*3600),
+	}
+	instants := []time.Time{
+		time.Date(2026, time.October, 9, 6, 59, 59, 0, time.UTC),  // Fri before open
+		time.Date(2026, time.October, 9, 7, 0, 0, 0, time.UTC),    // Fri open (inclusive)
+		time.Date(2026, time.October, 10, 12, 0, 0, 0, time.UTC),  // Sat
+		time.Date(2026, time.October, 11, 23, 59, 0, 0, time.UTC), // Sun
+		time.Date(2026, time.October, 12, 6, 59, 59, 0, time.UTC), // Mon before close
+		time.Date(2026, time.October, 12, 7, 0, 0, 0, time.UTC),   // Mon close (exclusive)
+		time.Date(2026, time.October, 13, 12, 0, 0, 0, time.UTC),  // Tue
+	}
+	for _, instant := range instants {
+		want := FestivalActive(instant)
+		for _, z := range zones {
+			if got := FestivalActive(instant.In(z)); got != want {
+				t.Errorf("FestivalActive(%s in %s) = %v, want %v",
+					instant.Format(time.RFC3339), z, got, want)
+			}
+		}
+	}
+}

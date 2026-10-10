@@ -80,6 +80,17 @@ describe('pitch grid (parity with apps/fs-pro-server-go/internal/grid)', () => {
     offPitch.slots[8]!.row = 7;
     assert.equal(validateGrid(offPitch, 1), 'A player is off the pitch');
 
+    const negative = validGrid();
+    negative.slots[8]!.col = -1;
+    assert.equal(validateGrid(negative, 1), 'A player is off the pitch');
+
+    const zeroKeepers = validGrid();
+    zeroKeepers.slots[0] = { col: 1, row: 0, playerId: 'gk', position: 'DEF' };
+    assert.equal(
+      validateGrid(zeroKeepers, 1),
+      'A grid needs exactly one goalkeeper'
+    );
+
     const keeperOut = validGrid();
     keeperOut.slots[0]!.col = 2;
     assert.equal(
@@ -120,5 +131,14 @@ describe('pitch grid (parity with apps/fs-pro-server-go/internal/grid)', () => {
       x: 0.5 / 9,
       y: 3.5 / 7,
     });
+    // The compiled anchor keys are pinned to Go's `Anchor` JSON
+    // (playerId/position/x/y), so the mirrored contract cannot drift.
+    assert.deepEqual(Object.keys(first[0]!).sort(), [
+      'playerId',
+      'position',
+      'x',
+      'y',
+    ]);
+    assert.equal(first[8]!.position, 'ATT');
   });
 });

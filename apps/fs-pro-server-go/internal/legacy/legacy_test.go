@@ -3,6 +3,8 @@ package legacy
 import (
 	"reflect"
 	"testing"
+
+	"fs-pro-server/internal/campus"
 )
 
 // fullStars returns a star map satisfying every chain step.
@@ -117,5 +119,29 @@ func TestTotalStarsCap(t *testing.T) {
 	want := 1 + 1 + 3 // club-legend capped at its requirement
 	if got := TotalStars(partial); got != want {
 		t.Errorf("TotalStars(partial) = %d, want %d", got, want)
+	}
+	// Negative stars must never reduce the total below zero.
+	if got := TotalStars(map[string]int{"first-grounds": -5}); got != 0 {
+		t.Errorf("negative stars = %d, want 0", got)
+	}
+}
+
+// TestSixthGroundskeeperLinkage proves the chain's reward really is the *6th*
+// Groundskeeper: campus caps groundskeepers at 6, milestones grant the first 3,
+// and the chain contributes exactly the one remaining slot on completion.
+func TestSixthGroundskeeperLinkage(t *testing.T) {
+	if campus.MaxGroundskeepers != 6 {
+		t.Fatalf("campus.MaxGroundskeepers = %d, want 6", campus.MaxGroundskeepers)
+	}
+	if got := campus.GroundskeepersForTier(campus.MilestoneGroundskeepers); got != 3 {
+		t.Fatalf("milestones grant %d groundskeepers, want 3", got)
+	}
+	if got := Granted(fullStars()); got != 1 {
+		t.Fatalf("a complete chain grants %d groundskeeper(s), want 1 (the 6th)", got)
+	}
+	// The chain is the only path to the 6th slot: 3 milestone + 2 purchased = 5.
+	if campus.MaxGroundskeepers-campus.MilestoneGroundskeepers != 3 {
+		t.Errorf("unexpected groundskeepers 4..6 layout: %d - %d != 3",
+			campus.MaxGroundskeepers, campus.MilestoneGroundskeepers)
 	}
 }

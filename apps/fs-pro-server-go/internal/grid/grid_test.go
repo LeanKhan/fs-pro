@@ -134,6 +134,51 @@ func TestCompileIsDeterministic(t *testing.T) {
 	}
 }
 
+func TestBandOf(t *testing.T) {
+	cases := map[int]string{0: "keeper", 1: "defence", 2: "defence", 3: "middle", 5: "middle", 6: "attack", 8: "attack"}
+	for col, want := range cases {
+		if got := BandOf(col); got != want {
+			t.Errorf("BandOf(%d) = %q, want %q", col, got, want)
+		}
+	}
+}
+
+func TestValidateRejectsNegativeColumn(t *testing.T) {
+	g := validGrid()
+	g.Slots[8].Col = -1
+	if problem := Validate(g, 1); problem != "A player is off the pitch" {
+		t.Fatalf("negative column not reported, got: %q", problem)
+	}
+}
+
+func TestValidateZeroKeepers(t *testing.T) {
+	g := validGrid()
+	// Move the keeper out of the goal zone and make it an outfielder, so no slot
+	// is a GK and the *count* rule is what fires.
+	g.Slots[0] = Slot{Col: 1, Row: 0, PlayerID: "gk", Position: DEF}
+	if problem := Validate(g, 1); problem != "A grid needs exactly one goalkeeper" {
+		t.Fatalf("zero keepers not reported, got: %q", problem)
+	}
+}
+
+// TestAnchorJSONMatchesContract pins the compiled-anchor JSON to the shared
+// `GridAnchor` contract (@repo/api-contract/src/grid.ts, lowercase keys), the
+// same drift guard TestGridJSONMatchesContract applies to `GridSlot`.
+func TestAnchorJSONMatchesContract(t *testing.T) {
+	anchors := Compile(Grid{Slots: []Slot{{Col: 0, Row: 3, PlayerID: "gk", Position: GK}}})
+	if len(anchors) != 1 {
+		t.Fatalf("Compile returned %d anchors, want 1", len(anchors))
+	}
+	b, err := json.Marshal(anchors[0])
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	const want = `{"playerId":"gk","position":"GK","x":0.05555555555555555,"y":0.5}`
+	if string(b) != want {
+		t.Fatalf("anchor JSON = %s\nwant (api-contract GridAnchor) = %s", b, want)
+	}
+}
+
 // TestGridJSONMatchesContract pins the persisted/mirrored JSON of a Grid to the
 // shared TypeScript contract (@repo/api-contract/src/grid.ts). PitchGrid is
 // `{ slots: GridSlot[] }` and GridSlot is `{ col, row, playerId, position }`

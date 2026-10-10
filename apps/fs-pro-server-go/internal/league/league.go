@@ -68,17 +68,26 @@ func LeagueIndex(points int) int {
 	return idx
 }
 
+// Attack allowance bounds (04 §4.3): 6 at the lowest rung, capped at 30. The
+// shipped 22-rung ladder tops out at 27 (Legend is single-division); the 30 cap
+// is the contract for any future/extra rungs.
+const (
+	baseAttacksPerPool = 6
+	maxAttacksPerPool  = 30
+)
+
 // AttacksPerPool is the weekly attack allowance for a league index: 6 at the
-// lowest rung, up to 30 at the top (04 §4.3).
+// lowest rung, scaling +1 per rung, capped at 30 (04 §4.3).
 func AttacksPerPool(leagueIndex int) int {
 	if leagueIndex < 0 {
-		return 6
+		return baseAttacksPerPool
 	}
-	n := 6 + leagueIndex
-	if n > 30 {
-		n = 30
+	// Clamp the *index* before the addition so an out-of-range index (including
+	// an adversarial near-MaxInt value) cannot overflow the arithmetic.
+	if leagueIndex > maxAttacksPerPool-baseAttacksPerPool {
+		return maxAttacksPerPool
 	}
-	return n
+	return baseAttacksPerPool + leagueIndex
 }
 
 // PromoteRelegate splits a weekly pool into promoted and relegated clubs

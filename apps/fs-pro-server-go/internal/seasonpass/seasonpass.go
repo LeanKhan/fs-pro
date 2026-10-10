@@ -41,15 +41,21 @@ const (
 	Gold   Track = "gold"
 )
 
-// CanClaim reports whether a track's tier reward may be claimed.
+// CanClaim reports whether a track's tier reward may be claimed. Only the two
+// declared tracks are claimable: Silver is free for all, Gold requires the paid
+// Season Pass. An unknown track is never claimable (server-side gate).
 func CanClaim(track Track, hasPass bool, tier, claimedTier int) bool {
 	if tier <= claimedTier {
 		return false
 	}
-	if track == Gold && !hasPass {
+	switch track {
+	case Silver:
+		return true
+	case Gold:
+		return hasPass
+	default:
 		return false
 	}
-	return true
 }
 
 // BankAccrual is the Season Bank slice of an income amount, in basis points
