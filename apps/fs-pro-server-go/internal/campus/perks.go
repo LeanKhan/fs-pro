@@ -14,10 +14,15 @@ package campus
 // PerkKind is the family of a Board Perk (04 §7).
 type PerkKind string
 
-// The perk kinds. Only Resource is redeemable today; construction/research/
-// combat/cosmetic perks slot into the same consume path without schema changes.
+// The five perk kinds. Resource grants a currency; Construction and Research
+// act on a running ClubAssets upgrade; Combat and Cosmetic are recorded
+// redemptions with no durable state in this scope.
 const (
-	PerkResource PerkKind = "resource"
+	PerkResource     PerkKind = "resource"
+	PerkConstruction PerkKind = "construction"
+	PerkResearch     PerkKind = "research"
+	PerkCombat       PerkKind = "combat"
+	PerkCosmetic     PerkKind = "cosmetic"
 )
 
 // PerkDef is one redeemable Board Perk.
@@ -26,18 +31,43 @@ type PerkDef struct {
 	Name     string
 	Kind     PerkKind
 	Currency Currency // PerkResource: the currency granted
-	Amount   float64
+	Amount   float64  // PerkResource: how much of Currency is granted
+	Minutes  float64  // PerkConstruction builder_boost: build minutes removed
 }
 
 // perkOrder is the deterministic read/iteration order (Go map order is random).
-var perkOrder = []string{"cash_cache", "fan_cache", "talent_cache"}
-
-// Perks is the consumable registry. Content/tunable (04 §7).
-var Perks = map[string]PerkDef{
-	"cash_cache":   {"cash_cache", "Cash Cache", PerkResource, Cash, 250000},
-	"fan_cache":    {"fan_cache", "Fan Cache", PerkResource, Fans, 250000},
-	"talent_cache": {"talent_cache", "Talent Cache", PerkResource, ScoutTokens, 2500},
+var perkOrder = []string{
+	"cash_cache", "fan_cache", "talent_cache",
+	"resource_cache", "instant_finish", "builder_boost", "research_finish",
+	"trait_trial", "regalia",
 }
+
+// Perks is the consumable registry. Content/tunable (04 §7). The keys are the
+// Board-Perk ids the reward paths grant (seasonpass.Perk*, Honour rewards,
+// Association Directive rewards), so a grant and a redemption always agree on
+// the same key.
+var Perks = map[string]PerkDef{
+	// Resource caches: an instant currency grant.
+	"cash_cache":     {Key: "cash_cache", Name: "Cash Cache", Kind: PerkResource, Currency: Cash, Amount: 250000},
+	"fan_cache":      {Key: "fan_cache", Name: "Fan Cache", Kind: PerkResource, Currency: Fans, Amount: 250000},
+	"talent_cache":   {Key: "talent_cache", Name: "Talent Cache", Kind: PerkResource, Currency: ScoutTokens, Amount: 2500},
+	"resource_cache": {Key: "resource_cache", Name: "Resource Cache", Kind: PerkResource, Currency: Cash, Amount: 250000},
+	// Construction: finish (or accelerate) a running campus upgrade.
+	"instant_finish": {Key: "instant_finish", Name: "Instant Finish", Kind: PerkConstruction},
+	"builder_boost":  {Key: "builder_boost", Name: "Builder Boost", Kind: PerkConstruction, Minutes: 60},
+	// Research: finish a running Coaching Department / Video Analysis upgrade.
+	"research_finish": {Key: "research_finish", Name: "Research Finish", Kind: PerkResearch},
+	// Combat / Cosmetic: recorded redemptions with no durable state here.
+	"trait_trial": {Key: "trait_trial", Name: "Trait Trial", Kind: PerkCombat},
+	"regalia":     {Key: "regalia", Name: "Club Regalia", Kind: PerkCosmetic},
+}
+
+// ResearchFacilities are the upgrade targets a Research perk may finish (04 §7
+// "instant ability/coaching finish"); internal/abilities reads these levels.
+var ResearchFacilities = map[string]bool{"coaching_dept": true, "video_analysis": true}
+
+// IsResearchFacility reports whether a facility key is a research tile.
+func IsResearchFacility(key string) bool { return ResearchFacilities[key] }
 
 // PerkDefFor resolves a perk key.
 func PerkDefFor(key string) (PerkDef, bool) {

@@ -99,7 +99,8 @@ func ObjectiveByOrdinal(n int) (Objective, bool) {
 // ---------------------------------------------------------------------------
 
 // Reward is a tier's grant. Currency flows through the TransferLedger; Perks go
-// into the BoardPerks inventory (never stealable, 04 §7).
+// into the club's Clubs.Perks inventory (campus.GrantPerks, never stealable,
+// 04 §7).
 type Reward struct {
 	Cash           float64
 	Fans           int
@@ -113,13 +114,16 @@ func (r Reward) IsZero() bool {
 	return r.Cash == 0 && r.Fans == 0 && r.ScoutTokens == 0 && r.SponsorCredits == 0 && len(r.Perks) == 0
 }
 
-// Board Perk ids (04 §7, the Magic-Item categories).
+// Board Perk ids (04 §7, the Magic-Item categories). The keys match the campus
+// consumable registry (internal/campus.Perks), which is the single Clubs.Perks
+// inventory these reward paths populate.
 const (
-	PerkResourceCache = "resource_cache"
-	PerkInstantFinish = "instant_finish"
-	PerkBuilderBoost  = "builder_boost"
-	PerkTraitTrial    = "trait_trial"
-	PerkRegalia       = "regalia"
+	PerkResourceCache  = "resource_cache"
+	PerkInstantFinish  = "instant_finish"
+	PerkBuilderBoost   = "builder_boost"
+	PerkResearchFinish = "research_finish"
+	PerkTraitTrial     = "trait_trial"
+	PerkRegalia        = "regalia"
 )
 
 // PerkDef is one Board Perk.
@@ -134,6 +138,7 @@ var Perks = []PerkDef{
 	{ID: PerkResourceCache, Name: "Resource Cache", Category: "resource"},
 	{ID: PerkInstantFinish, Name: "Instant Finish", Category: "construction"},
 	{ID: PerkBuilderBoost, Name: "Builder Boost", Category: "construction"},
+	{ID: PerkResearchFinish, Name: "Research Finish", Category: "research"},
 	{ID: PerkTraitTrial, Name: "Trait Trial", Category: "combat"},
 	{ID: PerkRegalia, Name: "Club Regalia", Category: "cosmetic"},
 }
@@ -171,8 +176,17 @@ func GoldReward(tier int) Reward {
 	if tier%5 == 0 {
 		r.SponsorCredits = 100
 	}
+	perks := map[string]int{}
 	if tier%2 == 0 {
-		r.Perks = map[string]int{PerkInstantFinish: 1}
+		perks[PerkInstantFinish] = 1
+	}
+	// A research perk every third tier gives the Gold track the full 04 §7 kind
+	// spread (resource + construction + research).
+	if tier%3 == 0 {
+		perks[PerkResearchFinish] = 1
+	}
+	if len(perks) > 0 {
+		r.Perks = perks
 	}
 	return r
 }

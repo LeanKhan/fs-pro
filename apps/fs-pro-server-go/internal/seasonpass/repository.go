@@ -618,25 +618,22 @@ func (r *Repository) AccrueRaidLoot(ctx context.Context, clubID string, now time
 // Board Perks (04 §7) and the premium seam.
 // ---------------------------------------------------------------------------
 
-// PerkEntry is one BoardPerks row.
+// PerkEntry is one Board Perk inventory line (Clubs.Perks, 04 §10).
 type PerkEntry struct {
 	Perk  string
 	Count int
 }
 
-// ListPerks reads a club's Board Perk inventory, merged with the catalogue.
+// ListPerks reads a club's Board Perk inventory (Clubs.Perks, 04 §10), merged
+// with the catalogue so every named perk is listed with its remaining count.
 func (r *Repository) ListPerks(ctx context.Context, clubID string) ([]any, error) {
-	rows, err := r.q.Query(ctx, `SELECT "Perk","Count" FROM "BoardPerks" WHERE "ClubId" = $1 ORDER BY "Perk"`, clubID)
+	row, ok, err := one(ctx, r.q, `SELECT "Perks" FROM "Clubs" WHERE "_id" = $1`, clubID)
 	if err != nil {
 		return nil, err
 	}
-	list, err := db.ScanAll(rows)
-	if err != nil {
-		return nil, err
-	}
-	owned := make(map[string]int, len(list))
-	for _, m := range list {
-		owned[db.StringField(m, "Perk")] = intOf(m["Count"])
+	var owned map[string]any
+	if ok {
+		owned, _ = row["Perks"].(map[string]any)
 	}
 	out := make([]any, 0, len(Perks))
 	for _, p := range Perks {
@@ -644,15 +641,16 @@ func (r *Repository) ListPerks(ctx context.Context, clubID string) ([]any, error
 			"perk":     p.ID,
 			"name":     p.Name,
 			"category": p.Category,
-			"count":    owned[p.ID],
+			"count":    campus.PerkCount(owned, p.ID),
 		})
 	}
 	return out, nil
 }
 
-// GrantPerk adds `count` copies of a Board Perk to the club (upsert, additive,
-// ledgered). Board Perks are never stealable - there is no path that removes
-// them except SpendPerk.
+// GrantPerk adds `count` copies of a Board Perk to the club's Clubs.Perks
+// inventory (additive, ledgered; 04 §7). It is the transactional write seam used
+// by tests and ad-hoc tooling; the reward paths grant inside their own guarded
+// claim transaction (GrantPerks).
 func (r *Repository) GrantPerk(ctx context.Context, clubID, perk string, count int) error {
 	if _, ok := PerkDefFor(perk); !ok {
 		return fmt.Errorf("unknown board perk %q", perk)
@@ -661,23 +659,13 @@ func (r *Repository) GrantPerk(ctx context.Context, clubID, perk string, count i
 		return fmt.Errorf("perk count must be positive")
 	}
 	return db.WithTx(ctx, r.q, func(tx db.Querier) error {
-		return grantPerk(ctx, tx, clubID, perk, count)
+		return campus.GrantPerks(ctx, tx, clubID, map[string]int{perk: count})
 	})
 }
 
-func grantPerk(ctx context.Context, q db.Querier, clubID, perk string, count int) error {
-	if _, err := q.Exec(ctx, `INSERT INTO "BoardPerks" ("ClubId","Perk","Count","updatedAt")
-		VALUES ($1,$2,$3,now())
-		ON CONFLICT ("ClubId","Perk") DO UPDATE
-		SET "Count" = "BoardPerks"."Count" + EXCLUDED."Count", "updatedAt" = now()`,
-		clubID, perk, count); err != nil {
-		return err
-	}
-	return ledger(ctx, q, clubID, "perk_grant", float64(count), "Board Perk "+perk)
-}
-
 // SpendPerk consumes `count` copies of a Board Perk (guarded so a racing spend
-// cannot go negative).
+// cannot go negative). It is the convert/spend counterpart to GrantPerk on the
+// same Clubs.Perks inventory the campus.perk/use consume path decrements.
 func (r *Repository) SpendPerk(ctx context.Context, clubID, perk string, count int) error {
 	if _, ok := PerkDefFor(perk); !ok {
 		return fmt.Errorf("unknown board perk %q", perk)
@@ -686,8 +674,11 @@ func (r *Repository) SpendPerk(ctx context.Context, clubID, perk string, count i
 		return fmt.Errorf("perk count must be positive")
 	}
 	return db.WithTx(ctx, r.q, func(tx db.Querier) error {
-		tag, err := tx.Exec(ctx, `UPDATE "BoardPerks" SET "Count" = "Count" - $3, "updatedAt" = now()
-			WHERE "ClubId" = $1 AND "Perk" = $2 AND "Count" >= $3`, clubID, perk, count)
+		tag, err := tx.Exec(ctx, `UPDATE "Clubs"
+			SET "Perks" = jsonb_set(coalesce("Perks", '{}'::jsonb), ARRAY[$2],
+			        to_jsonb(coalesce(("Perks"->>$2)::int, 0) - $3::int)),
+			    "updatedAt" = now()
+			WHERE "_id" = $1 AND coalesce(("Perks"->>$2)::int, 0) >= $3::int`, clubID, perk, count)
 		if err != nil {
 			return err
 		}
@@ -803,8 +794,8 @@ func grantReward(ctx context.Context, q db.Querier, clubID string, reward Reward
 			}
 		}
 	}
-	for _, perk := range sortedKeys(reward.Perks) {
-		if err := grantPerk(ctx, q, clubID, perk, reward.Perks[perk]); err != nil {
+	if len(reward.Perks) > 0 {
+		if err := campus.GrantPerks(ctx, q, clubID, reward.Perks); err != nil {
 			return err
 		}
 	}

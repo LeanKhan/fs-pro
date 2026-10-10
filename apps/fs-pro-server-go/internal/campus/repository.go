@@ -36,6 +36,9 @@ var (
 	ErrGroundskeepersMaxed    = errors.New("all groundskeepers already earned")
 	ErrUnknownPerk            = errors.New("unknown board perk")
 	ErrPerkUnavailable        = errors.New("that board perk is not in your inventory")
+	ErrPerkTargetRequired     = errors.New("that board perk needs a target")
+	ErrPerkTargetInvalid      = errors.New("invalid board perk target")
+	ErrPerkTargetNotUpgrading = errors.New("that target has no upgrade in progress")
 )
 
 // facilityOrder is the canonical, deterministic order of the campus economy
@@ -602,11 +605,20 @@ func (r *Repository) BuyGroundskeeper(ctx context.Context, clubID string, now ti
 // transaction with a TransferLedger row. It is idempotent per perk instance: a
 // supplied instanceId that was already redeemed returns the stored count
 // without applying again (the PerkConsumptions (ClubId, InstanceId) guard).
-// An unknown perk is refused; an empty counter is refused (409).
-func (r *Repository) UsePerk(ctx context.Context, clubID, perkKey, instanceID string, now time.Time) (map[string]any, error) {
+// An unknown perk is refused, an empty counter is refused (409), and a
+// Construction/Research perk needs a valid `target` (a running upgrade).
+//
+// The effect is applied only when the redemption is fresh, so a replayed
+// instanceId is a no-op even if the target has since finished.
+func (r *Repository) UsePerk(ctx context.Context, clubID, perkKey, instanceID, target string, now time.Time) (map[string]any, error) {
 	def, ok := PerkDefFor(perkKey)
 	if !ok {
 		return nil, ErrUnknownPerk
+	}
+	// Pure target validation up front: a missing / out-of-scope target never
+	// consumes the perk.
+	if err := validatePerkTarget(def, target); err != nil {
+		return nil, err
 	}
 	var out map[string]any
 	err := db.WithTx(ctx, r.q, func(tx db.Querier) error {
@@ -634,6 +646,7 @@ func (r *Repository) UsePerk(ctx context.Context, clubID, perkKey, instanceID st
 		perks, _ := club["Perks"].(map[string]any)
 		remaining := PerkCount(perks, def.Key)
 		granted := 0.0
+		applied := false
 		if !already {
 			if remaining <= 0 {
 				return ErrPerkUnavailable
@@ -651,22 +664,32 @@ func (r *Repository) UsePerk(ctx context.Context, clubID, perkKey, instanceID st
 			if tag.RowsAffected() == 0 {
 				return ErrPerkUnavailable
 			}
-			if err := credit(ctx, tx, clubID, def.Currency, def.Amount); err != nil {
+			// Per-kind effect, validated against real state. A resource perk
+			// credits its currency; Construction/Research finish a faculty
+			// upgrade; Combat/Cosmetic are recorded no-ops.
+			if def.Kind == PerkResource {
+				if err := credit(ctx, tx, clubID, def.Currency, def.Amount); err != nil {
+					return err
+				}
+				granted = def.Amount
+			} else if err := applyPerkEffect(ctx, tx, clubID, def, target, now); err != nil {
 				return err
 			}
-			if err := ledger(ctx, tx, clubID, "perk_use", def.Amount, def.Name); err != nil {
+			if err := ledger(ctx, tx, clubID, "perk_use", perkUseAmount(def), perkUseNote(def, target)); err != nil {
 				return err
 			}
 			remaining--
-			granted = def.Amount
+			applied = true
 		}
 		out = map[string]any{
 			"perk":      def.Key,
 			"name":      def.Name,
+			"kind":      string(def.Kind),
 			"currency":  string(def.Currency),
+			"target":    target,
 			"granted":   granted,
 			"remaining": remaining,
-			"applied":   !already,
+			"applied":   applied,
 			"now":       db.ISO8601msUTC(now),
 		}
 		return nil
@@ -675,6 +698,23 @@ func (r *Repository) UsePerk(ctx context.Context, clubID, perkKey, instanceID st
 		return nil, err
 	}
 	return out, nil
+}
+
+// perkUseAmount is the ledger amount for a redemption: the currency amount for a
+// Resource perk, otherwise one (a single consumable was spent).
+func perkUseAmount(def PerkDef) float64 {
+	if def.Kind == PerkResource {
+		return def.Amount
+	}
+	return 1
+}
+
+// perkUseNote names the redemption (and its target when one applies).
+func perkUseNote(def PerkDef, target string) string {
+	if target == "" {
+		return def.Name
+	}
+	return def.Name + " -> " + target
 }
 
 // ---------------------------------------------------------------------------

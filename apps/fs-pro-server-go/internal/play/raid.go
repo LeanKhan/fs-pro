@@ -87,8 +87,12 @@ var (
 	ErrBoardVaultEmpty = errors.New("the Board Vault is empty")
 )
 
-// DefenseNotice is the durable message a defender receives about a raid.
+// DefenseNotice is the durable message a defender receives about a raid. The
+// raid outcome fields (RaidID, loot, Standing) are also the payload of the
+// realtime `raid:resolved` event (notifier.go), so a transport does not have to
+// re-read the result row.
 type DefenseNotice struct {
+	RaidID        string
 	DefenderID    string
 	AttackerID    string
 	AttackerName  string
@@ -98,8 +102,14 @@ type DefenseNotice struct {
 	DefenderGoals int
 	Stars         int
 	Practice      bool
-	ShieldUntil   *time.Time
-	GuardUntil    *time.Time
+	// Stolen*/Standing* are the raid's applied deltas (zero for practice).
+	StolenCash       float64
+	StolenFans       int
+	StolenTokens     int
+	StandingAttacker int
+	StandingDefender int
+	ShieldUntil      *time.Time
+	GuardUntil       *time.Time
 }
 
 // Notifier delivers a resolved raid to the defender. The default implementation
@@ -593,10 +603,13 @@ func (r *Repository) resolveRaid(ctx context.Context, raidID string) (*RaidOutco
 	// Durable defender notification (realtime transport is P7/P10).
 	if r.notifier != nil {
 		if err := r.notifier.RaidResolved(ctx, r.q, DefenseNotice{
-			DefenderID: defenderID, AttackerID: attackerID,
+			RaidID: raidID, DefenderID: defenderID, AttackerID: attackerID,
 			AttackerName: db.StringField(attacker, "Name"), AttackerCode: db.StringField(attacker, "ClubCode"),
 			FixtureID: fixtureID, AttackerGoals: attGoals, DefenderGoals: defGoals,
-			Stars: stars, Practice: practice, ShieldUntil: out.ShieldUntil, GuardUntil: out.GuardUntil,
+			Stars: stars, Practice: practice,
+			StolenCash: out.StolenCash, StolenFans: out.StolenFans, StolenTokens: out.StolenTokens,
+			StandingAttacker: out.StandingAttacker, StandingDefender: out.StandingDefender,
+			ShieldUntil: out.ShieldUntil, GuardUntil: out.GuardUntil,
 		}); err != nil {
 			return nil, err
 		}

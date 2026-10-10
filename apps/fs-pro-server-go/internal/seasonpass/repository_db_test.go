@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"fs-pro-server/internal/campus"
 	"fs-pro-server/internal/db"
 )
 
@@ -294,6 +295,67 @@ func TestSeasonRepositoryRolledBack(t *testing.T) {
 	}
 	if err := db.InRollback(ctx, pool, run); err != nil {
 		t.Fatalf("rolled-back season: %v", err)
+	}
+}
+
+// TestSeasonTierGrantWritesClubsPerksRolledBack proves a Silver tier claim
+// populates Clubs.Perks exactly once (the SeasonClaims guard), so the campus
+// consume path can redeem it and a re-claim cannot double-grant.
+func TestSeasonTierGrantWritesClubsPerksRolledBack(t *testing.T) {
+	url := os.Getenv("DATABASE_URL")
+	if url == "" {
+		t.Skip("DATABASE_URL not set")
+	}
+	ctx := context.Background()
+	pool, err := db.New(ctx, url, 15*time.Second, nil)
+	if err != nil {
+		t.Fatalf("db.New: %v", err)
+	}
+	defer pool.Close()
+
+	const seasonKey = "2026-09"
+	inSeason := time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC)
+	run := func(tx db.Querier) error {
+		repo := NewRepository(tx)
+		club := newTestClub(t, ctx, tx, map[string]any{"Budget": 0.0, "ClubhouseTier": 5})
+		// Seed objective points directly (tier 4 needs 800).
+		if _, err := tx.Exec(ctx, `INSERT INTO "SeasonClaims" ("ClubId","SeasonKey","Track","Tier","Points","updatedAt")
+			VALUES ($1,$2,'objective',1,800,now())`, club, seasonKey); err != nil {
+			return err
+		}
+		for i := 0; i < 4; i++ {
+			if _, err := repo.ClaimPass(ctx, club, seasonKey, Silver, inSeason); err != nil {
+				return fmt.Errorf("silver claim %d: %w", i+1, err)
+			}
+		}
+		if _, err := repo.ClaimPass(ctx, club, seasonKey, Silver, inSeason); !errors.Is(err, ErrNothingToClaim) {
+			return fmt.Errorf("over-claim err = %v, want ErrNothingToClaim", err)
+		}
+		row, ok, err := one(ctx, tx, `SELECT "Perks" FROM "Clubs" WHERE "_id" = $1`, club)
+		if err != nil || !ok {
+			return fmt.Errorf("read Clubs.Perks: ok=%v err=%v", ok, err)
+		}
+		perks, _ := row["Perks"].(map[string]any)
+		if got := campus.PerkCount(perks, PerkResourceCache); got != 1 {
+			return fmt.Errorf("Clubs.Perks resource_cache = %d, want 1", got)
+		}
+		// The season read reflects the same inventory.
+		list, err := repo.ListPerks(ctx, club)
+		if err != nil {
+			return err
+		}
+		owned := map[string]int{}
+		for _, p := range list {
+			m := p.(map[string]any)
+			owned[db.StringField(m, "perk")] = intOf(m["count"])
+		}
+		if owned[PerkResourceCache] != 1 {
+			return fmt.Errorf("ListPerks resource_cache = %d, want 1", owned[PerkResourceCache])
+		}
+		return nil
+	}
+	if err := db.InRollback(ctx, pool, run); err != nil {
+		t.Fatalf("rolled-back season perk grant: %v", err)
 	}
 }
 

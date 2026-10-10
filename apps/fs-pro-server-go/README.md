@@ -28,7 +28,14 @@ Environment: `HOST` (127.0.0.1), `PORT` (3000), `DATABASE_URL`,
 `REMOTE_HOST`, `TRUST_PROXY`, `COOKIE_SECURE`, `CORS_ORIGINS`,
 `ENABLE_ROUTE_MANIFEST`, `RATE_LIMIT`, `LEGACY_LOGIN_ENABLED`,
 `ENABLE_PLAYER_GENERATION`, `GAME_TIME_SCALE`, `IMAGINATION_API_URL`,
-`WORLD_SERVICE_URL`, `RESEND_API_KEY`, `MAIL_FROM`, `APP_URL`.
+`WORLD_SERVICE_URL`, `RESEND_API_KEY`, `MAIL_FROM`, `APP_URL`, `REALTIME_URL`,
+`REALTIME_SECRET`.
+
+`REALTIME_URL` (e.g. `http://localhost:3005`) and `REALTIME_SECRET` configure
+the signed `/publish` client to the realtime gateway: resolved raids are posted
+as `raid:resolved` on the defender's private `club:<id>` topic after the durable
+`ClubMessages` inbox row. Both must be set to enable it; unset (or
+`REALTIME_URL=off`) means durable-inbox-only, the default.
 
 ## Endpoints
 

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"fs-pro-server/internal/campus"
 	"fs-pro-server/internal/db"
 )
 
@@ -459,6 +460,73 @@ func TestDirectiveOncePerTierRolledBack(t *testing.T) {
 	if err := db.InRollback(ctx, pool, run); err != nil {
 		t.Fatalf("rolled-back directives: %v", err)
 	}
+}
+
+// TestDirectiveTierPerkGrantRolledBack proves a directive tier reward grants its
+// Board Perk into Clubs.Perks exactly once (the ClaimedTier guard), so a
+// replayed claim cannot double-grant.
+func TestDirectiveTierPerkGrantRolledBack(t *testing.T) {
+	pool := testPool(t)
+	ctx := context.Background()
+	now := time.Date(2026, time.October, 10, 12, 0, 0, 0, time.UTC)
+	week := WeeklyKey(now)
+
+	run := func(tx db.Querier) error {
+		repo := NewRepository(tx)
+		club := newTestClub(t, ctx, tx, map[string]any{"Budget": 0.0, "Fans": 0})
+		assoc, err := repo.Create(ctx, club, "Perk FC", "PKF", "", now)
+		if err != nil {
+			return err
+		}
+		assocID, _ := assoc["id"].(string)
+		if err := repo.EnsureWeeklyDirectives(ctx, assocID, week, now); err != nil {
+			return fmt.Errorf("seed directives: %w", err)
+		}
+		list, ok, err := repo.ListDirectives(ctx, assocID, week, club, now)
+		if err != nil || !ok {
+			return fmt.Errorf("list: ok=%v err=%v", ok, err)
+		}
+		tier2 := ""
+		for _, d := range list["directives"].([]any) {
+			dm, _ := d.(map[string]any)
+			if intOf(dm["tier"]) == 2 {
+				tier2, _ = dm["id"].(string)
+			}
+		}
+		if tier2 == "" {
+			return errors.New("tier 2 directive missing")
+		}
+		if err := repo.AddDirectiveProgress(ctx, assocID, club, 5, now); err != nil {
+			return fmt.Errorf("progress: %w", err)
+		}
+		if _, err := repo.ClaimDirectiveTier(ctx, assocID, tier2, club, 2, now); err != nil {
+			return fmt.Errorf("claim tier 2: %w", err)
+		}
+		if got := assocClubPerk(t, ctx, tx, club, "resource_cache"); got != 1 {
+			return fmt.Errorf("resource_cache after claim = %d, want 1", got)
+		}
+		if _, err := repo.ClaimDirectiveTier(ctx, assocID, tier2, club, 2, now); !errors.Is(err, ErrTierAlreadyClaimed) {
+			return fmt.Errorf("second claim err = %v, want ErrTierAlreadyClaimed", err)
+		}
+		if got := assocClubPerk(t, ctx, tx, club, "resource_cache"); got != 1 {
+			return fmt.Errorf("a refused claim doubled resource_cache: %d", got)
+		}
+		return nil
+	}
+	if err := db.InRollback(ctx, pool, run); err != nil {
+		t.Fatalf("rolled-back directive perk grant: %v", err)
+	}
+}
+
+// assocClubPerk reads a perk's remaining count from a club's Clubs.Perks inventory.
+func assocClubPerk(t *testing.T, ctx context.Context, q db.Querier, clubID, perk string) int {
+	t.Helper()
+	row, ok, err := scanOne(ctx, q, `SELECT "Perks" FROM "Clubs" WHERE "_id"=$1`, clubID)
+	if err != nil || !ok {
+		t.Fatalf("read Clubs.Perks: ok=%v err=%v", ok, err)
+	}
+	perks, _ := row["Perks"].(map[string]any)
+	return campus.PerkCount(perks, perk)
 }
 
 // TestGroundsAndFestivalRolledBack proves the co-op build debits Cash, banks

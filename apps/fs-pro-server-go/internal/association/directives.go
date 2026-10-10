@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"fs-pro-server/internal/campus"
 	"fs-pro-server/internal/db"
 )
 
@@ -22,11 +23,31 @@ type DirectiveDef struct {
 }
 
 // WeeklyDirectives is the seeded weekly catalog (tunable). The tiers run from
-// the easy shared task to the derby-driven one.
+// the easy shared task to the derby-driven one. Rewards also carry Board Perks
+// (04 §7): they are granted into the club's Clubs.Perks inventory.
 var WeeklyDirectives = []DirectiveDef{
 	{Code: "matches", Title: "Play 5 matches", Tier: 1, Goal: 5, Rewards: map[string]any{"cash": 500, "fans": 200}},
-	{Code: "wins", Title: "Win 3 matches", Tier: 2, Goal: 3, Rewards: map[string]any{"cash": 1000, "fans": 400}},
-	{Code: "derby", Title: "Earn 10 derby stars", Tier: 3, Goal: 10, Rewards: map[string]any{"cash": 2000, "fans": 800, "xp": 100}},
+	{Code: "wins", Title: "Win 3 matches", Tier: 2, Goal: 3, Rewards: map[string]any{"cash": 1000, "fans": 400, "perks": map[string]any{"resource_cache": 1}}},
+	{Code: "derby", Title: "Earn 10 derby stars", Tier: 3, Goal: 10, Rewards: map[string]any{"cash": 2000, "fans": 800, "xp": 100, "perks": map[string]any{"instant_finish": 1}}},
+}
+
+// directivePerks reads the Board Perks a directive tier reward carries (04 §7),
+// tolerating the jsonb number types and ignoring non-positive counts.
+func directivePerks(rewards map[string]any) map[string]int {
+	raw, ok := rewards["perks"].(map[string]any)
+	if !ok || len(raw) == 0 {
+		return nil
+	}
+	out := make(map[string]int, len(raw))
+	for key, v := range raw {
+		if n := intOf(v); n > 0 {
+			out[key] = n
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // EnsureWeeklyDirectives seeds this week's directives for an association. It is
@@ -187,6 +208,11 @@ func (r *Repository) ClaimDirectiveTier(ctx context.Context, assocID, directiveI
 			if err := addXp(ctx, tx, assocID, xp); err != nil {
 				return err
 			}
+		}
+		// Board Perks ride the same guarded claim: the Update above matched, so
+		// a replayed claim grants nothing (04 §7).
+		if err := campus.GrantPerks(ctx, tx, clubID, directivePerks(rewards)); err != nil {
+			return err
 		}
 		out = map[string]any{
 			"directiveId": directiveID,

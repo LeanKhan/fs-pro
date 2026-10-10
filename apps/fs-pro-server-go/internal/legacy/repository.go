@@ -33,7 +33,7 @@ var (
 // ---------------------------------------------------------------------------
 
 // HonourReward is an Honour's grant. Currency flows through the TransferLedger;
-// Perks go into the BoardPerks inventory.
+// Perks go into the club's Clubs.Perks inventory (campus.GrantPerks).
 type HonourReward struct {
 	Cash           float64
 	Fans           int
@@ -341,18 +341,8 @@ func grantHonour(ctx context.Context, q db.Querier, clubID string, h Honour) err
 			}
 		}
 	}
-	for _, perk := range sortedKeys(rw.Perks) {
-		if _, ok := seasonpass.PerkDefFor(perk); !ok {
-			return fmt.Errorf("unknown board perk %q", perk)
-		}
-		if _, err := q.Exec(ctx, `INSERT INTO "BoardPerks" ("ClubId","Perk","Count","updatedAt")
-			VALUES ($1,$2,$3,now())
-			ON CONFLICT ("ClubId","Perk") DO UPDATE
-			SET "Count" = "BoardPerks"."Count" + EXCLUDED."Count", "updatedAt" = now()`,
-			clubID, perk, rw.Perks[perk]); err != nil {
-			return err
-		}
-		if err := ledger(ctx, q, clubID, "perk_grant", float64(rw.Perks[perk]), "Honour "+h.Code+" perk "+perk); err != nil {
+	if len(rw.Perks) > 0 {
+		if err := campus.GrantPerks(ctx, q, clubID, rw.Perks); err != nil {
 			return err
 		}
 	}

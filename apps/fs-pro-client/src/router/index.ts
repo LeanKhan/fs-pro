@@ -117,6 +117,15 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Pitch grid' },
   },
   {
+    // The Scout screen (docs/coc-mapping/08 §6.1): the "crack the base" surface
+    // for one opponent, reached from the matchmaking opponent list.
+    path: '/game/:clubId/scout/:oppId',
+    component: () =>
+      import(/* webpackChunkName: "scout_screen" */ '../views/game/scout.vue'),
+    name: 'Scout',
+    meta: { title: 'Scout' },
+  },
+  {
     // A manager without a club founds one here (country, town, club, crest).
     path: '/start',
     component: () =>

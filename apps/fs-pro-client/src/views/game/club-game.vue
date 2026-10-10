@@ -175,6 +175,7 @@
           @select="game.selectOpponent"
           @play="kickOff"
           @book="onBook"
+          @scout="onScout"
           @tactics="onChangeTactics"
           @medical="onOpenMedicalFromMatchmaking"
         />
@@ -216,6 +217,12 @@
           :user-name="store.user?.fullname ?? store.user?.username"
           @act="onSettingsAct"
         />
+      </cozy-modal>
+
+      <!-- The campus economy: Clubhouse, collectors (Collect All), builders,
+           vaults and every timer (docs/coc-mapping/08 §4.1, P1). -->
+      <cozy-modal v-model="showCampus" size="wide" label="Grounds">
+        <campus-economy v-if="isMyClub" :club-id="clubId" @toast="toast" />
       </cozy-modal>
 
       <!-- Dashboard screens and world news, over the campus -->
@@ -439,6 +446,7 @@ import CozyLeague from '@/components/cozy/cozy-league.vue';
 import CozySettings from '@/components/cozy/cozy-settings.vue';
 import CozyMatchday from '@/components/cozy/cozy-matchday.vue';
 import CozyMatchPrep from '@/components/cozy/cozy-match-prep.vue';
+import CampusEconomy from '@/components/cozy/campus-economy.vue';
 import PitchGridEditor from '@/components/cozy/grid/pitch-grid-editor.vue';
 import UserCompetitions from '@/views/user/competitions/competitions.vue';
 import TeamSheetZone from '@/views/user/club/zones/team-sheet-zone.vue';
@@ -944,7 +952,8 @@ const medicalAsset = computed(
 const showBuild = ref(false);
 const showTreatment = ref(false);
 const showSettings = ref(false);
-watch([showBuild, showSettings, game.showMatchmaking], (now, before) => {
+const showCampus = ref(false);
+watch([showBuild, showSettings, showCampus, game.showMatchmaking], (now, before) => {
   if (now.some((on, i) => on && !before?.[i])) sfx.play('open');
 });
 
@@ -1142,6 +1151,13 @@ async function onBook(o: { id: string }) {
   if (!f) return;
   matchdayKey.value++;
   openPrep(f.fixtureId);
+}
+
+/** The matchmaking list's "Scout base": open the read-only scout screen. */
+function onScout(o: { id: string }) {
+  game.showMatchmaking.value = false;
+  selectedKey.value = null;
+  router.push(`/game/${clubId.value}/scout/${o.id}`);
 }
 
 const watching = ref<{ fixtureId: string; liveFromMs: number | null } | null>(
@@ -1474,6 +1490,8 @@ function onAct(action: string) {
   switch (action) {
     case 'build':
       return (showBuild.value = true);
+    case 'campus':
+      return (showCampus.value = true);
     case 'move':
       return startMove();
     case 'program':

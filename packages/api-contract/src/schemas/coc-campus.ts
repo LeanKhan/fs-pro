@@ -125,10 +125,13 @@ export const ClearObstacleRequestSchema = z.object({ obstacleId: z.string().min(
 export const BuyGroundskeeperRequestSchema = z.object({});
 
 /** Redeem one quick consumable Board Perk (04 §7). `instanceId`, when supplied,
- * makes a retried request idempotent (the server applies the perk once). */
+ * makes a retried request idempotent (the server applies the perk once).
+ * `target` names the object of a Construction/Research perk (a campus facility
+ * key such as `clubhouse`, `coaching_dept` or `video_analysis`). */
 export const UsePerkRequestSchema = z.object({
   perk: z.string().min(1),
   instanceId: z.string().min(1).optional(),
+  target: z.string().min(1).optional(),
 });
 
 export type CampusCurrency = z.infer<typeof CampusCurrencySchema>;

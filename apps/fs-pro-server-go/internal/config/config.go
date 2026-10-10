@@ -6,6 +6,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -41,6 +42,10 @@ const (
 	envRateLimit     = "RATE_LIMIT"
 	envDBTimeout     = "DB_TIMEOUT"
 	envShutdown      = "SHUTDOWN_TIMEOUT"
+	// Realtime gateway publishing (apps/fs-pro-realtime). Both must be set to
+	// enable the publisher; unset means durable-inbox-only.
+	envRealtimeURL    = "REALTIME_URL"
+	envRealtimeSecret = "REALTIME_SECRET"
 )
 
 // Config is the fully-resolved runtime configuration. A Config returned
@@ -61,6 +66,12 @@ type Config struct {
 	DBTimeout           time.Duration
 	ShutdownTimeout     time.Duration
 	SessionMaxAge       time.Duration
+
+	// RealtimeURL / RealtimeSecret configure the signed /publish client to the
+	// fs-pro realtime gateway (apps/fs-pro-realtime). When either is unset the
+	// publisher is disabled and raids stay durable-inbox-only.
+	RealtimeURL    string
+	RealtimeSecret string
 
 	// Warnings carries non-fatal configuration problems (e.g. the insecure
 	// default SESSION_SECRET outside dev). The caller logs them.
@@ -93,6 +104,8 @@ func load(get func(string) string) (Config, error) {
 		DBTimeout:           DefaultDBTimeout,
 		ShutdownTimeout:     DefaultShutdownTimeout,
 		SessionMaxAge:       DefaultSessionMaxAge,
+		RealtimeURL:         strings.TrimSpace(get(envRealtimeURL)),
+		RealtimeSecret:      strings.TrimSpace(get(envRealtimeSecret)),
 	}
 
 	if cfg.SessionSecret == "" {
@@ -138,6 +151,14 @@ func (c Config) validate() error {
 	}
 	if c.ShutdownTimeout <= 0 {
 		return fmt.Errorf("%s must be positive, got %s", envShutdown, c.ShutdownTimeout)
+	}
+	// REALTIME_URL is optional; when set it must be an http(s) URL ("off" is the
+	// documented Node convention for disabling the publisher).
+	if u := c.RealtimeURL; u != "" && u != "off" {
+		parsed, err := url.Parse(u)
+		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+			return fmt.Errorf("%s must be an http(s) URL or \"off\", got %q", envRealtimeURL, u)
+		}
 	}
 	return nil
 }

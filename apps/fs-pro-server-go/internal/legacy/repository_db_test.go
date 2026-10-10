@@ -186,3 +186,66 @@ func TestLegacyImportsSeasonPerks(t *testing.T) {
 		t.Fatal("seasonpass must declare the regalia perk legacy grants")
 	}
 }
+
+// TestHonourPerkGrantRolledBack proves a perk-bearing Honour populates the
+// Clubs.Perks inventory exactly once and the claim is idempotent.
+func TestHonourPerkGrantRolledBack(t *testing.T) {
+	url := os.Getenv("DATABASE_URL")
+	if url == "" {
+		t.Skip("DATABASE_URL not set")
+	}
+	ctx := context.Background()
+	pool, err := db.New(ctx, url, 15*time.Second, nil)
+	if err != nil {
+		t.Fatalf("db.New: %v", err)
+	}
+	defer pool.Close()
+
+	run := func(tx db.Querier) error {
+		repo := NewRepository(tx)
+		club := newTestClub(t, ctx, tx, map[string]any{"ClubhouseTier": 3, "SponsorCredits": 0})
+
+		// home-fortress: Goal 10, reward Perks{regalia:1}.
+		if err := repo.RecordHonour(ctx, club, "home-fortress", 10); err != nil {
+			return fmt.Errorf("record home-fortress: %w", err)
+		}
+		if _, err := repo.ClaimHonour(ctx, club, "home-fortress"); err != nil {
+			return fmt.Errorf("claim home-fortress: %w", err)
+		}
+		if got := clubPerk(t, ctx, tx, club, seasonpass.PerkRegalia); got != 1 {
+			return fmt.Errorf("regalia after claim = %d, want 1", got)
+		}
+		if _, err := repo.ClaimHonour(ctx, club, "home-fortress"); err != nil {
+			return fmt.Errorf("idempotent claim: %w", err)
+		}
+		if got := clubPerk(t, ctx, tx, club, seasonpass.PerkRegalia); got != 1 {
+			return fmt.Errorf("an idempotent claim doubled regalia: %d", got)
+		}
+
+		// star-collector: Goal 50, reward Perks{instant_finish:1}.
+		if err := repo.RecordHonour(ctx, club, "star-collector", 50); err != nil {
+			return fmt.Errorf("record star-collector: %w", err)
+		}
+		if _, err := repo.ClaimHonour(ctx, club, "star-collector"); err != nil {
+			return fmt.Errorf("claim star-collector: %w", err)
+		}
+		if got := clubPerk(t, ctx, tx, club, seasonpass.PerkInstantFinish); got != 1 {
+			return fmt.Errorf("instant_finish after claim = %d, want 1", got)
+		}
+		return nil
+	}
+	if err := db.InRollback(ctx, pool, run); err != nil {
+		t.Fatalf("rolled-back honour perk grant: %v", err)
+	}
+}
+
+// clubPerk reads a perk's remaining count from a club's Clubs.Perks inventory.
+func clubPerk(t *testing.T, ctx context.Context, q db.Querier, clubID, perk string) int {
+	t.Helper()
+	row, ok, err := one(ctx, q, `SELECT "Perks" FROM "Clubs" WHERE "_id"=$1`, clubID)
+	if err != nil || !ok {
+		t.Fatalf("read Clubs.Perks: ok=%v err=%v", ok, err)
+	}
+	perks, _ := row["Perks"].(map[string]any)
+	return campus.PerkCount(perks, perk)
+}

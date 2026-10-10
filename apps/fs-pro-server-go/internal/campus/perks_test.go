@@ -1,6 +1,9 @@
 package campus
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 // TestPerkRegistry pins the consumable Board Perks (04 §7): every advertised
 // perk resolves, and a resource perk names a real currency. PerkCount is
@@ -67,5 +70,98 @@ func TestResearchFacilitiesAreBuildable(t *testing.T) {
 		if def.MaxLevel < 1 {
 			t.Errorf("%s has no buildable levels", key)
 		}
+	}
+}
+
+// TestPerkKindsPinned pins the 04 §7 effect kinds: resource perks name a real
+// currency; construction/research act on an upgrade and carry no currency; and
+// every key the reward paths grant resolves in the registry.
+func TestPerkKindsPinned(t *testing.T) {
+	want := map[string]PerkKind{
+		"resource_cache":  PerkResource,
+		"instant_finish":  PerkConstruction,
+		"builder_boost":   PerkConstruction,
+		"research_finish": PerkResearch,
+		"trait_trial":     PerkCombat,
+		"regalia":         PerkCosmetic,
+	}
+	for key, kind := range want {
+		def, ok := PerkDefFor(key)
+		if !ok {
+			t.Errorf("%s missing from the registry", key)
+			continue
+		}
+		if def.Kind != kind {
+			t.Errorf("%s kind = %q, want %q", key, def.Kind, kind)
+		}
+		if kind == PerkResource {
+			if _, ok := balanceColumn(def.Currency); !ok || def.Amount <= 0 {
+				t.Errorf("%s resource %q/%v invalid", key, def.Currency, def.Amount)
+			}
+		} else if def.Currency != "" {
+			t.Errorf("%s (%s) must not name a currency", key, kind)
+		}
+	}
+	// The registry order covers every registered key exactly once.
+	seen := map[string]bool{}
+	for _, key := range PerkKeys() {
+		if seen[key] {
+			t.Errorf("duplicate perk key %q in perkOrder", key)
+		}
+		seen[key] = true
+		if _, ok := Perks[key]; !ok {
+			t.Errorf("perkOrder key %q is not in the registry", key)
+		}
+	}
+	if len(seen) != len(Perks) {
+		t.Errorf("perkOrder has %d keys, registry has %d", len(seen), len(Perks))
+	}
+}
+
+func TestValidatePerkTarget(t *testing.T) {
+	instant, _ := PerkDefFor("instant_finish")
+	research, _ := PerkDefFor("research_finish")
+	cash, _ := PerkDefFor("cash_cache")
+	cases := []struct {
+		name    string
+		def     PerkDef
+		target  string
+		wantErr error
+	}{
+		{"resource ignores the target", cash, "", nil},
+		{"construction needs a target", instant, "", ErrPerkTargetRequired},
+		{"construction rejects an unknown facility", instant, "nope", ErrPerkTargetInvalid},
+		{"construction accepts a campus facility", instant, "club_shop", nil},
+		{"construction accepts a research tile", instant, "coaching_dept", nil},
+		{"research needs a target", research, "", ErrPerkTargetRequired},
+		{"research rejects a non-research facility", research, "turnstiles", ErrPerkTargetInvalid},
+		{"research accepts the coaching department", research, "coaching_dept", nil},
+		{"research accepts video analysis", research, "video_analysis", nil},
+	}
+	for _, c := range cases {
+		err := validatePerkTarget(c.def, c.target)
+		if c.wantErr == nil {
+			if err != nil {
+				t.Errorf("%s: err = %v, want nil", c.name, err)
+			}
+			continue
+		}
+		if !errors.Is(err, c.wantErr) {
+			t.Errorf("%s: err = %v, want %v", c.name, err, c.wantErr)
+		}
+	}
+}
+
+func TestIsResearchFacility(t *testing.T) {
+	for _, key := range []string{"coaching_dept", "video_analysis"} {
+		if !IsResearchFacility(key) {
+			t.Errorf("%s must be a research facility", key)
+		}
+	}
+	if IsResearchFacility("turnstiles") {
+		t.Error("turnstiles is not a research facility")
+	}
+	if IsResearchFacility("") {
+		t.Error("an empty key is not a research facility")
 	}
 }

@@ -3,6 +3,8 @@ package seasonpass
 import (
 	"testing"
 	"time"
+
+	"fs-pro-server/internal/campus"
 )
 
 func TestSeasonKeyFor(t *testing.T) {
@@ -188,5 +190,16 @@ func TestBankAccrualPure(t *testing.T) {
 	// not recorded, so a later call with a real income can still bank).
 	if got := BankAccrual(1, 2000); got != 0 {
 		t.Errorf("BankAccrual(1, 2000) = %d, want 0", got)
+	}
+}
+
+// TestSeasonPerkIdsCoveredByCampus pins the cross-package contract: every perk
+// the season catalogue names is redeemable in the campus consumable registry
+// (the single Clubs.Perks inventory the reward paths grant into).
+func TestSeasonPerkIdsCoveredByCampus(t *testing.T) {
+	for _, p := range Perks {
+		if _, ok := campus.PerkDefFor(p.ID); !ok {
+			t.Errorf("season perk %q is not in the campus registry", p.ID)
+		}
 	}
 }

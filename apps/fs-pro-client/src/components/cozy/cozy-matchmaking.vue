@@ -24,7 +24,10 @@
       <img :src="crestUrl(o.code)" :alt="o.name" width="56" height="56" @error="crestFallback($event, o.name)" />
       <div class="opp-name">{{ o.name }}</div>
       <div class="opp-meta">Power {{ o.power }}</div>
-      <router-link class="opp-meta" :to="`/game/${o.id}`">Visit grounds</router-link>
+      <div class="opp-links">
+        <router-link class="opp-meta" :to="`/game/${o.id}`">Visit grounds</router-link>
+        <button class="opp-meta scout-link" @click.stop="emit('scout', o)">Scout base</button>
+      </div>
       <div class="opp-btns">
         <button v-if="!booking" class="btn primary" :disabled="starting || (cooldown ?? 0) > 0" @click.stop="emit('select', o), emit('play')">
           {{ starting && o.id === selectedId ? 'Starting…' : (cooldown ?? 0) > 0 ? 'Resting' : 'Play now' }}
@@ -57,6 +60,7 @@ const emit = defineEmits<{
   (e: 'select', o: Opponent): void;
   (e: 'play'): void;
   (e: 'book', o: Opponent): void;
+  (e: 'scout', o: Opponent): void;
   (e: 'tactics'): void;
   (e: 'medical'): void;
 }>();
@@ -87,5 +91,15 @@ const label = (power: number) => (power - props.myPower < -5 ? 'Favoured' : powe
 .opp-human :deep(.ic) {
   width: 18px;
   height: 18px;
+}
+.opp-links {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.opp-links .scout-link {
+  font-weight: 700;
+  color: var(--wood-d);
+  text-decoration: underline;
 }
 </style>

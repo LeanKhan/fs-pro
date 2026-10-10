@@ -96,18 +96,18 @@ Players can also block someone for themselves (stored in their browser) and repo
 
 A resolved raid is published to the defender's private topic `club:<id>` with
 event `raid:resolved` (alias `club:defended`; names and payload in `events.go`).
-The gateway carries it today; only the publisher is missing:
 
 - The Go defence worker (`internal/play.ResolvePendingRaids`, through the
-  `Notifier` seam in `internal/play/raid.go`) currently writes the durable
-  `ClubMessages` row only. There is **no Go client that POSTs to `/publish`**
-  yet, so the realtime hop is not wired from Go.
-- To finish it: add a signed `/publish` client to the Go side (mirror of
+  `Notifier` seam in `internal/play/raid.go`) writes the durable
+  `ClubMessages` row and then, when the gateway is configured, POSTs the
+  event through the signed Go client in `internal/realtime` (the mirror of
   `src/realtime/world-events.ts`: `X-Signature: hex(hmac-sha256(body))` over
-  `{topics,event,data}`, configured by `REALTIME_URL` + `REALTIME_SECRET`) and a
-  `Notifier` whose `RaidResolved` posts `raid:resolved` to `club:<defenderId>`
-  after the durable row. Until then the inbox message is the source of truth and
-  the browser reconciles on the next read — no event is faked.
+  `{topics,event,data}`, configured by `REALTIME_URL` + `REALTIME_SECRET`).
+  The publish is fire-and-forget with a short timeout: a gateway hiccup is
+  logged, never returned, so a raid is never blocked or failed by realtime.
+- With `REALTIME_URL`/`REALTIME_SECRET` unset the worker stays durable-only
+  (the default): the inbox message is the source of truth and the browser
+  reconciles on the next read — no event is faked.
 
 ## Scaling
 

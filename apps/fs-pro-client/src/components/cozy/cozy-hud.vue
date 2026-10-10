@@ -122,6 +122,7 @@
     <template v-if="isMine">
       <nav v-if="!moving" class="dock">
         <button :class="{ coach: coach === 'build' }" @click="emit('act', 'build')"><span v-html="icon('hammer')"></span><span>Build</span></button>
+        <button @click="emit('act', 'campus')"><span v-html="icon('coins')"></span><span>Grounds</span></button>
         <button @click="emit('act', 'move')"><span v-html="icon('move')"></span><span>Move</span></button>
         <button @click="emit('act', 'squad')"><span v-html="icon('people')"></span><span>Squad</span></button>
         <button :class="{ coach: coach === 'manager' }" @click="emit('act', 'manager')"><span v-html="icon('news')"></span><span>Manager</span></button>

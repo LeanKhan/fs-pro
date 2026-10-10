@@ -42,6 +42,7 @@ import (
 	"fs-pro-server/internal/policy"
 	"fs-pro-server/internal/preseason"
 	"fs-pro-server/internal/program"
+	"fs-pro-server/internal/realtime"
 	"fs-pro-server/internal/season"
 	"fs-pro-server/internal/seasonpass"
 	"fs-pro-server/internal/session"
@@ -121,6 +122,15 @@ func main() {
 	calendarRepo := calendar.NewRepository(querier)
 	facilitiesRepo := facilities.NewRepository(querier)
 	playRepo := play.NewRepository(querier)
+	// Publish resolved raids to the realtime gateway when it is configured; a
+	// raid's durable inbox row is written either way. Unset REALTIME_URL or
+	// REALTIME_SECRET means durable-only, the current default.
+	if rt := realtime.New(cfg.RealtimeURL, cfg.RealtimeSecret, logger); rt.Enabled() {
+		playRepo = playRepo.WithNotifier(play.NewRealtimeNotifier(rt))
+		logger.Info("realtime publisher enabled", "url", cfg.RealtimeURL)
+	} else {
+		logger.Debug("realtime publisher disabled - defence notifications are durable-inbox-only")
+	}
 	worldService := place.NewWorldService(placeRepo, clients.NewWorldClient(os.Getenv("IMAGINATION_API_URL")))
 
 	srv := httpapi.New(httpapi.Deps{

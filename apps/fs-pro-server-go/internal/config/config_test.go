@@ -81,3 +81,41 @@ func TestCORSOriginsParsed(t *testing.T) {
 		t.Fatalf("origins = %v", cfg.CORSOrigins)
 	}
 }
+
+func TestRealtimeConfigParsed(t *testing.T) {
+	cfg, err := load(env(map[string]string{
+		"REALTIME_URL":    "http://localhost:3005/",
+		"REALTIME_SECRET": " shared-secret ",
+	}))
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if cfg.RealtimeURL != "http://localhost:3005/" {
+		t.Fatalf("RealtimeURL = %q", cfg.RealtimeURL)
+	}
+	if cfg.RealtimeSecret != "shared-secret" {
+		t.Fatalf("RealtimeSecret = %q, want trimmed", cfg.RealtimeSecret)
+	}
+}
+
+func TestRealtimeConfigDefaultsEmpty(t *testing.T) {
+	cfg, err := load(env(map[string]string{}))
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if cfg.RealtimeURL != "" || cfg.RealtimeSecret != "" {
+		t.Fatalf("realtime must default to unconfigured, got %q/%q", cfg.RealtimeURL, cfg.RealtimeSecret)
+	}
+}
+
+func TestRealtimeURLValidated(t *testing.T) {
+	// "off" is the documented disable value and must be accepted.
+	if _, err := load(env(map[string]string{"REALTIME_URL": "off", "REALTIME_SECRET": "s"})); err != nil {
+		t.Fatalf("off must be accepted: %v", err)
+	}
+	for _, bad := range []string{"localhost:3005", "ftp://x", "http://"} {
+		if _, err := load(env(map[string]string{"REALTIME_URL": bad, "REALTIME_SECRET": "s"})); err == nil {
+			t.Fatalf("REALTIME_URL=%q must be rejected", bad)
+		}
+	}
+}

@@ -141,7 +141,9 @@ func (h *Handlers) buyGroundskeeper(_ *httpapi.Context, _ http.ResponseWriter, r
 }
 
 // usePerk is POST /api/campus/{clubId}/perk/use: redeem one quick consumable
-// Board Perk (04 §7). The optional instanceId makes a retried request a no-op.
+// Board Perk (04 §7). The optional instanceId makes a retried request a no-op;
+// the optional target names the running upgrade a Construction/Research perk
+// finishes (required for those kinds).
 func (h *Handlers) usePerk(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
 	clubID := r.PathValue("clubId")
 	b := body(cx)
@@ -159,8 +161,17 @@ func (h *Handlers) usePerk(cx *httpapi.Context, _ http.ResponseWriter, r *http.R
 		}
 		instanceID = id
 	}
+	// target names the running upgrade for Construction/Research perks.
+	target := ""
+	if raw, ok := b["target"]; ok && raw != nil {
+		v, ok := raw.(string)
+		if !ok || v == "" {
+			return httpapi.Fail(400, "target must be a non-empty string", "target must be a non-empty string")
+		}
+		target = v
+	}
 	now := time.Now().UTC()
-	if _, err := h.repo.UsePerk(r.Context(), clubID, perk, instanceID, now); err != nil {
+	if _, err := h.repo.UsePerk(r.Context(), clubID, perk, instanceID, target, now); err != nil {
 		return mapErr(err)
 	}
 	return h.campus(r.Context(), clubID, now)
@@ -177,11 +188,13 @@ func mapErr(err error) httpapi.Response {
 		errors.Is(err, ErrAllBuildersBusy), errors.Is(err, ErrAlreadyUpgrading),
 		errors.Is(err, ErrMaxLevel), errors.Is(err, ErrFacilityCapped),
 		errors.Is(err, ErrClubhouseRequirements), errors.Is(err, ErrNothingToCollect),
-		errors.Is(err, ErrGroundskeepersMaxed), errors.Is(err, ErrPerkUnavailable):
+		errors.Is(err, ErrGroundskeepersMaxed), errors.Is(err, ErrPerkUnavailable),
+		errors.Is(err, ErrPerkTargetNotUpgrading):
 		return httpapi.Fail(409, msg, msg)
 	case errors.Is(err, ErrUnsupportedFacility), errors.Is(err, ErrUnknownBuilding),
 		errors.Is(err, ErrInvalidPlacement), errors.Is(err, ErrGroundskeeperEarned),
-		errors.Is(err, ErrUnknownPerk):
+		errors.Is(err, ErrUnknownPerk), errors.Is(err, ErrPerkTargetRequired),
+		errors.Is(err, ErrPerkTargetInvalid):
 		return httpapi.Fail(400, msg, msg)
 	default:
 		return httpapi.Fail(400, msg, msg)
