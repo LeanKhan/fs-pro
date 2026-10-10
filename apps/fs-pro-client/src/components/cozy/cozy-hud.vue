@@ -109,7 +109,7 @@
         <div class="su-title">{{ builders.name }}</div>
         <div class="su-time"><span v-html="icon('clock')"></span><span>{{ formatRemainingSeconds(builders.secondsLeft) }}</span></div>
       </div>
-      <span class="su-count">{{ builders.active }}/{{ builders.max }} builders</span>
+      <span class="su-count">{{ builders.active }}/{{ builders.max }} crews</span>
     </div>
 
     <div class="sidebtns">

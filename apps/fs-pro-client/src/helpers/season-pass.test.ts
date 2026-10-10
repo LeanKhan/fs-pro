@@ -23,7 +23,7 @@ const RAW = {
     {
       id: 'season-kickoff',
       code: 'season-kickoff',
-      title: 'Win your first ranked raid',
+      title: 'Win your first ranked fixture',
       points: 250,
       goal: 1,
       progress: 1,
@@ -34,7 +34,7 @@ const RAW = {
     {
       id: 'raid-stars-15',
       code: 'raid-stars-15',
-      title: 'Earn 15 raid stars',
+      title: 'Earn 15 match stars',
       points: 350,
       goal: 15,
       progress: 9,

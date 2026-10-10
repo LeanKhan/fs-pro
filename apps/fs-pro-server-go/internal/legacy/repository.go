@@ -54,9 +54,9 @@ var Honours = []Honour{
 	{Code: "first-blood", Title: "Win your first fixture", Goal: 1, Reward: HonourReward{SponsorCredits: 10}},
 	{Code: "fan-favourite", Title: "Reach 1,000 Fans", Goal: 1000, Reward: HonourReward{SponsorCredits: 20}},
 	{Code: "clubhouse-t3", Title: "Reach Clubhouse tier 3", Goal: 3, Reward: HonourReward{Cash: 50000, SponsorCredits: 30}},
-	{Code: "home-fortress", Title: "Win 10 home raids", Goal: 10, Reward: HonourReward{Cash: 25000, Perks: map[string]int{seasonpass.PerkRegalia: 1}}},
-	{Code: "star-collector", Title: "Earn 50 raid stars", Goal: 50, Reward: HonourReward{SponsorCredits: 50, Perks: map[string]int{seasonpass.PerkInstantFinish: 1}}},
-	{Code: "legacy-builder", Title: "Own 5 Groundskeepers", Goal: 5, Reward: HonourReward{SponsorCredits: 100}},
+	{Code: "home-fortress", Title: "Win 10 home fixtures", Goal: 10, Reward: HonourReward{Cash: 25000, Perks: map[string]int{seasonpass.PerkRegalia: 1}}},
+	{Code: "star-collector", Title: "Earn 50 match stars", Goal: 50, Reward: HonourReward{SponsorCredits: 50, Perks: map[string]int{seasonpass.PerkInstantFinish: 1}}},
+	{Code: "legacy-builder", Title: "Employ 5 Project Crews", Goal: 5, Reward: HonourReward{SponsorCredits: 100}},
 }
 
 // HonourFor resolves an Honour by code.

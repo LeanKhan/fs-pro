@@ -21,11 +21,11 @@
         </div>
         <div class="bar"><i :style="{ width: pct(legacy.totalStars, legacy.maxStars) }"></i></div>
         <p class="note">
-          Groundskeepers {{ legacy.groundskeepers.count }} / {{ legacy.groundskeepers.max }} ·
+          Project Crews {{ legacy.groundskeepers.count }} / {{ legacy.groundskeepers.max }} ·
           completing the chain grants the 6th.
         </p>
         <button class="btn primary" :disabled="!legacyClaimable(legacy) || claiming" @click="claim">
-          {{ legacy.granted > 0 ? 'Groundskeeper granted' : claiming ? 'Claiming…' : 'Claim the 6th Groundskeeper' }}
+          {{ legacy.granted > 0 ? 'Project Crew granted' : claiming ? 'Claiming…' : 'Claim the 6th Project Crew' }}
         </button>
       </div>
 
@@ -137,7 +137,7 @@ async function claim() {
   const next = coerceLegacy(payloadOrNull(res));
   if (next) {
     legacy.value = next;
-    emit('toast', 'The 6th Groundskeeper joins your staff.');
+    emit('toast', 'The 6th Project Crew joins your staff.');
   } else {
     emit('toast', 'The chain is not complete yet.', 'error');
   }

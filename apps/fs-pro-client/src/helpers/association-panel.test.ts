@@ -7,6 +7,8 @@ import {
   directivePerks,
   festivalLabel,
   isMember,
+  roleLabel,
+  derbyPhaseLabel,
   tierLabel,
 } from './association-panel';
 
@@ -150,5 +152,23 @@ describe('tierLabel', () => {
     assert.equal(tierLabel(1), 'I');
     assert.equal(tierLabel(3), 'III');
     assert.equal(tierLabel(9), 'T9');
+  });
+});
+
+describe('roleLabel', () => {
+  it('maps fantasy clan roles to football association leadership titles', () => {
+    assert.equal(roleLabel('leader'), 'Chairman');
+    assert.equal(roleLabel('co-leader'), 'Vice Chairman');
+    assert.equal(roleLabel('elder'), 'Senior Delegate');
+    assert.equal(roleLabel('member'), 'Member');
+    assert.equal(roleLabel('guest'), 'Guest');
+  });
+});
+
+describe('derbyPhaseLabel', () => {
+  it('maps derby phases to football matchday terminology', () => {
+    assert.equal(derbyPhaseLabel('prep'), 'Planning');
+    assert.equal(derbyPhaseLabel('battle'), 'Matchday');
+    assert.equal(derbyPhaseLabel('complete'), 'Concluded');
   });
 });

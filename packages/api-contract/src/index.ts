@@ -213,7 +213,7 @@ export * from './world-calendar';
 export * from './crest';
 export * from './schemas/atlas';
 
-// Campus economy + the CoC-mapping system shapes (docs/coc-mapping 02/04).
+// Campus economy and facility progression shapes.
 export {
   CampusCurrencySchema,
   CampusStateSchema,
@@ -233,7 +233,7 @@ export {
   PerkStateSchema,
   PerkTargetSchema,
   UsePerkRequestSchema,
-} from './schemas/coc-campus';
+} from './schemas/campus';
 export type {
   CampusCurrency,
   CampusState,
@@ -245,7 +245,7 @@ export type {
   ClubhouseState,
   PerkState,
   PerkTarget,
-} from './schemas/coc-campus';
+} from './schemas/campus';
 export * from './schemas/layout';
 export {
   AbilitySchema,

@@ -308,3 +308,17 @@ export function hasFreeSlot(player: PlayerAbilitiesView): boolean {
 export function slotLabel(player: PlayerAbilitiesView): string {
   return `${player.usedSlots} / ${player.slots}`;
 }
+
+/** Human display label for a trait rarity tier. */
+export function traitRarityLabel(rarity: string): string {
+  switch (rarity.toLowerCase()) {
+    case 'shiny':
+      return 'Foundational';
+    case 'glowy':
+      return 'Specialist';
+    case 'starry':
+      return 'Master';
+    default:
+      return rarity ? rarity[0]!.toUpperCase() + rarity.slice(1) : rarity;
+  }
+}

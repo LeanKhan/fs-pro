@@ -15,7 +15,7 @@ import { bool, int, isRecord, list, num, record, str } from './coerce';
 /** The human label for each seeded chain step (internal/legacy.Chain). */
 export const LEGACY_STEP_LABEL: Record<string, string> = {
   'first-grounds': 'Break ground on the first facility',
-  'first-raid-win': 'Win your first ranked raid',
+  'first-raid-win': 'Win your first ranked fixture',
   'clean-sheet-streak': 'Keep clean sheets in a row',
   'promote-a-teen': 'Promote an academy player',
   'cup-run': 'Reach a cup run',

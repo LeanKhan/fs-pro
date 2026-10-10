@@ -49,10 +49,10 @@ type Objective struct {
 // canonical ordinal used in SeasonClaims.Tier (1-based) so a claim is unique per
 // (club, season, objective).
 var Objectives = []Objective{
-	{Code: "season-kickoff", Title: "Win your first ranked raid", Points: 250, Goal: 1, Scope: ScopeIndividual, Metric: MetricRaidWins},
-	{Code: "raid-wins-5", Title: "Win 5 ranked raids", Points: 400, Goal: 5, Scope: ScopeIndividual, Metric: MetricRaidWins},
-	{Code: "raid-stars-15", Title: "Earn 15 raid stars", Points: 350, Goal: 15, Scope: ScopeIndividual, Metric: MetricRaidStars},
-	{Code: "raid-wins-20", Title: "Win 20 ranked raids", Points: 700, Goal: 20, Scope: ScopeIndividual, Metric: MetricRaidWins},
+	{Code: "season-kickoff", Title: "Win your first ranked fixture", Points: 250, Goal: 1, Scope: ScopeIndividual, Metric: MetricRaidWins},
+	{Code: "raid-wins-5", Title: "Win 5 ranked fixtures", Points: 400, Goal: 5, Scope: ScopeIndividual, Metric: MetricRaidWins},
+	{Code: "raid-stars-15", Title: "Earn 15 match stars", Points: 350, Goal: 15, Scope: ScopeIndividual, Metric: MetricRaidStars},
+	{Code: "raid-wins-20", Title: "Win 20 ranked fixtures", Points: 700, Goal: 20, Scope: ScopeIndividual, Metric: MetricRaidWins},
 	{Code: "clubhouse-tier-2", Title: "Reach Clubhouse tier 2", Points: 300, Goal: 2, Scope: ScopeIndividual, Metric: MetricClubhouseTier},
 	{Code: "clubhouse-tier-3", Title: "Reach Clubhouse tier 3", Points: 450, Goal: 3, Scope: ScopeIndividual, Metric: MetricClubhouseTier},
 	{Code: "builders-4", Title: "Own 4 Groundskeepers", Points: 350, Goal: 4, Scope: ScopeIndividual, Metric: MetricGroundskeepers},

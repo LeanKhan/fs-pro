@@ -76,7 +76,7 @@ export function defenseHeadline(
     case 'draw':
       return `${attackerName} drew ${score} at your ground (${rating})`;
     default:
-      return `You were raided ${score}, ${rating}`;
+      return `Defeated ${score}, ${rating}`;
   }
 }
 
@@ -84,7 +84,7 @@ export function defenseHeadline(
 export function defenseOutcomeLabel(outcome: DefenseOutcome): string {
   if (outcome === 'win') return 'Repelled';
   if (outcome === 'draw') return 'Held';
-  return 'Raided';
+  return 'Conceded';
 }
 
 /** One defense log entry as a view model. */

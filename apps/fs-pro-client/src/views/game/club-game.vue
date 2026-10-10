@@ -113,7 +113,7 @@
           {{ game.campus.value.activeUpgrades }}/{{
             game.campus.value.maxConcurrentUpgrades
           }}
-          builders busy
+          crews active
         </p>
         <div class="cards">
           <button
@@ -1168,7 +1168,7 @@ async function onBook(o: { id: string }) {
   openPrep(f.fixtureId);
 }
 
-/** The matchmaking list's "Scout base": open the read-only scout screen. */
+/** The matchmaking list's "Scout setup": open the read-only scout screen. */
 function onScout(o: { id: string }) {
   game.showMatchmaking.value = false;
   selectedKey.value = null;

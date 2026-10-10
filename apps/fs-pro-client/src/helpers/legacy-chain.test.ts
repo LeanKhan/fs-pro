@@ -33,7 +33,7 @@ const RAW = {
     },
     {
       code: 'home-fortress',
-      title: 'Win 10 home raids',
+      title: 'Win 10 home fixtures',
       goal: 10,
       progress: 4,
       complete: false,

@@ -91,7 +91,7 @@
 
       <div v-else class="scr-empty">
         <span class="ic" v-html="icon('map')"></span>
-        <p>They have not set a Home Grid yet — nothing to crack here.</p>
+        <p>They have not set a Home Grid yet — no tactical setup to analyse.</p>
       </div>
     </template>
   </section>

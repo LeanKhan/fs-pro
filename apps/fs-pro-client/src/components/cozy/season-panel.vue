@@ -16,7 +16,7 @@
         <div class="hero-top">
           <span class="tier">Tier {{ season.tier }}<small>/{{ season.maxTier }}</small></span>
           <span class="chip" :class="{ on: season.hasPass }">
-            {{ season.hasPass ? 'Gold pass' : 'Silver only' }}
+            {{ season.hasPass ? "Director's Pass" : 'Standard Track' }}
           </span>
         </div>
         <div class="bar"><i :style="{ width: `${Math.round(season.progress.pct * 100)}%` }"></i></div>
@@ -50,15 +50,15 @@
         </ul>
       </div>
 
-      <!-- Silver / Gold tracks -->
+      <!-- Standard / Director's tracks -->
       <div class="sea-card">
         <div class="card-head">
           <h3>Tracks</h3>
-          <span class="note">Silver is free · Gold needs the pass</span>
+          <span class="note">Standard is free · Pass required for Director's track</span>
         </div>
         <div class="tracks">
           <div class="track">
-            <div class="track-head silver">Silver</div>
+            <div class="track-head silver">Standard</div>
             <button
               class="btn tiny primary"
               :disabled="!nextSilver || busy === 'silver'"
@@ -68,7 +68,7 @@
             </button>
           </div>
           <div class="track">
-            <div class="track-head gold">Gold</div>
+            <div class="track-head gold">Director's</div>
             <button
               class="btn tiny primary"
               :disabled="!nextGold || busy === 'gold'"
@@ -80,11 +80,11 @@
         </div>
       </div>
 
-      <!-- Season Bank -->
-      <div class="sea-card">
+      <!-- Season Dividend -->
+      <div v-if="bank" class="sea-card">
         <div class="card-head">
-          <h3>Season Bank</h3>
-          <span class="chip">20% of raid loot</span>
+          <h3>Season Dividend</h3>
+          <span class="chip">20% of match rewards</span>
         </div>
         <div class="bank-grid">
           <div class="pstat"><b>{{ currency(bank.accrued) }}</b><small>accrued</small></div>
@@ -92,7 +92,7 @@
           <div class="pstat"><b>{{ currency(bank.claimable) }}</b><small>claimable</small></div>
         </div>
         <button class="btn primary" :disabled="!bank.claimable || busy === 'bank'" @click="claimBank">
-          {{ busy === 'bank' ? 'Claiming…' : bank.open ? 'Claim the bank' : 'Claimable at season end' }}
+          {{ busy === 'bank' ? 'Claiming…' : bank.open ? 'Claim Season Dividend' : 'Claimable at season end' }}
         </button>
       </div>
 
@@ -140,6 +140,7 @@ import {
   ownedPerks,
   type SeasonView,
 } from '@/helpers/season-pass';
+import type { PerkTarget } from '@repo/api-contract';
 import { icon } from './icons';
 import CozyCountdown from './cozy-countdown.vue';
 
@@ -160,6 +161,7 @@ const error = ref('');
 const busy = ref('');
 const targets = reactive<Record<string, string>>({});
 
+const bank = computed(() => season.value?.bank ?? null);
 const nextSilver = computed(() => (season.value ? nextClaimableTier(season.value, 'silver') : null));
 const nextGold = computed(() => (season.value ? nextClaimableTier(season.value, 'gold') : null));
 const owned = computed(() => (season.value ? ownedPerks(season.value) : []));
@@ -237,8 +239,8 @@ async function claimBank() {
     params: { clubId: props.clubId },
     body: {},
   });
-  if (apply(payloadOrNull(res))) emit('toast', 'Season Bank claimed.');
-  else emit('toast', 'Nothing to claim from the bank yet.', 'error');
+  if (apply(payloadOrNull(res))) emit('toast', 'Season Dividend claimed.');
+  else emit('toast', 'Nothing to claim from the dividend yet.', 'error');
   busy.value = '';
 }
 
@@ -251,7 +253,7 @@ async function usePerk(perk: string, category: string) {
     body: {
       perk,
       instanceId: instanceId(),
-      ...(target ? { target } : {}),
+      ...(target ? { target: target as PerkTarget } : {}),
     },
   });
   if (payloadOrNull(res)) {

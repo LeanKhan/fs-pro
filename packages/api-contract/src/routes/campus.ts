@@ -16,7 +16,7 @@ import {
   PlaceRequestSchema,
   UpgradeRequestSchema,
   UsePerkRequestSchema,
-} from '../schemas/coc-campus';
+} from '../schemas/campus';
 
 const clubParam = z.object({ clubId: z.string() });
 

@@ -52,15 +52,15 @@ describe('defenseOutcome', () => {
   it('labels the outcomes', () => {
     assert.equal(defenseOutcomeLabel('win'), 'Repelled');
     assert.equal(defenseOutcomeLabel('draw'), 'Held');
-    assert.equal(defenseOutcomeLabel('loss'), 'Raided');
+    assert.equal(defenseOutcomeLabel('loss'), 'Conceded');
   });
 });
 
 describe('defenseHeadline', () => {
-  it('matches the brief: "You were raided 1–2, 1★"', () => {
+  it('matches the format: "Defeated 1–2, 1★"', () => {
     assert.equal(
       defenseHeadline('Riverside FC', 1, 2, 1),
-      'You were raided 1–2, 1★'
+      'Defeated 1–2, 1★'
     );
   });
   it('says a win repelled and a draw held', () => {
@@ -79,7 +79,7 @@ describe('defenseView', () => {
   it('carries only the non-zero loot currencies', () => {
     const view = defenseView(entry());
     assert.equal(view.outcome, 'loss');
-    assert.equal(view.headline, 'You were raided 1–2, 1★');
+    assert.equal(view.headline, 'Defeated 1–2, 1★');
     assert.deepEqual(
       view.lootParts.map((p) => p.key),
       ['cash', 'fans']

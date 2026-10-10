@@ -8,7 +8,7 @@ import {
   UpgradeRequestSchema,
   UsePerkRequestSchema,
   type CampusState,
-} from './schemas/coc-campus';
+} from './schemas/campus';
 import { LayoutsSchema, PitchGridDocumentSchema } from './schemas/layout';
 
 /** A payload with exactly the shape the Go campus handler emits. */

@@ -202,10 +202,10 @@ type OnboardingStep struct {
 var OnboardingRail = []OnboardingStep{
 	{ID: StepBuildCollector, Title: "Build your first collector", Hint: "Upgrade the Turnstiles or the Club Shop to level 1."},
 	{ID: StepCollect, Title: "Collect your income", Hint: "Tap Collect on the campus to bank a collector's takings."},
-	{ID: StepUpgrade, Title: "Start an upgrade", Hint: "Queue any campus upgrade; a Groundskeeper will build it."},
+	{ID: StepUpgrade, Title: "Start an upgrade", Hint: "Queue any campus upgrade; a Project Crew will begin works."},
 	{ID: StepSetGrid, Title: "Set your grid", Hint: "Save a Home layout on the pitch grid so you can defend."},
-	{ID: StepWinRaid, Title: "Win your first match", Hint: "Clear a Pre-Season stage (or win a raid) to bank the win."},
-	{ID: StepGroundskeeper2, Title: "Unlock Groundskeeper #2", Hint: "Reach Clubhouse tier 2 for your second builder."},
+	{ID: StepWinRaid, Title: "Win your first match", Hint: "Clear a Pre-Season stage (or win a fixture) to bank the win."},
+	{ID: StepGroundskeeper2, Title: "Unlock Project Crew #2", Hint: "Reach Clubhouse tier 2 for your second Project Crew."},
 }
 
 // Facts is the world state the evaluator reads. It is computed once from the

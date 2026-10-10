@@ -15,7 +15,7 @@
       <div v-if="standingS" class="lad-card hero">
         <div class="hero-top">
           <span class="rung">{{ standingS.leagueLabel }}</span>
-          <span class="mult">{{ standingS.multiplierLabel }} loot</span>
+          <span class="mult">{{ standingS.multiplierLabel }} prize mult</span>
         </div>
         <div class="hero-row">
           <div class="stat"><small>Standing</small><b>{{ count(standingS.points) }}</b></div>
@@ -30,14 +30,14 @@
         </div>
         <template v-if="poolS">
           <div class="pool-grid">
-            <div class="pstat"><b>{{ poolS.attacksLeft }}</b><small>attacks left</small></div>
-            <div class="pstat"><b>{{ poolS.attacksUsed }}/{{ poolS.attacksAllowed }}</b><small>attacks used</small></div>
-            <div class="pstat"><b>{{ poolS.defenses }}</b><small>defenses faced</small></div>
+            <div class="pstat"><b>{{ poolS.attacksLeft }}</b><small>fixtures left</small></div>
+            <div class="pstat"><b>{{ poolS.attacksUsed }}/{{ poolS.attacksAllowed }}</b><small>fixtures played</small></div>
+            <div class="pstat"><b>{{ poolS.defenses }}</b><small>home fixtures</small></div>
             <div class="pstat"><b>{{ poolS.stars }}</b><small>stars</small></div>
           </div>
           <p class="note">
             <template v-if="poolS.placement">Placed #{{ poolS.placement }} in your pool.</template>
-            <template v-else>Play ranked raids this week to be placed.</template>
+            <template v-else>Play ranked fixtures this week to be placed.</template>
             <span class="week"> {{ poolS.weekKey }}</span>
           </p>
         </template>
@@ -60,14 +60,14 @@
           <i :style="{ width: `${Math.round(formS.fill * 100)}%` }"></i>
         </div>
         <p v-if="formS" class="note">
-          Earn {{ formS.required }}★ within 24h for a league-scaled loot drop into the Board Vault.
+          Earn {{ formS.required }}★ within 24h for a league-scaled bonus credited to the Board Reserve.
           <template v-if="formS.nextResetAt && serverNow">
             Reset
             <cozy-countdown :at="formS.nextResetAt" :server-now="serverNow" />
           </template>
         </p>
         <button class="btn primary" :disabled="claiming" @click="claimVault">
-          {{ claiming ? 'Claiming…' : 'Claim Board Vault' }}
+          {{ claiming ? 'Claiming…' : 'Claim Board Reserve' }}
         </button>
         <p v-if="!vaultGate.claimable" class="note">{{ vaultGate.reason }}</p>
         <p v-if="lastClaim" class="note good" role="status">

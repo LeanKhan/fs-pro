@@ -117,7 +117,7 @@ func (h *Handlers) orders(_ *httpapi.Context, _ http.ResponseWriter, r *http.Req
 	if !ok {
 		return httpapi.Fail(404, "Club not found", nil)
 	}
-	return httpapi.OK("War Room orders", payload)
+	return httpapi.OK("Tactical orders", payload)
 }
 
 // prepare is POST /api/clubs/{id}/orders.

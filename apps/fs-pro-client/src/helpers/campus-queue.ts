@@ -187,7 +187,7 @@ export function campusTimers(campus: CampusState): CampusTimer[] {
     out.push({
       key: 'guard',
       kind: 'guard',
-      label: 'Warm-up Guard',
+      label: 'Pre-Match Buffer',
       at: campus.guardUntil,
       serverNow: campus.now,
     });

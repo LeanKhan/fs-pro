@@ -85,10 +85,10 @@
 
       <div class="cem-card">
         <div class="cem-card-head">
-          <h3>Groundskeepers</h3>
+          <h3>Project Crews</h3>
           <span class="cem-chip">
             {{ campus.groundskeepers.active }} /
-            {{ campus.groundskeepers.count }} busy
+            {{ campus.groundskeepers.count }} active
           </span>
         </div>
         <ul class="cem-list">
@@ -102,24 +102,24 @@
             />
           </li>
           <li v-if="!buildTimers.length" class="cem-empty">
-            No builders at work.
+            No project works in progress.
           </li>
         </ul>
         <p v-if="nextGroundskeeper" class="cem-hint">
-          Next Groundskeeper:
+          Next Project Crew:
           {{ count(nextGroundskeeper.cost) }} {{ nextGroundskeeper.currency }}
         </p>
       </div>
 
       <div v-if="guardTimer" class="cem-card">
         <div class="cem-card-head">
-          <h3>Warm-up Guard</h3>
+          <h3>Pre-Match Buffer</h3>
         </div>
         <p class="cem-timer">
           <cozy-countdown
             :at="guardTimer.at"
             :server-now="guardTimer.serverNow"
-            label="Guard ends in"
+            label="Buffer ends in"
             :on-done="() => onTimerDone('guard', guardTimer.at)"
           />
         </p>
@@ -127,7 +127,7 @@
 
       <div class="cem-card">
         <div class="cem-card-head">
-          <h3>Vaults</h3>
+          <h3>Reserves</h3>
         </div>
         <ul class="cem-list">
           <li v-for="v in vaults" :key="v.currency" class="cem-row">
@@ -148,7 +148,7 @@
               </div>
             </div>
           </li>
-          <li v-if="!vaults.length" class="cem-empty">No vaults yet.</li>
+          <li v-if="!vaults.length" class="cem-empty">No reserves established yet.</li>
         </ul>
       </div>
     </template>

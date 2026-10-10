@@ -42,12 +42,12 @@
         <ul class="asc-list">
           <li v-for="m in assoc.members" :key="m.clubId" class="asc-row">
             <b>{{ m.name || m.clubId }}</b>
-            <span class="role" :class="{ leader: m.isLeader }">{{ m.role }}</span>
+            <span class="role" :class="{ leader: m.isLeader }">{{ roleLabel(m.role) }}</span>
           </li>
         </ul>
         <div class="perks">
           <span class="perkchip">+{{ Math.round(assoc.perks.incomeBonusPct * 100) }}% income</span>
-          <span class="perkchip">+{{ Math.round(assoc.perks.vaultBonusPct * 100) }}% vault</span>
+          <span class="perkchip">+{{ Math.round(assoc.perks.vaultBonusPct * 100) }}% reserve</span>
           <span class="note">{{ assoc.loanSlots }} loan slots</span>
         </div>
         <button v-if="isMember(assoc, clubId)" class="btn" :disabled="busy === 'leave'" @click="leave">
@@ -64,13 +64,13 @@
         <div class="bar"><i :style="{ width: `${Math.round(assoc.grounds.fill * 100)}%` }"></i></div>
         <p class="note">
           Level {{ assoc.grounds.level }} / {{ assoc.grounds.maxLevel }} ·
-          {{ currency(assoc.grounds.capitalGold) }} capital<template v-if="!assoc.grounds.maxed"> · next {{ currency(assoc.grounds.nextCost) }}</template>
+          {{ currency(assoc.grounds.capitalGold) }} development funds<template v-if="!assoc.grounds.maxed"> · next {{ currency(assoc.grounds.nextCost) }}</template>
         </p>
         <p v-if="assoc.grounds.festivalActive && assoc.grounds.festivalClosesAt && serverNow" class="note">
           Festival closes <cozy-countdown :at="assoc.grounds.festivalClosesAt" :server-now="serverNow" />
         </p>
         <div class="inline">
-          <input v-model.number="goldInput" type="number" min="1" class="gold" placeholder="gold" />
+          <input v-model.number="goldInput" type="number" min="1" class="gold" placeholder="amount" />
           <button class="btn primary" :disabled="!goldInput || busy === 'grounds'" @click="contribute">
             {{ busy === 'grounds' ? '…' : 'Contribute' }}
           </button>
@@ -113,7 +113,7 @@
       <div class="asc-card">
         <div class="card-head">
           <h3>Derby</h3>
-          <span v-if="derby" class="chip" :class="{ live: derby.phase === 'battle' }">{{ derby.phase }}</span>
+          <span v-if="derby" class="chip" :class="{ live: derby.phase === 'battle' }">{{ derbyPhaseLabel(derby.phase) }}</span>
         </div>
         <label class="field"><span>Derby id</span><input v-model="derbyId" placeholder="paste a derby id" /></label>
         <button class="btn" :disabled="!derbyId || busy === 'derby'" @click="advanceDerby">
@@ -122,7 +122,7 @@
         <template v-if="derby">
           <div class="scoreline">
             <b>{{ derby.homeStars }}★</b>
-            <span>{{ derby.homeDestruction.toFixed(0) }}% — {{ derby.awayDestruction.toFixed(0) }}%</span>
+            <span>{{ derby.homeDestruction.toFixed(0) }}% — {{ derby.awayDestruction.toFixed(0) }}% pitch control</span>
             <b>{{ derby.awayStars }}★</b>
           </div>
           <p class="note">
@@ -182,6 +182,8 @@ import {
   directivePerks,
   festivalLabel,
   isMember,
+  roleLabel,
+  derbyPhaseLabel,
   tierLabel,
   type AssociationView,
   type DerbyView,

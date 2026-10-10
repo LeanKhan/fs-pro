@@ -8,14 +8,14 @@
 
     <template v-else-if="data">
       <header class="abt-head">
-        <h2><span class="ic" v-html="icon('bag')"></span> Abilities &amp; War Room</h2>
+        <h2><span class="ic" v-html="icon('bag')"></span> Abilities &amp; Tactical Orders</h2>
         <span class="chip">Coaching tier {{ data.facilityTier }}</span>
       </header>
 
       <nav class="abt-tabs">
         <button :class="{ on: tab === 'abilities' }" @click="tab = 'abilities'">Abilities</button>
         <button :class="{ on: tab === 'traits' }" @click="tab = 'traits'">Traits</button>
-        <button :class="{ on: tab === 'orders' }" @click="tab = 'orders'">War Room</button>
+        <button :class="{ on: tab === 'orders' }" @click="tab = 'orders'">Tactical Orders</button>
       </nav>
 
       <!-- Abilities: per-player syllabus + slotting (03 Part 2). -->
@@ -126,7 +126,7 @@
             <li v-for="t in catalogue.traits" :key="t.id" class="abt-row">
               <div class="row-top">
                 <b>{{ t.name }}</b>
-                <span class="rarity" :class="t.rarity">{{ t.rarity }}</span>
+                <span class="rarity" :class="t.rarity">{{ traitRarityLabel(t.rarity) }}</span>
               </div>
               <p class="note">{{ t.description }}</p>
               <div class="row-meta">
@@ -143,13 +143,13 @@
           </ul>
           <div v-if="equipped" class="equipped">
             <b>Equipped:</b>
-            <span v-for="(e, i) in equipped" :key="i" class="perkchip">{{ e.traitId }} ({{ e.rarity }})</span>
+            <span v-for="(e, i) in equipped" :key="i" class="perkchip">{{ e.traitId }} ({{ traitRarityLabel(e.rarity) }})</span>
             <span v-if="!equipped.length" class="note">none</span>
           </div>
         </div>
       </template>
 
-      <!-- War Room: order prep (02 §D). -->
+      <!-- Tactical Orders: order prep (02 §D). -->
       <template v-else>
         <div v-if="orders" class="abt-card">
           <div class="card-head">
@@ -197,6 +197,7 @@ import {
   hasFreeSlot,
   masteryLabel,
   slotLabel,
+  traitRarityLabel,
   type AbilitiesView,
   type OrderInventoryView,
   type PlayerAbilitiesView,

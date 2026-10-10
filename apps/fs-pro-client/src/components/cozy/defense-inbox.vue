@@ -18,9 +18,9 @@
         </button>
       </header>
 
-      <!-- Raid results: the durable defense log (02 §E). -->
+      <!-- Away challenges: the durable match defense log. -->
       <div class="dib-card">
-        <h3>Raid results</h3>
+        <h3>Away challenges</h3>
         <ul class="dib-list">
           <li v-for="d in defenses" :key="d.raidId" class="dib-row">
             <div class="row-top">
@@ -30,26 +30,26 @@
             <div class="row-meta">
               <span>{{ d.attackerName }}<template v-if="d.attackerCode"> ({{ d.attackerCode }})</template></span>
               <span v-if="d.practice">practice</span>
-              <span v-if="d.hasLoot" class="loot">Lost {{ lootText(d) }}</span>
-              <span v-else class="safe">Nothing stolen</span>
+              <span v-if="d.hasLoot" class="loot">Conceded {{ lootText(d) }}</span>
+              <span v-else class="safe">No prize conceded</span>
             </div>
             <div v-if="log" class="row-meta timers">
               <cozy-countdown
                 v-if="d.guardUntil"
                 :at="d.guardUntil"
                 :server-now="log.now"
-                label="Warm-up Guard"
+                label="Pre-Match Buffer"
               />
               <cozy-countdown
                 v-else-if="d.shieldUntil"
                 :at="d.shieldUntil"
                 :server-now="log.now"
-                label="Rest Window"
+                label="Recovery Window"
               />
             </div>
           </li>
           <li v-if="!defenses.length" class="dib-empty">
-            No one has raided your ground yet.
+            No visiting clubs have challenged your ground yet.
           </li>
         </ul>
       </div>

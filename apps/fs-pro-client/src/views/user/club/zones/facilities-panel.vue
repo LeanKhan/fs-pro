@@ -3,7 +3,7 @@
     <div class="text-h6 font-weight-bold d-flex justify-space-between align-center mb-1">
       <span>Club Facilities</span>
       <v-chip v-if="campus" size="small" color="primary">
-        Builders {{ campus.activeUpgrades }} / {{ campus.maxConcurrentUpgrades }}
+        Project Crews {{ campus.activeUpgrades }} / {{ campus.maxConcurrentUpgrades }}
       </v-chip>
     </div>
     <p class="text-caption text-medium-emphasis mb-3">

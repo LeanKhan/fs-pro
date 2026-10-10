@@ -26,7 +26,7 @@
       <div class="opp-meta">Power {{ o.power }}</div>
       <div class="opp-links">
         <router-link class="opp-meta" :to="`/game/${o.id}`">Visit grounds</router-link>
-        <button class="opp-meta scout-link" @click.stop="emit('scout', o)">Scout base</button>
+        <button class="opp-meta scout-link" @click.stop="emit('scout', o)">Scout setup</button>
       </div>
       <div class="opp-btns">
         <button v-if="!booking" class="btn primary" :disabled="starting || (cooldown ?? 0) > 0" @click.stop="emit('select', o), emit('play')">

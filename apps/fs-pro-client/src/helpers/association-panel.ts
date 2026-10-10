@@ -280,3 +280,33 @@ export function festivalLabel(grounds: GroundsView): string {
 export function directivePerks(directive: DirectiveView): string[] {
   return directive.rewards.perks.map((p) => p.key);
 }
+
+/** Human display label for an association member role. */
+export function roleLabel(role: string): string {
+  switch (role.toLowerCase()) {
+    case 'leader':
+      return 'Chairman';
+    case 'co-leader':
+      return 'Vice Chairman';
+    case 'elder':
+      return 'Senior Delegate';
+    case 'member':
+      return 'Member';
+    default:
+      return role ? role[0]!.toUpperCase() + role.slice(1) : 'Member';
+  }
+}
+
+/** Human display label for a Derby phase. */
+export function derbyPhaseLabel(phase: string): string {
+  switch (phase.toLowerCase()) {
+    case 'prep':
+      return 'Planning';
+    case 'battle':
+      return 'Matchday';
+    case 'complete':
+      return 'Concluded';
+    default:
+      return phase ? phase[0]!.toUpperCase() + phase.slice(1) : phase;
+  }
+}

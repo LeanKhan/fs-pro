@@ -8,6 +8,7 @@ import {
   hasFreeSlot,
   masteryLabel,
   slotLabel,
+  traitRarityLabel,
 } from './abilities-room';
 
 const ABILITIES_RAW = {
@@ -153,5 +154,14 @@ describe('coerceLoadout', () => {
 
   it('returns null without a player id', () => {
     assert.equal(coerceLoadout({ slots: 2 }), null);
+  });
+});
+
+describe('traitRarityLabel', () => {
+  it('maps fantasy ore rarities to authentic football trait tiers', () => {
+    assert.equal(traitRarityLabel('shiny'), 'Foundational');
+    assert.equal(traitRarityLabel('glowy'), 'Specialist');
+    assert.equal(traitRarityLabel('starry'), 'Master');
+    assert.equal(traitRarityLabel('elite'), 'Elite');
   });
 });

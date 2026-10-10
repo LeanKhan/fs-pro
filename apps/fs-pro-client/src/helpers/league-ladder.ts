@@ -122,5 +122,5 @@ export function vaultClaimGate(
   if (balance > 0) return { claimable: true, reason: null };
   if (ready)
     return { claimable: true, reason: null };
-  return { claimable: false, reason: 'The Board Vault is empty.' };
+  return { claimable: false, reason: 'The Board Reserve is empty.' };
 }

@@ -261,7 +261,7 @@ describe('campusTimers (countdown wiring, 04 §12)', () => {
     );
     assert.deepEqual(
       timers.map((t) => t.label),
-      ['Clubhouse → T3', 'stands → L2', 'Warm-up Guard']
+      ['Clubhouse → T3', 'stands → L2', 'Pre-Match Buffer']
     );
     for (const t of timers) {
       assert.equal(t.serverNow, campus.now);
