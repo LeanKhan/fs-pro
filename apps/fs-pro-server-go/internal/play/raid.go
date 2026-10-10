@@ -372,6 +372,9 @@ func (r *Repository) buildRaidRequest(ctx context.Context, fixtureTag, seed stri
 		attTactic = withStoredLayout(ctx, layoutRepo, req.AttackerID, grid.Match, attTactic)
 	}
 	defTactic := withStoredLayout(ctx, layoutRepo, req.DefenderID, grid.Home, tacticOf(defender))
+	// KPI: which stored grid slot each side fielded (attacker Match, defender Home).
+	recordGridUsage("match")
+	recordGridUsage("home")
 
 	clubJSON := func(c map[string]any, players []any, tactic map[string]any) map[string]any {
 		return map[string]any{
@@ -599,6 +602,12 @@ func (r *Repository) resolveRaid(ctx context.Context, raidID string) (*RaidOutco
 			return nil, err
 		}
 	}
+
+	// KPI: a fresh ranked/practice raid resolved - count its attacker-perspective
+	// outcome and star rating. This is reached only once per raid (the
+	// RaidResults guard above returns early on a replay).
+	recordRaidOutcome(outcomeOf(attGoals, defGoals))
+	recordRaidStars(stars)
 
 	// Durable defender notification (realtime transport is P7/P10).
 	if r.notifier != nil {
@@ -861,11 +870,13 @@ func ResolvePendingRaids(ctx context.Context, q db.Querier, now time.Time, sim S
 	for _, row := range list {
 		id := db.StringField(row, "_id")
 		if _, err := repo.ResolveRaid(ctx, id); err != nil {
+			recordDefenseFailure()
 			if _, uerr := q.Exec(ctx, `UPDATE "Raids" SET "Status" = 'failed', "updatedAt" = now() WHERE "_id" = $1`, id); uerr != nil {
 				return resolved, uerr
 			}
 			continue
 		}
+		recordRaidResolution("defense")
 		resolved++
 	}
 	return resolved, nil

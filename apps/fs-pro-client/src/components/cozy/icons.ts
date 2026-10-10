@@ -22,6 +22,7 @@ export const ICONS: Record<string, string> = {
   cross: svg('<rect x="4" y="4" width="24" height="24" rx="6" fill="#fff" stroke="#e5402f" stroke-width="2.5"/><path d="M16 9v14M9 16h14" stroke="#e5402f" stroke-width="5" stroke-linecap="round"/>'),
   news: svg('<rect x="4" y="6" width="22" height="20" rx="2" fill="#fffaf0" stroke="#5d6470" stroke-width="2"/><path d="M26 11h2v13a2 2 0 01-4 0" fill="none" stroke="#5d6470" stroke-width="2"/><rect x="8" y="10" width="7" height="6" fill="#3a8ee0"/><path d="M18 11h5M18 15h5M8 20h15M8 23h11" stroke="#5d6470" stroke-width="1.8" stroke-linecap="round"/>'),
   bolt: svg('<path d="M18 3L7 18h8l-2 11 12-16h-8z" fill="#f6d02f" stroke="#b98d0f" stroke-width="2" stroke-linejoin="round"/>'),
+  hub: svg('<rect x="5" y="5" width="9" height="9" rx="2" fill="#f5b82e" stroke="#b97f0f" stroke-width="2"/><rect x="18" y="5" width="9" height="9" rx="2" fill="#5cc23a" stroke="#2f8a1c" stroke-width="2"/><rect x="5" y="18" width="9" height="9" rx="2" fill="#3a6fd8" stroke="#23458f" stroke-width="2"/><rect x="18" y="18" width="9" height="9" rx="2" fill="#e5402f" stroke="#9a2216" stroke-width="2"/>'),
 };
 
 export const icon = (name: string) => ICONS[name] ?? '';

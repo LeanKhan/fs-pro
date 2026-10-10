@@ -215,6 +215,7 @@ func (h *Handlers) playMatch(cx *httpapi.Context, _ http.ResponseWriter, r *http
 	if denial, ok := h.requireClub(cx, r); !ok {
 		return denial
 	}
+	recordRaidAttempt()
 	ctx := r.Context()
 	clubID := r.PathValue("clubId")
 	body, _ := cx.BodyMap()

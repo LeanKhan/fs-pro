@@ -719,7 +719,14 @@ func spendSponsorCredits(ctx context.Context, q db.Querier, clubID string, credi
 	if tag.RowsAffected() == 0 {
 		return ErrInsufficientCredits
 	}
-	return ledger(ctx, q, clubID, "premium", float64(credits), note)
+	if err := ledger(ctx, q, clubID, "premium", float64(credits), note); err != nil {
+		return err
+	}
+	// OW-I04 premium-spend proxy: the single Sponsor-Credit debit point, so it
+	// covers both SpendSponsorCredits and the Season Pass purchase.
+	sponsorSpendsTotal.Inc()
+	sponsorCreditsSpentTotal.Add(float64(credits))
+	return nil
 }
 
 // BuySeasonPass grants the Gold Season Pass for the season, spending Sponsor

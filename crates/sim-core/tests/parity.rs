@@ -2,12 +2,15 @@
 //
 // The load-bearing guarantee of `07` §7a (option A, derived substreams):
 // a request with empty `orders` and empty `effects` must consume ZERO extra
-// RNG draws and produce BYTE-IDENTICAL output to the pre-abilities engine.
+// RNG draws and produce BYTE-IDENTICAL output across runs and builds.
 //
-// The three hashes below were captured from the engine before any of the
-// abilities work landed (FNV-1a 64 over `serde_json::to_string(match_data)`).
-// They are the regression lock: any accidental new draw or changed branch
-// in an effects-free match breaks this test.
+// The three hashes below are the regression lock (FNV-1a 64 over
+// `serde_json::to_string(match_data)`). They are re-baselined only when
+// `engine::SIM_VERSION` is bumped (07 §7a option B) - each bump is a deliberate
+// model change that invalidates stored replays. The current goldens are
+// **epoch 2**, the OW-F01 draw-bias re-calibration (`config.rs` dials); epoch 1
+// was the Waves 1-6 model. Any *accidental* new draw or changed branch in an
+// effects-free match still breaks this test.
 
 use serde_json::Value;
 use sim_core::contract::{run_simulation, SimulateMatchRequest};
@@ -59,14 +62,16 @@ fn hash(seed: &str, frames: bool) -> Option<u64> {
     Some(fnv(serde_json::to_string(&data).unwrap().as_bytes()))
 }
 
-/// Empty effects/orders: byte-identical to the pre-abilities build.
+/// Empty effects/orders: byte-identical across runs (the RNG is untouched by
+/// `orders`/`effects`). The goldens are re-baselined at each `SIM_VERSION` bump
+/// (07 §7a option B); the current set is epoch 2 (OW-F01 draw-bias re-calibration).
 #[test]
 fn empty_effects_are_byte_identical_to_baseline() {
     // (seed, include_frames, golden FNV hash of match_data)
     let cases = [
-        ("parity_golden", true, 0x2aa6_06ab_f903_3bd5u64),
-        ("parity_noframes", false, 0x8f17_c7cd_470d_2391u64),
-        ("parity_alpha", true, 0x884c_823d_769c_99adu64),
+        ("parity_golden", true, 0xc7f7_2daa_8c61_a68fu64),
+        ("parity_noframes", false, 0x1361_ab60_115e_0612u64),
+        ("parity_alpha", true, 0x2dc6_eb95_db67_7ea2u64),
     ];
     for (seed, frames, golden) in cases {
         let Some(got) = hash(seed, frames) else {

@@ -58,6 +58,7 @@
         <span v-html="icon('mail')"></span><i v-if="inbox" class="dot count">{{ inbox }}</i>
       </button>
       <button class="roundbtn" title="League" :class="{ coach: coach === 'league' && !league }" @click="emit('act', 'league')" v-html="icon('trophy')"></button>
+      <button v-if="isMine" class="roundbtn" title="Club hub" @click="emit('act', 'hub')" v-html="icon('hub')"></button>
       <button v-if="isMine" class="roundbtn" title="Settings" @click="emit('act', 'settings')" v-html="icon('gear')"></button>
     </div>
 

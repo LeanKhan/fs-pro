@@ -225,6 +225,19 @@
         <campus-economy v-if="isMyClub" :club-id="clubId" @toast="toast" />
       </cozy-modal>
 
+      <!-- The club hub: the gathered Track A surfaces (defence inbox + replay,
+           ladder, season, legacy, abilities/War Room, association, Pre-Season).
+           An overlay over the campus, never a route-home (08 §6). -->
+      <cozy-modal v-model="showHub" size="wide" label="Club hub">
+        <club-hub
+          v-if="isMyClub"
+          :club-id="clubId"
+          :server-now="game.campus.value?.now ?? null"
+          @toast="toast"
+          @replay="onHubReplay"
+        />
+      </cozy-modal>
+
       <!-- Dashboard screens and world news, over the campus -->
       <cozy-drawer
         :model-value="!!drawer"
@@ -447,6 +460,7 @@ import CozySettings from '@/components/cozy/cozy-settings.vue';
 import CozyMatchday from '@/components/cozy/cozy-matchday.vue';
 import CozyMatchPrep from '@/components/cozy/cozy-match-prep.vue';
 import CampusEconomy from '@/components/cozy/campus-economy.vue';
+import ClubHub from '@/components/cozy/club-hub.vue';
 import PitchGridEditor from '@/components/cozy/grid/pitch-grid-editor.vue';
 import UserCompetitions from '@/views/user/competitions/competitions.vue';
 import TeamSheetZone from '@/views/user/club/zones/team-sheet-zone.vue';
@@ -953,7 +967,8 @@ const showBuild = ref(false);
 const showTreatment = ref(false);
 const showSettings = ref(false);
 const showCampus = ref(false);
-watch([showBuild, showSettings, showCampus, game.showMatchmaking], (now, before) => {
+const showHub = ref(false);
+watch([showBuild, showSettings, showCampus, showHub, game.showMatchmaking], (now, before) => {
   if (now.some((on, i) => on && !before?.[i])) sfx.play('open');
 });
 
@@ -1175,6 +1190,12 @@ function closeWatching() {
   watching.value = null;
   matchdayKey.value++;
   game.load();
+}
+
+/** A defense-inbox replay: close the hub and open the Matchzone on that fixture. */
+function onHubReplay(fixtureId: string, playedAt: string | null) {
+  showHub.value = false;
+  watchFixture(fixtureId, playedAt);
 }
 
 const refreshClub = useClubRefresh();
@@ -1492,6 +1513,8 @@ function onAct(action: string) {
       return (showBuild.value = true);
     case 'campus':
       return (showCampus.value = true);
+    case 'hub':
+      return (showHub.value = true);
     case 'move':
       return startMove();
     case 'program':

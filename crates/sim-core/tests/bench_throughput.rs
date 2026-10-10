@@ -12,7 +12,15 @@ use serde_json::Value;
 use sim_core::contract::{run_simulation, SimulateMatchRequest};
 use std::fs;
 use std::path::Path;
+use std::sync::Mutex;
 use std::time::Instant;
+
+/// Serialize the two wall-clock benchmarks. They measure single-threaded
+/// throughput on the machine, so if the test harness runs them in parallel
+/// (the default `cargo test` behaviour) they share a core and the numbers -
+/// and the trigger-overhead ratio in particular (OW-F05) - become noise. The
+/// lock keeps a plain `cargo test --release` stable without a special gate.
+static BENCH_LOCK: Mutex<()> = Mutex::new(());
 
 pub struct Fixture {
     pub home: Value,
@@ -77,6 +85,7 @@ pub fn request(f: &Fixture) -> SimulateMatchRequest {
 
 #[test]
 fn bench_matches_per_second_per_core() {
+    let _serial = BENCH_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let Some(fixtures) = fixed_fixtures(240) else {
         eprintln!("roster pool missing; skipping throughput bench");
         return;
@@ -113,6 +122,7 @@ fn bench_matches_per_second_per_core() {
 /// including the per-tick evaluation, the modifier fold and the event.
 #[test]
 fn bench_trigger_overhead() {
+    let _serial = BENCH_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let Some(fixtures) = fixed_fixtures(300) else {
         eprintln!("roster pool missing; skipping trigger overhead bench");
         return;
@@ -151,27 +161,32 @@ fn bench_trigger_overhead() {
         let _ = run_simulation(r.clone());
     }
 
-    let rounds = 6;
-    let (mut best_base, mut best_order) = (f64::MAX, f64::MAX);
+    // Paired, per-fixture interleaved measurement: for each fixture, time the
+    // order-free match and the inert-order match back-to-back, then sum. Load
+    // and thermal drift move both members of a pair together (they are
+    // microseconds apart), so the aggregate ratio cancels them where a
+    // round-level min-vs-min of separate runs does not (OW-F05). On a quiet
+    // machine this reads ~0%; the eval_triggers fast-path skips the per-tick
+    // trigger-state build once every order has fired.
+    let rounds = 4;
+    let (mut t_base, mut t_order) = (0.0f64, 0.0f64);
     for _ in 0..rounds {
-        let t = Instant::now();
-        for r in &base {
-            let _ = run_simulation(r.clone());
-        }
-        best_base = best_base.min(t.elapsed().as_secs_f64());
+        for (b, o) in base.iter().zip(&with_order) {
+            let t = Instant::now();
+            let _ = run_simulation(b.clone());
+            t_base += t.elapsed().as_secs_f64();
 
-        let t = Instant::now();
-        for r in &with_order {
-            let _ = run_simulation(r.clone());
+            let t = Instant::now();
+            let _ = run_simulation(o.clone());
+            t_order += t.elapsed().as_secs_f64();
         }
-        best_order = best_order.min(t.elapsed().as_secs_f64());
     }
-    let overhead = 100.0 * (best_order - best_base) / best_base;
+    let overhead = 100.0 * (t_order - t_base) / t_base;
     println!(
-        "BENCH trigger overhead = {overhead:+.2}% (base {:.1} ms, with-order {:.1} ms over {} matches, min of {rounds})",
-        best_base * 1000.0 / base.len() as f64,
-        best_order * 1000.0 / base.len() as f64,
-        base.len()
+        "BENCH trigger overhead = {overhead:+.2}% (per-fixture interleaved, {rounds} rounds of {} paired matches) base {:.2} ms, with-order {:.2} ms per match",
+        base.len(),
+        t_base * 1000.0 / (rounds * base.len()) as f64,
+        t_order * 1000.0 / (rounds * base.len()) as f64,
     );
-    assert!(overhead < 5.0, "trigger machinery overhead must stay well under 5% (got {overhead:+.2}%)");
+    assert!(overhead < 3.0, "trigger machinery overhead must stay under 3% (got {overhead:+.2}%)");
 }

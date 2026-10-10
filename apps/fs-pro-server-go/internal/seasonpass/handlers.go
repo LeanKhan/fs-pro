@@ -80,8 +80,10 @@ func (h *Handlers) claimObjective(_ *httpapi.Context, _ http.ResponseWriter, r *
 	}
 	payload, err := h.repo.ClaimObjective(r.Context(), r.PathValue("clubId"), key, objectiveID, now)
 	if err != nil {
+		recordSeasonClaimError("objective")
 		return mapErr(err)
 	}
+	recordSeasonClaim("objective")
 	return httpapi.OK("Objective claimed", payload)
 }
 
@@ -98,8 +100,10 @@ func (h *Handlers) claimPass(cx *httpapi.Context, _ http.ResponseWriter, r *http
 	}
 	payload, err := h.repo.ClaimPass(r.Context(), r.PathValue("clubId"), key, track, now)
 	if err != nil {
+		recordSeasonClaimError("pass")
 		return mapErr(err)
 	}
+	recordSeasonClaim("pass")
 	return httpapi.OK("Season reward claimed", payload)
 }
 
@@ -112,8 +116,10 @@ func (h *Handlers) claimBank(_ *httpapi.Context, _ http.ResponseWriter, r *http.
 	}
 	payload, err := h.repo.ClaimBank(r.Context(), r.PathValue("clubId"), key, now)
 	if err != nil {
+		recordSeasonClaimError("bank")
 		return mapErr(err)
 	}
+	recordSeasonClaim("bank")
 	return httpapi.OK("Season bank claimed", payload)
 }
 

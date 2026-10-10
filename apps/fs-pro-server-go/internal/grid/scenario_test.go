@@ -104,16 +104,20 @@ func simCLIPath(t *testing.T) string {
 	_, thisFile, _, _ := runtime.Caller(0)
 	// .../apps/fs-pro-server-go/internal/grid/scenario_test.go -> repo root
 	root := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", "..", "..", ".."))
-	names := []string{"sim_cli"}
+	// Prefer the release build and accept both the crate's bin name (sim-cli)
+	// and the underscore alias; a stale debug artifact must not shadow a fresh
+	// release one (the engine is re-baselined by waves and the bands track it).
+	names := []string{"sim-cli", "sim_cli"}
 	if runtime.GOOS == "windows" {
-		// Windows builds are `sim_cli.exe`; on other platforms only the native
-		// name is valid (a Windows .exe cannot be exec'd in a Linux container).
-		names = append(names, "sim_cli.exe")
+		// Windows builds are `.exe`; on other platforms only the native name is
+		// valid (a Windows .exe cannot be exec'd in a Linux container).
+		names = []string{"sim-cli.exe", "sim_cli.exe", "sim-cli", "sim_cli"}
 	}
 	dirs := []string{
+		filepath.Join(root, "crates", "sim-core", "target", "release"),
+		filepath.Join(root, "crates", "sim-core", "target", "release", "deps"),
 		filepath.Join(root, "crates", "sim-core", "target", "debug"),
 		filepath.Join(root, "crates", "sim-core", "target", "debug", "deps"),
-		filepath.Join(root, "crates", "sim-core", "target", "release"),
 	}
 	for _, d := range dirs {
 		for _, n := range names {
@@ -300,11 +304,14 @@ func maxFloat(a, b float64) float64 {
 // buildScenarios defines the three P3 shapes (docs/coc-mapping/06 P3). Bands are
 // the measured engine behaviour (see PROGRESS.md) with headroom; the styles are
 // the ones each shape implies (a bunker counters with Direct; a rush presses).
+// Re-baselined for the sim-core SIM_VERSION 2 balance pass (Wave 7 / OW-F01):
+// measured A/B/draw — bunker .158/.425/.417, overload .542/.050/.408,
+// lone-striker .175/.283/.542.
 func buildScenarios() []scenario {
 	return []scenario{
-		{name: "bunker-vs-rush", a: bunker(), b: rush(), aStyle: "Direct", bStyle: "HighPress", minA: 0.10, maxA: 0.45, maxB: 0.42},
-		{name: "overload-vs-lowblock", a: overload(), b: lowBlock(), aStyle: "Balanced", bStyle: "Balanced", minA: 0.12, maxA: 0.50, maxB: 0.42},
-		{name: "lone-striker", a: loneStriker(), b: balanced(), aStyle: "Direct", bStyle: "Balanced", minA: 0.02, maxA: 0.30, maxB: 0.45},
+		{name: "bunker-vs-rush", a: bunker(), b: rush(), aStyle: "Direct", bStyle: "HighPress", minA: 0.05, maxA: 0.32, maxB: 0.58},
+		{name: "overload-vs-lowblock", a: overload(), b: lowBlock(), aStyle: "Balanced", bStyle: "Balanced", minA: 0.34, maxA: 0.70, maxB: 0.22},
+		{name: "lone-striker", a: loneStriker(), b: balanced(), aStyle: "Direct", bStyle: "Balanced", minA: 0.05, maxA: 0.33, maxB: 0.50},
 	}
 }
 

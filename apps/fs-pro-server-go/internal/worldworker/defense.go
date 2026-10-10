@@ -31,7 +31,20 @@ func DefenseResolutionTicker(now func() time.Time, sim play.Simulator) Ticker {
 		Interval: DefensesInterval,
 		LockKey:  LockDefenses,
 		Job: func(ctx context.Context, tx db.Querier) error {
-			_, err := play.ResolvePendingRaids(ctx, tx, now().UTC(), sim, play.DefaultDefenseBatch)
+			started := time.Now()
+			resolved, err := play.ResolvePendingRaids(ctx, tx, now().UTC(), sim, play.DefaultDefenseBatch)
+			elapsed := time.Since(started).Seconds()
+			defenseSeconds.Observe(elapsed)
+			defenseBatches.Inc()
+			if resolved > 0 {
+				defenseResolved.Add(float64(resolved))
+			}
+			if elapsed > 0 {
+				defensePerSecond.Set(float64(resolved) / elapsed)
+			}
+			if err != nil {
+				defenseBatchErrors.Inc()
+			}
 			return err
 		},
 	}

@@ -110,9 +110,11 @@ func (r *Registry) tick(ctx context.Context, t Ticker) {
 		if !acquired {
 			return nil
 		}
+		tickCounter(t.ID).Inc()
 		return t.Job(ctx, tx)
 	})
 	if err != nil && ctx.Err() == nil {
+		tickErrorCounter(t.ID).Inc()
 		r.logger.Error("ticker failed", "id", t.ID, "err", err)
 	}
 }

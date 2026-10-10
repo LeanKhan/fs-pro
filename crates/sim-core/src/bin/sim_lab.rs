@@ -8,7 +8,7 @@
 // luck. Matches run headless (no frames) across all cores.
 //
 //   cargo run --release --bin sim-lab -- [pairs] [section...]
-//   sections: realism quality boost attributes styles formations (default: all)
+//   sections: realism even quality diag boost attributes styles formations agency orders (default: all)
 
 use serde_json::{json, Value};
 use sim_core::contract::{build_engine, run_simulation, RawClub, RawTactics, SimulateMatchRequest};
@@ -181,7 +181,7 @@ fn realism(base: &[Outcome]) {
     let n = |f: fn(&Outcome) -> f64| mean(base.iter().map(f));
     let pct = |pred: fn(&Outcome) -> bool| 100.0 * base.iter().filter(|o| pred(o)).count() as f64 / base.len() as f64;
     println!("\n=== Realism (per match, both teams; real-world reference in brackets) ===");
-    println!("goals {:.2} [2.5-2.9] | xG {:.2} | shots {:.1} [22-28] | on target {:.1} [8-10]", n(|o| o.hg + o.ag), n(|o| o.hxg + o.axg), n(|o| o.hshots + o.ashots), n(|o| o.sot));
+    println!("goals {:.2} [2.5-2.9] | xG {:.2} | shots {:.1} [22-28] | on target {:.1} [8-10] | home poss {:.0}%", n(|o| o.hg + o.ag), n(|o| o.hxg + o.axg), n(|o| o.hshots + o.ashots), n(|o| o.sot), n(|o| o.poss));
     println!("passes {:.0} [800-1100] | completion {:.1}% [78-86] | tackles {:.1} [30-40] | fouls {:.1} [20-26]", n(|o| o.passes), 100.0 * n(|o| o.completed) / n(|o| o.passes), n(|o| o.tackles), n(|o| o.fouls));
     println!("yellows {:.2} [3-4] | reds {:.2} [0.1-0.25] | home W/D/L {:.0}/{:.0}/{:.0} [45/25/30]", n(|o| o.yellows), n(|o| o.reds), pct(|o| o.hg > o.ag), pct(|o| o.hg == o.ag), pct(|o| o.hg < o.ag));
 }
@@ -278,6 +278,69 @@ fn diag(fixtures: &[Fixture]) {
     );
 }
 
+/// One identical synthetic squad (1 GK, 5 DEF, 5 MID, 4 ATT, every rating
+/// 70) so an outcome is decided by chance and shape, not talent.
+fn even_squad(id: &str, prefix: &str) -> Value {
+    let lines = ["DEF", "DEF", "DEF", "DEF", "DEF", "MID", "MID", "MID", "MID", "MID", "ATT", "ATT", "ATT", "ATT"];
+    let mut players = vec![json!({ "id": format!("{prefix}gk"), "position": "GK", "Rating": 70.0 })];
+    for (i, line) in lines.iter().enumerate() {
+        players.push(json!({ "id": format!("{prefix}{:02}", i + 1), "position": line, "Rating": 70.0 }));
+    }
+    json!({ "_id": id, "Name": id, "ClubCode": id, "Players": players })
+}
+
+fn play_clubs(home: &Value, away: &Value, seed: &str, ht: &Value, at: &Value) -> (f64, f64, f64, f64) {
+    let req: SimulateMatchRequest = serde_json::from_value(json!({
+        "fixtureId": seed,
+        "seed": seed,
+        "includeFrames": false,
+        "clubs": [home, away],
+        "sides": { "home": home["_id"], "away": away["_id"] },
+        "tactics": { "home": ht, "away": at },
+    }))
+    .unwrap();
+    let d = run_simulation(req).match_data.expect("match").Details;
+    (
+        d.HomeTeamScore as f64,
+        d.AwayTeamScore as f64,
+        d.HomeTeamDetails.TotalShots as f64,
+        d.AwayTeamDetails.TotalShots as f64,
+    )
+}
+
+/// Two identical squads ("even Standing"), home advantage removed by playing
+/// every seed twice with the sides swapped. This is the split the product
+/// target (~45-55% win) is about - and the one the aggregate `realism` row
+/// hides behind squad-quality gaps.
+fn even(pairs: usize) {
+    let h = even_squad("H", "h");
+    let a = even_squad("A", "a");
+    let t = tactic("433", "Balanced");
+    let (mut hw, mut dr, mut aw) = (0u32, 0u32, 0u32);
+    let (mut hg, mut ag, mut hs, mut as_) = (0.0f64, 0.0f64, 0.0f64, 0.0f64);
+    for i in 0..pairs {
+        let (hf, af, hs1, as1) = play_clubs(&h, &a, &format!("even:{i}:1"), &t, &t);
+        let (ah, hh, ahs, hhs) = play_clubs(&a, &h, &format!("even:{i}:2"), &t, &t);
+        hg += hf + hh;
+        ag += af + ah;
+        hs += hs1 + hhs;
+        as_ += as1 + ahs;
+        hw += (hf > af) as u32 + (hh > ah) as u32;
+        dr += (hf == af) as u32 + (hh == ah) as u32;
+        aw += (hf < af) as u32 + (hh < ah) as u32;
+    }
+    let n = (pairs * 2) as f64;
+    println!("\n=== Even teams (identical 70-rated squads, 433 Balanced v Balanced, home swapped) ===");
+    println!(
+        "goals/match {:.2} | shots {:.1} | H W/D/L {:.0}/{:.0}/{:.0}%  [neutral target ~36/28/36]",
+        (hg + ag) / n,
+        (hs + as_) / n,
+        100.0 * hw as f64 / n,
+        100.0 * dr as f64 / n,
+        100.0 * aw as f64 / n
+    );
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let pairs: usize = args.first().and_then(|a| a.parse().ok()).unwrap_or(400);
@@ -344,6 +407,9 @@ fn main() {
     }
     if run("diag") {
         diag(&fixtures);
+    }
+    if run("even") {
+        even(pairs);
     }
     if run("quality") {
         quality(&fixtures, &base);

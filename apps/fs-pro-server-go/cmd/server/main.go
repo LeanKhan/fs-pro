@@ -35,6 +35,7 @@ import (
 	"fs-pro-server/internal/mail"
 	"fs-pro-server/internal/manager"
 	"fs-pro-server/internal/meta"
+	"fs-pro-server/internal/metrics"
 	"fs-pro-server/internal/openplay"
 	"fs-pro-server/internal/place"
 	"fs-pro-server/internal/play"
@@ -139,6 +140,7 @@ func main() {
 		Session: sessionManager,
 		Access:  access,
 		Pinger:  pinger,
+		Metrics: metrics.Default(),
 	})
 	meta.Register(srv)
 	user.Register(srv, user.New(user.Deps{

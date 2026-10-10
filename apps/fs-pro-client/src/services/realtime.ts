@@ -1,5 +1,6 @@
 import { reactive, ref } from 'vue';
 import { apiUrl } from './api';
+import { associationIdsFrom } from '@/helpers/realtime-ticket';
 
 /**
  * The live connection to the multiplayer gateway (apps/fs-pro-realtime).
@@ -59,6 +60,10 @@ class Realtime {
   readonly lastError = ref('');
   /** Good news from the gateway (a report was received), shown like an error but calmer. */
   readonly lastNotice = ref('');
+  /** Association ids this manager's clubs belong to, from the ticket's `assocs`
+   * claim (08 §4, OW-N10). No REST route exposes membership, so the ticket is
+   * the cheapest discovery path; empty until the first successful connect. */
+  readonly associationIds = ref<string[]>([]);
   /** Players this browser has blocked: their lines are hidden. Kept per device. */
   readonly blocked = reactive(new Set<string>(loadBlocked()));
 
@@ -143,6 +148,7 @@ class Realtime {
       const res = await fetch(`${apiUrl}/api/realtime/ticket`, { credentials: 'include' });
       if (!res.ok) throw new Error(res.status === 401 ? 'signed out' : `ticket ${res.status}`);
       const { payload } = (await res.json()) as { payload: { url: string; ticket: string } };
+      this.associationIds.value = associationIdsFrom(payload.ticket);
       const ws = new WebSocket(`${payload.url}?ticket=${encodeURIComponent(payload.ticket)}`);
       this.ws = ws;
       ws.onopen = () => {

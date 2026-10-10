@@ -19,6 +19,27 @@
     "src/composables/use-grid-drag.ts",
     "src/composables/use-campus-collect.ts",
     "src/components/cozy/grid/pitch-grid-sfc.test.ts",
-    "src/components/cozy/scout-campus-sfc.test.ts"
+    "src/components/cozy/scout-campus-sfc.test.ts",
+    "src/helpers/coerce.ts",
+    "src/helpers/coerce.test.ts",
+    "src/helpers/envelope.ts",
+    "src/helpers/envelope.test.ts",
+    "src/helpers/realtime-ticket.ts",
+    "src/helpers/realtime-ticket.test.ts",
+    "src/helpers/defense-inbox.ts",
+    "src/helpers/defense-inbox.test.ts",
+    "src/helpers/league-ladder.ts",
+    "src/helpers/league-ladder.test.ts",
+    "src/helpers/season-pass.ts",
+    "src/helpers/season-pass.test.ts",
+    "src/helpers/legacy-chain.ts",
+    "src/helpers/legacy-chain.test.ts",
+    "src/helpers/association-panel.ts",
+    "src/helpers/association-panel.test.ts",
+    "src/helpers/abilities-room.ts",
+    "src/helpers/abilities-room.test.ts",
+    "src/helpers/preseason-tour.ts",
+    "src/helpers/preseason-tour.test.ts",
+    "src/components/cozy/sfc-surfaces.test.ts"
   ]
 }

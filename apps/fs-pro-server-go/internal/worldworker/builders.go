@@ -25,7 +25,15 @@ func BuildersTicker(now func() time.Time) Ticker {
 		Interval: BuildersInterval,
 		LockKey:  LockBuilders,
 		Job: func(ctx context.Context, tx db.Querier) error {
-			_, err := campus.SweepDueUpgrades(ctx, tx, now().UTC())
+			started := time.Now()
+			promoted, err := campus.SweepDueUpgrades(ctx, tx, now().UTC())
+			buildersSweepSeconds.Observe(time.Since(started).Seconds())
+			if err == nil {
+				buildersSweeps.Inc()
+				if promoted > 0 {
+					buildersPromotions.Add(float64(promoted))
+				}
+			}
 			return err
 		},
 	}

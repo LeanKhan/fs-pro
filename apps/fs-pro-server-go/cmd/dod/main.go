@@ -754,9 +754,35 @@ func (d *dod) stepRaid(ctx context.Context, attacker, defender string, effects m
 	beforeDefBudget := d.scalarFloat(ctx, `SELECT "Budget" FROM "Clubs" WHERE "_id"=$1`, defender)
 	beforeLootLedger := d.scalarInt(ctx, `SELECT count(*)::int FROM "TransferLedger" WHERE "Type"='raid_loot'`)
 
+	// The engine is re-calibrated across waves, so the fixed seed can produce a
+	// 0★ draw with no loot. Probe with side-effect-free practice raids (no loot,
+	// no Standing, no ledger rows) to pick a deterministic seed that actually
+	// scores, so the loot/ledger demonstration stays stable across calibrations.
+	seed := "dod-raid-lakeside-vs-riverside"
+	for i := 0; i < 40; i++ {
+		probe := seed
+		if i > 0 {
+			probe = fmt.Sprintf("%s-%d", seed, i)
+		}
+		pref, err := repo.QueueRaid(ctx, play.RaidRequest{
+			AttackerID: attacker, DefenderID: defender, Seed: probe, Practice: true, Effects: effects,
+		})
+		if err != nil {
+			return fmt.Errorf("probe raid: %w", err)
+		}
+		pout, err := repo.ResolveRaid(ctx, pref.RaidID)
+		if err != nil {
+			return fmt.Errorf("resolve probe raid: %w", err)
+		}
+		if pout.AttackerGoals >= 1 {
+			seed = probe
+			break
+		}
+	}
+
 	ref, err := repo.QueueRaid(ctx, play.RaidRequest{
 		AttackerID: attacker, DefenderID: defender,
-		Seed:    "dod-raid-lakeside-vs-riverside",
+		Seed:    seed,
 		Effects: effects,
 	})
 	if err != nil {

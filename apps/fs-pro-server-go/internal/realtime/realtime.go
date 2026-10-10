@@ -113,18 +113,23 @@ func (c *Client) Publish(topics []string, event string, data any) {
 	}
 	body, err := buildBody(topics, event, data)
 	if err != nil {
+		publishDropped.Inc()
 		c.log.Warn("realtime: dropped event", "event", event, "err", err)
 		return
 	}
+	publishAttempts.Inc()
 	go c.post(body, event)
 }
 
 // post performs the signed POST in the background with its own short timeout.
 func (c *Client) post(body []byte, event string) {
+	started := time.Now()
+	defer func() { publishSeconds.Observe(time.Since(started).Seconds()) }()
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url+"/publish", bytes.NewReader(body))
 	if err != nil {
+		publishFailure.Inc()
 		c.logFailure(event, err)
 		return
 	}
@@ -132,14 +137,18 @@ func (c *Client) post(body []byte, event string) {
 	req.Header.Set("X-Signature", Sign(string(c.secret), body))
 	resp, err := c.http.Do(req)
 	if err != nil {
+		publishFailure.Inc()
 		c.logFailure(event, err)
 		return
 	}
 	defer resp.Body.Close()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxResponseBytes))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		publishFailure.Inc()
 		c.logFailure(event, fmt.Errorf("HTTP %d", resp.StatusCode))
+		return
 	}
+	publishSuccess.Inc()
 }
 
 // logFailure records the first failure in each window; later ones are dropped

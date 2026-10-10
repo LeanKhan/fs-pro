@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"fs-pro-server/internal/config"
+	"fs-pro-server/internal/metrics"
 	"fs-pro-server/internal/policy"
 	"fs-pro-server/internal/session"
 )
@@ -23,6 +24,10 @@ type Deps struct {
 	Access  policy.Access
 	// Pinger reports the database health for GET /healthz; nil means "down".
 	Pinger func(ctx context.Context) error
+	// Metrics is the registry served at GET /metrics; nil uses the
+	// process-wide metrics.Default() registry every instrumented package
+	// writes to.
+	Metrics *metrics.Registry
 }
 
 // Server owns the mux, the middleware chain and the route manifest.
@@ -34,6 +39,7 @@ type Server struct {
 	session *session.Manager
 	access  policy.Access
 	pinger  func(ctx context.Context) error
+	metrics *metrics.Registry
 	limiter *rateLimiter
 	handler http.Handler
 }
@@ -56,6 +62,10 @@ func New(deps Deps) *Server {
 		access:  access,
 		pinger:  deps.Pinger,
 		limiter: newRateLimiter(deps.Config),
+	}
+	s.metrics = deps.Metrics
+	if s.metrics == nil {
+		s.metrics = metrics.Default()
 	}
 
 	registerCore(s)

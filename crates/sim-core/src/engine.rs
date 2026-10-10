@@ -19,6 +19,25 @@ pub const TICKS_PER_MINUTE: u16 = 8;
 pub const HALF_TIME_TICK: u16 = 45 * TICKS_PER_MINUTE; // 360
 pub const FULL_TIME_TICK: u16 = 90 * TICKS_PER_MINUTE; // 720
 
+/// Behaviour epoch (docs/coc-mapping/07 §7a, option B). Bumped when the match
+/// model changes in a way that invalidates stored replay/parity baselines (this
+/// was `1` for Waves 1-6; the OW-F01 draw-bias re-calibration moved it to `2`).
+///
+/// It is mixed into the RNG seed so a seed string minted in an older epoch can
+/// never silently replay a *different* match on this build: the string stays a
+/// valid input, it just maps to a new, documented stream. Re-run `sim-lab` and
+/// regenerate the goldens whenever this changes.
+pub const SIM_VERSION: u64 = 2;
+
+/// Golden-ratio odd constant used to spread the epoch across the seed bits.
+const SIM_VERSION_MIX: u64 = 0x9e37_79b9_7f4a_7c15;
+
+/// The versioned RNG seed: the caller's seed, keyed to the behaviour epoch.
+#[inline]
+fn seed_from_epoch(seed: u64) -> u64 {
+    seed ^ SIM_VERSION.wrapping_mul(SIM_VERSION_MIX)
+}
+
 /// Seed epoch for the derived "effects" RNG substream (07 §7a, option A).
 /// The main stream is never touched when `orders`/`effects` are empty; every
 /// genuinely new draw (tactical-foul commit, sweeper claim) comes from here,
@@ -187,6 +206,7 @@ impl MatchEngine {
 
         let order_counts = [home_tactics.orders.len(), away_tactics.orders.len()];
         let has_surge = players.iter().any(|p| p.effects.stamina_surge_below > 0.0);
+        let epoch_seed = seed_from_epoch(seed);
         let mut engine = Self {
             players,
             ball: SimBall::default(),
@@ -202,8 +222,8 @@ impl MatchEngine {
             replay: ReplayBuffer::default(),
             record_frames: true,
             last_status: [(false, 0, 0); 22],
-            rng: Xoshiro256PlusPlus::seed_from_u64(seed),
-            fx: Xoshiro256PlusPlus::seed_from_u64(seed ^ FX_SEED),
+            rng: Xoshiro256PlusPlus::seed_from_u64(epoch_seed),
+            fx: Xoshiro256PlusPlus::seed_from_u64(epoch_seed ^ FX_SEED),
             current_tick: 0,
             attacking_left_to_right_home: true,
             active_orders: [Vec::new(), Vec::new()],
@@ -392,6 +412,12 @@ impl MatchEngine {
         for team in 0..2 {
             let n = self.tactics(team).orders.len();
             if n == 0 {
+                continue;
+            }
+            // Nothing left that could fire: skip building the trigger state
+            // (the per-tick stamina sum) entirely. The inert-order bench and
+            // any spent order timeline are then ~free for the rest of the match.
+            if self.fired[team][..n].iter().all(|&f| f) {
                 continue;
             }
             let state = self.trigger_state(team, tick);

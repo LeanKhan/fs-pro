@@ -384,6 +384,8 @@ func (r *Repository) PlayMatch(ctx context.Context, clubID string, opts PlayOpti
 	if result == nil {
 		return nil, fmt.Errorf("Could not play a match: %v", lastErr)
 	}
+	// KPI: this raid was resolved inline by the attacker's PLAY request.
+	recordRaidResolution("attack")
 
 	home, away := result.AttackerGoals, result.DefenderGoals
 	outcome := outcomeOf(home, away)

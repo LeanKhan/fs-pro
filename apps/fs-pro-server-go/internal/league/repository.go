@@ -45,6 +45,7 @@ func (r *Repository) Standing(ctx context.Context, clubID string) (map[string]an
 	}
 	points := intOf(row["StandingPoints"])
 	l := LeagueFor(points)
+	observeStanding(points, l.Code())
 	rankRow, _, err := one(ctx, r.q, `SELECT count(*)::int AS n FROM "Clubs" WHERE "ReleasedAt" IS NULL AND "StandingPoints" > $1`, points)
 	if err != nil {
 		return nil, false, err

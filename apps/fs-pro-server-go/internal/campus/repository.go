@@ -193,6 +193,8 @@ func initCollectorState(ctx context.Context, q db.Querier, clubID string, now ti
 // BuildState assembles the campus read model. It first sweeps due upgrades so a
 // read reflects completion (matching facilities.getCampus).
 func (r *Repository) BuildState(ctx context.Context, clubID string, now time.Time, scale float64) (map[string]any, bool, error) {
+	started := time.Now()
+	defer func() { observeCampusRead(time.Since(started)) }()
 	club, ok, err := clubRow(ctx, r.q, clubID, false)
 	if err != nil || !ok {
 		return nil, ok, err
@@ -358,7 +360,7 @@ func (r *Repository) StartUpgrade(ctx context.Context, clubID, key string, now t
 	if !ok {
 		return ErrUnsupportedFacility
 	}
-	return db.WithTx(ctx, r.q, func(tx db.Querier) error {
+	err := db.WithTx(ctx, r.q, func(tx db.Querier) error {
 		club, ok, err := clubRow(ctx, tx, clubID, true)
 		if err != nil {
 			return err
@@ -421,6 +423,10 @@ func (r *Repository) StartUpgrade(ctx context.Context, clubID, key string, now t
 		}
 		return ledger(ctx, tx, clubID, "facility", cost, fmt.Sprintf("%s -> level %d", def.Name, target))
 	})
+	if err == nil {
+		recordUpgradeQueued(key)
+	}
+	return err
 }
 
 // Collect banks every collector's lazy accrual in one transaction, crediting the
@@ -487,6 +493,14 @@ func (r *Repository) Collect(ctx context.Context, clubID string, now time.Time, 
 		out = map[string]any{"cash": cash, "fans": fans}
 		return nil
 	})
+	if err == nil && out != nil {
+		if floatOf(out["cash"]) > 0 {
+			recordCollectorCollected("turnstiles")
+		}
+		if floatOf(out["fans"]) > 0 {
+			recordCollectorCollected("club_shop")
+		}
+	}
 	return out, err
 }
 
@@ -728,6 +742,7 @@ func buildPayload(club map[string]any, assets map[string]map[string]any, state m
 	}
 	active := activeUpgrades(assets)
 	cash := floatOf(club["Budget"])
+	observeQueuePressure(active, keepers)
 
 	collectors := make([]any, 0, len(Collectors))
 	vaults := make([]any, 0, len(Collectors))
@@ -739,6 +754,7 @@ func buildPayload(club map[string]any, assets map[string]map[string]any, state m
 		pend := 0.0
 		if !since.IsZero() {
 			pend = AccrueScaled(Collector{RatePerHour: CollectorRate(def, level), Capacity: cap}, since, now, scale)
+			observeAccrualLag(now.Sub(since))
 		}
 		full := cap > 0 && pend >= cap
 		collectors = append(collectors, map[string]any{
