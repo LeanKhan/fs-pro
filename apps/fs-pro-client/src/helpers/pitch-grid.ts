@@ -13,8 +13,8 @@
  * 2. **Advisory preview.** Aura shading, passing-link lines, connectivity and
  *    synergies are a client convenience (08 §3.3): the authoritative values are
  *    whatever the server returns on save/validate. `buildPreview` mirrors the Go
- *    `internal/grid.BuildPreview` semantics exactly (1-cell Chebyshev auras,
- *    weight `1/(1+dist)`; links ≤2 cells; connectivity from the keeper;
+ *    `internal/grid.BuildPreview` semantics exactly (band-derived auras with
+ *    diminishing-returns stacking, links ≤2 cells, connectivity from the keeper;
  *    directness `0.3 + 0.5·(1 − reachableFraction)`; the three named synergies).
  *
  * No Vue, no DOM, no clock: everything here is unit-testable in Node.
@@ -189,6 +189,46 @@ export function canPlace(
 /** Two players are linked within this many cells (Chebyshev). */
 export const PREVIEW_LINK_RANGE = 2;
 
+/**
+ * The column (toward-goal) gap at or beyond which an attacker with no teammate
+ * nearer in x is marooned — the `island` synergy (03 §1.6, OW-P02). Distance is
+ * measured in columns, not Chebyshev cells, per the doc's "lone striker ≥3
+ * columns from any teammate". Mirrors Go `grid.IslandColumns`.
+ */
+export const ISLAND_COLUMNS = 3;
+
+/**
+ * Per-band aura weights (03 §1.4, OW-P01). A grid slot carries only a band, so
+ * the band stands in for its canonical role:
+ *
+ * - `DEF` ≈ Anchor/Tank: radius 1 incl. diagonals, `self` 0.8 / `neighbour` 0.4
+ * - `MID` ≈ midfield engine: radius 1, weighted higher, `self` 1.0 / `neighbour` 0.5
+ * - `ATT` ≈ Sniper/Playmaker: soft ~0.5-cell aura — its own cell only
+ * - `GK`: projects no aura
+ *
+ * Every weight is in `[0, 1]` so the diminishing-returns product
+ * `p = 1 − Π(1 − pᵢ)` stays a probability. Mirrors Go `grid.auraWeightsFor`.
+ */
+export const AURA_WEIGHTS: Record<
+  GridPosition,
+  { self: number; neighbour: number }
+> = {
+  GK: { self: 0, neighbour: 0 },
+  DEF: { self: 0.8, neighbour: 0.4 },
+  MID: { self: 1, neighbour: 0.5 },
+  ATT: { self: 0.5, neighbour: 0 },
+};
+
+/**
+ * Fold one individual pressure `p` into an accumulated cell value with
+ * diminishing returns: `acc + p·(1 − acc)`, the incremental form of the doc's
+ * product `p = 1 − Π(1 − pᵢ)`. Commutative, associative and bounded by 1, so
+ * overlap can never exceed a full probability. Mirrors Go `projectPressure`.
+ */
+function stackPressure(acc: number, p: number): number {
+  return acc + p * (1 - acc);
+}
+
 /** The named synergies the preview recognises (Go `synergies`). */
 export const SYNERGY_IDS = ['one-two-combo', 'the-shield', 'island'] as const;
 export type SynergyId = (typeof SYNERGY_IDS)[number];
@@ -206,7 +246,7 @@ export const SYNERGY_LABELS: Record<SynergyId, { name: string; hint: string }> =
     },
     island: {
       name: 'Island',
-      hint: 'A lone striker ≥3 cells from every teammate — target-man, aerial focus.',
+      hint: 'A lone striker ≥3 columns from every teammate — target-man, aerial focus.',
     },
   };
 
@@ -302,7 +342,11 @@ function anyPair(
   return false;
 }
 
-/** An attacker marooned ≥3 cells from every teammate (a lone target man). */
+/**
+ * An attacker marooned by at least `ISLAND_COLUMNS` columns from every teammate
+ * (03 §1.6, OW-P02): distance is the column (toward-goal) gap only, not
+ * Chebyshev cells.
+ */
 function attackerIsland(slots: readonly GridSlot[]): boolean {
   for (let i = 0; i < slots.length; i++) {
     const a = slots[i];
@@ -310,10 +354,10 @@ function attackerIsland(slots: readonly GridSlot[]): boolean {
     let nearest = Number.POSITIVE_INFINITY;
     for (let j = 0; j < slots.length; j++) {
       if (i === j) continue;
-      const d = chebyshev(a, slots[j]);
+      const d = Math.abs(a.col - slots[j].col);
       if (d < nearest) nearest = d;
     }
-    if (nearest >= 3) return true;
+    if (nearest >= ISLAND_COLUMNS) return true;
   }
   return false;
 }
@@ -335,17 +379,26 @@ export function findSynergies(slots: readonly GridSlot[]): SynergyId[] {
 export function buildPreview(slots: readonly GridSlot[]): GridPreview {
   const aura = Array.from({ length: PITCH_GRID.w * PITCH_GRID.h }, () => 0);
 
-  // Auras: every outfielder projects pressure onto its own cell (full) and its
-  // 8 neighbours (weight 1/(1+chebyshev)); overlaps stack.
+  // Auras (03 §1.4): every outfield player projects a band-derived pressure
+  // onto its own cell and (unless its aura is soft, like the playmaker's) its 8
+  // neighbours. Overlaps stack with diminishing returns, so a compact block
+  // projects more pressure than the same players spread out, and a cell's
+  // pressure never exceeds 1.
   for (const s of slots) {
-    if (s.position === 'GK') continue;
+    const w = AURA_WEIGHTS[s.position];
+    if (w.self > 0 && inBounds(s.col, s.row)) {
+      const idx = s.row * PITCH_GRID.w + s.col;
+      aura[idx] = stackPressure(aura[idx], w.self);
+    }
+    if (w.neighbour <= 0) continue;
     for (let dr = -1; dr <= 1; dr++) {
       for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
         const col = s.col + dc;
         const row = s.row + dr;
         if (!inBounds(col, row)) continue;
         const idx = row * PITCH_GRID.w + col;
-        aura[idx] = aura[idx] + 1 / (1 + Math.max(Math.abs(dc), Math.abs(dr)));
+        aura[idx] = stackPressure(aura[idx], w.neighbour);
       }
     }
   }

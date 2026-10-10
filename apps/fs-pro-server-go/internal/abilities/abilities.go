@@ -68,9 +68,12 @@ const (
 )
 
 // TriggerWhen is when an ability fires (matched deterministically in the engine).
+// The wire values are the snake ids sim-core's `TriggerWhen::parse` accepts.
 type TriggerWhen string
 
-// The trigger conditions.
+// The trigger conditions. These mirror the engine's `TriggerWhen` set (07 §2.6);
+// a trigger that no engine fact can express must stay `Always` (documented on
+// the registry row) rather than be approximated with an unrelated condition.
 const (
 	Always          TriggerWhen = "always"
 	MinuteAtLeast   TriggerWhen = "minute_at_least"
@@ -80,6 +83,8 @@ const (
 	StaminaBelow    TriggerWhen = "stamina_below"
 	MomentumBelow   TriggerWhen = "momentum_below"
 	PossessionBelow TriggerWhen = "possession_below"
+	ScorelineEquals TriggerWhen = "scoreline_equals"
+	PhaseIs         TriggerWhen = "phase_is"
 )
 
 // Ability is one registry entry.
@@ -90,27 +95,55 @@ type Ability struct {
 	FacilityTier int
 	MasteryTier  int
 	Trigger      TriggerWhen
-	Effect       EffectKind
-	Params       map[string]float64
+	// TriggerThreshold is the numeric argument a threshold trigger reads
+	// (MinuteAtLeast/StaminaBelow/PossessionBelow/MomentumBelow/
+	// ScorelineEquals/PhaseIs). Ignored by Always/Trailing/Leading/Drawing.
+	TriggerThreshold float64
+	Effect           EffectKind
+	Params           map[string]float64
 }
 
 // Registry is the ability catalogue (03 §2.3). Content - tunable without engine
 // changes as long as each Effect maps to an implemented kind.
+//
+// The `Trigger` column is the match-context gate (vector 3, 03 §2.1): the engine
+// only activates the effect while the trigger holds. The shipped engine facts
+// are team-level (minute, scoreline, stamina, possession/momentum, half), so a
+// catalog context that is purely *spatial* ("pressed in own third", "cross
+// incoming", "long ball over the top") cannot be expressed yet and stays
+// `Always` with a note. Re-deriving those as a trigger needs a spatial fact the
+// engine does not emit (OW-P03 remainder).
 var Registry = []Ability{
-	{ID: "clear_under_pressure", Name: "Clear Under Pressure", Family: FamilyDEF, FacilityTier: 0, MasteryTier: 1, Trigger: Always, Effect: EffectTendency},
+	// DEF; catalog "pressed in own third". Own-third pressure is spatial, so the
+	// closest team fact is a *low share of the ball* (defending under the cosh).
+	{ID: "clear_under_pressure", Name: "Clear Under Pressure", Family: FamilyDEF, FacilityTier: 0, MasteryTier: 1, Trigger: PossessionBelow, TriggerThreshold: 45, Effect: EffectTendency},
 	{ID: "standard_ground_pass", Name: "Standard Ground Pass", Family: FamilyALL, FacilityTier: 0, MasteryTier: 1, Trigger: Always, Effect: EffectTendency},
 	{ID: "whipped_cross", Name: "Whipped Cross", Family: FamilyMID, FacilityTier: 1, MasteryTier: 2, Trigger: Always, Effect: EffectCrossType, Params: map[string]float64{"inswing": 1}},
-	{ID: "tactical_foul", Name: "Tactical Foul", Family: FamilyDEF, FacilityTier: 1, MasteryTier: 2, Trigger: Always, Effect: EffectNewAction, Params: map[string]float64{ActionCodeParam: ActionTacticalFoul}},
+	// DEF; catalog "opponent in transition, danger zone" - a transition break is
+	// taken while chasing (men committed forward, exposed at the back).
+	{ID: "tactical_foul", Name: "Tactical Foul", Family: FamilyDEF, FacilityTier: 1, MasteryTier: 2, Trigger: Trailing, Effect: EffectNewAction, Params: map[string]float64{ActionCodeParam: ActionTacticalFoul}},
 	{ID: "near_post_run", Name: "Near-Post Run", Family: FamilyATT, FacilityTier: 1, MasteryTier: 2, Trigger: Always, Effect: EffectTendency},
-	{ID: "through_ball_in_behind", Name: "Through Ball in Behind", Family: FamilyMID, FacilityTier: 2, MasteryTier: 3, Trigger: Always, Effect: EffectNewAction, Params: map[string]float64{ActionCodeParam: ActionThroughBall}},
+	// MID; catalog "defensive line high + runner in behind". You lead, so the
+	// opponent pushes a high line to chase and the space in behind opens up.
+	{ID: "through_ball_in_behind", Name: "Through Ball in Behind", Family: FamilyMID, FacilityTier: 2, MasteryTier: 3, Trigger: Leading, Effect: EffectNewAction, Params: map[string]float64{ActionCodeParam: ActionThroughBall}},
+	// OW-P04: this NewAction carries no action code, so the effect is inert in
+	// the engine until sim-core adds a slide-tackle-recovery ActionChoice (which
+	// would need its own decider EV term, model probability and action tag). Kept
+	// data-only rather than shipping a fake code that unlocks nothing.
 	{ID: "slide_tackle_recovery", Name: "Slide Tackle Recovery", Family: FamilyDEF, FacilityTier: 2, MasteryTier: 3, Trigger: Always, Effect: EffectNewAction},
 	{ID: "sweeper_keeper_rush", Name: "Sweeper-Keeper Rush", Family: FamilyGK, FacilityTier: 2, MasteryTier: 3, Trigger: Always, Effect: EffectNewAction, Params: map[string]float64{ActionCodeParam: ActionSweeperRush}},
 	{ID: "third_man_run", Name: "Third-Man Run", Family: FamilyMID, FacilityTier: 3, MasteryTier: 4, Trigger: Always, Effect: EffectTendency},
+	// OW-P04: like slide_tackle_recovery, this NewAction has no action code and
+	// stays inert until sim-core ships a weak-foot cut-inside shot action.
 	{ID: "inverted_cut_and_shoot", Name: "Inverted Cut & Shoot", Family: FamilyATT, FacilityTier: 3, MasteryTier: 4, Trigger: Always, Effect: EffectNewAction},
-	{ID: "high_press_trap", Name: "High Press Trap", Family: FamilyATT, FacilityTier: 3, MasteryTier: 4, Trigger: Always, Effect: EffectTendency},
+	// ATT; catalog "opponent build-up from keeper". Mirrors the War Room
+	// "press_trap" order, which springs on a level game.
+	{ID: "high_press_trap", Name: "High Press Trap", Family: FamilyATT, FacilityTier: 3, MasteryTier: 4, Trigger: Drawing, Effect: EffectTendency},
 	{ID: "trivela_switch", Name: "Trivela Switch", Family: FamilyMID, FacilityTier: 4, MasteryTier: 5, Trigger: Always, Effect: EffectNewAction, Params: map[string]float64{ActionCodeParam: ActionTrivela}},
-	{ID: "offside_trap_step_up", Name: "Offside Trap Step-Up", Family: FamilyDEF, FacilityTier: 4, MasteryTier: 5, Trigger: Always, Effect: EffectTendency},
-	{ID: "talisman_second_wind", Name: "Talisman Second Wind", Family: FamilyALL, FacilityTier: 4, MasteryTier: 5, Trigger: StaminaBelow, Effect: EffectStaminaSurge, Params: map[string]float64{"below": 35, "amount": 15}},
+	// DEF; catalog "opponent through-ball threat" - you hold a lead and step the
+	// line up in unison to spring the offside trap.
+	{ID: "offside_trap_step_up", Name: "Offside Trap Step-Up", Family: FamilyDEF, FacilityTier: 4, MasteryTier: 5, Trigger: Leading, Effect: EffectTendency},
+	{ID: "talisman_second_wind", Name: "Talisman Second Wind", Family: FamilyALL, FacilityTier: 4, MasteryTier: 5, Trigger: StaminaBelow, TriggerThreshold: 35, Effect: EffectStaminaSurge, Params: map[string]float64{"below": 35, "amount": 15}},
 	{ID: "poachers_blindside", Name: "Poacher's Blindside", Family: FamilyATT, FacilityTier: 2, MasteryTier: 3, Trigger: Always, Effect: EffectHeaderQuality, Params: map[string]float64{"bonus": 0.25}},
 	// First-Time Volley is the 16th 03 §2.3 row. The catalogue prints it as
 	// "Elite + mastery 20"; the shipped 1..5 mastery scale and the 0..5 facility

@@ -3,6 +3,7 @@
 // Core domain types, player attributes, match events, and replay structures.
 
 use crate::geom::Vec2;
+use crate::tactics::Trigger;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -169,6 +170,41 @@ impl PlayerEffects {
     pub fn is_inert(&self) -> bool {
         *self == PlayerEffects::NONE
     }
+
+    /// Merge a trigger-gated delta onto a base (03 §2.1 vector 3, OW-P03).
+    /// Numeric modifiers add, booleans/actions OR, and a stamina surge keeps
+    /// the stronger threshold/amount (a player rarely holds two surges).
+    #[inline]
+    pub fn combine(self, delta: PlayerEffects) -> PlayerEffects {
+        PlayerEffects {
+            tendency: TendencyDelta {
+                shoot: self.tendency.shoot + delta.tendency.shoot,
+                dribble: self.tendency.dribble + delta.tendency.dribble,
+                risk: self.tendency.risk + delta.tendency.risk,
+                forward_runs: self.tendency.forward_runs + delta.tendency.forward_runs,
+                press: self.tendency.press + delta.tendency.press,
+                roam: self.tendency.roam + delta.tendency.roam,
+            },
+            actions: self.actions | delta.actions,
+            cross_inswing: self.cross_inswing + delta.cross_inswing,
+            header_bonus: self.header_bonus + delta.header_bonus,
+            interception_bonus: self.interception_bonus + delta.interception_bonus,
+            interception_lane: self.interception_lane || delta.interception_lane,
+            stamina_surge_below: self.stamina_surge_below.max(delta.stamina_surge_below),
+            stamina_surge_amount: self.stamina_surge_amount.max(delta.stamina_surge_amount),
+            shot_bonus: self.shot_bonus + delta.shot_bonus,
+            shot_first_time: self.shot_first_time || delta.shot_first_time,
+        }
+    }
+}
+
+/// One trigger-gated effect (OW-P03): a `PlayerEffects` delta merged into the
+/// player's active effects only while `trigger` matches at a tick boundary.
+/// Resolved once at build time; an empty trigger list is the parity case.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ConditionalEffect {
+    pub trigger: Trigger,
+    pub effect: PlayerEffects,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -198,6 +234,12 @@ pub struct SimPlayer {
     /// the pre-abilities engine.
     #[serde(default)]
     pub effects: PlayerEffects,
+    /// Trigger-gated effect deltas (OW-P03). `effects` holds the always-on
+    /// base; `MatchEngine` moves these out at construction and re-merges the
+    /// active ones into `effects` at each tick boundary. Empty is the parity
+    /// case.
+    #[serde(default)]
+    pub conditional: Vec<ConditionalEffect>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

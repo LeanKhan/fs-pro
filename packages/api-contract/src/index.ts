@@ -231,6 +231,7 @@ export {
   ClearObstacleRequestSchema,
   BuyGroundskeeperRequestSchema,
   PerkStateSchema,
+  PerkTargetSchema,
   UsePerkRequestSchema,
 } from './schemas/coc-campus';
 export type {
@@ -243,6 +244,7 @@ export type {
   CampusAssetState,
   ClubhouseState,
   PerkState,
+  PerkTarget,
 } from './schemas/coc-campus';
 export * from './schemas/layout';
 export {

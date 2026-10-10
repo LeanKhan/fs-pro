@@ -492,3 +492,165 @@ fn orders_apply_modifiers_and_change_play() {
     assert!(differing > 0, "orders must change at least some matches ({differing}/64)");
     println!("orders: {}/64 matches changed by the orders", differing);
 }
+
+// ---------------------------------------------------------------------
+// OW-P03: per-ability match-context triggers
+// ---------------------------------------------------------------------
+
+/// A `RawEffect` JSON with an optional match-context trigger.
+fn triggered(kind: &str, params: &[(&str, f64)], when: &str, threshold: f64) -> Value {
+    let map: BTreeMap<String, f64> = params.iter().map(|(k, v)| (k.to_string(), *v)).collect();
+    json!({ "kind": kind, "params": map, "trigger": { "when": when, "threshold": threshold } })
+}
+
+/// The trigger a player's effects carry, resolved once from the raw kinds.
+fn split_home(home: &Value, effects: &[Value]) -> (RawClub, Vec<sim_core::types::ConditionalEffect>) {
+    let variant = home_with(home, effects);
+    let club: RawClub = serde_json::from_value(variant).unwrap();
+    let raw = &club.players.as_ref().unwrap()[0].effects;
+    let (_, cond) = sim_core::contract::resolve_effects_split(raw);
+    (club, cond)
+}
+
+#[test]
+fn effect_trigger_parses_and_partitions() {
+    // No trigger / Always = unconditional; a real trigger = conditional; an
+    // unknown trigger is inert (Never).
+    let raw: Vec<RawEffect> = serde_json::from_value(json!([
+        { "kind": "HeaderQuality", "params": { "bonus": 0.25 } },
+        { "kind": "ShotQuality", "params": { "bonus": 0.3 }, "trigger": { "when": "always" } },
+        { "kind": "StaminaSurge", "params": { "below": 35.0, "amount": 15.0 },
+          "trigger": { "when": "stamina_below", "threshold": 35.0 } },
+        { "kind": "CrossType", "params": { "inswing": 1.0 }, "trigger": { "when": "not_a_trigger" } }
+    ]))
+    .unwrap();
+    let (base, cond) = sim_core::contract::resolve_effects_split(&raw);
+    assert!((base.header_bonus - 0.25).abs() < 1e-6, "untriggered folds into base");
+    assert!((base.shot_bonus - 0.3).abs() < 1e-6, "Always folds into base");
+    assert!(base.stamina_surge_below == 0.0, "a triggered surge stays out of base");
+    assert!(base.cross_inswing == 0.0, "an unknown trigger stays out of base");
+    assert_eq!(cond.len(), 2, "one real + one Never conditional");
+    assert_eq!(cond[0].trigger.when, sim_core::tactics::TriggerWhen::StaminaBelow);
+    assert!((cond[0].trigger.threshold - 35.0).abs() < 1e-6);
+    assert_eq!(cond[1].trigger.when, sim_core::tactics::TriggerWhen::Never);
+    println!("trigger parse: base header {:.2}, {} conditional deltas", base.header_bonus, cond.len());
+}
+
+/// A passive modifier applies exactly while its trigger holds: with the home
+/// side trailing the bias is present, once it is leading it is gone.
+#[test]
+fn passive_modifier_activates_only_while_trigger_holds() {
+    let Some(pool) = pool() else { return };
+    let (home, away) = clubs(&pool);
+    let (hc, cond) = split_home(&home, &[triggered("HeaderQuality", &[("bonus", 0.4)], "trailing", 0.0)]);
+    assert_eq!(cond.len(), 1, "the effect must be conditional");
+    assert!((cond[0].effect.header_bonus - 0.4).abs() < 1e-6);
+
+    let ac: RawClub = serde_json::from_value(away).unwrap();
+    let t: RawTactics = serde_json::from_value(json!({
+        "home": { "formationName": "433", "styleName": "Balanced" },
+        "away": { "formationName": "442", "styleName": "Balanced" }
+    }))
+    .unwrap();
+    let mut e = build_engine(&hc, &ac, Some(&t), "trigger_holds");
+    e.record_frames = false;
+
+    // Home trailing -> active.
+    e.home_stats.score = 0;
+    e.away_stats.score = 1;
+    e.step_tick();
+    assert!((e.active_effects(0).header_bonus - 0.4).abs() < 1e-6, "bonus applies while trailing");
+
+    // Home leading -> inactive (base has no header bonus).
+    e.home_stats.score = 2;
+    e.away_stats.score = 1;
+    e.step_tick();
+    assert!(e.active_effects(0).header_bonus.abs() < 1e-6, "bonus must drop once leading");
+    assert!(e.active_effects(11).header_bonus.abs() < 1e-6, "away players never carry it");
+    println!("trigger holds: bonus {:.2} while trailing, gone once leading", 0.4);
+}
+
+/// A one-shot gated on a time trigger fires only after the trigger first holds
+/// and emits exactly one AbilityFired per player.
+#[test]
+fn one_shot_trigger_fires_only_once_trigger_holds() {
+    let Some(pool) = pool() else { return };
+    let (home, away) = clubs(&pool);
+    // below 99 so it would fire immediately if not gated; gated on the 2nd half.
+    let (hc, cond) = split_home(&home, &[triggered("StaminaSurge", &[("below", 99.0), ("amount", 40.0)], "minute_at_least", 45.0)]);
+    assert_eq!(cond.len(), 1);
+    let ac: RawClub = serde_json::from_value(away).unwrap();
+    let t: RawTactics = serde_json::from_value(json!({
+        "home": { "formationName": "433", "styleName": "Balanced" },
+        "away": { "formationName": "442", "styleName": "Balanced" }
+    }))
+    .unwrap();
+    let mut e = build_engine(&hc, &ac, Some(&t), "surge_gate");
+    e.record_frames = false;
+    e.simulate_full_match();
+    let fired: Vec<u8> = e
+        .events
+        .iter()
+        .filter(|ev| matches!(ev.kind, sim_core::types::EventKind::AbilityFired))
+        .map(|ev| ev.minute)
+        .collect();
+    assert!(!fired.is_empty(), "the surge must fire when the trigger (minute 45) holds");
+    assert!(fired.iter().all(|&m| m >= 45), "surge must not fire before minute 45: {fired:?}");
+    // One per home player (11), never more.
+    assert!(fired.len() >= 10 && fired.len() <= 11, "one surge per player, got {}", fired.len());
+    println!("gated one-shot: {} AbilityFired events, earliest minute {}", fired.len(), fired.iter().min().unwrap());
+}
+
+/// A trigger-gated effect request replays byte-identically.
+#[test]
+fn triggered_effects_request_is_deterministic() {
+    let Some(pool) = pool() else { return };
+    let (home, away) = clubs(&pool);
+    let variant = home_with(
+        &home,
+        &[
+            triggered("ShotQuality", &[("bonus", 0.4)], "trailing", 0.0),
+            triggered("Interception", &[("bonus", 0.3), ("lane", 1.0)], "leading", 0.0),
+            triggered("StaminaSurge", &[("below", 50.0), ("amount", 20.0)], "minute_at_least", 30.0),
+            triggered("NewAction", &[("throughBall", 1.0)], "leading", 0.0),
+        ],
+    );
+    let req = request(&variant, &away, "trigger_determinism", true);
+    let a = serde_json::to_string(&run_simulation(req.clone()).match_data.unwrap()).unwrap();
+    let b = serde_json::to_string(&run_simulation(req).match_data.unwrap()).unwrap();
+    assert_eq!(a, b, "a triggered request must replay byte-identically");
+    println!("triggered determinism: identical ({} bytes)", a.len());
+}
+
+/// Per-ability effect band: a trigger-gated ability moves its intended metric,
+/// but strictly less than the same ability left ungated (the gate attenuates
+/// activation to the ticks the trigger holds).
+#[test]
+fn triggered_ability_moves_metric_less_than_ungated() {
+    let Some(pool) = pool() else { return };
+    let (home, away) = clubs(&pool);
+    let base = home.clone();
+    let ungated = home_with(&home, &[effect("ShotQuality", &[("bonus", 1.0)])]);
+    let gated = home_with(&home, &[triggered("ShotQuality", &[("bonus", 1.0)], "minute_at_least", 45.0)]);
+
+    let mut bh = Vec::new();
+    let mut uh = Vec::new();
+    let mut gh = Vec::new();
+    for i in 0..SEEDS {
+        let b = measure(&base, &away, &seed(i));
+        let u = measure(&ungated, &away, &seed(i));
+        let g = measure(&gated, &away, &seed(i));
+        bh.push(b.hxg / b.hshots.max(1.0));
+        uh.push(u.hxg / u.hshots.max(1.0));
+        gh.push(g.hxg / g.hshots.max(1.0));
+    }
+    let base_v = bh.clone();
+    let (d_gated, se_gated) = paired(&base_v, &gh);
+    let (d_ungated, se_ungated) = paired(&base_v, &uh);
+    let (d_gap, se_gap) = paired(&gh, &uh); // ungated - gated
+    assert!(d_gated > 2.0 * se_gated, "gated ShotQuality should still lift xG/shot (Δ {d_gated:+.4}±{se_gated:.4})");
+    assert!(d_ungated > 2.0 * se_ungated, "ungated ShotQuality lifts xG/shot (Δ {d_ungated:+.4}±{se_ungated:.4})");
+    assert!(d_ungated > d_gated, "the gate must attenuate activation ({d_ungated:+.4} vs {d_gated:+.4})");
+    assert!(d_gap > 1.5 * se_gap, "ungated must exceed gated (Δ {d_gap:+.4}±{se_gap:.4})");
+    println!("triggered band: xG/shot gated {d_gated:+.4}±{se_gated:.4}, ungated {d_ungated:+.4}±{se_ungated:.4}, gap {d_gap:+.4}±{se_gap:.4}");
+}

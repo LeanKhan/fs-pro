@@ -394,7 +394,9 @@ func (r *Repository) buildRaidRequest(ctx context.Context, fixtureTag, seed stri
 }
 
 // applyPlayerEffects attaches resolved trait/ability effects to matching player
-// maps (sim-core `RawPlayer.effects`, 07 §1a).
+// maps (sim-core `RawPlayer.effects`, 07 §1a). The effect items are passed
+// through verbatim, so an ability's optional match-context `trigger` (OW-P03)
+// rides along and the engine gates the effect's activation.
 func applyPlayerEffects(players []any, effects map[string][]any) {
 	if len(effects) == 0 {
 		return

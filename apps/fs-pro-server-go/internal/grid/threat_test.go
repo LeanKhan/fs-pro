@@ -1,25 +1,37 @@
 package grid
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
-// TestPreviewAuraStacks pins the aura model: overlapping pressure auras add
-// (own cell 1.0, each of the 8 neighbours 0.5), so a compact block projects
-// more pressure than the same players spread out.
+// TestPreviewAuraStacks pins the diminishing-returns aura model (03 §1.4,
+// OW-P01): overlapping auras combine as p = 1 − Π(1 − pᵢ), not by adding, so a
+// compact block projects more pressure than the same players spread out while a
+// cell never exceeds 1.
 func TestPreviewAuraStacks(t *testing.T) {
 	g := Grid{Slots: []Slot{
 		{Col: 1, Row: 3, PlayerID: "a", Position: DEF},
 		{Col: 1, Row: 4, PlayerID: "b", Position: DEF},
 	}}
 	p := BuildPreview(g)
-	// Cell (1,3): 1.0 from a (own) + 0.5 from b (adjacent) = 1.5.
-	if got := p.Aura[3*Width+1]; got != 1.5 {
-		t.Errorf("stacked aura = %v, want 1.5", got)
+	// Cell (1,3): 0.8 from a (own) then 0.4 from b (adjacent): 0.8 + 0.4·0.2 =
+	// 0.88. Additive stacking would give 1.2, which is not a probability.
+	const wantStack = 0.88
+	if got := p.Aura[3*Width+1]; math.Abs(got-wantStack) > 1e-12 {
+		t.Errorf("stacked aura = %v, want %v", got, wantStack)
 	}
 	// Cell (1,4): symmetric.
-	if got := p.Aura[4*Width+1]; got != 1.5 {
-		t.Errorf("stacked aura = %v, want 1.5", got)
+	if got := p.Aura[4*Width+1]; math.Abs(got-wantStack) > 1e-12 {
+		t.Errorf("stacked aura = %v, want %v", got, wantStack)
 	}
-	// The goalkeeper projects no aura.
+	// Every cell stays a probability in [0,1].
+	for i, v := range p.Aura {
+		if v < 0 || v > 1 {
+			t.Fatalf("aura[%d] = %v, want within [0,1]", i, v)
+		}
+	}
+	// A lone keeper projects no aura.
 	withGK := BuildPreview(Grid{Slots: []Slot{{Col: 0, Row: 3, PlayerID: "gk", Position: GK}}})
 	for i, v := range withGK.Aura {
 		if v != 0 {

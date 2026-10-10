@@ -112,6 +112,26 @@ fn trigger_matches(t: Trigger, s: &TriggerState) -> bool {
     }
 }
 
+/// The match facts a trigger reads (OW-P03 fast path). A player's conditional
+/// effects are only re-evaluated on ticks where one of these facts changed, so
+/// a minute/scoreline trigger costs almost nothing on the other ticks.
+const F_MINUTE: u8 = 1 << 0;
+const F_SCORE: u8 = 1 << 1;
+const F_STAMINA: u8 = 1 << 2;
+const F_POSSESSION: u8 = 1 << 3;
+const F_PHASE: u8 = 1 << 4;
+
+fn trigger_facts(when: TriggerWhen) -> u8 {
+    match when {
+        TriggerWhen::Always | TriggerWhen::Never => 0,
+        TriggerWhen::MinuteAtLeast => F_MINUTE,
+        TriggerWhen::Trailing | TriggerWhen::Leading | TriggerWhen::Drawing | TriggerWhen::ScorelineEquals => F_SCORE,
+        TriggerWhen::StaminaBelow => F_STAMINA,
+        TriggerWhen::PossessionBelow | TriggerWhen::MomentumBelow => F_POSSESSION,
+        TriggerWhen::PhaseIs => F_PHASE,
+    }
+}
+
 /// Conditional half-time orders: the style to switch to, by the score at
 /// the break. `None` keeps the current plan.
 #[derive(Debug, Clone, Default)]
@@ -156,6 +176,23 @@ pub struct MatchEngine {
     /// carries no orders/effects (the parity case).
     has_orders: bool,
     has_surge: bool,
+    /// OW-P03: the always-on base effects per player and their trigger-gated
+    /// deltas. `has_conditional` is the parity fast-flag.
+    base_effects: [PlayerEffects; 22],
+    conditional: [Vec<ConditionalEffect>; 22],
+    /// Which conditional deltas of each player are currently active (bit k).
+    /// `u32::MAX` forces a rebuild on the first tick.
+    conditional_mask: [u32; 22],
+    /// The facts each player's conditional triggers read, and the union per
+    /// team, so the engine can skip re-evaluation while no relevant fact moved.
+    conditional_facts: [u8; 22],
+    team_facts: [u8; 2],
+    team_has_conditional: [bool; 2],
+    /// Last observed fact values per team (for change detection).
+    last_diff: [i32; 2],
+    last_possession: [f32; 2],
+    last_stamina: [f32; 2],
+    has_conditional: bool,
     /// Which of each side's orders have already fired this match.
     fired: [Vec<bool>; 2],
     /// One-shot stamina surges already consumed, per player.
@@ -205,7 +242,33 @@ impl MatchEngine {
         }
 
         let order_counts = [home_tactics.orders.len(), away_tactics.orders.len()];
-        let has_surge = players.iter().any(|p| p.effects.stamina_surge_below > 0.0);
+        // OW-P03: lift each player's trigger-gated deltas out of `effects` so the
+        // engine can re-merge the active ones at each tick boundary. The base
+        // (always-on) effects stay in place, so the no-trigger path is untouched.
+        let mut base_effects = [PlayerEffects::NONE; 22];
+        let mut conditional: [Vec<ConditionalEffect>; 22] = std::array::from_fn(|_| Vec::new());
+        for i in 0..22 {
+            base_effects[i] = players[i].effects;
+            conditional[i] = std::mem::take(&mut players[i].conditional);
+        }
+        let has_conditional = conditional.iter().any(|c| !c.is_empty());
+        let mut conditional_facts = [0u8; 22];
+        let mut team_facts = [0u8; 2];
+        let mut team_has_conditional = [false; 2];
+        for i in 0..22 {
+            let mut facts = 0u8;
+            for c in &conditional[i] {
+                facts |= trigger_facts(c.trigger.when);
+            }
+            conditional_facts[i] = facts;
+            let team = players[i].team_index;
+            team_facts[team] |= facts;
+            if !conditional[i].is_empty() {
+                team_has_conditional[team] = true;
+            }
+        }
+        let has_surge = players.iter().any(|p| p.effects.stamina_surge_below > 0.0)
+            || conditional.iter().flatten().any(|c| c.effect.stamina_surge_below > 0.0);
         let epoch_seed = seed_from_epoch(seed);
         let mut engine = Self {
             players,
@@ -229,6 +292,16 @@ impl MatchEngine {
             active_orders: [Vec::new(), Vec::new()],
             has_orders: order_counts[0] + order_counts[1] > 0,
             has_surge,
+            base_effects,
+            conditional,
+            conditional_mask: [u32::MAX; 22],
+            conditional_facts,
+            team_facts,
+            team_has_conditional,
+            last_diff: [i32::MIN; 2],
+            last_possession: [-1.0; 2],
+            last_stamina: [-1.0; 2],
+            has_conditional,
             fired: [vec![false; order_counts[0]], vec![false; order_counts[1]]],
             surge_used: [false; 22],
             volley_window: None,
@@ -272,6 +345,9 @@ impl MatchEngine {
         // Manager orders / abilities fire at tick boundaries (07 §7).
         if self.has_orders {
             self.eval_triggers(tick);
+        }
+        if self.has_conditional {
+            self.eval_conditional_effects(tick);
         }
 
         if tick == HALF_TIME_TICK {
@@ -384,11 +460,15 @@ impl MatchEngine {
     // Manager orders / abilities: the deterministic trigger timeline.
     // -----------------------------------------------------------------
 
-    /// The match-state a trigger reads. Cheap to build, O(11) at fire time.
-    fn trigger_state(&self, team: usize, tick: u16) -> TriggerState {
+    /// The match-state a trigger reads. Cheap to build; the O(11) stamina sum is
+    /// skipped unless a caller actually reads it (`want_stamina`).
+    fn trigger_state(&self, team: usize, tick: u16, want_stamina: bool) -> TriggerState {
         let (own, opp) = if team == 0 { (&self.home_stats, &self.away_stats) } else { (&self.away_stats, &self.home_stats) };
-        let stamina: f32 =
-            (team * 11..team * 11 + 11).filter(|&i| self.active(i)).map(|i| self.players[i].stamina).sum::<f32>() / 11.0;
+        let stamina: f32 = if want_stamina {
+            (team * 11..team * 11 + 11).filter(|&i| self.active(i)).map(|i| self.players[i].stamina).sum::<f32>() / 11.0
+        } else {
+            0.0
+        };
         let total = (self.home_stats.possession_ticks + self.away_stats.possession_ticks).max(1) as f32;
         let possession_pct = 100.0 * own.possession_ticks as f32 / total;
         TriggerState {
@@ -420,7 +500,7 @@ impl MatchEngine {
             if self.fired[team][..n].iter().all(|&f| f) {
                 continue;
             }
-            let state = self.trigger_state(team, tick);
+            let state = self.trigger_state(team, tick, true);
             for i in 0..n {
                 if self.fired[team][i] {
                     continue;
@@ -482,6 +562,99 @@ impl MatchEngine {
                 self.record_ability(tick, i, "Talisman Second Wind");
             }
         }
+    }
+
+    /// OW-P03: merge each player's trigger-gated effect deltas into their active
+    /// `effects` at a tick boundary, so a passive modifier applies exactly while
+    /// its trigger holds and a one-shot (surge) can only fire while it holds.
+    /// Reuses the order `trigger_state`/`trigger_matches` machinery. Never runs
+    /// (and never allocates) when the request carries no triggers.
+    ///
+    /// Two fast paths keep this off the hot path: a team is skipped entirely
+    /// unless a fact its triggers read changed (minute tick, goal, possession,
+    /// stamina, half), and a player's effects are only merged when his active
+    /// set actually changed. The steady state is thus "nothing active, nothing
+    /// to do".
+    fn eval_conditional_effects(&mut self, tick: u16) {
+        for team in 0..2 {
+            if !self.team_has_conditional[team] {
+                continue;
+            }
+            let needs = self.team_facts[team];
+            // On the first tick every team is evaluated, so masks initialise.
+            let mut changed = if tick == 0 { needs } else { 0 };
+            if needs & F_MINUTE != 0 && tick % TICKS_PER_MINUTE == 0 {
+                changed |= F_MINUTE;
+            }
+            if needs & F_PHASE != 0 && tick == HALF_TIME_TICK {
+                changed |= F_PHASE;
+            }
+            let (own_score, opp_score, own_poss) = if team == 0 {
+                (self.home_stats.score as i32, self.away_stats.score as i32, self.home_stats.possession_ticks)
+            } else {
+                (self.away_stats.score as i32, self.home_stats.score as i32, self.away_stats.possession_ticks)
+            };
+            if needs & F_SCORE != 0 {
+                let diff = own_score - opp_score;
+                if diff != self.last_diff[team] {
+                    changed |= F_SCORE;
+                    self.last_diff[team] = diff;
+                }
+            }
+            if needs & F_POSSESSION != 0 {
+                let total = (self.home_stats.possession_ticks + self.away_stats.possession_ticks).max(1) as f32;
+                let pct = 100.0 * own_poss as f32 / total;
+                if pct != self.last_possession[team] {
+                    changed |= F_POSSESSION;
+                    self.last_possession[team] = pct;
+                }
+            }
+            if needs & F_STAMINA != 0 {
+                let s: f32 = (team * 11..team * 11 + 11)
+                    .filter(|&i| self.active(i))
+                    .map(|i| self.players[i].stamina)
+                    .sum::<f32>()
+                    / 11.0;
+                if s != self.last_stamina[team] {
+                    changed |= F_STAMINA;
+                    self.last_stamina[team] = s;
+                }
+            }
+            if changed == 0 {
+                continue;
+            }
+
+            let state = self.trigger_state(team, tick, changed & F_STAMINA != 0);
+            for i in team * 11..team * 11 + 11 {
+                let n = self.conditional[i].len();
+                if n == 0 || (self.conditional_facts[i] & changed) == 0 {
+                    continue;
+                }
+                let mut mask = 0u32;
+                for k in 0..n {
+                    if trigger_matches(self.conditional[i][k].trigger, &state) {
+                        mask |= 1 << k;
+                    }
+                }
+                if mask == self.conditional_mask[i] {
+                    continue;
+                }
+                self.conditional_mask[i] = mask;
+                let mut e = self.base_effects[i];
+                for k in 0..n {
+                    if mask & (1 << k) != 0 {
+                        e = e.combine(self.conditional[i][k].effect);
+                    }
+                }
+                self.players[i].effects = e;
+            }
+        }
+    }
+
+    /// The effects a player currently has in force (base + active triggers).
+    /// Exposed for the trigger tests; equals `players[i].effects`.
+    pub fn active_effects(&self, player: usize) -> PlayerEffects {
+        self.players[player].effects
     }
 
     /// Whether the defender should commit a tactical foul right now. Uses the

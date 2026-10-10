@@ -29,6 +29,29 @@ func TestUpgradeMinutesScalesWithLevel(t *testing.T) {
 	}
 }
 
+// TestUpgradeMinutesTimeCurve pins the 04 §3.2 exponential curve: minutes(L) =
+// BaseMinutes · TimeGrowth^(L-1), not the legacy linear BaseMinutes·L (OW-P11).
+func TestUpgradeMinutesTimeCurve(t *testing.T) {
+	t.Setenv("GAME_TIME_SCALE", "")
+	// Stadium Grounds: base 20, growth 2.0 => 20, 40, 80, 160, 320.
+	want := []float64{0, 20, 40, 80, 160, 320}
+	for level := 1; level <= MaxAssetLevel; level++ {
+		if got := UpgradeMinutes(StadiumGrounds, level); got != want[level] {
+			t.Errorf("stadium L%d minutes = %v, want %v", level, got, want[level])
+		}
+	}
+	// Every asset carries an explicit super-linear growth (04 §3.2).
+	for _, at := range AssetTypes {
+		if def := AssetConfig[at]; def.TimeGrowth < 2 {
+			t.Errorf("%s TimeGrowth = %v, want >= 2", at, def.TimeGrowth)
+		}
+	}
+	// A curve is super-linear: L4 - L3 exceeds L2 - L1 (linear would be equal).
+	if a, b, c := UpgradeMinutes(Stands, 2), UpgradeMinutes(Stands, 3), UpgradeMinutes(Stands, 4); c-b <= b-a {
+		t.Errorf("stands curve not super-linear: %v, %v, %v", a, b, c)
+	}
+}
+
 func TestEffectsAndLabels(t *testing.T) {
 	if Effects(Stands, 0)["capacity"] != 1000 {
 		t.Fatalf("stands L0 capacity = %v", Effects(Stands, 0)["capacity"])

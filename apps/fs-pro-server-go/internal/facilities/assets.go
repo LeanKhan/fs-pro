@@ -48,37 +48,43 @@ type AssetDef struct {
 	BaseCost    float64
 	CostGrowth  float64
 	BaseMinutes float64
-	Requires    []Requirement
+	// TimeGrowth is the exponential build-time base (04 §3.2): the minutes for
+	// target level L are BaseMinutes · TimeGrowth^(L-1). A value <= 0 is treated
+	// as 1 (a flat curve), so a missing value cannot zero a build time. The
+	// shipped config is 2.0 - a steep, super-linear curve matching the cost curve.
+	TimeGrowth float64
+	Requires   []Requirement
 }
 
 var capacityByLevel = []int{1000, 3000, 8000, 18000, 32000, 55000}
 
-// AssetConfig is the literal port of ASSET_CONFIG.
+// AssetConfig is the literal port of ASSET_CONFIG, extended with the 04 §3.2
+// time curve (TimeGrowth). Costs are Cash (the crossed economy: 04 §1.1).
 var AssetConfig = map[AssetType]AssetDef{
 	StadiumGrounds: {Type: StadiumGrounds, Name: "Stadium Grounds",
 		Description: "Pitch quality and floodlights. Starts as a bare dirt turf.",
-		BaseCost:    250000, CostGrowth: 2.4, BaseMinutes: 20},
+		BaseCost:    250000, CostGrowth: 2.4, BaseMinutes: 20, TimeGrowth: 2.0},
 	Stands: {Type: Stands, Name: "Stands",
 		Description: "Seating capacity. More seats mean more matchday income.",
-		BaseCost:    300000, CostGrowth: 2.5, BaseMinutes: 30,
+		BaseCost:    300000, CostGrowth: 2.5, BaseMinutes: 30, TimeGrowth: 2.0,
 		Requires: []Requirement{{StadiumGrounds, 1}}},
 	TrainingGround: {Type: TrainingGround, Name: "Training Ground",
 		Description: "Boosts player growth from training.",
-		BaseCost:    200000, CostGrowth: 2.3, BaseMinutes: 20},
+		BaseCost:    200000, CostGrowth: 2.3, BaseMinutes: 20, TimeGrowth: 2.0},
 	YouthAcademy: {Type: YouthAcademy, Name: "Youth Academy",
 		Description: "Improves the quality of the yearly youth intake.",
-		BaseCost:    350000, CostGrowth: 2.4, BaseMinutes: 40,
+		BaseCost:    350000, CostGrowth: 2.4, BaseMinutes: 40, TimeGrowth: 2.0,
 		Requires: []Requirement{{TrainingGround, 1}}},
 	Scouting: {Type: Scouting, Name: "Scouting Department",
 		Description: "Finds transfer talent: a shortlist of recommended signings, refreshed as you upgrade.",
-		BaseCost:    220000, CostGrowth: 2.3, BaseMinutes: 25},
+		BaseCost:    220000, CostGrowth: 2.3, BaseMinutes: 25, TimeGrowth: 2.0},
 	MedicalCentre: {Type: MedicalCentre, Name: "Medical Centre",
 		Description: "Your squad recovers faster between matches with specialized treatment bays.",
-		BaseCost:    260000, CostGrowth: 2.4, BaseMinutes: 25,
+		BaseCost:    260000, CostGrowth: 2.4, BaseMinutes: 25, TimeGrowth: 2.0,
 		Requires: []Requirement{{TrainingGround, 1}}},
 	StaffHouse: {Type: StaffHouse, Name: "Staff House",
 		Description: "Houses specialist coaches. Higher levels unlock tactical abilities (coming soon).",
-		BaseCost:    300000, CostGrowth: 2.5, BaseMinutes: 35,
+		BaseCost:    300000, CostGrowth: 2.5, BaseMinutes: 35, TimeGrowth: 2.0,
 		Requires: []Requirement{{TrainingGround, 1}}},
 }
 
@@ -95,9 +101,18 @@ func UpgradeCost(t AssetType, targetLevel int) float64 {
 }
 
 // UpgradeMinutes is the real clock time to build targetLevel, scaled by
-// GAME_TIME_SCALE (whole seconds).
+// GAME_TIME_SCALE (whole seconds). The curve is exponential (04 §3.2):
+// minutes(L) = BaseMinutes · TimeGrowth^(L-1); level <= 1 is the base.
 func UpgradeMinutes(t AssetType, targetLevel int) float64 {
-	minutes := AssetConfig[t].BaseMinutes * float64(targetLevel)
+	def := AssetConfig[t]
+	minutes := def.BaseMinutes
+	if targetLevel > 1 {
+		growth := def.TimeGrowth
+		if growth <= 0 {
+			growth = 1
+		}
+		minutes = def.BaseMinutes * math.Pow(growth, float64(targetLevel-1))
+	}
 	raw := minutes / gameTimeScale() * 60
 	return math.Round(raw) / 60
 }

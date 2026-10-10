@@ -124,14 +124,30 @@ export const ClearObstacleRequestSchema = z.object({ obstacleId: z.string().min(
 
 export const BuyGroundskeeperRequestSchema = z.object({});
 
+/** The campus economy facility keys a Construction perk may target (04 §7). It
+ * is exactly the Go `campus.Facilities` set (which also contains the
+ * `ResearchFacilities`), so a `target` can never name a building the server
+ * does not know how to finish. */
+export const PerkTargetSchema = z.enum([
+  'turnstiles',
+  'club_shop',
+  'cash_vault',
+  'fan_vault',
+  'clubhouse',
+  'coaching_dept',
+  'video_analysis',
+]);
+
 /** Redeem one quick consumable Board Perk (04 §7). `instanceId`, when supplied,
  * makes a retried request idempotent (the server applies the perk once).
- * `target` names the object of a Construction/Research perk (a campus facility
- * key such as `clubhouse`, `coaching_dept` or `video_analysis`). */
+ * `target` names the object of a Construction/Research perk: a campus facility
+ * key (`turnstiles`, `club_shop`, `cash_vault`, `fan_vault`, `clubhouse`) or a
+ * research facility (`coaching_dept`, `video_analysis`). It stays optional so
+ * the resource/combat/cosmetic perks need no target (OW-H05). */
 export const UsePerkRequestSchema = z.object({
   perk: z.string().min(1),
   instanceId: z.string().min(1).optional(),
-  target: z.string().min(1).optional(),
+  target: PerkTargetSchema.optional(),
 });
 
 export type CampusCurrency = z.infer<typeof CampusCurrencySchema>;
@@ -140,6 +156,7 @@ export type VaultState = z.infer<typeof VaultStateSchema>;
 export type CampusGroundskeeper = z.infer<typeof CampusGroundskeeperSchema>;
 export type CampusObstacle = z.infer<typeof CampusObstacleSchema>;
 export type PerkState = z.infer<typeof PerkStateSchema>;
+export type PerkTarget = z.infer<typeof PerkTargetSchema>;
 export type CampusAssetState = z.infer<typeof CampusAssetStateSchema>;
 export type ClubhouseState = z.infer<typeof ClubhouseStateSchema>;
 export type CampusState = z.infer<typeof CampusStateSchema>;

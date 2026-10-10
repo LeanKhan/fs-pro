@@ -9,9 +9,23 @@ import "sort"
 
 // RawEffect is one sim-core effect: a mechanism `kind` plus numeric `params`.
 // The JSON shape is pinned to crates/sim-core `RawEffect` (07 §1a/§2).
+//
+// `trigger` is the optional match-context gate on the *whole* effect (03 §2.1
+// vector 3, 07 §2.6). It is omitted for `Always`, so a trigger-free payload is
+// byte-identical to the pre-OW-P03 shape; the engine's `RawEffect` defaults it
+// to "unconditional".
 type RawEffect struct {
-	Kind   string             `json:"kind"`
-	Params map[string]float64 `json:"params,omitempty"`
+	Kind    string             `json:"kind"`
+	Params  map[string]float64 `json:"params,omitempty"`
+	Trigger *RawTrigger        `json:"trigger,omitempty"`
+}
+
+// RawTrigger is the sim-core trigger wire shape (crates/sim-core `RawTrigger`).
+// `when` is a snake id from the `TriggerWhen` set; `threshold` is read only by
+// the threshold triggers.
+type RawTrigger struct {
+	When      string  `json:"when"`
+	Threshold float64 `json:"threshold,omitempty"`
 }
 
 // EquippedTrait is a trait at a rarity, as stored in PlayerTraits.
@@ -21,9 +35,23 @@ type EquippedTrait struct {
 }
 
 // AbilityEffect converts one ability to its sim-core payload. An ability whose
-// Effect has no declared mechanism (SimKind == "") is skipped by EffectsFor.
+// Effect has no declared mechanism (SimKind == "") is skipped by EffectsFor. A
+// non-`Always` trigger rides along so the engine gates the effect's activation.
 func AbilityEffect(a Ability) RawEffect {
-	return RawEffect{Kind: a.Effect.SimKind(), Params: copyParams(a.Params)}
+	e := RawEffect{Kind: a.Effect.SimKind(), Params: copyParams(a.Params)}
+	if t, ok := abilityTrigger(a); ok {
+		e.Trigger = &t
+	}
+	return e
+}
+
+// abilityTrigger reports the wire trigger for an ability, or ok=false when the
+// ability is ungated (`Always`/empty) so the field is omitted entirely.
+func abilityTrigger(a Ability) (RawTrigger, bool) {
+	if a.Trigger == "" || a.Trigger == Always {
+		return RawTrigger{}, false
+	}
+	return RawTrigger{When: string(a.Trigger), Threshold: a.TriggerThreshold}, true
 }
 
 // TraitEffect converts one equipped trait to its sim-core payload, scaling every

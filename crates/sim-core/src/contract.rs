@@ -198,6 +198,13 @@ pub struct RawEffect {
     pub kind: String,
     #[serde(default)]
     pub params: std::collections::BTreeMap<String, f32>,
+    /// Optional match-context gate (03 §2.1 vector 3, 07 §2.6). Absent (the
+    /// common, pre-OW-P03 case) means "unconditional": the effect folds into
+    /// the player's always-on `PlayerEffects` and the JSON is byte-identical
+    /// to before. Present means the effect only activates while the trigger
+    /// matches at a tick boundary.
+    #[serde(default)]
+    pub trigger: Option<RawTrigger>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -599,13 +606,44 @@ fn apply_effect(e: &mut PlayerEffects, r: &RawEffect) {
     }
 }
 
-/// Resolve a player's `RawEffect`s once, at build time (07 §1a/§2).
-pub fn resolve_effects(raw: &[RawEffect]) -> PlayerEffects {
-    let mut e = PlayerEffects::NONE;
-    for r in raw {
-        apply_effect(&mut e, r);
+/// Parse an effect's optional gate. `None` means unconditional: either the
+/// field is absent (the pre-OW-P03 case) or the trigger parses to `Always`.
+/// An unknown `when` parses to `Never` (inert), matching orders.
+fn effect_trigger(raw: &RawEffect) -> Option<Trigger> {
+    let t = raw.trigger.as_ref()?;
+    match TriggerWhen::parse(&t.when) {
+        TriggerWhen::Always => None,
+        when => Some(Trigger { when, threshold: t.threshold }),
     }
-    e
+}
+
+/// Resolve a player's `RawEffect`s at build time (07 §1a/§2) into the always-on
+/// base plus any trigger-gated deltas (OW-P03). Unconditional effects fold
+/// exactly as before, so a trigger-free list yields the pre-abilities result.
+pub fn resolve_effects_split(raw: &[RawEffect]) -> (PlayerEffects, Vec<ConditionalEffect>) {
+    let mut base = PlayerEffects::NONE;
+    let mut conditional = Vec::new();
+    for r in raw {
+        match effect_trigger(r) {
+            None => apply_effect(&mut base, r),
+            Some(trigger) => {
+                let mut delta = PlayerEffects::NONE;
+                apply_effect(&mut delta, r);
+                if !delta.is_inert() {
+                    conditional.push(ConditionalEffect { trigger, effect: delta });
+                }
+            }
+        }
+    }
+    (base, conditional)
+}
+
+/// Resolve a player's `RawEffect`s once, at build time (07 §1a/§2). Folds any
+/// trigger-gated deltas in unconditionally - callers that respect triggers use
+/// `resolve_effects_split`.
+pub fn resolve_effects(raw: &[RawEffect]) -> PlayerEffects {
+    let (base, conditional) = resolve_effects_split(raw);
+    conditional.iter().fold(base, |e, c| e.combine(c.effect))
 }
 
 fn parse_region(r: &RawRegion) -> Region {
@@ -919,6 +957,7 @@ fn build_squad(club: &RawClub, slots: &[FormationSlot; 11], team_idx: usize) -> 
                 let rating = p.rating.unwrap_or(60.0);
                 let position = parse_position(p.position.as_deref());
                 let attributes = parse_attributes(p.attributes.clone(), rating);
+                let (effects, conditional) = resolve_effects_split(&p.effects);
                 SimPlayer {
                     id: p.id.clone().unwrap_or_else(|| format!("{}{}_{}", SYNTHETIC_ID_PREFIX, team_idx, i)),
                     name,
@@ -941,7 +980,8 @@ fn build_squad(club: &RawClub, slots: &[FormationSlot; 11], team_idx: usize) -> 
                     team_index: team_idx,
                     squad_index: i,
                     shirt_number: p.shirt_number.clone().unwrap_or_else(|| (i + 1).to_string()),
-                    effects: resolve_effects(&p.effects),
+                    effects,
+                    conditional,
                 }
             }
             // Squad too small: a stand-in for the slot's line.
@@ -964,6 +1004,7 @@ fn build_squad(club: &RawClub, slots: &[FormationSlot; 11], team_idx: usize) -> 
                 squad_index: i,
                 shirt_number: (i + 1).to_string(),
                 effects: PlayerEffects::NONE,
+                conditional: Vec::new(),
             },
         })
         .collect()

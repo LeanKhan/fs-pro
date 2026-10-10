@@ -182,17 +182,31 @@ describe('chebyshev / labels', () => {
   });
 });
 
-describe('buildPreview — auras (mirrors Go 03 §1.4)', () => {
-  it('projects 1 on the cell and ½ on the 8 neighbours; keeper projects nothing', () => {
-    const p = buildPreview([slot(4, 3, 'm', 'MID')]);
-    assert.equal(p.aura.length, 63);
-    assert.equal(auraAt(p, 4, 3), 1);
-    assert.equal(auraAt(p, 3, 2), 0.5);
-    assert.equal(auraAt(p, 4, 2), 0.5);
-    assert.equal(auraAt(p, 5, 4), 0.5);
+describe('buildPreview — auras (mirrors Go 03 §1.4, OW-P01)', () => {
+  it('projects the band-derived weights; keeper projects nothing', () => {
+    // MID ≈ midfield engine: radius 1, weighted higher (own 1, neighbours ½).
+    const mid = buildPreview([slot(4, 3, 'm', 'MID')]);
+    assert.equal(mid.aura.length, 63);
+    assert.equal(auraAt(mid, 4, 3), 1);
+    assert.equal(auraAt(mid, 3, 2), 0.5);
+    assert.equal(auraAt(mid, 4, 2), 0.5);
+    assert.equal(auraAt(mid, 5, 4), 0.5);
     // Two cells away is out of the aura.
-    assert.equal(auraAt(p, 4, 5), 0);
-    assert.equal(auraAt(p, 6, 3), 0);
+    assert.equal(auraAt(mid, 4, 5), 0);
+    assert.equal(auraAt(mid, 6, 3), 0);
+
+    // DEF ≈ Anchor/Tank: radius 1 incl. diagonals, own 0.8 / neighbours 0.4.
+    const def = buildPreview([slot(4, 3, 'd', 'DEF')]);
+    assert.equal(auraAt(def, 4, 3), 0.8);
+    assert.equal(auraAt(def, 3, 3), 0.4);
+    assert.equal(auraAt(def, 3, 2), 0.4);
+    assert.equal(auraAt(def, 6, 3), 0);
+
+    // ATT ≈ Sniper/Playmaker: soft — its own cell only, at 0.5.
+    const att = buildPreview([slot(4, 3, 'a', 'ATT')]);
+    assert.equal(auraAt(att, 4, 3), 0.5);
+    assert.equal(auraAt(att, 3, 3), 0);
+    assert.equal(auraAt(att, 4, 2), 0);
 
     // A lone keeper adds nothing.
     const gk = buildPreview([slot(0, 3, 'gk', 'GK')]);
@@ -202,12 +216,20 @@ describe('buildPreview — auras (mirrors Go 03 §1.4)', () => {
     );
   });
 
-  it('stacks overlaps (1 + ½ at shared edges)', () => {
-    const p = buildPreview([slot(4, 3, 'a', 'MID'), slot(4, 4, 'b', 'MID')]);
-    assert.equal(auraAt(p, 4, 3), 1.5);
-    assert.equal(auraAt(p, 4, 4), 1.5);
-    // A diagonal cell shared by both keeps only ½+½.
-    assert.equal(auraAt(p, 3, 3), 1);
+  it('stacks overlaps with diminishing returns p = 1 − Π(1 − pᵢ)', () => {
+    // Two stacked defenders: additive would be 1.2, the product is
+    // 0.8 + 0.4·(1 − 0.8) = 0.88 on each shared cell.
+    const defs = buildPreview([slot(1, 3, 'a', 'DEF'), slot(1, 4, 'b', 'DEF')]);
+    assert.equal(auraAt(defs, 1, 3), 0.88);
+    assert.equal(auraAt(defs, 1, 4), 0.88);
+    // Two MIDs: own cells saturate at 1; the shared diagonal edge sees
+    // 1 − (1 − 0.5)² = 0.75.
+    const mids = buildPreview([slot(4, 3, 'a', 'MID'), slot(4, 4, 'b', 'MID')]);
+    assert.equal(auraAt(mids, 4, 3), 1);
+    assert.equal(auraAt(mids, 4, 4), 1);
+    assert.equal(auraAt(mids, 3, 3), 0.75);
+    // Pressure is a probability: never below 0, never above 1.
+    assert.ok(mids.aura.every((v) => v >= 0 && v <= 1));
   });
 
   it('is deterministic', () => {
@@ -293,7 +315,7 @@ describe('buildPreview — synergies (03 §1.6)', () => {
     assert.deepEqual(wing.synergies, []);
   });
 
-  it('island: an attacker ≥3 cells from every teammate', () => {
+  it('island: an attacker ≥3 columns from every teammate (OW-P02)', () => {
     const marooned = buildPreview([
       slot(8, 0, 'a', 'ATT'),
       slot(5, 3, 'm', 'MID'),
@@ -306,6 +328,21 @@ describe('buildPreview — synergies (03 §1.6)', () => {
     assert.deepEqual(close.synergies, []);
   });
 
+  it('island is measured in columns, not Chebyshev cells', () => {
+    // Same column (dx = 0) but Chebyshev 5: not far enough in x.
+    const sameColumn = buildPreview([
+      slot(3, 0, 'a', 'ATT'),
+      slot(3, 5, 'm', 'MID'),
+    ]);
+    assert.deepEqual(sameColumn.synergies, []);
+    // Three columns away in adjacent rows: provably an island.
+    const threeColumns = buildPreview([
+      slot(6, 3, 'a', 'ATT'),
+      slot(3, 4, 'm', 'MID'),
+    ]);
+    assert.deepEqual(threeColumns.synergies, ['island']);
+  });
+
   it('lists synergies in the fixed Go order', () => {
     const p = buildPreview([
       slot(5, 1, 'a', 'ATT'),
@@ -315,6 +352,43 @@ describe('buildPreview — synergies (03 §1.6)', () => {
       slot(8, 0, 'lonely', 'ATT'),
     ]);
     assert.deepEqual(p.synergies, ['one-two-combo', 'the-shield', 'island']);
+  });
+});
+
+describe('buildPreview — Go parity (golden layout)', () => {
+  // The exact `validGrid()` the Go `TestCompileShapeGolden` pins (03 §1.4-1.6).
+  // If the Go model and this mirror ever drift, one of the two fails.
+  const valid: GridSlot[] = [
+    slot(0, 3, 'gk', 'GK'),
+    slot(1, 1, 'd1', 'DEF'),
+    slot(1, 3, 'd2', 'DEF'),
+    slot(1, 5, 'd3', 'DEF'),
+    slot(3, 0, 'm1', 'MID'),
+    slot(3, 2, 'm2', 'MID'),
+    slot(3, 4, 'm3', 'MID'),
+    slot(3, 6, 'm4', 'MID'),
+    slot(4, 1, 'a1', 'ATT'),
+    slot(4, 3, 'a2', 'ATT'),
+    slot(4, 5, 'a3', 'ATT'),
+  ];
+
+  it('reproduces the Go golden aura exactly', () => {
+    const p = buildPreview(valid);
+    const goldenAura = [
+      0.4, 0.4, 0.7, 1, 0.5, 0, 0, 0, 0,
+      0.4, 0.8, 0.85, 0.75, 0.875, 0, 0, 0, 0,
+      0.64, 0.64, 0.8200000000000001, 1, 0.5, 0, 0, 0, 0,
+      0.4, 0.8, 0.85, 0.75, 0.875, 0, 0, 0, 0,
+      0.64, 0.64, 0.8200000000000001, 1, 0.5, 0, 0, 0, 0,
+      0.4, 0.8, 0.85, 0.75, 0.875, 0, 0, 0, 0,
+      0.4, 0.4, 0.7, 1, 0.5, 0, 0, 0, 0,
+    ];
+    assert.deepEqual(p.aura, goldenAura);
+    // Unchanged verdicts (links/directness/connectivity are not part of OW-P01/02).
+    assert.equal(p.connected, true);
+    assert.equal(p.directness, 0.3);
+    assert.deepEqual(p.synergies, []);
+    assert.equal(p.links.length, 22);
   });
 });
 

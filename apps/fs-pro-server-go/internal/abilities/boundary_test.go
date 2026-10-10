@@ -14,6 +14,7 @@ func TestRegistryValuesAreDeclared(t *testing.T) {
 	triggers := map[TriggerWhen]bool{
 		Always: true, MinuteAtLeast: true, Trailing: true, Leading: true,
 		Drawing: true, StaminaBelow: true, MomentumBelow: true, PossessionBelow: true,
+		ScorelineEquals: true, PhaseIs: true,
 	}
 	families := map[Family]bool{
 		FamilyALL: true, FamilyGK: true, FamilyDEF: true, FamilyMID: true, FamilyATT: true,

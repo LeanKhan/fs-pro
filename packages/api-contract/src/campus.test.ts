@@ -123,6 +123,37 @@ describe('campus contract', () => {
     assert.equal(UsePerkRequestSchema.safeParse({ perk: 'cash_cache', instanceId: '' }).success, false);
   });
 
+  it('types the perk target as the campus facility enum (OW-H05)', () => {
+    // Optional: a resource/combat/cosmetic perk carries no target.
+    assert.equal(UsePerkRequestSchema.safeParse({ perk: 'instant_finish' }).success, true);
+    // The construction/research targets the Go campus accepts.
+    for (const target of [
+      'turnstiles',
+      'club_shop',
+      'cash_vault',
+      'fan_vault',
+      'clubhouse',
+      'coaching_dept',
+      'video_analysis',
+    ]) {
+      assert.equal(
+        UsePerkRequestSchema.safeParse({ perk: 'instant_finish', target }).success,
+        true,
+        target
+      );
+    }
+    // A bare string outside the enum (the old free-string behaviour) is refused.
+    assert.equal(
+      UsePerkRequestSchema.safeParse({ perk: 'instant_finish', target: 'stadium_grounds' }).success,
+      false
+    );
+    assert.equal(
+      UsePerkRequestSchema.safeParse({ perk: 'instant_finish', target: 'nope' }).success,
+      false
+    );
+    assert.equal(UsePerkRequestSchema.safeParse({ perk: 'instant_finish', target: '' }).success, false);
+  });
+
   it('rejects a bad groundskeeper mode and a bad currency', () => {
     const bad = sampleCampus() as unknown as Record<string, unknown>;
     bad.groundskeepers = {

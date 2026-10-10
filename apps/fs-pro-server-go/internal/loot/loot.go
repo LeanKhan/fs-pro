@@ -9,6 +9,56 @@ func Rate(base, perUnit float64, units int) float64 {
 	return base + perUnit*float64(units)
 }
 
+// Collector tier multipliers (04 §3.1). The Cash collector (Turnstiles) scales
+// with the Clubhouse tier and the Fan collector (Club Shop) with its own shop
+// level:
+//
+//	Cash/hr multiplier = 1 + clubhouse_tier*0.05
+//	Fan/hr  multiplier = 1 + shop_level*0.08
+//
+// They live in the pure economy core so a collector caller can wrap its Rate:
+// RateTiered(base, perUnit, units, CashRateMultiplier(tier)). Rate's signature
+// is unchanged; a caller that has no tier context keeps using the bare Rate.
+const (
+	// ClubhouseTierRateBonusPct is the per-Clubhouse-tier Cash bonus (04 §3.1).
+	ClubhouseTierRateBonusPct = 0.05
+	// ShopLevelRateBonusPct is the per-Club-Shop-level Fan bonus (04 §3.1).
+	ShopLevelRateBonusPct = 0.08
+)
+
+// TierMultiplier is 1 + level*pctPerLevel, the per-level collector bonus factor
+// (04 §3.1). A negative level is treated as 0, so a fresh producer earns the
+// bare base rate.
+func TierMultiplier(level int, pctPerLevel float64) float64 {
+	if level < 0 {
+		level = 0
+	}
+	return 1 + float64(level)*pctPerLevel
+}
+
+// CashRateMultiplier is the Clubhouse-tier factor on the Cash collector (04
+// §3.1): 1 + clubhouseTier*0.05.
+func CashRateMultiplier(clubhouseTier int) float64 {
+	return TierMultiplier(clubhouseTier, ClubhouseTierRateBonusPct)
+}
+
+// FanRateMultiplier is the Club-Shop-level factor on the Fan collector (04
+// §3.1): 1 + shopLevel*0.08.
+func FanRateMultiplier(shopLevel int) float64 {
+	return TierMultiplier(shopLevel, ShopLevelRateBonusPct)
+}
+
+// RateTiered is Rate scaled by a collector tier multiplier (04 §3.1):
+// (base + perUnit*units) · multiplier. A non-positive multiplier is treated as
+// 1, so an unknown tier can never zero a collector's income. It is the additive
+// extension point that keeps Rate's signature intact (OW-P12).
+func RateTiered(base, perUnit float64, units int, multiplier float64) float64 {
+	if multiplier <= 0 {
+		multiplier = 1
+	}
+	return Rate(base, perUnit, units) * multiplier
+}
+
 // VaultProtectedPct is the share of Board Vault loot that cannot be stolen; only
 // the remainder is exposed (04 §5.2).
 const VaultProtectedPct = 97
