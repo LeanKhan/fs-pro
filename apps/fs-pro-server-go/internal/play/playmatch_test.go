@@ -54,7 +54,7 @@ func TestPlayMatchRealSim(t *testing.T) {
 			return err
 		}
 
-		result, err := repo.PlayMatch(ctx, clubID, "", true)
+		result, err := repo.PlayMatch(ctx, clubID, PlayOptions{Watch: true})
 		if err != nil {
 			t.Fatalf("PlayMatch: %v", err)
 		}

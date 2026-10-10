@@ -6,7 +6,7 @@ import (
 	"fs-pro-server/internal/httpapi"
 )
 
-// Register wires the 11 play.* routes.
+// Register wires the 11 original play.* routes plus the P5 raid routes.
 func Register(s *httpapi.Server, h *Handlers) {
 	s.Register("play.getPlayState", http.MethodGet, "/api/play/{clubId}", []int{200, 404}, h.getPlayState)
 	s.Register("play.findOpponents", http.MethodGet, "/api/play/{clubId}/opponents", []int{200, 400, 404}, h.findOpponents)
@@ -20,4 +20,7 @@ func Register(s *httpapi.Server, h *Handlers) {
 	s.Register("play.previewMatchPlan", http.MethodPost, "/api/play/{clubId}/fixtures/{fixtureId}/preview", []int{200, 400, 401, 403, 404}, h.previewMatchPlan)
 	s.Register("play.markInboxRead", http.MethodPost, "/api/play/{clubId}/inbox/read", []int{200, 400, 401, 403, 404}, h.markInboxRead)
 	s.Register("play.scoutOpponent", http.MethodPost, "/api/play/{clubId}/scout/{oppId}", []int{200, 400, 401, 403, 404}, h.scoutOpponent)
+	// P5: payload raid + defense surfaces.
+	s.Register("play.claimBoardVault", http.MethodPost, "/api/play/{clubId}/board-vault/claim", []int{200, 400, 401, 403, 404, 409}, h.claimBoardVault)
+	s.Register("play.defenseLog", http.MethodGet, "/api/play/{clubId}/defenses", []int{200, 400, 404}, h.defenseLog)
 }

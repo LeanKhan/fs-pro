@@ -79,5 +79,11 @@ func registerTickers(reg *worldworker.Registry) error {
 	if err := reg.Register(worldworker.BuildersTicker(nil)); err != nil {
 		return err
 	}
+	if err := reg.Register(worldworker.DefenseResolutionTicker(nil, nil)); err != nil {
+		return err
+	}
+	if err := reg.Register(worldworker.ShieldsTicker(nil)); err != nil {
+		return err
+	}
 	return nil
 }

@@ -8,6 +8,7 @@
     "serve": "vite preview",
     "lint": "oxlint src",
     "lint:fix": "oxlint --fix",
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "world:manifest": "node scripts/world/build-manifest.mjs"

@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"fs-pro-server/internal/abilities"
 	"fs-pro-server/internal/atlas"
 	"fs-pro-server/internal/auth"
 	"fs-pro-server/internal/award"
@@ -143,6 +144,7 @@ func main() {
 	calendar.Register(srv, calendar.New(calendarRepo))
 	facilities.Register(srv, facilities.New(facilitiesRepo))
 	campus.Register(srv, campus.New(campus.NewRepository(querier)))
+	abilities.Register(srv, abilities.New(abilities.NewRepository(querier)))
 	grid.Register(srv, grid.New(
 		grid.NewService(grid.NewPgRepository(querier)),
 		grid.NewPgClubReader(querier),

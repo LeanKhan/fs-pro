@@ -25,6 +25,7 @@ import { tilesContract } from './routes/tiles';
 import { programContract } from './routes/program';
 import { campusContract } from './routes/campus';
 import { gridContract } from './routes/grid';
+import { abilitiesContract, traitsContract, ordersContract } from './routes/abilities';
 
 // The one shared Villa (V) money formatter (phase-2 L13/D2) - used by both the
 // server's written text and the client so the symbol/format cannot drift.
@@ -60,6 +61,9 @@ export const apiContract = c.router({
   program: programContract,
   campus: campusContract,
   grid: gridContract,
+  abilities: abilitiesContract,
+  traits: traitsContract,
+  orders: ordersContract,
 });
 
 export * from './replay';
@@ -95,6 +99,16 @@ export type {
   ShopState,
   ClubLeague,
   ShopCollect,
+  RaidSummary,
+  BoardVaultClaim,
+  DefenseEntry,
+  DefenseLog,
+} from './schemas/play';
+export {
+  RaidSummarySchema,
+  BoardVaultClaimSchema,
+  DefenseEntrySchema,
+  DefenseLogSchema,
 } from './schemas/play';
 export type {
   MatchPlan,

@@ -153,6 +153,22 @@ var Table = map[string]Rule{
 	"grid.importLayout":   {Kind: SignedIn},
 	"play.scoutOpponent":  {Kind: Handler},
 
+	// P5 async raid & defense (Wave 2). Both are owner/admin-only club-param
+	// routes (the play.getInbox precedent for an owner-scoped read).
+	"play.claimBoardVault": clubParam("clubId"),
+	"play.defenseLog":      clubParam("clubId"),
+
+	// Abilities, traits & orders (P2/P4, Wave 2). Club-scoped reads/writes use
+	// the {id} path param; player-scoped slot/equip rules use {pid} and the
+	// handler additionally scopes the player to the club in the path. The trait
+	// catalogue is public.
+	"abilities.list":   clubParam("id"),
+	"abilities.slot":   player("pid"),
+	"traits.list":      {Kind: Public},
+	"traits.equip":     player("pid"),
+	"orders.inventory": clubParam("id"),
+	"orders.prepare":   clubParam("id"),
+
 	// Handler-checked routes.
 	"facilities.startUpgrade":         {Kind: Handler},
 	"facilities.savePlacement":        {Kind: Handler},

@@ -4,6 +4,8 @@ import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 import { successEnvelope, failEnvelope } from '../schemas/envelope';
 import {
+  BoardVaultClaimSchema,
+  DefenseLogSchema,
   InboxSchema,
   MatchResultSchema,
   OpponentSchema,
@@ -18,8 +20,16 @@ import {
   PlanPreviewSchema,
 } from '../schemas/match-plan';
 import { ScoutOpponentReportSchema } from '../schemas/scout-screen';
+import { OrderSchema } from '../schemas/ability';
+import { PitchGridDocumentSchema } from '../schemas/layout';
 
 const c = initContract();
+
+/** One resolved trait/ability effect (sim-core `RawEffect`, 07 §1a). */
+const EffectSchema = z.object({
+  kind: z.string(),
+  params: z.record(z.number()).optional(),
+});
 
 export const playContract = c.router(
   {
@@ -48,21 +58,28 @@ export const playContract = c.router(
       },
     },
 
-    /** Press PLAY: matchmake an opponent of similar power, play the match now
-     * and pay out rewards (cash + XP, stadium gate, challenge progress).
-     * Only the club's owner (or an admin) may do this; refused during the
-     * post-match cooldown. */
+    /** Press PLAY: matchmake an opponent of similar power, resolve the async
+     * raid (0-3★, loot, Standing, shield) and pay out rewards. Owner only;
+     * refused during the post-match cooldown. The body may carry Manager
+     * Orders, a one-match layout override and `practice` (a no-stakes friendly
+     * that suppresses every persistent side-effect, 02 §D2). */
     playMatch: {
       method: 'POST',
       path: '/:clubId/match',
       pathParams: z.object({ clubId: z.string() }),
       /** Optional: fight a specific opponent from the matchmaking preview.
        * `watch`: record the replay so the Matchzone can play it (otherwise
-       * the match is played headless - straight to the result). */
+       * the match is played headless - straight to the result). `orders`:
+       * Manager Orders for this raid. `layout`: a one-match grid override.
+       * `effects`: resolved trait/ability deltas keyed by player id. */
       body: z
         .object({
           opponentId: z.string().optional(),
           watch: z.boolean().optional(),
+          practice: z.boolean().optional(),
+          orders: z.array(OrderSchema).optional(),
+          layout: PitchGridDocumentSchema.optional(),
+          effects: z.record(z.array(EffectSchema)).optional(),
         })
         .optional(),
       responses: {
@@ -217,6 +234,35 @@ export const playContract = c.router(
         400: failEnvelope(),
         401: failEnvelope(),
         403: failEnvelope(),
+        404: failEnvelope(),
+      },
+    },
+
+    /** Claim the club's protected Board Vault into Cash (04 §5.2). Owner only;
+     * an empty vault is a 409 so the client can hide the button. */
+    claimBoardVault: {
+      method: 'POST',
+      path: '/:clubId/board-vault/claim',
+      pathParams: z.object({ clubId: z.string() }),
+      body: z.object({}).optional(),
+      responses: {
+        200: successEnvelope(BoardVaultClaimSchema),
+        400: failEnvelope(),
+        401: failEnvelope(),
+        403: failEnvelope(),
+        404: failEnvelope(),
+        409: failEnvelope(),
+      },
+    },
+
+    /** The defender's recent raid results (the defense inbox, 02 §E). Owner only. */
+    defenseLog: {
+      method: 'GET',
+      path: '/:clubId/defenses',
+      pathParams: z.object({ clubId: z.string() }),
+      responses: {
+        200: successEnvelope(DefenseLogSchema),
+        400: failEnvelope(),
         404: failEnvelope(),
       },
     },

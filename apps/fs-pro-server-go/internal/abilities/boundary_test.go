@@ -37,12 +37,13 @@ func TestRegistryValuesAreDeclared(t *testing.T) {
 	}
 }
 
-// TestRegistryCount pins the shipped catalogue size. 03 §2.3 lists 16 rows; the
-// two "Elite + mastery 20" rows are deferred (they assume tiers the 1..5 mastery
-// scale does not have), leaving 15 built entries.
+// TestRegistryCount pins the shipped catalogue size: all 16 rows of 03 §2.3.
+// First-Time Volley, printed in the catalogue as "Elite + mastery 20", is
+// carried data-only at the top of the shipped 0..5 facility / 1..5 mastery
+// scales (facility 4, mastery 5).
 func TestRegistryCount(t *testing.T) {
-	if len(Registry) != 15 {
-		t.Fatalf("registry size = %d, want 15", len(Registry))
+	if len(Registry) != 16 {
+		t.Fatalf("registry size = %d, want 16", len(Registry))
 	}
 }
 

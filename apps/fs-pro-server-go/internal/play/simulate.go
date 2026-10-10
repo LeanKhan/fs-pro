@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"fs-pro-server/internal/clients"
 	"fs-pro-server/internal/db"
 	"fs-pro-server/internal/facilities"
 	"fs-pro-server/internal/grid"
@@ -263,41 +262,6 @@ func tacticOf(club map[string]any) map[string]any {
 	return map[string]any{"formationName": formation, "styleName": style}
 }
 
-func (r *Repository) buildSimRequest(ctx context.Context, fixtureID string, home, away map[string]any, watch bool) (map[string]any, error) {
-	homePlayers, err := r.clubPlayers(ctx, db.StringField(home, "_id"))
-	if err != nil {
-		return nil, err
-	}
-	awayPlayers, err := r.clubPlayers(ctx, db.StringField(away, "_id"))
-	if err != nil {
-		return nil, err
-	}
-	clubJSON := func(c map[string]any, players []any) map[string]any {
-		return map[string]any{
-			"_id": db.StringField(c, "_id"), "Name": db.StringField(c, "Name"),
-			"ClubCode": db.StringField(c, "ClubCode"), "ManagerId": nullableString2(db.StringField(c, "ManagerId")),
-			"Tactic": tacticOf(c), "Players": players, "Lineup": c["Lineup"],
-		}
-	}
-	// The acting side (home) attacks with its Match grid; the opponent defends
-	// with its Home grid. A stored grid compiles to freeform `slots`; without
-	// one the formation stands.
-	layoutRepo := r.layoutRepo()
-	homeTactic := withStoredLayout(ctx, layoutRepo, db.StringField(home, "_id"), grid.Match, tacticOf(home))
-	awayTactic := withStoredLayout(ctx, layoutRepo, db.StringField(away, "_id"), grid.Home, tacticOf(away))
-	return map[string]any{
-		"fixtureId":     fixtureID,
-		"seed":          randUUID(),
-		"sides":         map[string]any{"home": db.StringField(home, "_id"), "away": db.StringField(away, "_id")},
-		"clubs":         []any{clubJSON(home, homePlayers), clubJSON(away, awayPlayers)},
-		"tactics":       map[string]any{"home": homeTactic, "away": awayTactic},
-		"fixtureType":   "friendly",
-		"stage":         "friendly",
-		"isKnockout":    false,
-		"includeFrames": watch,
-	}, nil
-}
-
 func nullableString2(s string) any {
 	if s == "" {
 		return nil
@@ -305,9 +269,23 @@ func nullableString2(s string) any {
 	return s
 }
 
-// PlayMatch runs the full PLAY loop for a club. It returns the MatchResult
+// PlayOptions are the optional inputs to a PLAY raid (docs/coc-mapping/02 §D,
+// §D2, 05 §5). Orders are the attacker's Manager Orders; Layout overrides the
+// stored Match grid for this raid only; Practice resolves a no-stakes friendly
+// that suppresses every persistent side-effect; Effects are resolved trait/
+// ability deltas (P4 Go populates them authoritatively).
+type PlayOptions struct {
+	OpponentID string
+	Watch      bool
+	Practice   bool
+	Orders     []any
+	Layout     *grid.Grid
+	Effects    map[string][]any
+}
+
+// PlayMatch runs the full PLAY raid for a club. It returns the MatchResult
 // without `state`; the caller adds the fresh PlayState.
-func (r *Repository) PlayMatch(ctx context.Context, clubID, opponentID string, watch bool) (map[string]any, error) {
+func (r *Repository) PlayMatch(ctx context.Context, clubID string, opts PlayOptions) (map[string]any, error) {
 	club, ok, err := r.one(ctx, `SELECT * FROM "Clubs" WHERE "_id" = $1 LIMIT 1`, clubID)
 	if err != nil {
 		return nil, err
@@ -331,12 +309,16 @@ func (r *Repository) PlayMatch(ctx context.Context, clubID, opponentID string, w
 		return nil, PlayGateError{"You need a legal matchday squad (11 fit players) before you play"}
 	}
 
-	cool, err := r.matchCooldown(ctx, clubID)
-	if err != nil {
-		return nil, err
-	}
-	if cool > 0 {
-		return nil, fmt.Errorf("Your squad is resting - next match in %ds", cool)
+	// A ranked raid is gated by the post-match cooldown; a practice friendly is
+	// no-stakes and is not (02 §D2).
+	if !opts.Practice {
+		cool, err := r.matchCooldown(ctx, clubID)
+		if err != nil {
+			return nil, err
+		}
+		if cool > 0 {
+			return nil, fmt.Errorf("Your squad is resting - next match in %ds", cool)
+		}
 	}
 
 	candidates, err := r.opponentCandidates(ctx, club)
@@ -347,10 +329,10 @@ func (r *Repository) PlayMatch(ctx context.Context, clubID, opponentID string, w
 		return nil, fmt.Errorf("No opponent available right now")
 	}
 	order := candidates
-	if opponentID != "" {
+	if opts.OpponentID != "" {
 		var chosen map[string]any
 		for _, c := range candidates {
-			if db.StringField(c, "_id") == opponentID {
+			if db.StringField(c, "_id") == opts.OpponentID {
 				chosen = c
 			}
 		}
@@ -360,101 +342,65 @@ func (r *Repository) PlayMatch(ctx context.Context, clubID, opponentID string, w
 		order = []map[string]any{chosen}
 	}
 
-	currentDay, err := r.currentDayOf(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var fixtureID string
+	var result *RaidOutcome
 	var opponent map[string]any
-	var matchData map[string]any
 	var lastErr error
 	for _, cand := range order {
-		opponent = cand
-		fx, err := db.InsertRow(ctx, r.q, "Fixtures", map[string]any{
-			"Title": fmt.Sprintf("%s vs %s %s", db.StringField(club, "Name"), db.StringField(cand, "Name"), matchTitleMark),
-			"Home":  db.StringField(club, "ClubCode"), "Away": db.StringField(cand, "ClubCode"),
-			"HomeTeamId": clubID, "AwayTeamId": db.StringField(cand, "_id"),
-			"Type": "friendly", "Stage": "friendly", "Played": false, "SaveStats": true,
-			"SeasonId": nil, "ScheduledDay": currentDay, "updatedAt": time.Now(),
+		ref, err := r.QueueRaid(ctx, RaidRequest{
+			AttackerID: clubID, DefenderID: db.StringField(cand, "_id"),
+			Watch: opts.Watch, Practice: opts.Practice,
+			Orders: opts.Orders, Layout: opts.Layout, Effects: opts.Effects,
 		})
-		if err != nil {
-			return nil, err
-		}
-		id := db.StringField(fx, "_id")
-		req, err := r.buildSimRequest(ctx, id, club, cand, watch)
-		if err != nil {
-			return nil, err
-		}
-		match, err := clients.SimulateMatch(ctx, req)
 		if err != nil {
 			lastErr = err
 			continue
 		}
-		fixtureID, matchData = id, match
+		res, err := r.ResolveRaid(ctx, ref.RaidID)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		result, opponent = res, cand
 		break
 	}
-	if fixtureID == "" {
+	if result == nil {
 		return nil, fmt.Errorf("Could not play a match: %v", lastErr)
 	}
 
-	details, _ := matchData["Details"].(map[string]any)
-	events := matchData["Events"]
-	if details == nil {
-		details = map[string]any{}
-	}
-	home, away := intOf(details["HomeTeamScore"]), intOf(details["AwayTeamScore"])
-	outcome := "draw"
-	if home > away {
-		outcome = "win"
-	} else if home < away {
-		outcome = "loss"
-	}
-	rawDetails, _ := json.Marshal(details)
-	rawEvents, _ := json.Marshal(events)
-	if _, err := r.q.Exec(ctx, `UPDATE "Fixtures" SET "Played" = true, "Details" = $2::jsonb, "Events" = $3::jsonb, "PlayedAt" = now(), "updatedAt" = now() WHERE "_id" = $1`,
-		fixtureID, string(rawDetails), string(rawEvents)); err != nil {
-		return nil, err
-	}
-
-	// Gate receipts for the home side, then the result rewards.
-	gate, err := r.applyGate(ctx, club, home, away)
-	if err != nil {
-		return nil, err
-	}
-	gateNet := 0.0
-	if gate != nil {
-		gateNet = numOf(gate["net"])
-	}
-	rewardCash := math.Round(gateNet * map[string]float64{"win": 0.5, "draw": 0.1, "loss": -0.15}[outcome])
-	if outcome == "win" && rewardCash < 3000 {
-		rewardCash = 3000
-	}
-	rewardXP := rewardXPValue(outcome)
-	if err := r.payRewards(ctx, clubID, rewardCash, rewardXP, fmt.Sprintf("%s %d-%d %s", db.StringField(club, "Name"), home, away, db.StringField(opponent, "Name"))); err != nil {
-		return nil, err
-	}
-	if err := r.applyStanding(ctx, club, outcome); err != nil {
-		return nil, err
-	}
-
-	if watch {
-		homeRef := map[string]any{"id": clubID, "name": db.StringField(club, "Name"), "code": db.StringField(club, "ClubCode")}
-		awayRef := map[string]any{"id": db.StringField(opponent, "_id"), "name": db.StringField(opponent, "Name"), "code": db.StringField(opponent, "ClubCode")}
-		if _, err := db.InsertRow(ctx, r.q, "MatchReplays", map[string]any{
-			"FixtureId": fixtureID, "Home": homeRef, "Away": awayRef,
-			"Frames": matchData["Frames"], "Details": details, "TickMs": 300, "updatedAt": time.Now(),
-		}); err != nil {
+	home, away := result.AttackerGoals, result.DefenderGoals
+	outcome := outcomeOf(home, away)
+	rewardCash, rewardXPVal := 0.0, 0.0
+	var gateOut any
+	// A practice friendly (02 §D2) suppresses every persistent side-effect: no
+	// gate, no reward, no form, no ledger. The raid layer already skipped loot,
+	// Standing, shield and fatigue/injury.
+	if !opts.Practice {
+		gate, err := r.applyGate(ctx, club, home, away)
+		if err != nil {
 			return nil, err
+		}
+		gateNet := 0.0
+		if gate != nil {
+			gateNet = numOf(gate["net"])
+		}
+		rewardCash = math.Round(gateNet * map[string]float64{"win": 0.5, "draw": 0.1, "loss": -0.15}[outcome])
+		if outcome == "win" && rewardCash < 3000 {
+			rewardCash = 3000
+		}
+		rewardXPVal = rewardXPValue(outcome)
+		if err := r.payRewards(ctx, clubID, rewardCash, rewardXPVal, fmt.Sprintf("%s %d-%d %s", db.StringField(club, "Name"), home, away, db.StringField(opponent, "Name"))); err != nil {
+			return nil, err
+		}
+		if err := r.applyStanding(ctx, club, outcome); err != nil {
+			return nil, err
+		}
+		if gate != nil {
+			gateOut = gate
 		}
 	}
 
-	var gateOut any
-	if gate != nil {
-		gateOut = gate
-	}
 	return map[string]any{
-		"fixtureId": fixtureID,
+		"fixtureId": result.FixtureID,
 		"opponent": map[string]any{
 			"id": db.StringField(opponent, "_id"), "name": db.StringField(opponent, "Name"),
 			"code": db.StringField(opponent, "ClubCode"), "power": powerOf(db.StringField(opponent, "ClubCode"), opponent),
@@ -462,11 +408,12 @@ func (r *Repository) PlayMatch(ctx context.Context, clubID, opponentID string, w
 		},
 		"score":              map[string]any{"you": home, "them": away},
 		"outcome":            outcome,
-		"rewards":            map[string]any{"cash": rewardCash, "xp": rewardXP},
+		"rewards":            map[string]any{"cash": rewardCash, "xp": rewardXPVal},
 		"gate":               gateOut,
 		"challengeCompleted": false,
 		"standingChange":     map[string]any{"fans": 0, "reputation": 0, "boardConfidence": 0},
-		"highlights":         highlightsOf(events, club, home, away),
+		"highlights":         highlightsOf(result.Events, club, home, away),
+		"raid":               result.Summary(),
 	}, nil
 }
 

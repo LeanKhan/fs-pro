@@ -2,6 +2,8 @@ package play
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
 	"strconv"
@@ -194,9 +196,10 @@ func (h *Handlers) findOpponents(_ *httpapi.Context, _ http.ResponseWriter, r *h
 	return httpapi.OK("Opponents", out)
 }
 
-// playMatch is POST /api/play/{clubId}/match: reproduces the PLAY gate (409);
-// the simulation itself is not ported, so a gate-passing request is a declared
-// 400.
+// playMatch is POST /api/play/{clubId}/match: resolves the club's async raid.
+// It reproduces the PLAY gate (409), then queues + resolves the raid against a
+// scouted opponent (02 §D, 05 §5). The body may carry Manager Orders, a
+// one-match layout override and a `practice` flag (a no-stakes friendly, 02 §D2).
 func (h *Handlers) playMatch(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
 	if denial, ok := h.requireClub(cx, r); !ok {
 		return denial
@@ -204,13 +207,11 @@ func (h *Handlers) playMatch(cx *httpapi.Context, _ http.ResponseWriter, r *http
 	ctx := r.Context()
 	clubID := r.PathValue("clubId")
 	body, _ := cx.BodyMap()
-	opponentID := ""
-	watch := false
-	if body != nil {
-		opponentID = db.StringField(body, "opponentId")
-		watch, _ = body["watch"].(bool)
+	opts, code, err := h.playOptions(ctx, clubID, body)
+	if err != nil {
+		return httpapi.Fail(code, err.Error(), err.Error())
 	}
-	result, err := h.repo.PlayMatch(ctx, clubID, opponentID, watch)
+	result, err := h.repo.PlayMatch(ctx, clubID, opts)
 	if err != nil {
 		if gate, ok := err.(PlayGateError); ok {
 			return httpapi.Fail(409, gate.Message, gate.Message)
@@ -226,6 +227,102 @@ func (h *Handlers) playMatch(cx *httpapi.Context, _ http.ResponseWriter, r *http
 	}
 	result["state"] = state
 	return httpapi.OK("Match played", result)
+}
+
+// playOptions validates the optional raid inputs from a playMatch body. The
+// layout override is validated server-side at the attacker's Clubhouse tier.
+func (h *Handlers) playOptions(ctx context.Context, clubID string, body map[string]any) (PlayOptions, int, error) {
+	opts := PlayOptions{}
+	if body == nil {
+		return opts, 200, nil
+	}
+	if id, ok := body["opponentId"].(string); ok {
+		opts.OpponentID = id
+	}
+	if watch, ok := body["watch"].(bool); ok {
+		opts.Watch = watch
+	}
+	if practice, ok := body["practice"].(bool); ok {
+		opts.Practice = practice
+	}
+	if orders, ok := body["orders"].([]any); ok {
+		opts.Orders = orders
+	}
+	if raw, ok := body["effects"].(map[string]any); ok {
+		opts.Effects = effectsByPlayer(raw)
+	}
+	if raw, ok := body["layout"]; ok && raw != nil {
+		blob, err := json.Marshal(raw)
+		if err != nil {
+			return opts, 400, errors.New("That layout could not be read")
+		}
+		var g grid.Grid
+		if err := json.Unmarshal(blob, &g); err != nil {
+			return opts, 400, errors.New("That layout could not be read")
+		}
+		tier, err := h.repo.clubhouseTier(ctx, clubID)
+		if err != nil {
+			return opts, 400, err
+		}
+		if reason := grid.Validate(g, tier); reason != "" {
+			return opts, 400, errors.New(reason)
+		}
+		opts.Layout = &g
+	}
+	return opts, 200, nil
+}
+
+// effectsByPlayer coerces the `effects` body map (player id -> list) into the
+// []any form the sim request builder attaches to players.
+func effectsByPlayer(raw map[string]any) map[string][]any {
+	if len(raw) == 0 {
+		return nil
+	}
+	out := make(map[string][]any, len(raw))
+	for id, v := range raw {
+		if list, ok := v.([]any); ok && len(list) > 0 {
+			out[id] = list
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// claimBoardVault is POST /api/play/{clubId}/board-vault/claim (04 §5.2).
+func (h *Handlers) claimBoardVault(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r); !ok {
+		return denial
+	}
+	result, err := h.repo.ClaimBoardVault(r.Context(), r.PathValue("clubId"))
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrRaidsClubNotFound):
+			return httpapi.Fail(404, "Club not found", nil)
+		case errors.Is(err, ErrBoardVaultEmpty):
+			return httpapi.Fail(409, "Nothing to claim from the Board Vault", "Nothing to claim from the Board Vault")
+		default:
+			return httpapi.Fail(400, err.Error(), err.Error())
+		}
+	}
+	return httpapi.OK("Board vault claimed", result)
+}
+
+// defenseLog is GET /api/play/{clubId}/defenses: the defender's recent raid
+// results (02 §E).
+func (h *Handlers) defenseLog(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	if denial, ok := h.requireClub(cx, r); !ok {
+		return denial
+	}
+	log, err := h.repo.DefenseLog(r.Context(), r.PathValue("clubId"), 20)
+	if err != nil {
+		if errors.Is(err, ErrRaidsClubNotFound) {
+			return httpapi.Fail(404, "Club not found", nil)
+		}
+		return httpapi.Fail(400, err.Error(), err.Error())
+	}
+	return httpapi.OK("Defense log", log)
 }
 
 // getInbox is GET /api/play/{clubId}/inbox.

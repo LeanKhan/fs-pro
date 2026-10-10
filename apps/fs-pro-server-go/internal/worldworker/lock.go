@@ -16,6 +16,10 @@ import (
 const (
 	// LockBuilders guards the ClubAssets completion sweep.
 	LockBuilders int64 = 0x46535742 // "FSWB"
+	// LockDefenses guards the async defense-resolution sweep (05 §4).
+	LockDefenses int64 = 0x46535744 // "FSWD"
+	// LockShields guards the Rest Window / Warm-up Guard sweep (05 §4).
+	LockShields int64 = 0x46535753 // "FSWS"
 )
 
 // TryAdvisoryLock takes a session-level pg_try_advisory_lock and reports whether

@@ -61,6 +61,7 @@ func (h *Handlers) createFriendly(cx *httpapi.Context, _ http.ResponseWriter, r 
 	if v, ok := body["saveStats"].(bool); ok {
 		saveStats = v
 	}
+	practice, _ := body["practice"].(bool)
 	created, err := h.fixtures.Create(ctx, map[string]any{
 		"Title":      db.StringField(home, "Name") + " vs " + db.StringField(away, "Name") + " (Friendly)",
 		"Home":       db.StringField(home, "ClubCode"),
@@ -75,7 +76,26 @@ func (h *Handlers) createFriendly(cx *httpapi.Context, _ http.ResponseWriter, r 
 	if err != nil {
 		return httpapi.Fail(400, err.Error(), err.Error())
 	}
-	return httpapi.OK("Friendly created", map[string]any{"fixture_id": db.StringField(created, "_id")})
+	fixtureID := db.StringField(created, "_id")
+	payload := map[string]any{"fixture_id": fixtureID}
+	if practice {
+		// A Friendly Challenge (02 §D2): resolve the practice raid now. The raid
+		// core suppresses every persistent side-effect, so this only records the
+		// result on the fixture and notifies the friend.
+		repo := play.NewRepository(h.fixtures.Q())
+		ref, err := repo.QueueRaid(ctx, play.RaidRequest{
+			AttackerID: homeID, DefenderID: awayID, FixtureID: fixtureID, Practice: true,
+		})
+		if err != nil {
+			return httpapi.Fail(400, err.Error(), err.Error())
+		}
+		res, err := repo.ResolveRaid(ctx, ref.RaidID)
+		if err != nil {
+			return httpapi.Fail(400, err.Error(), err.Error())
+		}
+		payload["result"] = res.Summary()
+	}
+	return httpapi.OK("Friendly created", payload)
 }
 
 func gmapOf(v any) map[string]any {

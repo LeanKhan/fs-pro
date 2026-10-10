@@ -24,8 +24,8 @@ func TestRegisterIncludesScoutRoute(t *testing.T) {
 			playCount++
 		}
 	}
-	if playCount != 12 {
-		t.Fatalf("registered %d play routes, want 12", playCount)
+	if playCount != 14 {
+		t.Fatalf("registered %d play routes, want 14", playCount)
 	}
 	scout, ok := seen["play.scoutOpponent"]
 	if !ok {
@@ -41,6 +41,40 @@ func TestRegisterIncludesScoutRoute(t *testing.T) {
 	for i, s := range wantStatuses {
 		if scout.Statuses[i] != s {
 			t.Errorf("status[%d] = %d, want %d", i, scout.Statuses[i], s)
+		}
+	}
+
+	// The P5 raid routes: exact id/method/path/statuses.
+	claim, ok := seen["play.claimBoardVault"]
+	if !ok {
+		t.Fatal("play.claimBoardVault is not registered")
+	}
+	if claim.Method != http.MethodPost || claim.Path != "/api/play/{clubId}/board-vault/claim" {
+		t.Errorf("claim = %s %s", claim.Method, claim.Path)
+	}
+	wantClaim := []int{200, 400, 401, 403, 404, 409}
+	if len(claim.Statuses) != len(wantClaim) {
+		t.Fatalf("claim statuses = %v, want %v", claim.Statuses, wantClaim)
+	}
+	for i, s := range wantClaim {
+		if claim.Statuses[i] != s {
+			t.Errorf("claim status[%d] = %d, want %d", i, claim.Statuses[i], s)
+		}
+	}
+	def, ok := seen["play.defenseLog"]
+	if !ok {
+		t.Fatal("play.defenseLog is not registered")
+	}
+	if def.Method != http.MethodGet || def.Path != "/api/play/{clubId}/defenses" {
+		t.Errorf("defenseLog = %s %s", def.Method, def.Path)
+	}
+	wantDef := []int{200, 400, 404}
+	if len(def.Statuses) != len(wantDef) {
+		t.Fatalf("defenseLog statuses = %v, want %v", def.Statuses, wantDef)
+	}
+	for i, s := range wantDef {
+		if def.Statuses[i] != s {
+			t.Errorf("defenseLog status[%d] = %d, want %d", i, def.Statuses[i], s)
 		}
 	}
 }

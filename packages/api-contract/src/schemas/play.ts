@@ -157,6 +157,29 @@ export const MatchHighlightSchema = z.object({
   side: z.enum(['you', 'them']),
 });
 
+/** The P5 raid outcome (docs/coc-mapping/02 §D, 04 §5). */
+export const RaidSummarySchema = z.object({
+  raidId: z.string(),
+  fixtureId: z.string(),
+  practice: z.boolean(),
+  /** 0-3★ rating (02 §D). */
+  stars: z.number(),
+  dominance: z.number(),
+  /** Dominance as a 0-100 destruction percentage. */
+  destruction: z.number(),
+  score: z.object({ you: z.number(), them: z.number() }),
+  /** Loot stolen from the defender's unspent holdings. */
+  stolen: z.object({ cash: z.number(), fans: z.number(), tokens: z.number() }),
+  /** The system-paid star bonus banked in the Board Vault. */
+  systemBonus: z.number(),
+  /** Standing-Point deltas for both clubs. */
+  standing: z.object({ attacker: z.number(), defender: z.number() }),
+  shieldUntil: z.string().nullable(),
+  guardUntil: z.string().nullable(),
+  /** True when this raid had already been applied (idempotent re-read). */
+  alreadyResolved: z.boolean(),
+});
+
 export const MatchResultSchema = z.object({
   fixtureId: z.string(),
   opponent: OpponentSchema,
@@ -181,8 +204,39 @@ export const MatchResultSchema = z.object({
       boardConfidence: z.number(),
     })
     .optional(),
+  /** The P5 async-raid outcome: stars, loot split, Standing and rest/guard. */
+  raid: RaidSummarySchema.optional(),
   state: PlayStateSchema,
   highlights: z.array(MatchHighlightSchema).optional(),
+});
+
+/** POST /api/play/:clubId/board-vault/claim (04 §5.2). */
+export const BoardVaultClaimSchema = z.object({
+  claimed: z.number(),
+  budget: z.number(),
+  vault: z.object({ balance: z.number(), capacity: z.number() }),
+});
+
+/** One defender-side raid result (02 §E). */
+export const DefenseEntrySchema = z.object({
+  raidId: z.string(),
+  attackerId: z.string(),
+  attackerName: z.string(),
+  attackerCode: z.string(),
+  practice: z.boolean(),
+  score: z.object({ you: z.number(), them: z.number() }),
+  outcome: OutcomeSchema,
+  stars: z.number(),
+  lootLost: z.object({ cash: z.number(), fans: z.number(), tokens: z.number() }),
+  shieldUntil: z.string().nullable(),
+  guardUntil: z.string().nullable(),
+  resolvedAt: z.string(),
+});
+
+/** GET /api/play/:clubId/defenses. */
+export const DefenseLogSchema = z.object({
+  defenses: z.array(DefenseEntrySchema),
+  now: z.string(),
 });
 
 export type Opponent = z.infer<typeof OpponentSchema>;
@@ -196,4 +250,8 @@ export type Inbox = z.infer<typeof InboxSchema>;
 export type ShopState = z.infer<typeof ShopStateSchema>;
 export type ClubLeague = z.infer<typeof ClubLeagueSchema>;
 export type ShopCollect = z.infer<typeof ShopCollectSchema>;
+export type RaidSummary = z.infer<typeof RaidSummarySchema>;
+export type BoardVaultClaim = z.infer<typeof BoardVaultClaimSchema>;
+export type DefenseEntry = z.infer<typeof DefenseEntrySchema>;
+export type DefenseLog = z.infer<typeof DefenseLogSchema>;
 

@@ -5,6 +5,7 @@ package play
 
 import (
 	"context"
+	"time"
 
 	"fs-pro-server/internal/db"
 )
@@ -12,10 +13,21 @@ import (
 // Repository reads the club state play needs.
 type Repository struct {
 	q db.Querier
+	// simulate runs one match through sim-service. It is a field so tests can
+	// inject a deterministic fake; production uses clients.SimulateMatch.
+	simulate func(ctx context.Context, request map[string]any) (map[string]any, error)
+	// notifier delivers a resolved raid to the defender. The default writes a
+	// durable ClubMessages row; a realtime transport can be wired in later
+	// (docs/coc-mapping/08 §4, P7/P10).
+	notifier Notifier
+	// now is the clock. It is a field so tests can pin resolution timestamps.
+	now func() time.Time
 }
 
 // NewRepository wraps a Querier.
-func NewRepository(q db.Querier) *Repository { return &Repository{q: q} }
+func NewRepository(q db.Querier) *Repository {
+	return &Repository{q: q, simulate: defaultSimulator(), notifier: ClubMessageNotifier{}, now: time.Now}
+}
 
 // Q exposes the querier for access checks.
 func (r *Repository) Q() db.Querier { return r.q }
