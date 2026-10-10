@@ -26,6 +26,10 @@ import { programContract } from './routes/program';
 import { campusContract } from './routes/campus';
 import { gridContract } from './routes/grid';
 import { abilitiesContract, traitsContract, ordersContract } from './routes/abilities';
+import { associationContract } from './routes/association';
+import { seasonContract } from './routes/season';
+import { legacyContract, honoursContract } from './routes/legacy';
+import { leagueContract } from './routes/league';
 
 // The one shared Villa (V) money formatter (phase-2 L13/D2) - used by both the
 // server's written text and the client so the symbol/format cannot drift.
@@ -64,6 +68,11 @@ export const apiContract = c.router({
   abilities: abilitiesContract,
   traits: traitsContract,
   orders: ordersContract,
+  league: leagueContract,
+  associations: associationContract,
+  season: seasonContract,
+  legacy: legacyContract,
+  honours: honoursContract,
 });
 
 export * from './replay';
@@ -246,6 +255,7 @@ export {
   StandingLeagueSchema,
   StandingPoolSchema,
   FormBonusSchema,
+  LeagueSignupRequestSchema,
 } from './schemas/standing';
 export type { Standing, StandingLeague, StandingPool, FormBonus } from './schemas/standing';
 export {

@@ -20,6 +20,10 @@ const (
 	LockDefenses int64 = 0x46535744 // "FSWD"
 	// LockShields guards the Rest Window / Warm-up Guard sweep (05 §4).
 	LockShields int64 = 0x46535753 // "FSWS"
+	// LockLeague guards the weekly ladder rollover (05 §4, 04 §4.3).
+	LockLeague int64 = 0x4653574C // "FSWL"
+	// LockAssociation guards the Derby lifecycle transitions (05 §4, 02 §G).
+	LockAssociation int64 = 0x46535741 // "FSWA"
 )
 
 // TryAdvisoryLock takes a session-level pg_try_advisory_lock and reports whether

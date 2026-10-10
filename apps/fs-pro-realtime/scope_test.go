@@ -20,6 +20,48 @@ func TestNewsTopics(t *testing.T) {
 	}
 }
 
+// TestAssociationTopicScope proves the association:<id> room is member-only:
+// a club in the association may subscribe (and gets chat + presence), an
+// outsider is refused, and an empty id is invalid.
+func TestAssociationTopicScope(t *testing.T) {
+	member := Claims{UserID: "m", Associations: []string{"a1"}}
+	outsider := Claims{UserID: "o"}
+	admin := Claims{UserID: "boss", Admin: true}
+
+	if !CanJoin(member, "association:a1") {
+		t.Fatal("a member must join their association room")
+	}
+	if CanJoin(outsider, "association:a1") {
+		t.Fatal("an outsider must NOT join an association room")
+	}
+	if !CanJoin(admin, "association:a1") {
+		t.Fatal("an admin must join any association room")
+	}
+	if CanJoin(member, "association:") || CanJoin(member, "association:a2") {
+		t.Fatal("empty or foreign association ids must be refused")
+	}
+	if !CanChat("association:a1") || !hasPresence("association:a1") {
+		t.Fatal("association rooms must support chat and presence")
+	}
+
+	h := NewHub()
+	outsiderConn := &Conn{claims: outsider, topics: map[string]struct{}{}, out: make(chan []byte, sendBuffer)}
+	if h.Subscribe(outsiderConn, "association:a1") {
+		t.Fatal("hub let an outsider subscribe to an association room")
+	}
+	memberConn := &Conn{claims: member, topics: map[string]struct{}{}, out: make(chan []byte, sendBuffer)}
+	h.Add(memberConn)
+	if !h.Subscribe(memberConn, "association:a1") {
+		t.Fatal("hub refused a member's association room")
+	}
+	if got := len(h.Members("association:a1")); got != 1 {
+		t.Fatalf("association presence members = %d, want 1", got)
+	}
+	if !h.Say(memberConn, "association:a1", "hello") {
+		t.Fatal("a member must be able to chat in the association room")
+	}
+}
+
 func TestOnlineCountIsBatched(t *testing.T) {
 	h := NewHub()
 	a := &Conn{claims: Claims{UserID: "a"}, topics: map[string]struct{}{}}

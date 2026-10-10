@@ -146,6 +146,19 @@ func ensureDefenseTables(ctx context.Context, q db.Querier) error {
 			"SystemBonus" real NOT NULL DEFAULT 0, "StandingAttacker" integer NOT NULL DEFAULT 0,
 			"StandingDefender" integer NOT NULL DEFAULT 0, "ShieldUntil" timestamp(3), "GuardUntil" timestamp(3),
 			"ResolvedAt" timestamp(3) NOT NULL DEFAULT now())`,
+		// P6: the ranked-raid hook now accrues the league (Form Bonus + pool
+		// counters), so the self-sufficient test schema provides those tables.
+		`CREATE TABLE IF NOT EXISTS "FormBonus" (
+			"ClubId" uuid PRIMARY KEY, "Entries" jsonb NOT NULL DEFAULT '[]'::jsonb,
+			"EarnedAt" timestamp(3), "Credited" real NOT NULL DEFAULT 0,
+			"updatedAt" timestamp(3) NOT NULL DEFAULT now())`,
+		`CREATE TABLE IF NOT EXISTS "StandingPools" (
+			"_id" uuid PRIMARY KEY DEFAULT gen_random_uuid(), "LeagueCode" text NOT NULL,
+			"WeekKey" text NOT NULL, "ClubId" uuid NOT NULL, "Pool" integer NOT NULL DEFAULT 0,
+			"Attacks" integer NOT NULL DEFAULT 0, "Defenses" integer NOT NULL DEFAULT 0,
+			"Stars" integer NOT NULL DEFAULT 0, "Placement" integer,
+			"createdAt" timestamp(3) NOT NULL DEFAULT now(), "updatedAt" timestamp(3) NOT NULL DEFAULT now(),
+			UNIQUE ("WeekKey", "ClubId"))`,
 	}
 	for _, s := range stmts {
 		if _, err := q.Exec(ctx, s); err != nil {

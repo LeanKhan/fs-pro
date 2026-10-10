@@ -20,7 +20,8 @@ const CHECKED_PREFIXES = [
   'meta.', 'users.', 'clubs.', 'players.', 'managers.',
   'fixtures.', 'calendar.', 'seasons.', 'awards.', 'places.',
   'play.', 'game.', 'facilities.', 'program.', 'campus.', 'grid.',
-  'abilities.', 'traits.', 'orders.',
+  'abilities.', 'traits.', 'orders.', 'league.',
+  'associations.', 'season.', 'legacy.', 'honours.',
   'transfers.', 'editions.', 'challenges.', 'competitionDefinitions.',
   'world.', 'atlas.', 'tiles.',
 ];

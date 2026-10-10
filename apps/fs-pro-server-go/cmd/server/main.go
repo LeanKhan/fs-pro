@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"fs-pro-server/internal/abilities"
+	"fs-pro-server/internal/association"
 	"fs-pro-server/internal/atlas"
 	"fs-pro-server/internal/auth"
 	"fs-pro-server/internal/award"
@@ -29,6 +30,8 @@ import (
 	"fs-pro-server/internal/game"
 	"fs-pro-server/internal/grid"
 	"fs-pro-server/internal/httpapi"
+	"fs-pro-server/internal/league"
+	"fs-pro-server/internal/legacy"
 	"fs-pro-server/internal/mail"
 	"fs-pro-server/internal/manager"
 	"fs-pro-server/internal/meta"
@@ -39,6 +42,7 @@ import (
 	"fs-pro-server/internal/policy"
 	"fs-pro-server/internal/program"
 	"fs-pro-server/internal/season"
+	"fs-pro-server/internal/seasonpass"
 	"fs-pro-server/internal/session"
 	"fs-pro-server/internal/tile"
 	"fs-pro-server/internal/transfer"
@@ -145,6 +149,10 @@ func main() {
 	facilities.Register(srv, facilities.New(facilitiesRepo))
 	campus.Register(srv, campus.New(campus.NewRepository(querier)))
 	abilities.Register(srv, abilities.New(abilities.NewRepository(querier)))
+	league.Register(srv, league.New(league.NewRepository(querier)))
+	association.Register(srv, association.New(association.NewRepository(querier)))
+	seasonpass.Register(srv, seasonpass.New(seasonpass.NewRepository(querier)))
+	legacy.Register(srv, legacy.New(legacy.NewRepository(querier)))
 	grid.Register(srv, grid.New(
 		grid.NewService(grid.NewPgRepository(querier)),
 		grid.NewPgClubReader(querier),

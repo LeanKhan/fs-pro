@@ -39,6 +39,9 @@ export const FormBonusSchema = z.object({
   nextResetAt: z.string().nullable(),
 });
 
+/** The signup body: the club joining this week's tournament pool. */
+export const LeagueSignupRequestSchema = z.object({ clubId: z.string().min(1) });
+
 export type StandingLeague = z.infer<typeof StandingLeagueSchema>;
 export type Standing = z.infer<typeof StandingSchema>;
 export type StandingPool = z.infer<typeof StandingPoolSchema>;

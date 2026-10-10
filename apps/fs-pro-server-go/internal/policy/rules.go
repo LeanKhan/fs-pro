@@ -158,6 +158,35 @@ var Table = map[string]Rule{
 	"play.claimBoardVault": clubParam("clubId"),
 	"play.defenseLog":      clubParam("clubId"),
 
+	// Standing ladder (P6, Agent G). The club-scoped reads are owner-scoped on
+	// the clubId path param; signup is owner-scoped on its body's clubId.
+	"league.standing":  clubParam("clubId"),
+	"league.pool":      clubParam("clubId"),
+	"league.signup":    clubBody("clubId"),
+	"league.formBonus": clubParam("clubId"),
+
+	// Associations (P7, Agent H). Mutating routes are owner-scoped on the
+	// clubId body field (the caller must manage the club they act as); the two
+	// reads are public projections.
+	"associations.create":         clubBody("clubId"),
+	"associations.join":           clubBody("clubId"),
+	"associations.leave":          clubBody("clubId"),
+	"associations.loan":           clubBody("clubId"),
+	"associations.derby":          clubBody("clubId"),
+	"associations.claimDirective": clubBody("clubId"),
+	"associations.grounds":        clubBody("clubId"),
+	"associations.get":            {Kind: Public},
+	"associations.directives":     {Kind: Public},
+
+	// Season pass + Club Legacy (P8, Agent I). Owner/admin on {clubId}.
+	"season.get":            clubParam("clubId"),
+	"season.claimObjective": clubParam("clubId"),
+	"season.claimPass":      clubParam("clubId"),
+	"season.claimBank":      clubParam("clubId"),
+	"legacy.get":            clubParam("clubId"),
+	"legacy.claim":          clubParam("clubId"),
+	"honours.list":          clubParam("clubId"),
+
 	// Abilities, traits & orders (P2/P4, Wave 2). Club-scoped reads/writes use
 	// the {id} path param; player-scoped slot/equip rules use {pid} and the
 	// handler additionally scopes the player to the club in the path. The trait

@@ -13,7 +13,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"fs-pro-server/internal/association"
 	"fs-pro-server/internal/config"
 	"fs-pro-server/internal/db"
 	"fs-pro-server/internal/worldworker"
@@ -83,6 +85,18 @@ func registerTickers(reg *worldworker.Registry) error {
 		return err
 	}
 	if err := reg.Register(worldworker.ShieldsTicker(nil)); err != nil {
+		return err
+	}
+	if err := reg.Register(worldworker.LeagueRolloverTicker(nil)); err != nil {
+		return err
+	}
+	// Derby prep->matchday->complete transitions (02 §G) run every minute.
+	if err := reg.Register(worldworker.Ticker{
+		ID:       "associations",
+		Interval: time.Minute,
+		LockKey:  worldworker.LockAssociation,
+		Job:      association.AssociationTick(time.Now),
+	}); err != nil {
 		return err
 	}
 	return nil

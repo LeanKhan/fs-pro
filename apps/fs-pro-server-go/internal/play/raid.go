@@ -526,7 +526,7 @@ func (r *Repository) resolveRaid(ctx context.Context, raidID string) (*RaidOutco
 			return outcomeFromResult(raid, prev, true), nil
 		}
 
-		if err := r.applyRaidEconomy(ctx, out, attacker, defender, existing+credited); err != nil {
+		if err := r.applyRaidEconomy(ctx, out, attacker, defender, existing+credited, now); err != nil {
 			return nil, err
 		}
 	} else {
@@ -587,7 +587,7 @@ func (r *Repository) insertRaidResult(ctx context.Context, o *RaidOutcome) (int6
 }
 
 // applyRaidEconomy applies the ranked raid's loot, Standing and Rest Window.
-func (r *Repository) applyRaidEconomy(ctx context.Context, o *RaidOutcome, attacker, defender map[string]any, newVaultBalance float64) error {
+func (r *Repository) applyRaidEconomy(ctx context.Context, o *RaidOutcome, attacker, defender map[string]any, newVaultBalance float64, now time.Time) error {
 	// Attacker gains.
 	if _, err := r.q.Exec(ctx, `UPDATE "Clubs"
 		SET "Budget" = coalesce("Budget",0) + $2, "Fans" = coalesce("Fans",0) + $3,
@@ -650,6 +650,12 @@ func (r *Repository) applyRaidEconomy(ctx context.Context, o *RaidOutcome, attac
 		if err := raidLedger(ctx, r.q, o.AttackerID, "", "form_bonus", o.SystemBonus, "Board Vault star bonus"); err != nil {
 			return err
 		}
+	}
+	// P6: accrue the weekly ladder — the attacker's Form Bonus window and both
+	// clubs' pool counters. Runs after the once-only RaidResults guard above, so
+	// it cannot double-apply (04 §4.3, §5.3).
+	if err := league.RecordRankedRaid(ctx, r.q, o.RaidID, o.AttackerID, o.DefenderID, o.Stars, now); err != nil {
+		return err
 	}
 	return nil
 }
@@ -847,6 +853,10 @@ func (r *Repository) ClaimBoardVault(ctx context.Context, clubID string) (map[st
 			return err
 		}
 		if err := raidLedger(ctx, tx, clubID, "", "form_bonus", balance, "Board Vault claim"); err != nil {
+			return err
+		}
+		// Consume the Form Bonus "ready" flag alongside the vault claim (04 §5.3).
+		if err := league.ClearFormBonusEarned(ctx, tx, clubID); err != nil {
 			return err
 		}
 		budget := floatOf(club["Budget"]) + balance

@@ -68,6 +68,26 @@ func ensureRaidSchema(ctx context.Context, q db.Querier) error {
 			"ClubId" uuid PRIMARY KEY,
 			"Balance" real NOT NULL DEFAULT 0,
 			"updatedAt" timestamp(3) NOT NULL DEFAULT now())`,
+		// P6 league tables the ranked-raid hook writes (RecordRankedRaid).
+		`CREATE TABLE IF NOT EXISTS "FormBonus" (
+			"ClubId" uuid PRIMARY KEY,
+			"Entries" jsonb NOT NULL DEFAULT '[]'::jsonb,
+			"EarnedAt" timestamp(3),
+			"Credited" real NOT NULL DEFAULT 0,
+			"updatedAt" timestamp(3) NOT NULL DEFAULT now())`,
+		`CREATE TABLE IF NOT EXISTS "StandingPools" (
+			"_id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+			"LeagueCode" text NOT NULL,
+			"WeekKey" text NOT NULL,
+			"ClubId" uuid NOT NULL,
+			"Pool" integer NOT NULL DEFAULT 0,
+			"Attacks" integer NOT NULL DEFAULT 0,
+			"Defenses" integer NOT NULL DEFAULT 0,
+			"Stars" integer NOT NULL DEFAULT 0,
+			"Placement" integer,
+			"createdAt" timestamp(3) NOT NULL DEFAULT now(),
+			"updatedAt" timestamp(3) NOT NULL DEFAULT now(),
+			UNIQUE ("WeekKey", "ClubId"))`,
 	}
 	for _, s := range stmts {
 		if _, err := q.Exec(ctx, s); err != nil {

@@ -1,11 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"

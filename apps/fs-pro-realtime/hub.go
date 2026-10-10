@@ -14,6 +14,8 @@ import (
 //	club:<id>      the club's owner only: challenges, inbox, upgrades finishing
 //	campus:<id>    anyone: who is looking at a club's grounds right now, and
 //	               the chat there
+//	association:<id> a member club's owner (or an admin): association chat and
+//	               presence
 //	edition:<id>   anyone: one competition edition's tables and draws
 //	fixture:<id>   anyone: one match
 //	town:<id>      anyone: a town's news and its chat
@@ -23,8 +25,8 @@ import (
 // News is scoped (docs/WORLD-PYRAMID-SPEC.md, "News scopes"): the API posts
 // a story to the smallest place that holds its clubs and to the wider ones
 // it earns, so the world topic only carries the biggest stories. Member
-// lists are only kept for small rooms (campus, town); the world gets an
-// online count at most every onlineEvery.
+// lists are only kept for small rooms (campus, town, association); the world
+// gets an online count at most every onlineEvery.
 const (
 	topicWorld       = "world"
 	historyPerTopic  = 50
@@ -86,6 +88,8 @@ func CanJoin(c Claims, topic string) bool {
 		return true
 	case kind == "club":
 		return id != "" && (c.Admin || c.ownsClub(id))
+	case kind == "association":
+		return id != "" && (c.Admin || c.inAssociation(id))
 	case kind == "campus", kind == "edition", kind == "fixture",
 		kind == "town", kind == "region", kind == "country":
 		return id != "" && len(id) <= 64
@@ -95,13 +99,15 @@ func CanJoin(c Claims, topic string) bool {
 
 // CanChat reports whether topic has a chat.
 func CanChat(topic string) bool {
-	return topic == topicWorld || strings.HasPrefix(topic, "campus:") || strings.HasPrefix(topic, "town:")
+	return topic == topicWorld || strings.HasPrefix(topic, "campus:") ||
+		strings.HasPrefix(topic, "town:") || strings.HasPrefix(topic, "association:")
 }
 
 // hasPresence reports whether topic keeps a member list: only small rooms,
 // so joining a busy topic never costs a message per member.
 func hasPresence(topic string) bool {
-	return strings.HasPrefix(topic, "campus:") || strings.HasPrefix(topic, "town:")
+	return strings.HasPrefix(topic, "campus:") || strings.HasPrefix(topic, "town:") ||
+		strings.HasPrefix(topic, "association:")
 }
 
 func (h *Hub) Add(c *Conn) {

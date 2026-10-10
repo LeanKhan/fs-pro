@@ -18,6 +18,10 @@ type Claims struct {
 	UserID string   `json:"uid"`
 	Name   string   `json:"name"`
 	Clubs  []string `json:"clubs"`
+	// Associations lists the associations the user's clubs belong to, so the
+	// gateway can scope the association:<id> chat/presence rooms without a
+	// database lookup. The Node ticket signer fills it.
+	Associations []string `json:"assocs,omitempty"`
 	// Code is the short code of the user's first club, shown next to their name.
 	Code  string `json:"code,omitempty"`
 	Admin bool   `json:"admin,omitempty"`
@@ -29,6 +33,16 @@ type Claims struct {
 func (c Claims) ownsClub(id string) bool {
 	for _, club := range c.Clubs {
 		if club == id {
+			return true
+		}
+	}
+	return false
+}
+
+// inAssociation reports whether the user has a club in the association.
+func (c Claims) inAssociation(id string) bool {
+	for _, assoc := range c.Associations {
+		if assoc == id {
 			return true
 		}
 	}
