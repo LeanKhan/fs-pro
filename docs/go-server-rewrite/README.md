@@ -23,3 +23,9 @@ This directory contains the complete technical architecture and step-by-step mig
    - Parity verification and dual-run testing procedures.
    - Benchmark throughput and latency targets.
    - Zero-downtime rollback protocols via reverse proxy and database invariants.
+5. [**`04-CUTOVER-READINESS.md`**](./04-CUTOVER-READINESS.md)
+   - The one-command route-coverage gate (Go `/__routes` vs `@repo/api-contract`)
+     and its recorded PASS.
+   - Covered/uncovered matrix and the Node inventory Go does not yet replace.
+   - Reverse-proxy cutover sequence, rollback, data invariants and the
+     pre-decommission checklist; superseded Node timers and their disable flags.

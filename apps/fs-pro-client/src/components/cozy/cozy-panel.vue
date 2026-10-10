@@ -9,14 +9,14 @@
 
       <div v-if="asset.upgrade" class="pn-job">
         <span v-html="icon('hammer')"></span> Building Tier {{ asset.upgrade.toLevel }} ·
-        <b>{{ formatClock(secondsLeft) }}</b>
+        <b>{{ formatRemainingSeconds(secondsLeft) }}</b>
       </div>
       <template v-else-if="asset.next && isMine">
         <div class="pn-next">
           <span>Next: <b>{{ nextStage }}</b> · {{ asset.next.effectLabel }}</span>
           <div class="chips">
             <span class="chip" :class="{ short: budget < asset.next.cost }"><span v-html="icon('coins')"></span>{{ currency(asset.next.cost) }}</span>
-            <span class="chip"><span v-html="icon('clock')"></span>{{ formatClock(asset.next.minutes * 60) }}</span>
+            <span class="chip"><span v-html="icon('clock')"></span>{{ formatRemainingSeconds(asset.next.minutes * 60) }}</span>
           </div>
         </div>
         <button class="btn primary" :disabled="!!asset.next.blockedReason || busy" @click="emit('upgrade', asset.type)">
@@ -44,7 +44,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { AssetState, CampusBuilding } from '@repo/api-contract';
-import { formatClock } from '@/composables/use-club-game';
+import { formatRemainingSeconds } from '@/helpers/countdown';
 import { currency } from '@/helpers/misc';
 import { icon } from './icons';
 import { growthHint, stageName } from './stages';

@@ -339,8 +339,8 @@ function onCellKey(e: KeyboardEvent, col: number, row: number) {
   aspect-ratio: 9 / 7;
   border-radius: 12px;
   overflow: hidden;
-  border: 3px solid #c9a46a;
-  background: #2f8a1c;
+  border: 3px solid var(--edge);
+  background: var(--green-d);
   box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.35);
   touch-action: manipulation;
 }
@@ -374,12 +374,12 @@ function onCellKey(e: KeyboardEvent, col: number, row: number) {
   pointer-events: none;
 }
 .pg-link {
-  stroke: #fdf4df;
+  stroke: var(--cream);
   stroke-width: 0.06;
   stroke-opacity: 0.85;
 }
 .pg-link.broken {
-  stroke: #e5402f;
+  stroke: var(--red);
   stroke-width: 0.09;
   stroke-dasharray: 0.28 0.18;
 }
@@ -483,7 +483,7 @@ function onCellKey(e: KeyboardEvent, col: number, row: number) {
   flex-wrap: wrap;
   gap: 12px;
   font-size: 12px;
-  color: var(--muted, #6f5940);
+  color: var(--muted);
 }
 .pg-legend li {
   display: inline-flex;
@@ -500,10 +500,10 @@ function onCellKey(e: KeyboardEvent, col: number, row: number) {
   background: rgba(58, 142, 224, 0.5);
 }
 .sw.link-ok {
-  background: #fdf4df;
+  background: var(--cream);
 }
 .sw.link-bad {
-  background: #e5402f;
+  background: var(--red);
 }
 .pg-warn {
   display: flex;
@@ -512,7 +512,7 @@ function onCellKey(e: KeyboardEvent, col: number, row: number) {
   padding: 6px 10px;
   border-radius: 10px;
   background: #fbe0dc;
-  border: 2px solid #e5402f;
+  border: 2px solid var(--red);
   color: #7a2015;
   font-weight: 700;
   font-size: 13px;
@@ -536,10 +536,10 @@ function onCellKey(e: KeyboardEvent, col: number, row: number) {
   gap: 4px;
   padding: 3px 9px;
   border-radius: 999px;
-  background: linear-gradient(#fff8e6, #f1dfb6);
-  border: 2px solid #e2cc9c;
+  background: linear-gradient(var(--panel-top), var(--panel-top-2));
+  border: 2px solid var(--panel-line);
   font-size: 12px;
-  color: var(--wood-d, #5e3b22);
+  color: var(--wood-d);
 }
 .pg-synergies .ic {
   width: 14px;

@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Pass 1 route-manifest diff against @repo/api-contract (B0/B1).",
   "scripts": {
-    "check": "node check-contract.mjs"
+    "check": "node check-contract.mjs",
+    "gate": "node route-coverage-gate.mjs"
   }
 }

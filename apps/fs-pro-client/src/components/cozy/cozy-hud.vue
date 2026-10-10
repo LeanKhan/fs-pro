@@ -34,7 +34,7 @@
       <button v-if="facts.next" class="chip nextchip" :class="{ today: facts.next.soon, coach: coach === 'prep' }" @click="emit('act', facts.next.league ? 'league' : 'next')">
         <span v-html="icon('ball')"></span>
         {{ facts.next.home ? 'vs' : '@' }} {{ facts.next.opponent }} ·
-        <template v-if="facts.next.inSeconds !== null">{{ facts.next.inSeconds > 0 ? formatClock(facts.next.inSeconds) : 'now' }}</template>
+        <template v-if="facts.next.inSeconds !== null">{{ facts.next.inSeconds > 0 ? formatRemainingSeconds(facts.next.inSeconds) : 'now' }}</template>
         <template v-else>day {{ facts.next.day }}</template>
         <i v-if="facts.next.planSet === false" class="planflag" title="No match plan yet">Set plan!</i>
         <i v-else-if="facts.next.planSet" class="planflag ok" title="Match plan locked in">✓</i>
@@ -90,7 +90,7 @@
             <div class="q-body">
               <div class="q-title">{{ challenge.title }}</div>
               <div class="q-bar"><div :style="{ width: `${(challenge.wins / challenge.targetWins) * 100}%` }"></div></div>
-              <div class="q-num">{{ challenge.wins }} / {{ challenge.targetWins }} wins · {{ formatClock(challenge.secondsLeft) }} left</div>
+              <div class="q-num">{{ challenge.wins }} / {{ challenge.targetWins }} wins · {{ formatRemainingSeconds(challenge.secondsLeft) }} left</div>
             </div>
           </div>
           <div class="q-reward">
@@ -107,7 +107,7 @@
     <div v-if="builders" class="speedup">
       <div>
         <div class="su-title">{{ builders.name }}</div>
-        <div class="su-time"><span v-html="icon('clock')"></span><span>{{ formatClock(builders.secondsLeft) }}</span></div>
+        <div class="su-time"><span v-html="icon('clock')"></span><span>{{ formatRemainingSeconds(builders.secondsLeft) }}</span></div>
       </div>
       <span class="su-count">{{ builders.active }}/{{ builders.max }} builders</span>
     </div>
@@ -136,7 +136,7 @@
       <div v-if="!moving" class="playwrap">
         <button class="playbtn" :class="{ tired: cooldown > 0, coach: coach === 'play' }" :disabled="playing" @click="emit('act', 'play')">
           <span v-html="icon('ball')"></span><span>PLAY</span>
-          <small>{{ cooldown > 0 ? `Resting ${formatClock(cooldown)}` : playing ? 'Playing…' : quickSim ? 'Quick sim' : 'Ready' }}</small>
+          <small>{{ cooldown > 0 ? `Resting ${formatRemainingSeconds(cooldown)}` : playing ? 'Playing…' : quickSim ? 'Quick sim' : 'Ready' }}</small>
         </button>
       </div>
     </template>
@@ -150,7 +150,7 @@
 <script setup lang="ts">
 import { crestUrl } from '@/helpers/crest';
 import { computed, ref, watch } from 'vue';
-import { formatClock } from '@/composables/use-club-game';
+import { formatRemainingSeconds } from '@/helpers/countdown';
 import { currency } from '@/helpers/misc';
 import { crestFallback } from './club-colors';
 import { icon } from './icons';

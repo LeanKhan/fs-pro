@@ -72,15 +72,15 @@ function back() {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: linear-gradient(#bfe4ff, #fdf4df);
+  background: linear-gradient(#bfe4ff, var(--cream));
 }
 .pgx-bar {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 10px 16px;
-  border-bottom: 3px solid #e2cc9c;
-  background: #fff8e6;
+  border-bottom: 3px solid var(--panel-line);
+  background: var(--panel-top);
 }
 .pgx-bar strong {
   font-size: 18px;

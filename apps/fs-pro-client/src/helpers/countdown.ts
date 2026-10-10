@@ -103,3 +103,16 @@ export function formatCountdown(
   const anchor = anchorCountdown(at, serverNow);
   return anchor ? formatRemaining(anchor.remainingAtSyncMs) : '';
 }
+
+/**
+ * The same formatter for the server's *legacy seconds* fields — the timers the
+ * play/campus contracts still ship as a duration rather than an absolute UTC
+ * timestamp (`cooldownSeconds`, `challenge.secondsLeft`, `startsInSeconds`,
+ * `upgrade.secondsLeft`, `shop.secondsToFull`). It is a thin seconds→ms adapter
+ * over {@link formatRemaining}, so there is still exactly one formatting rule;
+ * those fields are the ones flagged in `docs/coc-mapping/09-OPEN-WORK.md`
+ * (OW-P17) as still missing an absolute timestamp.
+ */
+export function formatRemainingSeconds(seconds: number): string {
+  return formatRemaining(seconds * 1000);
+}

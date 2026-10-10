@@ -29,7 +29,7 @@
 
           <div v-if="asset.upgrade" class="mt-3">
             <div class="text-caption">
-              Building level {{ asset.upgrade.toLevel }} - {{ formatDuration(secondsLeft(asset)) }} left
+              Building level {{ asset.upgrade.toLevel }} - {{ formatRemainingSeconds(secondsLeft(asset)) }} left
             </div>
             <v-progress-linear
               :model-value="progress(asset)"
@@ -43,7 +43,7 @@
           <div v-else-if="asset.next && !readOnly" class="mt-3 mt-auto pt-2">
             <div class="text-caption text-medium-emphasis mb-1">
               Next: {{ asset.next.effectLabel }} - {{ currency(asset.next.cost) }},
-              {{ formatDuration(asset.next.minutes * 60) }}
+              {{ formatRemainingSeconds(asset.next.minutes * 60) }}
             </div>
             <v-btn
               size="small"
@@ -70,6 +70,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { Campus, AssetState } from '@repo/api-contract';
+import { formatRemainingSeconds } from '@/helpers/countdown';
 import { currency } from '@/helpers/misc';
 import { client } from '@/services/api';
 
@@ -100,16 +101,6 @@ let reloadingFinished = false;
 function secondsLeft(asset: AssetState) {
   const u = asset.upgrade;
   return u ? Math.max(Math.ceil((new Date(u.completeAt).getTime() - now.value) / 1000), 0) : 0;
-}
-
-function formatDuration(rawSeconds: number) {
-  const totalSeconds = Math.round(rawSeconds);
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
 }
 
 function progress(asset: AssetState) {

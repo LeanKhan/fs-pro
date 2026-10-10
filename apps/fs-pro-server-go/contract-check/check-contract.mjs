@@ -102,6 +102,11 @@ async function main() {
   const wanted = new Map([...expected].filter(([id]) => CHECKED_PREFIXES.some((p) => id.startsWith(p))));
 
   const diffs = [];
+  // Coverage guard: every contract route must fall under a checked domain, so a
+  // new domain in @repo/api-contract cannot be silently ignored by this diff.
+  for (const id of expected.keys()) {
+    if (!CHECKED_PREFIXES.some((p) => id.startsWith(p))) diffs.push(`unchecked contract route ${id}`);
+  }
   for (const [id, exp] of wanted) {
     const got = actual.get(id);
     if (!got) {
@@ -121,7 +126,10 @@ async function main() {
     for (const d of diffs) console.error('  - ' + d);
     process.exit(1);
   }
-  console.log(`PASS: ${wanted.size} route(s) match (${CHECKED_PREFIXES.map((p) => p.replace(/\.$/, '')).join(', ')}).`);
+  console.log(
+    `PASS: ${wanted.size} route(s) match of ${expected.size} contract route(s) ` +
+      `(${CHECKED_PREFIXES.map((p) => p.replace(/\.$/, '')).join(', ')}).`
+  );
 }
 
 main();

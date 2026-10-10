@@ -35,7 +35,7 @@
           </div>
           <div class="lg-count">
             <span v-html="icon('clock')"></span>
-            <template v-if="kickoffIn !== null">{{ kickoffIn > 0 ? `Kick-off in ${formatClock(kickoffIn)}` : 'Kicking off now' }}</template>
+            <template v-if="kickoffIn !== null">{{ kickoffIn > 0 ? `Kick-off in ${formatRemainingSeconds(kickoffIn)}` : 'Kicking off now' }}</template>
             <template v-else>World clock paused</template>
           </div>
           <div class="row-btns left">
@@ -95,7 +95,7 @@
 import { computed } from 'vue';
 import type { ClubLeague } from '@repo/api-contract';
 import { crestUrl } from '@/helpers/crest';
-import { formatClock } from '@/composables/use-club-game';
+import { formatRemainingSeconds } from '@/helpers/countdown';
 import { crestFallback } from './club-colors';
 import { icon } from './icons';
 

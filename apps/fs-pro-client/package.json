@@ -8,7 +8,9 @@
     "serve": "vite preview",
     "lint": "oxlint src",
     "lint:fix": "oxlint --fix",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "test:unit": "vitest run",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "world:manifest": "node scripts/world/build-manifest.mjs"
@@ -22,7 +24,6 @@
     "@vueuse/core": "^10.5.0",
     "axios": "^1.5.1",
     "pinia": "^2.1.7",
-    "socket.io-client": "^4.8.3",
     "three": "^0.186.1",
     "vue": "^3.3.4",
     "vue-router": "^4.2.5",
@@ -37,6 +38,8 @@
     "sass": "^1.69.3",
     "typescript": "~5.2.2",
     "vite": "^7.1.6",
-    "vite-plugin-vuetify": "^2.1.2"
+    "vite-plugin-vuetify": "^2.1.2",
+    "vitest": "^5.0.3",
+    "vue-tsc": "^3.3.13"
   }
 }

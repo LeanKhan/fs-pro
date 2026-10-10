@@ -97,7 +97,7 @@
               @click="onSquadRecovery"
             >
               <template v-if="!medicalStatus?.squadRecovery.available && (medicalStatus?.squadRecovery.cooldownSeconds ?? 0) > 0">
-                ⏱️ {{ formatDuration(medicalStatus?.squadRecovery.cooldownSeconds ?? 0) }}
+                ⏱️ {{ formatRemainingSeconds(medicalStatus?.squadRecovery.cooldownSeconds ?? 0) }}
               </template>
               <template v-else>
                 Boost Squad
@@ -236,7 +236,7 @@
         <div v-if="asset.upgrade" class="upgrade-progress-box pa-3 rounded-xl mb-3">
           <div class="d-flex justify-space-between text-caption font-weight-medium mb-1">
             <span class="text-white">Upgrading to Level {{ asset.upgrade.toLevel }}</span>
-            <span class="text-amber">⏱️ {{ formatDuration(secondsRemaining) }}</span>
+            <span class="text-amber">⏱️ {{ formatRemainingSeconds(secondsRemaining) }}</span>
           </div>
           <v-progress-linear :model-value="progressPercent" color="amber" height="8" rounded></v-progress-linear>
         </div>
@@ -275,7 +275,7 @@
               </div>
               <div class="d-flex align-center gap-1 text-medium-emphasis text-caption">
                 <span>⏱️</span>
-                <span>{{ formatDuration(asset.next!.minutes * 60) }}</span>
+                <span>{{ formatRemainingSeconds(asset.next!.minutes * 60) }}</span>
               </div>
             </div>
           </div>
@@ -313,6 +313,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import type { AssetState, MedicalStatus } from '@repo/api-contract';
+import { formatRemainingSeconds } from '@/helpers/countdown';
 import { currency } from '@/helpers/misc';
 import { client } from '@/services/api';
 
@@ -394,16 +395,6 @@ const progressPercent = computed(() => {
   const total = Math.max(new Date(u.completeAt).getTime() - start, 1);
   return Math.min(100, Math.max(0, Math.round((((props.nowMs || Date.now()) - start) / total) * 100)));
 });
-
-function formatDuration(rawSeconds: number) {
-  const totalSeconds = Math.round(rawSeconds);
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
-}
 
 function onUpgrade() {
   if (!props.asset) return;

@@ -24,7 +24,7 @@
           <small>Day {{ f.day }} · {{ String(f.kickoffHour ?? 20).padStart(2, '0') }}:00 · {{ f.home ? 'home' : 'away' }} · power {{ f.opponent.power }}</small>
         </div>
         <div class="md-when">
-          <b v-if="secondsTo(f) !== null">{{ shortClock(secondsTo(f)!) }}</b>
+          <b v-if="secondsTo(f) !== null">{{ secondsTo(f) === 0 ? 'now' : formatRemainingSeconds(secondsTo(f)!) }}</b>
           <b v-else>Day {{ f.day }}</b>
           <span class="plan" :class="{ set: f.planSet }">{{ f.planSet ? 'Plan set ✓' : 'Set plan' }}</span>
         </div>
@@ -59,6 +59,7 @@ import { computed, ref, watch } from 'vue';
 import type { Matchday, MatchdayFixture } from '@repo/api-contract';
 import { client } from '@/services/api';
 import { crestUrl } from '@/helpers/crest';
+import { formatRemainingSeconds } from '@/helpers/countdown';
 import { crestFallback } from './club-colors';
 import { icon } from './icons';
 
@@ -95,12 +96,6 @@ const live = computed(
 );
 const resLetter = (f: MatchdayFixture) => (!f.score ? '?' : f.score.you > f.score.them ? 'W' : f.score.you < f.score.them ? 'L' : 'D');
 const resClass = (f: MatchdayFixture) => `res-${resLetter(f).toLowerCase()}`;
-function shortClock(s: number) {
-  const d = Math.floor(s / 86400);
-  const h = Math.floor((s % 86400) / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  return s <= 0 ? 'now' : d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`;
-}
 </script>
 
 <style scoped>

@@ -41,7 +41,7 @@
             {{ isCooldown ? 'Squad Resting' : playing ? 'Matchmaking...' : activeModeTitle }}
           </span>
           <span v-if="isCooldown" class="text-caption font-weight-bold text-amber-lighten-3 mt-1">
-            {{ formatClock(cooldownSeconds) }}
+            {{ formatRemainingSeconds(cooldownSeconds) }}
           </span>
           <span v-else-if="!playing" class="text-caption text-medium-emphasis">
             {{ activeModeSubtitle }}
@@ -101,6 +101,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { formatRemainingSeconds } from '@/helpers/countdown';
 
 export type PlayMode = 'battle' | 'quick_sim';
 
@@ -198,12 +199,6 @@ const glassStyle = {
   background: 'linear-gradient(135deg, rgba(30, 34, 53, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%)',
   borderColor: 'rgba(99, 102, 241, 0.3)',
 };
-
-function formatClock(totalSeconds: number) {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
 </script>
 
 <style scoped>

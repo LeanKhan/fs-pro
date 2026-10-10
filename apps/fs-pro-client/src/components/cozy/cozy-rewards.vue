@@ -29,7 +29,7 @@
     <div class="row-btns">
       <button class="btn" @click="emit('close')">Back to the grounds</button>
       <button class="btn primary" :disabled="cooldown > 0" @click="emit('again')">
-        {{ cooldown > 0 ? `Squad resting ${formatClock(cooldown)}` : 'Play again' }}
+        {{ cooldown > 0 ? `Squad resting ${formatRemainingSeconds(cooldown)}` : 'Play again' }}
       </button>
     </div>
   </div>
@@ -40,7 +40,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import type { MatchResult } from '@repo/api-contract';
 import { crestUrl } from '@/helpers/crest';
 import { currency } from '@/helpers/misc';
-import { formatClock } from '@/composables/use-club-game';
+import { formatRemainingSeconds } from '@/helpers/countdown';
 import { sfx } from '@/services/sfx';
 import { crestFallback } from './club-colors';
 import { icon } from './icons';

@@ -62,7 +62,7 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vu
 import { useRoute } from 'vue-router';
 import type { CampusBuilding, Placed } from '@repo/api-contract';
 import { formatVillaCompact } from '@repo/api-contract';
-import { formatClock } from '@/composables/use-club-game';
+import { formatRemainingSeconds } from '@/helpers/countdown';
 import { useStore } from '@/store';
 import { icon } from './icons';
 import CozyAdvisor from './advisor/CozyAdvisor.vue';
@@ -129,7 +129,7 @@ onMounted(() => {
       if (!a) return [];
       const p = w.project(a);
       const progress = Math.min(100, Math.max(0, ((props.nowMs - t.start) / Math.max(t.end - t.start, 1)) * 100));
-      return [{ key, x: p.x, y: p.y, visible: p.visible, progress, time: formatClock(Math.max(0, Math.ceil((t.end - props.nowMs) / 1000))) }];
+      return [{ key, x: p.x, y: p.y, visible: p.visible, progress, time: formatRemainingSeconds(Math.max(0, Math.ceil((t.end - props.nowMs) / 1000))) }];
     });
     alertBubbles.value = Object.entries(props.alerts).flatMap(([key, a]) => {
       const at = w.anchor(key);

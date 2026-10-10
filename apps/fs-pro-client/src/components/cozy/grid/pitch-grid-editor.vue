@@ -668,7 +668,7 @@ watch(() => props.clubId, load);
   display: flex;
   flex-direction: column;
   gap: 12px;
-  color: var(--ink, #4a3220);
+  color: var(--ink);
   font-family: 'Fredoka', system-ui, sans-serif;
 }
 .pg-head {
@@ -692,14 +692,14 @@ watch(() => props.clubId, load);
 .pg-sub {
   margin: 2px 0 0;
   font-size: 13px;
-  color: var(--muted, #6f5940);
+  color: var(--muted);
   max-width: 60ch;
 }
 .pg-tier-chip {
   padding: 4px 12px;
   border-radius: 999px;
-  background: linear-gradient(#fff8e6, #f1dfb6);
-  border: 2px solid #e2cc9c;
+  background: linear-gradient(var(--panel-top), var(--panel-top-2));
+  border: 2px solid var(--panel-line);
   font-weight: 700;
 }
 .pg-slots {
@@ -710,12 +710,12 @@ watch(() => props.clubId, load);
   padding: 5px 14px;
   border-radius: 10px;
   font-weight: 700;
-  border: 2px solid #e2cc9c;
-  background: #fffaf0;
+  border: 2px solid var(--panel-line);
+  background: var(--panel);
 }
 .pg-slots button.on {
-  background: var(--green, #5cc23a);
-  border-color: var(--green-d, #2f8a1c);
+  background: var(--green);
+  border-color: var(--green-d);
   color: #fff;
 }
 .pg-main {
@@ -747,23 +747,23 @@ watch(() => props.clubId, load);
   font: inherit;
   padding: 5px 8px;
   border-radius: 10px;
-  border: 2px solid #c9a46a;
-  background: #fffaf0;
+  border: 2px solid var(--edge);
+  background: var(--panel);
   color: inherit;
 }
 .pg-status {
   margin: 8px 0 0;
   font-size: 13px;
   font-weight: 600;
-  color: var(--green-d, #2f8a1c);
+  color: var(--green-d);
 }
 .pg-status.bad {
-  color: var(--red, #e5402f);
+  color: var(--red);
 }
 .pg-hint {
   margin: 4px 0 0;
   font-size: 12px;
-  color: var(--muted, #6f5940);
+  color: var(--muted);
 }
 .pg-notice {
   margin: 6px 0 0;
@@ -772,16 +772,16 @@ watch(() => props.clubId, load);
   font-size: 13px;
   font-weight: 600;
   background: #e9f7e2;
-  border: 2px solid var(--green, #5cc23a);
+  border: 2px solid var(--green);
 }
 .pg-notice.error {
   background: #fbe0dc;
-  border-color: var(--red, #e5402f);
+  border-color: var(--red);
   color: #7a2015;
 }
 .pg-rail {
-  background: #fffaf0;
-  border: 3px solid #e2cc9c;
+  background: var(--panel);
+  border: 3px solid var(--panel-line);
   border-radius: 14px;
   padding: 10px;
 }
@@ -794,7 +794,7 @@ watch(() => props.clubId, load);
 }
 .pg-rail h3 small {
   font-size: 11px;
-  color: var(--muted, #6f5940);
+  color: var(--muted);
   font-weight: 500;
 }
 .pg-rail ul {
@@ -825,7 +825,7 @@ watch(() => props.clubId, load);
   background: rgba(138, 90, 59, 0.16);
 }
 .pg-player.on {
-  border-color: var(--gold, #f5b82e);
+  border-color: var(--gold);
   background: rgba(245, 184, 46, 0.22);
 }
 .pg-pos {
@@ -835,7 +835,7 @@ watch(() => props.clubId, load);
   padding: 2px 0;
   border-radius: 5px;
   color: #fff;
-  background: #8a5a3b;
+  background: var(--wood);
 }
 .pg-pos.pos-gk {
   background: #b97f0f;
@@ -858,16 +858,16 @@ watch(() => props.clubId, load);
 }
 .pg-rate {
   font-weight: 800;
-  color: var(--wood-d, #5e3b22);
+  color: var(--wood-d);
 }
 .pg-empty {
   font-size: 12px;
-  color: var(--muted, #6f5940);
+  color: var(--muted);
   padding: 6px 2px;
 }
 .pg-share {
   margin-top: 12px;
-  border-top: 2px solid #e2cc9c;
+  border-top: 2px solid var(--panel-line);
   padding-top: 10px;
 }
 .pg-share-row {
@@ -879,7 +879,7 @@ watch(() => props.clubId, load);
 .pg-code {
   font-weight: 800;
   letter-spacing: 0.08em;
-  background: #f6e7c4;
+  background: var(--panel-2);
   padding: 2px 8px;
   border-radius: 6px;
 }
@@ -889,7 +889,7 @@ watch(() => props.clubId, load);
   font: inherit;
   padding: 5px 8px;
   border-radius: 8px;
-  border: 2px solid #c9a46a;
+  border: 2px solid var(--edge);
   background: #fff;
 }
 .pg-state {
@@ -898,7 +898,7 @@ watch(() => props.clubId, load);
   font-size: 16px;
 }
 .pg-state.bad {
-  color: var(--red, #e5402f);
+  color: var(--red);
 }
 .pg-ghost {
   position: fixed;
@@ -907,12 +907,12 @@ watch(() => props.clubId, load);
   pointer-events: none;
   padding: 4px 10px;
   border-radius: 999px;
-  background: #fffaf0;
-  border: 2px solid var(--gold, #f5b82e);
+  background: var(--panel);
+  border: 2px solid var(--gold);
   font-size: 13px;
   font-weight: 700;
-  color: var(--wood-d, #5e3b22);
-  box-shadow: var(--shadow, 0 6px 16px rgba(0, 0, 0, 0.2));
+  color: var(--wood-d);
+  box-shadow: var(--shadow);
 }
 @media (prefers-reduced-motion: reduce) {
   .pg-player {

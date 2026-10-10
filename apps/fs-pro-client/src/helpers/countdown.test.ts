@@ -4,6 +4,7 @@ import {
   anchorCountdown,
   formatCountdown,
   formatRemaining,
+  formatRemainingSeconds,
   remainingMs,
 } from './countdown';
 
@@ -93,5 +94,23 @@ describe('formatCountdown (one-shot)', () => {
   it('is empty until the sample lands', () => {
     assert.equal(formatCountdown(null, SERVER), '');
     assert.equal(formatCountdown(SERVER, ''), '');
+  });
+});
+
+describe('formatRemainingSeconds (legacy seconds fields)', () => {
+  it('is exactly formatRemaining over the seconds field (one rule)', () => {
+    // The play/campus contracts still ship durations in seconds (OW-P17):
+    // cooldownSeconds, challenge.secondsLeft, startsInSeconds, upgrade.secondsLeft.
+    assert.equal(formatRemainingSeconds(45), '45s');
+    assert.equal(formatRemainingSeconds(90), formatRemaining(90_000));
+    assert.equal(formatRemainingSeconds(3 * 3600 + 12 * 60), '3h 12m');
+    assert.equal(formatRemainingSeconds(2 * 86400 + 4 * 3600), '2d 4h');
+    // Coarser than the old m:ss clock, but it no longer reads "48:00:00".
+    assert.equal(formatRemainingSeconds(48 * 3600), '2d');
+  });
+
+  it('reads "ready" at zero and in the past, like the primitive', () => {
+    assert.equal(formatRemainingSeconds(0), 'ready');
+    assert.equal(formatRemainingSeconds(-30), 'ready');
   });
 });
