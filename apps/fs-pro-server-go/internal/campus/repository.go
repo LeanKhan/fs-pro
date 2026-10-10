@@ -12,6 +12,7 @@ import (
 	"sort"
 	"time"
 
+	"fs-pro-server/internal/clubhouse"
 	"fs-pro-server/internal/db"
 	"fs-pro-server/internal/facilities"
 )
@@ -111,26 +112,10 @@ func levelsMap(assets map[string]map[string]any) map[string]int {
 }
 
 // groundskeepers reads the club's Groundskeeper count, never below the
-// milestone grant its Clubhouse tier has earned (04 §2).
+// milestone grant its Clubhouse tier has earned (04 §2). Delegates to the single
+// crew authority in internal/clubhouse.
 func groundskeepers(ctx context.Context, q db.Querier, clubID string, tier int) (int, error) {
-	row, ok, err := dbScanOne(ctx, q, `SELECT "Count" FROM "ClubGroundskeepers" WHERE "ClubId" = $1`, clubID)
-	if err != nil {
-		return 0, err
-	}
-	count := 0
-	if ok {
-		count = intOf(row["Count"])
-	}
-	if grant := GroundskeepersForTier(tier); count < grant {
-		count = grant
-	}
-	if count > MaxGroundskeepers {
-		count = MaxGroundskeepers
-	}
-	if count < 1 {
-		count = 1
-	}
-	return count, nil
+	return clubhouse.CountGroundskeepers(ctx, q, clubID, tier)
 }
 
 // activeUpgrades counts assets currently under construction.
@@ -149,26 +134,11 @@ func activeUpgrades(assets map[string]map[string]any) int {
 // nothing the second time (the WHERE clears UpgradingTo), so it is safe under a
 // crashed-and-retried tick. It returns the number of promotions and is shared by
 // the campus read path and the world-worker builder ticker.
+//
+// The implementation is clubhouse.SweepDueUpgrades, the one completion path
+// shared with internal/facilities.
 func SweepDueUpgrades(ctx context.Context, q db.Querier, now time.Time) (int64, error) {
-	tag, err := q.Exec(ctx, `UPDATE "ClubAssets"
-		SET "Level" = "UpgradingTo", "UpgradingTo" = NULL, "StartAt" = NULL, "CompleteAt" = NULL, "updatedAt" = now()
-		WHERE "UpgradingTo" IS NOT NULL AND "CompleteAt" <= $1`, now)
-	if err != nil {
-		return 0, err
-	}
-	promoted := tag.RowsAffected()
-	if promoted == 0 {
-		// Nothing completed, so no Clubhouse tier can have moved: skip the sync
-		// UPDATE (a round trip the campus read path runs on every request).
-		return 0, nil
-	}
-	if _, err := q.Exec(ctx, `UPDATE "Clubs" c
-		SET "ClubhouseTier" = ca."Level", "updatedAt" = now()
-		FROM "ClubAssets" ca
-		WHERE ca."ClubId" = c."_id" AND ca."AssetType" = 'clubhouse' AND ca."Level" > c."ClubhouseTier"`); err != nil {
-		return promoted, err
-	}
-	return promoted, nil
+	return clubhouse.SweepDueUpgrades(ctx, q, now)
 }
 
 // SweepDueUpgrades is the Repository form of the package-level function.
@@ -398,8 +368,8 @@ func (r *Repository) StartUpgrade(ctx context.Context, clubID, key string, now t
 			if allowed, missing := CanUpgradeClubhouse(target, levelsMap(assets)); !allowed {
 				return fmt.Errorf("%w: %s", ErrClubhouseRequirements, missingText(missing))
 			}
-		} else if target > tier {
-			return fmt.Errorf("%w: needs Clubhouse level %d", ErrFacilityCapped, target)
+		} else if target > clubhouse.CapForTier(tier) {
+			return fmt.Errorf("%w: needs Clubhouse tier %d", ErrFacilityCapped, target)
 		}
 		keepers, err := groundskeepers(ctx, tx, clubID, tier)
 		if err != nil {
@@ -923,8 +893,8 @@ func blockedReason(key string, target int, def FacilityDef, level, active, keepe
 		}
 		return ""
 	}
-	if target > tier {
-		return fmt.Sprintf("Requires Clubhouse level %d", target)
+	if target > clubhouse.CapForTier(tier) {
+		return fmt.Sprintf("Requires Clubhouse tier %d", target)
 	}
 	return ""
 }

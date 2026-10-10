@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"fs-pro-server/internal/auth"
+	"fs-pro-server/internal/clubhouse"
 	"fs-pro-server/internal/db"
 	"fs-pro-server/internal/httpapi"
 )
@@ -201,6 +202,8 @@ func (h *Handlers) campus(ctx context.Context, clubID string) (map[string]any, b
 				blocked = "Already upgrading"
 			} else if active >= maxCrews {
 				blocked = "All project crews are busy"
+			} else if target > clubhouse.CapForTier(tier) {
+				blocked = "Requires Clubhouse tier " + itoa(target)
 			} else {
 				for _, req := range def.Requires {
 					if levelOf(rows, req.Type) < target-req.LevelOffset {

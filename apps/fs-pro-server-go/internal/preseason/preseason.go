@@ -6,12 +6,12 @@
 // This file is the pure, table-testable core: the stage ladder, the 3★ clearing
 // requirement, the difficulty curve and the onboarding progress evaluator.
 // repository.go / handlers.go / router.go wire it to Postgres, the P5 raid path
-// and HTTP. It reuses campus.GroundskeepersForTier for the Groundskeeper-#2
+// and HTTP. It reuses clubhouse.GroundskeepersForTier for the Groundskeeper-#2
 // milestone rather than duplicating the milestone pricing.
 package preseason
 
 import (
-	"fs-pro-server/internal/campus"
+	"fs-pro-server/internal/clubhouse"
 )
 
 // StarsRequiredPerStage is the 3★ needed to clear every Pre-Season stage
@@ -227,7 +227,7 @@ type Facts struct {
 }
 
 // Met reports whether a step is complete for the given snapshot. The milestone
-// step derives from campus.GroundskeepersForTier (the shared pricing source of
+// step derives from clubhouse.GroundskeepersForTier (the shared pricing source of
 // truth) rather than a duplicated constant.
 func Met(step OnboardingStep, f Facts) bool {
 	switch step.ID {
@@ -244,7 +244,7 @@ func Met(step OnboardingStep, f Facts) bool {
 	case StepGroundskeeper2:
 		// Groundskeeper #2 is the tier-2 milestone (04 §2); reuse the campus
 		// milestone function so the target can never drift from the economy.
-		return f.Groundskeepers >= campus.GroundskeepersForTier(2)
+		return f.Groundskeepers >= clubhouse.GroundskeepersForTier(2)
 	default:
 		return false
 	}

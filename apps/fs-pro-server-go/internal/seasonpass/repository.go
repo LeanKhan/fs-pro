@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"fs-pro-server/internal/campus"
+	"fs-pro-server/internal/clubhouse"
 	"fs-pro-server/internal/db"
 )
 
@@ -380,11 +381,7 @@ func evaluateMetric(ctx context.Context, q db.Querier, clubID string, metric Met
 		if row, ok, err = one(ctx, q, `SELECT coalesce("ClubhouseTier",1)::int AS tier,
 			coalesce((SELECT "Count" FROM "ClubGroundskeepers" WHERE "ClubId" = $1), 0)::int AS v
 			FROM "Clubs" WHERE "_id" = $1`, clubID); err == nil && ok {
-			count := intOf(row["v"])
-			if grant := campus.GroundskeepersForTier(intOf(row["tier"])); count < grant {
-				count = grant
-			}
-			return count, nil
+			return clubhouse.EffectiveGroundskeepers(intOf(row["v"]), intOf(row["tier"])), nil
 		}
 	case MetricRaidWins:
 		row, ok, err = one(ctx, q, `SELECT count(*)::int AS v FROM "RaidResults"

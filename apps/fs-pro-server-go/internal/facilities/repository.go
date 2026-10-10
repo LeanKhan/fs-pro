@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"fs-pro-server/internal/clubhouse"
 	"fs-pro-server/internal/db"
 )
 
@@ -28,56 +29,19 @@ func (r *Repository) Club(ctx context.Context, clubID string) (map[string]any, b
 	return db.ScanOne(rows)
 }
 
-// CompleteDueUpgrades finishes every upgrade whose CompleteAt has passed and syncs ClubhouseTier.
+// CompleteDueUpgrades finishes every upgrade whose CompleteAt has passed and
+// syncs ClubhouseTier. It delegates to clubhouse.SweepDueUpgrades, the one
+// completion path shared with internal/campus.
 func (r *Repository) CompleteDueUpgrades(ctx context.Context, now time.Time) error {
-	tag, err := r.q.Exec(ctx, `UPDATE "ClubAssets"
-		SET "Level" = "UpgradingTo", "UpgradingTo" = NULL, "StartAt" = NULL, "CompleteAt" = NULL, "updatedAt" = now()
-		WHERE "UpgradingTo" IS NOT NULL AND "CompleteAt" <= $1`, now)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return nil
-	}
-	_, err = r.q.Exec(ctx, `UPDATE "Clubs" c
-		SET "ClubhouseTier" = ca."Level", "updatedAt" = now()
-		FROM "ClubAssets" ca
-		WHERE ca."ClubId" = c."_id" AND ca."AssetType" = 'clubhouse' AND ca."Level" > c."ClubhouseTier"`)
+	_, err := clubhouse.SweepDueUpgrades(ctx, r.q, now)
 	return err
 }
 
-// GroundskeeperCount reads the club's Project Crew count, never below the milestone
-// grant its Clubhouse tier has earned (1..3) and up to 6.
+// GroundskeeperCount reads the club's Project Crew count, never below the
+// milestone grant its Clubhouse tier has earned (1..3) and up to 6. Delegates to
+// the single crew authority in internal/clubhouse.
 func (r *Repository) GroundskeeperCount(ctx context.Context, clubID string, tier int) (int, error) {
-	if tier < 1 {
-		tier = 1
-	}
-	grant := tier
-	if grant > 3 {
-		grant = 3
-	}
-	rows, err := r.q.Query(ctx, `SELECT "Count" FROM "ClubGroundskeepers" WHERE "ClubId" = $1 LIMIT 1`, clubID)
-	if err != nil {
-		return grant, err
-	}
-	row, ok, err := db.ScanOne(rows)
-	if err != nil {
-		return grant, err
-	}
-	count := 0
-	if ok {
-		count = intOf(row["Count"])
-	}
-	if count < grant {
-		count = grant
-	}
-	if count > 6 {
-		count = 6
-	}
-	if count < 1 {
-		count = 1
-	}
-	return count, nil
+	return clubhouse.CountGroundskeepers(ctx, r.q, clubID, tier)
 }
 
 // AssetRows returns the club's ClubAssets rows keyed by AssetType.
@@ -143,6 +107,13 @@ func (r *Repository) StartUpgrade(ctx context.Context, clubID string, assetType 
 	}
 	if level >= MaxAssetLevel {
 		return fmt.Errorf("%s is already at max level", def.Name)
+	}
+	// The Clubhouse caps every facility (04 §1.1): a facility may not be raised
+	// above the current Clubhouse tier. Reaching `target` therefore needs a
+	// Clubhouse of at least `target`. This is the CoC "Town Hall caps every
+	// building" rule, enforced with the same clubhouse authority as campus.upgrade.
+	if cap := clubhouse.CapForTier(tier); target > cap {
+		return fmt.Errorf("%s level %d requires Clubhouse tier %d - upgrade the Clubhouse first", def.Name, target, target)
 	}
 	active := 0
 	for _, row := range rows {

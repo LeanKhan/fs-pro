@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"fs-pro-server/internal/campus"
+	"fs-pro-server/internal/clubhouse"
 	"fs-pro-server/internal/db"
 	"fs-pro-server/internal/seasonpass"
 )
@@ -176,26 +177,10 @@ func lockClub(ctx context.Context, q db.Querier, clubID string) (bool, error) {
 }
 
 // groundskeepers returns the club's effective Groundskeeper count (never below
-// the milestone grant its Clubhouse tier earned, 04 §2).
+// the milestone grant its Clubhouse tier earned, 04 §2). Delegates to the single
+// crew authority in internal/clubhouse.
 func groundskeepers(ctx context.Context, q db.Querier, clubID string, tier int) (int, error) {
-	row, ok, err := one(ctx, q, `SELECT "Count" FROM "ClubGroundskeepers" WHERE "ClubId" = $1`, clubID)
-	if err != nil {
-		return 0, err
-	}
-	count := 0
-	if ok {
-		count = intOf(row["Count"])
-	}
-	if grant := campus.GroundskeepersForTier(tier); count < grant {
-		count = grant
-	}
-	if count > campus.MaxGroundskeepers {
-		count = campus.MaxGroundskeepers
-	}
-	if count < 1 {
-		count = 1
-	}
-	return count, nil
+	return clubhouse.CountGroundskeepers(ctx, q, clubID, tier)
 }
 
 // ClaimLegacy grants the 6th Groundskeeper once the chain is complete. It is
@@ -222,14 +207,14 @@ func (r *Repository) ClaimLegacy(ctx context.Context, clubID string) (map[string
 		if err != nil {
 			return err
 		}
-		if count < campus.MaxGroundskeepers {
+		if count < clubhouse.MaxGroundskeepers {
 			if _, err := tx.Exec(ctx, `INSERT INTO "ClubGroundskeepers" ("ClubId","Count","updatedAt")
 				VALUES ($1,$2,now())
 				ON CONFLICT ("ClubId") DO UPDATE SET "Count" = $2, "updatedAt" = now()`,
-				clubID, campus.MaxGroundskeepers); err != nil {
+				clubID, clubhouse.MaxGroundskeepers); err != nil {
 				return err
 			}
-			if err := ledger(ctx, tx, clubID, "groundskeeper", float64(campus.MaxGroundskeepers),
+			if err := ledger(ctx, tx, clubID, "groundskeeper", float64(clubhouse.MaxGroundskeepers),
 				"Club Legacy: 6th Groundskeeper"); err != nil {
 				return err
 			}
@@ -391,7 +376,7 @@ func (r *Repository) BuildLegacy(ctx context.Context, clubID string) (map[string
 		"granted":    Granted(stars),
 		"groundskeepers": map[string]any{
 			"count": count,
-			"max":   campus.MaxGroundskeepers,
+			"max":   clubhouse.MaxGroundskeepers,
 		},
 		"honours": honours,
 	}, true, nil

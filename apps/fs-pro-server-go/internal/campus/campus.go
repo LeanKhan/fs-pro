@@ -2,11 +2,19 @@
 // tier gate, Groundskeepers (the build-slot bottleneck), collectors, vaults and
 // the crossed two-currency cost model. Pure so the rules are table-testable; the
 // HTTP/storage layer wires these functions to Postgres.
+//
+// The Clubhouse-tier *rules* - the cap on other facilities, the prerequisite
+// graph, the Groundskeeper count and the tier sync - live in internal/clubhouse,
+// the single authority shared with internal/facilities. The exports below that
+// delegate there are compatibility aliases; new code should import
+// internal/clubhouse directly.
 package campus
 
 import (
 	"math"
 	"time"
+
+	"fs-pro-server/internal/clubhouse"
 )
 
 // Currency is a campus currency (04 §1).
@@ -20,11 +28,11 @@ const (
 	SponsorCredits Currency = "sponsor_credits"
 )
 
-// Caps and gates.
+// Compatibility aliases into internal/clubhouse (the authority).
 const (
-	MaxClubhouseTier        = 5
-	MaxGroundskeepers       = 6
-	MilestoneGroundskeepers = 3 // tiers 1..3 grant one each; 4..6 are bought
+	MaxClubhouseTier        = clubhouse.MaxTier
+	MaxGroundskeepers       = clubhouse.MaxGroundskeepers
+	MilestoneGroundskeepers = clubhouse.MilestoneGroundskeepers
 )
 
 // FacilityCurrency is what a facility upgrade costs. The two soft producers are
@@ -49,25 +57,16 @@ var FacilityCurrency = map[string]Currency{
 	"staff_house":     Cash,
 }
 
-// GroundskeepersForTier is the Groundskeepers earned from milestones alone
-// (tier 1 -> 1, tier 2 -> 2, tier 3+ -> 3). Groundskeepers 4..6 are bought.
-func GroundskeepersForTier(tier int) int {
-	if tier < 1 {
-		tier = 1
-	}
-	if tier > MilestoneGroundskeepers {
-		tier = MilestoneGroundskeepers
-	}
-	return tier
-}
+// Requirement is a facility level needed to unlock something.
+type Requirement = clubhouse.Requirement
+
+// GroundskeepersForTier is the Groundskeepers earned from milestones alone.
+func GroundskeepersForTier(tier int) int { return clubhouse.GroundskeepersForTier(tier) }
 
 // CanStartUpgrade reports whether another construction can begin: each
 // Groundskeeper runs exactly one upgrade (04 §2).
 func CanStartUpgrade(activeUpgrades, groundskeepers int) bool {
-	if groundskeepers > MaxGroundskeepers {
-		groundskeepers = MaxGroundskeepers
-	}
-	return activeUpgrades < groundskeepers
+	return clubhouse.CanStartUpgrade(activeUpgrades, groundskeepers)
 }
 
 // Collector is a passive income source: `RatePerHour` fills up to `Capacity`
@@ -108,49 +107,17 @@ func UpgradeCost(base, growth float64, level int) float64 {
 	return base * math.Pow(growth, float64(level-1))
 }
 
-// Requirement is a facility level needed to unlock something.
-type Requirement struct {
-	Facility string
-	Level    int
-}
-
 // ClubhouseRequirements are the facility levels needed to upgrade the Clubhouse
 // to `tier` (tier 1 is the start). Content - tunable without code changes.
-func ClubhouseRequirements(tier int) []Requirement {
-	switch tier {
-	case 2:
-		return []Requirement{{"stands", 1}, {"training_ground", 1}}
-	case 3:
-		return []Requirement{{"stands", 2}, {"training_ground", 2}, {"youth_academy", 1}}
-	case 4:
-		return []Requirement{{"stadium_grounds", 2}, {"coaching_dept", 2}, {"medical_centre", 2}}
-	case 5:
-		return []Requirement{{"stadium_grounds", 3}, {"coaching_dept", 3}, {"youth_academy", 3}, {"scouting", 2}}
-	default:
-		return nil
-	}
-}
+func ClubhouseRequirements(tier int) []Requirement { return clubhouse.Requirements(tier) }
 
 // MissingRequirements returns the requirements not yet met by `levels`.
 func MissingRequirements(tier int, levels map[string]int) []Requirement {
-	var missing []Requirement
-	for _, r := range ClubhouseRequirements(tier) {
-		if levels[r.Facility] < r.Level {
-			missing = append(missing, r)
-		}
-	}
-	return missing
+	return clubhouse.Missing(tier, levels)
 }
 
 // CanUpgradeClubhouse reports whether the Clubhouse may reach `tier`, and which
 // requirements are missing if not.
 func CanUpgradeClubhouse(tier int, levels map[string]int) (bool, []Requirement) {
-	if tier <= 1 {
-		return true, nil
-	}
-	if tier > MaxClubhouseTier {
-		return false, nil
-	}
-	missing := MissingRequirements(tier, levels)
-	return len(missing) == 0, missing
+	return clubhouse.CanUpgrade(tier, levels)
 }

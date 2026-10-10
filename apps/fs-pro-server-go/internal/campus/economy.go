@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"fs-pro-server/internal/clubhouse"
 )
 
 // This file extends the pure campus core (docs/coc-mapping/04 §3) with the
@@ -182,17 +184,9 @@ func CollectorCapacity(def CollectorDef, level, vaultLevel, clubhouseTier int) f
 // ---------------------------------------------------------------------------
 
 // GroundskeeperPrice is the Sponsor Credit price of the next Groundskeeper
-// (04 §2): #4 and #5 are bought, #1..#3 are milestones and #6 is the Club
-// Legacy chain. ok is false when the index is not purchasable.
+// (04 §2). It delegates to internal/clubhouse, the single crew authority.
 func GroundskeeperPrice(n int) (price float64, ok bool) {
-	switch n {
-	case 4:
-		return 500, true
-	case 5:
-		return 1000, true
-	default:
-		return 0, false
-	}
+	return clubhouse.GroundskeeperPrice(n)
 }
 
 // ObstacleDef is a Derelict Grounds obstacle: clearing it costs Cash and pays a

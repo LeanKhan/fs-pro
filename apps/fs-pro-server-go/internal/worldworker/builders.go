@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"fs-pro-server/internal/campus"
+	"fs-pro-server/internal/clubhouse"
 	"fs-pro-server/internal/db"
 )
 
@@ -26,7 +26,7 @@ func BuildersTicker(now func() time.Time) Ticker {
 		LockKey:  LockBuilders,
 		Job: func(ctx context.Context, tx db.Querier) error {
 			started := time.Now()
-			promoted, err := campus.SweepDueUpgrades(ctx, tx, now().UTC())
+			promoted, err := clubhouse.SweepDueUpgrades(ctx, tx, now().UTC())
 			buildersSweepSeconds.Observe(time.Since(started).Seconds())
 			if err == nil {
 				buildersSweeps.Inc()

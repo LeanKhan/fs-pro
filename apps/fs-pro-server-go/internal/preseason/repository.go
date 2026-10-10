@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"fs-pro-server/internal/campus"
+	"fs-pro-server/internal/clubhouse"
 	"fs-pro-server/internal/db"
 	"fs-pro-server/internal/grid"
 	"fs-pro-server/internal/play"
@@ -185,23 +185,14 @@ func loadFacts(ctx context.Context, q db.Querier, club map[string]any, clubID st
 	return f, nil
 }
 
-// effectiveGroundskeepers reuses the campus milestone function so the
-// Groundskeeper-#2 onboarding target cannot drift from the economy.
+// effectiveGroundskeepers reuses the shared crew rule so the Groundskeeper-#2
+// onboarding target cannot drift from the economy. Delegates to internal/clubhouse.
 func effectiveGroundskeepers(row map[string]any, tier int) int {
 	count := 0
 	if row != nil {
 		count = intOf(row["Count"])
 	}
-	if grant := campus.GroundskeepersForTier(tier); count < grant {
-		count = grant
-	}
-	if count > campus.MaxGroundskeepers {
-		count = campus.MaxGroundskeepers
-	}
-	if count < 1 {
-		count = 1
-	}
-	return count
+	return clubhouse.EffectiveGroundskeepers(count, tier)
 }
 
 // Build assembles the Pre-Season Tour read model.

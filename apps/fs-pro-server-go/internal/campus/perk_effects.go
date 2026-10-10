@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"fs-pro-server/internal/clubhouse"
 	"fs-pro-server/internal/db"
 )
 
@@ -120,10 +121,7 @@ func finishUpgradeNow(ctx context.Context, q db.Querier, clubID, target string) 
 		return fmt.Errorf("%w: %s", ErrPerkTargetNotUpgrading, target)
 	}
 	if target == "clubhouse" {
-		if _, err := q.Exec(ctx, `UPDATE "Clubs" c
-			SET "ClubhouseTier" = ca."Level", "updatedAt" = now()
-			FROM "ClubAssets" ca
-			WHERE ca."ClubId" = c."_id" AND ca."AssetType" = 'clubhouse' AND ca."Level" > c."ClubhouseTier"`); err != nil {
+		if err := clubhouse.SyncTier(ctx, q); err != nil {
 			return err
 		}
 	}
