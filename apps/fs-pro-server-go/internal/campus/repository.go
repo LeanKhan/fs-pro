@@ -34,11 +34,16 @@ var (
 	ErrObstacleAlreadyCleared = errors.New("obstacle already cleared")
 	ErrGroundskeeperEarned    = errors.New("groundskeeper is earned, not bought")
 	ErrGroundskeepersMaxed    = errors.New("all groundskeepers already earned")
+	ErrUnknownPerk            = errors.New("unknown board perk")
+	ErrPerkUnavailable        = errors.New("that board perk is not in your inventory")
 )
 
 // facilityOrder is the canonical, deterministic order of the campus economy
 // facilities (Go map iteration is unordered, so a UI/test/diff needs this).
-var facilityOrder = []string{"clubhouse", "turnstiles", "club_shop", "cash_vault", "fan_vault"}
+var facilityOrder = []string{
+	"clubhouse", "turnstiles", "club_shop", "cash_vault", "fan_vault",
+	"coaching_dept", "video_analysis",
+}
 
 // Repository is the pgx-backed campus store. Reads use the column-keyed map
 // passthrough (db.ScanOne/ScanAll); every mutation runs in a transaction and
@@ -55,7 +60,7 @@ func (r *Repository) Q() db.Querier { return r.q }
 
 // clubColumns are the campus-relevant Clubs fields.
 const clubColumns = `"_id", "Name", "ClubCode", "Budget", "Fans", "ScoutTokens", "SponsorCredits",
-	"ClubhouseTier", "CollectorState", "Vaults", "GuardUntil", "StandingPoints", "TraitAlloys"`
+	"ClubhouseTier", "CollectorState", "Vaults", "GuardUntil", "StandingPoints", "TraitAlloys", "Perks"`
 
 // clubRow reads a club row; forUpdate takes a row lock for a mutation.
 func clubRow(ctx context.Context, q db.Querier, clubID string, forUpdate bool) (map[string]any, bool, error) {
@@ -148,13 +153,19 @@ func SweepDueUpgrades(ctx context.Context, q db.Querier, now time.Time) (int64, 
 	if err != nil {
 		return 0, err
 	}
+	promoted := tag.RowsAffected()
+	if promoted == 0 {
+		// Nothing completed, so no Clubhouse tier can have moved: skip the sync
+		// UPDATE (a round trip the campus read path runs on every request).
+		return 0, nil
+	}
 	if _, err := q.Exec(ctx, `UPDATE "Clubs" c
 		SET "ClubhouseTier" = ca."Level", "updatedAt" = now()
 		FROM "ClubAssets" ca
 		WHERE ca."ClubId" = c."_id" AND ca."AssetType" = 'clubhouse' AND ca."Level" > c."ClubhouseTier"`); err != nil {
-		return tag.RowsAffected(), err
+		return promoted, err
 	}
-	return tag.RowsAffected(), nil
+	return promoted, nil
 }
 
 // SweepDueUpgrades is the Repository form of the package-level function.
@@ -183,13 +194,17 @@ func (r *Repository) BuildState(ctx context.Context, clubID string, now time.Tim
 	if err != nil || !ok {
 		return nil, ok, err
 	}
-	if _, err := r.SweepDueUpgrades(ctx, now); err != nil {
+	promoted, err := r.SweepDueUpgrades(ctx, now)
+	if err != nil {
 		return nil, false, err
 	}
-	// Re-read the club: the sweep may have raised the Clubhouse tier.
-	club, ok, err = clubRow(ctx, r.q, clubID, false)
-	if err != nil || !ok {
-		return nil, ok, err
+	if promoted > 0 {
+		// An upgrade completed (possibly this club's Clubhouse): re-read so the
+		// read model reflects the new tier/levels.
+		club, ok, err = clubRow(ctx, r.q, clubID, false)
+		if err != nil || !ok {
+			return nil, ok, err
+		}
 	}
 	assets, err := assetRows(ctx, r.q, clubID)
 	if err != nil {
@@ -210,6 +225,9 @@ func (r *Repository) BuildState(ctx context.Context, clubID string, now time.Tim
 	if err != nil {
 		return nil, false, err
 	}
+	if err := r.ensureObstacles(ctx, clubID); err != nil {
+		return nil, false, err
+	}
 	obstacles, err := r.obstacles(ctx, clubID)
 	if err != nil {
 		return nil, false, err
@@ -224,6 +242,49 @@ func (r *Repository) obstacles(ctx context.Context, clubID string) ([]map[string
 		return nil, err
 	}
 	return db.ScanAll(rows)
+}
+
+// ensureObstacles lazily seeds a club's three Derelict Grounds obstacles the
+// first time its campus is read (04 §2, "02 §A"). Migration 0045 backfilled the
+// clubs that existed then; this covers every club founded afterwards without a
+// creation-path dependency.
+//
+// It is safe for a returning club: an obstacle row is kept (ClearedAt) after it
+// is cleared, so "no rows at all" is the only thing seeded - a club that cleared
+// everything is never re-seeded. The seed takes the club row FOR UPDATE, so two
+// concurrent first reads seed once. Kinds/positions are the deterministic hash
+// 0045 uses, so a lazily seeded club matches a backfilled one.
+func (r *Repository) ensureObstacles(ctx context.Context, clubID string) error {
+	row, ok, err := dbScanOne(ctx, r.q,
+		`SELECT count(*)::int AS n FROM "CampusObstacles" WHERE "ClubId" = $1`, clubID)
+	if err != nil {
+		return err
+	}
+	if ok && intOf(row["n"]) > 0 {
+		return nil
+	}
+	return db.WithTx(ctx, r.q, func(tx db.Querier) error {
+		club, ok, err := clubRow(ctx, tx, clubID, true)
+		if err != nil || !ok || club == nil {
+			return err
+		}
+		row, _, err := dbScanOne(ctx, tx,
+			`SELECT count(*)::int AS n FROM "CampusObstacles" WHERE "ClubId" = $1`, clubID)
+		if err != nil {
+			return err
+		}
+		if row != nil && intOf(row["n"]) > 0 {
+			return nil
+		}
+		_, err = tx.Exec(ctx, `INSERT INTO "CampusObstacles" ("ClubId","Kind","X","Z","Rot")
+			SELECT $1::uuid,
+			       (ARRAY['weeds', 'dirt', 'rubble'])[1 + (abs(hashtext($2::text || 'k' || g.n)) % 3)],
+			       -12 + (abs(hashtext($2::text || 'x' || g.n)) % 20),
+			       -10 + (abs(hashtext($2::text || 'z' || g.n)) % 18),
+			       0
+			FROM generate_series(1, 3) AS g(n)`, clubID, clubID)
+		return err
+	})
 }
 
 // debit subtracts amount from the club's currency balance with a guarded UPDATE,
@@ -262,6 +323,22 @@ func balanceColumn(cur Currency) (string, bool) {
 	default:
 		return "", false
 	}
+}
+
+// credit adds amount to the club's currency balance. intCurrency columns are
+// integral, Cash is real.
+func credit(ctx context.Context, q db.Querier, clubID string, cur Currency, amount float64) error {
+	col, ok := balanceColumn(cur)
+	if !ok {
+		return fmt.Errorf("unknown currency %q", cur)
+	}
+	var arg any = int64(math.Round(amount))
+	if cur == Cash {
+		arg = amount
+	}
+	_, err := q.Exec(ctx, fmt.Sprintf(`UPDATE "Clubs" SET %s = coalesce(%s, 0) + $2, "updatedAt" = now()
+		WHERE "_id" = $1`, col, col), clubID, arg)
+	return err
 }
 
 func ledger(ctx context.Context, q db.Querier, clubID, typ string, amount float64, note string) error {
@@ -520,6 +597,86 @@ func (r *Repository) BuyGroundskeeper(ctx context.Context, clubID string, now ti
 	})
 }
 
+// UsePerk redeems one quick consumable Board Perk (04 §7, §10): it decrements
+// the club's Clubs.Perks counter and applies the perk's effect, all in one
+// transaction with a TransferLedger row. It is idempotent per perk instance: a
+// supplied instanceId that was already redeemed returns the stored count
+// without applying again (the PerkConsumptions (ClubId, InstanceId) guard).
+// An unknown perk is refused; an empty counter is refused (409).
+func (r *Repository) UsePerk(ctx context.Context, clubID, perkKey, instanceID string, now time.Time) (map[string]any, error) {
+	def, ok := PerkDefFor(perkKey)
+	if !ok {
+		return nil, ErrUnknownPerk
+	}
+	var out map[string]any
+	err := db.WithTx(ctx, r.q, func(tx db.Querier) error {
+		club, ok, err := clubRow(ctx, tx, clubID, true)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return ErrClubNotFound
+		}
+		// The once-only guard: a replayed instanceId inserted by an earlier
+		// request conflicts (nothing applied twice). The guard is written in the
+		// same transaction as the effect, so a rolled-back redemption can be
+		// retried.
+		already := false
+		if instanceID != "" {
+			tag, err := tx.Exec(ctx, `INSERT INTO "PerkConsumptions" ("InstanceId","ClubId","Perk","updatedAt")
+				VALUES ($1,$2,$3,now()) ON CONFLICT ("ClubId","InstanceId") DO NOTHING`,
+				instanceID, clubID, def.Key)
+			if err != nil {
+				return err
+			}
+			already = tag.RowsAffected() == 0
+		}
+		perks, _ := club["Perks"].(map[string]any)
+		remaining := PerkCount(perks, def.Key)
+		granted := 0.0
+		if !already {
+			if remaining <= 0 {
+				return ErrPerkUnavailable
+			}
+			// Guarded, atomic decrement: the WHERE means a racing redemption can
+			// never drive the counter below zero.
+			tag, err := tx.Exec(ctx, `UPDATE "Clubs"
+				SET "Perks" = jsonb_set(coalesce("Perks", '{}'::jsonb), ARRAY[$2],
+				        to_jsonb(coalesce(("Perks"->>$2)::int, 0) - 1)),
+				    "updatedAt" = now()
+				WHERE "_id" = $1 AND coalesce(("Perks"->>$2)::int, 0) > 0`, clubID, def.Key)
+			if err != nil {
+				return err
+			}
+			if tag.RowsAffected() == 0 {
+				return ErrPerkUnavailable
+			}
+			if err := credit(ctx, tx, clubID, def.Currency, def.Amount); err != nil {
+				return err
+			}
+			if err := ledger(ctx, tx, clubID, "perk_use", def.Amount, def.Name); err != nil {
+				return err
+			}
+			remaining--
+			granted = def.Amount
+		}
+		out = map[string]any{
+			"perk":      def.Key,
+			"name":      def.Name,
+			"currency":  string(def.Currency),
+			"granted":   granted,
+			"remaining": remaining,
+			"applied":   !already,
+			"now":       db.ISO8601msUTC(now),
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ---------------------------------------------------------------------------
 // Read-model helpers (pure given their inputs).
 // ---------------------------------------------------------------------------
@@ -681,6 +838,7 @@ func buildPayload(club map[string]any, assets map[string]map[string]any, state m
 			"nextEarnedBy": earnedBy,
 		},
 		"obstacles": obstacleList,
+		"perks":     perkList(club),
 		"assets":    assetList,
 		"now":       db.ISO8601msUTC(now),
 	}
@@ -761,6 +919,23 @@ func collectorState(club map[string]any) map[string]string {
 		if s, ok := v.(string); ok {
 			out[k] = s
 		}
+	}
+	return out
+}
+
+// perkList is the deterministic Board-Perks inventory for the campus read
+// (04 §7, §10): every registry perk with its current counter. Only registry
+// perks are listed; an unknown stored key is ignored.
+func perkList(club map[string]any) []any {
+	perks, _ := club["Perks"].(map[string]any)
+	out := make([]any, 0, len(perkOrder))
+	for _, key := range perkOrder {
+		def := Perks[key]
+		out = append(out, map[string]any{
+			"key":   def.Key,
+			"name":  def.Name,
+			"count": PerkCount(perks, key),
+		})
 	}
 	return out
 }

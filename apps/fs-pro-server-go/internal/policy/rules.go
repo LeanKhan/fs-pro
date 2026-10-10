@@ -140,6 +140,7 @@ var Table = map[string]Rule{
 	"campus.collect":          clubParam("clubId"),
 	"campus.clearObstacle":    clubParam("clubId"),
 	"campus.buyGroundskeeper": clubParam("clubId"),
+	"campus.usePerk":          clubParam("clubId"),
 
 	// Grid layouts (P3, Agent B). Owner/admin on the club {id}. A share code
 	// (grid.importLayout) is a public puzzle imported into one's own club, so

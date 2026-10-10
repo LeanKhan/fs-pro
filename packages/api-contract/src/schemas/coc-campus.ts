@@ -50,6 +50,13 @@ export const CampusObstacleSchema = z.object({
   clearBonus: z.number(),
 });
 
+/** One quick consumable Board Perk's remaining count (04 §7, §10). */
+export const PerkStateSchema = z.object({
+  key: z.string(),
+  name: z.string(),
+  count: z.number(),
+});
+
 export const CampusAssetUpgradeSchema = z.object({
   toLevel: z.number(),
   startAt: z.string(),
@@ -97,6 +104,7 @@ export const CampusStateSchema = z.object({
   vaults: z.array(VaultStateSchema),
   groundskeepers: CampusGroundskeeperSchema,
   obstacles: z.array(CampusObstacleSchema),
+  perks: z.array(PerkStateSchema),
   assets: z.array(CampusAssetStateSchema),
   now: z.string(),
 });
@@ -116,11 +124,19 @@ export const ClearObstacleRequestSchema = z.object({ obstacleId: z.string().min(
 
 export const BuyGroundskeeperRequestSchema = z.object({});
 
+/** Redeem one quick consumable Board Perk (04 §7). `instanceId`, when supplied,
+ * makes a retried request idempotent (the server applies the perk once). */
+export const UsePerkRequestSchema = z.object({
+  perk: z.string().min(1),
+  instanceId: z.string().min(1).optional(),
+});
+
 export type CampusCurrency = z.infer<typeof CampusCurrencySchema>;
 export type CollectorState = z.infer<typeof CollectorStateSchema>;
 export type VaultState = z.infer<typeof VaultStateSchema>;
 export type CampusGroundskeeper = z.infer<typeof CampusGroundskeeperSchema>;
 export type CampusObstacle = z.infer<typeof CampusObstacleSchema>;
+export type PerkState = z.infer<typeof PerkStateSchema>;
 export type CampusAssetState = z.infer<typeof CampusAssetStateSchema>;
 export type ClubhouseState = z.infer<typeof ClubhouseStateSchema>;
 export type CampusState = z.infer<typeof CampusStateSchema>;

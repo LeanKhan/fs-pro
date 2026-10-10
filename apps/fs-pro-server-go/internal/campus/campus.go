@@ -31,13 +31,14 @@ const (
 // crossed (04 §1.1): the Cash producer is upgraded with Fans and vice versa, so
 // neither currency can be levelled alone.
 var FacilityCurrency = map[string]Currency{
-	"turnstiles":    Fans, // produces Cash
-	"club_shop":     Cash, // produces Fans
-	"cash_vault":    Fans,
-	"fan_vault":     Cash,
-	"clubhouse":     Cash,
-	"academy":       Cash,
-	"coaching_dept": Fans,
+	"turnstiles":     Fans, // produces Cash
+	"club_shop":      Cash, // produces Fans
+	"cash_vault":     Fans,
+	"fan_vault":      Cash,
+	"clubhouse":      Cash,
+	"academy":        Cash,
+	"coaching_dept":  Fans,
+	"video_analysis": Fans, // research: unlocks the upper ability tiers
 	// Campus/attendance facilities cost Cash (04 §1.1). The 04 row is
 	// "Stands/Stadium (attendance)"; internal/facilities names the same
 	// concepts "stands" and "stadium_grounds". The army row is "Training

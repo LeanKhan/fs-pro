@@ -107,6 +107,16 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Owner program' },
   },
   {
+    // The Pitch Grid editor (docs/coc-mapping/08 §3): the flagship tactical
+    // canvas, deep-linkable with ?mode=edit|scout|review. Also reachable as a
+    // campus-hub tab from /game/:clubId.
+    path: '/game/:clubId/grid',
+    component: () =>
+      import(/* webpackChunkName: "pitch_grid" */ '../views/game/pitch-grid.vue'),
+    name: 'Pitch Grid',
+    meta: { title: 'Pitch grid' },
+  },
+  {
     // A manager without a club founds one here (country, town, club, crest).
     path: '/start',
     component: () =>

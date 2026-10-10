@@ -33,7 +33,7 @@ The browser calls `GET /api/realtime/ticket` and gets `{ url, ticket }`. The tic
 | Topic | Who may join | What flows |
 | --- | --- | --- |
 | `world` | anyone signed in | world events, world chat, online count |
-| `club:<id>` | that club's owner (or an admin) | challenges, `club:defended`, level changes |
+| `club:<id>` | that club's owner (or an admin) | challenges, inbox, `club:defended` / `raid:resolved`, level changes |
 | `campus:<id>` | anyone | who is at that club's ground (presence), ground chat |
 | `association:<id>` | a member club's owner (or an admin) | association chat, presence |
 | `edition:<id>` | anyone | one competition edition |
@@ -91,6 +91,23 @@ Players can also block someone for themselves (stored in their browser) and repo
 - `publishWorldEvent`
 - `publishClubEvent`
 - `emitOpenPlay` (in `open-play-events.ts`) publishes to `world` plus the private topic of each club it concerns.
+
+### Defence events (`raid:resolved`)
+
+A resolved raid is published to the defender's private topic `club:<id>` with
+event `raid:resolved` (alias `club:defended`; names and payload in `events.go`).
+The gateway carries it today; only the publisher is missing:
+
+- The Go defence worker (`internal/play.ResolvePendingRaids`, through the
+  `Notifier` seam in `internal/play/raid.go`) currently writes the durable
+  `ClubMessages` row only. There is **no Go client that POSTs to `/publish`**
+  yet, so the realtime hop is not wired from Go.
+- To finish it: add a signed `/publish` client to the Go side (mirror of
+  `src/realtime/world-events.ts`: `X-Signature: hex(hmac-sha256(body))` over
+  `{topics,event,data}`, configured by `REALTIME_URL` + `REALTIME_SECRET`) and a
+  `Notifier` whose `RaidResolved` posts `raid:resolved` to `club:<defenderId>`
+  after the durable row. Until then the inbox message is the source of truth and
+  the browser reconciles on the next read — no event is faked.
 
 ## Scaling
 

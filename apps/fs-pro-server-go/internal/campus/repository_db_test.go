@@ -17,7 +17,7 @@ var campusClubSeq int64
 // newTestClub inserts a club inside the caller's (rolled-back) transaction and
 // returns its id. Only Name/ClubCode/updatedAt are required; everything else
 // uses its DB default, overridden per test.
-func newTestClub(t *testing.T, ctx context.Context, q db.Querier, overrides map[string]any) string {
+func newTestClub(t testing.TB, ctx context.Context, q db.Querier, overrides map[string]any) string {
 	t.Helper()
 	code := fmt.Sprintf("CT%d", atomic.AddInt64(&campusClubSeq, 1))
 	data := map[string]any{

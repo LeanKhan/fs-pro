@@ -230,6 +230,8 @@ export {
   CollectRequestSchema,
   ClearObstacleRequestSchema,
   BuyGroundskeeperRequestSchema,
+  PerkStateSchema,
+  UsePerkRequestSchema,
 } from './schemas/coc-campus';
 export type {
   CampusCurrency,
@@ -240,6 +242,7 @@ export type {
   CampusObstacle,
   CampusAssetState,
   ClubhouseState,
+  PerkState,
 } from './schemas/coc-campus';
 export * from './schemas/layout';
 export {

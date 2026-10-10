@@ -66,7 +66,7 @@ func TestDefenseResolutionTickerRolledBack(t *testing.T) {
 			return err
 		}
 
-		repo := play.NewRepository(tx)
+		repo := play.NewRepository(tx).WithClock(func() time.Time { return now })
 		ref, err := repo.QueueRaid(ctx, play.RaidRequest{AttackerID: a, DefenderID: b, Seed: "worker-1"})
 		if err != nil {
 			return err

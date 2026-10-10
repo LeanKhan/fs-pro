@@ -8,9 +8,10 @@ import log from '../helpers/logger';
  * they show, so a lost event costs at most one poll interval.
  *
  * Topics: `world` (everyone), `club:<id>` (the owner only), `campus:<id>`,
- * `edition:<id>`, `fixture:<id>`, and the news scopes `town:<id>`,
- * `region:<id>`, `country:<id>` (docs/WORLD-PYRAMID-SPEC.md). See the
- * gateway's hub.go.
+ * `association:<id>` (a member club's owner; the membership travels in the
+ * ticket's `assocs` claim), `edition:<id>`, `fixture:<id>`, and the news scopes
+ * `town:<id>`, `region:<id>`, `country:<id>` (docs/WORLD-PYRAMID-SPEC.md). See
+ * the gateway's hub.go.
  */
 
 const DEV_SECRET = 'fs-pro-dev-realtime-secret';
@@ -32,10 +33,33 @@ export interface TicketClaims {
   uid: string;
   name: string;
   clubs: string[];
+  /**
+   * The associations the user's clubs belong to. The gateway scopes the
+   * `association:<id>` chat/presence rooms off this claim (apps/fs-pro-realtime
+   * hub.go, `CanJoin`), so it is fail-closed without it. See `associationIdsFrom`.
+   */
+  assocs?: string[];
   code?: string;
   admin?: boolean;
   /** The account's email is confirmed (or confirmation isn't required): it may chat. */
   ver?: boolean;
+}
+
+/**
+ * Distinct, non-empty association ids from `AssociationMembers` rows, sorted so
+ * the signed ticket payload is stable. `AssociationMembers` is a CoC-mapping
+ * table (migration 0049) with no Drizzle model, so the controller reads it with
+ * a raw `SELECT DISTINCT "AssociationId" ... WHERE "ClubId" IN (...)` and hands
+ * the rows here. The gateway trusts `assocs` and never looks the membership up
+ * itself.
+ */
+export function associationIdsFrom(rows: ReadonlyArray<{ AssociationId?: unknown }>): string[] {
+  const ids = new Set<string>();
+  for (const row of rows) {
+    const id = typeof row.AssociationId === 'string' ? row.AssociationId.trim() : '';
+    if (id) ids.add(id);
+  }
+  return [...ids].sort();
 }
 
 /** A signed, short-lived ticket the browser presents to the gateway. */

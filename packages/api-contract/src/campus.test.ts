@@ -6,6 +6,7 @@ import {
   CampusStateSchema,
   PlaceRequestSchema,
   UpgradeRequestSchema,
+  UsePerkRequestSchema,
   type CampusState,
 } from './schemas/coc-campus';
 import { LayoutsSchema, PitchGridDocumentSchema } from './schemas/layout';
@@ -52,6 +53,11 @@ function sampleCampus(): CampusState {
       nextEarnedBy: 'purchase',
     },
     obstacles: [{ id: 'o1', kind: 'weeds', x: 1, z: 2, rot: 0, clearCost: 500, clearBonus: 50 }],
+    perks: [
+      { key: 'cash_cache', name: 'Cash Cache', count: 2 },
+      { key: 'fan_cache', name: 'Fan Cache', count: 0 },
+      { key: 'talent_cache', name: 'Talent Cache', count: 1 },
+    ],
     assets: [
       {
         type: 'clubhouse',
@@ -85,6 +91,7 @@ describe('campus contract', () => {
       collect: ['POST', '/campus/:clubId/collect', [200, 400, 401, 403, 404, 409]],
       clearObstacle: ['POST', '/campus/:clubId/obstacle/clear', [200, 400, 401, 403, 404, 409]],
       buyGroundskeeper: ['POST', '/campus/:clubId/groundskeeper/buy', [200, 400, 401, 403, 404, 409]],
+      usePerk: ['POST', '/campus/:clubId/perk/use', [200, 400, 401, 403, 404, 409]],
     };
     for (const [key, [method, path, statuses]] of Object.entries(expected)) {
       const route = routes[key];
@@ -104,6 +111,16 @@ describe('campus contract', () => {
     assert.equal(parsed.collectors[0]!.currency, 'cash');
     assert.equal(parsed.groundskeepers.nextEarnedBy, 'purchase');
     assert.equal(parsed.clubhouse.upgradingTo, 4);
+    assert.equal(parsed.perks[0]!.key, 'cash_cache');
+    assert.equal(parsed.perks[0]!.count, 2);
+    // The Board-Perks consume request: instanceId is the optional idempotency key.
+    assert.equal(UsePerkRequestSchema.safeParse({ perk: 'cash_cache' }).success, true);
+    assert.equal(
+      UsePerkRequestSchema.safeParse({ perk: 'cash_cache', instanceId: 'x-1' }).success,
+      true
+    );
+    assert.equal(UsePerkRequestSchema.safeParse({ perk: '' }).success, false);
+    assert.equal(UsePerkRequestSchema.safeParse({ perk: 'cash_cache', instanceId: '' }).success, false);
   });
 
   it('rejects a bad groundskeeper mode and a bad currency', () => {

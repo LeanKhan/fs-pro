@@ -368,6 +368,13 @@ func (r *Repository) PlayMatch(ctx context.Context, clubID string, opts PlayOpti
 		}
 		res, err := r.ResolveRaid(ctx, ref.RaidID)
 		if err != nil {
+			// A weekly-cap refusal is not candidate-specific: stop, discard the
+			// queued raid and surface the 409/clear reason. Everything else may
+			// be candidate-specific, so try the next one.
+			if gate, ok := err.(PlayGateError); ok {
+				r.discardRaid(ctx, ref.RaidID)
+				return nil, gate
+			}
 			lastErr = err
 			continue
 		}

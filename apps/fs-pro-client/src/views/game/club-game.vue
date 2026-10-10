@@ -249,7 +249,11 @@
             :key="`hub-${hubTab.key}`"
             :club="club"
             v-bind="{
-              ...(hubTab.readOnly ? { readOnly: !isMyClub } : {}),
+              ...(hubTab.key === 'grid'
+                ? { clubId, mode: isMyClub ? 'edit' : 'scout' }
+                : hubTab.readOnly
+                  ? { readOnly: !isMyClub }
+                  : {}),
               ...(hubTab.key === 'club' ? { inGame: true } : {}),
             }"
             @update-available="onZoneUpdate"
@@ -435,6 +439,7 @@ import CozyLeague from '@/components/cozy/cozy-league.vue';
 import CozySettings from '@/components/cozy/cozy-settings.vue';
 import CozyMatchday from '@/components/cozy/cozy-matchday.vue';
 import CozyMatchPrep from '@/components/cozy/cozy-match-prep.vue';
+import PitchGridEditor from '@/components/cozy/grid/pitch-grid-editor.vue';
 import UserCompetitions from '@/views/user/competitions/competitions.vue';
 import TeamSheetZone from '@/views/user/club/zones/team-sheet-zone.vue';
 import SquadZone from '@/views/user/club/zones/squad-zone.vue';
@@ -980,7 +985,7 @@ function onOpen(what: string) {
 
 // --- The Manager hub: every management screen in one drawer over the campus ------------------
 // Buildings are shortcuts into it (docs/CORE-LOOP.md, "One shell").
-type HubKey = 'matchday' | 'team' | 'squad' | 'transfers' | 'club' | 'analysis';
+type HubKey = 'matchday' | 'team' | 'grid' | 'squad' | 'transfers' | 'club' | 'analysis';
 interface HubTab {
   key: HubKey;
   title: string;
@@ -990,6 +995,7 @@ interface HubTab {
 const HUB_TABS: HubTab[] = [
   { key: 'matchday', title: 'Matchday' },
   { key: 'team', title: 'The brief', component: TeamSheetZone, readOnly: true },
+  { key: 'grid', title: 'Pitch grid', component: PitchGridEditor, readOnly: true },
   { key: 'squad', title: 'Squad', component: SquadZone },
   { key: 'transfers', title: 'Recruitment', component: TransferZone },
   { key: 'club', title: 'Owner', component: OwnerZone, readOnly: true },
@@ -1495,6 +1501,8 @@ function onAct(action: string) {
       return openHub('squad');
     case 'tactics':
       return openHub('team');
+    case 'grid':
+      return openHub('grid');
     case 'transfers':
       return openHub('transfers');
     case 'analysis':

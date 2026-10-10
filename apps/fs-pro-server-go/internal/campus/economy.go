@@ -107,6 +107,12 @@ var Facilities = map[string]FacilityDef{
 	"cash_vault": {"cash_vault", "Cash Vault", Fans, 30000, 2.5, 25, 2.3, MaxFacilityLevel},
 	"fan_vault":  {"fan_vault", "Fan Vault", Cash, 30000, 2.5, 25, 2.3, MaxFacilityLevel},
 	"clubhouse":  {"clubhouse", "Clubhouse", Cash, 500000, 2.6, 60, 2.4, MaxFacilityLevel},
+	// The P2 research tiles (04 §1.1 "Coaching Dept / Video Analysis -> unlocks
+	// ability tiers"). They cost Fans (the same currency as Academy upgrades),
+	// so campus.upgrade can raise them and the ability facility gate
+	// (internal/abilities) reads the real ClubAssets level.
+	"coaching_dept":  {"coaching_dept", "Coaching Department", Fans, 60000, 2.4, 45, 2.3, MaxFacilityLevel},
+	"video_analysis": {"video_analysis", "Video Analysis", Fans, 90000, 2.5, 60, 2.4, MaxFacilityLevel},
 }
 
 // FacilityDefFor returns the definition for a facility key.

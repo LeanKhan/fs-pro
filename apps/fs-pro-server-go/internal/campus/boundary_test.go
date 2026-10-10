@@ -19,6 +19,7 @@ func TestFacilityCurrencyMatchesSpec(t *testing.T) {
 		"training_ground": Cash, // army: "Training Ground / Academy"
 		"academy":         Cash,
 		"coaching_dept":   Fans, // research
+		"video_analysis":  Fans, // research
 		"cash_vault":      Fans, // raises the Cash cap
 		"fan_vault":       Cash, // raises the Fan cap
 		"clubhouse":       Cash, // the hard gate

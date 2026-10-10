@@ -1,0 +1,17 @@
+{
+  "//": "A focused typecheck gate for the Pitch Grid's new pure .ts modules. The client has no vue-tsc, so .vue files (checked by @vue/compiler-sfc in pitch-grid-sfc.test.ts) are excluded here.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    "paths": { "@/*": ["src/*"] }
+  },
+  "include": [
+    "src/helpers/pitch-grid.ts",
+    "src/helpers/pitch-grid-presets.ts",
+    "src/helpers/pitch-grid.test.ts",
+    "src/helpers/pitch-grid-presets.test.ts",
+    "src/composables/use-grid-drag.ts",
+    "src/components/cozy/grid/pitch-grid-sfc.test.ts"
+  ]
+}

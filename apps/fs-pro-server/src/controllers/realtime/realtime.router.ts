@@ -1,8 +1,8 @@
 import { Router, type Request, type Response } from 'express';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { DrizzleDatabase } from '../../db/drizzle';
 import { clubs, users } from '../../db/drizzle/schema';
-import { gatewayAdmin, issueTicket, realtimeConfig } from '../../realtime/world-events';
+import { associationIdsFrom, gatewayAdmin, issueTicket, realtimeConfig } from '../../realtime/world-events';
 
 /**
  * GET /api/realtime/ticket - a short-lived signed ticket for the multiplayer
@@ -24,12 +24,30 @@ realtimeRouter.get('/ticket', async (req: Request, res: Response) => {
     .from(clubs)
     .where(eq(clubs.UserId, userId));
 
+  // The association rooms a member club may join. `AssociationMembers` is a
+  // CoC-mapping table (migration 0049) with no Drizzle model, so it is read
+  // raw; the gateway only ever sees the resulting `assocs` claim.
+  const clubIds = owned.map((c) => c.id);
+  const assocs = clubIds.length
+    ? associationIdsFrom(
+        (await db.execute(sql`
+          SELECT DISTINCT "AssociationId"
+          FROM "AssociationMembers"
+          WHERE "ClubId" IN (${sql.join(
+            clubIds.map((id) => sql`${id}::uuid`),
+            sql`, `
+          )})
+        `)) as unknown as Array<{ AssociationId?: unknown }>
+      )
+    : [];
+
   const { publicUrl, enabled } = realtimeConfig();
   if (!enabled) return res.status(503).json({ success: false, message: 'Realtime is off' });
   const ticket = issueTicket({
     uid: user.id,
     name: user.FullName || user.Username,
-    clubs: owned.map((c) => c.id),
+    clubs: clubIds,
+    assocs: assocs.length ? assocs : undefined,
     code: owned[0]?.code,
     admin: user.isAdmin || undefined,
     // Unconfirmed accounts can read chat but not write it. Mirrors the

@@ -15,6 +15,7 @@ import {
   BuyGroundskeeperRequestSchema,
   PlaceRequestSchema,
   UpgradeRequestSchema,
+  UsePerkRequestSchema,
 } from '../schemas/coc-campus';
 
 const clubParam = z.object({ clubId: z.string() });
@@ -106,6 +107,23 @@ export const campusContract = c.router(
       path: '/:clubId/groundskeeper/buy',
       pathParams: clubParam,
       body: BuyGroundskeeperRequestSchema,
+      responses: {
+        200: successEnvelope(CampusStateSchema),
+        400: failEnvelope(),
+        401: failEnvelope(),
+        403: failEnvelope(),
+        404: failEnvelope(),
+        409: failEnvelope(),
+      },
+    },
+
+    /** Redeem one quick consumable Board Perk (04 §7). `instanceId`, when
+     * supplied, makes a retried request idempotent. */
+    usePerk: {
+      method: 'POST',
+      path: '/:clubId/perk/use',
+      pathParams: clubParam,
+      body: UsePerkRequestSchema,
       responses: {
         200: successEnvelope(CampusStateSchema),
         400: failEnvelope(),

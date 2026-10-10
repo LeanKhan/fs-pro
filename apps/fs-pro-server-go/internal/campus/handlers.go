@@ -140,6 +140,32 @@ func (h *Handlers) buyGroundskeeper(_ *httpapi.Context, _ http.ResponseWriter, r
 	return h.campus(r.Context(), clubID, now)
 }
 
+// usePerk is POST /api/campus/{clubId}/perk/use: redeem one quick consumable
+// Board Perk (04 §7). The optional instanceId makes a retried request a no-op.
+func (h *Handlers) usePerk(cx *httpapi.Context, _ http.ResponseWriter, r *http.Request) httpapi.Response {
+	clubID := r.PathValue("clubId")
+	b := body(cx)
+	perk := str(b, "perk")
+	if perk == "" {
+		return httpapi.Fail(400, "perk is required", "perk is required")
+	}
+	// instanceId must be a non-empty string when present (a numeric/array body
+	// value is a client bug, but the repo call validates the recorded key).
+	instanceID := ""
+	if raw, ok := b["instanceId"]; ok && raw != nil {
+		id, ok := raw.(string)
+		if !ok || id == "" {
+			return httpapi.Fail(400, "instanceId must be a non-empty string", "instanceId must be a non-empty string")
+		}
+		instanceID = id
+	}
+	now := time.Now().UTC()
+	if _, err := h.repo.UsePerk(r.Context(), clubID, perk, instanceID, now); err != nil {
+		return mapErr(err)
+	}
+	return h.campus(r.Context(), clubID, now)
+}
+
 // mapErr maps a campus sentinel error to the route's declared status. Every
 // status returned here is listed on the route (see router.go).
 func mapErr(err error) httpapi.Response {
@@ -151,10 +177,11 @@ func mapErr(err error) httpapi.Response {
 		errors.Is(err, ErrAllBuildersBusy), errors.Is(err, ErrAlreadyUpgrading),
 		errors.Is(err, ErrMaxLevel), errors.Is(err, ErrFacilityCapped),
 		errors.Is(err, ErrClubhouseRequirements), errors.Is(err, ErrNothingToCollect),
-		errors.Is(err, ErrGroundskeepersMaxed):
+		errors.Is(err, ErrGroundskeepersMaxed), errors.Is(err, ErrPerkUnavailable):
 		return httpapi.Fail(409, msg, msg)
 	case errors.Is(err, ErrUnsupportedFacility), errors.Is(err, ErrUnknownBuilding),
-		errors.Is(err, ErrInvalidPlacement), errors.Is(err, ErrGroundskeeperEarned):
+		errors.Is(err, ErrInvalidPlacement), errors.Is(err, ErrGroundskeeperEarned),
+		errors.Is(err, ErrUnknownPerk):
 		return httpapi.Fail(400, msg, msg)
 	default:
 		return httpapi.Fail(400, msg, msg)

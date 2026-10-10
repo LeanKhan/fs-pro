@@ -11,7 +11,8 @@ import (
 // Topics:
 //
 //	world          everyone: world events, the world chat and the online count
-//	club:<id>      the club's owner only: challenges, inbox, upgrades finishing
+//	club:<id>      the club's owner only: challenges, inbox, upgrades finishing,
+//	               and the raid:resolved / club:defended defence notice (events.go)
 //	campus:<id>    anyone: who is looking at a club's grounds right now, and
 //	               the chat there
 //	association:<id> a member club's owner (or an admin): association chat and

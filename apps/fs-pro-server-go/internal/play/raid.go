@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"time"
 
 	"fs-pro-server/internal/clients"
@@ -328,6 +329,15 @@ func (r *Repository) QueueRaid(ctx context.Context, req RaidRequest) (*RaidRef, 
 	return &RaidRef{RaidID: raidID, FixtureID: fixtureID}, nil
 }
 
+// discardRaid best-effort deletes a raid this request just queued but could not
+// resolve (a weekly-cap refusal inside the raid transaction). Without it the
+// pending row would be retried by the defense worker; deleting it avoids a
+// stale raid that a later week could otherwise apply. Any fixture already
+// created is left unplayed, matching the existing failure behaviour.
+func (r *Repository) discardRaid(ctx context.Context, raidID string) {
+	_, _ = r.q.Exec(ctx, `DELETE FROM "Raids" WHERE "_id" = $1 AND "Status" = 'pending'`, raidID)
+}
+
 // buildRaidRequest builds the frozen sim request: the attacker (home) with its
 // Match grid + orders, the defender (away) with its stored Home Grid.
 func (r *Repository) buildRaidRequest(ctx context.Context, fixtureTag, seed string, attacker, defender map[string]any, req RaidRequest) (map[string]any, error) {
@@ -461,13 +471,34 @@ func (r *Repository) resolveRaid(ctx context.Context, raidID string) (*RaidOutco
 	destruction := destructionPct(dominance)
 	now := r.clock()
 
-	attacker, _, err := r.one(ctx, `SELECT * FROM "Clubs" WHERE "_id" = $1 FOR UPDATE`, attackerID)
+	// Lock the two clubs in a canonical (id-ascending) order. Acquiring the
+	// same two row locks in a stable order is what keeps two concurrent raids
+	// that share clubs (A->B and B->A) from deadlocking: whichever transaction
+	// grabs the lower id first makes the other wait instead of crossing.
+	first, second := attackerID, defenderID
+	if second < first {
+		first, second = second, first
+	}
+	var attacker, defender map[string]any
+	locked, _, err := r.one(ctx, `SELECT * FROM "Clubs" WHERE "_id" = $1 FOR UPDATE`, first)
 	if err != nil {
 		return nil, err
 	}
-	defender, _, err := r.one(ctx, `SELECT * FROM "Clubs" WHERE "_id" = $1 FOR UPDATE`, defenderID)
-	if err != nil {
-		return nil, err
+	if first == attackerID {
+		attacker = locked
+	} else {
+		defender = locked
+	}
+	if second != first {
+		locked, _, err = r.one(ctx, `SELECT * FROM "Clubs" WHERE "_id" = $1 FOR UPDATE`, second)
+		if err != nil {
+			return nil, err
+		}
+		if second == attackerID {
+			attacker = locked
+		} else {
+			defender = locked
+		}
 	}
 	if attacker == nil || defender == nil {
 		return nil, ErrRaidsClubNotFound
@@ -485,6 +516,16 @@ func (r *Repository) resolveRaid(ctx context.Context, raidID string) (*RaidOutco
 	}
 
 	if !practice {
+		// Enforce the weekly ranked-attack allowance *inside* the raid's own
+		// transaction (04 §4.3). The FOR UPDATE row lock serialises this read
+		// against the counter increment league.RecordRankedRaid writes later in
+		// this same transaction, so two concurrent resolutions cannot both
+		// observe a spare attack. This is the authoritative fix for the
+		// pre-flight TOCTOU; the cheap pre-flight check in PlayMatch is only an
+		// early, non-committing refusal.
+		if err := checkRankedAttackCap(ctx, r.q, attackerID, now); err != nil {
+			return nil, err
+		}
 		attPts := intOf(attacker["StandingPoints"])
 		defPts := intOf(defender["StandingPoints"])
 		mult := leagueMultiplierX100(attPts)
@@ -762,6 +803,15 @@ func parseTimestamp(v any) (time.Time, bool) {
 	return time.Time{}, false
 }
 
+// claimPendingRaidsSQL claims a batch of due raids for resolution. It projects
+// the attacker/defender club ids as well as the raid id because
+// ResolvePendingRaids pre-locks every club in the batch (in id-ascending order)
+// before resolving any raid; without the club columns that pre-lock sees no
+// clubs and concurrent batches deadlock on shared club rows.
+const claimPendingRaidsSQL = `SELECT "_id", "AttackerClubId", "DefenderClubId" FROM "Raids"
+	WHERE "Status" = 'pending' AND "ResolveAt" <= $1
+	ORDER BY "ResolveAt", "createdAt" LIMIT $2 FOR UPDATE SKIP LOCKED`
+
 // ResolvePendingRaids resolves up to `limit` due pending raids (the offline
 // defense path). Each raid is its own savepoint, so one failure does not abort
 // the tick; a failing raid is marked 'failed' so it is not retried forever.
@@ -769,9 +819,7 @@ func ResolvePendingRaids(ctx context.Context, q db.Querier, now time.Time, sim S
 	if limit <= 0 {
 		limit = DefaultDefenseBatch
 	}
-	rows, err := q.Query(ctx, `SELECT "_id" FROM "Raids"
-		WHERE "Status" = 'pending' AND "ResolveAt" <= $1
-		ORDER BY "ResolveAt", "createdAt" LIMIT $2 FOR UPDATE SKIP LOCKED`, now, limit)
+	rows, err := q.Query(ctx, claimPendingRaidsSQL, now, limit)
 	if err != nil {
 		return 0, err
 	}
@@ -782,6 +830,19 @@ func ResolvePendingRaids(ctx context.Context, q db.Querier, now time.Time, sim S
 	repo := NewRepository(q)
 	if sim != nil {
 		repo.simulate = sim
+	}
+	// Pre-lock every club this batch touches — one row at a time, in id-ascending
+	// order — before resolving any raid. resolveRaid holds a club's row lock until
+	// the enclosing batch transaction commits, so two concurrent batches that
+	// share a club would otherwise take those locks in per-raid order and
+	// deadlock (a lock-order inversion). Acquiring the whole batch's clubs in one
+	// globally-consistent order makes every batch lock in the same sequence, so
+	// concurrent drains serialise instead of cycling. The later per-raid
+	// FOR UPDATE reads are then re-entrant no-ops for this transaction.
+	for _, clubID := range batchClubIDs(list) {
+		if _, _, err := repo.one(ctx, `SELECT "_id" FROM "Clubs" WHERE "_id" = $1 FOR UPDATE`, clubID); err != nil {
+			return 0, err
+		}
 	}
 	resolved := 0
 	for _, row := range list {
@@ -795,6 +856,29 @@ func ResolvePendingRaids(ctx context.Context, q db.Querier, now time.Time, sim S
 		resolved++
 	}
 	return resolved, nil
+}
+
+// batchClubIDs returns the distinct attacker/defender club ids in a claimed
+// batch, sorted ascending so every concurrent batch acquires club row locks in
+// the same order (see ResolvePendingRaids).
+func batchClubIDs(raids []map[string]any) []string {
+	seen := make(map[string]struct{}, len(raids)*2)
+	out := make([]string, 0, len(raids)*2)
+	for _, r := range raids {
+		for _, key := range [2]string{"AttackerClubId", "DefenderClubId"} {
+			id := db.StringField(r, key)
+			if id == "" {
+				continue
+			}
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			out = append(out, id)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // ExpireShields turns every lapsed Rest Window into a Warm-up Guard, then clears
@@ -939,4 +1023,26 @@ func txOne(ctx context.Context, q db.Querier, sql string, args ...any) (map[stri
 		return nil, false, err
 	}
 	return db.ScanOne(rows)
+}
+
+// checkRankedAttackCap enforces the weekly ranked-attack allowance within the
+// caller's transaction (04 §4.3). It reads the attacker's StandingPools row FOR
+// UPDATE, so this read is serialised against the increment
+// league.RecordRankedRaid writes later in the same transaction: a second
+// concurrent resolution blocks on the row lock, re-reads the incremented count
+// and is refused. A club not signed up this week has no row and no cap.
+func checkRankedAttackCap(ctx context.Context, q db.Querier, clubID string, now time.Time) error {
+	row, ok, err := txOne(ctx, q, `SELECT "LeagueCode", "Attacks" FROM "StandingPools"
+		WHERE "WeekKey" = $1 AND "ClubId" = $2 FOR UPDATE`, league.WeekKey(now), clubID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return nil
+	}
+	allowed := league.AttacksPerPool(league.LeagueByCode(db.StringField(row, "LeagueCode")))
+	if intOf(row["Attacks"]) >= allowed {
+		return PlayGateError{weeklyAttackCapMessage(allowed)}
+	}
+	return nil
 }

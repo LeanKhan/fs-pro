@@ -16,4 +16,5 @@ func Register(s *httpapi.Server, h *Handlers) {
 	s.Register("campus.collect", http.MethodPost, "/api/campus/{clubId}/collect", []int{200, 400, 401, 403, 404, 409}, h.collect)
 	s.Register("campus.clearObstacle", http.MethodPost, "/api/campus/{clubId}/obstacle/clear", []int{200, 400, 401, 403, 404, 409}, h.clearObstacle)
 	s.Register("campus.buyGroundskeeper", http.MethodPost, "/api/campus/{clubId}/groundskeeper/buy", []int{200, 400, 401, 403, 404, 409}, h.buyGroundskeeper)
+	s.Register("campus.usePerk", http.MethodPost, "/api/campus/{clubId}/perk/use", []int{200, 400, 401, 403, 404, 409}, h.usePerk)
 }
