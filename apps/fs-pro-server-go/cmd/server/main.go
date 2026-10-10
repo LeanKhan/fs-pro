@@ -11,6 +11,7 @@ import (
 	nethttp "net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -47,6 +48,7 @@ import (
 	"fs-pro-server/internal/season"
 	"fs-pro-server/internal/seasonpass"
 	"fs-pro-server/internal/session"
+	"fs-pro-server/internal/support"
 	"fs-pro-server/internal/tile"
 	"fs-pro-server/internal/transfer"
 	"fs-pro-server/internal/user"
@@ -180,6 +182,15 @@ func main() {
 	world.Register(srv, world.New(world.NewRepository(querier)))
 	atlas.Register(srv, atlas.New(atlas.NewRepository(querier)))
 	tile.Register(srv, tile.New(os.Getenv("WORLD_SERVICE_URL")))
+	support.Register(srv, support.New(support.Deps{
+		Q:                    querier,
+		Logger:               logger,
+		RealtimeURL:          cfg.RealtimeURL,
+		RealtimeSecret:       cfg.RealtimeSecret,
+		RealtimePublicURL:    os.Getenv("REALTIME_PUBLIC_URL"),
+		WorldgenURL:          os.Getenv("WORLDGEN_SERVICE_URL"),
+		RequireVerifiedEmail: strings.TrimSpace(os.Getenv("REQUIRE_VERIFIED_EMAIL")) == "true",
+	}))
 
 	httpServer := &nethttp.Server{
 		Addr:         cfg.Addr(),
