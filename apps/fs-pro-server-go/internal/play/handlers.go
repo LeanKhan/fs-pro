@@ -176,6 +176,17 @@ func (h *Handlers) findOpponents(_ *httpapi.Context, _ http.ResponseWriter, r *h
 	if !ok {
 		return httpapi.Fail(404, "Club not found", nil)
 	}
+	// A club that has spent its weekly ranked-attack allowance cannot search
+	// for another ranked raid (04 §4.3). Signed-up clubs only; a club that has
+	// not joined this week's pool is unaffected.
+	used, allowed, signedUp, err := h.repo.weeklyAttackAllowance(ctx, clubID, h.repo.clock())
+	if err != nil {
+		return httpapi.Fail(400, err.Error(), err.Error())
+	}
+	if signedUp && used >= allowed {
+		msg := weeklyAttackCapMessage(allowed)
+		return httpapi.Fail(400, msg, msg)
+	}
 	rows, err := h.repo.Opponents(ctx, clubID, floatOf(club["Rating"]), 5)
 	if err != nil {
 		return httpapi.Fail(400, err.Error(), err.Error())

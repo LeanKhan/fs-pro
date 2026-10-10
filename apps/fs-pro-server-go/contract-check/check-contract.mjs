@@ -23,7 +23,7 @@ const CHECKED_PREFIXES = [
   'abilities.', 'traits.', 'orders.', 'league.',
   'associations.', 'season.', 'legacy.', 'honours.',
   'transfers.', 'editions.', 'challenges.', 'competitionDefinitions.',
-  'world.', 'atlas.', 'tiles.',
+  'world.', 'atlas.', 'tiles.', 'preseason.',
 ];
 
 function normalizePath(p) {

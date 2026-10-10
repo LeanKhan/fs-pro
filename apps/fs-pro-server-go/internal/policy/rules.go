@@ -158,6 +158,12 @@ var Table = map[string]Rule{
 	"play.claimBoardVault": clubParam("clubId"),
 	"play.defenseLog":      clubParam("clubId"),
 
+	// Pre-Season Tour (P9, Wave 4). The onboarding rail's reads and writes are
+	// owner/admin-only on the {clubId} path param.
+	"preseason.get":   clubParam("clubId"),
+	"preseason.play":  clubParam("clubId"),
+	"preseason.claim": clubParam("clubId"),
+
 	// Standing ladder (P6, Agent G). The club-scoped reads are owner-scoped on
 	// the clubId path param; signup is owner-scoped on its body's clubId.
 	"league.standing":  clubParam("clubId"),

@@ -30,6 +30,7 @@ import { associationContract } from './routes/association';
 import { seasonContract } from './routes/season';
 import { legacyContract, honoursContract } from './routes/legacy';
 import { leagueContract } from './routes/league';
+import { preseasonContract } from './routes/preseason';
 
 // The one shared Villa (V) money formatter (phase-2 L13/D2) - used by both the
 // server's written text and the client so the symbol/format cannot drift.
@@ -73,6 +74,7 @@ export const apiContract = c.router({
   season: seasonContract,
   legacy: legacyContract,
   honours: honoursContract,
+  preseason: preseasonContract,
 });
 
 export * from './replay';
@@ -274,6 +276,24 @@ export {
   SeasonTrackSchema,
 } from './schemas/season-pass';
 export type { SeasonPass, SeasonBank, SeasonObjective, SeasonTrack } from './schemas/season-pass';
+export {
+  PreseasonRewardSchema,
+  PreseasonStageSchema,
+  PreseasonOnboardingStepSchema,
+  PreseasonProgressSchema,
+  PreseasonPlayRequestSchema,
+  PreseasonClaimRequestSchema,
+  PreseasonPlayResultSchema,
+  PreseasonClaimResultSchema,
+} from './schemas/preseason';
+export type {
+  PreseasonReward,
+  PreseasonStage,
+  PreseasonOnboardingStep,
+  PreseasonProgress,
+  PreseasonPlayResult,
+  PreseasonClaimResult,
+} from './schemas/preseason';
 export { ScoutOpponentReportSchema, ThreatReadSchema, ScoutOpponentSchema } from './schemas/scout-screen';
 export type { ScoutOpponentReport, ThreatRead } from './schemas/scout-screen';
 

@@ -40,6 +40,7 @@ import (
 	"fs-pro-server/internal/play"
 	"fs-pro-server/internal/player"
 	"fs-pro-server/internal/policy"
+	"fs-pro-server/internal/preseason"
 	"fs-pro-server/internal/program"
 	"fs-pro-server/internal/season"
 	"fs-pro-server/internal/seasonpass"
@@ -159,6 +160,7 @@ func main() {
 		grid.NewPgOwnership(querier),
 	))
 	play.Register(srv, play.New(playRepo))
+	preseason.Register(srv, preseason.New(preseason.NewRepository(querier)))
 	game.Register(srv, game.New(fixtureRepo))
 	program.Register(srv, program.New(program.NewRepository(querier)))
 	transfer.Register(srv, transfer.New(transfer.NewRepository(querier)))

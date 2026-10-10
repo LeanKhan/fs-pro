@@ -15,6 +15,7 @@ import (
 	"fs-pro-server/internal/db"
 	"fs-pro-server/internal/facilities"
 	"fs-pro-server/internal/grid"
+	"fs-pro-server/internal/league"
 )
 
 func numOf(v any) float64 { return floatOf(v) }
@@ -319,6 +320,16 @@ func (r *Repository) PlayMatch(ctx context.Context, clubID string, opts PlayOpti
 		if cool > 0 {
 			return nil, fmt.Errorf("Your squad is resting - next match in %ds", cool)
 		}
+		// The weekly ranked-attack allowance (04 §4.3): a club that has joined
+		// this week's ladder pool and spent its allowance cannot start another
+		// ranked raid. Practice friendlies already returned above.
+		used, allowed, signedUp, err := r.weeklyAttackAllowance(ctx, clubID, r.clock())
+		if err != nil {
+			return nil, err
+		}
+		if signedUp && used >= allowed {
+			return nil, PlayGateError{weeklyAttackCapMessage(allowed)}
+		}
 	}
 
 	candidates, err := r.opponentCandidates(ctx, club)
@@ -472,3 +483,27 @@ func (r *Repository) currentDayOf(ctx context.Context) (int, error) {
 type PlayGateError struct{ Message string }
 
 func (e PlayGateError) Error() string { return e.Message }
+
+// weeklyAttackAllowance reports a club's current-week ranked-attack state
+// (04 §4.3). signedUp is false when the club has no pool row for the week (it
+// has not joined the ladder), so no cap applies. The allowance is read from the
+// pool's signup league code, so it stays fixed for the week even as the club's
+// Standing moves during it - matching league.poolPayload.
+func (r *Repository) weeklyAttackAllowance(ctx context.Context, clubID string, now time.Time) (used, allowed int, signedUp bool, err error) {
+	row, ok, err := r.one(ctx, `SELECT "LeagueCode","Attacks" FROM "StandingPools" WHERE "WeekKey" = $1 AND "ClubId" = $2`,
+		league.WeekKey(now), clubID)
+	if err != nil {
+		return 0, 0, false, err
+	}
+	if !ok {
+		return 0, 0, false, nil
+	}
+	allowed = league.AttacksPerPool(league.LeagueByCode(db.StringField(row, "LeagueCode")))
+	return intOf(row["Attacks"]), allowed, true, nil
+}
+
+// weeklyAttackCapMessage is the clear 409 reason a capped club sees. Shared by
+// play.playMatch (409) and play.findOpponents (400).
+func weeklyAttackCapMessage(allowed int) string {
+	return fmt.Sprintf("You have used all %d of your weekly ranked attacks - the ladder resets on Monday", allowed)
+}

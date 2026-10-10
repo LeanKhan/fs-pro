@@ -104,7 +104,12 @@ func simCLIPath(t *testing.T) string {
 	_, thisFile, _, _ := runtime.Caller(0)
 	// .../apps/fs-pro-server-go/internal/grid/scenario_test.go -> repo root
 	root := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", "..", "..", ".."))
-	names := []string{"sim_cli", "sim_cli.exe"}
+	names := []string{"sim_cli"}
+	if runtime.GOOS == "windows" {
+		// Windows builds are `sim_cli.exe`; on other platforms only the native
+		// name is valid (a Windows .exe cannot be exec'd in a Linux container).
+		names = append(names, "sim_cli.exe")
+	}
 	dirs := []string{
 		filepath.Join(root, "crates", "sim-core", "target", "debug"),
 		filepath.Join(root, "crates", "sim-core", "target", "debug", "deps"),
