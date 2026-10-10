@@ -75,8 +75,8 @@ pub struct SimConfig {
     pub max_shot_m: f32,
 
     // --- Passes ------------------------------------------------------------
-    /// Base completion: short, backward, wide, long, through, cross.
-    pub pass_base: [f32; 6],
+    /// Base completion: short, backward, wide, long, through, cross, switch.
+    pub pass_base: [f32; 7],
     /// A cross: from at least this far wide, this far up the pitch, into
     /// the box. Won in the air: receiver vs marker, `aerial_scale` points
     /// per log-odds; the header that follows is `header_logit` harder to
@@ -169,6 +169,60 @@ pub struct SimConfig {
     /// carries into his starting stamina.
     pub fitness_carry: f32,
 
+    // --- Gated abilities / manager orders (07 §4-§8) ---------------------
+    /// Utility bonus (in possession-value terms) for a candidate whose
+    /// target lies inside an active order's region.
+    pub order_region_unit: f32,
+    /// Base magnitude of a fired order's modifiers.
+    pub order_magnitude: f32,
+    /// Default duration of a fired order, in match minutes.
+    pub order_default_minutes: f32,
+    /// Pressing-intensity delta while a press order is active.
+    pub order_press_add: f32,
+    /// Defensive-line delta while a block/attack order is active.
+    pub order_line_add: f32,
+    /// Log-odds ceiling on an order's region utility bonus.
+    pub order_bonus: f32,
+
+    // --- Ability mechanism coefficients ---------------------------------
+    /// First-time volley is this many log-odds harder than a settled shot.
+    pub volley_logit: f32,
+    /// Extra log-odds when the volley ability carries a first-time bonus.
+    pub first_time_bonus: f32,
+    /// Cross-field switch (trivela) log-odds bonus.
+    pub trivela_bonus: f32,
+    /// A trivela is only offered beyond this lateral gap (m) and distance (m).
+    pub trivela_min_lateral_m: f32,
+    pub trivela_min_dist_m: f32,
+    /// Sweeper-claim base probability (logit) and skill scaling.
+    pub sweeper_claim_base: f32,
+    pub sweeper_claim_scale: f32,
+    pub sweeper_claim_near: f32,
+    /// The keeper sweeps for a loose ball within this range of his own goal (m).
+    pub sweeper_claim_range_m: f32,
+    /// Threat value of a transition that a tactical foul would break.
+    pub tactical_foul_danger: f32,
+    /// Log-odds of a booking incurred by a tactical foul (extra on top of
+    /// the normal foul model).
+    pub tactical_foul_card: f32,
+    /// Maps tactical-foul EV to a commit probability.
+    pub tactical_foul_commit_scale: f32,
+    /// A first-time volley only becomes a candidate for a ball arriving
+    /// within this distance (m).
+    pub volley_range_m: f32,
+    /// Log-odds per unit of `PlayerEffects::shot_bonus`.
+    pub shot_bonus_scale: f32,
+    /// Log-odds per unit of `PlayerEffects::header_bonus`.
+    pub header_bonus_scale: f32,
+    /// Log-odds per unit of `PlayerEffects::cross_inswing`.
+    pub cross_inswing_bonus: f32,
+    /// Log-odds per unit of `PlayerEffects::interception_bonus`.
+    pub interception_bonus_scale: f32,
+    /// Extra lane width (m) a lane-reading defender can still cut out.
+    pub interception_lane_extra_m: f32,
+    /// Stamina restored (0..100) per unit of `stamina_surge_amount`.
+    pub stamina_surge_scale: f32,
+
     // --- Home advantage --------------------------------------------------------
     /// Home players' skills x (1 + this).
     pub home_advantage: f32,
@@ -218,7 +272,7 @@ pub const CFG: SimConfig = SimConfig {
     on_target_per_m: 0.004,
     max_shot_m: 35.0,
 
-    pass_base: [0.93, 0.97, 0.86, 0.76, 0.3, 0.3],
+    pass_base: [0.93, 0.97, 0.86, 0.76, 0.3, 0.3, 0.7],
     cross_wide_m: 16.0,
     cross_from_fwd_m: 70.0,
     aerial_scale: 30.0,
@@ -274,6 +328,33 @@ pub const CFG: SimConfig = SimConfig {
     lofted_pressure_factor: 0.0,
     shot_crowd: -0.3,
     crowd_m: 10.0,
+
+    order_region_unit: 0.02,
+    order_magnitude: 1.0,
+    order_default_minutes: 15.0,
+    order_press_add: 0.20,
+    order_line_add: 0.12,
+    order_bonus: 1.0,
+
+    volley_logit: -0.35,
+    first_time_bonus: 0.25,
+    trivela_bonus: 0.30,
+    trivela_min_lateral_m: 26.0,
+    trivela_min_dist_m: 22.0,
+    sweeper_claim_base: 0.55,
+    sweeper_claim_scale: 40.0,
+    sweeper_claim_near: 0.6,
+    sweeper_claim_range_m: 30.0,
+    tactical_foul_danger: 1.0,
+    tactical_foul_card: 0.4,
+    tactical_foul_commit_scale: 0.15,
+    volley_range_m: 3.0,
+    shot_bonus_scale: 0.2,
+    header_bonus_scale: 1.0,
+    cross_inswing_bonus: 1.0,
+    interception_bonus_scale: 1.0,
+    interception_lane_extra_m: 1.0,
+    stamina_surge_scale: 1.0,
 
     home_advantage: 0.04,
 };

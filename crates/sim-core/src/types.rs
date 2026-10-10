@@ -75,6 +75,102 @@ pub enum CardState {
     Red,
 }
 
+/// A nudge to a player's behavioural tendencies (`roles::PlayerTendencies`),
+/// resolved once at build time from traits, synergies and abilities. All
+/// fields are added onto the role's base tendency and clamped to 0..1.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+pub struct TendencyDelta {
+    pub shoot: f32,
+    pub dribble: f32,
+    pub risk: f32,
+    pub forward_runs: f32,
+    pub press: f32,
+    pub roam: f32,
+}
+
+impl TendencyDelta {
+    pub const ZERO: TendencyDelta = TendencyDelta { shoot: 0.0, dribble: 0.0, risk: 0.0, forward_runs: 0.0, press: 0.0, roam: 0.0 };
+    pub fn is_zero(&self) -> bool {
+        *self == TendencyDelta::ZERO
+    }
+}
+
+/// Bit tags for actions gated behind a player ability (`RawEffect` kind
+/// `NewAction`). The decider only offers a tagged action when the carrier's
+/// `PlayerEffects.actions` includes it.
+pub mod action {
+    /// Concede a foul on purpose to stop a transition (defensive action).
+    pub const TACTICAL_FOUL: u16 = 1 << 0;
+    /// Shoot first-time from a cross without settling the ball.
+    pub const VOLLEY: u16 = 1 << 1;
+    /// Long cross-field switch played with the outside of the boot.
+    pub const TRIVELA: u16 = 1 << 2;
+    /// A longer, more aggressive through ball into space behind the line.
+    pub const THROUGH_BALL: u16 = 1 << 3;
+    /// Keeper advances to sweep/claim.
+    pub const SWEEPER_RUSH: u16 = 1 << 4;
+}
+
+/// A player's resolved effects: tendency deltas + unlocked actions + passive
+/// modifiers. Built **once** from the request's `RawEffect`s (contract layer),
+/// never recomputed per tick. All-zero means "behaves exactly like today".
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+pub struct PlayerEffects {
+    pub tendency: TendencyDelta,
+    /// Bit set of `action::*` unlocked for this player.
+    pub actions: u16,
+    /// Cross in-swing quality (added to a cross's completion log-odds).
+    pub cross_inswing: f32,
+    /// Extra aerial/header quality (blindside runs and near-post ability).
+    pub header_bonus: f32,
+    /// Log-odds bonus to cutting a pass out (reading the game).
+    pub interception_bonus: f32,
+    /// This defender reads passing lanes (a wider lane is contested).
+    pub interception_lane: bool,
+    /// Activate a stamina surge once when stamina first falls below this
+    /// (0..100). 0 disables it.
+    pub stamina_surge_below: f32,
+    /// Stamina restored (0..100) when the surge fires.
+    pub stamina_surge_amount: f32,
+    /// Log-odds bonus to shot quality.
+    pub shot_bonus: f32,
+    /// The shot-quality bonus applies to first-time returns (volleys).
+    pub shot_first_time: bool,
+}
+
+impl PlayerEffects {
+    pub const NONE: PlayerEffects = PlayerEffects {
+        tendency: TendencyDelta::ZERO,
+        actions: 0,
+        cross_inswing: 0.0,
+        header_bonus: 0.0,
+        interception_bonus: 0.0,
+        interception_lane: false,
+        stamina_surge_below: 0.0,
+        stamina_surge_amount: 0.0,
+        shot_bonus: 0.0,
+        shot_first_time: false,
+    };
+
+    /// Whether the action tag is unlocked.
+    #[inline]
+    pub fn has(&self, tag: u16) -> bool {
+        self.actions & tag != 0
+    }
+
+    /// Unlock an action tag.
+    #[inline]
+    pub fn unlock(&mut self, tag: u16) {
+        self.actions |= tag;
+    }
+
+    /// True when this carries no effect at all (the parity case).
+    #[inline]
+    pub fn is_inert(&self) -> bool {
+        *self == PlayerEffects::NONE
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimPlayer {
     pub id: String,
@@ -97,6 +193,11 @@ pub struct SimPlayer {
     pub role: crate::roles::PlayerRole,
     /// Multiplier on every skill this player uses (home advantage).
     pub boost: f32,
+    /// Resolved traits/abilities: tendency nudges, unlocked actions, and
+    /// passive modifiers. Default (all-zero) is behaviourally identical to
+    /// the pre-abilities engine.
+    #[serde(default)]
+    pub effects: PlayerEffects,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -133,8 +234,6 @@ impl Default for SimBall {
     }
 }
 
-use crate::model::PassKind;
-
 /// What happened, recorded by the engine with squad indices only - the
 /// contract layer turns these into the TypeScript `IMatchEvent` shape
 /// (names, club codes, messages), keeping presentation out of the engine.
@@ -147,6 +246,16 @@ pub enum EventKind {
     Save { penalty: bool },
     Miss { penalty: bool, blocked: bool },
     Foul { card: CardState, penalty: bool },
+    /// A first-time shot without settling the ball (First-Time Volley ability).
+    Volley,
+    /// A cross-field switch played with the outside of the boot (Trivela ability).
+    Trivela,
+    /// A deliberate foul to break up a transition (Tactical Foul ability).
+    TacticalFoul { card: CardState, penalty: bool },
+    /// A manager order ("spell") activated by its trigger.
+    OrderFired,
+    /// A passive ability activated (stamina surge, interception, run...).
+    AbilityFired,
 }
 
 #[derive(Debug, Clone)]
@@ -160,6 +269,10 @@ pub struct EngineEvent {
     /// fouled player.
     pub other: Option<usize>,
     pub xg: Option<f32>,
+    /// Team index for team-level events (orders) that have no actor player.
+    pub team: Option<usize>,
+    /// Free-text label for trigger events: the order kind or ability name.
+    pub note: Option<String>,
 }
 
 /// Per-player match stats, mirroring the TypeScript engine's GameStats so

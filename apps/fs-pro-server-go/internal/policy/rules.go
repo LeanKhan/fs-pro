@@ -133,6 +133,26 @@ var Table = map[string]Rule{
 	"program.requestLoan":       clubParam("clubId"),
 	"program.getProgramChapter": clubParam("clubId"),
 
+	// Campus economy (P1): owner/admin only, clubId path param.
+	"campus.get":              clubParam("clubId"),
+	"campus.upgrade":          clubParam("clubId"),
+	"campus.place":            clubParam("clubId"),
+	"campus.collect":          clubParam("clubId"),
+	"campus.clearObstacle":    clubParam("clubId"),
+	"campus.buyGroundskeeper": clubParam("clubId"),
+
+	// Grid layouts (P3, Agent B). Owner/admin on the club {id}. A share code
+	// (grid.importLayout) is a public puzzle imported into one's own club, so
+	// it is SignedIn and the handler scopes the destination club from the
+	// session.
+	"grid.getLayouts":     clubParam("id"),
+	"grid.getLayout":      clubParam("id"),
+	"grid.putLayout":      clubParam("id"),
+	"grid.validateLayout": clubParam("id"),
+	"grid.publishLayout":  clubParam("id"),
+	"grid.importLayout":   {Kind: SignedIn},
+	"play.scoutOpponent":  {Kind: Handler},
+
 	// Handler-checked routes.
 	"facilities.startUpgrade":         {Kind: Handler},
 	"facilities.savePlacement":        {Kind: Handler},

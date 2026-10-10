@@ -3,7 +3,7 @@
 // Tactical Player Roles & Tendencies.
 // Dictates individual behavioral weights and utility adjustments on the pitch.
 
-use crate::types::{Attributes, PositionCategory};
+use crate::types::{Attributes, PositionCategory, TendencyDelta};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -42,6 +42,37 @@ pub struct PlayerTendencies {
     pub pressing_effort: f32,  // Proactivity in closing down the ball carrier
 }
 
+/// Uppercase and map the grid's archetype aliases (`03` §2.3) onto the
+/// existing role families. Anything unrecognised passes through unchanged
+/// and falls to the `_ => Self::default_for(pos)` arm exactly as before.
+fn normalise_role(role: &str) -> String {
+    let base = role.trim().to_uppercase().replace([' ', '_', '-'], "");
+    match base.as_str() {
+        "ANCHOR" => "CDM".into(),
+        "INFILTRATOR" => "CAM".into(),
+        "SNIPER" => "ST".into(),
+        "FLANKRUSHER" => "LM".into(),
+        "SWARM" => "CM".into(),
+        _ => base,
+    }
+}
+
+impl PlayerTendencies {
+    /// Nudge every tendency by a resolved delta (traits, synergies, abilities)
+    /// and clamp back to 0..1 so a nudge can never leave the model domain.
+    pub fn apply(&mut self, d: &TendencyDelta) {
+        if d.is_zero() {
+            return;
+        }
+        self.shoot_bias = (self.shoot_bias + d.shoot).clamp(0.0, 1.0);
+        self.dribble_bias = (self.dribble_bias + d.dribble).clamp(0.0, 1.0);
+        self.risk_appetite = (self.risk_appetite + d.risk).clamp(0.0, 1.0);
+        self.roaming_freedom = (self.roaming_freedom + d.roam).clamp(0.0, 1.0);
+        self.forward_runs = (self.forward_runs + d.forward_runs).clamp(0.0, 1.0);
+        self.pressing_effort = (self.pressing_effort + d.press).clamp(0.0, 1.0);
+    }
+}
+
 impl PlayerRole {
     pub fn default_for(pos: PositionCategory) -> Self {
         match pos {
@@ -55,9 +86,14 @@ impl PlayerRole {
     /// The role a player actually plays: the squad Role (LB, CDM, ST, ...)
     /// picks the family, attributes pick the variant - a centre-back who
     /// passes better than he defends is a ball-playing defender.
+    ///
+    /// The grid's archetype classes (`03` §2.3: Anchor, Infiltrator, Sniper,
+    /// Flank Rusher, Swarm) are accepted as aliases of the existing roles,
+    /// so no new role enum is needed.
     pub fn from_squad_role(role: Option<&str>, pos: PositionCategory, a: &Attributes) -> Self {
         let avg = |xs: &[f32]| xs.iter().sum::<f32>() / xs.len() as f32;
-        match role.unwrap_or("") {
+        let normalised = normalise_role(role.unwrap_or(""));
+        match normalised.as_str() {
             "GK" => {
                 if avg(&[a.speed, a.short_pass, a.control]) > 62.0 { PlayerRole::SweeperKeeper } else { PlayerRole::TraditionalKeeper }
             }

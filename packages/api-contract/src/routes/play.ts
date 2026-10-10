@@ -17,6 +17,7 @@ import {
   MatchdaySchema,
   PlanPreviewSchema,
 } from '../schemas/match-plan';
+import { ScoutOpponentReportSchema } from '../schemas/scout-screen';
 
 const c = initContract();
 
@@ -196,6 +197,23 @@ export const playContract = c.router(
       body: z.object({}).optional(),
       responses: {
         200: successEnvelope(InboxSchema),
+        400: failEnvelope(),
+        401: failEnvelope(),
+        403: failEnvelope(),
+        404: failEnvelope(),
+      },
+    },
+
+    /** Scout an opponent (docs/coc-mapping/03 §1.7): their Home Grid plus a
+     * coarse threat read, masked by the caller's Scouting facility. Owner only;
+     * never returns the opponent's player names or ratings. */
+    scoutOpponent: {
+      method: 'POST',
+      path: '/:clubId/scout/:oppId',
+      pathParams: z.object({ clubId: z.string(), oppId: z.string() }),
+      body: z.object({}).optional(),
+      responses: {
+        200: successEnvelope(ScoutOpponentReportSchema),
         400: failEnvelope(),
         401: failEnvelope(),
         403: failEnvelope(),

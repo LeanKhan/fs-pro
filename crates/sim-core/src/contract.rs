@@ -6,7 +6,7 @@
 use crate::engine::MatchEngine;
 use crate::geom::Vec2;
 use crate::roles::PlayerRole;
-use crate::tactics::{FormationSlot, TeamTactics};
+use crate::tactics::{FormationSlot, Order, OrderKind, Region, TeamTactics, Trigger, TriggerWhen};
 use crate::types::*;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -87,6 +87,10 @@ pub struct RawPlayer {
     /// `{ type, daysRemaining }` or null.
     #[serde(alias = "Injury", default)]
     pub injury: Option<serde_json::Value>,
+    /// Resolved traits + abilities (07 §1a); empty keeps the pre-abilities
+    /// behaviour exactly.
+    #[serde(default)]
+    pub effects: Vec<RawEffect>,
 }
 
 /// Accepts a JSON string, number or null (shirt numbers arrive as either).
@@ -141,6 +145,61 @@ pub struct RawFormationSlot {
     pub y: Option<f32>,
 }
 
+// ---------------------------------------------------------------------
+// Additive contract additions (docs/coc-mapping/07 §1). All defaulted, so
+// existing callers (Node, current Go) keep working and the engine behaves
+// exactly as today when these are empty.
+// ---------------------------------------------------------------------
+
+/// A normalised region (attacking coordinates: x 0 own goal -> 1 opp goal).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct RawRegion {
+    #[serde(default)]
+    pub x0: f32,
+    #[serde(default)]
+    pub y0: f32,
+    #[serde(default)]
+    pub x1: f32,
+    #[serde(default)]
+    pub y1: f32,
+}
+
+/// When a manager order fires.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct RawTrigger {
+    /// "MinuteAtLeast" | "Trailing" | "Leading" | "Drawing" | "StaminaBelow"
+    /// | "PossessionBelow" | "MomentumBelow" | "ScorelineEquals" | "PhaseIs"
+    /// | "Always". An unknown value is inert.
+    #[serde(default)]
+    pub when: String,
+    #[serde(default)]
+    pub threshold: f32,
+}
+
+/// A manager order ("spell").
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct RawOrder {
+    /// e.g. "OverloadFlank" | "PressTrap" | "LowBlock" | "Attack".
+    #[serde(default)]
+    pub kind: String,
+    #[serde(default)]
+    pub region: Option<RawRegion>,
+    #[serde(default)]
+    pub trigger: RawTrigger,
+}
+
+/// A resolved trait/ability effect. `kind` selects the engine mechanism;
+/// the numbers (content/balance) arrive in `params`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct RawEffect {
+    /// "Tendency" | "NewAction" | "CrossType" | "HeaderQuality" |
+    /// "Interception" | "StaminaSurge" | "ShotQuality".
+    #[serde(default)]
+    pub kind: String,
+    #[serde(default)]
+    pub params: std::collections::BTreeMap<String, f32>,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RawTactic {
     #[serde(alias = "formationName", alias = "Formation")]
@@ -161,6 +220,9 @@ pub struct RawTactic {
     pub positional_discipline: Option<f32>,
     #[serde(alias = "slots", alias = "customSlots")]
     pub slots: Option<Vec<RawFormationSlot>>,
+    /// Manager orders ("spells"); empty keeps the pre-abilities behaviour.
+    #[serde(default)]
+    pub orders: Vec<RawOrder>,
     /// Conditional orders for the second half (see engine::HalfTimeOrders).
     #[serde(alias = "halfTime", default)]
     pub half_time: Option<RawHalfTime>,
@@ -429,7 +491,7 @@ fn build_tactics(raw: Option<&RawTactic>) -> TeamTactics {
         slots.iter().map(parse_formation_slot).collect::<Vec<_>>()
     });
 
-    TeamTactics::new(
+    let mut tactics = TeamTactics::new(
         t.formation_name.as_deref().unwrap_or("433"),
         t.style_name.as_deref(),
         t.pressing_intensity,
@@ -439,7 +501,131 @@ fn build_tactics(raw: Option<&RawTactic>) -> TeamTactics {
         t.directness,
         t.positional_discipline,
         custom_slots,
-    )
+    );
+    tactics.orders = t.orders.iter().filter_map(parse_order).collect();
+    tactics
+}
+
+/// Normalise a config/param key: strip separators, lowercase.
+fn norm_key(s: &str) -> String {
+    s.replace([' ', '_', '-'], "").to_lowercase()
+}
+
+/// Case/separator-insensitive param lookup.
+fn param(r: &RawEffect, query: &str) -> Option<f32> {
+    let q = norm_key(query);
+    r.params.iter().find(|(k, _)| norm_key(k) == q).map(|(_, v)| *v)
+}
+
+fn flag(r: &RawEffect, key: &str) -> bool {
+    param(r, key).is_some_and(|v| v != 0.0)
+}
+
+/// A named action tag (`NewAction` param key or a `kind` that is itself an
+/// ability name).
+fn action_tag(name: &str) -> Option<u16> {
+    match norm_key(name).as_str() {
+        "tacticalfoul" => Some(action::TACTICAL_FOUL),
+        "volley" | "firsttimevolley" => Some(action::VOLLEY),
+        "trivela" | "trivelaswitch" | "switchplay" => Some(action::TRIVELA),
+        "throughball" | "throughballinbehind" | "throughinbehind" => Some(action::THROUGH_BALL),
+        "sweeperrush" | "sweeperkeeperrush" => Some(action::SWEEPER_RUSH),
+        _ => None,
+    }
+}
+
+/// A numeric `action` code (1..5) in a `NewAction` effect's params.
+fn action_tag_from_code(v: f32) -> Option<u16> {
+    match v as i32 {
+        1 => Some(action::TACTICAL_FOUL),
+        2 => Some(action::VOLLEY),
+        3 => Some(action::TRIVELA),
+        4 => Some(action::THROUGH_BALL),
+        5 => Some(action::SWEEPER_RUSH),
+        _ => None,
+    }
+}
+
+fn apply_effect(e: &mut PlayerEffects, r: &RawEffect) {
+    match norm_key(&r.kind).as_str() {
+        "tendency" => {
+            e.tendency.shoot += param(r, "shoot").unwrap_or(0.0);
+            e.tendency.dribble += param(r, "dribble").unwrap_or(0.0);
+            e.tendency.risk += param(r, "risk").unwrap_or(0.0);
+            e.tendency.forward_runs += param(r, "forwardruns").unwrap_or(0.0);
+            e.tendency.press += param(r, "press").unwrap_or(0.0);
+            e.tendency.roam += param(r, "roam").unwrap_or(0.0);
+        }
+        "crosstype" | "cross" => {
+            e.cross_inswing += param(r, "inswing").or(param(r, "bonus")).unwrap_or(0.0);
+        }
+        "headerquality" => {
+            e.header_bonus += param(r, "bonus").unwrap_or(0.0);
+        }
+        "interception" => {
+            e.interception_bonus += param(r, "bonus").unwrap_or(0.0);
+            if flag(r, "lane") {
+                e.interception_lane = true;
+            }
+        }
+        "staminasurge" => {
+            e.stamina_surge_below = param(r, "below").unwrap_or(0.0);
+            e.stamina_surge_amount = param(r, "amount").unwrap_or(0.0);
+        }
+        "shotquality" => {
+            e.shot_bonus += param(r, "bonus").unwrap_or(0.0);
+            if flag(r, "firsttime") {
+                e.shot_first_time = true;
+            }
+        }
+        "newaction" | "action" => {
+            if let Some(t) = param(r, "action").and_then(action_tag_from_code) {
+                e.unlock(t);
+            }
+            for (k, v) in &r.params {
+                if *v != 0.0 && let Some(t) = action_tag(k) {
+                    e.unlock(t);
+                }
+            }
+        }
+        // A `kind` that is itself an ability/action name is accepted too.
+        _ => {
+            if let Some(t) = action_tag(&r.kind) {
+                e.unlock(t);
+            } else if let Some(t) = param(r, "action").and_then(action_tag_from_code) {
+                e.unlock(t);
+            }
+        }
+    }
+}
+
+/// Resolve a player's `RawEffect`s once, at build time (07 §1a/§2).
+pub fn resolve_effects(raw: &[RawEffect]) -> PlayerEffects {
+    let mut e = PlayerEffects::NONE;
+    for r in raw {
+        apply_effect(&mut e, r);
+    }
+    e
+}
+
+fn parse_region(r: &RawRegion) -> Region {
+    Region {
+        x0: r.x0.min(r.x1).clamp(0.0, 1.0),
+        y0: r.y0.min(r.y1).clamp(0.0, 1.0),
+        x1: r.x0.max(r.x1).clamp(0.0, 1.0),
+        y1: r.y0.max(r.y1).clamp(0.0, 1.0),
+    }
+}
+
+/// Parse a manager order; `None` for an unknown kind (dropped, not guessed).
+pub fn parse_order(raw: &RawOrder) -> Option<Order> {
+    let kind = OrderKind::parse(&raw.kind)?;
+    Some(Order {
+        kind,
+        raw_kind: raw.kind.clone(),
+        region: raw.region.as_ref().map(parse_region),
+        trigger: Trigger { when: TriggerWhen::parse(&raw.trigger.when), threshold: raw.trigger.threshold },
+    })
 }
 
 /// Seed string -> RNG seed, with stable 64-bit FNV-1a. Unlike std's
@@ -644,11 +830,7 @@ fn ts_event(ev: &EngineEvent, players: &[SimPlayer; 22], codes: [&str; 2]) -> Ts
             ("miss", msg, Some(data))
         }
         EventKind::Foul { card, penalty } => {
-            let card_name = match card {
-                CardState::Yellow => Some("yellow"),
-                CardState::Red => Some("red"),
-                CardState::None => None,
-            };
+            let card_name = card_label(card);
             let mut msg = format!(
                 "Foul by {} on {}",
                 ev.player.map(label).unwrap_or_default(),
@@ -662,15 +844,57 @@ fn ts_event(ev: &EngineEvent, players: &[SimPlayer; 22], codes: [&str; 2]) -> Ts
             }
             ("foul", msg, Some(json!({ "card": card_name, "penalty": penalty })))
         }
+        EventKind::TacticalFoul { card, penalty } => {
+            let card_name = card_label(card);
+            let mut msg = format!(
+                "Tactical foul by {} on {}",
+                ev.player.map(label).unwrap_or_default(),
+                ev.other.map(name).unwrap_or_default()
+            );
+            if let Some(c) = card_name {
+                msg.push_str(&format!(" ({} card)", c));
+            }
+            if penalty {
+                msg.push_str(" - penalty!");
+            }
+            ("foul", msg, Some(json!({ "card": card_name, "penalty": penalty, "tactical": true })))
+        }
+        EventKind::Volley => {
+            let data = ev.note.as_ref().map(|n| json!({ "ability": n }));
+            ("volley", format!("{} volleys it", ev.player.map(label).unwrap_or_default()), data)
+        }
+        EventKind::Trivela => {
+            let data = ev.note.as_ref().map(|n| json!({ "ability": n }));
+            ("trivela", format!("{} switches play with a trivela", ev.player.map(label).unwrap_or_default()), data)
+        }
+        EventKind::OrderFired => {
+            let note = ev.note.clone().unwrap_or_default();
+            ("order", format!("Manager order: {note}"), Some(json!({ "order": ev.note })))
+        }
+        EventKind::AbilityFired => {
+            let note = ev.note.clone().unwrap_or_default();
+            let data = json!({ "ability": ev.note });
+            ("ability", format!("{} activates {}", ev.player.map(name).unwrap_or_default(), note), Some(data))
+        }
     };
+    let team_idx = ev.player.map(|i| players[i].team_index).or(ev.team);
 
     TsEvent {
         event_type: event_type.to_string(),
         message,
         time: minute,
         player_id: ev.player.and_then(real_id),
-        player_team_id: ev.player.map(|i| codes[players[i].team_index].to_string()),
+        player_team_id: team_idx.map(|t| codes[t].to_string()),
         data,
+    }
+}
+
+/// The card label used in foul events (and its JSON null counterpart).
+fn card_label(card: CardState) -> Option<&'static str> {
+    match card {
+        CardState::Yellow => Some("yellow"),
+        CardState::Red => Some("red"),
+        CardState::None => None,
     }
 }
 
@@ -717,6 +941,7 @@ fn build_squad(club: &RawClub, slots: &[FormationSlot; 11], team_idx: usize) -> 
                     team_index: team_idx,
                     squad_index: i,
                     shirt_number: p.shirt_number.clone().unwrap_or_else(|| (i + 1).to_string()),
+                    effects: resolve_effects(&p.effects),
                 }
             }
             // Squad too small: a stand-in for the slot's line.
@@ -738,6 +963,7 @@ fn build_squad(club: &RawClub, slots: &[FormationSlot; 11], team_idx: usize) -> 
                 team_index: team_idx,
                 squad_index: i,
                 shirt_number: (i + 1).to_string(),
+                effects: PlayerEffects::NONE,
             },
         })
         .collect()

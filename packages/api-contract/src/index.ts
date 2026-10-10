@@ -23,6 +23,8 @@ import { competitionDefinitionsContract } from './routes/competition-definitions
 import { atlasContract } from './routes/atlas';
 import { tilesContract } from './routes/tiles';
 import { programContract } from './routes/program';
+import { campusContract } from './routes/campus';
+import { gridContract } from './routes/grid';
 
 // The one shared Villa (V) money formatter (phase-2 L13/D2) - used by both the
 // server's written text and the client so the symbol/format cannot drift.
@@ -56,6 +58,8 @@ export const apiContract = c.router({
   atlas: atlasContract,
   tiles: tilesContract,
   program: programContract,
+  campus: campusContract,
+  grid: gridContract,
 });
 
 export * from './replay';
@@ -183,6 +187,71 @@ export * from './world-geo';
 export * from './world-calendar';
 export * from './crest';
 export * from './schemas/atlas';
+
+// Campus economy + the CoC-mapping system shapes (docs/coc-mapping 02/04).
+export {
+  CampusCurrencySchema,
+  CampusStateSchema,
+  CollectorStateSchema,
+  VaultStateSchema,
+  CampusGroundskeeperSchema,
+  CampusObstacleSchema,
+  CampusAssetStateSchema,
+  CampusAssetUpgradeSchema,
+  CampusAssetNextSchema,
+  ClubhouseStateSchema,
+  UpgradeRequestSchema,
+  PlaceRequestSchema,
+  CollectRequestSchema,
+  ClearObstacleRequestSchema,
+  BuyGroundskeeperRequestSchema,
+} from './schemas/coc-campus';
+export type {
+  CampusCurrency,
+  CampusState,
+  CollectorState,
+  VaultState,
+  CampusGroundskeeper,
+  CampusObstacle,
+  CampusAssetState,
+  ClubhouseState,
+} from './schemas/coc-campus';
+export * from './schemas/layout';
+export {
+  AbilitySchema,
+  MasterySchema,
+  TraitSchema,
+  OrderSchema,
+  AbilityTriggerSchema,
+  TraitRaritySchema,
+  OrderRegionSchema,
+} from './schemas/ability';
+export type { Ability, Mastery, Trait, Order } from './schemas/ability';
+export {
+  StandingSchema,
+  StandingLeagueSchema,
+  StandingPoolSchema,
+  FormBonusSchema,
+} from './schemas/standing';
+export type { Standing, StandingLeague, StandingPool, FormBonus } from './schemas/standing';
+export {
+  AssociationSchema,
+  AssociationLoanSchema,
+  DerbySchema,
+  AssociationGroundsSchema,
+  AssociationRoleSchema,
+  DerbyPhaseSchema,
+} from './schemas/association';
+export type { Association, AssociationLoan, Derby, AssociationGrounds } from './schemas/association';
+export {
+  SeasonPassSchema,
+  SeasonBankSchema,
+  SeasonObjectiveSchema,
+  SeasonTrackSchema,
+} from './schemas/season-pass';
+export type { SeasonPass, SeasonBank, SeasonObjective, SeasonTrack } from './schemas/season-pass';
+export { ScoutOpponentReportSchema, ThreatReadSchema, ScoutOpponentSchema } from './schemas/scout-screen';
+export type { ScoutOpponentReport, ThreatRead } from './schemas/scout-screen';
 
 // World-service (Go) endpoint shapes - see docs/perfect/WORLD-SERVICE-CONTRACT.md.
 // Node does not serve these; it calls them via

@@ -10,6 +10,7 @@ import (
 
 	"fs-pro-server/internal/auth"
 	"fs-pro-server/internal/db"
+	"fs-pro-server/internal/grid"
 	"fs-pro-server/internal/httpapi"
 )
 
@@ -34,6 +35,10 @@ func (h *Handlers) requireClub(cx *httpapi.Context, r *http.Request) (httpapi.Re
 // Handlers implements the play.* routes.
 type Handlers struct {
 	repo *Repository
+	// grids/clubs back the scout screen. They are nil in production (the
+	// pgx-backed defaults wrap repo.Q()); tests inject fakes.
+	grids grid.Repository
+	clubs grid.ClubReader
 }
 
 // New builds the handler set.

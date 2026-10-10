@@ -19,4 +19,5 @@ func Register(s *httpapi.Server, h *Handlers) {
 	s.Register("play.saveMatchPlan", http.MethodPut, "/api/play/{clubId}/fixtures/{fixtureId}/plan", []int{200, 400, 401, 403, 404}, h.saveMatchPlan)
 	s.Register("play.previewMatchPlan", http.MethodPost, "/api/play/{clubId}/fixtures/{fixtureId}/preview", []int{200, 400, 401, 403, 404}, h.previewMatchPlan)
 	s.Register("play.markInboxRead", http.MethodPost, "/api/play/{clubId}/inbox/read", []int{200, 400, 401, 403, 404}, h.markInboxRead)
+	s.Register("play.scoutOpponent", http.MethodPost, "/api/play/{clubId}/scout/{oppId}", []int{200, 400, 401, 403, 404}, h.scoutOpponent)
 }

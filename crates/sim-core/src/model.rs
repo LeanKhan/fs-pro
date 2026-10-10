@@ -125,6 +125,11 @@ fn heading(a: &Attributes) -> f32 {
     a.strength * 0.35 + a.positioning * 0.35 + a.shooting * 0.2 + a.agility * 0.1
 }
 
+/// Striking a moving ball first time: shooting plus control and agility.
+fn volleying(a: &Attributes) -> f32 {
+    a.shooting * 0.45 + a.control * 0.25 + a.agility * 0.15 + a.mental * 0.15
+}
+
 /// Winning a ball in the air: getting there, and out-muscling your man.
 fn aerial(a: &Attributes) -> f32 {
     a.strength * 0.4 + a.positioning * 0.4 + a.agility * 0.2
@@ -169,6 +174,8 @@ pub enum ShotKind {
     OpenPlay,
     /// First-time header from a cross.
     Header,
+    /// First-time strike without settling the ball (First-Time Volley).
+    Volley,
     Penalty,
 }
 
@@ -184,6 +191,20 @@ pub struct ShotModel {
 }
 
 pub fn shot_model(shooter: &SimPlayer, keeper: Option<&SimPlayer>, players: &[SimPlayer], ltr: bool, kind: ShotKind) -> ShotModel {
+    shot_model_impl(shooter, keeper, players, ltr, kind, true)
+}
+
+/// The shot model **without** resolved ability bonuses. This is the currency
+/// the decider values a shot with: the decider's softmax temperature is in
+/// possession-value units (~0.01), so feeding a p_goal-level bonus into the
+/// shoot/hold EV would swamp every other option and make an equipped side
+/// shoot far too often. Innate finishing quality therefore changes the
+/// *outcome* (which `shot_model` resolves), not the *choice*.
+pub fn shot_model_plain(shooter: &SimPlayer, keeper: Option<&SimPlayer>, players: &[SimPlayer], ltr: bool, kind: ShotKind) -> ShotModel {
+    shot_model_impl(shooter, keeper, players, ltr, kind, false)
+}
+
+fn shot_model_impl(shooter: &SimPlayer, keeper: Option<&SimPlayer>, players: &[SimPlayer], ltr: bool, kind: ShotKind, use_effects: bool) -> ShotModel {
     let goal = goal_of(ltr);
     let depth = (LEN - fwd_m(shooter.pos, ltr)).max(1.0);
     let lateral = ((shooter.pos.y - 0.5) * WID).abs();
@@ -206,16 +227,38 @@ pub fn shot_model(shooter: &SimPlayer, keeper: Option<&SimPlayer>, players: &[Si
 
     let (situation, shooter_skill) = match kind {
         ShotKind::Penalty => (logit(CFG.penalty_xg), penalty_taking(&shooter.attributes)),
-        ShotKind::OpenPlay | ShotKind::Header => (
-            if kind == ShotKind::Header { CFG.header_logit } else { 0.0 }
+        ShotKind::OpenPlay | ShotKind::Header | ShotKind::Volley => (
+            match kind {
+                ShotKind::Header => CFG.header_logit,
+                ShotKind::Volley => CFG.volley_logit,
+                _ => 0.0,
+            }
                 + CFG.shot_intercept
                 + CFG.shot_angle * angle
                 + CFG.shot_distance * distance
                 + CFG.shot_blocker * blockers as f32
                 + CFG.shot_pressure * pressure as f32
                 + CFG.shot_crowd * crowd as f32
-                + if clear_through { CFG.shot_one_on_one } else { 0.0 },
-            if kind == ShotKind::Header { heading(&shooter.attributes) } else { finishing(&shooter.attributes, distance) },
+                + if clear_through { CFG.shot_one_on_one } else { 0.0 }
+                // Resolved ability modifiers (zero when the player has none,
+                // or when the caller wants the effect-free valuation).
+                // A ShotQuality bonus is for shots with the feet; headers are
+                // governed by HeaderQuality.
+                + if use_effects {
+                    if kind == ShotKind::Header {
+                        shooter.effects.header_bonus * CFG.header_bonus_scale
+                    } else {
+                        shooter.effects.shot_bonus * CFG.shot_bonus_scale
+                    }
+                } else {
+                    0.0
+                }
+                + if use_effects && kind == ShotKind::Volley && shooter.effects.shot_first_time { CFG.first_time_bonus } else { 0.0 },
+            match kind {
+                ShotKind::Header => heading(&shooter.attributes),
+                ShotKind::Volley => volleying(&shooter.attributes),
+                _ => finishing(&shooter.attributes, distance),
+            },
         ),
     };
     let shooter_skill = effective(shooter, shooter_skill);
@@ -250,6 +293,8 @@ pub enum PassKind {
     Through,
     /// From a wide position into the box, to be won in the air.
     Cross,
+    /// A long cross-field switch (the Trivela ability's long pass).
+    Switch,
 }
 
 impl PassKind {
@@ -285,6 +330,7 @@ fn passing(a: &Attributes, kind: PassKind) -> f32 {
         PassKind::Long => a.long_pass * 0.55 + a.vision * 0.25 + a.mental * 0.2,
         PassKind::Through => a.vision * 0.45 + a.long_pass * 0.35 + a.mental * 0.2,
         PassKind::Cross => a.crossing * 0.6 + a.vision * 0.2 + a.long_pass * 0.2,
+        PassKind::Switch => a.long_pass * 0.4 + a.crossing * 0.25 + a.vision * 0.2 + a.control * 0.15,
     }
 }
 
@@ -318,7 +364,9 @@ pub fn pass_model(passer: &SimPlayer, receiver: &SimPlayer, target: Vec2, kind: 
             continue;
         }
         let off = seg_dist_m(d.pos, passer.pos, target);
-        if off <= CFG.lane_m {
+        // A lane-reading defender (Interception ability) contests a wider lane.
+        let lane = CFG.lane_m + if d.effects.interception_lane { CFG.interception_lane_extra_m } else { 0.0 };
+        if off <= lane {
             blockers += 1;
             if off < closest {
                 closest = off;
@@ -331,12 +379,15 @@ pub fn pass_model(passer: &SimPlayer, receiver: &SimPlayer, target: Vec2, kind: 
         + CFG.tempo_pass_logit * (tempo - 0.5)
         + CFG.pass_per_m * (distance - CFG.pass_comfortable_m).max(0.0)
         + CFG.pass_passer_pressure
-            * if matches!(kind, PassKind::Long | PassKind::Through) { CFG.lofted_pressure_factor } else { 1.0 }
+            * if matches!(kind, PassKind::Long | PassKind::Through | PassKind::Switch) { CFG.lofted_pressure_factor } else { 1.0 }
             * pressure_at(passer.pos, players, team, CFG.pressure_m).min(3) as f32
         + CFG.pass_receiver_pressure * pressure_at(target, players, team, CFG.pressure_m + 0.5).min(3) as f32
         + CFG.pass_blocker * blockers.min(2) as f32
         + (effective(passer, passing(&passer.attributes, kind)) - CFG.skill_pivot) / CFG.passer_scale
-        + if kind == PassKind::Cross { 0.0 } else { (effective(receiver, first_touch(&receiver.attributes)) - CFG.skill_pivot) / (2.0 * CFG.passer_scale) };
+        + if kind == PassKind::Cross { 0.0 } else { (effective(receiver, first_touch(&receiver.attributes)) - CFG.skill_pivot) / (2.0 * CFG.passer_scale) }
+        // Resolved ability modifiers (zero when the player has none).
+        + if kind == PassKind::Cross { passer.effects.cross_inswing * CFG.cross_inswing_bonus } else { 0.0 }
+        + if kind == PassKind::Switch && passer.effects.has(crate::types::action::TRIVELA) { CFG.trivela_bonus } else { 0.0 };
 
     if kind == PassKind::Cross {
         // Won in the air against the nearest defender to where it lands.
@@ -352,7 +403,8 @@ pub fn pass_model(passer: &SimPlayer, receiver: &SimPlayer, target: Vec2, kind: 
     }
 
     if let Some(i) = interceptor {
-        l -= (effective(&players[i], reading_the_game(&players[i].attributes)) - CFG.skill_pivot) / CFG.interceptor_scale;
+        l -= (effective(&players[i], reading_the_game(&players[i].attributes)) - CFG.skill_pivot) / CFG.interceptor_scale
+            + players[i].effects.interception_bonus * CFG.interception_bonus_scale;
     }
 
     if kind == PassKind::Through {
@@ -386,6 +438,71 @@ pub fn through_target(receiver: &SimPlayer, line_m: f32, ltr: bool) -> Option<Ve
     let y = receiver.pos.y + (0.5 - receiver.pos.y) * 0.25;
     let x = if ltr { target_fwd / LEN } else { 1.0 - target_fwd / LEN };
     Some(Vec2::new(x, y))
+}
+
+/// Like `through_target`, but the Through-Ball-in-Behind ability plays the
+/// ball further into the space behind a HIGH line (a longer run into more
+/// grass). None when there isn't enough room to be worth it.
+pub fn through_in_behind_target(receiver: &SimPlayer, line_m: f32, ltr: bool) -> Option<Vec2> {
+    let fwd = fwd_m(receiver.pos, ltr);
+    if line_m - fwd > CFG.through_reach_m {
+        return None;
+    }
+    let target_fwd = (line_m + CFG.through_run_m * 2.0).min(LEN - 12.0);
+    if target_fwd - line_m < 6.0 {
+        return None;
+    }
+    let y = receiver.pos.y + (0.5 - receiver.pos.y) * 0.15;
+    let x = if ltr { target_fwd / LEN } else { 1.0 - target_fwd / LEN };
+    Some(Vec2::new(x, y))
+}
+
+// ---------------------------------------------------------------------
+// Gated abilities: pure, RNG-free action probabilities (07 §6). Each of
+// these is the SAME function the engine resolves the action with, so the
+// decider's EV and the outcome can never disagree.
+// ---------------------------------------------------------------------
+
+/// Situation xG of a first-time volley - `shot_model` with `ShotKind::Volley`.
+pub fn volley_xg(shooter: &SimPlayer, keeper: Option<&SimPlayer>, players: &[SimPlayer], ltr: bool) -> f32 {
+    shot_model(shooter, keeper, players, ltr, ShotKind::Volley).xg
+}
+
+/// Completion of a long cross-field trivela switch - `pass_model` with
+/// `PassKind::Switch` (which carries the trivela bonus when unlocked).
+pub fn trivela_switch_probability(passer: &SimPlayer, receiver: &SimPlayer, target: Vec2, players: &[SimPlayer]) -> f32 {
+    pass_model(passer, receiver, target, PassKind::Switch, players, 0.5).p_complete
+}
+
+/// P(the keeper reaches and claims a ball at `ball`), by handling, speed and
+/// how close it is to his own goal. Zero beyond the sweeping range.
+pub fn sweeper_claim_probability(keeper: &SimPlayer, ball: Vec2, ltr: bool) -> f32 {
+    let own_goal = goal_of(!ltr);
+    let d = dist_m(ball, own_goal);
+    if d > CFG.sweeper_claim_range_m {
+        return 0.0;
+    }
+    let near = 1.0 - (d / CFG.sweeper_claim_range_m).clamp(0.0, 1.0);
+    let handling = effective(keeper, goalkeeping(&keeper.attributes));
+    let rush = effective(keeper, keeper.attributes.speed * 0.6 + keeper.attributes.agility * 0.4);
+    sigmoid(
+        logit(CFG.sweeper_claim_base)
+            + (handling - CFG.skill_pivot) / CFG.sweeper_claim_scale
+            + (rush - CFG.skill_pivot) / (2.0 * CFG.sweeper_claim_scale)
+            + CFG.sweeper_claim_near * near,
+    )
+    .clamp(0.0, 0.95)
+}
+
+/// The value (in possession-value terms) of conceding a foul to stop the
+/// carrier's transition: what the attack threatens, less the card risk.
+pub fn tactical_foul_value(defender: &SimPlayer, carrier: &SimPlayer, ltr: bool, score_diff: i32, minute: f32) -> f32 {
+    let threat = possession_value(carrier.pos, ltr);
+    let timing = if minute >= 75.0 { 1.25 } else { 1.0 };
+    let chasing = if score_diff < 0 { 1.15 } else { 1.0 };
+    let discipline = (defender.attributes.aggression - 50.0) / 500.0;
+    let booked = if defender.cards == crate::types::CardState::Yellow { 1.0 } else { 0.0 };
+    threat * CFG.tactical_foul_danger * timing * chasing + discipline - CFG.tactical_foul_card * booked
 }
 
 // ---------------------------------------------------------------------

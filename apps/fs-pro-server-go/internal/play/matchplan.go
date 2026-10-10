@@ -10,6 +10,7 @@ import (
 
 	"fs-pro-server/internal/clients"
 	"fs-pro-server/internal/db"
+	"fs-pro-server/internal/grid"
 )
 
 // Match-day plan, ported from services/play/match-plan.service.ts +
@@ -892,17 +893,22 @@ func (r *Repository) buildSimRequestWithTactics(ctx context.Context, fixtureID, 
 	if err != nil {
 		return nil, err
 	}
-	clubJSON := func(c map[string]any, players []any) map[string]any {
+	// A stored grid overrides the formation anchors with freeform `slots`. The
+	// maps are copied, never mutated, so a caller reusing `opp["Tactic"]` is safe.
+	layoutRepo := r.layoutRepo()
+	homeTactic = withStoredLayout(ctx, layoutRepo, homeID, grid.Match, homeTactic)
+	awayTactic = withStoredLayout(ctx, layoutRepo, awayID, grid.Match, awayTactic)
+	clubJSON := func(c map[string]any, players []any, tactic map[string]any) map[string]any {
 		return map[string]any{
 			"_id": db.StringField(c, "_id"), "Name": db.StringField(c, "Name"),
 			"ClubCode": db.StringField(c, "ClubCode"), "ManagerId": nullableString2(db.StringField(c, "ManagerId")),
-			"Tactic": tacticOr(homeTactic, c), "Players": players, "Lineup": c["Lineup"],
+			"Tactic": tacticOr(tactic, c), "Players": players, "Lineup": c["Lineup"],
 		}
 	}
 	return map[string]any{
 		"fixtureId": fixtureID, "seed": randUUID(),
 		"sides":         map[string]any{"home": homeID, "away": awayID},
-		"clubs":         []any{clubJSON(home, hp), clubJSON(away, ap)},
+		"clubs":         []any{clubJSON(home, hp, homeTactic), clubJSON(away, ap, awayTactic)},
 		"tactics":       map[string]any{"home": homeTactic, "away": awayTactic},
 		"includeFrames": frames,
 	}, nil

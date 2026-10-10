@@ -15,6 +15,7 @@ import (
 	"fs-pro-server/internal/clients"
 	"fs-pro-server/internal/db"
 	"fs-pro-server/internal/facilities"
+	"fs-pro-server/internal/grid"
 )
 
 func numOf(v any) float64 { return floatOf(v) }
@@ -278,12 +279,18 @@ func (r *Repository) buildSimRequest(ctx context.Context, fixtureID string, home
 			"Tactic": tacticOf(c), "Players": players, "Lineup": c["Lineup"],
 		}
 	}
+	// The acting side (home) attacks with its Match grid; the opponent defends
+	// with its Home grid. A stored grid compiles to freeform `slots`; without
+	// one the formation stands.
+	layoutRepo := r.layoutRepo()
+	homeTactic := withStoredLayout(ctx, layoutRepo, db.StringField(home, "_id"), grid.Match, tacticOf(home))
+	awayTactic := withStoredLayout(ctx, layoutRepo, db.StringField(away, "_id"), grid.Home, tacticOf(away))
 	return map[string]any{
 		"fixtureId":     fixtureID,
 		"seed":          randUUID(),
 		"sides":         map[string]any{"home": db.StringField(home, "_id"), "away": db.StringField(away, "_id")},
 		"clubs":         []any{clubJSON(home, homePlayers), clubJSON(away, awayPlayers)},
-		"tactics":       map[string]any{"home": tacticOf(home), "away": tacticOf(away)},
+		"tactics":       map[string]any{"home": homeTactic, "away": awayTactic},
 		"fixtureType":   "friendly",
 		"stage":         "friendly",
 		"isKnockout":    false,

@@ -19,7 +19,7 @@ const baseUrl = process.argv[2] || process.env.BASE_URL || 'http://localhost:300
 const CHECKED_PREFIXES = [
   'meta.', 'users.', 'clubs.', 'players.', 'managers.',
   'fixtures.', 'calendar.', 'seasons.', 'awards.', 'places.',
-  'play.', 'game.', 'facilities.', 'program.',
+  'play.', 'game.', 'facilities.', 'program.', 'campus.', 'grid.',
   'transfers.', 'editions.', 'challenges.', 'competitionDefinitions.',
   'world.', 'atlas.', 'tiles.',
 ];

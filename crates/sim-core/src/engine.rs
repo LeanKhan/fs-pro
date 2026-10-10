@@ -6,10 +6,10 @@
 // Decider used to choose the action.
 
 use crate::config::CFG;
-use crate::decider::{self, ActionChoice};
+use crate::decider::{self, ActionChoice, DecideCtx, RegionBias};
 use crate::geom::{Vec2, PITCH_LENGTH_METERS};
 use crate::model::{self, PassKind, ShotKind};
-use crate::tactics::{compute_dynamic_anchor, formation_matchup, style_matchup, TeamTactics};
+use crate::tactics::{compute_dynamic_anchor, formation_matchup, style_matchup, ActiveOrder, OrderKind, OrderMods, TeamTactics, Trigger, TriggerWhen};
 use crate::types::*;
 use rand::Rng;
 use rand::SeedableRng;
@@ -18,6 +18,12 @@ use rand_xoshiro::Xoshiro256PlusPlus;
 pub const TICKS_PER_MINUTE: u16 = 8;
 pub const HALF_TIME_TICK: u16 = 45 * TICKS_PER_MINUTE; // 360
 pub const FULL_TIME_TICK: u16 = 90 * TICKS_PER_MINUTE; // 720
+
+/// Seed epoch for the derived "effects" RNG substream (07 §7a, option A).
+/// The main stream is never touched when `orders`/`effects` are empty; every
+/// genuinely new draw (tactical-foul commit, sweeper claim) comes from here,
+/// so existing matches stay byte-identical.
+const FX_SEED: u64 = 0x5dee_ce66_d1ce_1bad;
 
 /// Player-rating points per action - the same weights as the TypeScript
 /// engine's `GamePoints`, so MOTM and stored match ratings mean the same.
@@ -35,10 +41,11 @@ mod points {
 /// match output.
 #[derive(Debug, Clone, Default)]
 pub struct Diagnostics {
-    /// Shoot, pass, carry, take-on, hold, clear.
-    pub decisions: [u32; 6],
-    /// Short, backward, wide, long, through, cross.
-    pub pass_kinds: [u32; 6],
+    /// Shoot, pass, carry, take-on, hold, clear, volley, trivela,
+    /// through-in-behind, tactical foul, sweeper rush.
+    pub decisions: [u32; 11],
+    /// Short, backward, wide, long, through, cross, switch.
+    pub pass_kinds: [u32; 7],
     /// Open-play shots by distance: <8m, 8-12, 12-16.5, 16.5-25, 25+.
     pub shot_distance: [u32; 5],
     pub headers: u32,
@@ -48,6 +55,42 @@ pub struct Diagnostics {
     pub penalties: u32,
     pub contact_ticks: u32,
     pub challenges: u32,
+    /// Gated-ability / order activity.
+    pub orders_fired: u32,
+    pub abilities_fired: u32,
+    pub tactical_fouls: u32,
+    pub volleys: u32,
+    pub trivelas: u32,
+    pub through_behinds: u32,
+    pub sweeper_rush: u32,
+}
+
+/// The match facts a trigger reads (07 §2.6).
+#[derive(Debug, Clone, Copy)]
+struct TriggerState {
+    minute: f32,
+    diff: i32,
+    stamina: f32,
+    possession_pct: f32,
+    momentum: f32,
+    phase: f32,
+}
+
+/// Whether a trigger matches the current state. Pure.
+fn trigger_matches(t: Trigger, s: &TriggerState) -> bool {
+    match t.when {
+        TriggerWhen::Always => true,
+        TriggerWhen::Never => false,
+        TriggerWhen::MinuteAtLeast => s.minute >= t.threshold,
+        TriggerWhen::Trailing => s.diff < 0,
+        TriggerWhen::Leading => s.diff > 0,
+        TriggerWhen::Drawing => s.diff == 0,
+        TriggerWhen::StaminaBelow => s.stamina < t.threshold,
+        TriggerWhen::PossessionBelow => s.possession_pct < t.threshold,
+        TriggerWhen::MomentumBelow => s.momentum < t.threshold,
+        TriggerWhen::ScorelineEquals => s.diff as f32 == t.threshold,
+        TriggerWhen::PhaseIs => s.phase == t.threshold,
+    }
 }
 
 /// Conditional half-time orders: the style to switch to, by the score at
@@ -82,8 +125,24 @@ pub struct MatchEngine {
     /// (sent off, yellows, reds) as of the last captured frame.
     last_status: [(bool, u8, u8); 22],
     pub rng: Xoshiro256PlusPlus,
+    /// The derived effects substream (07 §7a, option A). Drawn from ONLY when
+    /// an ability with a genuinely new random outcome is resolved, so an
+    /// effects-free request consumes zero extra draws and is byte-identical.
+    pub fx: Xoshiro256PlusPlus,
     pub current_tick: u16,
     pub attacking_left_to_right_home: bool,
+    /// Orders currently in force per side, expiring at `until_tick`.
+    pub active_orders: [Vec<ActiveOrder>; 2],
+    /// Fast flags: skip the trigger/stamina work entirely when the request
+    /// carries no orders/effects (the parity case).
+    has_orders: bool,
+    has_surge: bool,
+    /// Which of each side's orders have already fired this match.
+    fired: [Vec<bool>; 2],
+    /// One-shot stamina surges already consumed, per player.
+    surge_used: [bool; 22],
+    /// The receiver of the last cross/long ball, eligible to volley next tick.
+    volley_window: Option<usize>,
     /// Last completed pass (passer, receiver) in the current possession -
     /// the receiver scoring credits the passer with the assist.
     last_pass: Option<(usize, usize)>,
@@ -126,6 +185,8 @@ impl MatchEngine {
             players[11 + i].boost = 1.0;
         }
 
+        let order_counts = [home_tactics.orders.len(), away_tactics.orders.len()];
+        let has_surge = players.iter().any(|p| p.effects.stamina_surge_below > 0.0);
         let mut engine = Self {
             players,
             ball: SimBall::default(),
@@ -142,8 +203,15 @@ impl MatchEngine {
             record_frames: true,
             last_status: [(false, 0, 0); 22],
             rng: Xoshiro256PlusPlus::seed_from_u64(seed),
+            fx: Xoshiro256PlusPlus::seed_from_u64(seed ^ FX_SEED),
             current_tick: 0,
             attacking_left_to_right_home: true,
+            active_orders: [Vec::new(), Vec::new()],
+            has_orders: order_counts[0] + order_counts[1] > 0,
+            has_surge,
+            fired: [vec![false; order_counts[0]], vec![false; order_counts[1]]],
+            surge_used: [false; 22],
+            volley_window: None,
             last_pass: None,
             diag: Diagnostics::default(),
             trace: None,
@@ -181,6 +249,11 @@ impl MatchEngine {
             self.record(tick, EventKind::KickOff, None, None, None);
         }
 
+        // Manager orders / abilities fire at tick boundaries (07 §7).
+        if self.has_orders {
+            self.eval_triggers(tick);
+        }
+
         if tick == HALF_TIME_TICK {
             self.half_time_score = (self.home_stats.score, self.away_stats.score);
             self.record(tick, EventKind::HalfTime, None, None, None);
@@ -204,6 +277,11 @@ impl MatchEngine {
                 self.handle_ball_carrier(holder, minute, tick);
             }
             None => self.collect_loose_ball(),
+        }
+
+        // Passive ability activation (e.g. Talisman Second Wind).
+        if self.has_surge {
+            self.apply_stamina_surges(tick);
         }
 
         if self.record_frames {
@@ -252,10 +330,153 @@ impl MatchEngine {
     }
 
     fn record(&mut self, tick: u16, kind: EventKind, player: Option<usize>, other: Option<usize>, xg: Option<f32>) {
+        let team = player.map(|i| self.players[i].team_index);
+        self.push_event(tick, kind, player, other, xg, team, None);
+    }
+
+    /// A team-level event (a fired manager order) with no actor player.
+    fn record_team(&mut self, tick: u16, kind: EventKind, team: usize, note: &str, xg: Option<f32>) {
+        self.push_event(tick, kind, None, None, xg, Some(team), Some(note.to_string()));
+    }
+
+    /// An ability activation attributed to a player.
+    fn record_ability(&mut self, tick: u16, player: usize, name: &str) {
+        let team = self.players[player].team_index;
+        self.diag.abilities_fired += 1;
+        self.push_event(tick, EventKind::AbilityFired, Some(player), None, None, Some(team), Some(name.to_string()));
+    }
+
+    /// An action event for `player` carrying a free-text label.
+    fn record_player_note(&mut self, tick: u16, kind: EventKind, player: usize, note: &str) {
+        let team = self.players[player].team_index;
+        self.push_event(tick, kind, Some(player), None, None, Some(team), Some(note.to_string()));
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn push_event(&mut self, tick: u16, kind: EventKind, player: Option<usize>, other: Option<usize>, xg: Option<f32>, team: Option<usize>, note: Option<String>) {
         if let Some(t) = self.trace.as_mut() {
             t.push(format!("      >>> {:?} by #{:?} xG {:?}", kind, player.map(|p| p % 11), xg));
         }
-        self.events.push(EngineEvent { tick, minute: (tick / TICKS_PER_MINUTE) as u8, kind, player, other, xg });
+        self.events.push(EngineEvent { tick, minute: (tick / TICKS_PER_MINUTE) as u8, kind, player, other, xg, team, note });
+    }
+
+    // -----------------------------------------------------------------
+    // Manager orders / abilities: the deterministic trigger timeline.
+    // -----------------------------------------------------------------
+
+    /// The match-state a trigger reads. Cheap to build, O(11) at fire time.
+    fn trigger_state(&self, team: usize, tick: u16) -> TriggerState {
+        let (own, opp) = if team == 0 { (&self.home_stats, &self.away_stats) } else { (&self.away_stats, &self.home_stats) };
+        let stamina: f32 =
+            (team * 11..team * 11 + 11).filter(|&i| self.active(i)).map(|i| self.players[i].stamina).sum::<f32>() / 11.0;
+        let total = (self.home_stats.possession_ticks + self.away_stats.possession_ticks).max(1) as f32;
+        let possession_pct = 100.0 * own.possession_ticks as f32 / total;
+        TriggerState {
+            minute: (tick / TICKS_PER_MINUTE) as f32,
+            diff: own.score as i32 - opp.score as i32,
+            stamina,
+            possession_pct,
+            // Territorial momentum proxy: possession share, centred on 0.
+            momentum: (possession_pct - 50.0) / 50.0,
+            phase: if tick < HALF_TIME_TICK { 1.0 } else { 2.0 },
+        }
+    }
+
+    /// Fires any order whose trigger first matches now, and expires spent
+    /// ones. Allocation-free per tick when no order fires.
+    fn eval_triggers(&mut self, tick: u16) {
+        // Expire finished orders (retain is in-place, no allocation).
+        for team in 0..2 {
+            self.active_orders[team].retain(|o| o.until_tick > tick);
+        }
+        for team in 0..2 {
+            let n = self.tactics(team).orders.len();
+            if n == 0 {
+                continue;
+            }
+            let state = self.trigger_state(team, tick);
+            for i in 0..n {
+                if self.fired[team][i] {
+                    continue;
+                }
+                let (kind, region, trigger, raw) = {
+                    let o = &self.tactics(team).orders[i];
+                    (o.kind, o.region, o.trigger, o.raw_kind.clone())
+                };
+                if !trigger_matches(trigger, &state) {
+                    continue;
+                }
+                self.fired[team][i] = true;
+                let until = tick.saturating_add((CFG.order_default_minutes * TICKS_PER_MINUTE as f32).round() as u16);
+                self.active_orders[team].push(ActiveOrder { kind, region, until_tick: until, magnitude: CFG.order_magnitude });
+                self.diag.orders_fired += 1;
+                self.record_team(tick, EventKind::OrderFired, team, &raw, None);
+            }
+        }
+    }
+
+    /// The temporary modifiers folded from `team`'s active orders.
+    fn order_mods(&self, team: usize) -> OrderMods {
+        let mut m = OrderMods::default();
+        for o in &self.active_orders[team] {
+            match o.kind {
+                OrderKind::PressTrap => m.press_add += CFG.order_press_add * o.magnitude,
+                OrderKind::LowBlock => {
+                    m.press_add -= CFG.order_press_add * 0.5 * o.magnitude;
+                    m.line_add -= CFG.order_line_add * o.magnitude;
+                }
+                OrderKind::Attack => m.line_add += CFG.order_line_add * o.magnitude,
+                OrderKind::Overload | OrderKind::Balanced => {}
+            }
+            if let Some(r) = o.region {
+                m.region = Some(r);
+                m.region_bonus += CFG.order_bonus * o.magnitude;
+            }
+        }
+        m
+    }
+
+    /// The team modifiers currently in force from active orders (exposed for
+    /// tests / diagnostics; `07` §3 "expose active region/team modifiers").
+    pub fn active_order_modifiers(&self, team: usize) -> OrderMods {
+        self.order_mods(team)
+    }
+
+    /// One-shot stamina surges (gated abilities). No-op without effects.
+    fn apply_stamina_surges(&mut self, tick: u16) {
+        for i in 0..22 {
+            let e = self.players[i].effects;
+            if e.stamina_surge_below > 0.0
+                && !self.surge_used[i]
+                && self.active(i)
+                && self.players[i].stamina < e.stamina_surge_below
+            {
+                self.surge_used[i] = true;
+                self.players[i].stamina = (self.players[i].stamina + e.stamina_surge_amount * CFG.stamina_surge_scale).min(100.0);
+                self.record_ability(tick, i, "Talisman Second Wind");
+            }
+        }
+    }
+
+    /// Whether the defender should commit a tactical foul right now. Uses the
+    /// derived fx substream, so it never runs (or draws) without the ability.
+    fn tactical_foul_worthy(&mut self, defender: usize, carrier: usize, ltr: bool, minute: u8) -> bool {
+        if model::fwd_m(self.players[carrier].pos, ltr) < PITCH_LENGTH_METERS * 0.4 {
+            return false;
+        }
+        // No penalty risk on a deliberate foul.
+        if model::in_attacking_box(self.players[carrier].pos, ltr) {
+            return false;
+        }
+        let team = self.players[defender].team_index;
+        let (hs, as_) = (self.home_stats.score as i32, self.away_stats.score as i32);
+        let diff = if team == 0 { hs - as_ } else { as_ - hs };
+        let v = model::tactical_foul_value(&self.players[defender], &self.players[carrier], ltr, diff, minute as f32);
+        if v <= 0.0 {
+            return false;
+        }
+        let p = (v * CFG.tactical_foul_commit_scale).clamp(0.0, 0.9);
+        self.fx.r#gen::<f32>() < p
     }
 
     /// `team` kicks off: its centre-forward (slot 10, or the nearest active
@@ -305,7 +526,8 @@ impl MatchEngine {
 
     /// A foul by `offender` on `victim`. In the victim's attacking box it's
     /// a penalty; otherwise the victim's side keeps the ball (free kick).
-    fn handle_foul(&mut self, offender: usize, victim: usize, tick: u16) {
+    /// A `tactical` foul (deliberate) is recorded with its own event kind.
+    fn handle_foul(&mut self, offender: usize, victim: usize, tick: u16, tactical: bool) {
         let roll: f32 = self.rng.r#gen();
         let card = if roll < CFG.red_share {
             CardState::Red
@@ -321,7 +543,12 @@ impl MatchEngine {
         let off_team = self.players[offender].team_index;
         self.team_stats(off_team).fouls += 1;
         let shown = self.book(offender, card);
-        self.record(tick, EventKind::Foul { card: shown, penalty }, Some(offender), Some(victim), None);
+        let kind = if tactical {
+            EventKind::TacticalFoul { card: shown, penalty }
+        } else {
+            EventKind::Foul { card: shown, penalty }
+        };
+        self.record(tick, kind, Some(offender), Some(victim), None);
 
         if penalty {
             self.execute_penalty(victim_team, tick);
@@ -370,6 +597,7 @@ impl MatchEngine {
             }
             let mut next = TeamTactics::new(&current.formation_name, Some(&style), None, None, None, None, None, None, None);
             next.slots = current.slots.clone();
+            next.orders = current.orders.clone();
             if team == 0 {
                 self.home_tactics = next;
             } else {
@@ -384,13 +612,20 @@ impl MatchEngine {
         let ball_pos = self.ball.pos;
         let holder = self.ball.holder_idx;
         let holder_team = holder.map(|h| self.players[h].team_index);
+        // Active-order line shift per side (0 without orders).
+        let line_add = if self.has_orders {
+            [self.order_mods(0).line_add, self.order_mods(1).line_add]
+        } else {
+            [0.0, 0.0]
+        };
 
         // Pressers: the defending side's outfielders nearest the ball,
         // weighted by how eagerly their role presses.
         let mut pressers: Vec<usize> = Vec::new();
         if let (Some(h), Some(att)) = (holder, holder_team) {
             let def = 1 - att;
-            let intensity = self.tactics(def).pressing_intensity;
+            let press_add = if self.has_orders { self.order_mods(def).press_add } else { 0.0 };
+            let intensity = (self.tactics(def).pressing_intensity + press_add).clamp(0.0, 1.0);
             let zone_m = (CFG.press_zone_base + intensity * CFG.press_zone_per_intensity) * PITCH_LENGTH_METERS;
             // Distance of the ball from the defending side's own goal.
             let ball_depth = PITCH_LENGTH_METERS - model::fwd_m(ball_pos, self.ltr(att));
@@ -402,7 +637,9 @@ impl MatchEngine {
             let mut cands: Vec<(usize, f32)> = (def * 11..def * 11 + 11)
                 .filter(|&i| self.active(i) && self.players[i].position != PositionCategory::GK)
                 .map(|i| {
-                    let eagerness = 1.3 - 0.6 * self.players[i].role.tendencies().pressing_effort;
+                    let mut td = self.players[i].role.tendencies();
+                    td.apply(&self.players[i].effects.tendency);
+                    let eagerness = 1.3 - 0.6 * td.pressing_effort;
                     (i, model::dist_m(self.players[i].pos, self.players[h].pos) * eagerness)
                 })
                 .collect();
@@ -472,7 +709,11 @@ impl MatchEngine {
                     Some(i) != holder
                         && self.active(i)
                         && (self.players[i].position == PositionCategory::ATT
-                            || (self.players[i].position == PositionCategory::MID && self.players[i].role.tendencies().forward_runs >= 0.75))
+                            || (self.players[i].position == PositionCategory::MID && {
+                                let mut td = self.players[i].role.tendencies();
+                                td.apply(&self.players[i].effects.tendency);
+                                td.forward_runs >= 0.75
+                            }))
                 })
                 .collect();
             // Strikers first, then the nearest arrivals.
@@ -521,6 +762,14 @@ impl MatchEngine {
                 t
             };
 
+            // An active order's line shift moves the whole (outfield) side up
+            // or down; zero without orders (the parity case).
+            let target = if line_add[team] != 0.0 && self.players[i].position != PositionCategory::GK {
+                Vec2::new((target.x + if ltr { line_add[team] } else { -line_add[team] }).clamp(0.02, 0.98), target.y)
+            } else {
+                target
+            };
+
             let p = &self.players[i];
             let step_m = (CFG.step_base_m + p.attributes.speed / 100.0 * CFG.step_per_speed_m) * model::fatigue_multiplier(p);
             let gap = model::dist_m(p.pos, target);
@@ -555,10 +804,27 @@ impl MatchEngine {
     // The ball carrier
     // -----------------------------------------------------------------
 
-    fn handle_ball_carrier(&mut self, carrier: usize, _minute: u8, tick: u16) {
+    fn handle_ball_carrier(&mut self, carrier: usize, minute: u8, tick: u16) {
         let team = self.players[carrier].team_index;
         let opp = 1 - team;
         let ltr = self.ltr(team);
+        let eff = self.players[carrier].effects;
+
+        // A first-time ball (cross/long) arriving at this carrier can be
+        // volleyed; the window is consumed now.
+        let volley_ok = self.volley_window == Some(carrier) && eff.has(action::VOLLEY);
+        self.volley_window = None;
+
+        // A sweeper keeper may rush out when an opponent breaks beyond the
+        // line near his own goal.
+        let sweeper_threat = eff.has(action::SWEEPER_RUSH) && {
+            let own_goal = model::goal_of(!ltr);
+            (opp * 11..opp * 11 + 11).any(|i| {
+                self.active(i)
+                    && self.players[i].position != PositionCategory::GK
+                    && model::dist_m(self.players[i].pos, own_goal) <= CFG.sweeper_claim_range_m
+            })
+        };
 
         // A challenge from the nearest opponent, if he's close enough and
         // commits to it.
@@ -580,13 +846,24 @@ impl MatchEngine {
         }
         if let Some(d) = challenger {
             self.diag.contact_ticks += 1;
-            let pressing = self.tactics(opp).pressing_intensity;
+            // Deliberate tactical foul (gated ability): a defender with the
+            // ability may stop a transition. Draws only from the fx substream,
+            // so effects-free matches never enter this branch.
+            if self.players[d].effects.has(action::TACTICAL_FOUL)
+                && self.tactical_foul_worthy(d, carrier, ltr, minute)
+            {
+                self.diag.decisions[9] += 1;
+                self.diag.tactical_fouls += 1;
+                self.handle_foul(d, carrier, tick, true);
+                return;
+            }
+            let pressing = (self.tactics(opp).pressing_intensity + if self.has_orders { self.order_mods(opp).press_add } else { 0.0 }).clamp(0.0, 1.0);
             if self.rng.r#gen::<f32>() < model::engage_probability(&self.players[d], pressing) {
                 self.diag.challenges += 1;
                 let won = self.rng.r#gen::<f32>() < model::tackle_probability(&self.players[d], &self.players[carrier]);
                 let in_box = model::in_attacking_box(self.players[carrier].pos, ltr);
                 if self.rng.r#gen::<f32>() < model::foul_probability(&self.players[d], won, in_box) {
-                    self.handle_foul(d, carrier, tick);
+                    self.handle_foul(d, carrier, tick, false);
                     return;
                 }
                 if won {
@@ -601,7 +878,13 @@ impl MatchEngine {
 
         let keeper = self.keeper_of(opp);
         let tactics = if team == 0 { &self.home_tactics } else { &self.away_tactics };
-        let action = decider::decide(carrier, &self.players, tactics, ltr, keeper, &mut self.rng);
+        let om = if self.has_orders { self.order_mods(team) } else { OrderMods::default() };
+        let ctx = DecideCtx {
+            order_bias: om.region.map(|region| RegionBias { region, bonus: om.region_bonus }),
+            volley_ok,
+            sweeper_threat,
+        };
+        let action = decider::decide_with(carrier, &self.players, tactics, ltr, keeper, &ctx, &mut self.rng);
         if self.trace.is_some() {
             let p = &self.players[carrier];
             let goal = model::goal_of(ltr);
@@ -642,6 +925,11 @@ impl MatchEngine {
             ActionChoice::TakeOn { .. } => 3,
             ActionChoice::Hold => 4,
             ActionChoice::Clear { .. } => 5,
+            ActionChoice::Volley => 6,
+            ActionChoice::Trivela { .. } => 7,
+            ActionChoice::ThroughBallInBehind { .. } => 8,
+            ActionChoice::TacticalFoul { .. } => 9,
+            ActionChoice::SweeperRush { .. } => 10,
         }] += 1;
 
         match action {
@@ -660,7 +948,7 @@ impl MatchEngine {
                 } else if self.rng.r#gen::<f32>()
                     < model::foul_probability(&self.players[defender_idx], true, model::in_attacking_box(self.players[carrier].pos, ltr))
                 {
-                    self.handle_foul(defender_idx, carrier, tick);
+                    self.handle_foul(defender_idx, carrier, tick, false);
                 } else {
                     self.won_tackle(defender_idx);
                 }
@@ -670,6 +958,43 @@ impl MatchEngine {
                 self.ball.holder_idx = None;
                 self.ball.pos = to;
                 self.last_pass = None;
+            }
+            // First-time volley: a shot without settling the ball.
+            ActionChoice::Volley => {
+                self.diag.volleys += 1;
+                self.record_player_note(tick, EventKind::Volley, carrier, "First-Time Volley");
+                self.shoot(carrier, keeper, ShotKind::Volley, tick);
+            }
+            // Trivela switch: a long cross-field pass (Switch pass kind).
+            ActionChoice::Trivela { target_idx, target } => {
+                self.diag.trivelas += 1;
+                self.diag.pass_kinds[PassKind::Switch as usize] += 1;
+                self.record_player_note(tick, EventKind::Trivela, carrier, "Trivela Switch");
+                self.pass(carrier, target_idx, target, PassKind::Switch, tick);
+            }
+            // Through ball in behind: a longer Through pass.
+            ActionChoice::ThroughBallInBehind { target_idx, target } => {
+                self.diag.through_behinds += 1;
+                self.record_ability(tick, carrier, "Through Ball in Behind");
+                self.pass(carrier, target_idx, target, PassKind::Through, tick);
+            }
+            // Sweeper keeper claims/sweeps: resolved on the fx substream.
+            ActionChoice::SweeperRush { to } => {
+                self.diag.sweeper_rush += 1;
+                self.record_ability(tick, carrier, "Sweeper-Keeper Rush");
+                let p = model::sweeper_claim_probability(&self.players[carrier], to, ltr);
+                self.players[carrier].pos = to;
+                self.ball.pos = to;
+                if self.fx.r#gen::<f32>() >= p {
+                    // Misjudged: the ball runs loose for the nearest player.
+                    self.ball.holder_idx = None;
+                    self.last_pass = None;
+                }
+            }
+            // Only ever constructed by the challenge path; handled for
+            // exhaustiveness.
+            ActionChoice::TacticalFoul { defender_idx } => {
+                self.handle_foul(defender_idx, carrier, tick, true);
             }
         }
     }
@@ -696,9 +1021,21 @@ impl MatchEngine {
             self.players[receiver].pos = target;
             self.give_ball_to(receiver);
             self.last_pass = Some((passer, receiver));
+            // A cross or long ball arriving lets the receiver volley next tick.
+            if matches!(kind, PassKind::Cross | PassKind::Long) {
+                self.volley_window = Some(receiver);
+            }
             if kind == PassKind::Cross {
                 let keeper = self.keeper_of(1 - team);
-                self.shoot(receiver, keeper, ShotKind::Header, tick);
+                // A first-time volley ability lets the receiver strike the
+                // cross without a settling touch, instead of heading it.
+                if self.players[receiver].effects.has(action::VOLLEY) {
+                    self.diag.volleys += 1;
+                    self.record_player_note(tick, EventKind::Volley, receiver, "First-Time Volley");
+                    self.shoot(receiver, keeper, ShotKind::Volley, tick);
+                } else {
+                    self.shoot(receiver, keeper, ShotKind::Header, tick);
+                }
             }
         } else {
             let winner = pm.interceptor.unwrap_or_else(|| self.nearest_of(1 - team, target));
@@ -803,6 +1140,12 @@ impl MatchEngine {
             .unwrap_or(0);
         self.players[nearest].pos = ball;
         self.give_ball_to(nearest);
+        // A loose ball collected in the attacking third can be struck first
+        // time (a bouncing clearance, a blocked shot): open the volley window.
+        let team = self.players[nearest].team_index;
+        if model::fwd_m(ball, self.ltr(team)) >= PITCH_LENGTH_METERS * 0.6 {
+            self.volley_window = Some(nearest);
+        }
     }
 
     fn capture_frame(&mut self, tick: u16, minute: u8) {

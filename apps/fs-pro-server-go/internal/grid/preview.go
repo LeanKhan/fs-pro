@@ -8,19 +8,21 @@ package grid
 // LinkRange is the Chebyshev cell distance within which two players are linked.
 const LinkRange = 2
 
-// Link is an undirected pair of linked players, by PlayerID.
+// Link is an undirected pair of linked players, by PlayerID. JSON keys are
+// pinned to the wire contract style (lowercase) so the preview is a stable
+// payload.
 type Link struct {
-	From string
-	To   string
+	From string `json:"from"`
+	To   string `json:"to"`
 }
 
 // Preview is the advisory read of a grid.
 type Preview struct {
-	Aura       []float64 // len Width*Height, row-major (row*Width + col)
-	Links      []Link
-	Connected  bool
-	Directness float64  // suggested team directness, 0..1 (higher = longer/more direct)
-	Synergies  []string // stable ids: one-two-combo, the-shield, island
+	Aura       []float64 `json:"aura"`       // len Width*Height, row-major (row*Width + col)
+	Links      []Link    `json:"links"`      //
+	Connected  bool      `json:"connected"`  //
+	Directness float64   `json:"directness"` // suggested team directness, 0..1 (higher = longer/more direct)
+	Synergies  []string  `json:"synergies"`  // stable ids: one-two-combo, the-shield, island
 }
 
 func cheb(a, b Slot) int {

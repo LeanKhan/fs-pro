@@ -18,6 +18,7 @@ import (
 	"fs-pro-server/internal/auth"
 	"fs-pro-server/internal/award"
 	"fs-pro-server/internal/calendar"
+	"fs-pro-server/internal/campus"
 	"fs-pro-server/internal/clients"
 	"fs-pro-server/internal/club"
 	"fs-pro-server/internal/config"
@@ -25,6 +26,7 @@ import (
 	"fs-pro-server/internal/facilities"
 	"fs-pro-server/internal/fixture"
 	"fs-pro-server/internal/game"
+	"fs-pro-server/internal/grid"
 	"fs-pro-server/internal/httpapi"
 	"fs-pro-server/internal/mail"
 	"fs-pro-server/internal/manager"
@@ -140,6 +142,12 @@ func main() {
 	place.Register(srv, place.New(placeRepo, worldService))
 	calendar.Register(srv, calendar.New(calendarRepo))
 	facilities.Register(srv, facilities.New(facilitiesRepo))
+	campus.Register(srv, campus.New(campus.NewRepository(querier)))
+	grid.Register(srv, grid.New(
+		grid.NewService(grid.NewPgRepository(querier)),
+		grid.NewPgClubReader(querier),
+		grid.NewPgOwnership(querier),
+	))
 	play.Register(srv, play.New(playRepo))
 	game.Register(srv, game.New(fixtureRepo))
 	program.Register(srv, program.New(program.NewRepository(querier)))

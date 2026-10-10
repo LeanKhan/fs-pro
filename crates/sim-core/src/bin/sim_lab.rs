@@ -159,6 +159,24 @@ fn boost(delta: impl Fn(&str, f64) -> f64 + Sync) -> impl Fn(&Value) -> Value + 
     }
 }
 
+/// Attaches a fixed `effects` array to every player in a club.
+fn with_effects(effects: Value) -> impl Fn(&Value) -> Value + Sync {
+    move |club: &Value| {
+        let mut c = club.clone();
+        for p in c["Players"].as_array_mut().unwrap() {
+            p["effects"] = effects.clone();
+        }
+        c
+    }
+}
+
+/// A home tactic carrying manager orders.
+fn tactic_orders(formation: &str, style: &str, orders: Value) -> Value {
+    let mut t = tactic(formation, style);
+    t["orders"] = orders;
+    t
+}
+
 fn realism(base: &[Outcome]) {
     let n = |f: fn(&Outcome) -> f64| mean(base.iter().map(f));
     let pct = |pred: fn(&Outcome) -> bool| 100.0 * base.iter().filter(|o| pred(o)).count() as f64 / base.len() as f64;
@@ -196,10 +214,10 @@ fn diag(fixtures: &[Fixture]) {
         let mut e = build_engine(&home, &away, Some(&tactics), &f.seed);
         e.record_frames = false;
         e.simulate_full_match();
-        for i in 0..6 {
+        for i in 0..11 {
             d.decisions[i] += e.diag.decisions[i];
         }
-        for i in 0..6 {
+        for i in 0..7 {
             d.pass_kinds[i] += e.diag.pass_kinds[i];
         }
         for i in 0..5 {
@@ -212,6 +230,13 @@ fn diag(fixtures: &[Fixture]) {
         d.penalties += e.diag.penalties;
         d.contact_ticks += e.diag.contact_ticks;
         d.challenges += e.diag.challenges;
+        d.orders_fired += e.diag.orders_fired;
+        d.abilities_fired += e.diag.abilities_fired;
+        d.tactical_fouls += e.diag.tactical_fouls;
+        d.volleys += e.diag.volleys;
+        d.trivelas += e.diag.trivelas;
+        d.through_behinds += e.diag.through_behinds;
+        d.sweeper_rush += e.diag.sweeper_rush;
     }
     let n = fixtures.len() as f64;
     let pct = |x: u32, t: u32| 100.0 * x as f64 / t.max(1) as f64;
@@ -225,8 +250,8 @@ fn diag(fixtures: &[Fixture]) {
     let passes: u32 = d.pass_kinds.iter().sum();
     let pk = |i: usize| pct(d.pass_kinds[i], passes);
     println!(
-        "pass mix: short {:.0}% backward {:.0}% wide {:.0}% long {:.0}% through {:.0}% cross {:.0}% | headers/match {:.1}",
-        pk(0), pk(1), pk(2), pk(3), pk(4), pk(5), d.headers as f64 / n
+        "pass mix: short {:.0}% backward {:.0}% wide {:.0}% long {:.0}% through {:.0}% cross {:.0}% switch {:.0}% | headers/match {:.1}",
+        pk(0), pk(1), pk(2), pk(3), pk(4), pk(5), pk(6), d.headers as f64 / n
     );
     let shots: u32 = d.shot_distance.iter().sum();
     let sd = |i: usize| pct(d.shot_distance[i], shots);
@@ -244,6 +269,12 @@ fn diag(fixtures: &[Fixture]) {
         pct(d.contact_ticks, d.carrier_ticks),
         d.challenges as f64 / n,
         d.penalties as f64 / n
+    );
+    println!(
+        "abilities/match: orders {:.2} | volleys {:.2} | trivelas {:.2} | through-behind {:.2} | sweeper {:.2} | tactical fouls {:.2} | decisions {:.1}% shoot-on-first-touch",
+        d.orders_fired as f64 / n, d.volleys as f64 / n, d.trivelas as f64 / n,
+        d.through_behinds as f64 / n, d.sweeper_rush as f64 / n, d.tactical_fouls as f64 / n,
+        dec(6) + dec(7) + dec(8) + dec(9) + dec(10)
     );
 }
 
@@ -366,6 +397,63 @@ fn main() {
                 .map(|af| format!("{:>8.2}", mean(play_all(&fixtures, &tactic(hf, "Balanced"), &tactic(af, "Balanced"), None).iter().map(|o| o.points()))))
                 .collect();
             println!("{hf:<6}{row}");
+        }
+    }
+    if run("agency") {
+        // One ability set on every home player; common random numbers, so a
+        // change is the ability, not luck. The intended metric is marked [*].
+        let variants: [(&str, &str, Value); 9] = [
+            ("ShotQuality", "shots/xG", json!([{ "kind": "ShotQuality", "params": { "bonus": 0.4 } }])),
+            ("HeaderQuality", "shots/xG", json!([{ "kind": "HeaderQuality", "params": { "bonus": 0.5 } }])),
+            ("CrossType/Inswing", "shots/xG", json!([{ "kind": "CrossType", "params": { "inswing": 0.5 } }])),
+            ("Interception", "opp passes", json!([{ "kind": "Interception", "params": { "bonus": 0.5, "lane": 1.0 } }])),
+            ("FirstTimeVolley", "shots/xG", json!([{ "kind": "NewAction", "params": { "volley": 1.0 } }, { "kind": "ShotQuality", "params": { "bonus": 0.2, "firstTime": 1.0 } }])),
+            ("TrivelaSwitch", "passes", json!([{ "kind": "NewAction", "params": { "trivela": 1.0 } }])),
+            ("ThroughBehind", "shots/xG", json!([{ "kind": "NewAction", "params": { "throughBall": 1.0 } }])),
+            ("TacticalFoul", "fouls/cards", json!([{ "kind": "NewAction", "params": { "tacticalFoul": 1.0 } }])),
+            ("StaminaSurge", "late goals", json!([{ "kind": "StaminaSurge", "params": { "below": 35.0, "amount": 25.0 } }])),
+        ];
+        println!("\n=== Agency: one ability set on the home squad (Δ per match vs balanced baseline; [*] = intended) ===");
+        println!("{:<18}{:>8}{:>8}{:>8}{:>8}{:>8}{:>8}  [*]", "ability", "goals", "shots", "xG", "passes", "fouls", "yellows");
+        for (name, target, eff) in variants {
+            let t = with_effects(eff);
+            let v = play_all(&fixtures, &balanced, &balanced, Some(&t));
+            let d = |f: fn(&Outcome) -> f64| mean(v.iter().map(f)) - mean(base.iter().map(f));
+            println!(
+                "{:<18}{:>+8.2}{:>+8.2}{:>+8.2}{:>+8.0}{:>+8.2}{:>+8.2}  [{}]",
+                name,
+                d(|o| o.hg + o.ag),
+                d(|o| o.hshots + o.ashots),
+                d(|o| o.hxg + o.axg),
+                d(|o| o.passes),
+                d(|o| o.fouls),
+                d(|o| o.yellows),
+                target
+            );
+        }
+    }
+    if run("orders") {
+        let variants: [(&str, Value); 4] = [
+            ("OverloadFlank", json!([{ "kind": "OverloadFlank", "region": { "x0": 0.6, "y0": 0.0, "x1": 1.0, "y1": 0.4 }, "trigger": { "when": "MinuteAtLeast", "threshold": 15 } }])),
+            ("PressTrap", json!([{ "kind": "PressTrap", "trigger": { "when": "Always", "threshold": 0 } }])),
+            ("LowBlock", json!([{ "kind": "LowBlock", "trigger": { "when": "Always", "threshold": 0 } }])),
+            ("Attack(60')", json!([{ "kind": "Attack", "trigger": { "when": "MinuteAtLeast", "threshold": 60 } }])),
+        ];
+        println!("\n=== Orders: one manager order on the home tactic (Δ per match vs balanced baseline) ===");
+        println!("{:<14}{:>8}{:>8}{:>8}{:>8}{:>8}", "order", "pts", "goals", "shots", "xG", "poss");
+        let bpts = mean(base.iter().map(|o| o.points()));
+        for (name, orders) in variants {
+            let v = play_all(&fixtures, &tactic_orders("433", "Balanced", orders), &balanced, None);
+            let d = |f: fn(&Outcome) -> f64| mean(v.iter().map(f)) - mean(base.iter().map(f));
+            println!(
+                "{:<14}{:>+8.2}{:>+8.2}{:>+8.2}{:>+8.2}{:>+8.1}",
+                name,
+                mean(v.iter().map(|o| o.points())) - bpts,
+                d(|o| o.hg - o.ag),
+                d(|o| o.hshots - o.ashots),
+                d(|o| o.hxg - o.axg),
+                d(|o| o.poss)
+            );
         }
     }
     println!("\n({pairs} seeded fixtures per cell, {:.1}s)", started.elapsed().as_secs_f64());
