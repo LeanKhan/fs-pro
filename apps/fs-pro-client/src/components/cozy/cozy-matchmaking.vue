@@ -1,20 +1,12 @@
 <template>
-  <h2><span v-html="icon('ball')"></span> {{ booking ? 'Book a Match' : 'Find a Match' }}</h2>
-  <p class="sub">
-    <template v-if="booking">Booked matches kick off on the next cup day, giving you time to scout, pick your XI and set a plan. They pay more.</template>
-    <template v-else>Play now for quick cash and XP, or book one to prepare for and win bigger.</template>
-  </p>
+  <h2><span v-html="icon('ball')"></span> Attack</h2>
+  <p class="sub">Pick a club to attack. Their saved grid defends. Win stars to take a share of their Cash, Fans and Tokens, and climb the ladder.</p>
   <div class="stats-row">
     <div><small>Your power</small><b>{{ myPower }}</b></div>
-    <div v-if="tactics"><small>Team sheet</small><b>{{ tactics.formationLabel }}</b></div>
-    <div v-if="tactics"><small>Starters</small><b>{{ tactics.filledCount }}/11</b></div>
   </div>
-  <div v-if="tactics && !tactics.ready && !booking" class="warn">
-    {{ tactics.issues.join(' · ') }}. The engine fills gaps automatically.
-    <span class="row-btns">
-      <button class="btn small" @click="emit('tactics')">Team sheet</button>
-      <button v-if="tactics.issues.some((i) => i.includes('injured'))" class="btn small" @click="emit('medical')">Medical</button>
-    </span>
+  <div v-if="squadIssue" class="warn">
+    {{ squadIssue }}
+    <span class="row-btns"><button class="btn small" @click="emit('squad')">Squad</button></span>
   </div>
   <p v-if="searching" class="sub">Looking for opponents near your power…</p>
   <div v-else class="opps">
@@ -29,10 +21,9 @@
         <button class="opp-meta scout-link" @click.stop="emit('scout', o)">Scout setup</button>
       </div>
       <div class="opp-btns">
-        <button v-if="!booking" class="btn primary" :disabled="starting || (cooldown ?? 0) > 0" @click.stop="emit('select', o), emit('play')">
-          {{ starting && o.id === selectedId ? 'Starting…' : (cooldown ?? 0) > 0 ? 'Resting' : 'Play now' }}
+        <button class="btn primary" :disabled="starting || (cooldown ?? 0) > 0" @click.stop="emit('select', o), emit('play')">
+          {{ starting && o.id === selectedId ? 'Starting…' : (cooldown ?? 0) > 0 ? 'Resting' : 'Attack' }}
         </button>
-        <button class="btn" :class="{ primary: booking }" :disabled="starting" @click.stop="emit('book', o)">Book</button>
       </div>
     </div>
   </div>
@@ -50,19 +41,16 @@ const props = defineProps<{
   selectedId: string | null;
   searching: boolean;
   starting: boolean;
-  tactics: { formationLabel: string; filledCount: number; issues: string[]; ready: boolean } | null;
-  /** Opened to book a match rather than play one now. */
-  booking?: boolean;
+  /** Why the squad may struggle (empty XI slots, injuries); the engine still fills gaps. */
+  squadIssue?: string | null;
   /** Seconds of rest left before playing now. */
   cooldown?: number;
 }>();
 const emit = defineEmits<{
   (e: 'select', o: Opponent): void;
   (e: 'play'): void;
-  (e: 'book', o: Opponent): void;
   (e: 'scout', o: Opponent): void;
-  (e: 'tactics'): void;
-  (e: 'medical'): void;
+  (e: 'squad'): void;
 }>();
 
 /** Same bands as before: more than 5 power either side is lopsided. */

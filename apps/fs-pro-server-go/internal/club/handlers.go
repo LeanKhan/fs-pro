@@ -358,6 +358,11 @@ func (h *Handlers) recruitYouthPlayers(cx *httpapi.Context, _ http.ResponseWrite
 		recruits = append(recruits, saved)
 	}
 
+	// The squad changed: matchmaking power follows the Rating.
+	if _, _, err := h.repo.CalculateAndUpdateClubRating(ctx, id); err != nil {
+		return httpapi.Fail(400, "Error recruiting youth players", err.Error())
+	}
+
 	note := "Promoted from the youth academy"
 	if asAdmin {
 		note = fmt.Sprintf("%d youth player(s) scouted by admin", len(recruits))

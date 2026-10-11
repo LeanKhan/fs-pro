@@ -261,6 +261,9 @@ export const clubs = pgTable('Clubs', {
    * recomputed from stored fields; docs/perfect/WORLD-HIERARCHY-SPEC.md §5.
    * The raw fields stay authoritative. */
   Prominence: real('Prominence').notNull().default(0),
+  /** The club's own map spot near its district (0055); null = the district point. */
+  MapX: real('MapX'),
+  MapY: real('MapY'),
   ProminenceUpdatedAt: timestamp('ProminenceUpdatedAt', { precision: 3 }),
   /** docs/WORLD-PYRAMID-SPEC.md, "Caretaker and release": the owner's last
    * authenticated request (written at most hourly), whether the AI is

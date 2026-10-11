@@ -4,13 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
 
+	"fs-pro-server/internal/clients"
 	"fs-pro-server/internal/db"
+	"fs-pro-server/internal/player"
 )
 
 func one(ctx context.Context, q db.Querier, sql string, args ...any) (map[string]any, bool, error) {
@@ -110,7 +113,28 @@ func TestFoundClubRolledBack(t *testing.T) {
 			return err
 		}
 		if !ok {
-			t.Skip("no district")
+			// A world without districts yet: open a throwaway country > city >
+			// district inside this rolled-back transaction.
+			mk := func(typ, parent string, x, y float64) (string, error) {
+				row, err := db.InsertRow(ctx, tx, "Places", map[string]any{
+					"Type": typ, "Name": "Test " + typ, "Fullname": "Test " + typ, "Code": fmt.Sprintf("T%s%d", typ[:2], time.Now().UnixNano()%100000),
+					"ParentId": nullable(parent), "MapX": x, "MapY": y, "updatedAt": time.Now(),
+				})
+				return mstr(row, "_id"), err
+			}
+			countryID, err := mk("country", "", 500, 500)
+			if err != nil {
+				return err
+			}
+			cityID, err := mk("city", countryID, 520, 520)
+			if err != nil {
+				return err
+			}
+			districtID, err := mk("district", cityID, 524, 518)
+			if err != nil {
+				return err
+			}
+			district = map[string]any{"_id": districtID, "ParentId": cityID}
 		}
 		districtID, cityID := mstr(district, "_id"), mstr(district, "ParentId")
 		city, _, _ := one(ctx, tx, `SELECT * FROM "Places" WHERE "_id" = $1`, cityID)
@@ -164,6 +188,29 @@ func TestFoundClubRolledBack(t *testing.T) {
 		if msg, ok, _ := one(ctx, tx, `SELECT "_id" FROM "ClubMessages" WHERE "ClubId" = $1 LIMIT 1`, clubID); !ok || msg == nil {
 			t.Error("no welcome club message")
 		}
+
+		// The starter club: a signed squad, an employed manager, its own map spot.
+		squad, _, _ := one(ctx, tx, `SELECT count(*)::int AS n,
+			count(*) FILTER (WHERE "Position" = 'GK')::int AS gk,
+			count(DISTINCT "FirstName" || ' ' || "LastName")::int AS names
+			FROM "Players" WHERE "ClubId" = $1 AND "isSigned" = true`, clubID)
+		if mint(squad, "n") != len(player.StarterSquadShape) || mint(squad, "gk") != 2 {
+			t.Errorf("starter squad = %v, want %d with 2 GK", squad, len(player.StarterSquadShape))
+		}
+		if mint(squad, "names") < len(player.StarterSquadShape)/2 {
+			t.Errorf("starter names look duplicated: %v distinct", squad["names"])
+		}
+		mgr, ok, _ := one(ctx, tx, `SELECT m.* FROM "Managers" m JOIN "Clubs" c ON c."ManagerId" = m."_id" WHERE c."_id" = $1`, clubID)
+		if !ok || !boolOf(mgr["isEmployed"]) || mstr(mgr, "ClubId") != clubID || mstr(mgr, "FirstName") == "" {
+			t.Errorf("starter manager = %v", mgr)
+		}
+		if d, _, _ := one(ctx, tx, `SELECT "MapX","MapY" FROM "Places" WHERE "_id" = $1`, districtID); d["MapX"] != nil {
+			dist := math.Hypot(mfloat(club, "MapX")-mfloat(d, "MapX"), mfloat(club, "MapY")-mfloat(d, "MapY"))
+			if club["MapX"] == nil || dist < clubSpotMinRadius-0.01 || dist > clubSpotMaxRadius+0.01 {
+				t.Errorf("club map spot %v,%v is %.1f from its town", club["MapX"], club["MapY"], dist)
+			}
+		}
+		t.Logf("starter manager %s %s; sample player names via worldgen at %s", mstr(mgr, "FirstName"), mstr(mgr, "LastName"), clients.WorldgenURL())
 
 		// Founding the same name again is a 409.
 		if _, err := repo.FoundClub(ctx, userID, map[string]any{

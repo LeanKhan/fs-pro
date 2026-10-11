@@ -86,9 +86,10 @@ type HubTabKey =
   | 'association'
   | 'preseason';
 
-withDefaults(defineProps<{ clubId: string; serverNow?: string | null }>(), {
-  serverNow: null,
-});
+const props = withDefaults(
+  defineProps<{ clubId: string; serverNow?: string | null; initial?: HubTabKey }>(),
+  { serverNow: null, initial: 'defence' }
+);
 
 const emit = defineEmits<{
   (e: 'toast', text: string, level?: 'success' | 'error'): void;
@@ -104,7 +105,7 @@ const tabs: { key: HubTabKey; title: string; icon: string }[] = [
   { key: 'association', title: 'Association', icon: 'people' },
   { key: 'preseason', title: 'Pre-Season', icon: 'map' },
 ];
-const active = ref<HubTabKey>('defence');
+const active = ref<HubTabKey>(props.initial);
 </script>
 
 <style scoped>

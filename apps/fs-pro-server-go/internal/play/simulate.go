@@ -294,14 +294,8 @@ func (r *Repository) PlayMatch(ctx context.Context, clubID string, opts PlayOpti
 	if !ok {
 		return nil, fmt.Errorf("Club not found")
 	}
-	// PLAY gate: a manager and a legal matchday squad.
-	managed, _, err := r.one(ctx, `SELECT "_id" FROM "Managers" WHERE "ClubId" = $1 AND "isEmployed" = true LIMIT 1`, clubID)
-	if err != nil {
-		return nil, err
-	}
-	if managed == nil {
-		return nil, PlayGateError{"Sign a manager before you play"}
-	}
+	// PLAY gate: a legal matchday squad. There is no manager gate in the CoC
+	// model - the owner's grid and tactics are the plan.
 	fitCount, _, err := r.one(ctx, `SELECT count(*)::int AS n FROM "Players" WHERE "ClubId" = $1 AND "isSigned" = true AND "isRetired" = false AND ("Injury" IS NULL OR ("Injury"->>'daysRemaining')::int <= 0)`, clubID)
 	if err != nil {
 		return nil, err

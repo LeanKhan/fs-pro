@@ -166,12 +166,13 @@ func (s *Service) clubs(ctx context.Context, key Key, level string) ([]clubRow, 
 	x0, x1, y0, y1 := bounds(key)
 	rows, err := s.q.Query(ctx, `
 SELECT c."_id"::text, c."Name", c."ClubCode", `+ancestorExpr+` AS place,
-       d."MapX", d."MapY", c."Prominence", (c."UserId" IS NOT NULL) AS human
+       coalesce(c."MapX", d."MapX"), coalesce(c."MapY", d."MapY"), c."Prominence", (c."UserId" IS NOT NULL) AS human
 FROM "Clubs" c
 JOIN "Places" d ON d."_id" = c."DistrictId"
 JOIN "Places" ci ON ci."_id" = d."ParentId"
 WHERE c."ReleasedAt" IS NULL AND d."MapX" IS NOT NULL
-  AND d."MapX" >= $1 AND d."MapX" < $2 AND d."MapY" >= $3 AND d."MapY" < $4
+  AND coalesce(c."MapX", d."MapX") >= $1 AND coalesce(c."MapX", d."MapX") < $2
+  AND coalesce(c."MapY", d."MapY") >= $3 AND coalesce(c."MapY", d."MapY") < $4
 ORDER BY c."Prominence" DESC, c."_id"
 LIMIT $6`, x0, x1, y0, y1, level, TileMaxClubs*8)
 	if err != nil {
@@ -200,7 +201,8 @@ SELECT count(*)::int
 FROM "Clubs" c
 JOIN "Places" d ON d."_id" = c."DistrictId"
 WHERE c."ReleasedAt" IS NULL AND d."MapX" IS NOT NULL
-  AND d."MapX" >= $1 AND d."MapX" < $2 AND d."MapY" >= $3 AND d."MapY" < $4`,
+  AND coalesce(c."MapX", d."MapX") >= $1 AND coalesce(c."MapX", d."MapX") < $2
+  AND coalesce(c."MapY", d."MapY") >= $3 AND coalesce(c."MapY", d."MapY") < $4`,
 		x0, x1, y0, y1).Scan(&n)
 	return n, err
 }

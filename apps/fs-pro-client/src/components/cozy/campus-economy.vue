@@ -244,6 +244,8 @@ import CozyCountdown from './cozy-countdown.vue';
 const props = defineProps<{ clubId: string }>();
 const emit = defineEmits<{
   (e: 'toast', text: string, level?: 'success' | 'error'): void;
+  /** Resources or buildings changed (collect / upgrade) - the HUD refreshes. */
+  (e: 'changed'): void;
 }>();
 
 const { campus, loading, collecting, error, canCollect, load, collectAll, upgradeAsset } =
@@ -269,7 +271,7 @@ async function onUpgrade(key: string) {
   upgradingKey.value = key;
   const fresh = await upgradeAsset(key);
   upgradingKey.value = null;
-  if (fresh) emit('toast', `${prettify(key)} upgrade started.`);
+  if (fresh) emit('toast', `${prettify(key)} upgrade started.`), emit('changed');
   else if (error.value) emit('toast', error.value, 'error');
 }
 
@@ -317,7 +319,7 @@ function prettify(key: string): string {
 
 async function onCollectAll() {
   const fresh = await collectAll();
-  if (fresh) emit('toast', 'Collected the grounds.');
+  if (fresh) emit('toast', 'Collected the grounds.'), emit('changed');
   else if (error.value) emit('toast', error.value, 'error');
 }
 

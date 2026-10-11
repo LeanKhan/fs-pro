@@ -194,9 +194,9 @@ func (h *Handlers) findOpponents(_ *httpapi.Context, _ http.ResponseWriter, r *h
 	if len(rows) == 0 {
 		return httpapi.Fail(400, "No opponent available right now", "No opponent available right now")
 	}
-	thresholds := h.repo.LevelThresholds(ctx)
-	level, _, _ := levelInfo(thresholds, floatOf(club["XP"]))
-	options := 1 + minInt(level/2, 4)
+	// Three clubs to choose from (CoC's "next" without the reroll cost); no
+	// Level gate - the old XP Level is not part of the launch model.
+	options := opponentChoices
 	if options > len(rows) {
 		options = len(rows)
 	}
@@ -615,6 +615,9 @@ func outcomeFor(yours, theirs int) string {
 		return "draw"
 	}
 }
+
+// opponentChoices is how many attack targets matchmaking offers.
+const opponentChoices = 3
 
 func opponentOption(row map[string]any) map[string]any {
 	var manager any

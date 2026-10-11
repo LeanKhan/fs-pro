@@ -3,6 +3,7 @@ package atlas
 import (
 	"context"
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"regexp"
@@ -10,7 +11,9 @@ import (
 	"time"
 
 	"fs-pro-server/internal/clients"
+	"fs-pro-server/internal/club"
 	"fs-pro-server/internal/db"
+	"fs-pro-server/internal/player"
 )
 
 // Club/place founding, ported from club-founding.service.ts. The non-fatal
@@ -434,6 +437,17 @@ func (r *Repository) FoundClub(ctx context.Context, userID string, body map[stri
 		return nil, err
 	}
 
+	// The starter club: squad, manager and its own map spot. Names come from
+	// worldgen (a network call), so this runs after the placement lock is
+	// released, in its own transaction.
+	culture := mstr(district, "CultureId")
+	if culture == "" {
+		culture = firstNonEmptyStr(mstr(city, "CultureId"), mstr(country, "CultureId"))
+	}
+	if err := r.seedStarterClub(ctx, clubID, code, culture, district); err != nil {
+		return nil, err
+	}
+
 	if len(opened) > 0 {
 		_, _ = r.q.Exec(ctx, `WITH newest_country AS (
 			SELECT "_id" AS id FROM "Places" WHERE "Type" = 'country' ORDER BY "createdAt" DESC, "_id" DESC LIMIT 1
@@ -447,7 +461,7 @@ func (r *Repository) FoundClub(ctx context.Context, userID string, body map[stri
 
 	_, _ = db.InsertRow(ctx, r.q, "ClubMessages", map[string]any{
 		"ClubId": clubID, "Kind": "board", "Tone": "good", "Title": "Welcome to " + mstr(district, "Name"),
-		"Body":      fmt.Sprintf("%s is official, and the board drew you %s to build with. No manager, no squad, no league yet - that is your job now. Hire a manager, sign a legal XI, put up a building, then reach Level 1 and the game will find you a league.", name, formatVilla(startingBalance)),
+		"Body":      fmt.Sprintf("%s is official. The board drew you %s, a manager and %d academy players to start with. Collect your takings, build up the grounds, set your grid and go win some stars. Your Youth Academy sends up more players as it grows.", name, formatVilla(startingBalance), len(player.StarterSquadShape)),
 		"updatedAt": time.Now(),
 	})
 
@@ -459,6 +473,94 @@ func (r *Repository) FoundClub(ctx context.Context, userID string, body map[stri
 		"opened":  strList(opened),
 		"pool":    nil,
 	}, nil
+}
+
+// Starter club tuning: how far from its town's pin a founded club may sit
+// (towns are at least townMinGap apart, so this keeps it inside its town).
+const (
+	clubSpotMinRadius = 5.0
+	clubSpotMaxRadius = 14.0
+)
+
+func firstNonEmptyStr(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// seedStarterClub gives a newly founded club everything it needs to play its
+// first match: a starter squad (player.StarterSquadShape) and an employed
+// manager, all named by worldgen in the town's culture, plus its own map spot
+// scattered around its town's pin. More players come from the Youth Academy.
+func (r *Repository) seedStarterClub(ctx context.Context, clubID, code, culture string, district map[string]any) error {
+	names := clients.PersonNames(ctx, len(player.StarterSquadShape)+1, culture)
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return db.WithTx(ctx, r.q, func(tx db.Querier) error {
+		for i, pos := range player.StarterSquadShape {
+			p := player.GenerateStarter(pos, rng)
+			field, counterID, err := player.NextCounterID(ctx, tx, "player")
+			if err != nil {
+				return err
+			}
+			p[field] = counterID
+			p["FirstName"], p["LastName"] = names[i].First, names[i].Last
+			p["isSigned"] = true
+			p["ClubId"] = clubID
+			p["ClubCode"] = code
+			p["updatedAt"] = time.Now()
+			if _, err := db.InsertRow(ctx, tx, "Players", p); err != nil {
+				return err
+			}
+		}
+
+		mgr := starterManager(rng)
+		name := names[len(names)-1]
+		field, key, err := player.NextCounterID(ctx, tx, "manager")
+		if err != nil {
+			return err
+		}
+		mgr[field] = key
+		mgr["FirstName"], mgr["LastName"] = name.First, name.Last
+		mgr["ClubId"] = clubID
+		mgr["updatedAt"] = time.Now()
+		row, err := db.InsertRow(ctx, tx, "Managers", mgr)
+		if err != nil {
+			return err
+		}
+
+		var mapX, mapY any
+		if district["MapX"] != nil && district["MapY"] != nil {
+			a := rng.Float64() * 2 * math.Pi
+			d := clubSpotMinRadius + rng.Float64()*(clubSpotMaxRadius-clubSpotMinRadius)
+			mapX = mfloat(district, "MapX") + d*math.Cos(a)
+			mapY = mfloat(district, "MapY") + d*math.Sin(a)
+		}
+		if _, err := tx.Exec(ctx, `UPDATE "Clubs" SET "ManagerId" = $2, "MapX" = $3, "MapY" = $4, "updatedAt" = now() WHERE "_id" = $1`,
+			clubID, mstr(row, "_id"), mapX, mapY); err != nil {
+			return err
+		}
+		// Matchmaking pairs clubs by Rating, so a founded club needs one now.
+		_, _, err = club.NewRepository(tx).CalculateAndUpdateClubRating(ctx, clubID)
+		return err
+	})
+}
+
+// starterManager is a modest, employed manager on a long contract (names are
+// set by the caller). Attributes are 45-65; Overall uses the hire weights
+// (internal/program ManagerOverall).
+func starterManager(rng *rand.Rand) map[string]any {
+	attr := func() int { return 45 + rng.Intn(21) }
+	tactics, motivation, development, discipline := attr(), attr(), attr(), attr()
+	overall := int(math.Round(0.40*float64(tactics) + 0.20*float64(motivation) + 0.25*float64(development) + 0.15*float64(discipline)))
+	return map[string]any{
+		"Age": 38 + rng.Intn(20), "isEmployed": true, "NationalTeam": false,
+		"PreferredFormation": []string{"433", "442", "4231", "352"}[rng.Intn(4)],
+		"Tactics":            tactics, "Motivation": motivation, "Development": development, "Discipline": discipline,
+		"Overall": overall, "Wage": 0, "SigningFee": 0, "ContractYears": 5, "Records": []any{},
+	}
 }
 
 func asFounding(err error, out *FoundingError) bool {

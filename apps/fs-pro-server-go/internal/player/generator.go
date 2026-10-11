@@ -75,6 +75,68 @@ func GenerateYouth(position string, rng *rand.Rand) map[string]any {
 	}
 }
 
+var starterFirstNames = []string{
+	"Alex", "Sam", "Jordan", "Noah", "Liam", "Ethan", "Leo", "Mason", "Kai", "Owen", "Rui", "Nico",
+	"Theo", "Luca", "Marco", "Jonas", "Felix", "Hugo", "Oscar", "Milan", "Tomas", "Andre", "Dani", "Iker",
+	"Yusuf", "Kofi", "Emeka", "Sami", "Arlo", "Finn", "Ivan", "Mateo",
+}
+var starterLastNames = []string{
+	"Silva", "Moreno", "Keller", "Novak", "Okafor", "Lindqvist", "Brennan", "Duarte", "Haddad", "Petrov",
+	"Mensah", "Costa", "Varga", "Fischer", "Rossi", "Laurent", "Quinn", "Adeyemi", "Sato", "Kowalski",
+	"Navarro", "Berg", "Murphy", "Diallo", "Hale", "Ortega", "Voss", "Carver",
+}
+
+// StarterSquadShape is the position mix a newly founded club starts with:
+// enough for a legal XI plus cover in every line (CoC: the village starts with
+// a few troops; more come from the Academy).
+var StarterSquadShape = []string{
+	"GK", "GK",
+	"DEF", "DEF", "DEF", "DEF", "DEF",
+	"MID", "MID", "MID", "MID", "MID",
+	"ATT", "ATT", "ATT", "ATT",
+}
+
+// GenerateStarter builds one player for a new club's starter squad: age 17-23,
+// modest attributes (15-40) with position attributes 35-50, so every founded
+// club starts level and grows through its Academy. Signed is left to the caller.
+func GenerateStarter(position string, rng *rand.Rand) map[string]any {
+	if position == "" {
+		position = positions[rng.Intn(len(positions))]
+	}
+	roles := RolesForPosition(position)
+	role := ""
+	if len(roles) > 0 {
+		role = roles[rng.Intn(len(roles))]
+	}
+	attrs := map[string]any{}
+	for _, key := range generatorAttributes {
+		attrs[key] = 15 + rng.Intn(26) // 15..40
+	}
+	attrs["PreferredFoot"] = []string{"left", "right"}[rng.Intn(2)]
+	attrs["AttackingMindset"] = rng.Intn(2) == 0
+	attrs["DefensiveMindset"] = rng.Intn(2) == 0
+	for _, key := range positionAttributes[position] {
+		attrs[key] = 35 + rng.Intn(16) // 35..50
+	}
+	age := 17 + rng.Intn(7) // 17..23
+	rating := CalculatePlayerRating(attrs, position, role)
+	value := CalculatePlayerValue(position, rating, age)
+	return map[string]any{
+		"FirstName":        starterFirstNames[rng.Intn(len(starterFirstNames))],
+		"LastName":         starterLastNames[rng.Intn(len(starterLastNames))],
+		"Age":              age,
+		"Position":         position,
+		"Role":             role,
+		"Attributes":       attrs,
+		"Rating":           rating,
+		"Value":            value,
+		"Wage":             CalculatePlayerWage(value),
+		"isSigned":         false,
+		"isReserve":        false,
+		"isTransferListed": false,
+	}
+}
+
 // GeneratePlayer builds one random player for a position (empty = random) and
 // culture. The returned map is ready to insert (Rating/Value/Wage computed).
 func GeneratePlayer(position, culture string, rng *rand.Rand) map[string]any {

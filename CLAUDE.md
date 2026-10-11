@@ -1,55 +1,61 @@
 # fs-pro
 
-## Competition model (open play + world pyramid)
+## Game model: Clash of Clans on a football club
 
-The design lives in two specs:
+The design lives in `docs/coc-mapping/` (start with `README.md`; what is
+actually built is logged in `PROGRESS.md`). Read it before touching the campus,
+economy, matches, squad, grid, ladder or the club hub.
 
-- `docs/OPEN-PLAY-COMPETITIONS-SPEC.md`: competitions, editions, Level, Rank, challenges, knockouts and the board.
-- `docs/WORLD-PYRAMID-SPEC.md`: placement, the pyramid leagues, the hourly calendar, caretakers and local news. Where the two disagree, this one wins.
+The launch loop is the whole game:
 
-Read both before touching competitions, seasons, fixtures, standings, the calendar clock, founding, news or the board.
+**Collect → Build → set your Pitch Grid → Attack → stars + loot + Standing →
+get attacked while away → repeat.**
 
 Key concepts:
 
-- **Level**: a club's progression, derived from `Clubs.XP` (higher = stronger;
-  the same thing `ideas/persistent-strat-game` calls Club Level). It decides
-  which competitions a club may enter. Promotion and relegation change a
-  club's Level by setting its XP. Never store Level in its own column.
-- **Division**: a club's level in its country's pyramid league, stored per
-  edition on `Entries.Division` (1 = top). It is never stored on `Clubs`. The
-  next draw moves a club by its pool finish: the top N go up, the bottom N go
-  down.
-- **Pool**: a group of clubs in one division that play a scheduled
-  round-robin (`Pools`; `Entries.Group` = pool id).
-- **Rank**: a club's position in a ranked (league/groups/pool) table.
-  Per edition only; knockouts have no Rank, only the round reached.
-- **Tier** is the word for facility grades (training ground, academy, etc.).
-  Never call facility grades "Level" or "Division".
-- **Competitions** other than the pyramid are built by the admin at any time,
-  with their own entry conditions, stages (league / groups / knockout), win
-  condition and rewards. "Cup" is only a label. One run of a competition is an
-  **edition** (stored in `Seasons`).
-- **Scheduling**: only pyramid fixtures are scheduled in advance, at the
-  draw. Other league and group matches come from accepted challenges, and
-  knockout ties are drawn when their round opens. Both play only on cup days
-  (`WeekTemplate` 'C').
-- **Booked match**: a friendly a manager books from matchmaking. It plays on
-  the next free cup day (`Stage` 'booked', `ChallengeStatus` accepted →
-  played once settled), and both sides get a prep window. A fixture's
-  match plan lives in its `HomeTactic`/`AwayTactic` JSON. See
-  `docs/CORE-LOOP.md`.
-- **Board** judges a club's performance score across all competitions,
-  compared with the target for its Level.
-- **Year = Season** (28 game days by default). Year end finishes the pyramid
-  editions and draws the next ones, then runs ageing, wages, retirement,
-  youth intake and reports. It creates no other competitions.
-- **Clock**: one game day = `DayLengthMinutes` (24 real hours by default),
-  ticked hourly. Matches play at their `KickoffHour`.
-- **Placement**: new clubs fill the world in order: town, then region, then
-  country, then a new country. Invite links override this for a town. Never
-  spawn AI clubs on founding.
-- **News** is posted to the smallest place that holds its clubs and escalates
-  to wider scopes by importance. Never broadcast every result to `world`.
-- **Legacy** scheduled seasons live only on the `legacy/scheduled-seasons`
-  branch. Never add a mode flag or dual code paths for them. Porting a
-  utility from that branch (like `RoundRobin`) into the pyramid is fine.
+- **Campus**: the village. 3D grounds (`views/game/club-game.vue`,
+  `components/cozy/`). It is home: every other screen is an overlay or drawer
+  on top of it, never a separate route-home.
+- **Clubhouse tier**: the Town Hall. Caps every other facility's level and
+  gates the Groundskeeper count (`internal/clubhouse`, the single authority).
+- **Resources**: Cash (`Clubs.Budget`), Fans, Scout Tokens, Sponsor Credits.
+  Crossed costs: Cash buildings cost Fans and vice versa. Each has a vault cap.
+  Collectors (Turnstiles, Club Shop) accrue lazily; `campus.collect` banks them.
+- **Groundskeepers**: the builders. Scarce simultaneous-upgrade slots.
+- **Tier** is the word for facility grades. Never call them "Level".
+- **Attack (raid)**: `POST /api/play/:clubId/match`. Async, server-side,
+  deterministic: the attacker's Match grid vs the defender's stored Home grid,
+  run through `crates/sim-core`. Returns 0-3 stars, stolen loot and Standing
+  deltas (`MatchResult.raid`). The defender gets a guard/shield.
+- **Standing points**: the ladder (CoC trophies), `Clubs.StandingPoints`,
+  floored at 0. Leagues/rollover in `internal/league`.
+- **Pitch Grid**: the squad's formation as cells (Home / Match / Derby slots),
+  `internal/grid`. Abilities and traits are gated by facility tier.
+- **Squad supply**: a founded club starts with a 16-player starter squad and a
+  manager, named by worldgen in its town's culture. More players come from the
+  Youth Academy (`POST /api/clubs/:id/recruit-youth`). Transfers are hidden
+  for launch.
+- **Founding / placement**: new clubs fill the world town → region → country →
+  new country (world-service placement). Each club gets its own map spot near
+  its town (`Clubs.MapX/MapY`). Never spawn AI clubs on founding.
+- **Club hub**: defence log + replays, ladder, season pass, legacy, abilities,
+  association, pre-season (`components/cozy/club-hub.vue`).
+
+## Server
+
+- **Go only** (`apps/fs-pro-server-go` + `services/*`). Local stack:
+  `scripts/run-go-stack.ps1`. Migrations are SQL files in
+  `apps/fs-pro-server/src/db/drizzle/migrations/` (applied by
+  `deploy/migrate.sh`); the Node app is not run.
+- Server-authoritative and deterministic: per-run seeds, no client-trusted
+  outcomes.
+
+## Retired for launch (do not wire back in)
+
+The old pyramid/open-play game: pyramid leagues and divisions, the hourly
+calendar clock and year end, Club Level/XP as a gate, the board score,
+open-play competitions and challenges, booked matches/matchday/prep, the owner
+program, world news, transfers. The code still exists, but no client route or
+HUD entry leads to it (managers are redirected to their campus; admins keep
+the `/a` screens). The Go world-worker schedules no pyramid fixtures. Don't add
+mode flags or dual code paths for it.

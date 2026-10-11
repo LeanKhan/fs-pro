@@ -144,11 +144,13 @@ func corsMiddleware(cfg config.Config, next http.Handler) http.Handler {
 	whitelist := corsWhitelist(cfg)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
+		// Always vary on Origin: a cacheable response fetched without one (an
+		// <img> crest) must not be reused for a later CORS fetch of the same URL.
+		w.Header().Add("Vary", "Origin")
 		if origin != "" && (cfg.IsDev() || whitelist[origin]) {
 			h := w.Header()
 			h.Set("Access-Control-Allow-Origin", origin)
 			h.Set("Access-Control-Allow-Credentials", "true")
-			h.Add("Vary", "Origin")
 			if r.Method == http.MethodOptions {
 				h.Set("Access-Control-Allow-Methods", "GET,HEAD,PUT,PATCH,POST,DELETE")
 				if reqHeaders := r.Header.Get("Access-Control-Request-Headers"); reqHeaders != "" {

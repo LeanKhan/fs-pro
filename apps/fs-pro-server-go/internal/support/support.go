@@ -88,6 +88,9 @@ func Register(srv *httpapi.Server, h *Handlers) {
 		[]int{200, 400, 502}, h.worldgenFamilyNames)
 	srv.RegisterRaw("support.worldgenHealth", http.MethodGet, "/api/services/worldgen/health",
 		[]int{200, 503}, h.worldgenHealth)
+
+	// Club crests/kits and the static /img mount (Node: atlas.router.ts, express.static).
+	registerCrests(srv, h)
 }
 
 // sessionUser reads the signed-in user id from the request context.
