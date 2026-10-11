@@ -46,6 +46,10 @@ export const OpponentSchema = z.object({
   /** Run by another person: their saved squad and tactics defend. */
   human: z.boolean().optional(),
   manager: z.string().nullable().optional(),
+  /** CoC's "available loot": what a 3-star win would take (matchmaking only). */
+  loot: z.object({ cash: z.number(), fans: z.number(), tokens: z.number() }).optional(),
+  /** The opponent's Standing points (matchmaking only). */
+  standing: z.number().optional(),
 });
 
 const ResultLetterSchema = z.enum(['W', 'D', 'L']);

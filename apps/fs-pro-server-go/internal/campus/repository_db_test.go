@@ -163,11 +163,12 @@ func TestCampusRepositoryRolledBack(t *testing.T) {
 		if err != nil {
 			return fmt.Errorf("collect: %w", err)
 		}
-		// Turnstiles level 2 => 1200/hr * 3h = 3600 Cash.
-		if v, _ := collected["cash"].(float64); v != 3600 {
-			return fmt.Errorf("collected cash = %v, want 3600", collected["cash"])
+		// Turnstiles level 2 => 2x the base rate for 3h.
+		wantCash := CollectorRate(Collectors[0], 2) * 3
+		if v, _ := collected["cash"].(float64); v != wantCash {
+			return fmt.Errorf("collected cash = %v, want %v", collected["cash"], wantCash)
 		}
-		if intOf(mustClubRow(t, ctx, tx, collectClub)["Budget"]) != 3600 {
+		if float64(intOf(mustClubRow(t, ctx, tx, collectClub)["Budget"])) != wantCash {
 			return fmt.Errorf("cash not credited")
 		}
 		if ledgerCount(t, ctx, tx, collectClub, "collector_income") != 1 {
@@ -179,13 +180,13 @@ func TestCampusRepositoryRolledBack(t *testing.T) {
 
 		// --- Place validates the whole layout -------------------------------
 		placeClub := newTestClub(t, ctx, tx, nil)
-		if _, err := repo.Place(ctx, placeClub, "dugout", 6, -3, 0, now); err != nil {
+		if _, err := repo.Place(ctx, placeClub, "cash_vault", -4, 6, 0, now); err != nil {
 			return fmt.Errorf("valid place: %w", err)
 		}
 		if _, err := repo.Place(ctx, placeClub, "nope", 0, 0, 0, now); !errors.Is(err, ErrUnknownBuilding) {
 			return fmt.Errorf("unknown building err = %v", err)
 		}
-		if _, err := repo.Place(ctx, placeClub, "stands", 6, -3, 0, now); !errors.Is(err, ErrInvalidPlacement) {
+		if _, err := repo.Place(ctx, placeClub, "club_shop", -4, 6, 0, now); !errors.Is(err, ErrInvalidPlacement) {
 			return fmt.Errorf("overlap err = %v, want ErrInvalidPlacement", err)
 		}
 

@@ -128,13 +128,13 @@ describe('campus contract', () => {
     assert.equal(UsePerkRequestSchema.safeParse({ perk: 'instant_finish' }).success, true);
     // The construction/research targets the Go campus accepts.
     for (const target of [
+      'clubhouse',
       'turnstiles',
       'club_shop',
       'cash_vault',
-      'fan_vault',
-      'clubhouse',
-      'coaching_dept',
-      'video_analysis',
+      'training_ground',
+      'youth_academy',
+      'medical_centre',
     ]) {
       assert.equal(
         UsePerkRequestSchema.safeParse({ perk: 'instant_finish', target }).success,

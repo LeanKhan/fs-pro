@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"fs-pro-server/internal/clubhouse"
 	"fs-pro-server/internal/httpapi"
 )
 
@@ -76,6 +77,10 @@ func (h *Handlers) upgrade(cx *httpapi.Context, _ http.ResponseWriter, r *http.R
 	assetType := str(body(cx), "assetType")
 	if assetType == "" {
 		return httpapi.Fail(400, "assetType is required", "assetType is required")
+	}
+	// An absorbed asset follows its building (clubhouse/buildings.go).
+	if why := clubhouse.LinkedRefusal(assetType); why != "" {
+		return httpapi.Fail(400, why, why)
 	}
 	now := time.Now().UTC()
 	if err := h.repo.StartUpgrade(r.Context(), clubID, assetType, now, scale()); err != nil {

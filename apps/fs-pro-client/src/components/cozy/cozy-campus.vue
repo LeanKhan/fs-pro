@@ -54,6 +54,7 @@
     :club-id="advisorClubId"
     :suspended="suspended"
     :marker="advisorMarker"
+    :source="advisorSource ?? null"
   />
 </template>
 
@@ -66,7 +67,7 @@ import { formatRemainingSeconds } from '@/helpers/countdown';
 import { useStore } from '@/store';
 import { icon } from './icons';
 import CozyAdvisor from './advisor/CozyAdvisor.vue';
-import { useAdvisorStore } from './advisor/use-advisor';
+import { useAdvisorStore, type AdvisorSource } from './advisor/use-advisor';
 import type { CityVariant } from './scene/terrain';
 import { World, type CampusView, type Pick } from './scene/world';
 
@@ -85,6 +86,8 @@ const props = defineProps<{
   collector?: { key: string; amount: number; full: boolean; coach?: boolean } | null;
   /** Stop drawing (e.g. while the Matchzone covers the campus). */
   suspended?: boolean;
+  /** What the advisor says (the launch goals); the server program when absent. */
+  advisorSource?: AdvisorSource | null;
 }>();
 const emit = defineEmits<{
   (e: 'tap', pick: Pick, ground: { x: number; z: number } | null): void;

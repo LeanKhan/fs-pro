@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"fs-pro-server/internal/clients"
 	"fs-pro-server/internal/db"
 	"fs-pro-server/internal/httpapi"
 	"fs-pro-server/internal/player"
@@ -340,9 +341,16 @@ func (h *Handlers) recruitYouthPlayers(cx *httpapi.Context, _ http.ResponseWrite
 	}
 
 	rng := h.rand()
+	// Named by worldgen in the club's town culture, like the starter squad.
+	var culture string
+	_ = h.repo.Q().QueryRow(ctx, `SELECT coalesce(d."CultureId"::text, ci."CultureId"::text, '')
+		FROM "Clubs" c LEFT JOIN "Places" d ON d."_id" = c."DistrictId" LEFT JOIN "Places" ci ON ci."_id" = d."ParentId"
+		WHERE c."_id" = $1`, id).Scan(&culture)
+	names := clients.PersonNames(ctx, count, culture)
 	recruits := make([]any, 0, count)
 	for i := 0; i < count; i++ {
 		generated := player.GenerateYouth("", rng)
+		generated["FirstName"], generated["LastName"] = names[i].First, names[i].Last
 		generated["isSigned"] = true
 		generated["ClubId"] = id
 		generated["ClubCode"] = str(club, "ClubCode")

@@ -16,7 +16,16 @@ Key concepts:
 - **Campus**: the village. 3D grounds (`views/game/club-game.vue`,
   `components/cozy/`). It is home: every other screen is an overlay or drawer
   on top of it, never a separate route-home.
-- **Clubhouse tier**: the Town Hall. Caps every other facility's level and
+- **Seven buildings, max** (`internal/clubhouse/buildings.go`, client
+  `BUILDING_PRIMARY` in `campus-grid.ts`): Clubhouse (the `office` placement),
+  Stadium (`stadium_grounds`; Cash collector), Club Shop (Fans collector),
+  Club Vault (both caps), Training Ground (ability research), Youth Academy
+  (players + archetype schools), Medical Centre. Each upgrades one *primary*
+  asset; older assets it absorbed (stands, turnstiles' pitch, fan_vault,
+  coaching_dept, video_analysis, staff_house, scouting, academy…) are *linked*
+  and copy the primary's level on every promotion (`SyncLinked`), and can't be
+  upgraded on their own. Don't add an eighth building.
+- **Clubhouse tier**: the Town Hall. Caps every other building's level and
   gates the Groundskeeper count (`internal/clubhouse`, the single authority).
 - **Resources**: Cash (`Clubs.Budget`), Fans, Scout Tokens, Sponsor Credits.
   Crossed costs: Cash buildings cost Fans and vice versa. Each has a vault cap.

@@ -87,11 +87,11 @@ func TestClubhouseGate(t *testing.T) {
 	if ok, missing := CanUpgradeClubhouse(2, map[string]int{}); ok || len(missing) != 2 {
 		t.Errorf("tier 2 with an empty campus: ok=%v missing=%v, want false / 2", ok, missing)
 	}
-	met := map[string]int{"stands": 1, "training_ground": 1}
+	met := map[string]int{"training_ground": 1, "youth_academy": 1}
 	if ok, missing := CanUpgradeClubhouse(2, met); !ok || len(missing) != 0 {
 		t.Errorf("tier 2 met: ok=%v missing=%v, want true / 0", ok, missing)
 	}
-	partial := map[string]int{"stands": 1} // training_ground missing
+	partial := map[string]int{"youth_academy": 1} // training_ground missing
 	if ok, missing := CanUpgradeClubhouse(2, partial); ok || len(missing) != 1 || missing[0].Facility != "training_ground" {
 		t.Errorf("partial tier 2: ok=%v missing=%v", ok, missing)
 	}

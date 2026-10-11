@@ -46,15 +46,17 @@ type Requirement struct {
 // Requirements are the facility levels needed to upgrade the Clubhouse to
 // `tier` (tier 1 is the start). Content - tunable without code changes.
 func Requirements(tier int) []Requirement {
+	// In terms of the seven buildings' primary assets (buildings.go); each
+	// tier asks for levels the previous tier's cap allows.
 	switch tier {
 	case 2:
-		return []Requirement{{"stands", 1}, {"training_ground", 1}}
+		return []Requirement{{"training_ground", 1}, {"youth_academy", 1}}
 	case 3:
-		return []Requirement{{"stands", 2}, {"training_ground", 2}, {"youth_academy", 1}}
+		return []Requirement{{"turnstiles", 2}, {"club_shop", 2}, {"training_ground", 2}, {"youth_academy", 2}}
 	case 4:
-		return []Requirement{{"stadium_grounds", 2}, {"coaching_dept", 2}, {"medical_centre", 2}}
+		return []Requirement{{"turnstiles", 3}, {"cash_vault", 3}, {"training_ground", 3}, {"medical_centre", 2}}
 	case 5:
-		return []Requirement{{"stadium_grounds", 3}, {"coaching_dept", 3}, {"youth_academy", 3}, {"scouting", 2}}
+		return []Requirement{{"turnstiles", 4}, {"club_shop", 4}, {"training_ground", 4}, {"youth_academy", 4}, {"medical_centre", 3}}
 	default:
 		return nil
 	}

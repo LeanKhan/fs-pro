@@ -231,7 +231,7 @@ func TestResearchPerkTargetingRolledBack(t *testing.T) {
 		now := time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC)
 		club := newTestClub(t, ctx, tx, map[string]any{"Fans": 0, "ClubhouseTier": 4})
 		if _, err := tx.Exec(ctx, `INSERT INTO "ClubAssets" ("ClubId","AssetType","Level","UpgradingTo","StartAt","CompleteAt","updatedAt")
-			VALUES ($1,'coaching_dept',1,2,$2,$3,now())`, club, now, now.Add(time.Hour)); err != nil {
+			VALUES ($1,'training_ground',1,2,$2,$3,now())`, club, now, now.Add(time.Hour)); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE "Clubs" SET "Perks" = '{"research_finish":1}'::jsonb WHERE "_id"=$1`, club); err != nil {
@@ -248,20 +248,20 @@ func TestResearchPerkTargetingRolledBack(t *testing.T) {
 			t.Errorf("a refused research redemption consumed the perk: %d", got)
 		}
 
-		res, err := repo.UsePerk(ctx, club, "research_finish", "r-2", "coaching_dept", now)
+		res, err := repo.UsePerk(ctx, club, "research_finish", "r-2", "training_ground", now)
 		if err != nil {
 			return err
 		}
 		if res["applied"] != true || res["kind"] != string(PerkResearch) {
 			t.Errorf("research_finish result = %#v", res)
 		}
-		if assets := mustAssets(t, ctx, tx, club); intOf(assets["coaching_dept"]["Level"]) != 2 || assets["coaching_dept"]["UpgradingTo"] != nil {
-			t.Errorf("coaching_dept not finished: %+v", assets["coaching_dept"])
+		if assets := mustAssets(t, ctx, tx, club); intOf(assets["training_ground"]["Level"]) != 2 || assets["training_ground"]["UpgradingTo"] != nil {
+			t.Errorf("training_ground not finished: %+v", assets["training_ground"])
 		}
 
 		// Replaying the instance after the target finished is a no-op success
 		// (the guard short-circuits before the state check), not a 409.
-		res, err = repo.UsePerk(ctx, club, "research_finish", "r-2", "coaching_dept", now)
+		res, err = repo.UsePerk(ctx, club, "research_finish", "r-2", "training_ground", now)
 		if err != nil {
 			return err
 		}
@@ -319,16 +319,16 @@ func TestBuilderBoostAcceleratesRolledBack(t *testing.T) {
 		// A short upgrade whose remainder the boost covers completes now.
 		shortClub := newTestClub(t, ctx, tx, map[string]any{"Budget": 0.0, "ClubhouseTier": 3})
 		if _, err := tx.Exec(ctx, `INSERT INTO "ClubAssets" ("ClubId","AssetType","Level","UpgradingTo","StartAt","CompleteAt","updatedAt")
-			VALUES ($1,'fan_vault',1,2,$2,$3,now())`, shortClub, now, now.Add(30*time.Minute)); err != nil {
+			VALUES ($1,'cash_vault',1,2,$2,$3,now())`, shortClub, now, now.Add(30*time.Minute)); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE "Clubs" SET "Perks" = '{"builder_boost":1}'::jsonb WHERE "_id"=$1`, shortClub); err != nil {
 			return err
 		}
-		if _, err := repo.UsePerk(ctx, shortClub, "builder_boost", "b-2", "fan_vault", now); err != nil {
+		if _, err := repo.UsePerk(ctx, shortClub, "builder_boost", "b-2", "cash_vault", now); err != nil {
 			return err
 		}
-		row = mustAssets(t, ctx, tx, shortClub)["fan_vault"]
+		row = mustAssets(t, ctx, tx, shortClub)["cash_vault"]
 		if intOf(row["Level"]) != 2 || row["UpgradingTo"] != nil {
 			t.Errorf("a covered boost must finish the upgrade: %+v", row)
 		}

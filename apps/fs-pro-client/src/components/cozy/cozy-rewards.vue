@@ -19,7 +19,7 @@
         <div><span v-html="icon('coins')"></span><b>{{ signed(shown(raid.stolen.cash), currency) }}</b><small>cash taken</small></div>
         <div><span v-html="icon('people')"></span><b>{{ signed(shown(raid.stolen.fans)) }}</b><small>fans taken</small></div>
         <div v-if="raid.stolen.tokens"><span v-html="icon('star')"></span><b>{{ signed(shown(raid.stolen.tokens)) }}</b><small>tokens taken</small></div>
-        <div><span v-html="icon('trophy')"></span><b>{{ signed(shown(raid.standing.attacker)) }}</b><small>standing</small></div>
+        <div><span v-html="icon('trophy')"></span><b>{{ signed(shown(standingDelta)) }}</b><small>standing</small></div>
         <div v-if="raid.systemBonus"><span v-html="icon('coins')"></span><b>{{ signed(shown(raid.systemBonus), currency) }}</b><small>to Board Vault</small></div>
       </template>
       <div v-if="result.rewards.cash"><span v-html="icon('coins')"></span><b>{{ signed(shown(result.rewards.cash), currency) }}</b><small>{{ result.rewards.cash > 0 ? 'prize' : 'match costs' }}</small></div>
@@ -44,10 +44,21 @@ import { sfx } from '@/services/sfx';
 import { crestFallback } from './club-colors';
 import { icon } from './icons';
 
-const props = defineProps<{ result: MatchResult; myName: string; myCode: string; cooldown: number }>();
+const props = defineProps<{
+  result: MatchResult;
+  myName: string;
+  myCode: string;
+  cooldown: number;
+  /** Standing points before this match: a loss can't take the ladder below 0. */
+  standingBefore?: number | null;
+}>();
 const emit = defineEmits<{ (e: 'close'): void; (e: 'again'): void }>();
 
 const raid = computed(() => props.result.raid ?? null);
+const standingDelta = computed(() => {
+  const d = raid.value?.standing.attacker ?? 0;
+  return props.standingBefore != null ? Math.max(d, -props.standingBefore) : d;
+});
 
 /** 0-3 stars: the server's raid rating (02 §D). Without a raid summary
  * (a legacy result) fall back to the score: draw 1, win 2, big win 3. */

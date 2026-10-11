@@ -30,7 +30,7 @@ export function renderThumbs(colors: [string, string]) {
   };
 
   // A mid-way stage of each building, its seating at the same Tier.
-  for (const key of CAMPUS_BUILDING_KEYS) shoot(key, buildingModel(key, { tier: 3, clubLevel: 6, staffTier: 3, standsTier: 3 }, false, colors));
+  for (const key of CAMPUS_BUILDING_KEYS) shoot(key, buildingModel(key, { tier: 3, clubLevel: 3, staffTier: 3, standsTier: 3 }, false, colors));
   renderer.dispose();
   renderer.forceContextLoss();
 

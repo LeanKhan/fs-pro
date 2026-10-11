@@ -66,6 +66,10 @@ func (h *Handlers) startUpgrade(cx *httpapi.Context, _ http.ResponseWriter, r *h
 	if !IsAssetType(assetType) {
 		return httpapi.Fail(400, "Unknown asset type \""+assetType+"\"", "Unknown asset type \""+assetType+"\"")
 	}
+	// An absorbed asset follows its building (clubhouse/buildings.go).
+	if why := clubhouse.LinkedRefusal(assetType); why != "" {
+		return httpapi.Fail(400, why, why)
+	}
 	if err := h.repo.StartUpgrade(ctx, clubID, AssetType(assetType)); err != nil {
 		return httpapi.Fail(400, err.Error(), err.Error())
 	}
@@ -290,18 +294,7 @@ func parsePlacement(raw map[string]any) map[string]Placed {
 }
 
 func placementOf(stored any) map[string]Placed {
-	raw, _ := stored.(map[string]any)
-	merged := map[string]Placed{}
-	for k, v := range DefaultPlacement {
-		merged[k] = v
-	}
-	for k, v := range parsePlacement(raw) {
-		merged[k] = v
-	}
-	if ValidatePlacement(merged) != "" {
-		return DefaultPlacement
-	}
-	return merged
+	return PlacementFromStored(stored)
 }
 
 func placementJSON(p map[string]Placed) map[string]any {

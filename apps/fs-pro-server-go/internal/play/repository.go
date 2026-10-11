@@ -35,7 +35,7 @@ func (r *Repository) Q() db.Querier { return r.q }
 // Club returns the play-relevant club fields.
 func (r *Repository) Club(ctx context.Context, clubID string) (map[string]any, bool, error) {
 	rows, err := r.q.Query(ctx, `SELECT "_id","Name","ClubCode","Rating","XP","Budget","UserId","ManagerId",
-		"Fans","Reputation","BoardConfidence","Form","ShieldUntil","ReleasedAt","Lineup"
+		"Fans","Reputation","BoardConfidence","Form","ShieldUntil","ReleasedAt","Lineup","StandingPoints"
 		FROM "Clubs" WHERE "_id" = $1 LIMIT 1`, clubID)
 	if err != nil {
 		return nil, false, err
@@ -91,7 +91,8 @@ func (r *Repository) LastMatchmadePlayedAt(ctx context.Context, clubID string) (
 // Opponents returns up to `limit` closest-power clubs (never the caller's own,
 // never released or shielded), with the human manager's name when known.
 func (r *Repository) Opponents(ctx context.Context, clubID string, rating float64, limit int) ([]map[string]any, error) {
-	rows, err := r.q.Query(ctx, `SELECT c."_id", c."Name", c."ClubCode", c."Rating", c."UserId", u."FullName" AS manager
+	rows, err := r.q.Query(ctx, `SELECT c."_id", c."Name", c."ClubCode", c."Rating", c."UserId", u."FullName" AS manager,
+		c."Budget", c."Fans", c."ScoutTokens", c."StandingPoints"
 		FROM "Clubs" c LEFT JOIN "Users" u ON u."_id" = c."UserId"
 		WHERE c."_id" <> $1 AND c."ReleasedAt" IS NULL
 		  AND (c."ShieldUntil" IS NULL OR c."ShieldUntil" < now())

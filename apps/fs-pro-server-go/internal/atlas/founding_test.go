@@ -210,6 +210,15 @@ func TestFoundClubRolledBack(t *testing.T) {
 				t.Errorf("club map spot %v,%v is %.1f from its town", club["MapX"], club["MapY"], dist)
 			}
 		}
+		eco, _, _ := one(ctx, tx, `SELECT count(*)::int AS n FROM "ClubAssets" WHERE "ClubId" = $1 AND "Level" = 1
+			AND "AssetType" IN ('clubhouse','turnstiles','stadium_grounds','stands','club_shop','cash_vault','fan_vault')`, clubID)
+		if mint(eco, "n") != 7 {
+			t.Errorf("starter buildings + absorbed assets at level 1 = %v, want 7", eco["n"])
+		}
+		lay, _, _ := one(ctx, tx, `SELECT jsonb_array_length("Layouts"->'home'->'slots') AS home, jsonb_array_length("Layouts"->'match'->'slots') AS match FROM "Clubs" WHERE "_id" = $1`, clubID)
+		if mint(lay, "home") != 11 || mint(lay, "match") != 11 {
+			t.Errorf("starter grids = %v, want 11 players in home and match", lay)
+		}
 		t.Logf("starter manager %s %s; sample player names via worldgen at %s", mstr(mgr, "FirstName"), mstr(mgr, "LastName"), clients.WorldgenURL())
 
 		// Founding the same name again is a 409.

@@ -66,7 +66,7 @@ func TestUsePerkHandlerTargetRolledBack(t *testing.T) {
 		now := time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC)
 		club := newTestClub(t, ctx, tx, map[string]any{"Fans": 0, "ClubhouseTier": 4})
 		if _, err := tx.Exec(ctx, `INSERT INTO "ClubAssets" ("ClubId","AssetType","Level","UpgradingTo","StartAt","CompleteAt","updatedAt")
-			VALUES ($1,'coaching_dept',1,2,$2,$3,now())`, club, now, now.Add(time.Hour)); err != nil {
+			VALUES ($1,'training_ground',1,2,$2,$3,now())`, club, now, now.Add(time.Hour)); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE "Clubs" SET "Perks" = '{"research_finish":1}'::jsonb WHERE "_id"=$1`, club); err != nil {
@@ -90,15 +90,22 @@ func TestUsePerkHandlerTargetRolledBack(t *testing.T) {
 		if got := call(map[string]any{"perk": "research_finish", "target": 7}); got.Status != 400 {
 			t.Errorf("non-string target = %d, want 400", got.Status)
 		}
-		if got := call(map[string]any{"perk": "research_finish", "target": "video_analysis"}); got.Status != 409 {
+		if got := call(map[string]any{"perk": "research_finish", "target": "video_analysis"}); got.Status != 400 {
+			t.Errorf("absorbed research room = %d, want 400", got.Status)
+		}
+		if got := call(map[string]any{"perk": "instant_finish", "target": "club_shop"}); got.Status != 409 {
 			t.Errorf("no-upgrade target = %d, want 409", got.Status)
 		}
-		got := call(map[string]any{"perk": "research_finish", "target": "coaching_dept", "instanceId": "handler-t-1"})
+		got := call(map[string]any{"perk": "research_finish", "target": "training_ground", "instanceId": "handler-t-1"})
 		if got.Status != 200 {
 			t.Fatalf("valid target redemption = %d (%v), want 200", got.Status, got.Body)
 		}
-		if assets := mustAssets(t, ctx, tx, club); intOf(assets["coaching_dept"]["Level"]) != 2 {
-			t.Error("the research perk did not finish the Coaching Department")
+		assets := mustAssets(t, ctx, tx, club)
+		if intOf(assets["training_ground"]["Level"]) != 2 {
+			t.Error("the research perk did not finish the Training Ground")
+		}
+		if intOf(assets["coaching_dept"]["Level"]) != 2 {
+			t.Error("the Training Ground's research rooms did not follow its level")
 		}
 		return nil
 	})

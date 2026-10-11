@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -14,6 +15,7 @@ import (
 	"fs-pro-server/internal/db"
 	"fs-pro-server/internal/grid"
 	"fs-pro-server/internal/httpapi"
+	"fs-pro-server/internal/loot"
 )
 
 // sessionUser reads the signed-in user id from the request context.
@@ -201,8 +203,18 @@ func (h *Handlers) findOpponents(_ *httpapi.Context, _ http.ResponseWriter, r *h
 		options = len(rows)
 	}
 	out := make([]any, 0, options)
+	mult := leagueMultiplierX100(intOf(club["StandingPoints"]))
 	for _, row := range rows[:options] {
-		out = append(out, opponentOption(row))
+		opt := opponentOption(row)
+		// CoC's "available loot": what a 3-star win would take, with the
+		// attacker's league multiplier - the same numbers the raid uses.
+		opt["loot"] = map[string]any{
+			"cash":   loot.RaidLootForStars(int(math.Round(floatOf(row["Budget"]))), 3, mult, loot.RaidCapCash),
+			"fans":   loot.RaidLootForStars(intOf(row["Fans"]), 3, mult, loot.RaidCapFans),
+			"tokens": loot.RaidLootForStars(intOf(row["ScoutTokens"]), 3, mult, loot.RaidCapTokens),
+		}
+		opt["standing"] = intOf(row["StandingPoints"])
+		out = append(out, opt)
 	}
 	return httpapi.OK("Opponents", out)
 }

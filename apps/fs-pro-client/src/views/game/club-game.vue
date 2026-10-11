@@ -23,6 +23,7 @@
         :now-ms="game.now.value"
         :suspended="matchOpen || !!watching"
         :collector="collector"
+        :advisor-source="isMyClub ? advisorSource : null"
         @tap="onTap"
         @hover="onHover"
         @alert="onAlert"
@@ -50,6 +51,7 @@
         :builders="builders"
         :guard-seconds="guardSeconds"
         :defences="newDefences"
+        :goals="isMyClub ? goals : null"
         :is-mine="isMyClub"
         :moving="!!moving"
         :cooldown="game.cooldownLeft.value"
@@ -62,15 +64,16 @@
         :building-key="selectedKey"
         :asset="selectedAsset"
         :is-mine="isMyClub"
-        :budget="eco?.cash ?? 0"
+        :budget="selectedKey ? balanceFor(selectedKey) : 0"
+        :cost-currency="selectedKey ? currencyOf(selectedKey) : 'cash'"
         :busy="game.upgradingAsset.value !== null"
         :now-ms="game.now.value"
         :door="doorFor(selectedKey)"
         :alert="alerts[selectedKey]?.label ?? null"
         :club-level="eco?.clubhouse.tier ?? 0"
-        :staff-tier="tierOf('staff_house')"
+        :staff-tier="tierOf('training_ground')"
         @close="selectedKey = null"
-        @upgrade="game.startUpgrade"
+        @upgrade="onUpgrade"
         @move="startMove"
         @open="onOpen"
       />
@@ -82,10 +85,18 @@
         </h2>
         <p class="sub">
           {{ builders?.active ?? 0 }}/{{ builders?.max ?? 0 }} builders busy
+          <button
+            v-if="eco?.groundskeepers.nextCost && eco.groundskeepers.nextEarnedBy === 'purchase'"
+            class="btn small"
+            @click="game.hireBuilder()"
+          >
+            <span v-html="icon('hammer')"></span> Hire a builder ·
+            {{ Math.round(eco.groundskeepers.nextCost).toLocaleString('en-US') }} credits
+          </button>
         </p>
         <div class="cards">
           <button
-            v-for="a in game.campus.value.assets"
+            v-for="a in allAssets"
             :key="a.type"
             class="card"
             :class="{ off: !!a.next?.blockedReason && !a.upgrade }"
@@ -95,7 +106,7 @@
               {{
                 stageName(a.type as CampusBuilding, {
                   tier: a.level,
-                  clubLevel: 0,
+                  clubLevel: eco?.clubhouse.tier ?? 1,
                   staffTier: 0,
                 })
               }}
@@ -109,18 +120,17 @@
             </div>
             <div v-else-if="a.next" class="chips">
               <span class="chip">
-                <span v-html="icon('coins')"></span>
-                {{ currency(a.next.cost) }}
+                <span v-html="icon(currencyOf(a.type) === 'fans' ? 'people' : 'coins')"></span>
+                {{
+                  currencyOf(a.type) === 'fans'
+                    ? `${Math.round(a.next.cost).toLocaleString('en-US')} fans`
+                    : currency(a.next.cost)
+                }}
               </span>
             </div>
             <div v-if="a.next?.blockedReason && !a.upgrade" class="card-why">
               {{ a.next.blockedReason }}
             </div>
-          </button>
-        </div>
-        <div class="row-btns">
-          <button class="btn" @click="(showBuild = false), (showCampus = true)">
-            <span v-html="icon('coins')"></span> Clubhouse, collectors &amp; vaults
           </button>
         </div>
       </cozy-modal>
@@ -164,6 +174,7 @@
           :my-name="club.Name"
           :my-code="club.ClubCode"
           :cooldown="game.cooldownLeft.value"
+          :standing-before="standingBeforeAttack"
           @close="game.showRewards.value = false"
           @again="((game.showRewards.value = false), game.findMatch(quickSim))"
         />
@@ -174,16 +185,6 @@
           v-model:quick-sim="quickSim"
           :user-name="store.user?.fullname ?? store.user?.username"
           @act="onSettingsAct"
-        />
-      </cozy-modal>
-
-      <!-- Clubhouse, collectors, builders and vaults (docs/coc-mapping/08 §4.1). -->
-      <cozy-modal v-model="showCampus" size="wide" label="Grounds">
-        <campus-economy
-          v-if="isMyClub"
-          :club-id="clubId"
-          @toast="toast"
-          @changed="game.load()"
         />
       </cozy-modal>
 
@@ -216,10 +217,12 @@
           :mode="isMyClub ? 'edit' : 'scout'"
           @toast="toast"
         />
-        <squad-zone
+        <squad-roster
           v-else-if="squadOpen && squadTabs[squadTab]?.key === 'roster'"
           :club="club"
-          @update-available="onSquadUpdate"
+          :read-only="!isMyClub"
+          @changed="onSquadUpdate"
+          @toast="toast"
         />
       </cozy-drawer>
 
@@ -242,7 +245,7 @@
         :upgrading="game.upgradingAsset.value !== null"
         :now-ms="game.now.value"
         :budget="eco?.cash ?? null"
-        @upgrade="game.startUpgrade"
+        @upgrade="onUpgrade"
         @treated="onSquadUpdate"
       />
     </template>
@@ -258,6 +261,10 @@ import {
   CAMPUS_GRID,
   footprint,
   validatePlacement,
+  BUILDING_PRIMARY,
+  CAMPUS_BUILDING_KEYS,
+  type AssetState,
+  type CampusAssetState,
   type CampusBuilding,
   type CampusPlacement,
   type Placed,
@@ -278,14 +285,15 @@ import CozyMatchmaking from '@/components/cozy/cozy-matchmaking.vue';
 import CozyRewards from '@/components/cozy/cozy-rewards.vue';
 import CozyDrawer from '@/components/cozy/cozy-drawer.vue';
 import CozySettings from '@/components/cozy/cozy-settings.vue';
-import CampusEconomy from '@/components/cozy/campus-economy.vue';
 import ClubHub from '@/components/cozy/club-hub.vue';
 import PitchGridEditor from '@/components/cozy/grid/pitch-grid-editor.vue';
-import SquadZone from '@/views/user/club/zones/squad-zone.vue';
+import SquadRoster from '@/components/cozy/squad-roster.vue';
 import { useClubRefresh } from '@/composables/use-club-refresh';
 import { clubColors } from '@/components/cozy/club-colors';
 import { stageName } from '@/components/cozy/stages';
 import { icon } from '@/components/cozy/icons';
+import { currentGoal, goalAdvisorSource, launchGoals } from '@/components/cozy/goals';
+import { useAdvisorStore } from '@/components/cozy/advisor/use-advisor';
 import MatchzoneView from '@/components/matchzone/matchzone-view.vue';
 import { CELL } from '@/components/cozy/scene/models';
 import { renderThumbs } from '@/components/cozy/scene/thumbs';
@@ -340,10 +348,108 @@ const caps = computed(() => {
   return { cash: cap('cash'), fans: cap('fans'), tokens: cap('scout_tokens') };
 });
 
+// --- One village: seven buildings, each upgrading one primary asset -----------------------
+// (BUILDING_PRIMARY; server: internal/clubhouse/buildings.go). The Stadium raises the
+// Turnstiles, the Club Vault both vaults, the Training Ground the research rooms,
+// the Youth Academy the schools - the absorbed assets follow on the server.
+const BLURB: Record<CampusBuilding, string> = {
+  office: 'Your club HQ. Its tier caps every other building and sets your builders.',
+  stadium_grounds: 'Takes Cash at the gate, hour by hour. Tap the coins to collect. Bigger stands, bigger takings.',
+  club_shop: 'Sells scarves and shirts, and wins you Fans while you are away.',
+  cash_vault: 'Holds your Cash and Fans. A bigger vault lets the Stadium and Shop fill for longer.',
+  training_ground: 'Trains the squad and researches abilities: each tier unlocks the next syllabus.',
+  youth_academy: 'Brings through your own players and unlocks new player types.',
+  medical_centre: 'Treats injuries and gets players back on the pitch sooner.',
+};
+
+const fmtN = (n: number) => Math.round(n).toLocaleString('en-US');
+function effectFor(key: CampusBuilding, level: number, fallback = ''): string {
+  const e = eco.value;
+  if (!e) return fallback;
+  if (key === 'office')
+    return `Caps buildings at Tier ${e.clubhouse.tier} · ${e.groundskeepers.count} builder${e.groundskeepers.count === 1 ? '' : 's'}`;
+  if (key === 'stadium_grounds' || key === 'club_shop') {
+    const col = e.collectors.find((c) => c.key === BUILDING_PRIMARY[key].asset);
+    return col && level ? `${fmtN(col.productionPerHour)} ${col.currency}/h · holds ${fmtN(col.capacity)}` : 'Not built';
+  }
+  if (key === 'cash_vault') {
+    const cap = (c: string) => fmtN(e.vaults.find((v) => v.currency === c)?.capacity ?? 0);
+    return `Holds ${cap('cash')} cash · ${cap('fans')} fans`;
+  }
+  if (key === 'training_ground') return level ? `${fallback ? `${fallback} · ` : ''}Research tier ${level}` : 'Not built';
+  return fallback || (level ? `Tier ${level}` : 'Not built');
+}
+
+/** The server names assets by key ("training_ground level 1"); show building names. */
+const ASSET_BUILDING: Record<string, string> = Object.fromEntries(
+  Object.values(BUILDING_PRIMARY).map((b) => [b.asset, b.name])
+);
+function readableReason(reason: string | null): string | null {
+  if (!reason) return reason;
+  return reason.replace(/\b([a-z]+(?:_[a-z]+)*)\b level (\d+)/g, (m, key: string, lvl: string) =>
+    ASSET_BUILDING[key] ? `${ASSET_BUILDING[key]} Tier ${lvl}` : m
+  );
+}
+
+/** One building's state in the shape the panel and Build menu show. */
+function buildingAsset(key: CampusBuilding): AssetState | null {
+  const primary = BUILDING_PRIMARY[key];
+  if (primary.eco) {
+    const a: CampusAssetState | undefined = eco.value?.assets.find((x) => x.type === primary.asset);
+    if (!a) return null;
+    return {
+      type: key,
+      name: primary.name,
+      description: BLURB[key],
+      level: a.level,
+      maxLevel: a.maxLevel,
+      effectLabel: effectFor(key, a.level),
+      effects: {},
+      upgrade: a.upgrade
+        ? { toLevel: a.upgrade.toLevel, startAt: a.upgrade.startAt, completeAt: a.upgrade.readyAt, secondsLeft: a.upgrade.secondsLeft }
+        : null,
+      next: a.next
+        ? { level: a.next.level, cost: a.next.cost, minutes: a.next.minutes, effectLabel: '', blockedReason: readableReason(a.next.blockedReason) }
+        : null,
+    } as AssetState;
+  }
+  const f = game.campus.value?.assets.find((x) => x.type === primary.asset);
+  if (!f) return null;
+  return {
+    ...f,
+    type: key,
+    name: primary.name,
+    description: BLURB[key],
+    effectLabel: effectFor(key, f.level, f.effectLabel),
+    next: f.next ? { ...f.next, blockedReason: readableReason(f.next.blockedReason) } : null,
+  };
+}
+
+/** The seven buildings, Clubhouse first. */
+const allAssets = computed<AssetState[]>(() =>
+  CAMPUS_BUILDING_KEYS.map(buildingAsset).filter((a): a is AssetState => !!a)
+);
+
+/** What a building's next upgrade costs in: crossed costs for the economy. */
+function currencyOf(key: string): 'cash' | 'fans' {
+  const primary = BUILDING_PRIMARY[key as CampusBuilding];
+  if (!primary?.eco) return 'cash';
+  return eco.value?.assets.find((a) => a.type === primary.asset)?.currency === 'fans' ? 'fans' : 'cash';
+}
+function balanceFor(key: string) {
+  return currencyOf(key) === 'fans' ? (eco.value?.fans ?? 0) : (eco.value?.cash ?? 0);
+}
+
+function onUpgrade(key: string) {
+  const primary = BUILDING_PRIMARY[key as CampusBuilding];
+  if (!primary) return;
+  return primary.eco ? game.startEcoUpgrade(primary.asset) : game.startUpgrade(primary.asset);
+}
+
 const builders = computed(() => {
   const campus = game.campus.value;
   if (!campus) return null;
-  const next = campus.assets
+  const next = allAssets.value
     .filter((a) => a.upgrade)
     .sort((a, b) => a.upgrade!.completeAt.localeCompare(b.upgrade!.completeAt))[0];
   return {
@@ -447,7 +553,7 @@ const view = computed(() => {
   const campus = game.campus.value;
   if (!campus) return null;
   const tiers = Object.fromEntries(
-    campus.assets.map((a) => [a.type, { tier: a.level, upgrading: !!a.upgrade }])
+    allAssets.value.map((a) => [a.type, { tier: a.level, upgrading: !!a.upgrade }])
   );
   const players = ((club.value as any)?.Players ?? []).map((p: any) => ({
     id: String(p._id),
@@ -467,7 +573,7 @@ const view = computed(() => {
 
 const timers = computed(() =>
   Object.fromEntries(
-    (game.campus.value?.assets ?? [])
+    allAssets.value
       .filter((a) => a.upgrade)
       .map((a) => [
         a.type,
@@ -488,15 +594,20 @@ const collector = computed(() => {
     .reduce((n, c) => n + c.capacity, 0);
   // Shown once there's something worth a tap (a tenth of capacity), like CoC.
   if (!cap || cash < cap * 0.1) return null;
-  return { key: 'stands', amount: cash, full: game.collectorsFull.value };
+  return { key: 'stadium_grounds', amount: cash, full: game.collectorsFull.value };
 });
 
 async function collect() {
-  const from = campusRef.value?.screenOf('stands');
+  const from = campusRef.value?.screenOf('stadium_grounds');
   const got = await game.collectAll();
-  if (!got || (!got.cash && !got.fans)) return;
+  if (!got || (!got.cash && !got.fans)) {
+    focusOn('stadium_grounds');
+    toast('The gate takings build up hour by hour - come back soon to collect.');
+    return;
+  }
+  markCollected();
   sfx.play('collect');
-  campusRef.value?.burst('stands', 'coins');
+  campusRef.value?.burst('stadium_grounds', 'coins');
   if (got.cash) flyCoins(from, got.cash);
   if (got.fans) toast(`+${got.fans.toLocaleString('en-US')} fans`);
 }
@@ -543,12 +654,66 @@ function flyCoins(from: { x: number; y: number } | null | undefined, amount: num
   setTimeout(() => t.remove(), 1500);
 }
 
+// --- First goals: the launch onboarding (components/cozy/goals.ts) --------------------------
+const collectedKey = computed(() => `fspro_goal_collected_${clubId.value}`);
+const collectedOnce = ref(false);
+watch(
+  clubId,
+  () => {
+    try {
+      collectedOnce.value = localStorage.getItem(collectedKey.value) === '1';
+    } catch {
+      collectedOnce.value = false;
+    }
+  },
+  { immediate: true }
+);
+function markCollected() {
+  collectedOnce.value = true;
+  try {
+    localStorage.setItem(collectedKey.value, '1');
+  } catch {
+    /* private window: the goal just shows again next visit */
+  }
+}
+const goals = computed(() => {
+  const asset = (k: CampusBuilding) => allAssets.value.find((a) => a.type === k);
+  return launchGoals({
+    collected: collectedOnce.value,
+    trainingTier: asset('training_ground')?.level ?? 0,
+    trainingBuilding: !!asset('training_ground')?.upgrade,
+    academyTier: asset('youth_academy')?.level ?? 0,
+    academyBuilding: !!asset('youth_academy')?.upgrade,
+    wonAttack:
+      (eco.value?.standingPoints ?? 0) > 0 ||
+      (playState.value?.recent ?? []).some((m) => m.outcome === 'win') ||
+      (game.matchResult.value?.raid?.stars ?? 0) > 0,
+    clubhouseTier: eco.value?.clubhouse.tier ?? 1,
+    clubhouseBuilding: !!asset('office')?.upgrade,
+  });
+});
+const goalNow = computed(() => currentGoal(goals.value));
+const advisorSource = goalAdvisorSource(() => goalNow.value);
+const advisorStore = useAdvisorStore();
+// A new goal: the advisor says so (and points at its building).
+watch(
+  () => goalNow.value?.id,
+  (id, was) => {
+    if (id !== was && isMyClub.value && game.economy.value) void advisorStore.load();
+  }
+);
+
 // --- Celebrations: finished builds ----------------------------------------------------------
-watch(game.justBuilt, (keys) => {
-  if (!keys.length) return;
+/** A finished primary asset -> its building (absorbed assets don't celebrate). */
+const BUILDING_OF_ASSET = Object.fromEntries(
+  CAMPUS_BUILDING_KEYS.map((k) => [BUILDING_PRIMARY[k].asset, k])
+) as Record<string, CampusBuilding>;
+watch(game.justBuilt, (assets) => {
+  if (!assets.length) return;
+  const keys = [...new Set(assets.map((a) => BUILDING_OF_ASSET[a === 'office' ? 'clubhouse' : a]).filter(Boolean))];
   for (const k of keys) {
     campusRef.value?.burst(k, 'confetti');
-    const a = game.campus.value?.assets.find((x) => x.type === k);
+    const a = allAssets.value.find((x) => x.type === k);
     toast(`${a?.name ?? 'Construction'} reached Tier ${a?.level ?? ''}!`);
   }
   sfx.play('complete');
@@ -560,7 +725,7 @@ const selectedKey = ref<CampusBuilding | null>(null);
 const tierOf = (type: string) =>
   game.campus.value?.assets.find((a) => a.type === type)?.level ?? 0;
 const selectedAsset = computed(
-  () => game.campus.value?.assets.find((a) => a.type === selectedKey.value) ?? null
+  () => allAssets.value.find((a) => a.type === selectedKey.value) ?? null
 );
 const medicalAsset = computed(
   () => game.campus.value?.assets.find((a) => a.type === 'medical_centre') ?? null
@@ -568,10 +733,9 @@ const medicalAsset = computed(
 const showBuild = ref(false);
 const showTreatment = ref(false);
 const showSettings = ref(false);
-const showCampus = ref(false);
 const showHub = ref(false);
 const hubTab = ref('defence');
-watch([showBuild, showSettings, showCampus, showHub, game.showMatchmaking], (now, before) => {
+watch([showBuild, showSettings, showHub, game.showMatchmaking], (now, before) => {
   if (now.some((on, i) => on && !before?.[i])) sfx.play('open');
 });
 
@@ -600,21 +764,21 @@ function pickFromMenu(key: string) {
   focusOn(key as CampusBuilding);
 }
 
-/** Buildings that open a screen: the squad lives at the training ground and academy. */
+/** Buildings that open a screen: the Stadium the pitch grid, the Training Ground the
+ * ability research, the Youth Academy the players, the Clubhouse the club hub. */
 const BUILDING_DOOR: Partial<Record<CampusBuilding, { label: string; open: () => void }>> = {
-  training_ground: { label: 'Squad', open: () => openSquad('roster') },
-  youth_academy: { label: 'Academy', open: () => openSquad('roster') },
-  dugout: { label: 'Pitch grid', open: () => openSquad('grid') },
+  stadium_grounds: { label: 'Pitch grid', open: () => openSquad('grid') },
+  training_ground: { label: 'Abilities', open: () => openHub('abilities') },
+  youth_academy: { label: 'Players', open: () => openSquad('roster') },
   office: { label: 'Club hub', open: () => openHub('ladder') },
 };
 function doorFor(key: CampusBuilding | null): string | null {
-  if (!key || !isMyClub.value) return key === 'dugout' ? 'Pitch grid' : null;
+  if (!key || !isMyClub.value) return key === 'stadium_grounds' ? 'Pitch grid' : null;
   return BUILDING_DOOR[key]?.label ?? null;
 }
 
 function onOpen(what: string) {
   if (what === 'treatment') showTreatment.value = true;
-  else if (what === 'grounds') showCampus.value = true;
   else if (what === 'door' && selectedKey.value) {
     const door = BUILDING_DOOR[selectedKey.value];
     selectedKey.value = null;
@@ -776,9 +940,11 @@ watch(quickSim, (q) => {
 const busArriving = ref(false);
 
 /** The visitors' bus pulls up, then the match is played. */
+const standingBeforeAttack = ref<number | null>(null);
 async function kickOff() {
   const opp = game.matchedOpponent.value;
   if (!opp) return;
+  standingBeforeAttack.value = eco.value?.standingPoints ?? null;
   if (!quickSim.value) {
     game.showMatchmaking.value = false;
     busArriving.value = true;
@@ -821,7 +987,7 @@ function onAct(action: string) {
     case 'build':
       return (showBuild.value = true);
     case 'campus':
-      return (showCampus.value = true);
+      return (showBuild.value = true);
     case 'move':
       return startMove();
     case 'attack':

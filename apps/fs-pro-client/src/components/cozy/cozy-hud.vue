@@ -27,6 +27,30 @@
       <button v-if="isMine" class="roundbtn" title="Settings" @click="emit('act', 'settings')" v-html="icon('gear')"></button>
     </div>
 
+    <!-- First goals: the launch onboarding (goals.ts). -->
+    <div v-if="isMine && goals && goals.some((g) => !g.done)" class="quests" :class="{ folded }">
+      <div class="q-head" @click="folded = !folded">
+        <span><span v-html="icon('check')"></span> First goals</span>
+        <small class="q-count">{{ goals.filter((g) => g.done).length }}/{{ goals.length }}</small>
+      </div>
+      <template v-if="!folded">
+        <button
+          v-for="g in goals"
+          :key="g.id"
+          class="q step"
+          :class="{ done: g.done, next: g.id === nextGoalId }"
+          :disabled="g.done"
+          @click="emit('act', g.action)"
+        >
+          <span class="q-ic" v-html="icon(g.done ? 'check' : g.icon)"></span>
+          <span class="q-body">
+            <span class="q-title">{{ g.label }}</span>
+            <span v-if="g.id === nextGoalId" class="q-num">{{ g.hint }}</span>
+          </span>
+        </button>
+      </template>
+    </div>
+
     <!-- Builders: the scarce upgrade slots. -->
     <div v-if="isMine && builders" class="speedup" title="Builders" @click="emit('act', 'build')">
       <div>
@@ -87,10 +111,16 @@ const props = defineProps<{
   playing: boolean;
   /** The action the onboarding pointer is on, if any. */
   coach?: string | null;
+  /** The launch goals (goals.ts), owner only. */
+  goals?: { id: string; label: string; hint: string; icon: string; action: string; done: boolean }[] | null;
 }>();
 const emit = defineEmits<{ (e: 'act', action: string): void }>();
 
 const fmt = (n: number) => Math.floor(n).toLocaleString('en-US');
+
+const nextGoalId = computed(() => props.goals?.find((g) => !g.done)?.id ?? null);
+// The goals card folds away on small screens.
+const folded = ref(typeof window !== 'undefined' && window.innerWidth < 760);
 
 const resources = computed(() => [
   { key: 'cash', label: 'Cash', icon: 'coins', value: props.res.cash, cap: props.caps.cash },

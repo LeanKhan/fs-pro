@@ -545,9 +545,9 @@ func (r *Repository) resolveRaid(ctx context.Context, raidID string) (*RaidOutco
 		defPts := intOf(defender["StandingPoints"])
 		mult := leagueMultiplierX100(attPts)
 
-		out.StolenCash = float64(loot.RaidLootForStars(int(math.Round(floatOf(defender["Budget"]))), stars, mult, 0))
-		out.StolenFans = loot.RaidLootForStars(intOf(defender["Fans"]), stars, mult, 0)
-		out.StolenTokens = loot.RaidLootForStars(intOf(defender["ScoutTokens"]), stars, mult, 0)
+		out.StolenCash = float64(loot.RaidLootForStars(int(math.Round(floatOf(defender["Budget"]))), stars, mult, loot.RaidCapCash))
+		out.StolenFans = loot.RaidLootForStars(intOf(defender["Fans"]), stars, mult, loot.RaidCapFans)
+		out.StolenTokens = loot.RaidLootForStars(intOf(defender["ScoutTokens"]), stars, mult, loot.RaidCapTokens)
 		bonus := float64(loot.StarBonus(stars, mult))
 		out.StandingAttacker = league.StandingDelta(attPts, defPts, stars)
 		defStars := matchrating.Stars(defGoals, attGoals, 1-dominance, attGoals == 0)

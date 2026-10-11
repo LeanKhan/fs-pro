@@ -95,8 +95,18 @@ func LeagueBonus(base int, multiplierX100 int) int {
 
 // starShareBp is the share of a defender's unspent holdings a raid steals at
 // each star rating, in basis points (04 §5.1: loot scales with the rating).
+// Launch tuning: 5% / 10% / 15%, with the per-raid caps below.
 // Index 0..3 = stars; a 0★ raid takes nothing.
-var starShareBp = [4]int{0, 2000, 3500, 5000}
+var starShareBp = [4]int{0, 500, 1000, 1500}
+
+// Per-raid loot caps (launch tuning): a single attack never takes more than
+// this from one defender, whatever their holdings - CoC's "max loot" rule, so
+// an offline club is never wiped out overnight. Content (tunable).
+const (
+	RaidCapCash   = 400000
+	RaidCapFans   = 15000
+	RaidCapTokens = 50
+)
 
 // StarShareBp returns the steal share (basis points) for a star rating,
 // clamped to 0..3. It is the star-rating input the original RaidLoot lacked

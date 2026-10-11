@@ -123,26 +123,24 @@ export const ClearObstacleRequestSchema = z.object({ obstacleId: z.string().min(
 
 export const BuyGroundskeeperRequestSchema = z.object({});
 
-/** The campus economy facility keys a Construction perk may target. It
- * is exactly the Go `campus.Facilities` set (which also contains the
- * `ResearchFacilities`), so a `target` can never name a building the server
- * does not know how to finish. */
+/** The assets a Construction/Research perk may target: the upgradable
+ * (primary) asset of each of the seven campus buildings (BUILDING_PRIMARY;
+ * Go: clubhouse.Buildings). Research perks take the Training Ground. */
 export const PerkTargetSchema = z.enum([
+  'clubhouse',
   'turnstiles',
   'club_shop',
   'cash_vault',
-  'fan_vault',
-  'clubhouse',
-  'coaching_dept',
-  'video_analysis',
+  'training_ground',
+  'youth_academy',
+  'medical_centre',
 ]);
 
 /** Redeem one quick consumable Board Perk. `instanceId`, when supplied,
  * makes a retried request idempotent (the server applies the perk once).
- * `target` names the object of a Construction/Research perk: a campus facility
- * key (`turnstiles`, `club_shop`, `cash_vault`, `fan_vault`, `clubhouse`) or a
- * research facility (`coaching_dept`, `video_analysis`). It stays optional so
- * the resource/combat/cosmetic perks need no target. */
+ * `target` names the object of a Construction/Research perk: a building's
+ * primary asset (PerkTargetSchema). It stays optional so the
+ * resource/combat/cosmetic perks need no target. */
 export const UsePerkRequestSchema = z.object({
   perk: z.string().min(1),
   instanceId: z.string().min(1).optional(),

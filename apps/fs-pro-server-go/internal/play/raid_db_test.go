@@ -293,22 +293,22 @@ func TestRaidAsyncLoopRolledBack(t *testing.T) {
 		if out.Destruction < ShieldDestructionPct || out.ShieldUntil == nil {
 			t.Errorf("defender not shielded: destruction=%d shield=%v", out.Destruction, out.ShieldUntil)
 		}
-		// A 3★ raid steals 50% of each unspent currency; both clubs sit in
+		// A 3★ raid steals 15% of each unspent currency; both clubs sit in
 		// Silver I (Standing 1000 → x1.25 league multiplier).
-		if out.StolenCash != 62500 || out.StolenFans != 625 || out.StolenTokens != 62 {
-			t.Errorf("stolen = %.0f/%d/%d, want 62500/625/62", out.StolenCash, out.StolenFans, out.StolenTokens)
+		if out.StolenCash != 18750 || out.StolenFans != 187 || out.StolenTokens != 18 {
+			t.Errorf("stolen = %.0f/%d/%d, want 18750/187/18", out.StolenCash, out.StolenFans, out.StolenTokens)
 		}
 		if out.SystemBonus != 18750 {
 			t.Errorf("system bonus = %.0f, want 18750 (3★ x1.25)", out.SystemBonus)
 		}
 
 		aBudget, aFans, aTokens, aStanding, _ := clubScalars(t, ctx, tx, a)
-		if aBudget != 67500 || aFans != 625 || aTokens != 62 || aStanding != 1032 {
-			t.Errorf("attacker = %.0f/%d/%d/%d, want 67500/625/62/1032", aBudget, aFans, aTokens, aStanding)
+		if aBudget != 23750 || aFans != 187 || aTokens != 18 || aStanding != 1032 {
+			t.Errorf("attacker = %.0f/%d/%d/%d, want 23750/187/18/1032", aBudget, aFans, aTokens, aStanding)
 		}
 		bBudget, bFans, bTokens, bStanding, bShield := clubScalars(t, ctx, tx, b)
-		if bBudget != 37500 || bFans != 375 || bTokens != 38 || bStanding != 970 {
-			t.Errorf("defender = %.0f/%d/%d/%d, want 37500/375/38/970", bBudget, bFans, bTokens, bStanding)
+		if bBudget != 81250 || bFans != 813 || bTokens != 82 || bStanding != 970 {
+			t.Errorf("defender = %.0f/%d/%d/%d, want 81250/813/82/970", bBudget, bFans, bTokens, bStanding)
 		}
 		if bShield == nil {
 			t.Error("defender ShieldUntil not set")

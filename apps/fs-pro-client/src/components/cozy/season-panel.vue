@@ -111,11 +111,10 @@
             <div class="row-meta">
               <span class="cat">{{ p.category }}</span>
               <template v-if="needsTarget(p.category)">
-                <select v-if="p.key === 'research_finish'" v-model="targets[p.key]" class="target">
-                  <option value="coaching_dept">Coaching Dept</option>
-                  <option value="video_analysis">Video Analysis</option>
+                <select v-model="targets[p.key]" class="target" :aria-label="`Building for ${p.name}`">
+                  <option value="" disabled>Pick a building…</option>
+                  <option v-for="b in perkBuildings(p.key)" :key="b.asset" :value="b.asset">{{ b.name }}</option>
                 </select>
-                <input v-else v-model="targets[p.key]" class="target" placeholder="facility key" />
               </template>
               <button class="btn tiny primary" :disabled="p.count <= 0 || busy === p.key" @click="usePerk(p.key, p.category)">
                 {{ busy === p.key ? '…' : 'Use' }}
@@ -140,7 +139,7 @@ import {
   ownedPerks,
   type SeasonView,
 } from '@/helpers/season-pass';
-import type { PerkTarget } from '@repo/api-contract';
+import { BUILDING_PRIMARY, CAMPUS_BUILDING_KEYS, type PerkTarget } from '@repo/api-contract';
 import { icon } from './icons';
 import CozyCountdown from './cozy-countdown.vue';
 
@@ -160,6 +159,14 @@ const error = ref('');
 /** The key of the row currently mutating (objective id, track, 'bank', perk). */
 const busy = ref('');
 const targets = reactive<Record<string, string>>({});
+
+/** The buildings a perk can finish: any of the seven for Construction, the
+ * Training Ground (which owns research) for Research. Targets are the
+ * building's primary asset (PerkTargetSchema). */
+function perkBuildings(perk: string) {
+  const all = CAMPUS_BUILDING_KEYS.map((k) => BUILDING_PRIMARY[k]);
+  return perk === 'research_finish' ? all.filter((b) => b.asset === 'training_ground') : all;
+}
 
 const bank = computed(() => season.value?.bank ?? null);
 const nextSilver = computed(() => (season.value ? nextClaimableTier(season.value, 'silver') : null));

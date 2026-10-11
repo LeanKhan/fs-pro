@@ -39,16 +39,16 @@ func TestLootMultiplierAppliedOncePerWin(t *testing.T) {
 		if err != nil {
 			return fmt.Errorf("resolve: %w", err)
 		}
-		// 3★ steals 50% of each holding, scaled by x1.25.
-		if out.StolenCash != 62500 || out.StolenFans != 625 || out.StolenTokens != 62 {
-			t.Fatalf("stolen = %.0f/%d/%d, want 62500/625/62 (multiplier applied)", out.StolenCash, out.StolenFans, out.StolenTokens)
+		// 3★ steals 15% of each holding, scaled by x1.25.
+		if out.StolenCash != 18750 || out.StolenFans != 187 || out.StolenTokens != 18 {
+			t.Fatalf("stolen = %.0f/%d/%d, want 18750/187/18 (multiplier applied)", out.StolenCash, out.StolenFans, out.StolenTokens)
 		}
 		rows := countRows(t, ctx, tx, `SELECT count(*)::int AS n FROM "TransferLedger" WHERE "Type"='raid_loot' AND "BuyerClubId"=$1`, a)
 		if rows != 3 {
 			t.Fatalf("attacker raid_loot ledger rows = %d, want 3 (one per currency)", rows)
 		}
 		// The ledger amounts carry the multiplied loot exactly once.
-		for _, want := range []float64{62500, 625, 62} {
+		for _, want := range []float64{18750, 187, 18} {
 			if n := countRows(t, ctx, tx, `SELECT count(*)::int AS n FROM "TransferLedger" WHERE "Type"='raid_loot' AND "BuyerClubId"=$1 AND "Amount"=$2`, a, want); n != 1 {
 				t.Errorf("ledger rows for amount %.0f = %d, want 1", want, n)
 			}
@@ -63,7 +63,7 @@ func TestLootMultiplierAppliedOncePerWin(t *testing.T) {
 			t.Errorf("second resolve changed ledger rows: %d -> %d", rows, after)
 		}
 		budget, _, _, standing, _ := clubScalars(t, ctx, tx, a)
-		if budget != 62500 || standing != 1032 {
+		if budget != 18750 || standing != 1032 {
 			t.Errorf("second resolve changed the club: budget=%.0f standing=%d", budget, standing)
 		}
 		return nil

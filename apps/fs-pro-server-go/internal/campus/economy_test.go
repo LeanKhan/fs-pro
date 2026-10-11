@@ -102,8 +102,9 @@ func TestCollectorCapacityAndRate(t *testing.T) {
 	if got := CollectorRate(def, 0); got != 0 {
 		t.Errorf("level 0 rate = %v, want 0", got)
 	}
-	if got := CollectorRate(def, 3); got != 1800 {
-		t.Errorf("level 3 rate = %v, want 1800", got)
+	// The rate is linear in level.
+	if got := CollectorRate(def, 3); got != 3*def.BaseRate {
+		t.Errorf("level 3 rate = %v, want %v", got, 3*def.BaseRate)
 	}
 	// Capacity = rate * 8h * vault growth * tier factor.
 	got := CollectorCapacity(def, 1, 2, 1)

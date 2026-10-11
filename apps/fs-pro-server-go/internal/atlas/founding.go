@@ -12,7 +12,9 @@ import (
 
 	"fs-pro-server/internal/clients"
 	"fs-pro-server/internal/club"
+	"fs-pro-server/internal/clubhouse"
 	"fs-pro-server/internal/db"
+	"fs-pro-server/internal/grid"
 	"fs-pro-server/internal/player"
 )
 
@@ -21,7 +23,7 @@ import (
 // restock) are not ported; they are wrapped in catch() there.
 
 const (
-	startingFans       = 150
+	startingFans       = 40000
 	startingReputation = 5
 )
 
@@ -482,6 +484,12 @@ const (
 	clubSpotMaxRadius = 14.0
 )
 
+// starterEconomy are the building primaries a founded club starts with at
+// level 1: the Clubhouse, the Stadium (turnstiles), the Club Shop and the Club
+// Vault. Absorbed assets follow via clubhouse.SyncLinked; migrations 0056/0057
+// backfill older clubs.
+var starterEconomy = []string{"clubhouse", "turnstiles", "club_shop", "cash_vault"}
+
 func firstNonEmptyStr(vals ...string) string {
 	for _, v := range vals {
 		if v != "" {
@@ -499,9 +507,10 @@ func (r *Repository) seedStarterClub(ctx context.Context, clubID, code, culture 
 	names := clients.PersonNames(ctx, len(player.StarterSquadShape)+1, culture)
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	return db.WithTx(ctx, r.q, func(tx db.Querier) error {
+		squad := make([]grid.SquadPlayer, 0, len(player.StarterSquadShape))
 		for i, pos := range player.StarterSquadShape {
 			p := player.GenerateStarter(pos, rng)
-			field, counterID, err := player.NextCounterID(ctx, tx, "player")
+			field, counterID, err := freeCounterID(ctx, tx, "player", "Players")
 			if err != nil {
 				return err
 			}
@@ -511,14 +520,26 @@ func (r *Repository) seedStarterClub(ctx context.Context, clubID, code, culture 
 			p["ClubId"] = clubID
 			p["ClubCode"] = code
 			p["updatedAt"] = time.Now()
-			if _, err := db.InsertRow(ctx, tx, "Players", p); err != nil {
+			row, err := db.InsertRow(ctx, tx, "Players", p)
+			if err != nil {
 				return err
+			}
+			squad = append(squad, grid.SquadPlayer{ID: mstr(row, "_id"), Position: grid.Position(pos), Rating: mfloat(p, "Rating")})
+		}
+		// The starter XI on the pitch grid, so the squad screen opens set up
+		// and the club defends with a real shape from its first raid.
+		if g, ok := grid.DefaultGrid(squad); ok {
+			layouts := grid.NewPgRepository(tx)
+			for _, slot := range []grid.LayoutSlot{grid.Home, grid.Match} {
+				if err := layouts.SetLayout(ctx, clubID, slot, g); err != nil {
+					return err
+				}
 			}
 		}
 
 		mgr := starterManager(rng)
 		name := names[len(names)-1]
-		field, key, err := player.NextCounterID(ctx, tx, "manager")
+		field, key, err := freeCounterID(ctx, tx, "manager", "Managers")
 		if err != nil {
 			return err
 		}
@@ -542,10 +563,41 @@ func (r *Repository) seedStarterClub(ctx context.Context, clubID, code, culture 
 			clubID, mstr(row, "_id"), mapX, mapY); err != nil {
 			return err
 		}
+		// The starter economy: a working collector for each currency and its
+		// vault, like CoC's first gold mine and storage.
+		for _, asset := range starterEconomy {
+			if _, err := tx.Exec(ctx, `INSERT INTO "ClubAssets" ("ClubId", "AssetType", "Level", "updatedAt")
+				VALUES ($1, $2, 1, now())`, clubID, asset); err != nil {
+				return err
+			}
+		}
+		// The Stadium's and Vault's absorbed assets follow their primaries.
+		if err := clubhouse.SyncLinked(ctx, tx, clubID); err != nil {
+			return err
+		}
 		// Matchmaking pairs clubs by Rating, so a founded club needs one now.
 		_, _, err = club.NewRepository(tx).CalculateAndUpdateClubRating(ctx, clubID)
 		return err
 	})
+}
+
+// freeCounterID reserves the next counter id for `model`, skipping ids already
+// used in `table` (a sequence can lag rows created by imports or older paths).
+func freeCounterID(ctx context.Context, tx db.Querier, model, table string) (string, string, error) {
+	for tries := 0; tries < 1000; tries++ {
+		field, id, err := player.NextCounterID(ctx, tx, model)
+		if err != nil {
+			return "", "", err
+		}
+		var used bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM "`+table+`" WHERE "`+field+`" = $1)`, id).Scan(&used); err != nil {
+			return "", "", err
+		}
+		if !used {
+			return field, id, nil
+		}
+	}
+	return "", "", fmt.Errorf("no free %s id", model)
 }
 
 // starterManager is a modest, employed manager on a long contract (names are

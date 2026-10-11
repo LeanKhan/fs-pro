@@ -132,11 +132,12 @@ func TestValidatePerkTarget(t *testing.T) {
 		{"construction needs a target", instant, "", ErrPerkTargetRequired},
 		{"construction rejects an unknown facility", instant, "nope", ErrPerkTargetInvalid},
 		{"construction accepts a campus facility", instant, "club_shop", nil},
-		{"construction accepts a research tile", instant, "coaching_dept", nil},
+		{"construction accepts a facility building", instant, "training_ground", nil},
+		{"construction rejects an absorbed asset", instant, "coaching_dept", ErrPerkTargetInvalid},
 		{"research needs a target", research, "", ErrPerkTargetRequired},
-		{"research rejects a non-research facility", research, "turnstiles", ErrPerkTargetInvalid},
-		{"research accepts the coaching department", research, "coaching_dept", nil},
-		{"research accepts video analysis", research, "video_analysis", nil},
+		{"research rejects a non-research building", research, "turnstiles", ErrPerkTargetInvalid},
+		{"research accepts the Training Ground", research, "training_ground", nil},
+		{"research rejects an absorbed research room", research, "video_analysis", ErrPerkTargetInvalid},
 	}
 	for _, c := range cases {
 		err := validatePerkTarget(c.def, c.target)
@@ -153,10 +154,11 @@ func TestValidatePerkTarget(t *testing.T) {
 }
 
 func TestIsResearchFacility(t *testing.T) {
-	for _, key := range []string{"coaching_dept", "video_analysis"} {
-		if !IsResearchFacility(key) {
-			t.Errorf("%s must be a research facility", key)
-		}
+	if !IsResearchFacility("training_ground") {
+		t.Error("the Training Ground owns research")
+	}
+	if IsResearchFacility("coaching_dept") {
+		t.Error("coaching_dept is absorbed into the Training Ground")
 	}
 	if IsResearchFacility("turnstiles") {
 		t.Error("turnstiles is not a research facility")

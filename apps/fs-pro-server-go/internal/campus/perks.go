@@ -55,7 +55,8 @@ var Perks = map[string]PerkDef{
 	// Construction: finish (or accelerate) a running campus upgrade.
 	"instant_finish": {Key: "instant_finish", Name: "Instant Finish", Kind: PerkConstruction},
 	"builder_boost":  {Key: "builder_boost", Name: "Builder Boost", Kind: PerkConstruction, Minutes: 60},
-	// Research: finish a running Coaching Department / Video Analysis upgrade.
+	// Research: finish a running Training Ground upgrade (it owns the research
+	// rooms since the seven-building consolidation).
 	"research_finish": {Key: "research_finish", Name: "Research Finish", Kind: PerkResearch},
 	// Combat / Cosmetic: recorded redemptions with no durable state here.
 	"trait_trial": {Key: "trait_trial", Name: "Trait Trial", Kind: PerkCombat},
@@ -63,8 +64,9 @@ var Perks = map[string]PerkDef{
 }
 
 // ResearchFacilities are the upgrade targets a Research perk may finish (04 §7
-// "instant ability/coaching finish"); internal/abilities reads these levels.
-var ResearchFacilities = map[string]bool{"coaching_dept": true, "video_analysis": true}
+// "instant ability/coaching finish"): the Training Ground, whose level the
+// absorbed coaching_dept/video_analysis rows (read by internal/abilities) copy.
+var ResearchFacilities = map[string]bool{"training_ground": true}
 
 // IsResearchFacility reports whether a facility key is a research tile.
 func IsResearchFacility(key string) bool { return ResearchFacilities[key] }

@@ -74,7 +74,8 @@ func validatePerkTarget(def PerkDef, target string) error {
 		if target == "" {
 			return ErrPerkTargetRequired
 		}
-		if _, ok := FacilityDefFor(target); !ok {
+		// Any of the seven buildings' upgradable (primary) assets.
+		if b, ok := clubhouse.BuildingFor(target); !ok || b.Primary != target {
 			return fmt.Errorf("%w: %s", ErrPerkTargetInvalid, target)
 		}
 	case PerkResearch:
@@ -125,7 +126,8 @@ func finishUpgradeNow(ctx context.Context, q db.Querier, clubID, target string) 
 			return err
 		}
 	}
-	return nil
+	// The building's absorbed assets follow, as on a normal finish.
+	return clubhouse.SyncLinked(ctx, q, clubID)
 }
 
 // accelerateUpgrade removes `minutes` of real-clock build time from the target's

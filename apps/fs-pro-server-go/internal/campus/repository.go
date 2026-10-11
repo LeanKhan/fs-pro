@@ -1012,19 +1012,7 @@ func parseTime(s string) time.Time {
 }
 
 func placementOf(stored any) map[string]facilities.Placed {
-	out := map[string]facilities.Placed{}
-	for k, v := range facilities.DefaultPlacement {
-		out[k] = v
-	}
-	raw, _ := stored.(map[string]any)
-	for k, v := range raw {
-		m, ok := v.(map[string]any)
-		if !ok {
-			continue
-		}
-		out[k] = facilities.Placed{X: intOf(m["x"]), Z: intOf(m["z"]), Rot: intOf(m["rot"])}
-	}
-	return out
+	return facilities.PlacementFromStored(stored)
 }
 
 func placementJSON(p map[string]facilities.Placed) map[string]any {

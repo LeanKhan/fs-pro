@@ -149,8 +149,11 @@ type CollectorDef struct {
 
 // Collectors are the two campus producers, in canonical order.
 var Collectors = []CollectorDef{
-	{Key: "turnstiles", Name: "Turnstiles", Currency: Cash, VaultKey: "cash_vault", BaseRate: 600},
-	{Key: "club_shop", Name: "Club Shop", Currency: Fans, VaultKey: "fan_vault", BaseRate: 600},
+	// Rates are on the facilities' cost scale: a full Tier-1 Turnstiles (8h)
+	// pays for roughly one early facility upgrade; a full Club Shop for about
+	// half a Fans-cost economy upgrade. Content (tunable).
+	{Key: "turnstiles", Name: "Turnstiles", Currency: Cash, VaultKey: "cash_vault", BaseRate: 25000},
+	{Key: "club_shop", Name: "Club Shop", Currency: Fans, VaultKey: "fan_vault", BaseRate: 4000},
 }
 
 // CollectorStorageHours is how many hours of production a vault holds before the

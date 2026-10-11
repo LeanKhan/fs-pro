@@ -59,6 +59,10 @@ func SweepDueUpgrades(ctx context.Context, q db.Querier, now time.Time) (int64, 
 	if err := SyncTier(ctx, q); err != nil {
 		return promoted, err
 	}
+	// A finished building lifts the assets it absorbed (buildings.go).
+	if err := SyncLinked(ctx, q, ""); err != nil {
+		return promoted, err
+	}
 	return promoted, nil
 }
 

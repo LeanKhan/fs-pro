@@ -13,6 +13,7 @@ import type {
   CampusState,
   DefenseEntry,
   MatchResult,
+  Opponent,
   PlayState,
 } from '@repo/api-contract';
 import { client } from '@/services/api';
@@ -46,9 +47,7 @@ export function useClubGame(
     code?: string;
   } | null>(null);
   const matchedOpponentId = ref<string | null>(null);
-  const opponentOptions = ref<
-    Array<{ id: string; name: string; power: number; code?: string }>
-  >([]);
+  const opponentOptions = ref<Opponent[]>([]);
   const showBattleArena = ref(false);
   const showRewards = ref(false);
   const matchResult = ref<MatchResult | null>(null);
@@ -116,8 +115,18 @@ export function useClubGame(
         client.campus.get.query({ params: { clubId: clubId.value } }),
       ]);
       if (ecoRes.status === 200) {
+        const was = new Map(
+          (economy.value?.assets ?? []).map((a) => [a.type, a.level])
+        );
         economy.value = ecoRes.body.payload;
         economyLoadedAt.value = Date.now();
+        if (was.size) {
+          // Campus keys: the Clubhouse lives in the Office building.
+          const built = ecoRes.body.payload.assets
+            .filter((a) => a.level > (was.get(a.type) ?? a.level))
+            .map((a) => (a.type === 'clubhouse' ? 'office' : a.type));
+          if (built.length) justBuilt.value = [...justBuilt.value, ...built];
+        }
       }
       if (playRes.status === 200) {
         const before = playState.value?.club.level;
@@ -186,6 +195,53 @@ export function useClubGame(
   }
 
   /** Saves the whole campus layout (Move mode). Returns false if the server refused it. */
+  /** Start a campus-economy upgrade (Clubhouse, collectors, vaults, research):
+   * the crossed-currency cost is paid by the server (campus.upgrade). */
+  async function startEcoUpgrade(assetType: string) {
+    if (!clubId.value) return;
+    upgradingAsset.value = assetType;
+    try {
+      const res = await client.campus.upgrade.mutation({
+        params: { clubId: clubId.value },
+        body: { assetType },
+      });
+      if (res.status === 200) {
+        economy.value = res.body.payload;
+        economyLoadedAt.value = Date.now();
+        sfx.play('build');
+        toast('Construction started!');
+        onChanged?.();
+        await load();
+      } else {
+        sfx.play('error');
+        toast(res.body.message, 'error');
+      }
+    } catch (err) {
+      console.error('Failed to start upgrade:', err);
+      toast('Could not start construction.', 'error');
+    } finally {
+      upgradingAsset.value = null;
+    }
+  }
+
+  /** Hire the next Groundskeeper (a builder slot). */
+  async function hireBuilder() {
+    if (!clubId.value) return;
+    const res = await client.campus.buyGroundskeeper.mutation({
+      params: { clubId: clubId.value },
+      body: {},
+    });
+    if (res.status === 200) {
+      economy.value = res.body.payload;
+      economyLoadedAt.value = Date.now();
+      sfx.play('complete');
+      toast('A new builder joined the club!');
+    } else {
+      sfx.play('error');
+      toast(res.body.message, 'error');
+    }
+  }
+
   async function savePlacement(placement: CampusPlacement) {
     if (!clubId.value) return false;
     const res = await client.facilities.savePlacement.mutation({
@@ -342,14 +398,22 @@ export function useClubGame(
   }
 
   // When a running upgrade's timer hits zero, refresh once to show the new level.
+  // Throttled, so an upgrade the server has not promoted yet is not polled
+  // every second.
   let refreshing = false;
+  let lastRefresh = 0;
   watch(now, () => {
-    const done = campus.value?.assets.some(
-      (a: AssetState) =>
-        a.upgrade && new Date(a.upgrade.completeAt).getTime() <= now.value
-    );
-    if (done && !refreshing) {
+    const done =
+      campus.value?.assets.some(
+        (a: AssetState) =>
+          a.upgrade && new Date(a.upgrade.completeAt).getTime() <= now.value
+      ) ||
+      economy.value?.assets.some(
+        (a) => a.upgrade && Date.parse(a.upgrade.readyAt) <= now.value
+      );
+    if (done && !refreshing && now.value - lastRefresh > 5000) {
       refreshing = true;
+      lastRefresh = now.value;
       load().finally(() => (refreshing = false));
     }
   });
@@ -392,6 +456,8 @@ export function useClubGame(
     load,
     loadDefences,
     startUpgrade,
+    startEcoUpgrade,
+    hireBuilder,
     collectAll,
     savePlacement,
     findMatch,

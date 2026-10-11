@@ -81,7 +81,7 @@ func TestClubhouseRequirementsGraph(t *testing.T) {
 		t.Errorf("nil levels: missing=%d, want %d", len(missing), len(req3))
 	}
 	// A partial campus must name exactly the missing prerequisite.
-	ok, ms := CanUpgrade(3, map[string]int{"stands": 2, "training_ground": 2})
+	ok, ms := CanUpgrade(3, map[string]int{"turnstiles": 2, "club_shop": 2, "training_ground": 2})
 	if ok || len(ms) != 1 || ms[0].Facility != "youth_academy" {
 		t.Errorf("tier 3 partial: ok=%v missing=%v, want false / [youth_academy]", ok, ms)
 	}
@@ -94,7 +94,7 @@ func TestCanUpgradeClubhouse(t *testing.T) {
 	if ok, missing := CanUpgrade(2, map[string]int{}); ok || len(missing) != 2 {
 		t.Errorf("tier 2 with an empty campus: ok=%v missing=%v, want false / 2", ok, missing)
 	}
-	met := map[string]int{"stands": 1, "training_ground": 1}
+	met := map[string]int{"training_ground": 1, "youth_academy": 1}
 	if ok, missing := CanUpgrade(2, met); !ok || len(missing) != 0 {
 		t.Errorf("tier 2 met: ok=%v missing=%v, want true / 0", ok, missing)
 	}
