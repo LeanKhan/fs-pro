@@ -8,7 +8,7 @@
     </label>
     <label class="set-row">
       <span class="set-ic" v-html="icon('ball')"></span>
-      <span class="set-text"><b>Quick sim</b><small>Skip straight to the result when you press PLAY</small></span>
+      <span class="set-text"><b>Quick sim</b><small>Skip straight to the result when you attack</small></span>
       <input :checked="quickSim" type="checkbox" class="toggle" @change="emit('update:quickSim', ($event.target as HTMLInputElement).checked)" />
     </label>
     <div class="set-row">
@@ -22,14 +22,6 @@
 
   <h4>Club</h4>
   <div class="set-list">
-    <button class="set-row link" @click="emit('act', 'office')">
-      <span class="set-ic" v-html="icon('trophy')"></span>
-      <span class="set-text"><b>Manager hub</b><small>Matchday, team sheet, squad, transfers, finances</small></span>
-    </button>
-    <button class="set-row link" @click="emit('act', 'calendar')">
-      <span class="set-ic" v-html="icon('clock')"></span>
-      <span class="set-text"><b>Year calendar &amp; history</b><small>Every fixture of the year, and past seasons</small></span>
-    </button>
     <button class="set-row link" @click="emit('act', 'account')">
       <span class="set-ic" v-html="icon('people')"></span>
       <span class="set-text"><b>Account</b><small>{{ userName || 'Your profile and password' }}</small></span>

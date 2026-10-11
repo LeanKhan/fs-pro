@@ -1,0 +1,238 @@
+package grid
+
+// Advisory read of a layout: defensive auras, the passing-link graph, a
+// connectivity verdict, a suggested team directness, and the proximity synergies
+// that form. This mirrors the client preview (docs/coc-mapping/03 §1.4-1.6);
+// validity stays with Validate (the server is authoritative).
+
+// LinkRange is the Chebyshev cell distance within which two players are linked.
+const LinkRange = 2
+
+// IslandColumns is the column (toward-goal) gap at or beyond which an attacker
+// with no teammate nearer in x is marooned - the "Island" synergy (03 §1.6).
+// Distance is measured in columns, not Chebyshev cells: the doc's rule is "a
+// lone striker ≥3 columns from any teammate".
+const IslandColumns = 3
+
+// Link is an undirected pair of linked players, by PlayerID. JSON keys are
+// pinned to the wire contract style (lowercase) so the preview is a stable
+// payload.
+type Link struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
+// Preview is the advisory read of a grid.
+type Preview struct {
+	Aura       []float64 `json:"aura"`       // len Width*Height, row-major (row*Width + col)
+	Links      []Link    `json:"links"`      //
+	Connected  bool      `json:"connected"`  //
+	Directness float64   `json:"directness"` // suggested team directness, 0..1 (higher = longer/more direct)
+	Synergies  []string  `json:"synergies"`  // stable ids: one-two-combo, the-shield, island
+}
+
+func cheb(a, b Slot) int {
+	dx, dy := a.Col-b.Col, a.Row-b.Row
+	if dx < 0 {
+		dx = -dx
+	}
+	if dy < 0 {
+		dy = -dy
+	}
+	if dy > dx {
+		return dy
+	}
+	return dx
+}
+
+// auraWeights is the pressure a single outfield player of a band projects onto
+// the pitch (03 §1.4). Self is the load on the player's own cell; Neighbour is
+// the load on each of the eight surrounding cells. Both are in [0,1] so that
+// stacked pressure - the doc's diminishing-returns product p = 1 − Π(1 − pᵢ) -
+// stays a probability in [0,1].
+type auraWeights struct {
+	Self      float64
+	Neighbour float64
+}
+
+// auraWeightsFor derives a band's aura profile. A grid slot carries only a band
+// (GK/DEF/MID/ATT), so the band stands in for its canonical role in 03 §1.4:
+//
+//	DEF ≈ Anchor/Tank      : 1 cell incl. diagonals, weight high       (own 0.8, adjacent 0.4)
+//	MID ≈ midfield engine  : 1 cell, weighted higher than the anchor   (own 1.0, adjacent 0.5)
+//	ATT ≈ Sniper/Playmaker : soft ~0.5-cell aura - its own cell only   (own 0.5, no spread)
+//	GK                     : projects no aura
+//
+// The doc's flank-rusher profile ("1 cell along its lane") has no band of its
+// own - a winger is a MID or ATT slot - so this band-derived model omits it.
+// The numbers are tunable balance constants, not derived quantities.
+func auraWeightsFor(pos Position) auraWeights {
+	switch pos {
+	case DEF:
+		return auraWeights{Self: 0.8, Neighbour: 0.4}
+	case MID:
+		return auraWeights{Self: 1.0, Neighbour: 0.5}
+	case ATT:
+		return auraWeights{Self: 0.5, Neighbour: 0}
+	default: // GK
+		return auraWeights{}
+	}
+}
+
+// projectPressure folds one individual pressure p into an accumulated cell value
+// with diminishing returns: acc ← acc + p·(1 − acc). This is the incremental
+// form of the doc's product p = 1 − Π(1 − pᵢ); it is commutative, associative
+// and bounded by 1, so overlap can never exceed a full probability.
+func projectPressure(acc, p float64) float64 {
+	return acc + p*(1-acc)
+}
+
+// BuildPreview computes the advisory read of a grid. It is pure and
+// deterministic: the same grid always yields the same preview.
+func BuildPreview(g Grid) Preview {
+	p := Preview{Aura: make([]float64, Width*Height)}
+	n := len(g.Slots)
+
+	// Auras (03 §1.4): every outfield player projects a band-derived pressure
+	// onto its own cell and (unless its aura is soft, like the playmaker's) its
+	// 8 neighbours. Overlaps stack with diminishing returns, so a compact block
+	// projects more pressure than the same players spread out, and a cell's
+	// pressure never exceeds 1.
+	for _, s := range g.Slots {
+		w := auraWeightsFor(s.Position)
+		if w.Self > 0 && s.Col >= 0 && s.Col < Width && s.Row >= 0 && s.Row < Height {
+			i := s.Row*Width + s.Col
+			p.Aura[i] = projectPressure(p.Aura[i], w.Self)
+		}
+		if w.Neighbour <= 0 {
+			continue
+		}
+		for dr := -1; dr <= 1; dr++ {
+			for dc := -1; dc <= 1; dc++ {
+				if dr == 0 && dc == 0 {
+					continue
+				}
+				col, row := s.Col+dc, s.Row+dr
+				if col < 0 || col >= Width || row < 0 || row >= Height {
+					continue
+				}
+				i := row*Width + col
+				p.Aura[i] = projectPressure(p.Aura[i], w.Neighbour)
+			}
+		}
+	}
+
+	// Passing links + adjacency over all slots (keeper included).
+	adj := make([][]int, n)
+	for i := 0; i < n; i++ {
+		for j := i + 1; j < n; j++ {
+			if cheb(g.Slots[i], g.Slots[j]) <= LinkRange {
+				p.Links = append(p.Links, Link{From: g.Slots[i].PlayerID, To: g.Slots[j].PlayerID})
+				adj[i] = append(adj[i], j)
+				adj[j] = append(adj[j], i)
+			}
+		}
+	}
+
+	// Connectivity from the keeper: a squad with no connector in the middle has a
+	// broken graph (the "long ball only" state).
+	keeperIdx := -1
+	for i := range g.Slots {
+		if g.Slots[i].Position == GK {
+			keeperIdx = i
+			break
+		}
+	}
+	reachable := 0
+	if keeperIdx >= 0 && n > 0 {
+		seen := make([]bool, n)
+		queue := []int{keeperIdx}
+		seen[keeperIdx] = true
+		for len(queue) > 0 {
+			cur := queue[0]
+			queue = queue[1:]
+			reachable++
+			for _, nx := range adj[cur] {
+				if !seen[nx] {
+					seen[nx] = true
+					queue = append(queue, nx)
+				}
+			}
+		}
+	}
+	p.Connected = n > 0 && reachable == n
+	fraction := 0.0
+	if n > 0 {
+		fraction = float64(reachable) / float64(n)
+	}
+	p.Directness = 0.3 + 0.5*(1.0-fraction)
+
+	// Synergies (fixed order).
+	p.Synergies = synergies(g)
+	return p
+}
+
+func synergies(g Grid) []string {
+	out := []string{}
+	if anyPair(g, ATT, false, 1) {
+		out = append(out, "one-two-combo")
+	}
+	if anyPair(g, MID, true, 1) {
+		out = append(out, "the-shield")
+	}
+	if attackerIsland(g) {
+		out = append(out, "island")
+	}
+	return out
+}
+
+// anyPair reports whether two slots of `pos` sit within `within` cells; when
+// `central` is set, both must be in the central lanes (rows 2..4).
+func anyPair(g Grid, pos Position, central bool, within int) bool {
+	for i := 0; i < len(g.Slots); i++ {
+		a := g.Slots[i]
+		if a.Position != pos || (central && (a.Row < 2 || a.Row > 4)) {
+			continue
+		}
+		for j := i + 1; j < len(g.Slots); j++ {
+			b := g.Slots[j]
+			if b.Position != pos || (central && (b.Row < 2 || b.Row > 4)) {
+				continue
+			}
+			if cheb(a, b) <= within {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// attackerIsland reports whether an attacker is marooned - every teammate is at
+// least IslandColumns columns away along the pitch (03 §1.6: "a lone striker ≥3
+// columns from any teammate"), the "target man" state. Distance is the column
+// (toward-goal) gap only, not Chebyshev cells, per the doc.
+func attackerIsland(g Grid) bool {
+	for i := 0; i < len(g.Slots); i++ {
+		a := g.Slots[i]
+		if a.Position != ATT {
+			continue
+		}
+		nearest := 1 << 30
+		for j := 0; j < len(g.Slots); j++ {
+			if i == j {
+				continue
+			}
+			d := a.Col - g.Slots[j].Col
+			if d < 0 {
+				d = -d
+			}
+			if d < nearest {
+				nearest = d
+			}
+		}
+		if nearest >= IslandColumns {
+			return true
+		}
+	}
+	return false
+}

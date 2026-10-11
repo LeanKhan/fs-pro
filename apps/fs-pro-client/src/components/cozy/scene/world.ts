@@ -341,7 +341,7 @@ export class World {
   /** What a building's stage depends on (stages.ts), from the current view. */
   private stageContext(key: CampusBuilding) {
     const tier = (k: string) => this.view?.tiers[k]?.tier ?? 0;
-    return { tier: tier(key), clubLevel: this.view?.clubLevel ?? 0, staffTier: tier('staff_house'), standsTier: tier('stands') };
+    return { tier: tier(key), clubLevel: this.view?.clubLevel ?? 0, staffTier: tier('training_ground'), standsTier: tier('stadium_grounds') };
   }
 
   /** World position above a building, for HTML bubbles. */
@@ -507,21 +507,21 @@ export class World {
     }
   }
 
-  /** Around the pitch, training ground or dugout; around the Medical Centre if injured. */
+  /** Around the pitch or training ground; around the Medical Centre if injured. */
   private playerPoint(injured = false): THREE.Vector3 | null {
     if (!this.view) return null;
-    const keys: CampusBuilding[] = injured ? ['medical_centre'] : ['stadium_grounds', 'stadium_grounds', 'training_ground', 'dugout'];
+    const keys: CampusBuilding[] = injured ? ['medical_centre'] : ['stadium_grounds', 'stadium_grounds', 'training_ground', 'training_ground'];
     const key = keys[Math.floor(Math.random() * keys.length)];
     const p = this.view.placement[key];
     const [w, d] = footprint(key, p.rot);
     return new THREE.Vector3((p.x - 0.5 + Math.random() * (w + 1)) * CELL, 0, (p.z - 0.5 + Math.random() * (d + 1)) * CELL);
   }
 
-  /** The campus-side sidewalk of the ring road, the plaza, or (match day) by the Stands. */
+  /** The campus-side sidewalk of the ring road, the plaza, or (match day) by the Stadium. */
   private fanPoint(): THREE.Vector3 {
     const r = Math.random();
     if (this.view?.matchDay && r < 0.4) {
-      const c = footprintCenter('stands', this.view.placement.stands);
+      const c = footprintCenter('stadium_grounds', this.view.placement.stadium_grounds);
       return new THREE.Vector3(c.x + (Math.random() - 0.5) * 8, 0, c.z + (Math.random() - 0.5) * 4);
     }
     if (r < 0.25) {

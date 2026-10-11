@@ -35,7 +35,7 @@
           class="px-12"
           @click="play"
         >
-          {{ cooldownLeft > 0 ? `Squad resting ${formatClock(cooldownLeft)}` : 'PLAY' }}
+          {{ cooldownLeft > 0 ? `Squad resting ${formatRemainingSeconds(cooldownLeft)}` : 'PLAY' }}
         </v-btn>
         <div class="text-caption text-medium-emphasis mt-1">
           Matchmaking picks an opponent of similar power. Wins pay cash and XP; your stadium earns
@@ -48,7 +48,7 @@
         <div class="d-flex justify-space-between align-center">
           <div class="font-weight-bold text-body-2">Club Challenge</div>
           <v-chip size="x-small" :color="challengeLeft > 0 ? 'info' : 'error'">
-            {{ challengeLeft > 0 ? formatClock(challengeLeft) : 'Expired' }}
+            {{ challengeLeft > 0 ? formatRemainingSeconds(challengeLeft) : 'Expired' }}
           </v-chip>
         </div>
         <div class="text-body-2 mt-1">{{ state.challenge.title }}</div>
@@ -113,6 +113,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { MatchResult, PlayState } from '@repo/api-contract';
+import { formatRemainingSeconds } from '@/helpers/countdown';
 import { currency } from '@/helpers/misc';
 import { client } from '@/services/api';
 
@@ -141,15 +142,6 @@ const challengeLeft = computed(() => Math.max((state.value?.challenge.secondsLef
 const xpPercent = computed(() =>
   state.value ? Math.min(100, (state.value.club.xpIntoLevel / state.value.club.xpForNext) * 100) : 0
 );
-
-function formatClock(totalSeconds: number) {
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  const mm = String(m).padStart(2, '0');
-  const ss = String(s).padStart(2, '0');
-  return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
-}
 
 const outcomeColor = (o: string) => (o === 'win' ? 'success' : o === 'loss' ? 'error' : 'warning');
 

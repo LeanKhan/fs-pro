@@ -1,21 +1,12 @@
 // The Matchzone HUD, in the campus's cozy style (cozy.scss): cream and wood
 // panels, chunky borders and drop shadows, Fredoka. Scoped under .mz so it
 // renders the same over the campus or on its own route.
-.mz {
-  --cream: #fdf4df;
-  --cream-2: #f6e7c4;
-  --wood: #8a5a3b;
-  --wood-d: #5e3b22;
-  --ink: #4a3220;
-  --muted: #6f5940; // AA (6.0:1 on cream); was #8b7357 (4.1:1, failed WCAG AA) — DECISIONS B1-2 sweep
-  --edge: #c9a46a;
-  --green: #5cc23a;
-  --green-d: #2f8a1c;
-  --red: #e5402f;
-  --gold: #f5b82e;
-  --blue: #3a8ee0;
-  --shadow: 0 4px 0 rgba(70, 40, 15, 0.35), 0 8px 18px rgba(0, 0, 0, 0.18);
+//
+// The palette is defined once in styles/tokens.css (OW-D12); `@use` emits those
+// `:root` tokens here too so the Matchzone resolves them on its own route.
+@use '../../styles/tokens.css';
 
+.mz {
   position: fixed;
   inset: 0;
   z-index: 40;

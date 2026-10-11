@@ -5,17 +5,17 @@
  */
 export const CAMPUS_GRID = { minX: -14, maxX: 13, minZ: -12, maxZ: 11 };
 
-/** The 7 facility asset types plus the two non-facility buildings. */
+/** The seven campus buildings. The Office is the Clubhouse and the Stadium
+ * grounds are the Stadium; each upgrades one primary asset (BUILDING_PRIMARY)
+ * and carries the older assets it absorbed (server: clubhouse/buildings.go). */
 export const CAMPUS_BUILDINGS = {
+  office: [3, 3],
   stadium_grounds: [7, 5],
-  stands: [5, 2],
+  club_shop: [3, 2],
+  cash_vault: [2, 2],
   training_ground: [4, 3],
   youth_academy: [3, 3],
-  scouting: [2, 2],
   medical_centre: [3, 2],
-  staff_house: [3, 2],
-  dugout: [2, 1],
-  office: [3, 3],
 } as const satisfies Record<string, readonly [number, number]>;
 
 export type CampusBuilding = keyof typeof CAMPUS_BUILDINGS;
@@ -29,13 +29,24 @@ const PLAZA = { x: -1, z: -1, w: 2, d: 2 };
 export const DEFAULT_PLACEMENT: CampusPlacement = {
   office: { x: -2, z: -8, rot: 0 },
   stadium_grounds: { x: 4, z: -1, rot: 0 },
-  stands: { x: 5, z: 4, rot: 0 },
-  dugout: { x: 6, z: -3, rot: 0 },
+  club_shop: { x: 0, z: 6, rot: 0 },
+  cash_vault: { x: -4, z: 6, rot: 0 },
   training_ground: { x: 4, z: -9, rot: 0 },
   youth_academy: { x: -8, z: 2, rot: 0 },
-  medical_centre: { x: -6, z: -4, rot: 0 },
-  staff_house: { x: -10, z: -8, rot: 0 },
-  scouting: { x: 11, z: -11, rot: 0 },
+  medical_centre: { x: -7, z: -4, rot: 0 },
+};
+
+/** Each building's display name and the asset its upgrade raises. Assets
+ * marked `eco` upgrade through campus.upgrade (crossed costs), the rest
+ * through facilities.startUpgrade. */
+export const BUILDING_PRIMARY: Record<CampusBuilding, { name: string; asset: string; eco: boolean }> = {
+  office: { name: 'Clubhouse', asset: 'clubhouse', eco: true },
+  stadium_grounds: { name: 'Stadium', asset: 'turnstiles', eco: true },
+  club_shop: { name: 'Club Shop', asset: 'club_shop', eco: true },
+  cash_vault: { name: 'Club Vault', asset: 'cash_vault', eco: true },
+  training_ground: { name: 'Training Ground', asset: 'training_ground', eco: false },
+  youth_academy: { name: 'Youth Academy', asset: 'youth_academy', eco: false },
+  medical_centre: { name: 'Medical Centre', asset: 'medical_centre', eco: false },
 };
 
 export function footprint(key: CampusBuilding, rot: number): [number, number] {

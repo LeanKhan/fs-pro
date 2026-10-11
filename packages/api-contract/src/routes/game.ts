@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { successEnvelope, failEnvelope } from '../schemas/envelope';
 import { booleanQuery } from '../schemas/query';
 import { GameResultsSchema, PlayResultSchema, TacticSchema } from '../schemas/game';
+import { RaidSummarySchema } from '../schemas/play';
 
 const c = initContract();
 
@@ -114,7 +115,11 @@ export const gameContract = c.router(
 
     /** Creates a season-less Fixture (Type: 'friendly') between two
      * arbitrary clubs, with an explicit tactic per side, playable through
-     * the same /matchzone/:fixture flow as a real match. */
+     * the same /matchzone/:fixture flow as a real match. With `practice: true`
+     * it resolves a no-stakes Friendly Challenge (02 §D2) immediately: a raid
+     * vs the friend's stored Home Grid that suppresses every persistent
+     * side-effect (no Standing, loot, shield or ledger rows) and returns the
+     * result. */
     createFriendly: {
       method: 'POST',
       path: '/friendly',
@@ -124,9 +129,16 @@ export const gameContract = c.router(
         homeTactic: TacticSchema.optional(),
         awayTactic: TacticSchema.optional(),
         saveStats: z.boolean().optional(),
+        practice: z.boolean().optional(),
       }),
       responses: {
-        200: successEnvelope(z.object({ fixture_id: z.string() })),
+        200: successEnvelope(
+          z.object({
+            fixture_id: z.string(),
+            /** Present only for a practice friendly. */
+            result: RaidSummarySchema.optional(),
+          })
+        ),
         400: failEnvelope(),
         404: failEnvelope(),
       },

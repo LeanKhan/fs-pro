@@ -1,0 +1,297 @@
+// Package policy is a literal port of apps/fs-pro-server/src/middleware/
+// route-policy.ts: a table of who may call which route id, plus the guard that
+// enforces it. Unlisted GETs are public and unlisted non-GETs are admin-only.
+package policy
+
+import "strings"
+
+// Kind identifies a rule variant.
+type Kind int
+
+// Rule kinds. Public and Handler need no identity; the rest are checked in
+// escalating order, with admins always allowed.
+const (
+	Public Kind = iota
+	SignedIn
+	Admin
+	Handler
+	Self
+	Club
+	Player
+	Fixture
+)
+
+// Source is where a club ownership id comes from (param, body or query),
+// mirroring route-policy.ts's param()/bodyField()/queryField().
+type Source int
+
+// Field sources.
+const (
+	SourceParam Source = iota
+	SourceBody
+	SourceQuery
+)
+
+// Rule is one entry of the policy table. Param names the path/route parameter
+// for Self/Player/Fixture rules; Source+Field locate a Club id.
+type Rule struct {
+	Kind       Kind
+	Param      string
+	Source     Source
+	Field      string
+	Fields     []string
+	AdminQuery []string
+}
+
+func selfRule(param string, fields ...string) Rule {
+	return Rule{Kind: Self, Param: param, Fields: fields}
+}
+
+func clubParam(param string, fields ...string) Rule {
+	return Rule{Kind: Club, Source: SourceParam, Field: param, Fields: fields}
+}
+
+func clubBody(field string) Rule {
+	return Rule{Kind: Club, Source: SourceBody, Field: field}
+}
+
+func clubQuery(field string) Rule {
+	return Rule{Kind: Club, Source: SourceQuery, Field: field}
+}
+
+func player(param string, fields ...string) Rule {
+	return Rule{Kind: Player, Param: param, Fields: fields}
+}
+
+func fixture(param string, adminQuery ...string) Rule {
+	return Rule{Kind: Fixture, Param: param, AdminQuery: adminQuery}
+}
+
+// Table is the ported POLICIES map (route-policy.ts lines 42-165), keyed by
+// route id.
+var Table = map[string]Rule{
+	// Clubs.
+	"clubs.updateClub":             clubParam("id", "Lineup", "Tactic"),
+	"clubs.suggestLineup":          clubParam("id"),
+	"clubs.recruitYouthPlayers":    clubParam("id"),
+	"clubs.createClub":             {Kind: Admin},
+	"clubs.deleteClub":             {Kind: Admin},
+	"clubs.addPlayerToClub":        {Kind: Admin},
+	"clubs.addManyPlayersToClub":   {Kind: Admin},
+	"clubs.refreshAllClubsRatings": {Kind: Admin},
+	"clubs.hireManager":            {Kind: Admin},
+	"clubs.fireManager":            {Kind: Admin},
+	"clubs.removePlayerFromClub":   {Kind: Admin},
+
+	// Players.
+	"players.updatePlayer":    player("id", "TrainingFocus"),
+	"players.generatePlayers": {Kind: Admin},
+
+	// Users.
+	"users.joinUser":             {Kind: Public},
+	"users.loginUser":            {Kind: Public},
+	"users.enterSession":         {Kind: Public},
+	"users.changePassword":       {Kind: SignedIn},
+	"users.requestPasswordReset": {Kind: Public},
+	"users.resetPassword":        {Kind: Public},
+	"users.verifyEmail":          {Kind: Public},
+	"users.resendVerification":   {Kind: SignedIn},
+	"users.setEmail":             {Kind: SignedIn},
+	"users.logoutUser":           selfRule("id"),
+	"users.updateUser":           selfRule("id", "FullName", "Avatar", "Age", "Alerts"),
+	"users.addClubsToUser":       {Kind: Admin},
+	"users.addClubToUser":        {Kind: Admin},
+	"users.removeClubFromUser":   selfRule("id"),
+
+	// Game.
+	"game.kickoffNew":     fixture("fixture", "simulate_rest"),
+	"game.enqueueMatch":   {Kind: Admin},
+	"game.createFriendly": clubBody("homeClubId"),
+
+	// Transfers.
+	"transfers.purchasePlayer":        clubBody("buyingClubId"),
+	"transfers.placeBid":              clubBody("biddingClubId"),
+	"transfers.respondToOffer":        clubBody("clubId"),
+	"transfers.listPlayerForSale":     clubBody("clubId"),
+	"transfers.scoutPlayerTransfer":   clubBody("clubId"),
+	"transfers.requestBudgetIncrease": clubBody("clubId"),
+	"transfers.getOffers":             clubQuery("clubId"),
+	"transfers.setTransferWindow":     {Kind: Admin},
+
+	// Program (all club-param).
+	"program.getProgram":        clubParam("clubId"),
+	"program.advanceProgram":    clubParam("clubId"),
+	"program.dismissTip":        clubParam("clubId"),
+	"program.tip":               clubParam("clubId"),
+	"program.browseManagers":    clubParam("clubId"),
+	"program.interviewManager":  clubParam("clubId"),
+	"program.signManager":       clubParam("clubId"),
+	"program.releaseManager":    clubParam("clubId"),
+	"program.browsePlayers":     clubParam("clubId"),
+	"program.scoutPlayer":       clubParam("clubId"),
+	"program.signPlayer":        clubParam("clubId"),
+	"program.requestLoan":       clubParam("clubId"),
+	"program.getProgramChapter": clubParam("clubId"),
+
+	// Campus economy (P1): owner/admin only, clubId path param.
+	"campus.get":              clubParam("clubId"),
+	"campus.upgrade":          clubParam("clubId"),
+	"campus.place":            clubParam("clubId"),
+	"campus.collect":          clubParam("clubId"),
+	"campus.clearObstacle":    clubParam("clubId"),
+	"campus.buyGroundskeeper": clubParam("clubId"),
+	"campus.usePerk":          clubParam("clubId"),
+
+	// Grid layouts (P3, Agent B). Owner/admin on the club {id}. A share code
+	// (grid.importLayout) is a public puzzle imported into one's own club, so
+	// it is SignedIn and the handler scopes the destination club from the
+	// session.
+	"grid.getLayouts":     clubParam("id"),
+	"grid.getLayout":      clubParam("id"),
+	"grid.putLayout":      clubParam("id"),
+	"grid.validateLayout": clubParam("id"),
+	"grid.publishLayout":  clubParam("id"),
+	"grid.importLayout":   {Kind: SignedIn},
+	"play.scoutOpponent":  {Kind: Handler},
+
+	// P5 async raid & defense (Wave 2). Both are owner/admin-only club-param
+	// routes (the play.getInbox precedent for an owner-scoped read).
+	"play.claimBoardVault": clubParam("clubId"),
+	"play.defenseLog":      clubParam("clubId"),
+
+	// Pre-Season Tour (P9, Wave 4). The onboarding rail's reads and writes are
+	// owner/admin-only on the {clubId} path param.
+	"preseason.get":   clubParam("clubId"),
+	"preseason.play":  clubParam("clubId"),
+	"preseason.claim": clubParam("clubId"),
+
+	// Standing ladder (P6, Agent G). The club-scoped reads are owner-scoped on
+	// the clubId path param; signup is owner-scoped on its body's clubId.
+	"league.standing":  clubParam("clubId"),
+	"league.pool":      clubParam("clubId"),
+	"league.signup":    clubBody("clubId"),
+	"league.formBonus": clubParam("clubId"),
+
+	// Associations (P7, Agent H). Mutating routes are owner-scoped on the
+	// clubId body field (the caller must manage the club they act as); the two
+	// reads are public projections.
+	"associations.create":         clubBody("clubId"),
+	"associations.join":           clubBody("clubId"),
+	"associations.leave":          clubBody("clubId"),
+	"associations.loan":           clubBody("clubId"),
+	"associations.derby":          clubBody("clubId"),
+	"associations.claimDirective": clubBody("clubId"),
+	"associations.grounds":        clubBody("clubId"),
+	"associations.get":            {Kind: Public},
+	"associations.directives":     {Kind: Public},
+
+	// Season pass + Club Legacy (P8, Agent I). Owner/admin on {clubId}.
+	"season.get":            clubParam("clubId"),
+	"season.claimObjective": clubParam("clubId"),
+	"season.claimPass":      clubParam("clubId"),
+	"season.claimBank":      clubParam("clubId"),
+	"legacy.get":            clubParam("clubId"),
+	"legacy.claim":          clubParam("clubId"),
+	"honours.list":          clubParam("clubId"),
+
+	// Abilities, traits & orders (P2/P4, Wave 2). Club-scoped reads/writes use
+	// the {id} path param; player-scoped slot/equip rules use {pid} and the
+	// handler additionally scopes the player to the club in the path. The trait
+	// catalogue is public.
+	"abilities.list":   clubParam("id"),
+	"abilities.slot":   player("pid"),
+	"traits.list":      {Kind: Public},
+	"traits.equip":     player("pid"),
+	"orders.inventory": clubParam("id"),
+	"orders.prepare":   clubParam("id"),
+
+	// Handler-checked routes.
+	"facilities.startUpgrade":         {Kind: Handler},
+	"facilities.savePlacement":        {Kind: Handler},
+	"facilities.squadRecovery":        {Kind: Handler},
+	"facilities.treatPlayer":          {Kind: Handler},
+	"play.playMatch":                  {Kind: Handler},
+	"play.markInboxRead":              {Kind: Handler},
+	"play.collectShop":                {Kind: Handler},
+	"play.getMatchday":                {Kind: Handler},
+	"play.bookMatch":                  {Kind: Handler},
+	"play.getMatchPrep":               {Kind: Handler},
+	"play.saveMatchPlan":              {Kind: Handler},
+	"play.previewMatchPlan":           {Kind: Handler},
+	"play.getInbox":                   {Kind: Handler},
+	"editions.create":                 {Kind: Handler},
+	"editions.action":                 {Kind: Handler},
+	"editions.invite":                 {Kind: Handler},
+	"editions.register":               {Kind: Handler},
+	"editions.withdraw":               {Kind: Handler},
+	"editions.setEntryPolicy":         {Kind: Handler},
+	"challenges.forEdition":           {Kind: Handler},
+	"challenges.propose":              {Kind: Handler},
+	"challenges.respond":              {Kind: Handler},
+	"challenges.setPolicy":            {Kind: Handler},
+	"world.updateSettings":            {Kind: Handler},
+	"world.endYear":                   {Kind: Handler},
+	"world.advanceDay":                {Kind: Handler},
+	"competitionDefinitions.validate": {Kind: Handler},
+	"competitionDefinitions.create":   {Kind: Handler},
+	"competitionDefinitions.update":   {Kind: Handler},
+	"competitionDefinitions.archive":  {Kind: Handler},
+	"atlas.listInvites":               {Kind: Handler},
+	"atlas.createInvite":              {Kind: Handler},
+
+	// Atlas / tiles / fixtures / players / managers / calendar / places.
+	"atlas.foundCountry":      {Kind: Admin},
+	"atlas.foundTown":         {Kind: Admin},
+	"atlas.foundClub":         {Kind: SignedIn},
+	"atlas.getPlacement":      {Kind: SignedIn},
+	"atlas.getChrome":         {Kind: Public},
+	"atlas.search":            {Kind: Public},
+	"tiles.getTile":           {Kind: Public},
+	"fixtures.deleteFixture":  {Kind: Admin},
+	"players.createPlayer":    {Kind: Admin},
+	"players.deletePlayer":    {Kind: Admin},
+	"managers.createManager":  {Kind: Admin},
+	"managers.updateManager":  {Kind: Admin},
+	"managers.deleteManager":  {Kind: Admin},
+	"calendar.deleteDay":      {Kind: Admin},
+	"calendar.setClock":       {Kind: Admin},
+	"calendar.tickClock":      {Kind: Admin},
+	"calendar.healCalendar":   {Kind: Admin},
+	"calendar.simulateToDate": {Kind: Admin},
+	"places.importFromWorld":  {Kind: Admin},
+	"places.syncFromWorld":    {Kind: Admin},
+	"places.resolveAnchor":    {Kind: Admin},
+	"places.updatePlace":      {Kind: Admin},
+	"seasons.deleteSeason":    {Kind: Admin},
+}
+
+// handlerPublic are `handler`-rule routes whose Node handler performs no
+// access check (public reads), so the guard must allow anonymous callers.
+var handlerPublic = map[string]bool{
+	"play.getPlayState":          true,
+	"play.findOpponents":         true,
+	"editions.get":               true,
+	"editions.eligibility":       true,
+	"editions.rankings":          true,
+	"editions.bracket":           true,
+	"editions.eligibleOpponents": true,
+	"editions.getEntryPolicy":    true,
+	"editions.clubEntries":       true,
+	"challenges.forClub":         true,
+	"challenges.getPolicy":       true,
+}
+
+// IsPublicHandler reports whether a handler-rule route is reachable anonymously.
+func IsPublicHandler(routeID string) bool { return handlerPublic[routeID] }
+
+// RuleFor returns the rule for a route id, applying the default (GET public,
+// otherwise admin) when the id is unlisted.
+func RuleFor(routeID, method string) Rule {
+	if r, ok := Table[routeID]; ok {
+		return r
+	}
+	if strings.EqualFold(method, "GET") {
+		return Rule{Kind: Public}
+	}
+	return Rule{Kind: Admin}
+}

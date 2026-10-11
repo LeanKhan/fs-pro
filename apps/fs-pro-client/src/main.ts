@@ -4,8 +4,8 @@ import App from './App.vue';
 import router from './router';
 import { createVuetify } from 'vuetify';
 import { $axios } from '@/services/api';
-import { appSocket } from '@/services/socket';
 import 'vuetify/styles';
+import './styles/tokens.css';
 import './styles/cozy-app.scss';
 import { mdi } from 'vuetify/iconsets/mdi';
 import { currency, ordinal, roundTo } from './helpers/misc';
@@ -75,7 +75,6 @@ if (sentryDsn) {
   });
 }
 
-app.config.globalProperties.$socket = appSocket;
 app.config.globalProperties.$axios = $axios;
 
 app.use(createPinia());

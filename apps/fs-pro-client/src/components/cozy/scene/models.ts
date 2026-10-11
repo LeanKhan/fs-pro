@@ -309,56 +309,6 @@ function buildPitch(tier: number, standsTier: number, colors: Colors) {
   return g;
 }
 
-// --- Stands → ticket office / fan zone --------------------------------------------------------
-function buildFanZone(tier: number, colors: Colors) {
-  const g = new THREE.Group();
-  const [w, d] = size('stands');
-  const sign = (x: number, y: number, z: number, width: number) => g.add(box(width, 0.4, 0.08, colors[0], x, y, z));
-  if (tier === 1) {
-    // Ticket booth with a queue rail.
-    g.add(box(1.4, 1.8, 1.2, S.wall, 0, 0, 0), box(1.6, 0.15, 1.4, colors[0], 0, 1.8, 0), box(0.9, 0.5, 0.06, '#5b8fd6', 0, 0.9, 0.62));
-    for (let i = 0; i < 4; i++) g.add(box(0.06, 0.8, 0.06, '#9a958c', 1.2 + i * 0.6, 0, 0.9));
-    g.add(box(1.9, 0.06, 0.06, '#d9483b', 2.1, 0.75, 0.9));
-    return g;
-  }
-  const office = block(tier >= 3 ? 3 : 3.6, 2.4, 1, S.wall, colors[0]);
-  office.position.set(tier >= 3 ? -w / 2 + 1.8 : 0, 0, -0.4);
-  g.add(office);
-  sign(office.position.x, 1.75, 0.85, 1.8);
-  if (tier >= 3) {
-    // The club shop next door, with an awning.
-    const shop = block(2.6, 2.4, 1, S.wallAlt, colors[1]);
-    shop.position.set(-w / 2 + 4.8, 0, -0.4);
-    g.add(shop);
-    for (let i = 0; i < 5; i++) {
-      const s = box(0.52, 0.1, 0.9, i % 2 ? '#ffffff' : colors[0], -w / 2 + 3.76 + i * 0.52, 1.5, 1.1);
-      s.rotation.x = 0.35;
-      g.add(s);
-    }
-  }
-  if (tier >= 4) {
-    // Fan zone: a little stage, flags and picnic tables.
-    g.add(box(2.4, 0.4, 1.6, '#8a5a3b', w / 2 - 1.5, 0, 0.6));
-    for (const sx of [-1, 1]) g.add(box(0.1, 2.2, 0.1, '#5d6470', w / 2 - 1.5 + sx * 1.1, 0.4, 0));
-    g.add(box(2.4, 0.12, 0.12, '#5d6470', w / 2 - 1.5, 2.6, 0));
-    for (let i = 0; i < 3; i++) {
-      const f = flag(i % 2 ? colors[1] : colors[0], 2.4);
-      f.position.set(-w / 2 + 0.4 + i * 3.2, 0, d / 2 - 0.3);
-      g.add(f);
-    }
-  }
-  if (tier >= 5) {
-    // Fan plaza: a big screen and a food truck.
-    g.add(box(0.15, 3.4, 0.15, '#5d6470', w / 2 - 0.4, 0, -1.4), box(2.6, 1.5, 0.2, '#2b2b3a', w / 2 - 1.6, 3, -1.4), box(2.4, 1.3, 0.22, '#5b8fd6', w / 2 - 1.6, 3.1, -1.35));
-    const truck = new THREE.Group();
-    truck.add(box(1.2, 1.2, 2.2, '#f2b632', 0, 0.3, 0), box(1.22, 0.5, 1, '#ffffff', 0, 0.9, 0.3));
-    truck.position.set(0.2, 0, 1.2);
-    truck.rotation.y = Math.PI / 2;
-    g.add(truck);
-  }
-  return g;
-}
-
 // --- Training ----------------------------------------------------------------------------------
 function buildTraining(tier: number) {
   const g = new THREE.Group();
@@ -452,67 +402,7 @@ function buildMedical(tier: number) {
   return g;
 }
 
-// --- Scouting -------------------------------------------------------------------------------------
-function lookout(h: number, roofed: boolean) {
-  const g = new THREE.Group();
-  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) g.add(box(0.18, h, 0.18, '#7a4f2c', sx * 0.8, 0, sz * 0.8));
-  g.add(box(2.1, 0.18, 2.1, '#a8743f', 0, h, 0));
-  for (const s of [-1, 1]) g.add(box(2.1, 0.5, 0.08, '#a8743f', 0, h + 0.18, s * 1.02), box(0.08, 0.5, 2.1, '#a8743f', s * 1.02, h + 0.18, 0));
-  if (roofed) g.add(mesh(new THREE.ConeGeometry(1.6, 1, 4), '#3a6fd8', 0, h + 1.6, 0).rotateY(Math.PI / 4));
-  for (const sx of [-1, 1]) if (roofed) g.add(box(0.12, 1.2, 0.12, '#7a4f2c', sx * 1, h, 1));
-  const scope = cyl(0.08, 0.12, 0.8, '#3b3b44', 0.5, h + 0.6, 0.8);
-  scope.rotation.x = 1.2;
-  g.add(scope);
-  return g;
-}
-
-function dish(r: number) {
-  const g = new THREE.Group();
-  g.add(cyl(0.08, 0.1, 0.8, '#b9b9c2'));
-  const bowl = mesh(new THREE.SphereGeometry(r, 14, 6, 0, Math.PI * 2, 0, Math.PI / 3), '#f5f1e6', 0, 0.8 + r, 0);
-  bowl.rotation.x = Math.PI * 0.75;
-  g.add(bowl);
-  return g;
-}
-
-function buildScouting(tier: number) {
-  if (tier === 1) return lookout(1.6, false);
-  if (tier === 2) return lookout(3.4, true);
-  const g = new THREE.Group();
-  if (tier === 3) {
-    g.add(house(2.4, 2, 1.6, S.wall, '#3a6fd8', false).translateX(-0.6).translateZ(0.6));
-    const tower = lookout(2.6, true);
-    tower.position.set(0.9, 0, -0.9);
-    tower.scale.setScalar(0.7);
-    g.add(tower);
-    return g;
-  }
-  const b = block(3.2, 3, tier === 4 ? 2 : 3, '#e8eef4', '#3a6fd8');
-  g.add(b);
-  g.add(dish(tier === 4 ? 0.6 : 0.9).translateY(b.userData.top as number).translateX(0.6));
-  if (tier >= 5) g.add(cyl(0.05, 0.12, 3, '#b9b9c2', -1, b.userData.top as number, -0.8), sphere(0.15, '#e5402f', -1, (b.userData.top as number) + 3.1, -0.8));
-  return g;
-}
-
-// --- Staff house -------------------------------------------------------------------------------------
-function buildStaffHouse(tier: number) {
-  if (tier === 1) return house(2.4, 2, 1.4, '#c49a6c', '#8a5a3b', false);
-  if (tier === 2) return house(3.4, 2.4, 1.7, S.wallAlt, '#3aa655');
-  if (tier === 3) return house(4.4, 2.8, 2.2, S.wallAlt, '#3aa655');
-  if (tier === 4) {
-    const g = house(3.6, 2.8, 2.4, S.wallAlt, '#2e8a45');
-    g.add(house(1.6, 2.2, 1.8, S.wallAlt, '#2e8a45', false).translateX(2.5).translateZ(0.3));
-    g.add(box(1.6, 0.15, 0.6, '#7a4f2c', -0.6, 1.4, 1.6));
-    return g;
-  }
-  // Coaching HQ: glass block with a green roof terrace.
-  const g = block(5, 3, 2, '#e8eef4', '#3aa655', '#9fd3f0');
-  const top = g.userData.top as number;
-  for (let i = 0; i < 4; i++) g.add(sphere(0.3, '#5db04a', -1.8 + i * 1.2, top + 0.25, -0.8));
-  return g;
-}
-
-// --- Office (Club Level) and Dugout (Staff House Tier) ------------------------------------------------------
+// --- Clubhouse (the Office, by Clubhouse tier) ------------------------------------------------------
 function buildOffice(stage: number, colors: Colors) {
   if (stage === 0) {
     // Portakabin.
@@ -549,26 +439,59 @@ function buildOffice(stage: number, colors: Colors) {
   return g;
 }
 
-function buildDugout(stage: number, colors: Colors) {
+// --- Club Shop and Club Vault (docs/coc-mapping/04) ------------------------------------------------
+/** A gold coin stack: the Cash collector/vault's tell. */
+function coins(n: number, x: number, z: number) {
   const g = new THREE.Group();
-  if (stage === 0) {
-    g.add(box(2.4, 0.1, 0.5, '#a8743f', 0, 0.45, 0), box(2.4, 0.35, 0.08, '#a8743f', 0, 0.55, -0.22));
-    for (const sx of [-1, 1]) g.add(box(0.08, 0.45, 0.45, '#3b3b44', sx * 1.1, 0, 0));
+  for (let i = 0; i < n; i++) g.add(cyl(0.32, 0.32, 0.1, '#f2b632', x, i * 0.11, z, 12));
+  return g;
+}
+
+/** Club Shop: the Fans collector. A stall with an awning, growing into a store. */
+function buildClubShop(tier: number, colors: Colors) {
+  const g = new THREE.Group();
+  const [w, d] = size('club_shop');
+  if (tier <= 2) {
+    const sw = tier === 1 ? 2.6 : 3.6;
+    g.add(box(sw, 1.1, 1.4, '#a8743f', 0, 0, -0.3));
+    g.add(box(sw - 0.2, 0.08, 1.2, '#f8f1e0', 0, 1.1, -0.3));
+    for (let i = 0; i < 6; i++) {
+      const stripe = box(sw / 6, 0.12, 1.8, i % 2 ? colors[0] : colors[1], -sw / 2 + sw / 12 + (i * sw) / 6, 2, 0);
+      stripe.rotation.x = 0.25;
+      g.add(stripe);
+    }
+    for (const sx of [-1, 1]) g.add(box(0.1, 2, 0.1, '#7a4f2c', (sx * sw) / 2, 0, 0.8));
+    // Scarves on the counter.
+    for (let i = 0; i < 4; i++) g.add(box(0.15, 0.5, 0.05, i % 2 ? colors[0] : colors[1], -0.9 + i * 0.6, 1.1, 0.3));
     return g;
   }
-  const len = stage === 2 ? 3.8 : 3.2;
-  g.add(box(len + 0.2, 0.12, 1.4, '#9a958c'));
-  g.add(box(len, 1.3, 0.1, colors[0], 0, 0.12, -0.6));
-  for (const sx of [-1, 1]) g.add(box(0.1, 1.3, 1.2, stage === 2 ? '#cfe8ff' : colors[0], (sx * len) / 2, 0.12, 0));
-  const top = box(len + 0.2, 0.08, 1.5, '#cfe8ff', 0, 1.45, 0);
-  top.rotation.x = 0.12;
-  g.add(top);
-  g.add(box(len - 0.2, 0.1, 0.4, '#3b3b44', 0, 0.45, -0.3));
-  if (stage === 2) {
-    // Technical area: padded seats and an analysis screen.
-    for (let i = 0; i < 5; i++) g.add(box(0.5, 0.4, 0.4, colors[1], -len / 2 + 0.6 + i * 0.65, 0.5, -0.3));
-    g.add(box(0.9, 0.6, 0.06, '#2b2b3a', len / 2 + 0.5, 1, 0.4), box(0.06, 1, 0.06, '#5d6470', len / 2 + 0.5, 0, 0.4));
+  const floors = tier === 3 ? 1 : 2;
+  const b = block(w - 0.6, d - 0.6, floors, S.wall, colors[0], '#9fd3f0');
+  g.add(b);
+  // A striped awning along the front.
+  for (let i = 0; i < 8; i++) {
+    const stripe = box((w - 0.6) / 8, 0.1, 0.9, i % 2 ? colors[0] : colors[1], -(w - 0.6) / 2 + (w - 0.6) / 16 + (i * (w - 0.6)) / 8, 1.3, (d - 0.6) / 2 + 0.4);
+    stripe.rotation.x = 0.3;
+    g.add(stripe);
   }
+  if (tier >= 5) g.add(box(2.4, 0.6, 0.12, colors[1], 0, (b.userData.top as number) + 0.1, (d - 0.6) / 2 - 0.2));
+  return g;
+}
+
+/** Cash Vault: a squat strongroom with a round door, gold piling up. */
+function buildCashVault(tier: number) {
+  const g = new THREE.Group();
+  const s = 0.75 + tier * 0.07;
+  g.add(box(3.2 * s, 0.25, 3 * s, S.plinth));
+  g.add(box(2.8 * s, 1.4 + tier * 0.25, 2.6 * s, tier >= 3 ? '#cfd6dc' : '#b7a58a', 0, 0.25, 0));
+  const h = 1.65 + tier * 0.25;
+  g.add(box(3 * s, 0.2, 2.8 * s, '#8c7b6b', 0, h, 0));
+  const door = mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.12, 16), '#8a8f98', 0, 0.95, 1.3 * s + 0.06);
+  door.rotation.x = Math.PI / 2;
+  g.add(door);
+  g.add(box(0.7, 0.08, 0.06, '#f2b632', 0, 0.95, 1.3 * s + 0.14), box(0.08, 0.7, 0.06, '#f2b632', 0, 0.6, 1.3 * s + 0.14));
+  g.add(coins(1 + tier, -0.8 * s, 1.5 * s), coins(tier, 0.8 * s, 1.5 * s));
+  if (tier >= 4) for (const sx of [-1, 1]) g.add(cyl(0.18, 0.2, h, '#e8e2d4', sx * 1.45 * s, 0.25, 1.35 * s));
   return g;
 }
 
@@ -615,29 +538,27 @@ function scaffolding(key: CampusBuilding) {
   return g;
 }
 
-/** A campus building at its stage (see stages.ts): facilities by Tier, the
- * Office by Club Level, the Dugout by Staff House Tier. The stadium's seating
- * follows the Stands Tier. */
+/** A campus building at its stage (see stages.ts): buildings by Tier, the
+ * Office (Clubhouse) by Clubhouse tier. The Stadium's seating grows with it. */
 export function buildingModel(key: CampusBuilding, ctx: StageContext & { standsTier: number }, upgrading: boolean, colors: Colors, style: CampusStyle = DEFAULT_STYLE) {
   S = style;
   const root = new THREE.Group();
   const stage = stageOf(key, ctx);
-  const facility = key !== 'dugout' && key !== 'office';
+  const facility = key !== 'office';
   if (facility && stage === 0 && key !== 'stadium_grounds') {
     root.add(plot(key, upgrading));
     return mergeByMaterial(root);
   }
   const builders: Record<CampusBuilding, () => THREE.Object3D> = {
     office: () => buildOffice(stage, colors),
-    dugout: () => buildDugout(stage, colors),
     stadium_grounds: () => buildPitch(stage, ctx.standsTier, colors),
-    stands: () => buildFanZone(stage, colors),
+    club_shop: () => buildClubShop(stage, colors),
+    cash_vault: () => buildCashVault(stage),
     training_ground: () => buildTraining(stage),
     youth_academy: () => buildAcademy(stage, colors),
     medical_centre: () => buildMedical(stage),
-    scouting: () => buildScouting(stage),
-    staff_house: () => buildStaffHouse(stage),
   };
+
   root.add(builders[key]());
   if (upgrading) root.add(scaffolding(key));
   return mergeByMaterial(root);

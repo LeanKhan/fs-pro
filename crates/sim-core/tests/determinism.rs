@@ -54,3 +54,38 @@ fn test_simulation_determinism() {
         data1.Details.HomeTeamScore, data1.Details.AwayTeamScore,
         data3.Details.HomeTeamScore, data3.Details.AwayTeamScore);
 }
+
+/// The P0 determinism harness (06-ROADMAP): one fixed request, N repeats,
+/// byte-identical output including full replay frames. This is the guard the
+/// phase gates run against every build.
+#[test]
+fn determinism_harness_200_runs_byte_identical() {
+    let pool_path = Path::new("../../apps/fs-pro-server/src/scripts/fixtures/simulation-roster-pool.json");
+    if !pool_path.exists() {
+        return;
+    }
+    let pool: Value = serde_json::from_str(&fs::read_to_string(pool_path).unwrap()).unwrap();
+    let clubs: Vec<RawClub> = serde_json::from_value(pool.get("clubs").unwrap().clone()).unwrap();
+
+    let req = SimulateMatchRequest {
+        fixture_id: "harness_fixture".into(),
+        clubs: vec![clubs[0].clone(), clubs[1].clone()],
+        sides: RawSides {
+            home: clubs[0].id.clone().unwrap_or_default(),
+            away: clubs[1].id.clone().unwrap_or_default(),
+        },
+        tactics: Some(RawTactics {
+            home: Some(RawTactic::simple("433", "Balanced")),
+            away: Some(RawTactic::simple("442", "Balanced")),
+        }),
+        seed: Some("harness_seed".into()),
+        include_frames: Some(true),
+    };
+
+    let first = serde_json::to_string(&run_simulation(req.clone()).match_data.unwrap()).unwrap();
+    for i in 0..200 {
+        let got = serde_json::to_string(&run_simulation(req.clone()).match_data.unwrap()).unwrap();
+        assert_eq!(got, first, "run {i} diverged from run 0 (seed 'harness_seed')");
+    }
+    println!("determinism harness: 200/200 runs byte-identical ({} bytes each)", first.len());
+}

@@ -26,15 +26,16 @@ browser ──ws──▶ gateway :3005 ◀──signed POST /publish── Node
 
 ## Auth
 
-The browser calls `GET /api/realtime/ticket` and gets `{ url, ticket }`. The ticket is `base64url(json).base64url(hmac-sha256)` with claims `{ uid, name, clubs, code, admin, exp }`, valid for 10 minutes. The gateway trusts the claims and never touches the session store or the database. Clients fetch a fresh ticket on every reconnect.
+The browser calls `GET /api/realtime/ticket` and gets `{ url, ticket }`. The ticket is `base64url(json).base64url(hmac-sha256)` with claims `{ uid, name, clubs, assocs, code, admin, exp }`, valid for 10 minutes. The gateway trusts the claims and never touches the session store or the database. Clients fetch a fresh ticket on every reconnect.
 
 ## Topics
 
 | Topic | Who may join | What flows |
 | --- | --- | --- |
 | `world` | anyone signed in | world events, world chat, online count |
-| `club:<id>` | that club's owner (or an admin) | challenges, `club:defended`, level changes |
+| `club:<id>` | that club's owner (or an admin) | challenges, inbox, `club:defended` / `raid:resolved`, level changes |
 | `campus:<id>` | anyone | who is at that club's ground (presence), ground chat |
+| `association:<id>` | a member club's owner (or an admin) | association chat, presence |
 | `edition:<id>` | anyone | one competition edition |
 | `fixture:<id>` | anyone | one match |
 
@@ -53,7 +54,7 @@ Server to client:
 - `error` `{message}`
 - `pong`
 
-Chat is allowed on `world` and `campus:*`. Messages are trimmed, have control characters removed and are capped at 280 characters. Each connection may send a burst of 5, then one every 2 seconds. A client that can't keep up with its send buffer is disconnected rather than slowing everyone else.
+Chat is allowed on `world`, `campus:*`, `town:*` and `association:*`. Messages are trimmed, have control characters removed and are capped at 280 characters. Each connection may send a burst of 5, then one every 2 seconds. A client that can't keep up with its send buffer is disconnected rather than slowing everyone else.
 
 ## Moderation
 
@@ -90,6 +91,23 @@ Players can also block someone for themselves (stored in their browser) and repo
 - `publishWorldEvent`
 - `publishClubEvent`
 - `emitOpenPlay` (in `open-play-events.ts`) publishes to `world` plus the private topic of each club it concerns.
+
+### Defence events (`raid:resolved`)
+
+A resolved raid is published to the defender's private topic `club:<id>` with
+event `raid:resolved` (alias `club:defended`; names and payload in `events.go`).
+
+- The Go defence worker (`internal/play.ResolvePendingRaids`, through the
+  `Notifier` seam in `internal/play/raid.go`) writes the durable
+  `ClubMessages` row and then, when the gateway is configured, POSTs the
+  event through the signed Go client in `internal/realtime` (the mirror of
+  `src/realtime/world-events.ts`: `X-Signature: hex(hmac-sha256(body))` over
+  `{topics,event,data}`, configured by `REALTIME_URL` + `REALTIME_SECRET`).
+  The publish is fire-and-forget with a short timeout: a gateway hiccup is
+  logged, never returned, so a raid is never blocked or failed by realtime.
+- With `REALTIME_URL`/`REALTIME_SECRET` unset the worker stays durable-only
+  (the default): the inbox message is the source of truth and the browser
+  reconciles on the next read — no event is faked.
 
 ## Scaling
 

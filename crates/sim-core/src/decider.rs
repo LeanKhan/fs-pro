@@ -15,10 +15,10 @@
 // is erratic - so decision quality is a real attribute.
 
 use crate::config::CFG;
-use crate::geom::Vec2;
+use crate::geom::{Vec2, PITCH_LENGTH_METERS};
 use crate::model::{self, PassKind, ShotKind};
-use crate::tactics::TeamTactics;
-use crate::types::{PositionCategory, SimPlayer};
+use crate::tactics::{Region, TeamTactics};
+use crate::types::{action, PlayerEffects, PositionCategory, SimPlayer};
 use rand::Rng;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -29,6 +29,55 @@ pub enum ActionChoice {
     TakeOn { defender_idx: usize, to: Vec2 },
     Hold,
     Clear { to: Vec2 },
+    /// First-time strike without settling the ball (First-Time Volley ability).
+    Volley,
+    /// Long cross-field switch (Trivela ability).
+    Trivela { target_idx: usize, target: Vec2 },
+    /// A longer, more aggressive through ball (Through-Ball-in-Behind ability).
+    ThroughBallInBehind { target_idx: usize, target: Vec2 },
+    /// Keeper advances to sweep/claim (Sweeper-Keeper Rush ability).
+    SweeperRush { to: Vec2 },
+    /// A deliberate foul to break a transition. Generated in the engine's
+    /// challenge path (a defender action), not offered to the carrier.
+    TacticalFoul { defender_idx: usize },
+}
+
+/// A bias towards actions whose target lies in an order's region. `region`
+/// is in the attacking side's own normalised coordinates.
+#[derive(Debug, Clone, Copy)]
+pub struct RegionBias {
+    pub region: Region,
+    pub bonus: f32,
+}
+
+/// Optional per-tick context the engine supplies that the pure state can't
+/// carry: the active order's region bias, whether a first-time ball is
+/// arriving, and whether a sweeper-keeper rush is on.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DecideCtx {
+    pub order_bias: Option<RegionBias>,
+    /// A cross/long ball is arriving at the carrier in the air.
+    pub volley_ok: bool,
+    /// A runner is breaking beyond the line near this keeper's goal.
+    pub sweeper_threat: bool,
+}
+
+impl DecideCtx {
+    /// The order-driven utility bonus for a target in attacking coords.
+    #[inline]
+    fn bias(&self, target: Vec2, ltr: bool) -> f32 {
+        match self.order_bias {
+            Some(ob) => {
+                let a = Vec2::new(model::fwd_m(target, ltr) / PITCH_LENGTH_METERS, target.y);
+                if ob.region.contains(a) {
+                    ob.bonus * CFG.order_region_unit
+                } else {
+                    0.0
+                }
+            }
+            None => 0.0,
+        }
+    }
 }
 
 struct Candidate {
@@ -43,6 +92,8 @@ fn step_towards(from: Vec2, towards: Vec2, step_m: f32) -> Vec2 {
     model::from_m(Vec2::new(a.x + d.x * step_m, a.y + d.y * step_m)).clamp_pitch()
 }
 
+/// The plain decider, with no order/ability context (kept for callers that
+/// predate `07`; a player's own `effects` are still honoured).
 pub fn decide<R: Rng>(
     carrier_idx: usize,
     players: &[SimPlayer],
@@ -51,10 +102,24 @@ pub fn decide<R: Rng>(
     keeper: Option<usize>,
     rng: &mut R,
 ) -> ActionChoice {
+    decide_with(carrier_idx, players, tactics, ltr, keeper, &DecideCtx::default(), rng)
+}
+
+pub fn decide_with<R: Rng>(
+    carrier_idx: usize,
+    players: &[SimPlayer],
+    tactics: &TeamTactics,
+    ltr: bool,
+    keeper: Option<usize>,
+    ctx: &DecideCtx,
+    rng: &mut R,
+) -> ActionChoice {
     let carrier = &players[carrier_idx];
     let team = carrier.team_index;
     let pos = carrier.pos;
-    let tend = carrier.role.tendencies();
+    let eff: PlayerEffects = carrier.effects;
+    let mut tend = carrier.role.tendencies();
+    tend.apply(&eff.tendency);
     let is_gk = carrier.position == PositionCategory::GK;
 
     let pressure = model::pressure_at(pos, players, team, CFG.pressure_m) as f32;
@@ -70,14 +135,24 @@ pub fn decide<R: Rng>(
     let width = tactics.width - 0.5;
     let risk = (1.0 - CFG.risk_style * (tempo + direct)) * (1.25 - 0.5 * tend.risk_appetite);
 
-    let mut cands: Vec<Candidate> = Vec::with_capacity(24);
+    let mut cands: Vec<Candidate> = Vec::with_capacity(28);
 
     // 1. Shoot.
     if !is_gk && model::dist_m(pos, model::goal_of(ltr)) <= CFG.max_shot_m {
-        let shot = model::shot_model(carrier, keeper.map(|k| &players[k]), players, ltr, ShotKind::OpenPlay);
+        let shot = model::shot_model_plain(carrier, keeper.map(|k| &players[k]), players, ltr, ShotKind::OpenPlay);
         cands.push(Candidate {
             action: ActionChoice::Shoot,
             ev: shot.p_goal + (tend.shoot_bias - 0.5) * unit + tempo * CFG.style_tempo * 0.25 * unit,
+        });
+    }
+
+    // 1b. First-time volley (only when the carrier owns the ability and a
+    //     ball is arriving in the air). Same EV machinery as a shot.
+    if !is_gk && eff.has(action::VOLLEY) && ctx.volley_ok && model::dist_m(pos, model::goal_of(ltr)) <= CFG.max_shot_m {
+        let vm = model::shot_model_plain(carrier, keeper.map(|k| &players[k]), players, ltr, ShotKind::Volley);
+        cands.push(Candidate {
+            action: ActionChoice::Volley,
+            ev: vm.p_goal + (tend.shoot_bias - 0.5) * unit + tempo * CFG.style_tempo * 0.25 * unit,
         });
     }
 
@@ -101,7 +176,7 @@ pub fn decide<R: Rng>(
             let receiver_pressure = model::pressure_at(mate.pos, players, team, CFG.pressure_m + 0.5) as f32;
             // A cross is met first time: what it's worth is the header.
             let value = if kind == PassKind::Cross {
-                model::shot_model(mate, keeper.map(|k| &players[k]), players, ltr, ShotKind::Header).p_goal
+                model::shot_model_plain(mate, keeper.map(|k| &players[k]), players, ltr, ShotKind::Header).p_goal
             } else {
                 model::possession_value(mate.pos, ltr) * (1.0 - 0.1 * receiver_pressure).max(0.5)
             };
@@ -114,11 +189,12 @@ pub fn decide<R: Rng>(
                 PassKind::Wide => width * CFG.style_width * unit,
                 PassKind::Through => 0.0,
                 PassKind::Cross => width * CFG.style_width * 1.5 * unit,
+                PassKind::Switch => width * CFG.style_width * 1.5 * unit,
             } + if progress > 0.0 { tempo * CFG.style_tempo * 0.5 * unit } else { 0.0 }
                 + if progress > 10.0 { (tend.direct_pass_bias - 0.5) * unit } else { 0.0 };
             cands.push(Candidate {
                 action: ActionChoice::Pass { target_idx: i, target: mate.pos, kind },
-                ev: pm.p_complete * value - (1.0 - pm.p_complete) * model::turnover_cost(fail_at, ltr) * risk + bias,
+                ev: pm.p_complete * value - (1.0 - pm.p_complete) * model::turnover_cost(fail_at, ltr) * risk + bias + ctx.bias(mate.pos, ltr),
             });
         }
 
@@ -138,6 +214,45 @@ pub fn decide<R: Rng>(
                     });
                 }
             }
+
+            // A longer, more aggressive through ball in behind (gated ability).
+            if eff.has(action::THROUGH_BALL)
+                && let Some(target) = model::through_in_behind_target(mate, line_m, ltr)
+                && model::fwd_m(target, ltr) > line_m
+                && model::dist_m(pos, target) <= CFG.max_pass_m
+            {
+                let pm = model::pass_model(carrier, mate, target, PassKind::Through, players, tactics.tempo);
+                let fail_at = pm.interceptor.map_or(target, |d| players[d].pos);
+                cands.push(Candidate {
+                    action: ActionChoice::ThroughBallInBehind { target_idx: i, target },
+                    ev: pm.p_complete * model::possession_value(target, ltr)
+                        - (1.0 - pm.p_complete) * model::turnover_cost(fail_at, ltr) * risk
+                        + direct * CFG.style_directness * unit
+                        + (tend.direct_pass_bias - 0.5) * unit
+                        + ctx.bias(target, ltr),
+                });
+            }
+        }
+
+        // A long cross-field switch (Trivela ability): only across a wide
+        // lateral gap and beyond the comfort range. Resolved by the SAME
+        // `trivela_switch_probability` the EV is scored with.
+        if eff.has(action::TRIVELA)
+            && !offside
+            && distance >= CFG.trivela_min_dist_m
+            && ((mate.pos.y - pos.y) * crate::geom::PITCH_WIDTH_METERS).abs() >= CFG.trivela_min_lateral_m
+        {
+            let pm = model::pass_model(carrier, mate, mate.pos, PassKind::Switch, players, tactics.tempo);
+            let p = pm.p_complete;
+            let fail_at = pm.interceptor.map_or(mate.pos, |d| players[d].pos);
+            cands.push(Candidate {
+                action: ActionChoice::Trivela { target_idx: i, target: mate.pos },
+                ev: p * model::possession_value(mate.pos, ltr)
+                    - (1.0 - p) * model::turnover_cost(fail_at, ltr) * risk
+                    + width * CFG.style_width * unit
+                    + (tend.risk_appetite - 0.5) * unit
+                    + ctx.bias(mate.pos, ltr),
+            });
         }
     }
 
@@ -174,10 +289,22 @@ pub fn decide<R: Rng>(
                 let q = CFG.carry_loss_base + CFG.carry_loss_pressure * pressure;
                 cands.push(Candidate {
                     action: ActionChoice::Carry { to },
-                    ev: (1.0 - q) * model::possession_value(to, ltr) - q * cost_here * risk + tempo * CFG.style_tempo * 0.5 * unit,
+                    ev: (1.0 - q) * model::possession_value(to, ltr) - q * cost_here * risk + tempo * CFG.style_tempo * 0.5 * unit + ctx.bias(to, ltr),
                 });
             }
         }
+    }
+
+    // 4b. Sweeper-keeper rush (gated ability): the keeper carries out to
+    //     sweep/claim. Scored by the SAME claim probability the engine uses.
+    if is_gk && eff.has(action::SWEEPER_RUSH) && ctx.sweeper_threat {
+        let to = step_towards(pos, model::goal_of(ltr), 14.0);
+        let p = model::sweeper_claim_probability(carrier, to, ltr);
+        cands.push(Candidate {
+            action: ActionChoice::SweeperRush { to },
+            ev: p * model::possession_value(to, ltr) - (1.0 - p) * model::turnover_cost(to, ltr) * risk
+                + (tend.roaming_freedom - 0.5) * unit,
+        });
     }
 
     // 5. Hold it up / wait for support - keeping the ball, but stalling.

@@ -13,6 +13,149 @@ pub struct FormationSlot {
     pub anchor: Vec2, // x: 0.0 (own goal) -> 1.0 (opp goal), y: 0.0 (left touchline) -> 1.0 (right touchline)
 }
 
+// ---------------------------------------------------------------------
+// Manager Orders / trigger timeline (docs/coc-mapping/07 §3, §7).
+//
+// An order is a "spell": when its trigger first matches a match state, it
+// is applied for a bounded duration as a temporary region/team modifier.
+// Regions are expressed in *attacking* normalised coordinates (x: 0 own
+// goal -> 1 opp goal), so the same order reads identically for a side
+// that changes ends at half time.
+// ---------------------------------------------------------------------
+
+/// A normalised rectangle on the pitch (attacking coordinates).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct Region {
+    pub x0: f32,
+    pub y0: f32,
+    pub x1: f32,
+    pub y1: f32,
+}
+
+impl Region {
+    pub const FULL: Region = Region { x0: 0.0, y0: 0.0, x1: 1.0, y1: 1.0 };
+
+    #[inline]
+    pub fn contains(&self, p: Vec2) -> bool {
+        p.x >= self.x0 && p.x <= self.x1 && p.y >= self.y0 && p.y <= self.y1
+    }
+}
+
+/// When an order fires. `Never` is the safe fallback for an unrecognised
+/// string: bad input is inert rather than surprising.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TriggerWhen {
+    Always,
+    Never,
+    MinuteAtLeast,
+    Trailing,
+    Leading,
+    Drawing,
+    StaminaBelow,
+    PossessionBelow,
+    MomentumBelow,
+    ScorelineEquals,
+    PhaseIs,
+}
+
+impl TriggerWhen {
+    pub fn parse(s: &str) -> Self {
+        let k = s.replace([' ', '_', '-'], "").to_lowercase();
+        match k.as_str() {
+            "always" => TriggerWhen::Always,
+            "minuteatleast" | "minute" => TriggerWhen::MinuteAtLeast,
+            "trailing" | "losing" => TriggerWhen::Trailing,
+            "leading" | "winning" => TriggerWhen::Leading,
+            "drawing" | "draw" => TriggerWhen::Drawing,
+            "staminabelow" => TriggerWhen::StaminaBelow,
+            "possessionbelow" => TriggerWhen::PossessionBelow,
+            "momentumbelow" => TriggerWhen::MomentumBelow,
+            "scorelineequals" => TriggerWhen::ScorelineEquals,
+            "phaseis" | "phase" => TriggerWhen::PhaseIs,
+            _ => TriggerWhen::Never,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct Trigger {
+    pub when: TriggerWhen,
+    pub threshold: f32,
+}
+
+impl Default for Trigger {
+    fn default() -> Self {
+        Trigger { when: TriggerWhen::Always, threshold: 0.0 }
+    }
+}
+
+/// The bounded set of order *mechanisms* Rust implements. The content
+/// (which order id maps to which kind + numbers) lives in Go.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum OrderKind {
+    /// Push players/carries towards one region (a flank overload).
+    Overload,
+    /// Raise the pressing intensity (a press trap).
+    PressTrap,
+    /// Sit deeper and press less (a low block / bunker).
+    LowBlock,
+    /// Push the line up and commit forward.
+    Attack,
+    /// Recognised but inert.
+    Balanced,
+}
+
+impl OrderKind {
+    /// `None` for an unknown kind: the order is dropped rather than guessed.
+    pub fn parse(s: &str) -> Option<Self> {
+        let k = s.replace([' ', '_', '-'], "").to_lowercase();
+        match k.as_str() {
+            "overloadflank" | "overload" | "wideoverload" | "flankoverload" => Some(OrderKind::Overload),
+            "presstrap" | "presshigh" | "highpress" | "press" | "gegenpress" => Some(OrderKind::PressTrap),
+            "lowblock" | "bunker" | "parkthebus" | "deepblock" => Some(OrderKind::LowBlock),
+            "attack" | "alloutattack" | "chase" | "pushup" => Some(OrderKind::Attack),
+            "balanced" | "neutral" => Some(OrderKind::Balanced),
+            _ => None,
+        }
+    }
+}
+
+/// A parsed manager order.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Order {
+    pub kind: OrderKind,
+    /// The original kind string, echoed in the `OrderFired` event.
+    pub raw_kind: String,
+    pub region: Option<Region>,
+    pub trigger: Trigger,
+}
+
+/// An order currently in force on the engine, expiring at `until_tick`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ActiveOrder {
+    pub kind: OrderKind,
+    pub region: Option<Region>,
+    pub until_tick: u16,
+    pub magnitude: f32,
+}
+
+/// The temporary team modifiers folded from the active orders, recomputed
+/// allocation-free each tick an order is read.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct OrderMods {
+    pub press_add: f32,
+    pub line_add: f32,
+    /// A region bonus applied to candidates whose target lies in `region`.
+    pub region: Option<Region>,
+    pub region_bonus: f32,
+}
+
+impl OrderMods {
+    pub fn is_empty(&self) -> bool {
+        self.press_add == 0.0 && self.line_add == 0.0 && self.region_bonus == 0.0
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TeamTactics {
     pub formation_name: String,
@@ -24,6 +167,10 @@ pub struct TeamTactics {
     pub directness: f32,            // 0.0 (possession/short) to 1.0 (direct/long)
     pub positional_discipline: f32, // 0.0 (fluid) to 1.0 (rigid)
     pub slots: [FormationSlot; 11],
+    /// Manager orders ("spells") parsed from the request. Empty means the
+    /// pre-abilities engine, exactly.
+    #[serde(default)]
+    pub orders: Vec<Order>,
 }
 
 impl Default for TeamTactics {
@@ -38,6 +185,7 @@ impl Default for TeamTactics {
             directness: 0.50,
             positional_discipline: 0.50,
             slots: get_formation_anchors("433"),
+            orders: Vec::new(),
         }
     }
 }
@@ -102,6 +250,7 @@ impl TeamTactics {
             directness: def_dir,
             positional_discipline: def_disc,
             slots,
+            orders: Vec::new(),
         }
     }
 }

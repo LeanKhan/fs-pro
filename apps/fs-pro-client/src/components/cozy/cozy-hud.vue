@@ -1,146 +1,84 @@
 <template>
   <div class="hud">
-    <!-- Identity: crest, Club Level, XP. Opens the Office. -->
-    <div class="profile" title="Office" @click="emit('act', 'office')">
+    <!-- Identity: crest, Clubhouse tier and the Standing ladder. Opens the club hub. -->
+    <div class="profile" title="Club" @click="emit('act', 'hub')">
       <div class="avatar"><img :src="crestUrl(club.code)" :alt="club.name" width="56" height="56" @error="crestFallback($event, club.name)" /></div>
-      <div class="lvl-badge">{{ level.level }}</div>
-      <div class="xpbar"><div :style="{ width: `${xpPct}%` }"></div><span>{{ level.xpInto }}/{{ level.xpNeed }}</span></div>
+      <div class="lvl-badge" title="Clubhouse tier">{{ tier }}</div>
+      <div class="standing" title="Standing points"><span v-html="icon('trophy')"></span><b>{{ fmt(standing) }}</b></div>
     </div>
 
+    <!-- The three spendable resources, each against its vault cap. -->
     <div class="resbar">
-      <div class="res" :class="{ bump: cashBump }" title="Treasury" data-res="cash"><span v-html="icon('coins')"></span><b>{{ currency(stats.budget) }}</b></div>
-      <div class="res" title="Fans"><span v-html="icon('people')"></span><b>{{ fmt(stats.fans) }}</b></div>
-      <div class="res" title="Reputation"><span v-html="icon('star')"></span><b>{{ stats.reputation }}</b></div>
-      <div class="res" title="Squad power"><span v-html="icon('bolt')"></span><b>{{ stats.power }}</b></div>
-      <button
-        v-if="league"
-        class="res league-res"
-        :class="[`d${Math.min(league.division, 5)}`, { coach: coach === 'league' }]"
-        :title="`${league.poolName}: ${league.position ? ordinal(league.position) : 'unplaced'} of ${league.total}`"
-        @click="emit('act', 'league')"
-      >
-        <span class="div-shield">{{ league.division }}</span>
-        <b>{{ league.position ? ordinal(league.position) : '–' }}<small>/{{ league.total }}</small></b>
-      </button>
+      <div v-for="r in resources" :key="r.key" class="res cap" :class="{ bump: bumped === r.key, full: r.cap && r.value >= r.cap }" :title="r.cap ? `${r.label}: ${fmt(r.value)} of ${fmt(r.cap)}` : r.label" :data-res="r.key">
+        <span v-html="icon(r.icon)"></span>
+        <b>{{ fmt(r.value) }}</b>
+        <i v-if="r.cap" class="capbar"><i :style="{ width: `${Math.min(100, (r.value / r.cap) * 100)}%` }"></i></i>
+      </div>
+      <span v-if="guardSeconds > 0" class="res guard" title="Nobody can attack you until this runs out">
+        <span v-html="icon('check')"></span><b>Guard {{ formatRemainingSeconds(guardSeconds) }}</b>
+      </span>
     </div>
-
-    <!-- The date, the next league match and the headline -->
-    <div class="datebar">
-      <span class="chip"><b>{{ facts.day }}</b></span>
-      <span v-if="facts.year" class="chip yearchip" :title="`Day ${facts.year.dayOfYear} of ${facts.year.yearLengthDays}`">
-        Year {{ facts.year.currentYear }}
-        <i class="yearbar"><i :style="{ width: `${(facts.year.dayOfYear / facts.year.yearLengthDays) * 100}%` }"></i></i>
-      </span>
-      <button v-if="facts.next" class="chip nextchip" :class="{ today: facts.next.soon, coach: coach === 'prep' }" @click="emit('act', facts.next.league ? 'league' : 'next')">
-        <span v-html="icon('ball')"></span>
-        {{ facts.next.home ? 'vs' : '@' }} {{ facts.next.opponent }} ·
-        <template v-if="facts.next.inSeconds !== null">{{ facts.next.inSeconds > 0 ? formatClock(facts.next.inSeconds) : 'now' }}</template>
-        <template v-else>day {{ facts.next.day }}</template>
-        <i v-if="facts.next.planSet === false" class="planflag" title="No match plan yet">Set plan!</i>
-        <i v-else-if="facts.next.planSet" class="planflag ok" title="Match plan locked in">✓</i>
-        <button v-if="facts.next.travel && isMine" class="btn tiny primary" @click.stop="emit('act', 'travel')">Travel</button>
-      </button>
-      <span v-if="facts.performance?.expected && facts.form.length >= 3" class="chip" :class="{ warnchip: boardPct < 80 }" :title="`Board performance score ${facts.performance.score.toFixed(1)} against a target of ${facts.performance.expected.toFixed(1)}`">
-        Board {{ boardPct }}%
-      </span>
-      <span v-if="facts.form.length" class="chip formchip">
-        <i v-for="(r, i) in facts.form.slice(0, 5)" :key="i" :class="`res-${r.toLowerCase()}`">{{ r }}</i>
-      </span>
-      <span v-if="headline" class="chip ticker" title="Around the world" @click="emit('act', 'news')"><span v-html="icon('news')"></span>{{ headline }}</span>
-    </div>
-
-    <button v-if="live" class="livebtn" @click="emit('act', 'watch-live')">
-      <span class="livedot"></span><b>LIVE</b> {{ live.home ? 'vs' : '@' }} {{ live.opponent }} · Watch
-    </button>
 
     <div class="topright">
-      <button v-if="isMine" class="roundbtn" title="Challenges" @click="emit('act', 'inbox')">
-        <span v-html="icon('mail')"></span><i v-if="inbox" class="dot count">{{ inbox }}</i>
+      <button v-if="isMine" class="roundbtn" title="Defence log" @click="emit('act', 'defence')">
+        <span v-html="icon('mail')"></span><i v-if="defences" class="dot count">{{ defences }}</i>
       </button>
-      <button class="roundbtn" title="League" :class="{ coach: coach === 'league' && !league }" @click="emit('act', 'league')" v-html="icon('trophy')"></button>
+      <button v-if="isMine" class="roundbtn" title="Club hub" @click="emit('act', 'hub')" v-html="icon('hub')"></button>
       <button v-if="isMine" class="roundbtn" title="Settings" @click="emit('act', 'settings')" v-html="icon('gear')"></button>
     </div>
 
-    <!-- First steps, then the standing challenge -->
-    <div v-if="challenge || firstSteps?.length" class="quests" :class="{ folded }">
-      <template v-if="firstSteps?.length">
-        <div class="q-head" @click="folded = !folded">
-          <span><span v-html="icon('check')"></span> First steps</span><small class="q-count">{{ firstSteps.filter((s) => s.done).length }}/{{ firstSteps.length }}</small>
-        </div>
-        <template v-if="!folded">
-          <button
-            v-for="s in firstSteps"
-            :key="s.key"
-            class="q step"
-            :class="{ done: s.done, next: s.key === coach }"
-            :disabled="s.done"
-            @click="emit('act', s.key)"
-          >
-            <span class="q-ic" v-html="icon(s.done ? 'check' : s.icon)"></span>
-            <span class="q-body"><span class="q-title">{{ s.label }}</span><span v-if="s.key === coach" class="q-num">{{ s.hint }}</span></span>
-          </button>
-        </template>
-      </template>
-      <template v-if="challenge && !firstSteps?.length">
-        <div class="q-head" @click="folded = !folded"><span><span v-html="icon('star')"></span> Goal</span><small class="q-count">{{ challenge.wins }}/{{ challenge.targetWins }}</small></div>
-        <template v-if="!folded">
-          <div class="q" :class="{ done: challenge.wins >= challenge.targetWins }">
-            <span class="q-ic" v-html="icon('ball')"></span>
-            <div class="q-body">
-              <div class="q-title">{{ challenge.title }}</div>
-              <div class="q-bar"><div :style="{ width: `${(challenge.wins / challenge.targetWins) * 100}%` }"></div></div>
-              <div class="q-num">{{ challenge.wins }} / {{ challenge.targetWins }} wins · {{ formatClock(challenge.secondsLeft) }} left</div>
-            </div>
-          </div>
-          <div class="q-reward">
-            <div class="q-rlist">
-              <span><span v-html="icon('coins')"></span>{{ currency(challenge.rewardCash) }}</span>
-              <span><span v-html="icon('star')"></span>{{ challenge.rewardXP }} XP</span>
-            </div>
-          </div>
-          <p v-if="briefing" class="briefing">“{{ briefing }}”</p>
-        </template>
-      </template>
-    </div>
-
-    <div v-if="builders" class="speedup">
-      <div>
-        <div class="su-title">{{ builders.name }}</div>
-        <div class="su-time"><span v-html="icon('clock')"></span><span>{{ formatClock(builders.secondsLeft) }}</span></div>
+    <!-- First goals: the launch onboarding (goals.ts). -->
+    <div v-if="isMine && goals && goals.some((g) => !g.done)" class="quests" :class="{ folded }">
+      <div class="q-head" @click="folded = !folded">
+        <span><span v-html="icon('check')"></span> First goals</span>
+        <small class="q-count">{{ goals.filter((g) => g.done).length }}/{{ goals.length }}</small>
       </div>
-      <span class="su-count">{{ builders.active }}/{{ builders.max }} builders</span>
+      <template v-if="!folded">
+        <button
+          v-for="g in goals"
+          :key="g.id"
+          class="q step"
+          :class="{ done: g.done, next: g.id === nextGoalId }"
+          :disabled="g.done"
+          @click="emit('act', g.action)"
+        >
+          <span class="q-ic" v-html="icon(g.done ? 'check' : g.icon)"></span>
+          <span class="q-body">
+            <span class="q-title">{{ g.label }}</span>
+            <span v-if="g.id === nextGoalId" class="q-num">{{ g.hint }}</span>
+          </span>
+        </button>
+      </template>
     </div>
 
-    <div class="sidebtns">
-      <button class="roundbtn big" title="Squad" @click="emit('act', 'squad')" v-html="icon('people')"></button>
-      <button class="roundbtn big" title="Team Sheet" @click="emit('act', 'tactics')" v-html="icon('bag')"></button>
-      <button class="roundbtn big" title="World" :class="{ coach: coach === 'world' }" @click="emit('act', 'world')" v-html="icon('map')"></button>
+    <!-- Builders: the scarce upgrade slots. -->
+    <div v-if="isMine && builders" class="speedup" title="Builders" @click="emit('act', 'build')">
+      <div>
+        <div class="su-title">{{ builders.next ? builders.next.name : 'Builders free' }}</div>
+        <div v-if="builders.next" class="su-time"><span v-html="icon('clock')"></span><span>{{ formatRemainingSeconds(builders.next.secondsLeft) }}</span></div>
+      </div>
+      <span class="su-count"><span v-html="icon('hammer')"></span> {{ builders.active }}/{{ builders.max }} builders</span>
     </div>
-
-    <button class="worldbtn" :class="{ coach: coach === 'world' }" @click="emit('act', 'world')"><span v-html="icon('map')"></span><span>World</span></button>
 
     <template v-if="isMine">
       <nav v-if="!moving" class="dock">
         <button :class="{ coach: coach === 'build' }" @click="emit('act', 'build')"><span v-html="icon('hammer')"></span><span>Build</span></button>
         <button @click="emit('act', 'move')"><span v-html="icon('move')"></span><span>Move</span></button>
-        <button @click="emit('act', 'squad')"><span v-html="icon('people')"></span><span>Squad</span></button>
-        <button :class="{ coach: coach === 'manager' }" @click="emit('act', 'manager')"><span v-html="icon('news')"></span><span>Manager</span></button>
+        <button :class="{ coach: coach === 'squad' }" @click="emit('act', 'squad')"><span v-html="icon('people')"></span><span>Squad</span></button>
+        <button @click="emit('act', 'hub')"><span v-html="icon('hub')"></span><span>Club</span></button>
       </nav>
       <div v-else class="placebar">
         <button class="btn" @click="emit('act', 'move-cancel')"><span v-html="icon('close')"></span>Cancel</button>
         <button class="btn" @click="emit('act', 'move-rotate')"><span v-html="icon('rotate')"></span>Rotate</button>
         <button class="btn primary" @click="emit('act', 'move-save')"><span v-html="icon('check')"></span>Save layout</button>
       </div>
-      <div v-if="!moving" class="playwrap">
-        <button class="playbtn" :class="{ tired: cooldown > 0, coach: coach === 'play' }" :disabled="playing" @click="emit('act', 'play')">
-          <span v-html="icon('ball')"></span><span>PLAY</span>
-          <small>{{ cooldown > 0 ? `Resting ${formatClock(cooldown)}` : playing ? 'Playing…' : quickSim ? 'Quick sim' : 'Ready' }}</small>
-        </button>
-      </div>
+      <button v-if="!moving" class="playbtn" :class="{ tired: cooldown > 0, coach: coach === 'attack' }" :disabled="playing" @click="emit('act', 'attack')">
+        <span v-html="icon('ball')"></span><span>Attack</span>
+        <small>{{ cooldown > 0 ? `Resting ${formatRemainingSeconds(cooldown)}` : playing ? 'Playing…' : 'Find a match' }}</small>
+      </button>
     </template>
     <div v-else class="placebar">
-      <button class="btn" @click="emit('act', 'home')">Back to my grounds</button>
-      <button class="btn primary" @click="emit('act', 'challenge')">Challenge {{ club.name }}</button>
+      <button class="btn primary" @click="emit('act', 'home')">Back to my grounds</button>
     </div>
   </div>
 </template>
@@ -148,67 +86,126 @@
 <script setup lang="ts">
 import { crestUrl } from '@/helpers/crest';
 import { computed, ref, watch } from 'vue';
-import { formatClock } from '@/composables/use-club-game';
-import { currency } from '@/helpers/misc';
+import { formatRemainingSeconds } from '@/helpers/countdown';
 import { crestFallback } from './club-colors';
 import { icon } from './icons';
 
+/**
+ * The campus HUD (docs/coc-mapping/08 §4): identity + Clubhouse tier + Standing,
+ * the three spendable resources against their vault caps, builders, and the
+ * one big Attack button. Nothing from the old pyramid/calendar/board game.
+ */
 const props = defineProps<{
   club: { name: string; code: string };
-  level: { level: number; xpInto: number; xpNeed: number };
-  stats: { budget: number; fans: number; reputation: number; power: number };
-  /** The HUD's league badge (the club's pyramid division and place). */
-  league: { division: number; position: number | null; total: number; poolName: string } | null;
-  facts: {
-    day: string;
-    year: { currentYear: number; dayOfYear: number; yearLengthDays: number } | null;
-    next: { opponent: string; home: boolean; day: number | null; inSeconds: number | null; soon: boolean; league: boolean; travel: boolean; planSet?: boolean | null } | null;
-    performance: { score: number; expected: number } | null;
-    form: string[];
-  };
-  challenge: { title: string; wins: number; targetWins: number; secondsLeft: number; rewardCash: number; rewardXP: number } | null;
-  /** A young club's checklist; each undone step is a shortcut (its key is an action). */
-  firstSteps?: { key: string; label: string; hint: string; icon: string; done: boolean }[] | null;
-  /** The action the onboarding pointer is on (the next first step). */
-  coach?: string | null;
-  briefing: string;
-  /** The world headline currently shown in the date strip. */
-  headline: string | null;
-  builders: { name: string; secondsLeft: number; active: number; max: number } | null;
-  inbox: number;
+  tier: number;
+  standing: number;
+  res: { cash: number; fans: number; tokens: number };
+  caps: { cash: number | null; fans: number | null; tokens: number | null };
+  builders: { active: number; max: number; next: { name: string; secondsLeft: number } | null } | null;
+  guardSeconds: number;
+  /** Unread defence results (raids against this club). */
+  defences: number;
   isMine: boolean;
   moving: boolean;
   cooldown: number;
   playing: boolean;
-  quickSim: boolean;
-  /** A scheduled match of ours being broadcast right now. */
-  live?: { opponent: string; home: boolean } | null;
+  /** The action the onboarding pointer is on, if any. */
+  coach?: string | null;
+  /** The launch goals (goals.ts), owner only. */
+  goals?: { id: string; label: string; hint: string; icon: string; action: string; done: boolean }[] | null;
 }>();
 const emit = defineEmits<{ (e: 'act', action: string): void }>();
 
 const fmt = (n: number) => Math.floor(n).toLocaleString('en-US');
-const xpPct = computed(() => (props.level.xpNeed ? (props.level.xpInto / props.level.xpNeed) * 100 : 100));
-const boardPct = computed(() =>
-  props.facts.performance?.expected ? Math.round((props.facts.performance.score / props.facts.performance.expected) * 100) : 100
-);
-function ordinal(n: number) {
-  const s = ['th', 'st', 'nd', 'rd'];
-  const v = n % 100;
-  return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`;
-}
 
-// The treasury chip bumps whenever money comes in.
-const cashBump = ref(false);
+const nextGoalId = computed(() => props.goals?.find((g) => !g.done)?.id ?? null);
+// The goals card folds away on small screens.
+const folded = ref(typeof window !== 'undefined' && window.innerWidth < 760);
+
+const resources = computed(() => [
+  { key: 'cash', label: 'Cash', icon: 'coins', value: props.res.cash, cap: props.caps.cash },
+  { key: 'fans', label: 'Fans', icon: 'people', value: props.res.fans, cap: props.caps.fans },
+  { key: 'tokens', label: 'Scout Tokens', icon: 'star', value: props.res.tokens, cap: props.caps.tokens },
+]);
+
+// A resource chip bumps whenever it goes up.
+const bumped = ref<string | null>(null);
 watch(
-  () => props.stats.budget,
+  () => ({ ...props.res }),
   (now, before) => {
-    if (before === undefined || now <= before) return;
-    cashBump.value = false;
-    requestAnimationFrame(() => (cashBump.value = true));
-    setTimeout(() => (cashBump.value = false), 450);
+    if (!before) return;
+    const up = (['cash', 'fans', 'tokens'] as const).find((k) => now[k] > before[k]);
+    if (!up) return;
+    bumped.value = null;
+    requestAnimationFrame(() => (bumped.value = up));
+    setTimeout(() => (bumped.value = null), 450);
   }
 );
-
-// The quest card folds away on small screens unless onboarding needs it.
-const folded = ref(typeof window !== 'undefined' && window.innerWidth < 760 && !props.firstSteps?.length);
 </script>
+
+<style scoped>
+.standing {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 8px 0 2px;
+  border-radius: 14px;
+  background: #3b2a1a;
+  border: 2px solid #2a1c10;
+  color: #fff;
+  font-size: 14px;
+  text-shadow: 0 1px 0 #000;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+}
+.standing :deep(.ic) {
+  width: 24px;
+  height: 24px;
+}
+.res.cap {
+  padding-bottom: 6px;
+}
+.res.bump {
+  animation: bump 0.45s;
+}
+.capbar {
+  position: absolute;
+  left: 30px;
+  right: 12px;
+  bottom: 4px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(59, 42, 26, 0.25);
+  overflow: hidden;
+}
+.capbar > i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(#8be15c, #46ad2a);
+  transition: width 0.4s;
+}
+.res.full .capbar > i {
+  background: linear-gradient(#ffb36b, #e0661b);
+}
+.res.guard {
+  min-width: 0;
+  background: linear-gradient(#e4f4ff, #b9dcf5);
+  border-color: #5f9fd0;
+}
+.res.guard b {
+  font-size: 15px;
+}
+.speedup {
+  cursor: pointer;
+}
+.su-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.su-count :deep(.ic) {
+  width: 14px;
+  height: 14px;
+}
+</style>

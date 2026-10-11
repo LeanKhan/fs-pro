@@ -10,7 +10,7 @@ import competitions from './competitions';
 
 /** USER ROUTES */
 import userClubRoutes from './user/club';
-import { myGround } from './redirects';
+import { myGround, retiredForManagers } from './redirects';
 // import AllFixtures from '@/views/user/seasons/fixtures.vue';
 /** USER ROUTES */
 
@@ -105,6 +105,27 @@ const routes: RouteRecordRaw[] = [
       import(/* webpackChunkName: "owner_program" */ '../views/game/owner-program.vue'),
     name: 'Owner Program',
     meta: { title: 'Owner program' },
+    // Retired for launch: new clubs start with a squad and a manager.
+    beforeEnter: () => myGround() ?? '/start',
+  },
+  {
+    // The Pitch Grid editor (docs/coc-mapping/08 §3): the flagship tactical
+    // canvas, deep-linkable with ?mode=edit|scout|review. Also reachable as a
+    // campus-hub tab from /game/:clubId.
+    path: '/game/:clubId/grid',
+    component: () =>
+      import(/* webpackChunkName: "pitch_grid" */ '../views/game/pitch-grid.vue'),
+    name: 'Pitch Grid',
+    meta: { title: 'Pitch grid' },
+  },
+  {
+    // The Scout screen (docs/coc-mapping/08 §6.1): the "crack the base" surface
+    // for one opponent, reached from the matchmaking opponent list.
+    path: '/game/:clubId/scout/:oppId',
+    component: () =>
+      import(/* webpackChunkName: "scout_screen" */ '../views/game/scout.vue'),
+    name: 'Scout',
+    meta: { title: 'Scout' },
   },
   {
     // A manager without a club founds one here (country, town, club, crest).
@@ -121,6 +142,8 @@ const routes: RouteRecordRaw[] = [
       import(/* webpackChunkName: "world_map" */ '../views/game/world-map.vue'),
     name: 'World Map',
     meta: { title: 'World' },
+    // Not part of the launch loop (docs/coc-mapping); admins keep it.
+    beforeEnter: retiredForManagers,
   },
   {
     path: '/games',
@@ -184,6 +207,7 @@ const routes: RouteRecordRaw[] = [
                 /* webpackChunkName: "year_calendar" */ '../views/user/calendar/year-calendar.vue'
               ),
             name: 'Year Calendar',
+            beforeEnter: retiredForManagers,
           },
           {
             path: 'competitions',
@@ -192,6 +216,7 @@ const routes: RouteRecordRaw[] = [
                 /* webpackChunkName: "user_competitions" */ '../views/user/competitions/competitions.vue'
               ),
             name: 'User Competitions',
+            beforeEnter: retiredForManagers,
           },
           {
             path: 'competitions/:id',
@@ -200,6 +225,7 @@ const routes: RouteRecordRaw[] = [
                 /* webpackChunkName: "user_edition" */ '../views/user/competitions/edition.vue'
               ),
             name: 'User Edition',
+            beforeEnter: retiredForManagers,
           },
           { path: 'world', redirect: '/world' },
           {
@@ -209,6 +235,7 @@ const routes: RouteRecordRaw[] = [
                 /* webpackChunkName: "season_history" */ '../views/user/history/season-history.vue'
               ),
             name: 'Season History',
+            beforeEnter: retiredForManagers,
           },
 
           {
@@ -218,6 +245,7 @@ const routes: RouteRecordRaw[] = [
                 /* webpackChunkName: "all_fixtures" */ '../views/user/seasons/fixtures.vue'
               ),
             name: 'All Fixtures',
+            beforeEnter: retiredForManagers,
           },
           {
             path: 'friendly',
@@ -226,6 +254,7 @@ const routes: RouteRecordRaw[] = [
                 /* webpackChunkName: "friendly_setup" */ '../views/game/friendly-setup.vue'
               ),
             name: 'Friendly Setup',
+            beforeEnter: retiredForManagers,
           },
           {
             path: 'stats/:type/:season_id',
@@ -234,6 +263,7 @@ const routes: RouteRecordRaw[] = [
                 /* webpackChunkName: "season_stats" */ '../views/user/seasons/stats.vue'
               ),
             name: 'Season Stats',
+            beforeEnter: retiredForManagers,
           },
           {
             path: 'lobby',
@@ -242,6 +272,7 @@ const routes: RouteRecordRaw[] = [
                 /* webpackChunkName: "user_lobby" */ '../views/user/lobby.vue'
               ),
             name: 'User Lobby',
+            beforeEnter: retiredForManagers,
           },
           {
             path: 'settings',
@@ -271,6 +302,7 @@ const routes: RouteRecordRaw[] = [
             /* webpackChunkName: "finish_edition" */ '../views/misc/edition-finished.vue'
           ),
         name: 'Edition Finished',
+            beforeEnter: retiredForManagers,
       },
       { path: '/finish/season/:id', redirect: (to) => `/finish/edition/${to.params.id}` },
       {
@@ -280,6 +312,7 @@ const routes: RouteRecordRaw[] = [
             /* webpackChunkName: "finish_year" */ '../views/misc/end-of-year.vue'
           ),
         name: 'Finish Year',
+            beforeEnter: retiredForManagers,
       },
     ],
   },

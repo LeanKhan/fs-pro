@@ -1,130 +1,118 @@
 <template>
   <v-dialog v-model="show" max-width="580" scrollable>
-    <v-card v-if="asset" class="facility-sheet pa-5 rounded-2xl">
+    <v-card v-if="asset" class="facility-sheet pa-5">
       <!-- Header -->
       <div class="d-flex justify-space-between align-start mb-3">
         <div class="d-flex align-center gap-3">
-          <div class="facility-sheet-icon-box d-flex align-center justify-center rounded-xl">
+          <div class="facility-sheet-icon-box d-flex align-center justify-center">
             <span class="facility-sheet-icon">{{ icon }}</span>
           </div>
           <div>
-            <div class="text-h6 font-weight-bold text-white">{{ asset.name }}</div>
-            <v-chip size="x-small" color="indigo" variant="flat" class="font-weight-bold mt-1">
+            <div class="facility-sheet-title">{{ asset.name }}</div>
+            <span class="facility-level-chip">
               Level {{ asset.level }} / {{ asset.maxLevel }}
-            </v-chip>
+            </span>
           </div>
         </div>
-        <v-btn icon="mdi-close" variant="text" size="small" @click="show = false"></v-btn>
+        <button class="sheet-close-btn" aria-label="Close" @click="show = false">✕</button>
       </div>
 
       <!-- Medical Tab Selector -->
-      <div v-if="asset.type === 'medical_centre'" class="d-flex mb-3 rounded-lg pa-1 tab-selector-bar">
-        <v-btn
-          size="small"
-          :variant="activeTab === 'bays' ? 'flat' : 'text'"
-          :color="activeTab === 'bays' ? 'teal-darken-1' : undefined"
-          class="flex-grow-1 font-weight-bold"
-          prepend-icon="mdi-hospital-box"
+      <div v-if="asset.type === 'medical_centre'" class="d-flex mb-3 tab-selector-bar">
+        <button
+          type="button"
+          :class="['tab-btn', { active: activeTab === 'bays' }]"
           @click="activeTab = 'bays'"
         >
-          Medical Bay & Treatments
-        </v-btn>
-        <v-btn
-          size="small"
-          :variant="activeTab === 'upgrade' ? 'flat' : 'text'"
-          :color="activeTab === 'upgrade' ? 'indigo-darken-1' : undefined"
-          class="flex-grow-1 font-weight-bold"
-          prepend-icon="mdi-arrow-up-bold-circle-outline"
+          🏥 Medical Bay & Care
+        </button>
+        <button
+          type="button"
+          :class="['tab-btn', { active: activeTab === 'upgrade' }]"
           @click="activeTab = 'upgrade'"
         >
-          Facility Upgrade
-        </v-btn>
+          ⬆️ Facility Upgrade
+        </button>
       </div>
 
       <!-- Feedback Banner -->
-      <v-alert
+      <div
         v-if="feedbackText"
-        :type="feedbackType"
-        variant="tonal"
-        density="compact"
-        class="mb-3 text-caption"
-        closable
-        @click:close="feedbackText = ''"
+        :class="['feedback-banner', feedbackType === 'error' ? 'bad' : 'good']"
       >
-        {{ feedbackText }}
-      </v-alert>
+        <span>{{ feedbackText }}</span>
+        <button class="banner-dismiss" @click="feedbackText = ''">✕</button>
+      </div>
 
       <!-- ================= MEDICAL BAY TAB ================= -->
       <div v-if="asset.type === 'medical_centre' && activeTab === 'bays'" class="medical-bay-container">
         <!-- Treatment Bays & Squad Recovery Overview -->
-        <div class="pa-3 rounded-xl mb-3 medical-overview-card">
+        <div class="pa-4 mb-3 medical-overview-card">
           <div class="d-flex align-center justify-space-between mb-2">
             <div class="d-flex align-center gap-2">
-              <v-icon color="teal-accent-3" size="20">mdi-hospital-building</v-icon>
-              <span class="text-caption font-weight-bold text-teal-accent-2 text-uppercase">
-                Active Treatment Bays
-              </span>
+              <span class="overview-tag-label">Active Treatment Bays</span>
             </div>
-            <v-chip size="x-small" color="teal" variant="flat" class="font-weight-bold">
+            <span class="bays-chip">
               {{ medicalStatus?.treatmentBays ?? (1 + Math.floor(asset.level / 2)) }} Available
-            </v-chip>
+            </span>
           </div>
-          <div class="text-caption text-medium-emphasis mb-3">
-            Concentrate medical efforts on individual players or trigger an emergency squad-wide rejuvenation.
+          <div class="overview-desc mb-3">
+            Concentrate medical staff on individual players or trigger an emergency squad-wide rejuvenation.
           </div>
 
           <!-- Squad Cryo Card -->
-          <div class="pa-3 rounded-lg squad-cryo-card d-flex align-center justify-space-between">
+          <div class="pa-3 squad-cryo-card d-flex align-center justify-space-between">
             <div>
-              <div class="text-subtitle-2 font-weight-bold text-white d-flex align-center gap-1">
-                <span>❄️ Squad Cryotherapy Session</span>
+              <div class="cryo-title">
+                ❄️ Squad Cryotherapy Session
               </div>
-              <div class="text-caption text-medium-emphasis">
+              <div class="cryo-desc">
                 +30 Fitness to all squad players &bull; -1 day off all active injuries
               </div>
-              <div class="text-caption font-weight-medium text-amber mt-1">
+              <div class="cryo-cost mt-1">
                 Cost: {{ formatCurrency(medicalStatus?.costs.squadRecovery ?? 20000) }}
               </div>
             </div>
 
-            <v-btn
-              size="small"
-              color="teal-darken-1"
-              variant="flat"
-              class="font-weight-bold ml-2"
+            <button
+              type="button"
+              class="cozy-btn primary ml-2"
               :disabled="readOnly || !medicalStatus?.squadRecovery.available || squadLoading || !canAffordSquadRecovery"
-              :loading="squadLoading"
               @click="onSquadRecovery"
             >
-              <template v-if="!medicalStatus?.squadRecovery.available && (medicalStatus?.squadRecovery.cooldownSeconds ?? 0) > 0">
-                ⏱️ {{ formatDuration(medicalStatus?.squadRecovery.cooldownSeconds ?? 0) }}
+              <template v-if="squadLoading">
+                Treating…
+              </template>
+              <template v-else-if="!medicalStatus?.squadRecovery.available && (medicalStatus?.squadRecovery.cooldownSeconds ?? 0) > 0">
+                ⏱️ {{ formatRemainingSeconds(medicalStatus?.squadRecovery.cooldownSeconds ?? 0) }}
               </template>
               <template v-else>
                 Boost Squad
               </template>
-            </v-btn>
+            </button>
           </div>
         </div>
 
         <!-- Section: Concentrate on a Player -->
         <div class="d-flex align-center justify-space-between mb-2 px-1">
-          <span class="text-caption font-weight-bold text-white text-uppercase">
+          <span class="section-label">
             Concentrate Care on Player
           </span>
-          <span class="text-caption text-medium-emphasis">
+          <span class="section-sub">
             {{ injuredCount }} Injured &bull; {{ fatiguedCount }} Fatigued
           </span>
         </div>
 
-        <div v-if="medicalLoading" class="text-center py-4">
-          <v-progress-circular indeterminate color="teal" size="32"></v-progress-circular>
+        <div v-if="medicalLoading" class="text-center py-4 loading-box">
+          <v-progress-circular indeterminate color="#5cc23a" size="32"></v-progress-circular>
+          <div class="loading-text mt-2">Checking medical records…</div>
         </div>
 
-        <div v-else-if="injuredCount === 0 && fatiguedCount === 0" class="text-center py-6 pa-4 rounded-xl empty-care-card mb-3">
-          <div class="text-h6 mb-1">⭐</div>
-          <div class="text-body-2 font-weight-bold text-white">Full Squad Match-Ready!</div>
-          <div class="text-caption text-medium-emphasis">
-            No active injuries or extreme fatigue reported. Your squad is at peak condition.
+        <div v-else-if="injuredCount === 0 && fatiguedCount === 0" class="text-center py-5 pa-4 empty-care-card mb-3">
+          <div class="empty-star mb-1">⭐</div>
+          <div class="empty-title">Full Squad Match-Ready!</div>
+          <div class="empty-sub">
+            No active injuries or severe fatigue reported. Your squad is at peak fitness.
           </div>
         </div>
 
@@ -133,53 +121,43 @@
           <div
             v-for="p in medicalStatus?.injuredPlayers"
             :key="p.id"
-            class="pa-3 rounded-xl player-care-row mb-2 border-injury"
+            class="pa-3 player-care-row mb-2 border-injury"
           >
             <div class="d-flex align-center justify-space-between mb-2">
               <div class="d-flex align-center gap-2">
-                <v-avatar size="28" color="error" class="font-weight-bold text-caption">
-                  {{ p.position }}
-                </v-avatar>
+                <span class="pos-badge pos-injury">{{ p.position }}</span>
                 <div>
-                  <div class="text-body-2 font-weight-bold text-white">{{ p.name }}</div>
-                  <div class="text-caption text-error font-weight-medium">
+                  <div class="player-name">{{ p.name }}</div>
+                  <div class="injury-tag">
                     🏥 {{ p.injury?.type }} ({{ p.injury?.daysRemaining }}d remaining)
                   </div>
                 </div>
               </div>
-              <div class="text-caption font-weight-bold text-white">
-                Fitness: <span :class="p.fitness < 70 ? 'text-warning' : 'text-success'">{{ p.fitness }}%</span>
+              <div class="fitness-label">
+                Fitness: <span :class="p.fitness < 70 ? 'text-warn' : 'text-good'">{{ p.fitness }}%</span>
               </div>
             </div>
 
             <!-- Treatment action buttons -->
             <div class="d-flex align-center gap-2 mt-2">
-              <v-btn
-                size="x-small"
-                color="amber-darken-2"
-                variant="flat"
-                class="font-weight-bold flex-grow-1"
-                prepend-icon="mdi-bandage"
-                :loading="treatingPlayerId === p.id && treatingType === 'rehab'"
+              <button
+                type="button"
+                class="cozy-btn secondary flex-grow-1"
                 :disabled="readOnly || !!treatingPlayerId || (budget != null && budget < (medicalStatus?.costs.rehab ?? 16000))"
                 @click="onTreatPlayer(p.id, 'rehab')"
               >
-                Intensive Rehab ({{ formatCurrency(medicalStatus?.costs.rehab ?? 16000) }})
-              </v-btn>
+                {{ treatingPlayerId === p.id && treatingType === 'rehab' ? 'Treating…' : `Rehab (${formatCurrency(medicalStatus?.costs.rehab ?? 16000)})` }}
+              </button>
 
-              <v-btn
+              <button
                 v-if="asset.level >= 3 && (p.injury?.daysRemaining ?? 0) >= 4"
-                size="x-small"
-                color="red-darken-2"
-                variant="flat"
-                class="font-weight-bold flex-grow-1"
-                prepend-icon="mdi-hospital"
-                :loading="treatingPlayerId === p.id && treatingType === 'surgery'"
+                type="button"
+                class="cozy-btn alert flex-grow-1"
                 :disabled="readOnly || !!treatingPlayerId || (budget != null && budget < (medicalStatus?.costs.surgery ?? 45000))"
                 @click="onTreatPlayer(p.id, 'surgery')"
               >
-                Surgery ({{ formatCurrency(medicalStatus?.costs.surgery ?? 45000) }})
-              </v-btn>
+                {{ treatingPlayerId === p.id && treatingType === 'surgery' ? 'Operating…' : `Surgery (${formatCurrency(medicalStatus?.costs.surgery ?? 45000)})` }}
+              </button>
             </div>
           </div>
 
@@ -187,39 +165,31 @@
           <div
             v-for="p in medicalStatus?.fatiguedPlayers"
             :key="p.id"
-            class="pa-3 rounded-xl player-care-row mb-2"
+            class="pa-3 player-care-row mb-2"
           >
             <div class="d-flex align-center justify-space-between">
               <div class="d-flex align-center gap-2">
-                <v-avatar size="28" color="indigo-darken-2" class="font-weight-bold text-caption">
-                  {{ p.position }}
-                </v-avatar>
+                <span class="pos-badge">{{ p.position }}</span>
                 <div>
-                  <div class="text-body-2 font-weight-bold text-white">{{ p.name }}</div>
-                  <div class="text-caption text-medium-emphasis">
-                    Fatigued from recent match intensity
-                  </div>
+                  <div class="player-name">{{ p.name }}</div>
+                  <div class="fatigue-sub">Fatigued from recent fixture tempo</div>
                 </div>
               </div>
 
               <div class="d-flex align-center gap-3">
-                <div class="text-caption text-right">
-                  <span class="font-weight-bold text-warning">{{ p.fitness }}%</span>
-                  <div class="text-caption text-medium-emphasis">Condition</div>
+                <div class="text-right">
+                  <span class="fitness-num text-warn">{{ p.fitness }}%</span>
+                  <div class="condition-label">Condition</div>
                 </div>
 
-                <v-btn
-                  size="x-small"
-                  color="teal-darken-1"
-                  variant="flat"
-                  class="font-weight-bold"
-                  prepend-icon="mdi-lightning-bolt"
-                  :loading="treatingPlayerId === p.id && treatingType === 'hyperbaric'"
+                <button
+                  type="button"
+                  class="cozy-btn primary"
                   :disabled="readOnly || !!treatingPlayerId || (budget != null && budget < (medicalStatus?.costs.hyperbaric ?? 9000))"
                   @click="onTreatPlayer(p.id, 'hyperbaric')"
                 >
-                  Hyperbaric Boost ({{ formatCurrency(medicalStatus?.costs.hyperbaric ?? 9000) }})
-                </v-btn>
+                  {{ treatingPlayerId === p.id && treatingType === 'hyperbaric' ? 'Rejuvenating…' : `Hyperbaric (${formatCurrency(medicalStatus?.costs.hyperbaric ?? 9000)})` }}
+                </button>
               </div>
             </div>
           </div>
@@ -227,81 +197,77 @@
       </div>
 
       <!-- ================= FACILITY UPGRADE TAB ================= -->
-      <div v-else>
-        <div class="text-body-2 text-medium-emphasis mb-4">
+      <div v-else class="facility-upgrade-container">
+        <div class="facility-blurb mb-4">
           {{ asset.description }}
         </div>
 
         <!-- Upgrading: progress only -->
-        <div v-if="asset.upgrade" class="upgrade-progress-box pa-3 rounded-xl mb-3">
-          <div class="d-flex justify-space-between text-caption font-weight-medium mb-1">
-            <span class="text-white">Upgrading to Level {{ asset.upgrade.toLevel }}</span>
-            <span class="text-amber">⏱️ {{ formatDuration(secondsRemaining) }}</span>
+        <div v-if="asset.upgrade" class="upgrade-progress-box pa-4 mb-3">
+          <div class="d-flex justify-space-between align-center mb-2">
+            <span class="progress-title">Upgrading to Level {{ asset.upgrade.toLevel }}</span>
+            <span class="progress-timer">⏱️ {{ formatRemainingSeconds(secondsRemaining) }}</span>
           </div>
-          <v-progress-linear :model-value="progressPercent" color="amber" height="8" rounded></v-progress-linear>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" :style="{ width: `${progressPercent}%` }"></div>
+          </div>
         </div>
 
         <!-- Not upgrading: current vs next tier comparison -->
         <template v-else>
           <div class="tier-compare mb-3" :class="{ 'single-tier': !nextVisible }">
             <!-- Current tier -->
-            <div class="tier-card pa-3 rounded-xl">
-              <div class="text-caption font-weight-bold text-indigo-lighten-2 text-uppercase mb-2">
-                Current · Lv {{ asset.level }}
-              </div>
-              <div class="text-body-2 text-white">{{ asset.effectLabel }}</div>
+            <div class="tier-card pa-3">
+              <div class="tier-card-head mb-1">Current · Level {{ asset.level }}</div>
+              <div class="tier-card-body">{{ asset.effectLabel }}</div>
             </div>
 
             <!-- Next tier -->
-            <div v-if="nextVisible" class="tier-card tier-card-next pa-3 rounded-xl">
-              <div class="d-flex align-center justify-space-between mb-2">
-                <span class="text-caption font-weight-bold text-amber text-uppercase">Next · Lv {{ asset.next!.level }}</span>
-                <span class="text-amber">⚡</span>
+            <div v-if="nextVisible" class="tier-card tier-card-next pa-3">
+              <div class="d-flex align-center justify-space-between mb-1">
+                <span class="tier-card-head highlight">Next · Level {{ asset.next!.level }}</span>
+                <span>⚡</span>
               </div>
-              <div class="text-body-2 text-white">{{ asset.next!.effectLabel }}</div>
+              <div class="tier-card-body">{{ asset.next!.effectLabel }}</div>
             </div>
           </div>
 
           <!-- Cost & requirement bar -->
-          <div v-if="nextVisible" class="cost-bar pa-3 rounded-xl mb-3">
+          <div v-if="nextVisible" class="cost-bar pa-3 mb-3">
             <div class="d-flex align-center justify-space-between">
               <div>
-                <div class="text-body-2 font-weight-bold text-white">
-                  Upgrade Cost: <span class="text-success">{{ formatCurrency(asset.next!.cost) }}</span>
+                <div class="cost-amount">
+                  Upgrade Cost: <span class="cost-cash">{{ formatCurrency(asset.next!.cost) }}</span>
                 </div>
-                <div v-if="budget != null" class="text-caption" :class="canAfford ? 'text-success' : 'text-error'">
+                <div v-if="budget != null" class="budget-status" :class="canAfford ? 'good' : 'bad'">
                   Available: {{ formatCurrency(budget) }} {{ canAfford ? '(Ready)' : '(Short)' }}
                 </div>
               </div>
-              <div class="d-flex align-center gap-1 text-medium-emphasis text-caption">
+              <div class="d-flex align-center gap-1 build-time">
                 <span>⏱️</span>
-                <span>{{ formatDuration(asset.next!.minutes * 60) }}</span>
+                <span>{{ formatRemainingSeconds(asset.next!.minutes * 60) }}</span>
               </div>
             </div>
           </div>
 
-          <v-btn
+          <button
             v-if="nextVisible && !readOnly"
-            block
-            size="large"
-            color="amber-darken-2"
-            class="font-weight-bold"
-            variant="flat"
+            type="button"
+            class="cozy-btn primary full-width"
             :disabled="!!asset.next!.blockedReason || upgrading || !canAfford"
-            :loading="upgrading"
             @click="onUpgrade"
           >
-            Upgrade to Level {{ asset.next!.level }}
-          </v-btn>
+            {{ upgrading ? 'Commencing work…' : `Upgrade to Level ${asset.next!.level}` }}
+          </button>
 
-          <div v-if="nextVisible && asset.next!.blockedReason" class="text-caption text-warning text-center mt-2">
-            {{ asset.next!.blockedReason }}
+          <div v-if="nextVisible && asset.next!.blockedReason" class="blocked-hint mt-2">
+            ⚠️ {{ asset.next!.blockedReason }}
           </div>
-          <div v-else-if="nextVisible && !canAfford" class="text-caption text-error text-center mt-2">
-            Not enough cash for this upgrade yet.
+          <div v-else-if="nextVisible && !canAfford" class="blocked-hint mt-2">
+            ⚠️ Insufficient funds for this facility upgrade.
           </div>
 
-          <div v-if="!asset.next" class="text-center py-3 text-caption text-medium-emphasis">
+          <div v-if="!asset.next" class="max-tier-notice py-3 text-center">
             ⭐ Maximum facility level reached!
           </div>
         </template>
@@ -313,6 +279,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import type { AssetState, MedicalStatus } from '@repo/api-contract';
+import { formatRemainingSeconds } from '@/helpers/countdown';
 import { currency } from '@/helpers/misc';
 import { client } from '@/services/api';
 
@@ -394,16 +361,6 @@ const progressPercent = computed(() => {
   const total = Math.max(new Date(u.completeAt).getTime() - start, 1);
   return Math.min(100, Math.max(0, Math.round((((props.nowMs || Date.now()) - start) / total) * 100)));
 });
-
-function formatDuration(rawSeconds: number) {
-  const totalSeconds = Math.round(rawSeconds);
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
-}
 
 function onUpgrade() {
   if (!props.asset) return;
@@ -497,60 +454,306 @@ watch(
 
 <style scoped>
 .facility-sheet {
-  background: rgba(15, 23, 42, 0.96) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(16px);
+  background: #fffaf0 !important;
+  border: 3px solid #e2cc9c !important;
+  border-radius: 18px !important;
+  box-shadow: 0 12px 36px rgba(138, 90, 59, 0.2) !important;
+  color: #2c1c0c !important;
+  font-family: 'Fredoka', system-ui, sans-serif !important;
 }
 
 .facility-sheet-icon-box {
-  width: 44px;
-  height: 44px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  width: 48px;
+  height: 48px;
+  background: #f8f2e4;
+  border: 2px solid #e2cc9c;
+  border-radius: 12px;
 }
 
 .facility-sheet-icon {
-  font-size: 1.5rem;
+  font-size: 1.6rem;
+}
+
+.facility-sheet-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #2c1c0c;
+  line-height: 1.2;
+}
+
+.facility-level-chip {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: linear-gradient(#fff8e6, #f1dfb6);
+  border: 2px solid #e2cc9c;
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: #6f5940;
+}
+
+.sheet-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  color: #6f5940;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  line-height: 1;
+  transition: background 0.15s;
+}
+.sheet-close-btn:hover {
+  background: #f8f2e4;
+  color: #2c1c0c;
 }
 
 .tab-selector-bar {
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #f8f2e4;
+  border: 2px solid #e2cc9c;
+  border-radius: 12px;
+  padding: 4px;
+  gap: 6px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #6f5940;
+  font-family: 'Fredoka', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tab-btn.active {
+  background: #fffaf0;
+  color: #2c1c0c;
+  border: 2px solid #8a5a3b;
+  box-shadow: 0 2px 4px rgba(138, 90, 59, 0.1);
+}
+
+.feedback-banner {
+  padding: 8px 12px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.feedback-banner.good {
+  background: #e8f7e2;
+  border: 2px solid #5cc23a;
+  color: #2f8a1c;
+}
+.feedback-banner.bad {
+  background: #fbe0dc;
+  border: 2px solid #e5402f;
+  color: #7a2015;
+}
+.banner-dismiss {
+  background: transparent;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .medical-overview-card {
-  background: rgba(13, 148, 136, 0.08);
-  border: 1px solid rgba(13, 148, 136, 0.25);
+  background: #fcf7ee;
+  border: 2px solid #e2cc9c;
+  border-radius: 14px;
+}
+
+.overview-tag-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #2f8a1c;
+}
+
+.bays-chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e8f7e2;
+  border: 2px solid #5cc23a;
+  color: #2f8a1c;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.overview-desc {
+  font-size: 0.85rem;
+  color: #6f5940;
 }
 
 .squad-cryo-card {
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #fffaf0;
+  border: 2px solid #e2cc9c;
+  border-radius: 12px;
+}
+
+.cryo-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #2c1c0c;
+}
+
+.cryo-desc {
+  font-size: 0.8rem;
+  color: #6f5940;
+}
+
+.cryo-cost {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #8a5a3b;
+}
+
+.section-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #2c1c0c;
+}
+
+.section-sub {
+  font-size: 0.75rem;
+  color: #6f5940;
+}
+
+.loading-box {
+  color: #6f5940;
+}
+.loading-text {
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .empty-care-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px dashed rgba(255, 255, 255, 0.15);
+  background: #fcf7ee;
+  border: 2px dashed #e2cc9c;
+  border-radius: 14px;
+}
+.empty-star {
+  font-size: 1.5rem;
+}
+.empty-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #2c1c0c;
+}
+.empty-sub {
+  font-size: 0.8rem;
+  color: #6f5940;
 }
 
 .player-care-row {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: background 0.2s;
+  background: #fffaf0;
+  border: 2px solid #e2cc9c;
+  border-radius: 12px;
+  transition: all 0.15s;
 }
 .player-care-row:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: #fcf7ee;
 }
-
 .border-injury {
-  border-left: 3px solid #ef4444;
+  border-left: 4px solid #e5402f;
 }
 
-.upgrade-progress-box,
-.cost-bar {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.pos-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: #f8f2e4;
+  border: 2px solid #e2cc9c;
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: #2c1c0c;
+}
+.pos-badge.pos-injury {
+  background: #fbe0dc;
+  border-color: #e5402f;
+  color: #7a2015;
+}
+
+.player-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #2c1c0c;
+}
+
+.injury-tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #e5402f;
+}
+
+.fitness-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6f5940;
+}
+.text-good {
+  color: #2f8a1c;
+  font-weight: 700;
+}
+.text-warn {
+  color: #e5402f;
+  font-weight: 700;
+}
+
+.fatigue-sub {
+  font-size: 0.75rem;
+  color: #6f5940;
+}
+.fitness-num {
+  font-size: 0.9rem;
+}
+.condition-label {
+  font-size: 0.7rem;
+  color: #6f5940;
+}
+
+.facility-blurb {
+  font-size: 0.9rem;
+  color: #6f5940;
+}
+
+.upgrade-progress-box {
+  background: #fcf7ee;
+  border: 2px solid #e2cc9c;
+  border-radius: 14px;
+}
+.progress-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #2c1c0c;
+}
+.progress-timer {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #8a5a3b;
+}
+.progress-bar-track {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(138, 90, 59, 0.15);
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: #5cc23a;
+  border-radius: 999px;
+  transition: width 0.3s ease;
 }
 
 .tier-compare {
@@ -561,12 +764,133 @@ watch(
 .tier-compare.single-tier {
   grid-template-columns: 1fr;
 }
+
 .tier-card {
-  background: rgba(99, 102, 241, 0.1);
-  border: 1px solid rgba(99, 102, 241, 0.25);
+  background: #fcf7ee;
+  border: 2px solid #e2cc9c;
+  border-radius: 12px;
+}
+.tier-card-head {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #6f5940;
+}
+.tier-card-head.highlight {
+  color: #8a5a3b;
+}
+.tier-card-body {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #2c1c0c;
 }
 .tier-card-next {
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: linear-gradient(#fffbf2, #fbf0dc);
+  border: 2px solid #f5b82e;
+}
+
+.cost-bar {
+  background: #fcf7ee;
+  border: 2px solid #e2cc9c;
+  border-radius: 12px;
+}
+.cost-amount {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #2c1c0c;
+}
+.cost-cash {
+  color: #2f8a1c;
+}
+.budget-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.budget-status.good {
+  color: #2f8a1c;
+}
+.budget-status.bad {
+  color: #e5402f;
+}
+.build-time {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #6f5940;
+}
+
+.cozy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Fredoka', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 6px 14px;
+  border-radius: 10px;
+  border: 2px solid #2f8a1c;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.cozy-btn.primary {
+  background: #5cc23a;
+  color: #ffffff;
+  box-shadow: 0 3px 0 #2f8a1c;
+}
+.cozy-btn.primary:hover:not(:disabled) {
+  background: #6ad048;
+}
+.cozy-btn.primary:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #2f8a1c;
+}
+.cozy-btn.secondary {
+  background: #fffaf0;
+  border-color: #e2cc9c;
+  color: #2c1c0c;
+  box-shadow: 0 3px 0 #e2cc9c;
+}
+.cozy-btn.secondary:hover:not(:disabled) {
+  background: #f8f2e4;
+}
+.cozy-btn.secondary:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #e2cc9c;
+}
+.cozy-btn.alert {
+  background: #e5402f;
+  border-color: #8a2419;
+  color: #ffffff;
+  box-shadow: 0 3px 0 #8a2419;
+}
+.cozy-btn.alert:hover:not(:disabled) {
+  background: #ee5040;
+}
+.cozy-btn.alert:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #8a2419;
+}
+.cozy-btn.full-width {
+  width: 100%;
+  padding: 10px;
+  font-size: 1rem;
+}
+.cozy-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.blocked-hint {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #e5402f;
+  text-align: center;
+}
+
+.max-tier-notice {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #2f8a1c;
 }
 </style>

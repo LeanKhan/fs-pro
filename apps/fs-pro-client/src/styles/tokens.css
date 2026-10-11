@@ -1,0 +1,50 @@
+/*
+ * The single design-token source (docs/coc-mapping/08 §7, OW-D12).
+ *
+ * Before this file the same palette was re-declared per surface: `.cozy`
+ * (components/cozy/cozy.scss), `.mz` (components/matchzone/matchzone.scss),
+ * `.cozy-app` (styles/cozy-app.scss) and the retired PitchPreview.html. This
+ * is the one place the shared values live; those scopes now consume them.
+ *
+ * Tokens are plain custom properties on `:root`, so they inherit into every
+ * screen (campus, Matchzone, grid, the manager app). They are inert unless a
+ * rule actually references them, so making them global cannot repaint admin
+ * screens; it only removes the copy-paste.
+ *
+ * Values are unchanged from the per-file declarations they replace.
+ */
+:root {
+  /* — Campus palette (cozy) — */
+  --cream: #fdf4df;
+  --cream-2: #f6e7c4;
+  --wood: #8a5a3b;
+  --wood-d: #5e3b22;
+  --ink: #4a3220;
+  --muted: #6f5940; /* AA (6.0:1 on cream); was #8b7357 — DECISIONS B1-2 sweep */
+  --edge: #c9a46a;
+  --green: #5cc23a;
+  --green-d: #2f8a1c;
+  --red: #e5402f;
+  --gold: #f5b82e;
+  --blue: #3a8ee0;
+  --shadow: 0 4px 0 rgba(70, 40, 15, 0.35), 0 8px 18px rgba(0, 0, 0, 0.18);
+
+  /* — Card / panel surfaces (the light cream surface + its edge) — */
+  --panel: #fffaf0;
+  --panel-2: var(--cream-2);
+  --panel-line: #e2cc9c;
+  --panel-line-soft: #eadbb8;
+  --panel-top: #fff8e6;
+  --panel-top-2: #f1dfb6;
+
+  /* — Pitch surfaces (grid + replay); the visualizer's dark set — */
+  --pitch-a: #1b4d33;
+  --pitch-b: #1f5539;
+  --chalk: #eef3ec;
+  --chalk-dim: rgba(238, 243, 236, 0.35);
+  --home: #2a5db0;
+  --home-dim: #1b3b70;
+  --away: #b0342a;
+  --away-dim: #701d17;
+  --amber: #e9b34a;
+}

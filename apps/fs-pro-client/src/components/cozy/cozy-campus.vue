@@ -54,6 +54,7 @@
     :club-id="advisorClubId"
     :suspended="suspended"
     :marker="advisorMarker"
+    :source="advisorSource ?? null"
   />
 </template>
 
@@ -62,11 +63,11 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vu
 import { useRoute } from 'vue-router';
 import type { CampusBuilding, Placed } from '@repo/api-contract';
 import { formatVillaCompact } from '@repo/api-contract';
-import { formatClock } from '@/composables/use-club-game';
+import { formatRemainingSeconds } from '@/helpers/countdown';
 import { useStore } from '@/store';
 import { icon } from './icons';
 import CozyAdvisor from './advisor/CozyAdvisor.vue';
-import { useAdvisorStore } from './advisor/use-advisor';
+import { useAdvisorStore, type AdvisorSource } from './advisor/use-advisor';
 import type { CityVariant } from './scene/terrain';
 import { World, type CampusView, type Pick } from './scene/world';
 
@@ -85,6 +86,8 @@ const props = defineProps<{
   collector?: { key: string; amount: number; full: boolean; coach?: boolean } | null;
   /** Stop drawing (e.g. while the Matchzone covers the campus). */
   suspended?: boolean;
+  /** What the advisor says (the launch goals); the server program when absent. */
+  advisorSource?: AdvisorSource | null;
 }>();
 const emit = defineEmits<{
   (e: 'tap', pick: Pick, ground: { x: number; z: number } | null): void;
@@ -129,7 +132,7 @@ onMounted(() => {
       if (!a) return [];
       const p = w.project(a);
       const progress = Math.min(100, Math.max(0, ((props.nowMs - t.start) / Math.max(t.end - t.start, 1)) * 100));
-      return [{ key, x: p.x, y: p.y, visible: p.visible, progress, time: formatClock(Math.max(0, Math.ceil((t.end - props.nowMs) / 1000))) }];
+      return [{ key, x: p.x, y: p.y, visible: p.visible, progress, time: formatRemainingSeconds(Math.max(0, Math.ceil((t.end - props.nowMs) / 1000))) }];
     });
     alertBubbles.value = Object.entries(props.alerts).flatMap(([key, a]) => {
       const at = w.anchor(key);

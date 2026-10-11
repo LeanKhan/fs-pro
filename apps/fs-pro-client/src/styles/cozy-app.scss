@@ -1,19 +1,10 @@
 // The manager app (/u) in the campus palette, so the office, competitions,
 // calendar and history read as part of the same game as the campus and the
 // world map. Pairs with the 'cozy' Vuetify theme (main.ts). The admin app
-// keeps the dark theme.
-.cozy-app {
-  --cream: #fdf4df;
-  --cream-2: #f6e7c4;
-  --wood: #8a5a3b;
-  --wood-d: #5e3b22;
-  --ink: #4a3220;
-  --muted: #6f5940; // AA (6.0:1 on cream); was #8b7357 (4.1:1, failed WCAG AA) — DECISIONS B1-2 sweep
-  --green: #5cc23a;
-  --green-d: #2f8a1c;
-  --gold: #f5b82e;
-  --shadow: 0 4px 0 rgba(70, 40, 15, 0.35), 0 8px 18px rgba(0, 0, 0, 0.18);
+// keeps the dark theme. The palette is defined once in styles/tokens.css (OW-D12).
+@use 'tokens.css';
 
+.cozy-app {
   font-family: 'Fredoka', system-ui, sans-serif;
   background: var(--cream);
   color: var(--ink);

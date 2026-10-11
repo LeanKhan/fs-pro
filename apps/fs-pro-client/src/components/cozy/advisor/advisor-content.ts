@@ -125,7 +125,7 @@ const TARGET_ALIASES: Record<string, CampusBuilding> = {
   training: 'training_ground',
   youth: 'youth_academy',
   medical: 'medical_centre',
-  staff: 'staff_house',
+  staff: 'training_ground',
 };
 
 /** Resolve a line's `target` to a campus building, or null. */
@@ -212,7 +212,7 @@ export const DEMO_LINES: Record<string, ScriptedLine> = {
     'A Tier-1 stand pays the gate fee every match.',
     'neutral',
     'point-right',
-    { priority: 55, target: 'stands', maxShows: 2, cooldownSeconds: 120, once: false }
+    { priority: 55, target: 'stadium_grounds', maxShows: 2, cooldownSeconds: 120, once: false }
   ),
   blocked: base(
     'step.players.blocked',

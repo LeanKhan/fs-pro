@@ -9,14 +9,14 @@
 
       <div v-if="asset.upgrade" class="pn-job">
         <span v-html="icon('hammer')"></span> Building Tier {{ asset.upgrade.toLevel }} ·
-        <b>{{ formatClock(secondsLeft) }}</b>
+        <b>{{ formatRemainingSeconds(secondsLeft) }}</b>
       </div>
       <template v-else-if="asset.next && isMine">
         <div class="pn-next">
-          <span>Next: <b>{{ nextStage }}</b> · {{ asset.next.effectLabel }}</span>
+          <span>Next: <b>{{ nextStage }}</b><template v-if="asset.next.effectLabel"> · {{ asset.next.effectLabel }}</template></span>
           <div class="chips">
-            <span class="chip" :class="{ short: budget < asset.next.cost }"><span v-html="icon('coins')"></span>{{ currency(asset.next.cost) }}</span>
-            <span class="chip"><span v-html="icon('clock')"></span>{{ formatClock(asset.next.minutes * 60) }}</span>
+            <span class="chip" :class="{ short: budget < asset.next.cost }"><span v-html="icon(costCurrency === 'fans' ? 'people' : 'coins')"></span>{{ costCurrency === 'fans' ? `${Math.round(asset.next.cost).toLocaleString('en-US')} fans` : currency(asset.next.cost) }}</span>
+            <span class="chip"><span v-html="icon('clock')"></span>{{ formatRemainingSeconds(asset.next.minutes * 60) }}</span>
           </div>
         </div>
         <button class="btn primary" :disabled="!!asset.next.blockedReason || busy" @click="emit('upgrade', asset.type)">
@@ -44,14 +44,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { AssetState, CampusBuilding } from '@repo/api-contract';
-import { formatClock } from '@/composables/use-club-game';
+import { formatRemainingSeconds } from '@/helpers/countdown';
 import { currency } from '@/helpers/misc';
 import { icon } from './icons';
 import { growthHint, stageName } from './stages';
 
 const props = defineProps<{
   buildingKey: CampusBuilding;
-  /** Null for the dugout and office, which have no Tier. */
+  /** The building's primary asset (null only while loading). */
   asset: AssetState | null;
   isMine: boolean;
   budget: number;
@@ -61,6 +61,8 @@ const props = defineProps<{
   door: string | null;
   /** What needs attention here, if anything. */
   alert: string | null;
+  /** The currency the next upgrade costs (crossed costs: Cash or Fans). */
+  costCurrency?: 'cash' | 'fans';
   /** What the Office and Dugout stages follow (stages.ts). */
   clubLevel: number;
   staffTier: number;
@@ -73,13 +75,22 @@ const emit = defineEmits<{
 }>();
 
 const OTHER: Record<string, { name: string; blurb: string }> = {
-  dugout: { name: 'Dugout', blurb: 'Where the manager picks the team and sets the tactics.' },
-  office: { name: 'Club Office', blurb: 'The club HQ: finances, the board and the manager.' },
+  office: { name: 'Clubhouse', blurb: 'Your club HQ. Its tier caps every other building and sets your builders.' },
 };
 
 const ctx = computed(() => ({ tier: props.asset?.level ?? 0, clubLevel: props.clubLevel, staffTier: props.staffTier }));
 const stage = computed(() => stageName(props.buildingKey, ctx.value));
-const nextStage = computed(() => (props.asset?.next ? stageName(props.buildingKey, { ...ctx.value, tier: props.asset.next.level }) : ''));
+// The Office (Clubhouse) grows with the Clubhouse tier, so its next stage is
+// read at the next tier.
+const nextStage = computed(() =>
+  props.asset?.next
+    ? stageName(props.buildingKey, {
+        ...ctx.value,
+        tier: props.asset.next.level,
+        ...(props.buildingKey === 'office' ? { clubLevel: props.asset.next.level } : {}),
+      })
+    : ''
+);
 const hint = computed(() => growthHint(props.buildingKey, ctx.value));
 
 const secondsLeft = computed(() =>

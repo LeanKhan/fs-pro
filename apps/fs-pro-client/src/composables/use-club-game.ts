@@ -10,9 +10,10 @@ import type {
   AssetState,
   Campus,
   CampusPlacement,
-  Inbox,
+  CampusState,
+  DefenseEntry,
   MatchResult,
-  MatchdayFixture,
+  Opponent,
   PlayState,
 } from '@repo/api-contract';
 import { client } from '@/services/api';
@@ -20,8 +21,9 @@ import { sfx } from '@/services/sfx';
 
 /**
  * State and actions for the club game screen (views/game/club-game.vue):
- * play state + campus, a 1s ticker for countdowns, facility upgrades and the
- * PLAY flow (matchmaking preview -> match -> rewards).
+ * play state, the campus layout + the CoC campus economy (Cash/Fans/Tokens,
+ * vaults, collectors, builders), a 1s ticker for countdowns, facility
+ * upgrades and the attack flow (matchmaking -> raid -> rewards).
  */
 export function useClubGame(
   clubId: Ref<string | undefined>,
@@ -29,6 +31,8 @@ export function useClubGame(
 ) {
   const playState = ref<PlayState | null>(null);
   const campus = ref<Campus | null>(null);
+  /** The CoC campus economy (docs/coc-mapping/04): resources, vaults, collectors. */
+  const economy = ref<CampusState | null>(null);
   const loading = ref(false);
   const playing = ref(false);
   const upgradingAsset = ref<string | null>(null);
@@ -43,14 +47,12 @@ export function useClubGame(
     code?: string;
   } | null>(null);
   const matchedOpponentId = ref<string | null>(null);
-  const opponentOptions = ref<
-    Array<{ id: string; name: string; power: number; code?: string }>
-  >([]);
+  const opponentOptions = ref<Opponent[]>([]);
   const showBattleArena = ref(false);
   const showRewards = ref(false);
   const matchResult = ref<MatchResult | null>(null);
-  /** How fans, the board and the squad reacted to results (owner only). */
-  const inbox = ref<Inbox | null>(null);
+  /** Raids against this club, newest first (owner only). */
+  const defences = ref<DefenseEntry[]>([]);
 
   const coachingLevel = computed(() => {
     const staff = campus.value?.assets.find(
@@ -79,18 +81,21 @@ export function useClubGame(
   const cooldownLeft = computed(() =>
     Math.max((playState.value?.cooldownSeconds ?? 0) - elapsed.value, 0)
   );
-  /** The shop till, ticking up between fetches (services/play/shop.ts). */
-  const shopPending = computed(() => {
-    const shop = playState.value?.shop;
-    if (!shop) return 0;
-    return Math.min(
-      shop.cap,
-      Math.floor(shop.pending + (shop.perHour * elapsed.value) / 3600)
-    );
+  const economyLoadedAt = ref(Date.now());
+  /** Collectors' takings, ticking up between fetches (campus.collectors). */
+  const pendingByCurrency = computed(() => {
+    const out = { cash: 0, fans: 0 };
+    const eco = economy.value;
+    if (!eco) return out;
+    const since = Math.max(0, (now.value - economyLoadedAt.value) / 1000);
+    for (const c of eco.collectors) {
+      if (c.currency !== 'cash' && c.currency !== 'fans') continue;
+      out[c.currency] += Math.min(c.capacity, c.pending + (c.productionPerHour * since) / 3600);
+    }
+    return { cash: Math.floor(out.cash), fans: Math.floor(out.fans) };
   });
-  const shopFull = computed(
-    () =>
-      !!playState.value?.shop && shopPending.value >= playState.value.shop.cap
+  const collectorsFull = computed(
+    () => !!economy.value?.collectors.some((c) => c.full)
   );
   /** Facilities that just finished building, and a Level just reached - the
    * screen celebrates them (set on load, cleared by the screen). */
@@ -104,10 +109,25 @@ export function useClubGame(
     if (!clubId.value) return;
     loading.value = true;
     try {
-      const [playRes, campusRes] = await Promise.all([
+      const [playRes, campusRes, ecoRes] = await Promise.all([
         client.play.getPlayState.query({ params: { clubId: clubId.value } }),
         client.facilities.getCampus.query({ params: { clubId: clubId.value } }),
+        client.campus.get.query({ params: { clubId: clubId.value } }),
       ]);
+      if (ecoRes.status === 200) {
+        const was = new Map(
+          (economy.value?.assets ?? []).map((a) => [a.type, a.level])
+        );
+        economy.value = ecoRes.body.payload;
+        economyLoadedAt.value = Date.now();
+        if (was.size) {
+          // Campus keys: the Clubhouse lives in the Office building.
+          const built = ecoRes.body.payload.assets
+            .filter((a) => a.level > (was.get(a.type) ?? a.level))
+            .map((a) => (a.type === 'clubhouse' ? 'office' : a.type));
+          if (built.length) justBuilt.value = [...justBuilt.value, ...built];
+        }
+      }
       if (playRes.status === 200) {
         const before = playState.value?.club.level;
         playState.value = playRes.body.payload;
@@ -135,29 +155,16 @@ export function useClubGame(
     }
   }
 
-  /** Owner-only; a non-owner just gets no inbox. */
-  async function loadInbox() {
+  /** Owner-only; a non-owner just gets an empty log. */
+  async function loadDefences() {
     if (!clubId.value) return;
     try {
-      const res = await client.play.getInbox.query({
+      const res = await client.play.defenseLog.query({
         params: { clubId: clubId.value },
       });
-      if (res.status === 200) inbox.value = res.body.payload;
+      if (res.status === 200) defences.value = res.body.payload.defenses;
     } catch (err) {
-      console.error('Failed to load the inbox:', err);
-    }
-  }
-
-  async function markInboxRead() {
-    if (!clubId.value || !inbox.value?.unread) return;
-    try {
-      const res = await client.play.markInboxRead.mutation({
-        params: { clubId: clubId.value },
-        body: {},
-      });
-      if (res.status === 200) inbox.value = res.body.payload;
-    } catch (err) {
-      console.error('Failed to mark the inbox read:', err);
+      console.error('Failed to load the defence log:', err);
     }
   }
 
@@ -188,6 +195,53 @@ export function useClubGame(
   }
 
   /** Saves the whole campus layout (Move mode). Returns false if the server refused it. */
+  /** Start a campus-economy upgrade (Clubhouse, collectors, vaults, research):
+   * the crossed-currency cost is paid by the server (campus.upgrade). */
+  async function startEcoUpgrade(assetType: string) {
+    if (!clubId.value) return;
+    upgradingAsset.value = assetType;
+    try {
+      const res = await client.campus.upgrade.mutation({
+        params: { clubId: clubId.value },
+        body: { assetType },
+      });
+      if (res.status === 200) {
+        economy.value = res.body.payload;
+        economyLoadedAt.value = Date.now();
+        sfx.play('build');
+        toast('Construction started!');
+        onChanged?.();
+        await load();
+      } else {
+        sfx.play('error');
+        toast(res.body.message, 'error');
+      }
+    } catch (err) {
+      console.error('Failed to start upgrade:', err);
+      toast('Could not start construction.', 'error');
+    } finally {
+      upgradingAsset.value = null;
+    }
+  }
+
+  /** Hire the next Groundskeeper (a builder slot). */
+  async function hireBuilder() {
+    if (!clubId.value) return;
+    const res = await client.campus.buyGroundskeeper.mutation({
+      params: { clubId: clubId.value },
+      body: {},
+    });
+    if (res.status === 200) {
+      economy.value = res.body.payload;
+      economyLoadedAt.value = Date.now();
+      sfx.play('complete');
+      toast('A new builder joined the club!');
+    } else {
+      sfx.play('error');
+      toast(res.body.message, 'error');
+    }
+  }
+
   async function savePlacement(placement: CampusPlacement) {
     if (!clubId.value) return false;
     const res = await client.facilities.savePlacement.mutation({
@@ -203,36 +257,32 @@ export function useClubGame(
     return false;
   }
 
-  /** Bank the shop takings. Resolves to the amount collected (0 if none). */
+  /** Collect every collector in one tap (campus.collect). Resolves to what
+   * was banked per currency, or null when nothing was. */
   const collecting = ref(false);
-  async function collectShop(): Promise<number> {
-    if (!clubId.value || collecting.value || shopPending.value < 1) return 0;
+  async function collectAll(): Promise<{ cash: number; fans: number } | null> {
+    if (!clubId.value || collecting.value || !economy.value) return null;
     collecting.value = true;
+    const before = { cash: economy.value.cash, fans: economy.value.fans };
     try {
-      const res = await client.play.collectShop.mutation({
+      const res = await client.campus.collect.mutation({
         params: { clubId: clubId.value },
         body: {},
       });
       if (res.status !== 200) {
-        toast(res.body.message, 'error');
-        return 0;
+        if (res.status !== 409) toast(res.body.message, 'error');
+        return null;
       }
-      const { collected, shop, budget } = res.body.payload;
-      if (playState.value) {
-        // Rebase the ticking till on the fresh numbers.
-        playState.value = {
-          ...playState.value,
-          shop,
-          club: { ...playState.value.club, budget },
-        };
-        loadedAt.value = Date.now();
-      }
-      if (campus.value) campus.value = { ...campus.value, budget };
-      return collected;
+      economy.value = res.body.payload;
+      economyLoadedAt.value = Date.now();
+      return {
+        cash: Math.max(0, res.body.payload.cash - before.cash),
+        fans: Math.max(0, res.body.payload.fans - before.fans),
+      };
     } catch (err) {
-      console.error('Failed to collect the shop takings:', err);
-      toast('Could not collect the takings.', 'error');
-      return 0;
+      console.error('Failed to collect:', err);
+      toast('Could not collect.', 'error');
+      return null;
     } finally {
       collecting.value = false;
     }
@@ -249,15 +299,10 @@ export function useClubGame(
   }
 
   const isQuickSim = ref(false);
-  /** Matchmaking opened to book a match (no rest needed) rather than play now. */
-  const bookingMode = ref(false);
 
-  /** PLAY pressed: ask the server for real opponents, then wait for "battle".
-   * `booking`: pick an opponent to book a match with instead. */
-  async function findMatch(quickSim = false, booking = false) {
-    if (!clubId.value || playing.value || (!booking && cooldownLeft.value > 0))
-      return;
-    bookingMode.value = booking;
+  /** Attack pressed: ask the server for real opponents, then wait for "battle". */
+  async function findMatch(quickSim = false) {
+    if (!clubId.value || playing.value || cooldownLeft.value > 0) return;
     isQuickSim.value = quickSim;
     matchmakingSearching.value = true;
     matchedOpponent.value = null;
@@ -347,49 +392,28 @@ export function useClubGame(
     }
   }
 
-  /** Book a match with `opponentId`: it kicks off on a later cup day. */
-  async function bookMatch(
-    opponentId: string
-  ): Promise<MatchdayFixture | null> {
-    if (!clubId.value) return null;
-    try {
-      const res = await client.play.bookMatch.mutation({
-        params: { clubId: clubId.value },
-        body: { opponentId },
-      });
-      if (res.status !== 200) {
-        sfx.play('error');
-        toast(res.body.message, 'error');
-        return null;
-      }
-      showMatchmaking.value = false;
-      sfx.play('whistle');
-      const f = res.body.payload;
-      toast(
-        `Booked: ${f.opponent.name} come to your ground on day ${f.day}. Time to prepare!`
-      );
-      return f;
-    } catch (err) {
-      console.error('Failed to book a match:', err);
-      toast('Could not book the match.', 'error');
-      return null;
-    }
-  }
-
   function finishBattle() {
     showBattleArena.value = false;
     showRewards.value = true;
   }
 
   // When a running upgrade's timer hits zero, refresh once to show the new level.
+  // Throttled, so an upgrade the server has not promoted yet is not polled
+  // every second.
   let refreshing = false;
+  let lastRefresh = 0;
   watch(now, () => {
-    const done = campus.value?.assets.some(
-      (a: AssetState) =>
-        a.upgrade && new Date(a.upgrade.completeAt).getTime() <= now.value
-    );
-    if (done && !refreshing) {
+    const done =
+      campus.value?.assets.some(
+        (a: AssetState) =>
+          a.upgrade && new Date(a.upgrade.completeAt).getTime() <= now.value
+      ) ||
+      economy.value?.assets.some(
+        (a) => a.upgrade && Date.parse(a.upgrade.readyAt) <= now.value
+      );
+    if (done && !refreshing && now.value - lastRefresh > 5000) {
       refreshing = true;
+      lastRefresh = now.value;
       load().finally(() => (refreshing = false));
     }
   });
@@ -410,8 +434,9 @@ export function useClubGame(
     cooldownLeft,
     challengeLeft,
     coachingLevel,
-    shopPending,
-    shopFull,
+    economy,
+    pendingByCurrency,
+    collectorsFull,
     collecting,
     justBuilt,
     levelReached,
@@ -423,32 +448,21 @@ export function useClubGame(
     showRewards,
     matchResult,
     isQuickSim,
-    bookingMode,
-    inbox,
+    defences,
     snackbar,
     snackbarText,
     snackbarColor,
     toast,
     load,
-    loadInbox,
-    markInboxRead,
+    loadDefences,
     startUpgrade,
-    collectShop,
+    startEcoUpgrade,
+    hireBuilder,
+    collectAll,
     savePlacement,
     findMatch,
     selectOpponent,
     startBattle,
     finishBattle,
-    bookMatch,
   };
-}
-
-/** m:ss, or h:mm:ss for an hour or more. */
-export function formatClock(totalSeconds: number) {
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  const mm = String(m).padStart(2, '0');
-  const ss = String(s).padStart(2, '0');
-  return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
 }

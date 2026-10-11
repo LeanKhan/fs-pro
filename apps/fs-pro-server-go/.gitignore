@@ -1,0 +1,5 @@
+/server
+/server.exe
+*.exe
+*.test
+*.out

@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => ({
         manualChunks: {
           vue: ['vue', 'vue-router', 'pinia'],
           vuetify: ['vuetify'],
-          vendor: ['@vueuse/core', 'axios', 'socket.io-client'],
+          vendor: ['@vueuse/core', 'axios'],
         },
       },
     },
